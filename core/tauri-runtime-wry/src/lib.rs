@@ -13,8 +13,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, Error, GlobalShortcutManager, Icon, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType,
+  ClipboardManager, Dispatch, Error, ExitRequestedEventAction, GlobalShortcutManager, Icon, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
 };
 
 #[cfg(feature = "menu")]
@@ -2063,8 +2063,16 @@ fn on_window_close<'a>(
     callback(RunEvent::WindowClose(webview.label));
   }
   if windows.is_empty() {
-    *control_flow = ControlFlow::Exit;
-    callback(RunEvent::Exit);
+    let (tx, rx) = channel();
+    callback(RunEvent::ExitRequested { tx });
+
+    let recv = rx.try_recv();
+    let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+    if !should_prevent {
+      *control_flow = ControlFlow::Exit;
+      callback(RunEvent::Exit);
+    }
   }
   // TODO: tao does not fire the destroyed event properly
   #[cfg(target_os = "linux")]

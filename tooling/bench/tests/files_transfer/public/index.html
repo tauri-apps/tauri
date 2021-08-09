@@ -24,23 +24,12 @@
             }
           })
           .then((_data) => {
-            window.__TAURI__.invoke('tauri', {
-              __tauriModule: 'Process',
-              message: {
-                cmd: 'exit',
-                exitCode: 0
-              }
-            })
+            // success
+            window.__TAURI__.invoke('app_should_close', {exitCode: 0});
           })
           .catch((_error) => {
             // error
-            window.__TAURI__.invoke('tauri', {
-              __tauriModule: 'Process',
-              message: {
-                cmd: 'exit',
-                exitCode: 1
-              }
-            })
+            window.__TAURI__.invoke('app_should_close', {exitCode: 1});
           })
       })
     </script>

@@ -202,6 +202,7 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
     "hyperfine",
     "--export-json",
     benchmark_file,
+    "--show-output",
     "--warmup",
     "3",
   ]

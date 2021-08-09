@@ -271,9 +271,7 @@ fn main() -> Result<()> {
     .setting(AppSettings::ArgRequiredElseHelp)
     .setting(AppSettings::GlobalVersion)
     .setting(AppSettings::SubcommandRequired)
-    .arg(clap::Arg::new("cargo")
-        .hidden(true)
-        .possible_value("tauri"));
+    .arg(clap::Arg::new("cargo").hidden(true).possible_value("tauri"));
   let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {

@@ -59,7 +59,6 @@ struct InnerListeners {
   pending: Mutex<Vec<Pending>>,
   function_name: Uuid,
   listeners_object_name: Uuid,
-  queue_object_name: Uuid,
 }
 
 /// A self-contained event manager.
@@ -75,7 +74,6 @@ impl Default for Listeners {
         pending: Mutex::default(),
         function_name: Uuid::new_v4(),
         listeners_object_name: Uuid::new_v4(),
-        queue_object_name: Uuid::new_v4(),
       }),
     }
   }
@@ -98,11 +96,6 @@ impl Listeners {
   /// Randomly generated listener object name to represent the JavaScript event listener object.
   pub(crate) fn listeners_object_name(&self) -> String {
     self.inner.listeners_object_name.to_string()
-  }
-
-  /// Randomly generated queue object name to represent the JavaScript event queue object.
-  pub(crate) fn queue_object_name(&self) -> String {
-    self.inner.queue_object_name.to_string()
   }
 
   /// Insert a pending event action to the queue.

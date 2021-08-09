@@ -19,7 +19,7 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::async_runtime::{channel, spawn as spawn_task, Receiver};
+use crate::async_runtime::{block_on as block_on_task, channel, Receiver};
 use os_pipe::{pipe, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -248,7 +248,7 @@ impl Command {
       let reader = BufReader::new(stdout_reader);
       for line in reader.lines() {
         let tx_ = tx_.clone();
-        spawn_task(async move {
+        block_on_task(async move {
           let _ = match line {
             Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
             Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
@@ -264,7 +264,7 @@ impl Command {
       let reader = BufReader::new(stderr_reader);
       for line in reader.lines() {
         let tx_ = tx_.clone();
-        spawn_task(async move {
+        block_on_task(async move {
           let _ = match line {
             Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
             Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
@@ -278,7 +278,7 @@ impl Command {
         Ok(status) => {
           let _l = guard.write().unwrap();
           commands().lock().unwrap().remove(&child_.id());
-          spawn_task(async move {
+          let _ = block_on_task(async move {
             tx.send(CommandEvent::Terminated(TerminatedPayload {
               code: status.code(),
               #[cfg(windows)]
@@ -291,7 +291,7 @@ impl Command {
         }
         Err(e) => {
           let _l = guard.write().unwrap();
-          spawn_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
+          let _ = block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
         }
       };
     });

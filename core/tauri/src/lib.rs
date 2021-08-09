@@ -94,7 +94,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    Icon, RunIteration, Runtime, UserAttentionType,
+    ClipboardManager, GlobalShortcutManager, Icon, RunIteration, Runtime, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::window::{Monitor, Window},
@@ -308,12 +308,20 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state().set(state);
   }
 
-  /// Gets the managed state for the type `T`.
+  /// Gets the managed state for the type `T`. Panics if the type is not managed.
   fn state<T>(&self) -> State<'_, T>
   where
     T: Send + Sync + 'static,
   {
     self.manager().inner.state.get()
+  }
+
+  /// Tries to get the managed state for the type `T`. Returns `None` if the type is not managed.
+  fn try_state<T>(&self) -> Option<State<'_, T>>
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().inner.state.try_get()
   }
 }
 

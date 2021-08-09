@@ -20,7 +20,7 @@ use crate::{
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
-  App, Context, Invoke, StateManager, Window,
+  Context, Invoke, StateManager, Window,
 };
 
 #[cfg(target_os = "windows")]
@@ -60,7 +60,7 @@ const MENU_EVENT: &str = "tauri://menu";
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
-  plugins: Mutex<PluginStore<R>>,
+  pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
 
@@ -353,6 +353,7 @@ impl<R: Runtime> WindowManager<R> {
 
         let asset_response = assets
           .get(&path.as_str().into())
+          .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
           .or_else(|| {
             #[cfg(debug_assertions)]
             eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
@@ -396,8 +397,8 @@ impl<R: Runtime> WindowManager<R> {
       crate::async_runtime::block_on(async move {
         let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
-          FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop", Some(paths)),
-          FileDropEvent::Dropped(paths) => window.emit("tauri://file-drop-hover", Some(paths)),
+          FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", Some(paths)),
+          FileDropEvent::Dropped(paths) => window.emit("tauri://file-drop", Some(paths)),
           FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", Some(())),
           _ => unimplemented!(),
         };
@@ -444,15 +445,8 @@ impl<R: Runtime> WindowManager<R> {
   fn event_initialization_script(&self, key: u32) -> String {
     return format!(
       "
-      window['{queue}'] = [];
-      window['{function}'] = function (eventData, salt, ignoreQueue) {{
+      window['{function}'] = function (eventData, salt) {{
       const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-      if (!ignoreQueue && listeners.length === 0) {{
-        window['{queue}'].push({{
-          eventData: eventData,
-          salt: salt
-        }})
-      }}
 
       if (listeners.length > 0) {{
         window.__TAURI__._invoke('tauri', {{
@@ -475,7 +469,6 @@ impl<R: Runtime> WindowManager<R> {
     ",
       key = key,
       function = self.inner.listeners.function_name(),
-      queue = self.inner.listeners.queue_object_name(),
       listeners = self.inner.listeners.listeners_object_name()
     );
   }
@@ -533,7 +526,7 @@ impl<R: Runtime> WindowManager<R> {
       .extend_api(invoke);
   }
 
-  pub fn initialize_plugins(&self, app: &App<R>) -> crate::Result<()> {
+  pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
     self
       .inner
       .plugins
@@ -712,9 +705,6 @@ impl<R: Runtime> WindowManager<R> {
   }
   pub fn event_listeners_object_name(&self) -> String {
     self.inner.listeners.listeners_object_name()
-  }
-  pub fn event_queue_object_name(&self) -> String {
-    self.inner.listeners.queue_object_name()
   }
   pub fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()

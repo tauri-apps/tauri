@@ -119,7 +119,7 @@ where
   /// The default behaviour is to append [`default`] to the prompt to tell the
   /// user what is the default value.
   ///
-  /// This method does not affect existance of default value, only its display in the prompt!
+  /// This method does not affect existence of default value, only its display in the prompt!
   pub fn show_default(&mut self, val: bool) -> &mut Input<'a, T> {
     self.show_default = val;
     self

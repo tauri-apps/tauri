@@ -87,15 +87,8 @@ pub fn listen_js<R: Runtime>(
       id: {event_id},
       handler: window['{handler}']
     }});
-
-    for (let i = 0; i < (window['{queue}'] || []).length; i++) {{
-      const e = window['{queue}'][i];
-      window['{emit}'](e.eventData, e.salt, true)
-    }}
   ",
     listeners = window.manager().event_listeners_object_name(),
-    queue = window.manager().event_queue_object_name(),
-    emit = window.manager().event_emit_function_name(),
     event = event,
     event_id = event_id,
     handler = handler

@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */ /** */
+/** @ignore */
 
 import { invoke } from '../tauri'
 
 type TauriModule =
   | 'App'
   | 'Fs'
+  | 'Path'
   | 'Os'
   | 'Window'
   | 'Shell'

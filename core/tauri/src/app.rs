@@ -15,7 +15,7 @@ use crate::{
   runtime::{
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, RunEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   Context, Invoke, InvokeError, Manager, StateManager, Window,
@@ -47,7 +47,19 @@ pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) 
 #[cfg(feature = "system-tray")]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
+/// Api exposed on the `ExitRequested` event.
+#[derive(Debug)]
+pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
+
+impl ExitRequestApi {
+  /// Prevents the app from exiting
+  pub fn prevent_exit(&self) {
+    self.0.send(ExitRequestedEventAction::Prevent).unwrap();
+  }
+}
+
 /// Api exposed on the `CloseRequested` event.
+#[derive(Debug)]
 pub struct CloseRequestApi(Sender<bool>);
 
 impl CloseRequestApi {
@@ -58,10 +70,17 @@ impl CloseRequestApi {
 }
 
 /// An application event, triggered from the event loop.
+#[derive(Debug)]
 #[non_exhaustive]
 pub enum Event {
   /// Event loop is exiting.
   Exit,
+  /// The app is about to exit
+  #[non_exhaustive]
+  ExitRequested {
+    /// Event API
+    api: ExitRequestApi,
+  },
   /// Window close was requested by the user.
   #[non_exhaustive]
   CloseRequested {
@@ -158,6 +177,18 @@ impl AppHandle<crate::Wry> {
   ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
+
+  /// Sends a window message to the event loop.
+  pub fn send_tao_window_event(
+    &self,
+    window_id: tauri_runtime_wry::WindowId,
+    message: tauri_runtime_wry::WindowMessage,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .send_event(tauri_runtime_wry::Message::Window(window_id, message))
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Clone for AppHandle<R> {
@@ -186,6 +217,47 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()> {
     self.runtime_handle.remove_system_tray().map_err(Into::into)
+  }
+
+  /// Adds a plugin to the runtime.
+  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
+    plugin
+      .initialize(
+        self,
+        self
+          .config()
+          .plugins
+          .0
+          .get(plugin.name())
+          .cloned()
+          .unwrap_or_default(),
+      )
+      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
+    self
+      .manager()
+      .inner
+      .plugins
+      .lock()
+      .unwrap()
+      .register(plugin);
+    Ok(())
+  }
+
+  /// Exits the app
+  pub fn exit(&self, exit_code: i32) {
+    std::process::exit(exit_code);
+  }
+
+  /// Runs necessary cleanup tasks before exiting the process
+  fn cleanup_before_exit(&self) {
+    #[cfg(shell_execute)]
+    {
+      crate::api::process::kill_children();
+    }
+    #[cfg(all(windows, feature = "system-tray"))]
+    {
+      let _ = self.remove_system_tray();
+    }
   }
 }
 
@@ -320,14 +392,7 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
-        #[cfg(shell_execute)]
-        {
-          crate::api::process::kill_children();
-        }
-        #[cfg(all(windows, feature = "system-tray"))]
-        {
-          let _ = app_handle.remove_system_tray();
-        }
+        app_handle.cleanup_before_exit();
         callback(&app_handle, Event::Exit);
       }
       _ => {
@@ -336,6 +401,9 @@ impl<R: Runtime> App<R> {
           &app_handle,
           match event {
             RunEvent::Exit => Event::Exit,
+            RunEvent::ExitRequested { tx } => Event::ExitRequested {
+              api: ExitRequestApi(tx),
+            },
             RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
               label: label.parse().unwrap_or_else(|_| unreachable!()),
               api: CloseRequestApi(signal_tx),
@@ -820,7 +888,7 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manager.initialize_plugins(&app)?;
+    app.manager.initialize_plugins(&app.handle())?;
 
     let pending_labels = self
       .pending_windows

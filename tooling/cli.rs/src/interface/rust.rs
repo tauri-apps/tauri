@@ -390,6 +390,16 @@ fn tauri_config_to_bundle_settings(
     }
   }
 
+  let signing_identity = match std::env::var_os("APPLE_SIGNING_IDENTITY") {
+    Some(signing_identity) => Some(
+      signing_identity
+        .to_str()
+        .expect("failed to convert APPLE_SIGNING_IDENTITY to string")
+        .to_string(),
+    ),
+    None => config.macos.signing_identity,
+  };
+
   Ok(BundleSettings {
     identifier: config.identifier,
     icon: config.icon,
@@ -424,7 +434,7 @@ fn tauri_config_to_bundle_settings(
       license: config.macos.license,
       use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
-      signing_identity: config.macos.signing_identity,
+      signing_identity,
       entitlements: config.macos.entitlements,
     },
     windows: WindowsSettings {

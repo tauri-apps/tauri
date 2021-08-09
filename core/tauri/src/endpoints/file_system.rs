@@ -93,11 +93,6 @@ pub enum Cmd {
     new_path: PathBuf,
     options: Option<FileOperationOptions>,
   },
-  /// The resolve path API
-  ResolvePath {
-    path: String,
-    directory: Option<BaseDirectory>,
-  },
 }
 
 impl Cmd {
@@ -201,13 +196,6 @@ impl Cmd {
       Self::RenameFile { .. } => Err(crate::Error::ApiNotAllowlisted(
         "fs > renameFile".to_string(),
       )),
-
-      #[cfg(fs_path)]
-      Self::ResolvePath { path, directory } => {
-        resolve_path_handler(&config, package_info, path, directory).map(Into::into)
-      }
-      #[cfg(not(fs_path))]
-      Self::ResolvePath { .. } => Err(crate::Error::ApiNotAllowlisted("fs > path".to_string())),
     }
   }
 }
@@ -403,16 +391,6 @@ pub fn read_binary_file(
     options.and_then(|o| o.dir),
   )?)
   .map_err(crate::Error::FailedToExecuteApi)
-}
-
-#[cfg(fs_path)]
-pub fn resolve_path_handler(
-  config: &Config,
-  package_info: &PackageInfo,
-  path: String,
-  directory: Option<BaseDirectory>,
-) -> crate::Result<PathBuf> {
-  resolve_path(config, package_info, path, directory).map_err(Into::into)
 }
 
 // test webview functionality.

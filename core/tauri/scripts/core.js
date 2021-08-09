@@ -205,7 +205,7 @@ if (!String.prototype.startsWith) {
             cmd: 'manage',
             data: {
               cmd: {
-                type: e.detail === 2 ? 'toggleMaximize' : 'startDragging'
+                type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
               }
             }
           }
@@ -260,7 +260,7 @@ if (!String.prototype.startsWith) {
 
   function requestPermission() {
     return window.__TAURI__
-      .invoke(
+      ._invoke(
         'tauri',
         {
           __tauriModule: 'Notification',

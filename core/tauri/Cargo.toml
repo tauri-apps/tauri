@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.7", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
+tokio = { version = "1.9", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
@@ -63,17 +63,17 @@ notify-rust = { version = "4.5", optional = true }
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.17", features = [ "json", "form" ] }
-open = { version = "1.7", optional = true }
+open = { version = "2.0", optional = true }
 shared_child = { version = "0.3", optional = true }
 os_pipe = { version = "0.9", optional = true }
-rfd = "0.4"
+rfd = "0.4.1"
 raw-window-handle = { version = "0.3.3", optional = true }
 minisign-verify = { version = "0.1", optional = true }
 os_info = { version = "3.0.6", optional = true}
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.9", features = [ "v3_16" ] }
-glib = "0.10"
+gtk = { version = "0.14", features = [ "v3_20" ] }
+glib = "0.14"
 
 [build-dependencies]
 cfg_aliases = "0.1.1"
@@ -100,13 +100,14 @@ api-all = [
   "shell-all",
   "os-all",
   "dialog-all",
-  "updater"
+  "updater",
+  "path-all"
 ]
 updater = [ "minisign-verify", "base64" ]
 menu = [ "tauri-runtime/menu", "tauri-runtime-wry/menu" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 reqwest-client = [ "reqwest", "bytes" ]
-fs-all = [ ]
+fs-all = [ "fs-write-binary-file" ]
 fs-read-text-file = [ ]
 fs-read-binary-file = [ ]
 fs-write-file = [ ]
@@ -117,7 +118,7 @@ fs-create-dir = [ ]
 fs-remove-dir = [ ]
 fs-remove-file = [ ]
 fs-rename-file = [ ]
-fs-path = [ ]
+path-all = [ ]
 window-all = [ ]
 window-create = [ ]
 shell-all = [ "shell-open", "shell-execute" ]

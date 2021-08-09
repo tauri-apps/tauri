@@ -43,12 +43,12 @@ export const vanillajs: Recipe = {
     console.log(`
     Your installation completed.
 
-  $ cd ${cfg.appName}
-  $ ${packageManager} install
-  $ ${packageManager === 'yarn' ? 'yarn' : 'npm run'} tauri ${
-      packageManager === 'npm' ? '-- ' : ''
+    $ cd ${cfg.appName}
+    $ ${packageManager} install
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
+      packageManager === 'npm' ? '--' : ''
     }dev
-  `)
+    `)
     return await Promise.resolve()
   }
 }

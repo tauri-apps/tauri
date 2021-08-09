@@ -1,7 +1,7 @@
 name: cargo-tauri
 bin_name: cargo
-author: Lucas Nogueira <lucas@tauri.studio>
-about: The Tauri command line interface.
+author: Tauri Programme within The Commons Conservancy.
+about: The Tauri command line interface. It is distributed as a Cargo subcommand and the recommended way to run it is using `$ cargo tauri [COMMAND]`.
 subcommands:
   - tauri:
       about: Tauri CLI

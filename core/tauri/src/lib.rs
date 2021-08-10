@@ -155,6 +155,7 @@ macro_rules! tauri_build_context {
 /// # Stability
 /// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
+#[derive(Debug)]
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,

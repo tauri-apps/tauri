@@ -18,7 +18,7 @@ use std::path::MAIN_SEPARATOR;
 ///   .show();
 /// ```
 #[allow(dead_code)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Notification {
   /// The notification body.
   body: Option<String>,

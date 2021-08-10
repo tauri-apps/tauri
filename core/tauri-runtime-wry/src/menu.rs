@@ -56,7 +56,7 @@ pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandl
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[cfg(feature = "system-tray")]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SystemTrayHandle {
   pub(crate) proxy: EventLoopProxy<super::Message>,
 }
@@ -87,6 +87,7 @@ impl TrayHandle for SystemTrayHandle {
 }
 
 #[cfg(target_os = "macos")]
+#[derive(Debug)]
 pub struct NativeImageWrapper(pub WryNativeImage);
 
 #[cfg(target_os = "macos")]

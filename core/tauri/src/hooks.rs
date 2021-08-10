@@ -39,6 +39,7 @@ impl PageLoadPayload {
 
 /// The message and resolver given to a custom command.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.
   pub message: InvokeMessage<R>,
@@ -116,6 +117,7 @@ impl From<InvokeError> for InvokeResponse {
 
 /// Resolver of a invoke message.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
   pub(crate) callback: String,
@@ -235,6 +237,7 @@ impl<R: Runtime> InvokeResolver<R> {
 
 /// An invoke message.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct InvokeMessage<R: Runtime> {
   /// The window that received the invoke message.
   pub(crate) window: Window<R>,

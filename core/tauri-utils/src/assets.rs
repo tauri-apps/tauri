@@ -80,6 +80,7 @@ pub trait Assets: Send + Sync + 'static {
 }
 
 /// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
+#[derive(Debug)]
 pub struct EmbeddedAssets(phf::Map<&'static str, &'static [u8]>);
 
 impl EmbeddedAssets {

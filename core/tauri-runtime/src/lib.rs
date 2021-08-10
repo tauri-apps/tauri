@@ -31,6 +31,7 @@ use window::{
 
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
+#[derive(Debug)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
@@ -193,6 +194,7 @@ pub enum ExitRequestedEventAction {
 }
 
 /// A system tray event.
+#[derive(Debug)]
 pub enum SystemTrayEvent {
   MenuItemClick(u16),
   LeftClick {
@@ -216,7 +218,7 @@ pub struct RunIteration {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Send + Sized + Clone + 'static {
+pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
   /// Create a new webview window.
   fn create_window(
@@ -230,7 +232,7 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
 }
 
 /// A global shortcut manager.
-pub trait GlobalShortcutManager {
+pub trait GlobalShortcutManager: Debug {
   /// Whether the application has registered the given `accelerator`.
   ///
   /// # Panics
@@ -269,7 +271,7 @@ pub trait GlobalShortcutManager {
 }
 
 /// Clipboard manager.
-pub trait ClipboardManager {
+pub trait ClipboardManager: Debug {
   /// Writes the text into the clipboard as plain text.
   ///
   /// # Panics
@@ -335,7 +337,7 @@ pub trait Runtime: Sized + 'static {
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Clone + Send + Sized + 'static {
+pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime;
 

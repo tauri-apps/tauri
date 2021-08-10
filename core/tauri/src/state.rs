@@ -45,6 +45,7 @@ impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for S
 }
 
 /// The Tauri state manager.
+#[derive(Debug)]
 pub struct StateManager(pub(crate) Container![Send + Sync]);
 
 impl StateManager {

@@ -12,6 +12,7 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { emit as emitEvent } from './helpers/event'
 import { transformCallback } from './tauri'
+import { LiteralUnion } from 'type-fest'
 
 interface Event<T> {
   /** Event name */
@@ -22,7 +23,7 @@ interface Event<T> {
   payload: T
 }
 
-type EventName =
+type EventName = LiteralUnion<
   | 'tauri://update'
   | 'tauri://update-available'
   | 'tauri://update-install'
@@ -37,8 +38,9 @@ type EventName =
   | 'tauri://menu'
   | 'tauri://file-drop'
   | 'tauri://file-drop-hover'
-  | 'tauri://file-drop-cancelled'
-  | string
+  | 'tauri://file-drop-cancelled',
+  string
+>
 
 type EventCallback<T> = (event: Event<T>) => void
 

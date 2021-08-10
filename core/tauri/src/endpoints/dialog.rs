@@ -114,35 +114,18 @@ impl Cmd {
   }
 }
 
-#[cfg(all(target_os = "linux", any(dialog_open, dialog_save)))]
+#[cfg(any(dialog_open, dialog_save))]
 fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,
 ) -> FileDialogBuilder {
   if default_path.is_file() || !default_path.exists() {
-    dialog_builder = dialog_builder.set_file_name(&default_path.to_string_lossy().to_string());
-    dialog_builder.set_directory(default_path.parent().unwrap())
-  } else {
-    dialog_builder.set_directory(default_path)
-  }
-}
-
-#[cfg(all(any(windows, target_os = "macos"), any(dialog_open, dialog_save)))]
-fn set_default_path(
-  mut dialog_builder: FileDialogBuilder,
-  default_path: PathBuf,
-) -> FileDialogBuilder {
-  if default_path.is_file() {
-    if let Some(parent) = default_path.parent() {
+    if let (Some(parent), Some(file_name)) = (default_path.parent(), default_path.file_name()) {
       dialog_builder = dialog_builder.set_directory(parent);
+      dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy().to_string());
+    } else {
+      dialog_builder = dialog_builder.set_directory(default_path);
     }
-    dialog_builder = dialog_builder.set_file_name(
-      &default_path
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string(),
-    );
     dialog_builder
   } else {
     dialog_builder.set_directory(default_path)

@@ -91,7 +91,7 @@ impl RemoteRelease {
 
     let download_url;
     #[cfg(target_os = "windows")]
-    let mut with_elevated_task = false;
+    let with_elevated_task;
 
     match release.get("platforms") {
       //

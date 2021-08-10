@@ -11,6 +11,8 @@ use std::{
 };
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
@@ -212,8 +214,7 @@ impl AppSettings {
             BundleBinary::new(
               config
                 .package
-                .product_name
-                .clone()
+                .binary_name()
                 .unwrap_or_else(|| binary.name.clone()),
               true,
             )
@@ -244,16 +245,15 @@ impl AppSettings {
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
-          if let Some(product_name) = config.package.product_name.clone() {
-            bin.set_name(product_name);
+          if let Some(bin_name) = config.package.binary_name() {
+            bin.set_name(bin_name);
           }
         }
         None => {
           binaries.push(BundleBinary::new(
             config
               .package
-              .product_name
-              .clone()
+              .binary_name()
               .unwrap_or_else(|| default_run.to_string()),
             true,
           ));
@@ -263,6 +263,9 @@ impl AppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
+        #[cfg(target_os = "linux")]
+        self.package_settings.product_name.to_kebab_case(),
+        #[cfg(not(target_os = "linux"))]
         self.package_settings.product_name.clone(),
         true,
       )),

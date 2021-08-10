@@ -4,6 +4,8 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -101,6 +103,20 @@ pub struct PackageConfig {
   pub product_name: Option<String>,
   /// App version.
   pub version: Option<String>,
+}
+
+impl PackageConfig {
+  #[allow(dead_code)]
+  pub fn binary_name(&self) -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+      self.product_name.as_ref().map(|n| n.to_kebab_case())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      self.product_name.clone()
+    }
+  }
 }
 
 #[skip_serializing_none]

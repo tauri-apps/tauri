@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
@@ -139,8 +141,15 @@ impl Build {
           out_dir.join(format!("{}.exe", product_name)),
         )
       };
-      #[cfg(not(windows))]
+      #[cfg(target_os = "macos")]
       let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+      #[cfg(target_os = "linux")]
+      let (bin_path, product_path) = {
+        (
+          out_dir.join(bin_name),
+          out_dir.join(product_name.to_kebab_case()),
+        )
+      };
       rename(&bin_path, &product_path).with_context(|| {
         format!(
           "failed to rename `{}` to `{}`",

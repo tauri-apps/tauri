@@ -4,6 +4,7 @@ import fs from 'fs'
 import got from 'got'
 import { CargoManifest } from '../types/cargo'
 import path from 'path'
+import { bootstrap } from 'global-agent'
 const pipeline = promisify(stream.pipeline)
 
 // Webpack reads the file at build-time, so this becomes a static var
@@ -36,6 +37,10 @@ async function downloadBinaryRelease(
   process.on('SIGTERM', removeDownloadedCliIfNeeded)
   process.on('SIGHUP', removeDownloadedCliIfNeeded)
   process.on('SIGBREAK', removeDownloadedCliIfNeeded)
+
+  bootstrap({
+    environmentVariableNamespace: ''
+  })
 
   // TODO: Check hash of download
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-fs-filename

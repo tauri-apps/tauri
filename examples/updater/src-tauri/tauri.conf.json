@@ -40,7 +40,7 @@
         "digestAlgorithm": null,
         "timestampUrl": null,
         "wix": {
-          "enableElevatedUpdateTask": true
+          "enableElevatedUpdateTask": false
         }
       }
     },

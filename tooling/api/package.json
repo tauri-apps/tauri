@@ -66,6 +66,7 @@
     "rollup": "2.56.1",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.3.0",
+    "type-fest": "2.0.0",
     "typedoc": "0.21.5",
     "typedoc-plugin-markdown": "3.10.4",
     "typescript": "4.3.5"

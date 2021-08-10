@@ -249,7 +249,7 @@ class WebviewWindowHandle {
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
       return Promise.resolve(() => {
-        // eslint-disable-next-line security/detect-object-injection
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
       })

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "strict": true,
-    "module": "commonjs",
+    "module": "es2020",
     "target": "es5",
     "allowJs": true,
     "esModuleInterop": true,

@@ -89,10 +89,10 @@ fn main() {
       // ...
 
       // After it's done, close the splashscreen and display the main window
-      if let Some(splashscreen) = app.get_window(&"splashscreen".into()) {
+      if let Some(splashscreen) = app.get_window("splashscreen") {
         splashscreen.close().unwrap();
       }
-      app.get_window(&"main".into()).unwrap().show().unwrap();
+      app.get_window("main").unwrap().show().unwrap();
       Ok(())
     })
     .run(tauri::generate_context!())

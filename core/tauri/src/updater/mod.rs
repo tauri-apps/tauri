@@ -490,7 +490,7 @@ pub(crate) fn listener<R: Runtime>(
                   // emit {"status": "DONE"}
                   send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
                 }
-              })
+              });
             });
           } else {
             send_status_update(window.clone(), EVENT_STATUS_UPTODATE, None);
@@ -500,7 +500,7 @@ pub(crate) fn listener<R: Runtime>(
           send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
         }
       }
-    })
+    });
   });
 }
 

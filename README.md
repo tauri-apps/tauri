@@ -1,4 +1,4 @@
-<img src="docs/splash.svg" alt="Tauri" />
+<img src="docs/splash.png" alt="Tauri" />
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)

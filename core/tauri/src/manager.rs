@@ -80,6 +80,7 @@ pub struct InnerWindowManager<R: Runtime> {
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  registered_scheme_protocols: Mutex<Vec<String>>,
   /// The menu set to all windows.
   #[cfg(feature = "menu")]
   menu: Option<Menu>,
@@ -172,6 +173,7 @@ impl<R: Runtime> WindowManager<R> {
         salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
+        registered_scheme_protocols: Default::default(),
         #[cfg(feature = "menu")]
         menu_ids: {
           let mut map = HashMap::new();
@@ -277,6 +279,8 @@ impl<R: Runtime> WindowManager<R> {
       ));
     }
 
+    pending.webview_attributes = webview_attributes;
+
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
         let icon = Icon::Raw(default_window_icon.clone());
@@ -291,27 +295,27 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    let mut registered_scheme_protocols = self.inner.registered_scheme_protocols.lock().unwrap();
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
-      if !webview_attributes.has_uri_scheme_protocol(uri_scheme) {
+      if !registered_scheme_protocols.contains(uri_scheme) {
+        registered_scheme_protocols.push(uri_scheme.clone());
         let protocol = protocol.clone();
-        webview_attributes = webview_attributes
-          .register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
+        pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
       }
     }
 
-    if !webview_attributes.has_uri_scheme_protocol("tauri") {
-      webview_attributes = webview_attributes
-        .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+    if !registered_scheme_protocols.contains(&"tauri".into()) {
+      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+      registered_scheme_protocols.push("tauri".into());
     }
-    if !webview_attributes.has_uri_scheme_protocol("asset") {
-      webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
+    if !registered_scheme_protocols.contains(&"asset".into()) {
+      pending.register_uri_scheme_protocol("asset", move |url| {
         let path = url.replace("asset://", "");
         let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
         Ok(data)
       });
+      registered_scheme_protocols.push("asset".into());
     }
-
-    pending.webview_attributes = webview_attributes;
 
     Ok(pending)
   }
@@ -350,6 +354,7 @@ impl<R: Runtime> WindowManager<R> {
     let manager = self.clone();
     CustomProtocol {
       protocol: Box::new(move |path| {
+        println!("protocol {:?}", path);
         let mut path = path
           .split(&['?', '#'][..])
           // ignore query string

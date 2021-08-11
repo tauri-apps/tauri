@@ -11,7 +11,13 @@ use crate::{
 use serde::Serialize;
 use tauri_utils::config::WindowConfig;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  collections::HashMap,
+  hash::{Hash, Hasher},
+};
+
+type UriSchemeProtocol =
+  dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 /// UI scaling utilities.
 pub mod dpi;
@@ -65,6 +71,8 @@ pub struct PendingWindow<R: Runtime> {
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
 
+  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
+
   /// How to handle RPC calls on the webview window.
   pub rpc_handler: Option<WebviewRpcHandler<R>>,
 
@@ -85,6 +93,7 @@ impl<R: Runtime> PendingWindow<R> {
     Self {
       window_builder,
       webview_attributes,
+      uri_scheme_protocols: Default::default(),
       label: label.into(),
       rpc_handler: None,
       file_drop_handler: None,
@@ -101,11 +110,26 @@ impl<R: Runtime> PendingWindow<R> {
     Self {
       window_builder: <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config),
       webview_attributes,
+      uri_scheme_protocols: Default::default(),
       label: label.into(),
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
     }
+  }
+
+  pub fn register_uri_scheme_protocol<
+    N: Into<String>,
+    H: Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static,
+  >(
+    &mut self,
+    uri_scheme: N,
+    protocol: H,
+  ) {
+    let uri_scheme = uri_scheme.into();
+    self
+      .uri_scheme_protocols
+      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
   }
 }
 

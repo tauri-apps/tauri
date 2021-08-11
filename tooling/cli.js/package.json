@@ -55,7 +55,7 @@
     "fs-extra": "10.0.0",
     "global-agent": "3.0.0",
     "got": "11.8.2",
-    "imagemin": "8.0.0",
+    "imagemin": "8.0.1",
     "imagemin-optipng": "8.0.0",
     "imagemin-zopfli": "7.0.0",
     "inquirer": "8.1.2",

@@ -78,6 +78,7 @@ pub enum SystemTrayEvent {
 
 /// A handle to a system tray. Allows updating the context menu items.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct SystemTrayHandle<R: Runtime> {
   pub(crate) ids: Arc<HashMap<MenuHash, MenuId>>,
   pub(crate) inner: R::TrayHandler,
@@ -94,6 +95,7 @@ impl<R: Runtime> Clone for SystemTrayHandle<R> {
 
 /// A handle to a system tray menu item.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct SystemTrayMenuItemHandle<R: Runtime> {
   id: MenuHash,
   tray_handler: R::TrayHandler,

@@ -97,6 +97,7 @@ pub enum Event {
 #[cfg(feature = "menu")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct WindowMenuEvent<R: Runtime> {
   pub(crate) menu_item_id: MenuId,
   pub(crate) window: Window<R>,
@@ -117,6 +118,7 @@ impl<R: Runtime> WindowMenuEvent<R> {
 
 /// A window event that was triggered on the specified window.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct GlobalWindowEvent<R: Runtime> {
   pub(crate) event: WindowEvent,
   pub(crate) window: Window<R>,
@@ -157,6 +159,7 @@ impl PathResolver {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
@@ -280,6 +283,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,

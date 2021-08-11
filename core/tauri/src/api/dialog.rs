@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 /// The file dialog builder.
 /// Constructs file picker dialogs that can select single/multiple files or directories.
 #[cfg(any(dialog_open, dialog_save))]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FileDialogBuilder(rfd::FileDialog);
 
 #[cfg(any(dialog_open, dialog_save))]

@@ -69,6 +69,7 @@ use std::{
     HashMap,
   },
   convert::TryFrom,
+  fmt,
   fs::read,
   path::PathBuf,
   sync::{
@@ -126,7 +127,7 @@ macro_rules! getter {
   }};
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct EventLoopContext {
   main_thread_id: ThreadId,
   is_event_loop_running: Arc<AtomicBool>,
@@ -144,6 +145,15 @@ pub struct GlobalShortcutManagerHandle {
   context: EventLoopContext,
   shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   listeners: GlobalShortcutListeners,
+}
+
+impl fmt::Debug for GlobalShortcutManagerHandle {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("GlobalShortcutManagerHandle")
+      .field("context", &self.context)
+      .field("shortcuts", &self.shortcuts)
+      .finish()
+  }
 }
 
 impl GlobalShortcutManager for GlobalShortcutManagerHandle {
@@ -205,7 +215,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ClipboardManagerWrapper {
   context: EventLoopContext,
 }
@@ -728,7 +738,7 @@ pub enum WebviewEvent {
 }
 
 #[cfg(feature = "system-tray")]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum TrayMessage {
   UpdateItem(u16, menu::MenuUpdate),
   UpdateIcon(Icon),
@@ -736,7 +746,7 @@ pub enum TrayMessage {
   UpdateIconAsTemplate(bool),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum GlobalShortcutMessage {
   IsRegistered(Accelerator, Sender<bool>),
   Register(Accelerator, Sender<Result<GlobalShortcutWrapper>>),
@@ -744,7 +754,7 @@ pub enum GlobalShortcutMessage {
   UnregisterAll(Sender<Result<()>>),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum ClipboardMessage {
   WriteText(String, Sender<()>),
   ReadText(Sender<Option<String>>),
@@ -780,8 +790,18 @@ struct DispatcherContext {
   menu_event_listeners: MenuEventListeners,
 }
 
+impl fmt::Debug for DispatcherContext {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("DispatcherContext")
+      .field("main_thread_id", &self.main_thread_id)
+      .field("is_event_loop_running", &self.is_event_loop_running)
+      .field("proxy", &self.proxy)
+      .finish()
+  }
+}
+
 /// The Tauri [`Dispatch`] for [`Wry`].
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WryDispatcher {
   window_id: WindowId,
   context: DispatcherContext,
@@ -1261,7 +1281,7 @@ pub struct Wry {
 }
 
 /// A handle to the Wry runtime.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WryHandle {
   dispatcher_context: DispatcherContext,
 }

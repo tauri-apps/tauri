@@ -8,9 +8,9 @@ use crate::{
   api::config::PluginConfig, runtime::Runtime, AppHandle, Invoke, PageLoadPayload, Window,
 };
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-
 use tauri_macros::default_runtime;
+
+use std::{collections::HashMap, fmt};
 
 /// The plugin result type.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -52,6 +52,14 @@ pub trait Plugin<R: Runtime>: Send {
 #[default_runtime(crate::Wry, wry)]
 pub(crate) struct PluginStore<R: Runtime> {
   store: HashMap<&'static str, Box<dyn Plugin<R>>>,
+}
+
+impl<R: Runtime> fmt::Debug for PluginStore<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("PluginStore")
+      .field("plugins", &self.store.keys())
+      .finish()
+  }
 }
 
 impl<R: Runtime> Default for PluginStore<R> {

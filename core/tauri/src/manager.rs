@@ -40,6 +40,7 @@ use serde_json::Value as JsonValue;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
+  fmt,
   fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
@@ -92,7 +93,29 @@ pub struct InnerWindowManager<R: Runtime> {
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
 }
 
+impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut s = f.debug_struct("InnerWindowManager");
+    #[allow(unused_mut)]
+    let mut w = s
+      .field("plugins", &self.plugins)
+      .field("state", &self.state)
+      .field("config", &self.config)
+      .field("default_window_icon", &self.default_window_icon)
+      .field("salts", &self.salts)
+      .field("package_info", &self.package_info);
+    #[cfg(feature = "menu")]
+    {
+      w = w
+        .field("menu", &self.menu)
+        .field("menu_ids", &self.menu_ids);
+    }
+    w.finish()
+  }
+}
+
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct WindowManager<R: Runtime> {
   pub inner: Arc<InnerWindowManager<R>>,
   invoke_keys: Arc<Mutex<Vec<u32>>>,

@@ -16,7 +16,7 @@ use tauri_utils::config::{WindowConfig, WindowUrl};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt, path::PathBuf};
 
 type UriSchemeProtocol =
   dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static;
@@ -28,6 +28,17 @@ pub struct WebviewAttributes {
   pub data_directory: Option<PathBuf>,
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
   pub file_drop_handler_enabled: bool,
+}
+
+impl fmt::Debug for WebviewAttributes {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WebviewAttributes")
+      .field("url", &self.url)
+      .field("initialization_scripts", &self.initialization_scripts)
+      .field("data_directory", &self.data_directory)
+      .field("file_drop_handler_enabled", &self.file_drop_handler_enabled)
+      .finish()
+  }
 }
 
 impl WebviewAttributes {
@@ -93,7 +104,7 @@ impl WebviewAttributes {
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
-pub trait WindowBuilderBase: Sized {}
+pub trait WindowBuilderBase: fmt::Debug + Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
@@ -189,6 +200,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 }
 
 /// Rpc request.
+#[derive(Debug)]
 pub struct RpcRequest {
   /// RPC command.
   pub command: String,
@@ -222,7 +234,7 @@ pub type WebviewRpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, RpcRequest) + Send
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
 pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bool + Send>;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct InvokePayload {
   #[serde(rename = "__tauriModule")]
   pub tauri_module: Option<String>,

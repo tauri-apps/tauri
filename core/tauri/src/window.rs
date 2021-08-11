@@ -86,6 +86,7 @@ impl Monitor {
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   window: DetachedWindow<R>,

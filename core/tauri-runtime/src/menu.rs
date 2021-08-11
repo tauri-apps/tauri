@@ -4,6 +4,7 @@
 
 use std::{
   collections::hash_map::DefaultHasher,
+  fmt,
   hash::{Hash, Hasher},
 };
 
@@ -145,7 +146,7 @@ pub enum MenuUpdate {
   SetNativeImage(NativeImage),
 }
 
-pub trait TrayHandle {
+pub trait TrayHandle: fmt::Debug {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]

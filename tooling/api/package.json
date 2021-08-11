@@ -65,7 +65,7 @@
     "rimraf": "3.0.2",
     "rollup": "2.56.2",
     "rollup-plugin-terser": "7.0.2",
-    "tslib": "2.3.0",
+    "tslib": "2.3.1",
     "type-fest": "2.0.0",
     "typedoc": "0.21.5",
     "typedoc-plugin-markdown": "3.10.4",

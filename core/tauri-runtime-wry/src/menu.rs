@@ -87,8 +87,14 @@ impl TrayHandle for SystemTrayHandle {
 }
 
 #[cfg(target_os = "macos")]
-#[derive(Debug)]
 pub struct NativeImageWrapper(pub WryNativeImage);
+
+#[cfg(target_os = "macos")]
+impl std::fmt::Debug for NativeImageWrapper {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("NativeImageWrapper").finish()
+  }
+}
 
 #[cfg(target_os = "macos")]
 impl From<NativeImage> for NativeImageWrapper {

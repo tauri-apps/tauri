@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   globals: {
     __DEV__: true
   },
@@ -43,5 +43,5 @@ module.exports = {
     '\\.toml$': 'jest-transform-toml',
     '\\.(js|ts)$': 'babel-jest'
   },
-  transformIgnorePatterns: ['node_modules/(?!(is-png|imagemin|p-pipe)/)']
+  extensionsToTreatAsEsm: ['.ts']
 }

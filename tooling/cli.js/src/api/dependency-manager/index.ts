@@ -9,17 +9,16 @@ import * as npmPackages from './npm-packages'
 
 const log = logger('dependency:manager')
 
-module.exports = {
-  async installDependencies() {
-    log('Installing missing dependencies...')
-    await rust.install()
-    await cargoCrates.install()
-    await npmPackages.install()
-  },
-  async updateDependencies() {
-    log('Updating dependencies...')
-    await rust.update()
-    await cargoCrates.update()
-    await npmPackages.update()
-  }
+export async function installDependencies(): Promise<void> {
+  log('Installing missing dependencies...')
+  await rust.install()
+  await cargoCrates.install()
+  await npmPackages.install()
+}
+
+export async function updateDependencies(): Promise<void> {
+  log('Updating dependencies...')
+  await rust.update()
+  await cargoCrates.update()
+  await npmPackages.update()
 }

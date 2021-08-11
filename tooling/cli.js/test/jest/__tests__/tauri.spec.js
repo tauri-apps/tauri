@@ -1,4 +1,8 @@
-const { tauri } = require('bin/tauri')
+import tauri from 'bin/tauri'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+
+const { version } = require('../../../package.json')
 
 describe('[CLI] cli.js', () => {
   it('displays a help message', async () => {
@@ -29,7 +33,6 @@ describe('[CLI] cli.js', () => {
   it('gets you version', async () => {
     jest.spyOn(console, 'log')
     const tests = ['--version', '-v']
-    const version = require('../../../package.json').version
     for (const test of tests) {
       tauri([test])
       expect(console.log.mock.calls[0][0]).toBe(version)

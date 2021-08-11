@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import tauri from 'bin/tauri'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)

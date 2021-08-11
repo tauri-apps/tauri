@@ -91,9 +91,7 @@ ${chalk.yellow('Options')}
   }
 }
 
-export default {
-  tauri
-}
+export default tauri
 
 // on test we use the module.exports
 if (process.env.NODE_ENV !== 'test') {

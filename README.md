@@ -11,14 +11,6 @@
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
-```yml
-Tauri Apps
-  footprint:   minuscule
-  performance: ludicrous
-  flexibility: gymnastic
-  security:    hardened
-```
-
 ## Current Releases
 
 | Component                                                                                     | Description                              | Version                                                                                                          | Lin | Win | Mac |

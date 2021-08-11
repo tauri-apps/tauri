@@ -59,15 +59,29 @@ See your local `strip` manpage for more information and flags that can be used t
 
 ### Allowlist config
 
-You can also reduce the size with the `allowlist` config, and only enabling what you need.  Sometimes this is useful with Tauri's [Bridge-Pattern](/docs/usage/patterns/bridge) or others, depending on needs.
+You can also reduce the application size with the `allowlist` config, and only enabling what you need. Sometimes this is useful with Tauri's [Bridge-Pattern](/docs/usage/patterns/bridge) or others, depending on needs.
+
 For example in `tauri.conf.json` file:
 
+```json
+{
+  "tauri": {
     "allowlist": {
       "all": false,
-      "event": true,
-      "open": true,
-      "openDialog": true
+      "fs": {
+        "writeFile": true,
+        "writeBinaryFile": true
+      },
+      "shell": {
+        "execute": true
+      },
+      "dialog": {
+        "save": true
+      }
     }
+  }
+}
+```
 
 ### UPX
 

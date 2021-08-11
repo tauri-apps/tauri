@@ -18,10 +18,10 @@
   "scripts": {
     "build": "rimraf ./dist && webpack --progress",
     "build-release": "rimraf ./dist && cross-env NODE_ENV=production webpack",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
-    "test:local": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
+    "test:local": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",

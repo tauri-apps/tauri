@@ -4,7 +4,18 @@ title: Introduction
 
 import OSList from '@theme/OSList'
 
-Welcome to Tauri! This guide will help you create your first Tauri app. It should only take about 10 minutes, although it could take longer if you have a slower internet connection.
+Welcome to Tauri!
+
+Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of [Rust](https://www.rust-lang.org/) tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing.
+
+Anything that can be displayed on a website, can be displayed in a Tauri webview app!
+
+Developers are free to build the web front-end displayed in a Webview through Tauri with any web frameworks of their choice!
+**Developers can even extend the default API** with their own functionality and bridge the Webview and Rust-based backend easily!
+
+The Architecture is more fully described in [Architecture](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md).
+
+This guide will help you create your first Tauri app. It should only take about 10 minutes, although it could take longer if you have a slower internet connection.
 
 If you find an error or something unclear, or would like to propose an improvement, you have several options:
 

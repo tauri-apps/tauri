@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Added Angular CLI recipe.
+  - [489fad55](https://www.github.com/tauri-apps/tauri/commit/489fad55242b3489c7c551fdfdd031ebad2d9b9c) Angular create tauri app \[[#1934](https://www.github.com/tauri-apps/tauri/pull/1934)] ([#2203](https://www.github.com/tauri-apps/tauri/pull/2203)) on 2021-07-14
+
+## \[1.0.0-beta.2]
+
+- Fixes the `beforeDevCommand` on vite recipe.
+  - [3c21ddc7](https://www.github.com/tauri-apps/tauri/commit/3c21ddc73cd7ab8141b730ceade46fc2dfadd996) fix(cta): use correct `beforeDevCommand` for vite recipe ([#1931](https://www.github.com/tauri-apps/tauri/pull/1931)) on 2021-06-01
+
 ## \[1.0.0-beta.1]
 
 - Work around bugs between esbuild and npm by installing directly at the end of the sequence. Also default to using the latest on all of the installs instead of npx's cache.

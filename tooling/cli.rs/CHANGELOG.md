@@ -1,5 +1,56 @@
 # Changelog
 
+## \[1.0.0-beta.5]
+
+- Run powershell commands with `-NoProfile` flag
+  - [3e6f3416](https://www.github.com/tauri-apps/tauri/commit/3e6f34160deab4f774d90aba28122e5b6b6f9db2) fix(cli.rs): run powershell kill command without profile ([#2130](https://www.github.com/tauri-apps/tauri/pull/2130)) on 2021-06-30
+- Adds `release` argument to the `dev` command. Allowing to run the backend in release mode during development.
+  - [7ee2dc8b](https://www.github.com/tauri-apps/tauri/commit/7ee2dc8b690703f509ab2d6ecdf9dafd6b72cd0b) feat(cli.rs): add release argument to the dev command ([#2192](https://www.github.com/tauri-apps/tauri/pull/2192)) on 2021-07-12
+- Fixes `center` and `focus` not being allowed in `tauri.conf.json > tauri > windows` and ignored in `WindowBuilderWrapper`.
+  - [bc2c331d](https://www.github.com/tauri-apps/tauri/commit/bc2c331dec3dec44c79e659b082b5fb6b65cc5ea) fix: center and focus not being allowed in config ([#2199](https://www.github.com/tauri-apps/tauri/pull/2199)) on 2021-07-12
+
+## \[1.0.0-beta.4]
+
+- Improve error message when the product name is invalid.
+  - [1a41e9f0](https://www.github.com/tauri-apps/tauri/commit/1a41e9f040cfa18b6cc1380dfe21251d56e3f973) feat(cli.rs): improve error message on app rename, closes [#2101](https://www.github.com/tauri-apps/tauri/pull/2101) ([#2114](https://www.github.com/tauri-apps/tauri/pull/2114)) on 2021-06-28
+
+## \[1.0.0-beta.3]
+
+- Properly detect target platform's architecture.
+  - [628a53eb](https://www.github.com/tauri-apps/tauri/commit/628a53eb6176f811d22d7730f08a99e5c370dbf4) fix(cli): properly detect target architecture, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2102](https://www.github.com/tauri-apps/tauri/pull/2102)) on 2021-06-28
+- Fixes `build` command when the `target` arg is set.
+  - [8e238701](https://www.github.com/tauri-apps/tauri/commit/8e2387018940e9e1421948d74a82156661ce2e4b) fix(cli.rs): fix out dir detection when target arg is set, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2098](https://www.github.com/tauri-apps/tauri/pull/2098)) on 2021-06-27
+
+## \[1.0.0-beta.2]
+
+- Support `cargo tauri build` on Apple M1 chip.
+  - [3bf853d7](https://www.github.com/tauri-apps/tauri/commit/3bf853d782b491ad4965a1da25d19337eeac161f) feat(cli.rs): support tauri build on M1 chip ([#1915](https://www.github.com/tauri-apps/tauri/pull/1915)) on 2021-05-29
+- Infer `app name` and `window title` from `package.json > productName` or `package.json > name`.
+  Infer `distDir` and `devPath` by reading the package.json and trying to determine the UI framework (Vue.js, Angular, React, Svelte and some UI frameworks).
+  - [21a971c3](https://www.github.com/tauri-apps/tauri/commit/21a971c3b76bf0c26d00b2520b4976fa526738f5) feat(cli.rs): infer devPath/distDir/appName from package.json ([#1930](https://www.github.com/tauri-apps/tauri/pull/1930)) on 2021-05-31
+- Watch workspace crates on `dev` command.
+  - [86a23ff3](https://www.github.com/tauri-apps/tauri/commit/86a23ff30b4f18effa39c87b7cae6b7e324d131c) added support for cargo workspaces for `dev` command ([#1827](https://www.github.com/tauri-apps/tauri/pull/1827)) on 2021-05-13
+- Adds `features` argument to the `dev` and `build` commands.
+  - [6ec8e84d](https://www.github.com/tauri-apps/tauri/commit/6ec8e84d9172c090ee1549db56c98c66f12436ff) feat(cli.rs): add `features` arg to dev/build ([#1828](https://www.github.com/tauri-apps/tauri/pull/1828)) on 2021-05-13
+- Fixes the libwebkit2gtk package name.
+  - [e08065d7](https://www.github.com/tauri-apps/tauri/commit/e08065d7fe8398b41180b3a64854ec8e71174d42) fix: deb installation error ([#1844](https://www.github.com/tauri-apps/tauri/pull/1844)) on 2021-05-18
+- Properly keep all `tauri` features that are not managed by the CLI.
+  - [17c7c439](https://www.github.com/tauri-apps/tauri/commit/17c7c4396ff2d5e13fc8726c2965b4e810fad6b9) refactor(core): use `attohttpc` by default ([#1861](https://www.github.com/tauri-apps/tauri/pull/1861)) on 2021-05-19
+- Copy resources and binaries to `OUT_DIR` on `tauri dev` command.
+  - [8f29a260](https://www.github.com/tauri-apps/tauri/commit/8f29a260e67aa111f6aeb262bd846a46d2858ce9) fix(cli.rs): copy resources and binaries on dev, closes [#1298](https://www.github.com/tauri-apps/tauri/pull/1298) ([#1946](https://www.github.com/tauri-apps/tauri/pull/1946)) on 2021-06-04
+- Read cargo features from `tauri.conf.json > build > features` and propagate them on `dev` and `build`.
+  - [2b814e9c](https://www.github.com/tauri-apps/tauri/commit/2b814e9c937489af0acb56051bd01c0d7fca2413) added cargo features to tauri config ([#1824](https://www.github.com/tauri-apps/tauri/pull/1824)) on 2021-05-13
+- Fixes `tauri.conf.json > tauri > bundle > targets` not applying to the bundler.
+  - [8be35ced](https://www.github.com/tauri-apps/tauri/commit/8be35ced78658de732360e3b20d7d70108c9b32d) fix(cli.rs): `tauri.conf.json > tauri > bundle > targets` being ignored ([#1945](https://www.github.com/tauri-apps/tauri/pull/1945)) on 2021-06-04
+- Fixes `info` command not striping `\r` from child process version output.
+  - [6a95d7ac](https://www.github.com/tauri-apps/tauri/commit/6a95d7acc378b40230bab18d00ea32de40a5818c) fix(cli.rs): `info` version checks not striping `\r` on Windows ([#1952](https://www.github.com/tauri-apps/tauri/pull/1952)) on 2021-06-05
+- Allow setting a path to a license file for the Windows Installer (`tauri.conf.json > bundle > windows > wix > license`).
+  - [b769c7f7](https://www.github.com/tauri-apps/tauri/commit/b769c7f7da4064b6133bf39a82127863d0d35531) feat(bundler): windows installer license, closes [#2009](https://www.github.com/tauri-apps/tauri/pull/2009) ([#2027](https://www.github.com/tauri-apps/tauri/pull/2027)) on 2021-06-21
+- Change the `csp` value on the template to include `wss:` and `tauri:` to the `default-src` attribute.
+  - [463fd00d](https://www.github.com/tauri-apps/tauri/commit/463fd00d06241c734994fe8e1882788dc30cc993) fix(csp): add wss and tauri to conf template ([#1974](https://www.github.com/tauri-apps/tauri/pull/1974)) on 2021-06-15
+- Adds `tauri > bundle > windows > wix > language` config option. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  - [47919619](https://www.github.com/tauri-apps/tauri/commit/47919619815900fc3af47ec5873e31afb778b0ad) feat(bundler): allow setting wix language, closes [#1976](https://www.github.com/tauri-apps/tauri/pull/1976) ([#1988](https://www.github.com/tauri-apps/tauri/pull/1988)) on 2021-06-15
+
 ## \[1.0.0-beta.1]
 
 - Add `'self'` to default CSP because otherwise no joy on macOS.

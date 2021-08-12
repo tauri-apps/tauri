@@ -18,6 +18,8 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(target_os = "macos")]
+use std::fs::rename;
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
@@ -41,6 +43,9 @@ pub struct RemoteRelease {
   pub body: Option<String>,
   /// Optional signature for the current platform
   pub signature: Option<String>,
+  #[cfg(target_os = "windows")]
+  /// Optional: Windows only try to use elevated task
+  pub with_elevated_task: bool,
 }
 
 impl RemoteRelease {
@@ -68,10 +73,11 @@ impl RemoteRelease {
     };
 
     // pub_date is required default is: `N/A` if not provided by the remote JSON
-    let date = match release.get("pub_date") {
-      Some(pub_date) => pub_date.as_str().unwrap_or("N/A").to_string(),
-      None => "N/A".to_string(),
-    };
+    let date = release
+      .get("pub_date")
+      .and_then(|v| v.as_str())
+      .unwrap_or("N/A")
+      .to_string();
 
     // body is optional to build our update
     let body = release
@@ -84,6 +90,8 @@ impl RemoteRelease {
       .map(|signature| signature.as_str().unwrap_or("").to_string());
 
     let download_url;
+    #[cfg(target_os = "windows")]
+    let with_elevated_task;
 
     match release.get("platforms") {
       //
@@ -116,6 +124,13 @@ impl RemoteRelease {
               Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
             })?
             .to_string();
+          #[cfg(target_os = "windows")]
+          {
+            with_elevated_task = current_target_data
+              .get("with_elevated_task")
+              .and_then(|v| v.as_bool())
+              .unwrap_or_default();
+          }
         } else {
           // make sure we have an available platform from the static
           return Err(Error::RemoteMetadata("Platform not available".into()));
@@ -132,6 +147,13 @@ impl RemoteRelease {
             Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
           })?
           .to_string();
+        #[cfg(target_os = "windows")]
+        {
+          with_elevated_task = match release.get("with_elevated_task") {
+            Some(with_elevated_task) => with_elevated_task.as_bool().unwrap_or(false),
+            None => false,
+          };
+        }
       }
     }
     // Return our formatted release
@@ -141,10 +163,13 @@ impl RemoteRelease {
       download_url,
       body,
       signature,
+      #[cfg(target_os = "windows")]
+      with_elevated_task,
     })
   }
 }
 
+#[derive(Debug)]
 pub struct UpdateBuilder<'a> {
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
@@ -230,7 +255,7 @@ impl<'a> UpdateBuilder<'a> {
     } else {
       // we expect it to fail if we can't find the executable path
       // without this path we can't continue the update process.
-      env::current_exe().expect("Can't access current executable path.")
+      env::current_exe()?
     };
 
     // Did the target is provided by the config?
@@ -341,6 +366,8 @@ impl<'a> UpdateBuilder<'a> {
       download_url: final_release.download_url,
       body: final_release.body,
       signature: final_release.signature,
+      #[cfg(target_os = "windows")]
+      with_elevated_task: final_release.with_elevated_task,
     })
   }
 }
@@ -349,7 +376,7 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
   UpdateBuilder::new()
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Update {
   /// Update description
   pub body: Option<String>,
@@ -369,6 +396,10 @@ pub struct Update {
   download_url: String,
   /// Signature announced
   signature: Option<String>,
+  #[cfg(target_os = "windows")]
+  /// Optional: Windows only try to use elevated task
+  /// Default to false
+  with_elevated_task: bool,
 }
 
 impl Update {
@@ -463,6 +494,9 @@ impl Update {
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app
+    #[cfg(target_os = "windows")]
+    copy_files_and_run(tmp_dir, extract_path, self.with_elevated_task)?;
+    #[cfg(not(target_os = "windows"))]
     copy_files_and_run(tmp_dir, extract_path)?;
     // We are done!
     Ok(())
@@ -479,17 +513,16 @@ impl Update {
 // We should have an AppImage already installed to be able to copy and install
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
-
 #[cfg(target_os = "linux")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // we delete our current AppImage (we'll create a new one later)
   remove_file(&extract_path)?;
 
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
 
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // make sure it's our .AppImage
     if found_path.extension() == Some(OsStr::new("AppImage")) {
       // Simply overwrite our AppImage (we use the command)
@@ -522,16 +555,21 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
-
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Result {
-  let paths = read_dir(&tmp_dir).unwrap();
+fn copy_files_and_run(
+  tmp_dir: tempfile::TempDir,
+  _extract_path: PathBuf,
+  with_elevated_task: bool,
+) -> Result {
+  use crate::api::file::Move;
+
+  let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  tmp_dir.into_path();
+  let tmp_path = tmp_dir.into_path();
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let found_path = path?.path();
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
@@ -542,6 +580,45 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
+      if with_elevated_task {
+        if let Some(bin_name) = std::env::current_exe()
+          .ok()
+          .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+          .and_then(|s| s.into_string().ok())
+        {
+          let product_name = bin_name.replace(".exe", "");
+
+          // Check if there is a task that enables the updater to skip the UAC prompt
+          let update_task_name = format!("Update {} - Skip UAC", product_name);
+          if let Ok(status) = Command::new("schtasks")
+            .arg("/QUERY")
+            .arg("/TN")
+            .arg(update_task_name.clone())
+            .status()
+          {
+            if status.success() {
+              // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+              let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+              Move::from_source(&found_path)
+                .to_dest(&temp_msi)
+                .expect("Unable to move update MSI");
+              let exit_status = Command::new("schtasks")
+                .arg("/RUN")
+                .arg("/TN")
+                .arg(update_task_name)
+                .status()
+                .expect("failed to start updater task");
+
+              if exit_status.success() {
+                // Successfully launched task that skips the UAC prompt
+                exit(0);
+              }
+            }
+            // Failed to run update task. Following UAC Path
+          }
+        }
+      }
+
       // restart should be handled by WIX as we exit the process
       Command::new("msiexec.exe")
         .arg("/i")
@@ -558,27 +635,57 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, _extract_path: PathBuf) -> Res
   Ok(())
 }
 
-// MacOS
+// Get the current app name in the path
+// Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
+// Should return; `updater-example.app`
+#[cfg(target_os = "macos")]
+fn macos_app_name_in_path(extract_path: &PathBuf) -> String {
+  let components = extract_path.components();
+  let app_name = components.last().unwrap();
+  let app_name = app_name.as_os_str().to_str().unwrap();
+  app_name.to_string()
+}
 
+// MacOS
 // ### Expected structure:
 // ├── [AppName]_[version]_x64.app.tar.gz       # GZ generated by tauri-bundler
 // │   └──[AppName].app                         # Main application
 // │      └── Contents                          # Application contents...
 // │          └── ...
 // └── ...
-
 #[cfg(target_os = "macos")]
 fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
   // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir).unwrap();
+  let paths = read_dir(&tmp_dir)?;
+
+  // current app name in /Applications/<app>.app
+  let app_name = macos_app_name_in_path(&extract_path);
 
   for path in paths {
-    let found_path = path.expect("Unable to extract").path();
+    let mut found_path = path?.path();
     // make sure it's our .app
     if found_path.extension() == Some(OsStr::new("app")) {
-      // Walk the temp dir and copy all files by replacing existing files only
-      // and creating directories if needed
-      Move::from_source(&found_path).walk_to_dest(&extract_path)?;
+      let found_app_name = macos_app_name_in_path(&found_path);
+      // make sure the app name in the archive matche the installed app name on path
+      if found_app_name != app_name {
+        // we need to replace the app name in the updater archive to match
+        // installed app name
+        let new_path = found_path.parent().unwrap().join(app_name);
+        rename(&found_path, &new_path)?;
+
+        found_path = new_path;
+      }
+
+      let sandbox_app_path = tempfile::Builder::new()
+        .prefix("tauri_current_app_sandbox")
+        .tempdir()?;
+
+      // Replace the whole application to make sure the
+      // code signature is following
+      Move::from_source(&found_path)
+        .replace_using_temp(sandbox_app_path.path())
+        .to_dest(&extract_path)?;
+
       // early finish we have everything we need here
       return Ok(());
     }
@@ -619,7 +726,7 @@ pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
     .expect("Can't determine extract path");
 
   // MacOS example binary is in /Applications/TestApp.app/Contents/MacOS/myApp
-  // We need to get /Applications/TestApp.app
+  // We need to get /Applications/<app>.app
   // todo(lemarier): Need a better way here
   // Maybe we could search for <*.app> to get the right path
   #[cfg(target_os = "macos")]
@@ -691,22 +798,16 @@ pub fn verify_signature(
   let public_key = PublicKey::decode(pub_key_decoded)?;
   let signature_base64_decoded = base64_to_string(&release_signature)?;
 
-  let signature =
-    Signature::decode(&signature_base64_decoded).expect("Something wrong with the signature");
+  let signature = Signature::decode(&signature_base64_decoded)?;
 
   // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new()
-    .read(true)
-    .open(&archive_path)
-    .expect("Can't open our archive to validate signature");
+  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
 
   let mut file_buff: BufReader<File> = BufReader::new(file_open);
 
   // read all bytes since EOF in the buffer
   let mut data = vec![];
-  file_buff
-    .read_to_end(&mut data)
-    .expect("Can't read buffer to validate signature");
+  file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
   public_key.verify(&data, &signature)?;
@@ -770,6 +871,27 @@ mod test {
     )
   }
 
+  fn generate_sample_with_elevated_task_platform_json(
+    version: &str,
+    public_signature: &str,
+    download_url: &str,
+    with_elevated_task: bool,
+  ) -> String {
+    format!(
+      r#"
+        {{
+          "name": "v{}",
+          "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
+          "pub_date": "2020-06-25T14:14:19Z",
+          "signature": "{}",
+          "url": "{}",
+          "with_elevated_task": "{}"
+        }}
+      "#,
+      version, public_signature, download_url, with_elevated_task
+    )
+  }
+
   fn generate_sample_bad_json() -> String {
     r#"{
       "version": "v0.0.3",
@@ -777,6 +899,17 @@ mod test {
       "date": "2020-02-20T15:41:00Z",
       "download_link": "https://github.com/lemarier/tauri-test/releases/download/v0.0.1/update3.tar.gz"
     }"#.into()
+  }
+
+  #[cfg(target_os = "macos")]
+  #[test]
+  fn test_app_name_in_path() {
+    let executable = extract_path_from_executable(Path::new(
+      "/Applications/updater-example.app/Contents/MacOS/updater-example",
+    ));
+    let app_name = macos_app_name_in_path(&executable);
+    assert!(executable.ends_with("updater-example.app"));
+    assert_eq!(app_name, "updater-example.app".to_string());
   }
 
   #[test]
@@ -878,6 +1011,33 @@ mod test {
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
+        mockito::server_url()
+      ))
+      .build());
+
+    assert!(check_update.is_ok());
+    let updater = check_update.expect("Can't check update");
+
+    assert!(updater.should_update);
+  }
+
+  #[test]
+  fn simple_http_updater_with_elevated_task() {
+    let _m = mockito::mock("GET", "/win64/1.0.0")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_with_elevated_task_platform_json(
+        "2.0.0",
+        "SampleTauriKey",
+        "https://tauri.studio",
+        true,
+      ))
+      .create();
+
+    let check_update = block!(builder()
+      .current_version("1.0.0")
+      .url(format!(
+        "{}/win64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());

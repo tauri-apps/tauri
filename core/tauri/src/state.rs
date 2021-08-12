@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::command::{CommandArg, CommandItem};
-use crate::{InvokeError, Params};
+use crate::{
+  command::{CommandArg, CommandItem},
+  runtime::Runtime,
+  InvokeError,
+};
 use state::Container;
 
 /// A guard for a state value.
@@ -34,14 +37,15 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
-impl<'r, 'de: 'r, T: Send + Sync + 'static, P: Params> CommandArg<'de, P> for State<'r, T> {
+impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
-  fn from_command(command: CommandItem<'de, P>) -> Result<Self, InvokeError> {
+  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     Ok(command.message.state_ref().get())
   }
 }
 
 /// The Tauri state manager.
+#[derive(Debug)]
 pub struct StateManager(pub(crate) Container![Send + Sync]);
 
 impl StateManager {
@@ -56,5 +60,10 @@ impl StateManager {
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
     State(self.0.get())
+  }
+
+  /// Gets the state associated with the specified type.
+  pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
+    self.0.try_get().map(State)
   }
 }

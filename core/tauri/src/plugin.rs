@@ -4,21 +4,25 @@
 
 //! Extend Tauri functionality.
 
-use crate::{api::config::PluginConfig, App, Invoke, PageLoadPayload, Params, Window};
+use crate::{
+  api::config::PluginConfig, runtime::Runtime, AppHandle, Invoke, PageLoadPayload, Window,
+};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
+use tauri_macros::default_runtime;
+
+use std::{collections::HashMap, fmt};
 
 /// The plugin result type.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
-pub trait Plugin<P: Params>: Send {
+pub trait Plugin<R: Runtime>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
   /// Initialize the plugin.
   #[allow(unused_variables)]
-  fn initialize(&mut self, app: &App<P>, config: JsonValue) -> Result<()> {
+  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
     Ok(())
   }
 
@@ -33,25 +37,32 @@ pub trait Plugin<P: Params>: Send {
 
   /// Callback invoked when the webview is created.
   #[allow(unused_variables)]
-  fn created(&mut self, window: Window<P>) {}
+  fn created(&mut self, window: Window<R>) {}
 
   /// Callback invoked when the webview performs a navigation.
   #[allow(unused_variables)]
-  fn on_page_load(&mut self, window: Window<P>, payload: PageLoadPayload) {}
+  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
 
   /// Add invoke_handler API extension commands.
   #[allow(unused_variables)]
-  fn extend_api(&mut self, invoke: Invoke<P>) {}
+  fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-crate::manager::default_args! {
-  /// Plugin collection type.
-  pub(crate) struct PluginStore<P: Params> {
-    store: HashMap<&'static str, Box<dyn Plugin<P>>>,
+/// Plugin collection type.
+#[default_runtime(crate::Wry, wry)]
+pub(crate) struct PluginStore<R: Runtime> {
+  store: HashMap<&'static str, Box<dyn Plugin<R>>>,
+}
+
+impl<R: Runtime> fmt::Debug for PluginStore<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("PluginStore")
+      .field("plugins", &self.store.keys())
+      .finish()
   }
 }
 
-impl<P: Params> Default for PluginStore<P> {
+impl<R: Runtime> Default for PluginStore<R> {
   fn default() -> Self {
     Self {
       store: HashMap::new(),
@@ -59,16 +70,20 @@ impl<P: Params> Default for PluginStore<P> {
   }
 }
 
-impl<P: Params> PluginStore<P> {
+impl<R: Runtime> PluginStore<R> {
   /// Adds a plugin to the store.
   ///
   /// Returns `true` if a plugin with the same name is already in the store.
-  pub fn register<Plug: Plugin<P> + 'static>(&mut self, plugin: Plug) -> bool {
+  pub fn register<P: Plugin<R> + 'static>(&mut self, plugin: P) -> bool {
     self.store.insert(plugin.name(), Box::new(plugin)).is_some()
   }
 
   /// Initializes all plugins in the store.
-  pub(crate) fn initialize(&mut self, app: &App<P>, config: &PluginConfig) -> crate::Result<()> {
+  pub(crate) fn initialize(
+    &mut self,
+    app: &AppHandle<R>,
+    config: &PluginConfig,
+  ) -> crate::Result<()> {
     self.store.values_mut().try_for_each(|plugin| {
       plugin
         .initialize(
@@ -91,7 +106,7 @@ impl<P: Params> PluginStore<P> {
   }
 
   /// Runs the created hook for all plugins in the store.
-  pub(crate) fn created(&mut self, window: Window<P>) {
+  pub(crate) fn created(&mut self, window: Window<R>) {
     self
       .store
       .values_mut()
@@ -99,14 +114,14 @@ impl<P: Params> PluginStore<P> {
   }
 
   /// Runs the on_page_load hook for all plugins in the store.
-  pub(crate) fn on_page_load(&mut self, window: Window<P>, payload: PageLoadPayload) {
+  pub(crate) fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
     self
       .store
       .values_mut()
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
   }
 
-  pub(crate) fn extend_api(&mut self, mut invoke: Invoke<P>) {
+  pub(crate) fn extend_api(&mut self, mut invoke: Invoke<R>) {
     let command = invoke.message.command.replace("plugin:", "");
     let mut tokens = command.split('|');
     // safe to unwrap: split always has a least one item

@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
+
 pub use anyhow::Result;
 use clap::{crate_version, load_yaml, App, AppSettings, ArgMatches};
 use dialoguer::Input;
@@ -114,7 +119,7 @@ fn init_command(matches: &ArgMatches) -> Result<()> {
     dist_dir,
     dist_dir,
     ci,
-    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri" folder that will be created?"#,
+    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
     init_defaults.framework.as_ref().map(|f| f.dist_dir())
   );
   init_runner = value_or_prompt!(
@@ -142,11 +147,13 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     .values_of("args")
     .map(|a| a.into_iter().map(|v| v.to_string()).collect())
     .unwrap_or_default();
+  let release_mode = matches.is_present("release");
 
   let mut dev_runner = dev::Dev::new()
     .exit_on_panic(exit_on_panic)
     .args(args)
-    .features(features);
+    .features(features)
+    .release_mode(release_mode);
 
   if let Some(runner) = runner {
     dev_runner = dev_runner.runner(runner.to_string());
@@ -263,9 +270,9 @@ fn main() -> Result<()> {
     .version(crate_version!())
     .setting(AppSettings::ArgRequiredElseHelp)
     .setting(AppSettings::GlobalVersion)
-    .setting(AppSettings::SubcommandRequired);
-  let app_matches = app.get_matches();
-  let matches = app_matches.subcommand_matches("tauri").unwrap();
+    .setting(AppSettings::SubcommandRequired)
+    .arg(clap::Arg::new("cargo").hidden(true).possible_value("tauri"));
+  let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {
     init_command(matches)?;

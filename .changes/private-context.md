@@ -1,7 +1,7 @@
 ---
 "tauri": patch
-"tauri-runtime": patch
-"tauri-runtime-wry": patch
+"tauri-runtime": minor
+"tauri-runtime-wry": minor
 ---
 
 **Breaking:** `Context` fields are now private, and is expected to be created through `Context::new(...)`.

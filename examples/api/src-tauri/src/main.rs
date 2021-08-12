@@ -6,13 +6,21 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
 
 mod cmd;
 mod menu;
 
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
+
 use serde::Serialize;
 use tauri::{
-  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -47,8 +55,10 @@ fn main() {
     .system_tray(
       SystemTray::new().with_menu(
         SystemTrayMenu::new()
-          .add_item(CustomMenuItem::new("toggle".into(), "Toggle"))
-          .add_item(CustomMenuItem::new("new".into(), "New window")),
+          .add_item(CustomMenuItem::new("toggle", "Toggle"))
+          .add_item(CustomMenuItem::new("new", "New window"))
+          .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
+          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2")),
       ),
     )
     .on_system_tray_event(|app, event| match event {
@@ -77,12 +87,62 @@ fn main() {
           }
           "new" => app
             .create_window(
-              "new".into(),
+              "new",
               WindowUrl::App("index.html".into()),
               |window_builder, webview_attributes| {
                 (window_builder.title("Tauri"), webview_attributes)
               },
             )
+            .unwrap(),
+          #[cfg(target_os = "macos")]
+          "icon_1" => {
+            app.tray_handle().set_icon_as_template(true).unwrap();
+
+            app
+              .tray_handle()
+              .set_icon(tauri::Icon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
+              ))
+              .unwrap();
+          }
+          #[cfg(target_os = "macos")]
+          "icon_2" => {
+            app.tray_handle().set_icon_as_template(true).unwrap();
+
+            app
+              .tray_handle()
+              .set_icon(tauri::Icon::Raw(
+                include_bytes!("../../../.icons/tray_icon.png").to_vec(),
+              ))
+              .unwrap();
+          }
+          #[cfg(target_os = "linux")]
+          "icon_1" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::File(PathBuf::from(
+              "../../../.icons/tray_icon_with_transparency.png",
+            )))
+            .unwrap(),
+          #[cfg(target_os = "linux")]
+          "icon_2" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::File(PathBuf::from(
+              "../../../.icons/tray_icon.png",
+            )))
+            .unwrap(),
+          #[cfg(target_os = "windows")]
+          "icon_1" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::Raw(
+              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
+            ))
+            .unwrap(),
+          #[cfg(target_os = "windows")]
+          "icon_2" => app
+            .tray_handle()
+            .set_icon(tauri::Icon::Raw(
+              include_bytes!("../../../.icons/icon.ico").to_vec(),
+            ))
             .unwrap(),
           _ => {}
         }
@@ -94,6 +154,13 @@ fn main() {
       cmd::perform_request,
       menu_toggle,
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app_handle, e| {
+      if let Event::CloseRequested { label, api, .. } = e {
+        api.prevent_close();
+        let window = app_handle.get_window(&label).unwrap();
+        window.emit("close-requested", ()).unwrap();
+      }
+    })
 }

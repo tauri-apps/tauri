@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
-use heck::KebabCase;
 use json_patch::merge;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
@@ -25,6 +23,8 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       feature_refs: config.feature_refs,
       merge_refs: config.merge_refs,
       skip_webview_install: config.skip_webview_install,
+      license: config.license,
+      enable_elevated_update_task: config.enable_elevated_update_task,
     }
   }
 }
@@ -82,12 +82,22 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     merge(&mut config, &merge_config);
   }
 
-  #[allow(unused_mut)]
-  let mut config: Config = serde_json::from_value(config)?;
-  #[cfg(target_os = "linux")]
-  if let Some(product_name) = config.package.product_name.as_mut() {
-    *product_name = product_name.to_kebab_case();
+  let platform_config_filename = if cfg!(target_os = "macos") {
+    "tauri.macos.conf.json"
+  } else if cfg!(windows) {
+    "tauri.windows.conf.json"
+  } else {
+    "tauri.linux.conf.json"
+  };
+  let platform_config_path = super::app_paths::tauri_dir().join(platform_config_filename);
+  if platform_config_path.exists() {
+    let platform_config_file = File::open(platform_config_path)?;
+    let platform_config: JsonValue = serde_json::from_reader(BufReader::new(platform_config_file))
+      .with_context(|| format!("failed to parse `{}`", platform_config_filename))?;
+    merge(&mut config, &platform_config);
   }
+
+  let config: Config = serde_json::from_value(config)?;
   set_var("TAURI_CONFIG", serde_json::to_string(&config)?);
   *config_handle().lock().unwrap() = Some(config);
 
@@ -118,7 +128,6 @@ pub fn all_allowlist_features() -> Vec<&'static str> {
       remove_dir: true,
       remove_file: true,
       rename_file: true,
-      path: true,
     },
     window: WindowAllowlistConfig {
       all: true,
@@ -140,6 +149,8 @@ pub fn all_allowlist_features() -> Vec<&'static str> {
     },
     notification: NotificationAllowlistConfig { all: true },
     global_shortcut: GlobalShortcutAllowlistConfig { all: true },
+    os: OsAllowlistConfig { all: true },
+    path: PathAllowlistConfig { all: true },
   }
   .to_features()
 }

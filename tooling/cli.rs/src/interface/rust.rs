@@ -11,12 +11,14 @@ use std::{
 };
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  UpdaterSettings, WindowsSettings, WixSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -186,10 +188,10 @@ impl AppSettings {
     )
   }
 
-  pub fn get_out_dir(&self, debug: bool) -> crate::Result<PathBuf> {
+  pub fn get_out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
     let tauri_dir = tauri_dir();
     let workspace_dir = get_workspace_dir(&tauri_dir);
-    get_target_dir(&workspace_dir, None, !debug)
+    get_target_dir(&workspace_dir, target, !debug)
   }
 
   pub fn get_package_settings(&self) -> PackageSettings {
@@ -212,8 +214,7 @@ impl AppSettings {
             BundleBinary::new(
               config
                 .package
-                .product_name
-                .clone()
+                .binary_name()
                 .unwrap_or_else(|| binary.name.clone()),
               true,
             )
@@ -244,16 +245,15 @@ impl AppSettings {
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
-          if let Some(product_name) = config.package.product_name.clone() {
-            bin.set_name(product_name);
+          if let Some(bin_name) = config.package.binary_name() {
+            bin.set_name(bin_name);
           }
         }
         None => {
           binaries.push(BundleBinary::new(
             config
               .package
-              .product_name
-              .clone()
+              .binary_name()
               .unwrap_or_else(|| default_run.to_string()),
             true,
           ));
@@ -263,6 +263,9 @@ impl AppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
+        #[cfg(target_os = "linux")]
+        self.package_settings.product_name.to_kebab_case(),
+        #[cfg(not(target_os = "linux"))]
         self.package_settings.product_name.clone(),
         true,
       )),
@@ -390,6 +393,16 @@ fn tauri_config_to_bundle_settings(
     }
   }
 
+  let signing_identity = match std::env::var_os("APPLE_SIGNING_IDENTITY") {
+    Some(signing_identity) => Some(
+      signing_identity
+        .to_str()
+        .expect("failed to convert APPLE_SIGNING_IDENTITY to string")
+        .to_string(),
+    ),
+    None => config.macos.signing_identity,
+  };
+
   Ok(BundleSettings {
     identifier: config.identifier,
     icon: config.icon,
@@ -424,14 +437,20 @@ fn tauri_config_to_bundle_settings(
       license: config.macos.license,
       use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
-      signing_identity: config.macos.signing_identity,
+      signing_identity,
       entitlements: config.macos.entitlements,
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
-      wix: config.windows.wix.map(|w| w.into()),
+      wix: config.windows.wix.map(|w| {
+        let mut wix = WixSettings::from(w);
+        wix.license = wix
+          .license
+          .map(|l| tauri_dir().join(l).to_string_lossy().into_owned());
+        wix
+      }),
       icon_path: windows_icon_path,
     },
     updater: Some(UpdaterSettings {

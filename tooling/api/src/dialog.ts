@@ -22,7 +22,7 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
- * @packageDocumentation
+ * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
@@ -57,7 +57,11 @@ interface OpenDialogOptions {
 interface SaveDialogOptions {
   /** The filters of the dialog. */
   filters?: DialogFilter[]
-  /** Initial directory or file path. It must exist. */
+  /**
+   * Initial directory or file path.
+   * If it's a directory path, the dialog interface will change to that folder.
+   * If it's not an existing directory, the file name will be set to the dialog's file name input and the dialog will be set to the parent folder.
+   */
   defaultPath?: string
 }
 

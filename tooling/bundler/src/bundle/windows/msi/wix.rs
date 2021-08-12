@@ -133,7 +133,7 @@ impl ResourceDirectory {
     } else {
       format!(
         r#"<Directory Id="{id}" Name="{name}">{contents}</Directory>"#,
-        id = format!("_{}", Uuid::new_v4().to_simple()),
+        id = format!("I{}", Uuid::new_v4().to_simple()),
         name = self.name,
         contents = format!("{}{}", files, directories)
       )
@@ -414,6 +414,31 @@ pub fn build_wix_app_installer(
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();
 
+  if let Some(wix) = &settings.windows().wix {
+    if let Some(license) = &wix.license {
+      if license.ends_with(".rtf") {
+        data.insert("license", to_json(license));
+      } else {
+        let license_path = PathBuf::from(license);
+        let license_contents = std::fs::read_to_string(&license_path)?;
+        let license_rtf = format!(
+          r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
+{{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
+}}
+ "#,
+          license_contents.replace("\n", "\\par ")
+        );
+        let rtf_output_path = settings
+          .project_out_directory()
+          .join("wix")
+          .join("LICENSE.rtf");
+        std::fs::write(&rtf_output_path, license_rtf)?;
+        data.insert("license", to_json(rtf_output_path));
+      }
+    }
+  }
+
   let (language, language_metadata) = if let Some(wix) = &settings.windows().wix {
     let metadata = language_map.get(&wix.language).unwrap_or_else(|| {
       panic!(
@@ -488,6 +513,7 @@ pub fn build_wix_app_installer(
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
   let mut install_webview = true;
+  let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
     data.insert("component_group_refs", to_json(&wix.component_group_refs));
@@ -497,6 +523,7 @@ pub fn build_wix_app_installer(
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
     install_webview = !wix.skip_webview_install;
+    enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
       let template = std::fs::read_to_string(temp_path)?;
@@ -524,6 +551,43 @@ pub fn build_wix_app_installer(
   }
 
   create_dir_all(&output_path)?;
+
+  if enable_elevated_update_task {
+    // Create the update task XML
+    let mut skip_uac_task = Handlebars::new();
+    let xml = include_str!("../templates/update-task.xml");
+    skip_uac_task
+      .register_template_string("update.xml", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task handlebars");
+    let temp_xml_path = output_path.join("update.xml");
+    let update_content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, update_content)?;
+
+    // Create the Powershell script to install the task
+    let mut skip_uac_task_installer = Handlebars::new();
+    let xml = include_str!("../templates/install-task.ps1");
+    skip_uac_task_installer
+      .register_template_string("install-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Installer handlebars");
+    let temp_ps1_path = output_path.join("install-task.ps1");
+    let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
+
+    // Create the Powershell script to uninstall the task
+    let mut skip_uac_task_uninstaller = Handlebars::new();
+    let xml = include_str!("../templates/uninstall-task.ps1");
+    skip_uac_task_uninstaller
+      .register_template_string("uninstall-task.ps1", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task Uninstaller handlebars");
+    let temp_ps1_path = output_path.join("uninstall-task.ps1");
+    let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
+    write(&temp_ps1_path, install_script_content.clone())?;
+
+    data.insert("enable_elevated_update_task", to_json(true));
+  }
 
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
@@ -575,7 +639,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: Uuid::new_v4().to_string(),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
     });
   }
 
@@ -588,7 +652,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: Uuid::new_v4().to_string(),
+        id: format!("I{}", Uuid::new_v4().to_simple()),
       })
     }
   }
@@ -645,7 +709,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().to_string();
     dlls.push(ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     });
@@ -672,25 +736,41 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .expect("failed to read resource path");
 
     let resource_entry = ResourceFile {
-      id: format!("_{}", Uuid::new_v4().to_simple()),
+      id: format!("I{}", Uuid::new_v4().to_simple()),
       guid: Uuid::new_v4().to_string(),
       path: resource_path,
     };
 
     // split the resource path directories
-    let mut directories = src
+    let directories = src
       .components()
       .filter(|component| {
         let comp = component.as_os_str();
         comp != "." && comp != ".."
       })
       .collect::<Vec<_>>();
-    directories.truncate(directories.len() - 1);
     // transform the directory structure to a chained vec structure
     let first_directory = directories
       .first()
       .map(|d| d.as_os_str().to_string_lossy().into_owned())
       .unwrap_or_else(String::new);
+
+    if !resources.contains_key(&first_directory) {
+      resources.insert(
+        first_directory.clone(),
+        ResourceDirectory {
+          path: first_directory.clone(),
+          name: first_directory.clone(),
+          directories: vec![],
+          files: vec![],
+        },
+      );
+    }
+
+    let mut directory_entry = resources
+      .get_mut(&first_directory)
+      .expect("Unable to handle resources");
+
     let last_index = directories.len() - 1;
     let mut path = String::new();
     for (i, directory) in directories.into_iter().enumerate() {
@@ -700,57 +780,30 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
         .into_string()
         .expect("failed to read resource folder name");
       path.push_str(directory_name.as_str());
+      path.push(std::path::MAIN_SEPARATOR);
 
-      // if the directory is already on the map
-      if resources.contains_key(&first_directory) {
-        let directory_entry = &mut resources
-          .get_mut(&first_directory)
-          .expect("Unable to handle resources");
-        if last_index == 0 {
-          // the directory entry is the root of the chain
-          directory_entry.add_file(resource_entry.clone());
-        } else {
-          let index = directory_entry
-            .directories
-            .iter()
-            .position(|f| f.path == path);
-          if let Some(index) = index {
-            // the directory entry is already a part of the chain
-            if i == last_index {
-              let dir = directory_entry
-                .directories
-                .get_mut(index)
-                .expect("Unable to get directory");
-              dir.add_file(resource_entry.clone());
-            }
-          } else {
-            // push it to the chain
+      if i == last_index {
+        directory_entry.add_file(resource_entry);
+        break;
+      } else if i == 0 {
+        continue;
+      } else {
+        let index = directory_entry
+          .directories
+          .iter()
+          .position(|f| f.path == path);
+        match index {
+          Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
+          None => {
             directory_entry.directories.push(ResourceDirectory {
               path: path.clone(),
-              name: directory_name.clone(),
+              name: directory_name,
               directories: vec![],
-              files: if i == last_index {
-                vec![resource_entry.clone()]
-              } else {
-                vec![]
-              },
+              files: vec![],
             });
+            directory_entry = directory_entry.directories.iter_mut().last().unwrap();
           }
         }
-      } else {
-        resources.insert(
-          directory_name.clone(),
-          ResourceDirectory {
-            path: path.clone(),
-            name: directory_name.clone(),
-            directories: vec![],
-            files: if i == last_index {
-              vec![resource_entry.clone()]
-            } else {
-              vec![]
-            },
-          },
-        );
       }
     }
   }

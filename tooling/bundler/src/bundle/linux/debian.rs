@@ -26,6 +26,7 @@ use super::super::common;
 use crate::Settings;
 
 use anyhow::Context;
+use heck::KebabCase;
 use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use std::process::{Command, Stdio};
@@ -251,7 +252,7 @@ fn generate_control_file(
   writeln!(
     &mut file,
     "Package: {}",
-    str::replace(settings.product_name(), " ", "-").to_ascii_lowercase()
+    settings.product_name().to_kebab_case().to_ascii_lowercase()
   )?;
   writeln!(&mut file, "Version: {}", settings.version_string())?;
   writeln!(&mut file, "Architecture: {}", arch)?;

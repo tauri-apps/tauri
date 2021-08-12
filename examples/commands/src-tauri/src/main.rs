@@ -6,13 +6,17 @@
   all(not(debug_assertions), target_os = "windows"),
   windows_subsystem = "windows"
 )]
+#![allow(
+    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
+    clippy::nonstandard_macro_braces,
+)]
 
 // we move some basic commands to a separate module just to show it works
 mod commands;
 use commands::{cmd, invoke, message, resolver};
 
 use serde::Deserialize;
-use tauri::{command, Params, State, Window};
+use tauri::{command, State, Window};
 
 #[derive(Debug)]
 pub struct MyState {
@@ -121,7 +125,7 @@ async fn async_stateful_command_with_result(
 // Non-Ident command function arguments
 
 #[command]
-fn command_arguments_wild<P: Params>(_: Window<P>) {
+fn command_arguments_wild(_: Window) {
   println!("we saw the wildcard!")
 }
 

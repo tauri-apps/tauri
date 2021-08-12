@@ -1,5 +1,32 @@
 # Changelog
 
+## \[1.0.0-beta.6]
+
+- Run powershell commands with `-NoProfile` flag
+  - [3e6f3416](https://www.github.com/tauri-apps/tauri/commit/3e6f34160deab4f774d90aba28122e5b6b6f9db2) fix(cli.rs): run powershell kill command without profile ([#2130](https://www.github.com/tauri-apps/tauri/pull/2130)) on 2021-06-30
+- Throw error on `cli.rs` download failure instead of silent exit.
+  - [fd033464](https://www.github.com/tauri-apps/tauri/commit/fd0334645b415b8be574d44256194f601227cb40) fix: tauri init may failed with no error message. (fix [#2079](https://www.github.com/tauri-apps/tauri/pull/2079)) ([#2117](https://www.github.com/tauri-apps/tauri/pull/2117)) on 2021-06-30
+
+## \[1.0.0-beta.5]
+
+- Improve error message when the product name is invalid.
+  - Bumped due to a bump in cli.rs.
+  - [1a41e9f0](https://www.github.com/tauri-apps/tauri/commit/1a41e9f040cfa18b6cc1380dfe21251d56e3f973) feat(cli.rs): improve error message on app rename, closes [#2101](https://www.github.com/tauri-apps/tauri/pull/2101) ([#2114](https://www.github.com/tauri-apps/tauri/pull/2114)) on 2021-06-28
+
+## \[1.0.0-beta.4]
+
+- Properly detect target platform's architecture.
+  - Bumped due to a bump in cli.rs.
+  - [628a53eb](https://www.github.com/tauri-apps/tauri/commit/628a53eb6176f811d22d7730f08a99e5c370dbf4) fix(cli): properly detect target architecture, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2102](https://www.github.com/tauri-apps/tauri/pull/2102)) on 2021-06-28
+- Fixes `build` command when the `target` arg is set.
+  - Bumped due to a bump in cli.rs.
+  - [8e238701](https://www.github.com/tauri-apps/tauri/commit/8e2387018940e9e1421948d74a82156661ce2e4b) fix(cli.rs): fix out dir detection when target arg is set, closes [#2040](https://www.github.com/tauri-apps/tauri/pull/2040) ([#2098](https://www.github.com/tauri-apps/tauri/pull/2098)) on 2021-06-27
+
+## \[1.0.0-beta.3]
+
+- Allow empty argument when running `cli.rs`.
+  - [8be35ced](https://www.github.com/tauri-apps/tauri/commit/8be35ced78658de732360e3b20d7d70108c9b32d) fix(cli.rs): `tauri.conf.json > tauri > bundle > targets` being ignored ([#1945](https://www.github.com/tauri-apps/tauri/pull/1945)) on 2021-06-04
+
 ## \[1.0.0-beta.2]
 
 - Packages are checked with `!=` instead of `semver` for beta releases.

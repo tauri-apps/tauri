@@ -18,7 +18,7 @@ use std::path::MAIN_SEPARATOR;
 ///   .show();
 /// ```
 #[allow(dead_code)]
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Notification {
   /// The notification body.
   body: Option<String>,
@@ -81,7 +81,11 @@ impl Notification {
         notification.app_id(&self.identifier);
       }
     }
-    notification.show()?;
+
+    crate::async_runtime::spawn(async move {
+      notification.show().expect("failed to show notification");
+    });
+
     Ok(())
   }
 }

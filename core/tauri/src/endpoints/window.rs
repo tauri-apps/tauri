@@ -3,12 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(window_create)]
-use crate::runtime::{webview::WindowBuilder, Dispatch, Runtime};
+use crate::runtime::{webview::WindowBuilder, Dispatch};
 use crate::{
   api::config::WindowConfig,
   endpoints::InvokeResponse,
-  runtime::window::dpi::{Position, Size},
-  Params, Window,
+  runtime::{
+    window::dpi::{Position, Size},
+    Runtime, UserAttentionType,
+  },
+  Manager, Window,
 };
 use serde::Deserialize;
 
@@ -31,13 +34,10 @@ impl From<IconDto> for Icon {
   }
 }
 
-/// The API descriptor.
+/// Window management API descriptor.
 #[derive(Deserialize)]
-#[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
-pub enum Cmd {
-  CreateWebview {
-    options: WindowConfig,
-  },
+#[serde(tag = "type", content = "payload", rename_all = "camelCase")]
+pub enum WindowManagerCmd {
   // Getters
   ScaleFactor,
   InnerPosition,
@@ -54,10 +54,12 @@ pub enum Cmd {
   AvailableMonitors,
   // Setters
   Center,
+  RequestUserAttention(Option<UserAttentionType>),
   SetResizable(bool),
   SetTitle(String),
   Maximize,
   Unmaximize,
+  ToggleMaximize,
   Minimize,
   Unminimize,
   Show,
@@ -78,6 +80,22 @@ pub enum Cmd {
   SetSkipTaskbar(bool),
   StartDragging,
   Print,
+  // internals
+  #[serde(rename = "__toggleMaximize")]
+  InternalToggleMaximize,
+}
+
+/// The API descriptor.
+#[derive(Deserialize)]
+#[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
+pub enum Cmd {
+  CreateWebview {
+    options: WindowConfig,
+  },
+  Manage {
+    label: Option<String>,
+    cmd: WindowManagerCmd,
+  },
 }
 
 #[cfg(window_create)]
@@ -88,84 +106,94 @@ struct WindowCreatedEvent {
 
 impl Cmd {
   #[allow(dead_code)]
-  pub async fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
-    if cfg!(not(window_all)) {
-      Err(crate::Error::ApiNotAllowlisted("window > all".to_string()))
-    } else {
-      match self {
-        #[cfg(not(window_create))]
-        Self::CreateWebview { .. } => {
-          return Err(crate::Error::ApiNotAllowlisted(
-            "window > create".to_string(),
-          ));
-        }
-        #[cfg(window_create)]
-        Self::CreateWebview { options } => {
-          let mut window = window;
-          // Panic if the user's `Tag` type decided to return an error while parsing.
-          let label: P::Label = options.label.parse().unwrap_or_else(|_| {
-            panic!(
-              "Window module received unknown window label: {}",
-              options.label
-            )
-          });
-
-          let url = options.url.clone();
-          window
-            .create_window(label.clone(), url, |_, webview_attributes| {
-              (
-                <<<P::Runtime as Runtime>::Dispatcher as Dispatch>::WindowBuilder>::with_config(
-                  options,
-                ),
-                webview_attributes,
-              )
-            })?
-            .emit_others(
-              &crate::manager::tauri_event::<P::Event>("tauri://window-created"),
-              Some(WindowCreatedEvent {
-                label: label.to_string(),
-              }),
-            )?;
-        }
-        // Getters
-        Self::ScaleFactor => return Ok(window.scale_factor()?.into()),
-        Self::InnerPosition => return Ok(window.inner_position()?.into()),
-        Self::OuterPosition => return Ok(window.outer_position()?.into()),
-        Self::InnerSize => return Ok(window.inner_size()?.into()),
-        Self::OuterSize => return Ok(window.outer_size()?.into()),
-        Self::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
-        Self::IsMaximized => return Ok(window.is_maximized()?.into()),
-        Self::IsDecorated => return Ok(window.is_decorated()?.into()),
-        Self::IsResizable => return Ok(window.is_resizable()?.into()),
-        Self::IsVisible => return Ok(window.is_visible()?.into()),
-        Self::CurrentMonitor => return Ok(window.current_monitor()?.into()),
-        Self::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
-        Self::AvailableMonitors => return Ok(window.available_monitors()?.into()),
-        // Setters
-        Self::Center => window.center()?,
-        Self::SetResizable(resizable) => window.set_resizable(resizable)?,
-        Self::SetTitle(title) => window.set_title(&title)?,
-        Self::Maximize => window.maximize()?,
-        Self::Unmaximize => window.unmaximize()?,
-        Self::Minimize => window.minimize()?,
-        Self::Unminimize => window.unminimize()?,
-        Self::Show => window.show()?,
-        Self::Hide => window.hide()?,
-        Self::Close => window.close()?,
-        Self::SetDecorations(decorations) => window.set_decorations(decorations)?,
-        Self::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
-        Self::SetSize(size) => window.set_size(size)?,
-        Self::SetMinSize(size) => window.set_min_size(size)?,
-        Self::SetMaxSize(size) => window.set_max_size(size)?,
-        Self::SetPosition(position) => window.set_position(position)?,
-        Self::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
-        Self::SetFocus => window.set_focus()?,
-        Self::SetIcon { icon } => window.set_icon(icon.into())?,
-        Self::SetSkipTaskbar(skip) => window.set_skip_taskbar(skip)?,
-        Self::StartDragging => window.start_dragging()?,
-        Self::Print => window.print()?,
+  pub async fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
+    match self {
+      #[cfg(not(window_create))]
+      Self::CreateWebview { .. } => {
+        return Err(crate::Error::ApiNotAllowlisted(
+          "window > create".to_string(),
+        ));
       }
-      Ok(().into())
+      #[cfg(window_create)]
+      Self::CreateWebview { options } => {
+        let mut window = window;
+        let label = options.label.clone();
+        let url = options.url.clone();
+
+        window
+          .create_window(label.clone(), url, |_, webview_attributes| {
+            (
+              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(options),
+              webview_attributes,
+            )
+          })?
+          .emit_others("tauri://window-created", Some(WindowCreatedEvent { label }))?;
+      }
+      Self::Manage { label, cmd } => {
+        let window = if let Some(l) = label {
+          window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?
+        } else {
+          window
+        };
+        match cmd {
+          // Getters
+          WindowManagerCmd::ScaleFactor => return Ok(window.scale_factor()?.into()),
+          WindowManagerCmd::InnerPosition => return Ok(window.inner_position()?.into()),
+          WindowManagerCmd::OuterPosition => return Ok(window.outer_position()?.into()),
+          WindowManagerCmd::InnerSize => return Ok(window.inner_size()?.into()),
+          WindowManagerCmd::OuterSize => return Ok(window.outer_size()?.into()),
+          WindowManagerCmd::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
+          WindowManagerCmd::IsMaximized => return Ok(window.is_maximized()?.into()),
+          WindowManagerCmd::IsDecorated => return Ok(window.is_decorated()?.into()),
+          WindowManagerCmd::IsResizable => return Ok(window.is_resizable()?.into()),
+          WindowManagerCmd::IsVisible => return Ok(window.is_visible()?.into()),
+          WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
+          WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
+          WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
+          // Setters
+          WindowManagerCmd::Center => window.center()?,
+          WindowManagerCmd::RequestUserAttention(request_type) => {
+            window.request_user_attention(request_type)?
+          }
+          WindowManagerCmd::SetResizable(resizable) => window.set_resizable(resizable)?,
+          WindowManagerCmd::SetTitle(title) => window.set_title(&title)?,
+          WindowManagerCmd::Maximize => window.maximize()?,
+          WindowManagerCmd::Unmaximize => window.unmaximize()?,
+          WindowManagerCmd::ToggleMaximize => match window.is_maximized()? {
+            true => window.unmaximize()?,
+            false => window.maximize()?,
+          },
+          WindowManagerCmd::Minimize => window.minimize()?,
+          WindowManagerCmd::Unminimize => window.unminimize()?,
+          WindowManagerCmd::Show => window.show()?,
+          WindowManagerCmd::Hide => window.hide()?,
+          WindowManagerCmd::Close => window.close()?,
+          WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
+          WindowManagerCmd::SetAlwaysOnTop(always_on_top) => {
+            window.set_always_on_top(always_on_top)?
+          }
+          WindowManagerCmd::SetSize(size) => window.set_size(size)?,
+          WindowManagerCmd::SetMinSize(size) => window.set_min_size(size)?,
+          WindowManagerCmd::SetMaxSize(size) => window.set_max_size(size)?,
+          WindowManagerCmd::SetPosition(position) => window.set_position(position)?,
+          WindowManagerCmd::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
+          WindowManagerCmd::SetFocus => window.set_focus()?,
+          WindowManagerCmd::SetIcon { icon } => window.set_icon(icon.into())?,
+          WindowManagerCmd::SetSkipTaskbar(skip) => window.set_skip_taskbar(skip)?,
+          WindowManagerCmd::StartDragging => window.start_dragging()?,
+          WindowManagerCmd::Print => window.print()?,
+          // internals
+          WindowManagerCmd::InternalToggleMaximize => {
+            if window.is_resizable()? {
+              match window.is_maximized()? {
+                true => window.unmaximize()?,
+                false => window.maximize()?,
+              }
+            }
+          }
+        }
+      }
     }
+    Ok(().into())
   }
 }

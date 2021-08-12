@@ -8,10 +8,12 @@ import getScriptVersion from '../../helpers/get-script-version'
 import { downloadRustup } from '../../helpers/download-binary'
 import logger from '../../helpers/logger'
 import { createWriteStream, unlinkSync, existsSync } from 'fs'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
 import { platform } from 'os'
 import https from 'https'
+import { fileURLToPath } from 'url'
 
+const currentDirName = dirname(fileURLToPath(import.meta.url))
 const log = logger('dependency:rust')
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -36,12 +38,12 @@ async function download(url: string, dest: string): Promise<void> {
 async function installRustup(): Promise<void> {
   const assetName =
     platform() === 'win32' ? 'rustup-init.exe' : 'rustup-init.sh'
-  const rustupPath = resolve(__dirname, `../../bin/${assetName}`)
+  const rustupPath = resolve(currentDirName, `../../bin/${assetName}`)
   if (!existsSync(rustupPath)) {
     await downloadRustup()
   }
   if (platform() === 'win32') {
-    return spawnSync('powershell', [rustupPath], process.cwd())
+    return spawnSync('powershell', ['-NoProfile', rustupPath], process.cwd())
   }
   return spawnSync('/bin/sh', [rustupPath], process.cwd())
 }

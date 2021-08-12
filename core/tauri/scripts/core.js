@@ -5,12 +5,12 @@
 // polyfills
 if (!String.prototype.startsWith) {
   String.prototype.startsWith = function (searchString, position) {
-    position = position || 0;
-    return this.substr(position, searchString.length) === searchString;
-  };
+    position = position || 0
+    return this.substr(position, searchString.length) === searchString
+  }
 }
 
-(function () {
+;(function () {
   function uid() {
     const length = new Int8Array(1)
     window.crypto.getRandomValues(length)
@@ -20,41 +20,41 @@ if (!String.prototype.startsWith) {
   }
 
   function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object);
+    var keys = Object.keys(object)
     if (Object.getOwnPropertySymbols) {
-      var symbols = Object.getOwnPropertySymbols(object);
+      var symbols = Object.getOwnPropertySymbols(object)
       if (enumerableOnly)
         symbols = symbols.filter(function (sym) {
-          return Object.getOwnPropertyDescriptor(object, sym).enumerable;
-        });
-      keys.push.apply(keys, symbols);
+          return Object.getOwnPropertyDescriptor(object, sym).enumerable
+        })
+      keys.push.apply(keys, symbols)
     }
-    return keys;
+    return keys
   }
 
   function _objectSpread(target) {
     for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i] != null ? arguments[i] : {};
+      var source = arguments[i] != null ? arguments[i] : {}
       if (i % 2) {
         ownKeys(source, true).forEach(function (key) {
-          _defineProperty(target, key, source[key]);
-        });
+          _defineProperty(target, key, source[key])
+        })
       } else if (Object.getOwnPropertyDescriptors) {
         Object.defineProperties(
           target,
           Object.getOwnPropertyDescriptors(source)
-        );
+        )
       } else {
         ownKeys(source).forEach(function (key) {
           Object.defineProperty(
             target,
             key,
             Object.getOwnPropertyDescriptor(source, key)
-          );
-        });
+          )
+        })
       }
     }
-    return target;
+    return target
   }
 
   function _defineProperty(obj, key, value) {
@@ -63,52 +63,52 @@ if (!String.prototype.startsWith) {
         value: value,
         enumerable: true,
         configurable: true,
-        writable: true,
-      });
+        writable: true
+      })
     } else {
-      obj[key] = value;
+      obj[key] = value
     }
-    return obj;
+    return obj
   }
 
   if (!window.__TAURI__) {
-    window.__TAURI__ = {};
+    window.__TAURI__ = {}
   }
 
   window.__TAURI__.transformCallback = function transformCallback(
     callback,
     once
   ) {
-    var identifier = uid();
+    var identifier = uid()
 
     window[identifier] = function (result) {
       if (once) {
-        delete window[identifier];
+        delete window[identifier]
       }
 
-      return callback && callback(result);
-    };
+      return callback && callback(result)
+    }
 
-    return identifier;
-  };
+    return identifier
+  }
 
-  window.__TAURI__.invoke = function invoke(cmd, args = {}) {
+  window.__TAURI__._invoke = function invoke(cmd, args = {}, key = null) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
-        resolve(r);
-        delete window[error];
-      }, true);
+        resolve(r)
+        delete window[error]
+      }, true)
       var error = window.__TAURI__.transformCallback(function (e) {
-        reject(e);
-        delete window[callback];
-      }, true);
+        reject(e)
+        delete window[callback]
+      }, true)
 
-      if (typeof cmd === "string") {
-        args.cmd = cmd;
-      } else if (typeof cmd === "object") {
-        args = cmd;
+      if (typeof cmd === 'string') {
+        args.cmd = cmd
+      } else if (typeof cmd === 'object') {
+        args = cmd
       } else {
-        return reject(new Error("Invalid argument type."));
+        return reject(new Error('Invalid argument type.'))
       }
 
       if (window.rpc) {
@@ -118,221 +118,269 @@ if (!String.prototype.startsWith) {
             {
               callback: callback,
               error: error,
+              __invokeKey: key || __TAURI_INVOKE_KEY__
             },
             args
           )
-        );
+        )
       } else {
-        window.addEventListener("DOMContentLoaded", function () {
+        window.addEventListener('DOMContentLoaded', function () {
           window.rpc.notify(
             cmd,
             _objectSpread(
               {
                 callback: callback,
                 error: error,
+                __invokeKey: key || __TAURI_INVOKE_KEY__
               },
               args
             )
-          );
-        });
+          )
+        })
       }
-    });
-  };
+    })
+  }
 
   // open <a href="..."> links with the Tauri API
   function __openLinks() {
-    document.querySelector("body").addEventListener(
-      "click",
+    document.querySelector('body').addEventListener(
+      'click',
       function (e) {
-        var target = e.target;
+        var target = e.target
         while (target != null) {
           if (
-            target.matches ? target.matches("a") : target.msMatchesSelector("a")
+            target.matches ? target.matches('a') : target.msMatchesSelector('a')
           ) {
             if (
               target.href &&
-              target.href.startsWith("http") &&
-              target.target === "_blank"
+              target.href.startsWith('http') &&
+              target.target === '_blank'
             ) {
-              window.__TAURI__.invoke('tauri', {
-                __tauriModule: "Shell",
-                message: {
-                  cmd: "open",
-                  path: target.href,
+              window.__TAURI__._invoke(
+                'tauri',
+                {
+                  __tauriModule: 'Shell',
+                  message: {
+                    cmd: 'open',
+                    path: target.href
+                  }
                 },
-              });
-              e.preventDefault();
+                _KEY_VALUE_
+              )
+              e.preventDefault()
             }
-            break;
+            break
           }
-          target = target.parentElement;
+          target = target.parentElement
         }
       },
       true
-    );
+    )
   }
 
   if (
-    document.readyState === "complete" ||
-    document.readyState === "interactive"
+    document.readyState === 'complete' ||
+    document.readyState === 'interactive'
   ) {
-    __openLinks();
+    __openLinks()
   } else {
     window.addEventListener(
-      "DOMContentLoaded",
+      'DOMContentLoaded',
       function () {
-        __openLinks();
+        __openLinks()
       },
       true
-    );
+    )
   }
 
   // drag region
   document.addEventListener('mousedown', (e) => {
-    // start dragging if the element has a `tauri-drag-region` data attribute
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
-      window.__TAURI__.invoke('tauri', {
-        __tauriModule: "Window",
-        message: {
-          cmd: "startDragging",
-        }
-      })
+      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
+      window.__TAURI__._invoke(
+        'tauri',
+        {
+          __tauriModule: 'Window',
+          message: {
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
+              }
+            }
+          }
+        },
+        _KEY_VALUE_
+      )
     }
   })
 
-  window.__TAURI__.invoke('tauri', {
-    __tauriModule: "Event",
-    message: {
-      cmd: "listen",
-      event: "tauri://window-created",
-      handler: window.__TAURI__.transformCallback(function (event) {
-        if (event.payload) {
-          var windowLabel = event.payload.label;
-          window.__TAURI__.__windows.push({ label: windowLabel });
-        }
-      }),
+  window.__TAURI__._invoke(
+    'tauri',
+    {
+      __tauriModule: 'Event',
+      message: {
+        cmd: 'listen',
+        event: 'tauri://window-created',
+        handler: window.__TAURI__.transformCallback(function (event) {
+          if (event.payload) {
+            var windowLabel = event.payload.label
+            window.__TAURI__.__windows.push({ label: windowLabel })
+          }
+        })
+      }
     },
-  });
+    _KEY_VALUE_
+  )
 
-  let permissionSettable = false;
-  let permissionValue = "default";
+  let permissionSettable = false
+  let permissionValue = 'default'
 
   function isPermissionGranted() {
-    if (window.Notification.permission !== "default") {
-      return Promise.resolve(window.Notification.permission === "granted");
+    if (window.Notification.permission !== 'default') {
+      return Promise.resolve(window.Notification.permission === 'granted')
     }
-    return window.__TAURI__.invoke('tauri', {
-      __tauriModule: "Notification",
-      message: {
-        cmd: "isNotificationPermissionGranted",
+    return window.__TAURI__._invoke(
+      'tauri',
+      {
+        __tauriModule: 'Notification',
+        message: {
+          cmd: 'isNotificationPermissionGranted'
+        }
       },
-    });
+      _KEY_VALUE_
+    )
   }
 
   function setNotificationPermission(value) {
-    permissionSettable = true;
-    window.Notification.permission = value;
-    permissionSettable = false;
+    permissionSettable = true
+    window.Notification.permission = value
+    permissionSettable = false
   }
 
   function requestPermission() {
     return window.__TAURI__
-      .invoke('tauri', {
-        __tauriModule: "Notification",
-        message: {
-          cmd: "requestNotificationPermission",
+      ._invoke(
+        'tauri',
+        {
+          __tauriModule: 'Notification',
+          message: {
+            cmd: 'requestNotificationPermission'
+          }
         },
-      })
+        _KEY_VALUE_
+      )
       .then(function (permission) {
-        setNotificationPermission(permission);
-        return permission;
-      });
+        setNotificationPermission(permission)
+        return permission
+      })
   }
 
   function sendNotification(options) {
-    if (typeof options === "object") {
-      Object.freeze(options);
+    if (typeof options === 'object') {
+      Object.freeze(options)
     }
 
     isPermissionGranted().then(function (permission) {
       if (permission) {
-        return window.__TAURI__.invoke('tauri', {
-          __tauriModule: "Notification",
-          message: {
-            cmd: "notification",
-            options:
-              typeof options === "string"
-                ? {
-                    title: options,
-                  }
-                : options,
+        return window.__TAURI__._invoke(
+          'tauri',
+          {
+            __tauriModule: 'Notification',
+            message: {
+              cmd: 'notification',
+              options:
+                typeof options === 'string'
+                  ? {
+                      title: options
+                    }
+                  : options
+            }
           },
-        });
+          _KEY_VALUE_
+        )
       }
-    });
+    })
   }
 
   window.Notification = function (title, options) {
-    var opts = options || {};
+    var opts = options || {}
     sendNotification(
       Object.assign(opts, {
-        title: title,
+        title: title
       })
-    );
-  };
+    )
+  }
 
-  window.Notification.requestPermission = requestPermission;
+  window.Notification.requestPermission = requestPermission
 
-  Object.defineProperty(window.Notification, "permission", {
+  Object.defineProperty(window.Notification, 'permission', {
     enumerable: true,
     get: function () {
-      return permissionValue;
+      return permissionValue
     },
     set: function (v) {
       if (!permissionSettable) {
-        throw new Error("Readonly property");
+        throw new Error('Readonly property')
       }
-      permissionValue = v;
-    },
-  });
+      permissionValue = v
+    }
+  })
 
   isPermissionGranted().then(function (response) {
     if (response === null) {
-      setNotificationPermission("default");
+      setNotificationPermission('default')
     } else {
-      setNotificationPermission(response ? "granted" : "denied");
+      setNotificationPermission(response ? 'granted' : 'denied')
     }
-  });
+  })
 
   window.alert = function (message) {
-    window.__TAURI__.invoke('tauri', {
-      __tauriModule: "Dialog",
-      message: {
-        cmd: "messageDialog",
-        message: message,
+    window.__TAURI__._invoke(
+      'tauri',
+      {
+        __tauriModule: 'Dialog',
+        message: {
+          cmd: 'messageDialog',
+          message: message
+        }
       },
-    });
-  };
+      _KEY_VALUE_
+    )
+  }
 
   window.confirm = function (message) {
-    return window.__TAURI__.invoke('tauri', {
-      __tauriModule: "Dialog",
-      message: {
-        cmd: "askDialog",
-        message: message,
+    return window.__TAURI__._invoke(
+      'tauri',
+      {
+        __tauriModule: 'Dialog',
+        message: {
+          cmd: 'askDialog',
+          message: message
+        }
       },
-    });
-  };
+      _KEY_VALUE_
+    )
+  }
 
   // window.print works on Linux/Windows; need to use the API on macOS
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
-      return window.__TAURI__.invoke('tauri', {
-        __tauriModule: "Window",
-        message: {
-          cmd: "print"
+      return window.__TAURI__._invoke(
+        'tauri',
+        {
+          __tauriModule: 'Window',
+          message: {
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: 'print'
+              }
+            }
+          }
         },
-      });
+        _KEY_VALUE_
+      )
     }
   }
-})();
+})()

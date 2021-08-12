@@ -1,13 +1,10 @@
 {
   "build": {
-    "distDir": [
-      "../index.html"
-    ],
-    "devPath": [
-      "../index.html"
-    ],
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
   },
   "tauri": {
     "bundle": {

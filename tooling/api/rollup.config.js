@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 // rollup.config.js
+import { readdirSync } from 'fs'
 import { terser } from 'rollup-plugin-terser'
 import resolve from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
@@ -13,23 +14,13 @@ import pkg from './package.json'
 
 export default [
   {
-    input: {
-      app: './src/app.ts',
-      fs: './src/fs.ts',
-      path: './src/path.ts',
-      dialog: './src/dialog.ts',
-      event: './src/event.ts',
-      updater: './src/updater.ts',
-      http: './src/http.ts',
-      index: './src/index.ts',
-      shell: './src/shell.ts',
-      tauri: './src/tauri.ts',
-      window: './src/window.ts',
-      cli: './src/cli.ts',
-      notification: './src/notification.ts',
-      globalShortcut: './src/globalShortcut.ts',
-      process: './src/process.ts'
-    },
+    input: (() => {
+      let input = {}
+      readdirSync('src')
+        .filter((e) => e.endsWith('.ts') && e !== 'bundle.ts')
+        .forEach((mod) => (input[`${mod.replace('.ts', '')}`] = `./src/${mod}`))
+      return input
+    })(),
     treeshake: true,
     perf: true,
     output: [

@@ -4,9 +4,10 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
+import { isWindows } from './helpers/os-check'
 
 /**
- * Read common system paths such as home, config and cache directories.
+ * The path module provides utilities for working with file and directory paths.
  *
  * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  *
@@ -15,16 +16,15 @@ import { BaseDirectory } from './fs'
  * {
  *   "tauri": {
  *     "allowlist": {
- *       "fs": {
- *         "all": true, // enable all FS APIs
- *         "path": true // enable path APIs
+ *       "path": {
+ *         "all": true, // enable all Path APIs
  *       }
  *     }
  *   }
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
- * @packageDocumentation
+ * @module
  */
 
 /**
@@ -35,7 +35,7 @@ import { BaseDirectory } from './fs'
  */
 async function appDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -46,18 +46,18 @@ async function appDir(): Promise<string> {
 
 /**
  * Returns the path to the user's audio directory.
- * # Linux
- * Resolves to `$XDG_MUSIC_DIR`.
- * # macOS
- * Resolves to `$HOME/Music`.
- * # Windows
- * Resolves to `{FOLDERID_Music}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_MUSIC_DIR`.
+ * - **macOS:** Resolves to `$HOME/Music`.
+ * - **Windows:** Resolves to `{FOLDERID_Music}`.
  *
  * @returns
  */
 async function audioDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -68,18 +68,18 @@ async function audioDir(): Promise<string> {
 
 /**
  * Returns the path to the user's cache directory.
- * # Linux
- * Resolves to `$XDG_CACHE_HOME` or `$HOME/.cache`.
- * # macOS
- * Resolves to `$HOME/Library/Caches`.
- * # Windows
- * Resolves to `{FOLDERID_LocalAppData}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_CACHE_HOME` or `$HOME/.cache`.
+ * - **macOS:** Resolves to `$HOME/Library/Caches`.
+ * - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
  *
  * @returns
  */
 async function cacheDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -90,18 +90,18 @@ async function cacheDir(): Promise<string> {
 
 /**
  * Returns the path to the user's config directory.
- * # Linux
- * Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
- * # macOS
- * Resolves to `$HOME/Library/Application Support`.
- * # Windows
- * Resolves to `{FOLDERID_LocalAppData}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
+ * - **macOS:** Resolves to `$HOME/Library/Application Support`.
+ * - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
  *
  * @returns
  */
 async function configDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -112,18 +112,18 @@ async function configDir(): Promise<string> {
 
 /**
  * Returns the path to the user's data directory.
- * # Linux
- * Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
- * # macOS
- * Resolves to `$HOME/Library/Application Support`.
- * # Windows
- * Resolves to `{FOLDERID_RoamingAppData}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
+ * - **macOS:** Resolves to `$HOME/Library/Application Support`.
+ * - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
  *
  * @returns
  */
 async function dataDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -134,18 +134,18 @@ async function dataDir(): Promise<string> {
 
 /**
  * Returns the path to the user's desktop directory.
- * # Linux
- * Resolves to `$XDG_DESKTOP_DIR`.
- * # macOS
- * Resolves to `$HOME/Library/Desktop`.
- * # Windows
- * Resolves to `{FOLDERID_Desktop}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_DESKTOP_DIR`.
+ * - **macOS:** Resolves to `$HOME/Library/Desktop`.
+ * - **Windows:** Resolves to `{FOLDERID_Desktop}`.
 
  * @returns
  */
 async function desktopDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -156,18 +156,18 @@ async function desktopDir(): Promise<string> {
 
 /**
  * Returns the path to the user's document directory.
- * # Linux
- * Resolves to `$XDG_DOCUMENTS_DIR`.
- * # macOS
- * Resolves to `$HOME/Documents`.
- * # Windows
- * Resolves to `{FOLDERID_Documents}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_DOCUMENTS_DIR`.
+ * - **macOS:** Resolves to `$HOME/Documents`.
+ * - **Windows:** Resolves to `{FOLDERID_Documents}`.
  *
  * @returns
  */
 async function documentDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -178,18 +178,18 @@ async function documentDir(): Promise<string> {
 
 /**
  * Returns the path to the user's download directory.
- * # Linux
- * Resolves to `$XDG_DOWNLOAD_DIR`.
- * # macOS
- * Resolves to `$HOME/Downloads`.
- * # Windows
- * Resolves to `{FOLDERID_Downloads}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux**: Resolves to `$XDG_DOWNLOAD_DIR`.
+ * - **macOS**: Resolves to `$HOME/Downloads`.
+ * - **Windows**: Resolves to `{FOLDERID_Downloads}`.
  *
  * @returns
  */
 async function downloadDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -200,18 +200,18 @@ async function downloadDir(): Promise<string> {
 
 /**
  * Returns the path to the user's executable directory.
- * # Linux
- * Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
- * # macOS
- * Not supported.
- * # Windows
- * Not supported.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
+ * - **macOS:** Not supported.
+ * - **Windows:** Not supported.
  *
  * @returns
  */
 async function executableDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -222,18 +222,18 @@ async function executableDir(): Promise<string> {
 
 /**
  * Returns the path to the user's font directory.
- * # Linux
- * Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
- * # macOS
- * Resolves to `$HOME/Library/Fonts`.
- * # Windows
- * Not supported.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
+ * - **macOS:** Resolves to `$HOME/Library/Fonts`.
+ * - **Windows:** Not supported.
  *
  * @returns
  */
 async function fontDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -244,18 +244,18 @@ async function fontDir(): Promise<string> {
 
 /**
  * Returns the path to the user's home directory.
- * # Linux
- * Resolves to `$HOME`.
- * # macOS
- * Resolves to `$HOME`.
- * # Windows
- * Resolves to `{FOLDERID_Profile}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$HOME`.
+ * - **macOS:** Resolves to `$HOME`.
+ * - **Windows:** Resolves to `{FOLDERID_Profile}`.
  *
  * @returns
  */
 async function homeDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -266,18 +266,18 @@ async function homeDir(): Promise<string> {
 
 /**
  * Returns the path to the user's local data directory.
- * # Linux
- * Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
- * # macOS
- * Resolves to `$HOME/Library/Application Support`.
- * # Windows
- * Resolves to `{FOLDERID_LocalAppData}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
+ * - **macOS:** Resolves to `$HOME/Library/Application Support`.
+ * - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
  *
  * @returns
  */
 async function localDataDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -288,18 +288,18 @@ async function localDataDir(): Promise<string> {
 
 /**
  * Returns the path to the user's picture directory.
- * # Linux
- * Resolves to `$XDG_PICTURES_DIR`.
- * # macOS
- * Resolves to `$HOME/Pictures`.
- * # Windows
- * Resolves to `{FOLDERID_Pictures}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_PICTURES_DIR`.
+ * - **macOS:** Resolves to `$HOME/Pictures`.
+ * - **Windows:** Resolves to `{FOLDERID_Pictures}`.
  *
  * @returns
  */
 async function pictureDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -310,18 +310,18 @@ async function pictureDir(): Promise<string> {
 
 /**
  * Returns the path to the user's public directory.
- * # Linux
- * Resolves to `$XDG_PUBLICSHARE_DIR`.
- * # macOS
- * Resolves to `$HOME/Public`.
- * # Windows
- * Resolves to `{FOLDERID_Public}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_PUBLICSHARE_DIR`.
+ * - **macOS:** Resolves to `$HOME/Public`.
+ * - **Windows:** Resolves to `{FOLDERID_Public}`.
  *
  * @returns
  */
 async function publicDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -337,7 +337,7 @@ async function publicDir(): Promise<string> {
  */
 async function resourceDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -348,18 +348,18 @@ async function resourceDir(): Promise<string> {
 
 /**
  * Returns the path to the user's runtime directory.
- * # Linux
- * Resolves to `$XDG_RUNTIME_DIR`.
- * # macOS
- * Not supported.
- * # Windows
- * Not supported.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_RUNTIME_DIR`.
+ * - **macOS:** Not supported.
+ * - **Windows:** Not supported.
  *
  * @returns
  */
 async function runtimeDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -370,18 +370,18 @@ async function runtimeDir(): Promise<string> {
 
 /**
  * Returns the path to the user's template directory.
- * # Linux
- * Resolves to `$XDG_TEMPLATES_DIR`.
- * # macOS
- * Not supported.
- * # Windows
- * Resolves to `{FOLDERID_Templates}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_TEMPLATES_DIR`.
+ * - **macOS:** Not supported.
+ * - **Windows:** Resolves to `{FOLDERID_Templates}`.
  *
  * @returns
  */
 async function templateDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -392,18 +392,18 @@ async function templateDir(): Promise<string> {
 
 /**
  * Returns the path to the user's video directory.
- * # Linux
- * Resolves to `$XDG_VIDEOS_DIR`.
- * # macOS
- * Resolves to `$HOME/Movies`.
- * # Windows
- * Resolves to `{FOLDERID_Videos}`.
+ *
+ * ## Platform-specific
+ *
+ * - **Linux:** Resolves to `$XDG_VIDEOS_DIR`.
+ * - **macOS:** Resolves to `$HOME/Movies`.
+ * - **Windows:** Resolves to `{FOLDERID_Videos}`.
  *
  * @returns
  */
 async function videoDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -419,7 +419,7 @@ async function videoDir(): Promise<string> {
  */
 async function currentDir(): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
@@ -429,22 +429,110 @@ async function currentDir(): Promise<string> {
 }
 
 /**
- * Resolves the path with the optional base directory.
- *
- * @param path A path to resolve
- * @param directory A base directory to use when resolving the given path
- * @returns A path resolved to the given base directory.
+ * Provides the platform-specific path segment separator:
+ * - `\` on Windows
+ * - `/` on POSIX
  */
-async function resolvePath(
-  path: string,
-  directory: BaseDirectory
-): Promise<string> {
+const sep = isWindows() ? '\\' : '/'
+
+/**
+ * Provides the platform-specific path segment delimiter:
+ * - `;` on Windows
+ * - `:` on POSIX
+ */
+const delimiter = isWindows() ? ';' : ':'
+
+/**
+ * Resolves a sequence of `paths` or `path` segments into an absolute path.
+ *
+ * @param paths A sequence of paths or path segments.
+ */
+async function resolve(...paths: string[]): Promise<string> {
   return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
+    __tauriModule: 'Path',
     message: {
-      cmd: 'resolvePath',
+      cmd: 'resolve',
+      paths
+    }
+  })
+}
+
+/**
+ * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symolic links.
+ */
+async function normalize(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'normalize',
+      path
+    }
+  })
+}
+
+/**
+ *  Joins all given `path` segments together using the platform-specific separator as a delimiter, then normalizes the resulting path.
+ *
+ * @param paths A sequence of path segments.
+ */
+async function join(...paths: string[]): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'join',
+      paths
+    }
+  })
+}
+
+/**
+ * Returns the directory name of a `path`. Trailing directory separators are ignored.
+ */
+async function dirname(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'dirname',
+      path
+    }
+  })
+}
+
+/**
+ * Returns the extension of the `path`.
+ */
+async function extname(path: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'extname',
+      path
+    }
+  })
+}
+
+/**
+ *  Returns the last portion of a `path`. Trailing directory separators are ignored.
+ *
+ * @param ext An optional file extension to be removed from the returned path.
+ */
+async function basename(path: string, ext?: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'basename',
       path,
-      directory
+      ext
+    }
+  })
+}
+
+async function isAbsolute(path: string): Promise<boolean> {
+  return invokeTauriCommand<boolean>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'isAbsolute',
+      path
     }
   })
 }
@@ -469,6 +557,14 @@ export {
   templateDir,
   videoDir,
   currentDir,
-  resolvePath,
-  BaseDirectory
+  BaseDirectory,
+  sep,
+  delimiter,
+  resolve,
+  normalize,
+  join,
+  dirname,
+  extname,
+  basename,
+  isAbsolute
 }

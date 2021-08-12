@@ -7,7 +7,8 @@ use super::InvokeResponse;
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
   api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
-  Params, Window,
+  runtime::Runtime,
+  Window,
 };
 use serde::Deserialize;
 
@@ -73,7 +74,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(dialog_open)]
       Self::OpenDialog { options } => open(window, options),
@@ -113,31 +114,18 @@ impl Cmd {
   }
 }
 
-#[cfg(all(target_os = "linux", any(dialog_open, dialog_save)))]
-fn set_default_path(dialog_builder: FileDialogBuilder, default_path: PathBuf) -> FileDialogBuilder {
-  if default_path.is_file() {
-    dialog_builder.set_file_name(&default_path.to_string_lossy().to_string())
-  } else {
-    dialog_builder.set_directory(default_path)
-  }
-}
-
-#[cfg(all(any(windows, target_os = "macos"), any(dialog_open, dialog_save)))]
+#[cfg(any(dialog_open, dialog_save))]
 fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,
 ) -> FileDialogBuilder {
-  if default_path.is_file() {
-    if let Some(parent) = default_path.parent() {
+  if default_path.is_file() || !default_path.exists() {
+    if let (Some(parent), Some(file_name)) = (default_path.parent(), default_path.file_name()) {
       dialog_builder = dialog_builder.set_directory(parent);
+      dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy().to_string());
+    } else {
+      dialog_builder = dialog_builder.set_directory(default_path);
     }
-    dialog_builder = dialog_builder.set_file_name(
-      &default_path
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string(),
-    );
     dialog_builder
   } else {
     dialog_builder.set_directory(default_path)
@@ -159,7 +147,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
 }
 
 #[cfg(all(windows, any(dialog_open, dialog_save)))]
-fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
+fn parent<R: Runtime>(window: Window<R>) -> crate::Result<WindowParent> {
   Ok(WindowParent {
     hwnd: window.hwnd()?,
   })
@@ -168,8 +156,8 @@ fn parent<P: Params>(window: Window<P>) -> crate::Result<WindowParent> {
 /// Shows an open dialog.
 #[cfg(dialog_open)]
 #[allow(unused_variables)]
-pub fn open<P: Params>(
-  window: Window<P>,
+pub fn open<R: Runtime>(
+  window: Window<R>,
   options: OpenDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
@@ -200,8 +188,8 @@ pub fn open<P: Params>(
 /// Shows a save dialog.
 #[cfg(dialog_save)]
 #[allow(unused_variables)]
-pub fn save<P: Params>(
-  window: Window<P>,
+pub fn save<R: Runtime>(
+  window: Window<R>,
   options: SaveDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
@@ -210,9 +198,6 @@ pub fn save<P: Params>(
     dialog_builder = dialog_builder.set_parent(&parent(window)?);
   }
   if let Some(default_path) = options.default_path {
-    if !default_path.exists() {
-      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
-    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {

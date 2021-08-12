@@ -1,5 +1,64 @@
 # Changelog
 
+## \[1.0.0-beta.2]
+
+- Inject invoke key on `script` tags with `type="module"`.
+  - [f03eea9c](https://www.github.com/tauri-apps/tauri/commit/f03eea9c9b964709532afbc4d1dd343b3fd96081) feat(core): inject invoke key on `<script type="module">` ([#2120](https://www.github.com/tauri-apps/tauri/pull/2120)) on 2021-06-29
+- `Params` has been removed, along with all the associated types on it. Functions that previously accepted those
+  associated types now accept strings instead. Type that used a generic parameter `Params` now use `Runtime` instead. If
+  you use the `wry` feature, then types with a `Runtime` generic parameter should default to `Wry`, letting you omit the
+  explicit type and let the compiler infer it instead.
+
+`tauri`:
+
+- See `Params` note
+- If you were using `Params` inside a function parameter or definition, all references to it have been replaced with a
+  simple runtime that defaults to `Wry`. If you are not using a custom runtime, just remove `Params` from the definition
+  of functions/items that previously took it. If you are using a custom runtime, you *may* need to pass the runtime type
+  to these functions.
+- If you were using custom types for `Params` (uncommon and if you don't understand you probably were not using it), all
+  methods that were previously taking the custom type now takes an `Into<String>` or a `&str`. The types were already
+  required to be string-able, so just make sure to convert it into a string before passing it in if this breaking change
+  affects you.
+
+`tauri-macros`:
+
+- (internal) Added private `default_runtime` proc macro to allow us to give item definitions a custom runtime only when
+  the specified feature is enabled.
+
+`tauri-runtime`:
+
+- See `Params` note
+- Removed `Params`, `MenuId`, `Tag`, `TagRef`.
+- Added `menu::{MenuHash, MenuId, MenuIdRef}` as type aliases for the internal type that menu types now use.
+  - All previous menu items that had a `MenuId` generic now use the underlying `MenuId` type without a generic.
+- `Runtime`, `RuntimeHandle`, and `Dispatch` have no more generic parameter on `create_window(...)` and instead use the
+  `Runtime` type directly
+- `Runtime::system_tray` has no more `MenuId` generic and uses the string based `SystemTray` type directly.
+- (internal) `CustomMenuItem::id_value()` is now hashed on creation and exposed as the `id` field with type `MenuHash`.
+
+`tauri-runtime-wry`:
+
+- See `Params` note
+- update menu and runtime related types to the ones changed in `tauri-runtime`.
+
+`tauri-utils`:
+
+- `Assets::get` signature has changed to take a `&AssetKey` instead of `impl Into<AssetKey>` to become trait object
+  safe.
+- [fd8fab50](https://www.github.com/tauri-apps/tauri/commit/fd8fab507c8fa1b113b841af14c6693eb3955f6b) refactor(core): remove `Params` and replace with strings ([#2191](https://www.github.com/tauri-apps/tauri/pull/2191)) on 2021-07-15
+
+## \[1.0.0-beta.1]
+
+- Allow `dev_path` and `dist_dir` to be an array of root files and directories to embed.
+  - [6ec54c53](https://www.github.com/tauri-apps/tauri/commit/6ec54c53b504eec3873d326b1a45e450227d46ed) feat(core): allow `dev_path`, `dist_dir` as array of paths, fixes [#1897](https://www.github.com/tauri-apps/tauri/pull/1897) ([#1926](https://www.github.com/tauri-apps/tauri/pull/1926)) on 2021-05-31
+- Validate `tauri.conf.json > build > devPath` and `tauri.conf.json > build > distDir` values.
+  - [e97846aa](https://www.github.com/tauri-apps/tauri/commit/e97846aae933cad5cba284a2a133ae7aaee1107c) feat(core): validate `devPath` and `distDir` values ([#1848](https://www.github.com/tauri-apps/tauri/pull/1848)) on 2021-05-17
+- Adds `file_drop_enabled` flag on `WindowConfig`.
+  - [9cd10df4](https://www.github.com/tauri-apps/tauri/commit/9cd10df4d520de12f3b13fe88cc1c1a1b4bd48bf) feat(core): allow disabling file drop handler, closes [#2014](https://www.github.com/tauri-apps/tauri/pull/2014) ([#2030](https://www.github.com/tauri-apps/tauri/pull/2030)) on 2021-06-21
+- Hide `phf` crate export (not public API).
+  - [cd1a299a](https://www.github.com/tauri-apps/tauri/commit/cd1a299a7d5a9bd164063a32c87a27762b71e9a8) chore(core): hide phf, closes [#1961](https://www.github.com/tauri-apps/tauri/pull/1961) ([#1964](https://www.github.com/tauri-apps/tauri/pull/1964)) on 2021-06-09
+
 ## \[1.0.0-beta.0]
 
 - **Breaking:** The `assets` field on the `tauri::Context` struct is now a `Arc<impl Assets>`.

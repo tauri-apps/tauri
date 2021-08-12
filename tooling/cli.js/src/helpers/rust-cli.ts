@@ -2,25 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { existsSync } from 'fs'
-import { resolve, join } from 'path'
-import { spawnSync, spawn } from './spawn'
 import { CargoManifest } from '../types/cargo'
+import { existsSync } from 'fs'
+import { resolve, join, dirname } from 'path'
+import { spawnSync, spawn } from './spawn'
 import { downloadCli } from './download-binary'
+import { fileURLToPath } from 'url'
+// Webpack reads the file at build-time, so this becomes a static var
+// @ts-expect-error
+import manifest from '../../../cli.rs/Cargo.toml'
+const tauriCliManifest = manifest as CargoManifest
 
-const currentTauriCliVersion = (): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest =
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('../../../cli.rs/Cargo.toml') as CargoManifest
-  return tauriCliManifest.package.version
-}
+const currentDirName = dirname(fileURLToPath(import.meta.url))
 
 export async function runOnRustCli(
   command: string,
   args: string[]
 ): Promise<{ pid: number; promise: Promise<void> }> {
-  const targetPath = resolve(__dirname, '../..')
+  const targetPath = resolve(currentDirName, '../..')
   const targetCliPath = join(
     targetPath,
     'bin/tauri-cli' + (process.platform === 'win32' ? '.exe' : '')
@@ -57,8 +56,8 @@ export async function runOnRustCli(
       onClose
     )
   } else {
-    if (existsSync(resolve(targetPath, '../bundler'))) {
-      // running local CLI
+    if (existsSync(resolve(targetPath, 'test'))) {
+      // running local CLI since test directory exists
       const cliPath = resolve(targetPath, '../cli.rs')
       spawnSync('cargo', ['build', '--release'], cliPath)
       const localCliPath = resolve(
@@ -80,7 +79,8 @@ export async function runOnRustCli(
           targetPath,
           'tauri-cli',
           '--version',
-          currentTauriCliVersion()
+          // eslint-disable-next-line
+          tauriCliManifest.package.version
         ],
         process.cwd()
       )

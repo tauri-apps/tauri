@@ -1,11 +1,7 @@
 {
   "build": {
-    "distDir": [
-      "../index.html"
-    ],
-    "devPath": [
-      "../index.html"
-    ],
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
@@ -32,10 +28,20 @@
         "useBootstrapper": false
       },
       "macOS": {
+        "signingIdentity": null,
+        "entitlements": "../entitlements.plist",
         "frameworks": [],
         "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": null,
+        "timestampUrl": null,
+        "wix": {
+          "enableElevatedUpdateTask": false
+        }
       }
     },
     "allowlist": {

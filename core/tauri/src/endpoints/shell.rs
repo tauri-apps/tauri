@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, Params, Window};
+use crate::{endpoints::InvokeResponse, runtime::Runtime, Window};
 use serde::Deserialize;
 
 #[cfg(shell_execute)]
@@ -73,7 +73,7 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<P: Params>(self, window: Window<P>) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Execute {
         program,
@@ -102,9 +102,8 @@ impl Cmd {
           let pid = child.pid();
           command_childs().lock().unwrap().insert(pid, child);
 
-          // TODO: for some reason using `crate::async_runtime::spawn` and `rx.recv().await` doesn't work here, see issue #1935
-          std::thread::spawn(move || {
-            while let Some(event) = rx.blocking_recv() {
+          crate::async_runtime::spawn(async move {
+            while let Some(event) = rx.recv().await {
               if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }

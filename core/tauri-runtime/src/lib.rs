@@ -6,11 +6,12 @@
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-use std::{fmt::Debug, hash::Hash, path::PathBuf};
-
-use serde::Serialize;
-use tauri_utils::assets::Assets;
+use serde::Deserialize;
+use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
+
+#[cfg(windows)]
+use winapi::shared::windef::HWND;
 
 /// Create window and system tray menus.
 #[cfg(any(feature = "menu", feature = "system-tray"))]
@@ -18,48 +19,46 @@ use uuid::Uuid;
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
-pub mod tag;
 pub mod webview;
 pub mod window;
 
 use monitor::Monitor;
-use tag::Tag;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   DetachedWindow, PendingWindow, WindowEvent,
 };
 
-/// A type that can be derived into a menu id.
-pub trait MenuId: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
-
-impl<T> MenuId for T where T: Serialize + Hash + Eq + Debug + Clone + Send + Sync + 'static {}
-
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
-pub struct SystemTray<I: MenuId> {
+#[derive(Debug)]
+pub struct SystemTray {
   pub icon: Option<Icon>,
-  pub menu: Option<menu::SystemTrayMenu<I>>,
+  pub menu: Option<menu::SystemTrayMenu>,
+  #[cfg(target_os = "macos")]
+  pub icon_as_template: bool,
 }
 
 #[cfg(feature = "system-tray")]
-impl<I: MenuId> Default for SystemTray<I> {
+impl Default for SystemTray {
   fn default() -> Self {
     Self {
       icon: None,
       menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
     }
   }
 }
 
 #[cfg(feature = "system-tray")]
-impl<I: MenuId> SystemTray<I> {
+impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
     Default::default()
   }
 
-  pub fn menu(&self) -> Option<&menu::SystemTrayMenu<I>> {
+  pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {
     self.menu.as_ref()
   }
 
@@ -69,11 +68,32 @@ impl<I: MenuId> SystemTray<I> {
     self
   }
 
+  /// Sets the tray icon as template.
+  #[cfg(target_os = "macos")]
+  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.icon_as_template = is_template;
+    self
+  }
+
   /// Sets the menu to show when the system tray is right clicked.
-  pub fn with_menu(mut self, menu: menu::SystemTrayMenu<I>) -> Self {
+  pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
   }
+}
+
+/// Type of user attention requested on a window.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(tag = "type")]
+pub enum UserAttentionType {
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon until the application is in focus.
+  /// - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
+  Critical,
+  /// ## Platform-specific
+  /// - **macOS:** Bounces the dock icon once.
+  /// - **Windows:** Flashes the taskbar button until the application is in focus.
+  Informational,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -102,36 +122,13 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Global shortcut error.
+  #[error(transparent)]
+  GlobalShortcut(Box<dyn std::error::Error + Send>),
 }
 
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
-
-#[doc(hidden)]
-pub mod private {
-  pub trait ParamsBase {}
-}
-
-/// Types associated with the running Tauri application.
-pub trait Params: private::ParamsBase + 'static {
-  /// The event type used to create and listen to events.
-  type Event: Tag;
-
-  /// The type used to determine the name of windows.
-  type Label: Tag;
-
-  /// The type used to determine window menu ids.
-  type MenuId: MenuId;
-
-  /// The type used to determine system tray menu ids.
-  type SystemTrayMenuId: MenuId;
-
-  /// Assets that Tauri should serve from itself.
-  type Assets: Assets;
-
-  /// The underlying webview runtime used by the Tauri application.
-  type Runtime: Runtime;
-}
 
 /// A icon definition.
 #[derive(Debug, Clone)]
@@ -169,9 +166,37 @@ impl Icon {
   }
 }
 
+/// Event triggered on the event loop run.
+#[non_exhaustive]
+pub enum RunEvent {
+  /// Event loop is exiting.
+  Exit,
+  /// Event loop is about to exit
+  ExitRequested {
+    tx: Sender<ExitRequestedEventAction>,
+  },
+  /// Window close was requested by the user.
+  CloseRequested {
+    /// The window label.
+    label: String,
+    /// A signal sender. If a `true` value is emitted, the window won't be closed.
+    signal_tx: Sender<bool>,
+  },
+  /// Window closed.
+  WindowClose(String),
+}
+
+/// Action to take when the event loop is about to exit
+#[derive(Debug)]
+pub enum ExitRequestedEventAction {
+  /// Prevent the event loop from exiting
+  Prevent,
+}
+
 /// A system tray event.
+#[derive(Debug)]
 pub enum SystemTrayEvent {
-  MenuItemClick(u32),
+  MenuItemClick(u16),
   LeftClick {
     position: PhysicalPosition<f64>,
     size: PhysicalSize<f64>,
@@ -189,21 +214,79 @@ pub enum SystemTrayEvent {
 /// Metadata for a runtime event loop iteration on `run_iteration`.
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
-  pub webview_count: usize,
+  pub window_count: usize,
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Send + Sized + Clone + 'static {
+pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+    pending: PendingWindow<Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()>;
+}
+
+/// A global shortcut manager.
+pub trait GlobalShortcutManager: Debug {
+  /// Whether the application has registered the given `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
+
+  /// Register a global shortcut of `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn register<F: Fn() + Send + 'static>(
+    &mut self,
+    accelerator: &str,
+    handler: F,
+  ) -> crate::Result<()>;
+
+  /// Unregister all accelerators registered by the manager instance.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn unregister_all(&mut self) -> crate::Result<()>;
+
+  /// Unregister the provided `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
+}
+
+/// Clipboard manager.
+pub trait ClipboardManager: Debug {
+  /// Writes the text into the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+
+  fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
+  /// Read the content in the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  fn read_text(&self) -> Result<Option<String>>;
 }
 
 /// The webview runtime interface.
@@ -212,6 +295,10 @@ pub trait Runtime: Sized + 'static {
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
+  /// The global shortcut manager type.
+  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  /// The clipboard manager type.
+  type ClipboardManager: ClipboardManager + Clone + Send;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
@@ -222,16 +309,19 @@ pub trait Runtime: Sized + 'static {
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
 
+  /// Gets the global shortcut manager.
+  fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
+
+  /// Gets the clipboard manager.
+  fn clipboard_manager(&self) -> Self::ClipboardManager;
+
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self>>(
-    &self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+  fn create_window(&self, pending: PendingWindow<Self>) -> crate::Result<DetachedWindow<Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray<I: MenuId>(&self, system_tray: SystemTray<I>) -> crate::Result<Self::TrayHandler>;
+  fn system_tray(&self, system_tray: SystemTray) -> crate::Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
@@ -240,14 +330,14 @@ pub trait Runtime: Sized + 'static {
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration(&mut self) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: Fn() + 'static>(self, callback: F);
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Clone + Send + Sized + 'static {
+pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime;
 
@@ -320,7 +410,21 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void>;
+  fn hwnd(&self) -> crate::Result<HWND>;
+
+  /// Returns the native handle that is used by this window.
+  #[cfg(target_os = "macos")]
+  fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void>;
+
+  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow>;
 
   // SETTERS
 
@@ -330,11 +434,16 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> crate::Result<()>;
 
+  /// Requests user attention to the window.
+  ///
+  /// Providing `None` will unset the request for user attention.
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> crate::Result<()>;
+
   /// Create a new webview window.
-  fn create_window<P: Params<Runtime = Self::Runtime>>(
+  fn create_window(
     &mut self,
-    pending: PendingWindow<P>,
-  ) -> crate::Result<DetachedWindow<P>>;
+    pending: PendingWindow<Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
@@ -409,5 +518,5 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
   #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u32, update: menu::MenuUpdate) -> crate::Result<()>;
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
 }

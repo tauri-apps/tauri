@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.1.1"
+version = "0.1.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -12,9 +12,10 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { git = "https://github.com/tauri-apps/wry", rev = "6a1475ff76cbdd699df9329ab8e2181c2a794c96", default-features = false, features = [ "file-drop", "protocol", "win32" ] }
-tauri-runtime = { version = "0.1.1", path = "../tauri-runtime" }
-tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils" }
+wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
+# wry = { git = "https://github.com/tauri-apps/wry", branch = "dev", default-features = false, features = [ "file-drop", "protocol" ] }
+tauri-runtime = { version = "0.1.4", path = "../tauri-runtime" }
+tauri-utils = { version = "1.0.0-beta.2", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 infer = "0.4"
 
@@ -22,10 +23,11 @@ infer = "0.4"
 ico = "0.1"
 winapi = "0.3"
 
-[target."cfg(target_os = \"linux\")".dependencies]
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"
+gtk = { version = "0.14", features = [ "v3_20" ] }
 
 [features]
 dox = [ "wry/dox" ]
-menu = [ "wry/menu", "tauri-runtime/menu" ]
+menu = [ "tauri-runtime/menu"]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]

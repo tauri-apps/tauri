@@ -1,5 +1,28 @@
 # Changelog
 
+## \[1.0.0-beta.3]
+
+- Improve ESM detection with regexes.
+  - Bumped due to a bump in tauri-codegen.
+  - [4b0ec018](https://www.github.com/tauri-apps/tauri/commit/4b0ec0188078a8fefd4119fe5e19ebc30191f802) fix(core): improve JS ESM detection ([#2139](https://www.github.com/tauri-apps/tauri/pull/2139)) on 2021-07-02
+- Inject invoke key on `script` tags with `type="module"`.
+  - Bumped due to a bump in tauri-codegen.
+  - [f03eea9c](https://www.github.com/tauri-apps/tauri/commit/f03eea9c9b964709532afbc4d1dd343b3fd96081) feat(core): inject invoke key on `<script type="module">` ([#2120](https://www.github.com/tauri-apps/tauri/pull/2120)) on 2021-06-29
+
+## \[1.0.0-beta.2]
+
+- Detect ESM scripts and inject the invoke key directly instead of using an IIFE.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Improve invoke key code injection performance time rewriting code at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+
+## \[1.0.0-beta.1]
+
+- Pull Windows resource information (`FileVersion`, `ProductVersion`, `ProductName` and `FileDescription`) from `tauri.conf.json > package` configuration.
+  - [dc6b0d85](https://www.github.com/tauri-apps/tauri/commit/dc6b0d8522ca9f0962aa7c6fe446743889470b8c) feat(core): set .rc values from tauri.conf.json, closes [#1849](https://www.github.com/tauri-apps/tauri/pull/1849) ([#1951](https://www.github.com/tauri-apps/tauri/pull/1951)) on 2021-06-05
+
 ## \[1.0.0-beta.0]
 
 - The `try_build` method now has a `Attributes` argument to allow specifying the window icon path used on Windows.

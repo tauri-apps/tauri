@@ -5,7 +5,13 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::HashMap, fs, io::{BufRead, BufReader}, path::PathBuf, process::{Command, Output, Stdio}};
+use std::{
+  collections::HashMap,
+  fs,
+  io::{BufRead, BufReader},
+  path::PathBuf,
+  process::{Command, Output, Stdio},
+};
 
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct BenchResult {
@@ -49,6 +55,14 @@ pub fn target_dir() -> PathBuf {
 
 pub fn bench_root_path() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+}
+
+#[allow(dead_code)]
+pub fn home_path() -> PathBuf {
+  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  return PathBuf::from(env!("HOME"));
+  #[cfg(any(target_os = "windows"))]
+  return PathBuf::from(env!("HOMEPATH"));
 }
 
 #[allow(dead_code)]
@@ -191,4 +205,27 @@ pub fn write_json(filename: &str, value: &Value) -> Result<()> {
   let f = fs::File::create(filename)?;
   serde_json::to_writer(f, value)?;
   Ok(())
+}
+
+#[allow(dead_code)]
+pub fn download_file(url: &str, filename: PathBuf) {
+  if !url.starts_with("http:") && !url.starts_with("https:") {
+    fs::copy(url, filename).unwrap();
+    return;
+  }
+
+  // Downloading with curl this saves us from adding
+  // a Rust HTTP client dependency.
+  println!("Downloading {}", url);
+  let status = Command::new("curl")
+    .arg("-L")
+    .arg("-s")
+    .arg("-o")
+    .arg(&filename)
+    .arg(&url)
+    .status()
+    .unwrap();
+
+  assert!(status.success());
+  assert!(filename.exists());
 }

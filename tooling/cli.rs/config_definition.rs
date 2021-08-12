@@ -4,6 +4,8 @@
 
 #![allow(clippy::field_reassign_with_default)]
 
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -78,6 +80,10 @@ pub struct WixConfig {
   pub merge_refs: Vec<String>,
   #[serde(default)]
   pub skip_webview_install: bool,
+  /// Path to the license file.
+  pub license: Option<String>,
+  #[serde(default)]
+  pub enable_elevated_update_task: bool,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -97,6 +103,20 @@ pub struct PackageConfig {
   pub product_name: Option<String>,
   /// App version.
   pub version: Option<String>,
+}
+
+impl PackageConfig {
+  #[allow(dead_code)]
+  pub fn binary_name(&self) -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+      self.product_name.as_ref().map(|n| n.to_kebab_case())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      self.product_name.clone()
+    }
+  }
 }
 
 #[skip_serializing_none]
@@ -261,6 +281,14 @@ pub struct WindowConfig {
   pub label: Option<String>,
   /// The window webview URL.
   pub url: Option<String>,
+  /// Whether the file drop is enabled or not on the webview. By default it is enabled.
+  ///
+  /// Disabling it is required to use drag and drop on the frontend on Windows.
+  #[serde(default = "default_file_drop_enabled")]
+  pub file_drop_enabled: bool,
+  /// Whether or not the window starts centered or not.
+  #[serde(default)]
+  pub center: bool,
   /// The horizontal position of the window's top left corner
   pub x: Option<f64>,
   /// The vertical position of the window's top left corner
@@ -285,6 +313,9 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
+  /// Whether the window will be initially hidden or focused.
+  #[serde(default = "default_focus")]
+  pub focus: bool,
   /// Whether the window is transparent or not.
   #[serde(default)]
   pub transparent: bool,
@@ -300,6 +331,13 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default)]
   pub always_on_top: bool,
+  /// Whether or not the window icon should be added to the taskbar.
+  #[serde(default)]
+  pub skip_taskbar: bool,
+}
+
+fn default_focus() -> bool {
+  true
 }
 
 fn default_visible() -> bool {
@@ -307,6 +345,10 @@ fn default_visible() -> bool {
 }
 
 fn default_decorations() -> bool {
+  true
+}
+
+fn default_file_drop_enabled() -> bool {
   true
 }
 
@@ -354,8 +396,6 @@ pub struct FsAllowlistConfig {
   pub remove_file: bool,
   #[serde(default)]
   pub rename_file: bool,
-  #[serde(default)]
-  pub path: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -374,7 +414,6 @@ impl Allowlist for FsAllowlistConfig {
       check_feature!(self, features, remove_dir, "fs-remove-dir");
       check_feature!(self, features, remove_file, "fs-remove-file");
       check_feature!(self, features, rename_file, "fs-rename-file");
-      check_feature!(self, features, path, "fs-path");
       features
     }
   }
@@ -506,6 +545,40 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OsAllowlistConfig {
+  #[serde(default)]
+  pub all: bool,
+}
+
+impl Allowlist for OsAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["os-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PathAllowlistConfig {
+  #[serde(default)]
+  pub all: bool,
+}
+
+impl Allowlist for PathAllowlistConfig {
+  fn to_features(&self) -> Vec<&str> {
+    if self.all {
+      vec!["path-all"]
+    } else {
+      vec![]
+    }
+  }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AllowlistConfig {
   #[serde(default)]
   pub all: bool,
@@ -523,6 +596,10 @@ pub struct AllowlistConfig {
   pub notification: NotificationAllowlistConfig,
   #[serde(default)]
   pub global_shortcut: GlobalShortcutAllowlistConfig,
+  #[serde(default)]
+  pub os: OsAllowlistConfig,
+  #[serde(default)]
+  pub path: PathAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -538,6 +615,8 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.http.to_features());
       features.extend(self.notification.to_features());
       features.extend(self.global_shortcut.to_features());
+      features.extend(self.os.to_features());
+      features.extend(self.path.to_features());
       features
     }
   }
@@ -597,6 +676,9 @@ pub struct SystemTrayConfig {
   ///
   /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.
   pub icon_path: PathBuf,
+  /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+  #[serde(default)]
+  pub icon_as_template: bool,
 }
 
 // We enable the unnecessary_wraps because we need

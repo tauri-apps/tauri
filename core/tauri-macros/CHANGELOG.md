@@ -1,5 +1,65 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- `Params` has been removed, along with all the associated types on it. Functions that previously accepted those
+  associated types now accept strings instead. Type that used a generic parameter `Params` now use `Runtime` instead. If
+  you use the `wry` feature, then types with a `Runtime` generic parameter should default to `Wry`, letting you omit the
+  explicit type and let the compiler infer it instead.
+
+`tauri`:
+
+- See `Params` note
+- If you were using `Params` inside a function parameter or definition, all references to it have been replaced with a
+  simple runtime that defaults to `Wry`. If you are not using a custom runtime, just remove `Params` from the definition
+  of functions/items that previously took it. If you are using a custom runtime, you *may* need to pass the runtime type
+  to these functions.
+- If you were using custom types for `Params` (uncommon and if you don't understand you probably were not using it), all
+  methods that were previously taking the custom type now takes an `Into<String>` or a `&str`. The types were already
+  required to be string-able, so just make sure to convert it into a string before passing it in if this breaking change
+  affects you.
+
+`tauri-macros`:
+
+- (internal) Added private `default_runtime` proc macro to allow us to give item definitions a custom runtime only when
+  the specified feature is enabled.
+
+`tauri-runtime`:
+
+- See `Params` note
+- Removed `Params`, `MenuId`, `Tag`, `TagRef`.
+- Added `menu::{MenuHash, MenuId, MenuIdRef}` as type aliases for the internal type that menu types now use.
+  - All previous menu items that had a `MenuId` generic now use the underlying `MenuId` type without a generic.
+- `Runtime`, `RuntimeHandle`, and `Dispatch` have no more generic parameter on `create_window(...)` and instead use the
+  `Runtime` type directly
+- `Runtime::system_tray` has no more `MenuId` generic and uses the string based `SystemTray` type directly.
+- (internal) `CustomMenuItem::id_value()` is now hashed on creation and exposed as the `id` field with type `MenuHash`.
+
+`tauri-runtime-wry`:
+
+- See `Params` note
+- update menu and runtime related types to the ones changed in `tauri-runtime`.
+
+`tauri-utils`:
+
+- `Assets::get` signature has changed to take a `&AssetKey` instead of `impl Into<AssetKey>` to become trait object
+  safe.
+- [fd8fab50](https://www.github.com/tauri-apps/tauri/commit/fd8fab507c8fa1b113b841af14c6693eb3955f6b) refactor(core): remove `Params` and replace with strings ([#2191](https://www.github.com/tauri-apps/tauri/pull/2191)) on 2021-07-15
+
+## \[1.0.0-beta.3]
+
+- Detect ESM scripts and inject the invoke key directly instead of using an IIFE.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+- Improve invoke key code injection performance time rewriting code at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
+
+## \[1.0.0-beta.2]
+
+- internal: Refactor all macro code that expects specific bindings to be passed Idents
+  - [39f8f269](https://www.github.com/tauri-apps/tauri/commit/39f8f269164d2fda3d5b614a193b12bb266e4b4b) refactor(macros): explicitly pass idents ([#1812](https://www.github.com/tauri-apps/tauri/pull/1812)) on 2021-05-13
+
 ## \[1.0.0-beta.1]
 
 - Fixes a name collision when the command function is named `invoke`.

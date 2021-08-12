@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
@@ -128,24 +130,57 @@ impl Build {
     let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
     let out_dir = app_settings
-      .get_out_dir(self.debug)
+      .get_out_dir(self.target.clone(), self.debug)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
       let bin_name = app_settings.cargo_package_settings().name.clone();
       #[cfg(windows)]
-      rename(
-        out_dir.join(format!("{}.exe", bin_name)),
-        out_dir.join(format!("{}.exe", product_name)),
-      )?;
-      #[cfg(not(windows))]
-      rename(out_dir.join(bin_name), out_dir.join(product_name))?;
+      let (bin_path, product_path) = {
+        (
+          out_dir.join(format!("{}.exe", bin_name)),
+          out_dir.join(format!("{}.exe", product_name)),
+        )
+      };
+      #[cfg(target_os = "macos")]
+      let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+      #[cfg(target_os = "linux")]
+      let (bin_path, product_path) = {
+        (
+          out_dir.join(bin_name),
+          out_dir.join(product_name.to_kebab_case()),
+        )
+      };
+      rename(&bin_path, &product_path).with_context(|| {
+        format!(
+          "failed to rename `{}` to `{}`",
+          bin_path.display(),
+          product_path.display(),
+        )
+      })?;
     }
 
     if config_.tauri.bundle.active {
       // move merge modules to the out dir so the bundler can load it
       #[cfg(windows)]
       {
-        let (filename, vcruntime_msm) = if cfg!(target_arch = "x86") {
+        let arch = if let Some(t) = &self.target {
+          if t.starts_with("x86_64") {
+            "x86_64"
+          } else if t.starts_with('i') {
+            "x86"
+          } else if t.starts_with("arm") {
+            "arm"
+          } else if t.starts_with("aarch64") {
+            "aarch64"
+          } else {
+            panic!("Unexpected target triple {}", t)
+          }
+        } else if cfg!(target_arch = "x86") {
+          "x86"
+        } else {
+          "x86_64"
+        };
+        let (filename, vcruntime_msm) = if arch == "x86" {
           let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
           (
             "Microsoft_VC142_CRT_x86.msm",
@@ -207,6 +242,7 @@ impl Build {
 
       let settings = crate::interface::get_bundler_settings(
         app_settings,
+        self.target.clone(),
         &manifest,
         config_,
         &out_dir,

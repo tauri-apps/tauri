@@ -36,7 +36,7 @@ emit('click', {
 Window-specific events are exposed on the `window` module.
 
 ```ts
-import { getCurrent, WebviewWindow } from '@tauri-apps/api/event'
+import { getCurrent, WebviewWindow } from '@tauri-apps/api/window'
 
 // emit an event that are only visible to the current window
 const current = getCurrent()

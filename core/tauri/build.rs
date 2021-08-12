@@ -23,7 +23,6 @@ fn main() {
     fs_remove_dir: { any(fs_all, feature = "fs-remove-dir") },
     fs_remove_file: { any(fs_all, feature = "fs-remove-file") },
     fs_rename_file: { any(fs_all, feature = "fs-rename-file") },
-    fs_path: { any(fs_all, feature = "fs-path") },
 
     // window
     window_all: { any(api_all, feature = "window-all") },
@@ -51,5 +50,11 @@ fn main() {
 
     // global shortcut
     global_shortcut_all: { any(api_all, feature = "global_shortcut-all") },
+
+    // os
+    os_all: { any(api_all, feature = "os-all") },
+
+    // path
+    path_all: { any(api_all, feature = "path-all") },
   }
 }

@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.5"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2018"
 categories = [ "gui", "web-programming" ]
@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.0.0-beta.2", features = [ "yaml" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "1.0.0-beta.0", path = "../bundler" }
+tauri-bundler = { version = "1.0.0-beta.3", path = "../bundler" }
 colored = "2.0"
 once_cell = "1.8"
 serde = { version = "1.0", features = [ "derive" ] }
@@ -32,7 +32,7 @@ json-patch = "0.2"
 schemars = "0.8"
 toml = "0.5"
 valico = "3.6"
-handlebars = "4.0"
+handlebars = "4.1"
 include_dir = "0.6"
 minisign = "0.6"
 base64 = "0.13.0"
@@ -45,13 +45,16 @@ libc = "0.2"
 terminal_size = "0.1"
 unicode-width = "0.1"
 tempfile = "3"
-zeroize = "1.3"
+zeroize = "1.4"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "winbase", "winuser", "consoleapi", "processenv", "wincon" ] }
 encode_unicode = "0.3"
 
 [target."cfg(target_os = \"linux\")".dependencies]
+heck = "0.3"
+
+[target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.3"
 
 [build-dependencies]

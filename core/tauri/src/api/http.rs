@@ -10,7 +10,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 /// Client builder.
-#[derive(Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientBuilder {
   /// Max number of redirections to follow
@@ -63,12 +63,12 @@ impl ClientBuilder {
 
 /// The HTTP client.
 #[cfg(feature = "reqwest-client")]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Client(reqwest::Client);
 
 /// The HTTP client.
 #[cfg(not(feature = "reqwest-client"))]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Client(ClientBuilder);
 
 #[cfg(not(feature = "reqwest-client"))]
@@ -118,18 +118,11 @@ impl Client {
       request_builder.send()?
     };
 
-    if response.is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-        request.url,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text()?,
-      ))
-    }
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+      request.url,
+    ))
   }
 }
 
@@ -148,32 +141,15 @@ impl Client {
       request_builder = request_builder.query(&query);
     }
 
-    if let Some(headers) = request.headers {
-      for (header, header_value) in headers.iter() {
-        request_builder =
-          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
-      }
-    }
-
     if let Some(timeout) = request.timeout {
       request_builder = request_builder.timeout(Duration::from_secs(timeout));
     }
 
-    let response = if let Some(body) = request.body {
-      match body {
-        Body::Bytes(data) => {
-          request_builder
-            .body(bytes::Bytes::from(data))
-            .send()
-            .await?
-        }
-        Body::Text(text) => {
-          request_builder
-            .body(bytes::Bytes::from(text))
-            .send()
-            .await?
-        }
-        Body::Json(json) => request_builder.json(&json).send().await?,
+    if let Some(body) = request.body {
+      request_builder = match body {
+        Body::Bytes(data) => request_builder.body(bytes::Bytes::from(data)),
+        Body::Text(text) => request_builder.body(bytes::Bytes::from(text)),
+        Body::Json(json) => request_builder.json(&json),
         Body::Form(form_body) => {
           let mut form = Vec::new();
           for (name, part) in form_body.0 {
@@ -183,24 +159,27 @@ impl Client {
               FormPart::Text(text) => form.push((name, text)),
             }
           }
-          request_builder.form(&form).send().await?
+          request_builder.form(&form)
         }
-      }
-    } else {
-      request_builder.send().await?
-    };
-
-    if response.status().is_success() {
-      Ok(Response(
-        request.response_type.unwrap_or(ResponseType::Json),
-        response,
-      ))
-    } else {
-      Err(super::Error::Http(
-        response.status().as_u16(),
-        response.text().await?,
-      ))
+      };
     }
+
+    let mut http_request = request_builder.build()?;
+    if let Some(headers) = request.headers {
+      for (header, value) in headers.iter() {
+        http_request.headers_mut().insert(
+          HeaderName::from_bytes(header.as_bytes())?,
+          http::header::HeaderValue::from_str(value)?,
+        );
+      }
+    }
+
+    let response = self.0.execute(http_request).await?;
+
+    Ok(Response(
+      request.response_type.unwrap_or(ResponseType::Json),
+      response,
+    ))
   }
 }
 
@@ -218,7 +197,7 @@ pub enum ResponseType {
 }
 
 /// FormBody data types.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum FormPart {
@@ -231,7 +210,7 @@ pub enum FormPart {
 }
 
 /// Form body definition.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct FormBody(HashMap<String, FormPart>);
 
 impl FormBody {
@@ -242,7 +221,7 @@ impl FormBody {
 }
 
 /// A body for the request.
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type", content = "payload")]
 #[non_exhaustive]
 pub enum Body {
@@ -276,7 +255,7 @@ pub enum Body {
 ///   }
 /// }
 /// ```
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
@@ -342,9 +321,11 @@ impl HttpRequestBuilder {
 
 /// The HTTP response.
 #[cfg(feature = "reqwest-client")]
+#[derive(Debug)]
 pub struct Response(ResponseType, reqwest::Response);
 /// The HTTP response.
 #[cfg(not(feature = "reqwest-client"))]
+#[derive(Debug)]
 pub struct Response(ResponseType, attohttpc::Response, String);
 
 impl Response {
@@ -375,14 +356,14 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json().await?,
       ResponseType::Text => Value::String(self.1.text().await?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes().await?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes().await?)?,
     };
 
     #[cfg(not(feature = "reqwest-client"))]
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => Value::String(serde_json::to_string(&self.1.bytes()?)?),
+      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
     };
 
     Ok(ResponseData {
@@ -396,6 +377,7 @@ impl Response {
 
 /// A response with raw bytes.
 #[non_exhaustive]
+#[derive(Debug)]
 pub struct RawResponse {
   /// Response status code.
   pub status: u16,
@@ -404,7 +386,7 @@ pub struct RawResponse {
 }
 
 /// The response type.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub struct ResponseData {

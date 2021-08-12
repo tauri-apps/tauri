@@ -101,7 +101,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  */
 function convertFileSrc(filePath: string): string {
   return navigator.userAgent.includes('Windows')
-    ? `https://custom.protocol.asset_${filePath}`
+    ? `https://asset.${filePath}`
     : `asset://${filePath}`
 }
 

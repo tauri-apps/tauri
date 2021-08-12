@@ -78,6 +78,9 @@ pub enum Event {
   /// The app is about to exit
   #[non_exhaustive]
   ExitRequested {
+    /// The label of the window that requested the exit.
+    /// It is the last window managed by tauri.
+    window_label: String,
     /// Event API
     api: ExitRequestApi,
   },
@@ -405,16 +408,15 @@ impl<R: Runtime> App<R> {
           &app_handle,
           match event {
             RunEvent::Exit => Event::Exit,
-            RunEvent::ExitRequested { tx } => Event::ExitRequested {
+            RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+              window_label,
               api: ExitRequestApi(tx),
             },
             RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-              label: label.parse().unwrap_or_else(|_| unreachable!()),
+              label,
               api: CloseRequestApi(signal_tx),
             },
-            RunEvent::WindowClose(label) => {
-              Event::WindowClosed(label.parse().unwrap_or_else(|_| unreachable!()))
-            }
+            RunEvent::WindowClose(label) => Event::WindowClosed(label),
             _ => unimplemented!(),
           },
         );

@@ -2080,18 +2080,22 @@ fn on_window_close<'a>(
   if let Some(webview) = windows.remove(&window_id) {
     #[cfg(feature = "menu")]
     menu_event_listeners.lock().unwrap().remove(&window_id);
-    callback(RunEvent::WindowClose(webview.label));
-  }
-  if windows.is_empty() {
-    let (tx, rx) = channel();
-    callback(RunEvent::ExitRequested { tx });
+    callback(RunEvent::WindowClose(webview.label.clone()));
 
-    let recv = rx.try_recv();
-    let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+    if windows.is_empty() {
+      let (tx, rx) = channel();
+      callback(RunEvent::ExitRequested {
+        window_label: webview.label,
+        tx,
+      });
 
-    if !should_prevent {
-      *control_flow = ControlFlow::Exit;
-      callback(RunEvent::Exit);
+      let recv = rx.try_recv();
+      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+      if !should_prevent {
+        *control_flow = ControlFlow::Exit;
+        callback(RunEvent::Exit);
+      }
     }
   }
   // TODO: tao does not fire the destroyed event properly

@@ -173,6 +173,8 @@ pub enum RunEvent {
   Exit,
   /// Event loop is about to exit
   ExitRequested {
+    /// Label of the last window managed by the runtime.
+    window_label: String,
     tx: Sender<ExitRequestedEventAction>,
   },
   /// Window close was requested by the user.

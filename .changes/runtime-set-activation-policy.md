@@ -3,4 +3,4 @@
 "tauri-runtime-wry": patch
 ---
 
-Adds `set_activation_policy` API to the `Runtime` trait.
+Adds `set_activation_policy` API to the `Runtime` trait (macOS only).

@@ -31,9 +31,11 @@ pub use tauri_utils::config;
 
 /// The CLI args interface.
 #[cfg(feature = "cli")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub mod cli;
 
 #[cfg(feature = "cli")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
 /// The desktop notifications API module.

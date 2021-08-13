@@ -1016,6 +1016,7 @@ fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>)
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()

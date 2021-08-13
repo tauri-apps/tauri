@@ -47,9 +47,11 @@ use tauri_runtime as runtime;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
 #[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::Wry;
 
 /// `Result<T, ::tauri::Error>`

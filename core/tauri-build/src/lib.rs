@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 mod codegen;
 
 #[cfg(feature = "codegen")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
 /// Attributes used on Windows.

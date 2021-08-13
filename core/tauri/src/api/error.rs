@@ -30,6 +30,7 @@ pub enum Error {
   Network(#[from] attohttpc::Error),
   /// The network error.
   #[cfg(feature = "reqwest-client")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "reqwest-client")))]
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
   /// HTTP method error.
@@ -37,6 +38,7 @@ pub enum Error {
   HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTP header value.
   #[cfg(feature = "reqwest-client")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "reqwest-client")))]
   #[error("{0}")]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Invalid HTTP header value.
@@ -75,6 +77,7 @@ pub enum Error {
   FailedToDetectPlatform(String),
   /// CLI argument parsing error.
   #[cfg(feature = "cli")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
   #[error("failed to parse CLI arguments: {0}")]
   ParseCliArguments(#[from] clap::Error),
   /// Shell error.

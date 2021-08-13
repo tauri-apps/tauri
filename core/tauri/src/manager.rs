@@ -429,10 +429,10 @@ impl<R: Runtime> WindowManager<R> {
       {core_script}
       {event_initialization_script}
       if (window.rpc) {{
-        window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
+        window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
+          window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
         }})
       }}
       {plugin_initialization_script}
@@ -456,7 +456,7 @@ impl<R: Runtime> WindowManager<R> {
       const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
 
       if (listeners.length > 0) {{
-        window.__TAURI__._invoke('tauri', {{
+        window.__TAURI_INVOKE__('tauri', {{
           __tauriModule: 'Internal',
           message: {{
             cmd: 'validateSalt',

@@ -30,7 +30,6 @@ use std::{
   sync::{mpsc::Sender, Arc},
 };
 
-#[cfg(feature = "menu")]
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 #[cfg(all(windows, feature = "system-tray"))]
@@ -41,7 +40,6 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 #[cfg(feature = "updater")]
 use crate::updater;
 
-#[cfg(feature = "menu")]
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
@@ -97,8 +95,6 @@ pub enum Event {
 }
 
 /// A menu event that was triggered on a window.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct WindowMenuEvent<R: Runtime> {
@@ -106,7 +102,6 @@ pub struct WindowMenuEvent<R: Runtime> {
   pub(crate) window: Window<R>,
 }
 
-#[cfg(feature = "menu")]
 impl<R: Runtime> WindowMenuEvent<R> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> MenuIdRef<'_> {
@@ -543,11 +538,9 @@ pub struct Builder<R: Runtime> {
   state: StateManager,
 
   /// The menu set to all windows.
-  #[cfg(feature = "menu")]
   menu: Option<Menu>,
 
   /// Menu event handlers that listens to all windows.
-  #[cfg(feature = "menu")]
   menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
 
   /// Window event handlers that listens to all windows.
@@ -573,9 +566,7 @@ impl<R: Runtime> Builder<R> {
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
-      #[cfg(feature = "menu")]
       menu: None,
-      #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
@@ -737,16 +728,12 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Sets the menu to use on all windows.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
     self
   }
 
   /// Registers a menu event handler for all windows.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -850,7 +837,6 @@ impl<R: Runtime> Builder<R> {
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
-      #[cfg(feature = "menu")]
       (self.menu, self.menu_event_listeners),
     );
 

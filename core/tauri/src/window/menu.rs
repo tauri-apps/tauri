@@ -12,13 +12,11 @@ use tauri_macros::default_runtime;
 use std::collections::HashMap;
 
 /// The window menu event.
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 #[derive(Debug, Clone)]
 pub struct MenuEvent {
   pub(crate) menu_item_id: MenuId,
 }
 
-#[cfg(feature = "menu")]
 impl MenuEvent {
   /// The menu item id.
   pub fn menu_item_id(&self) -> MenuIdRef<'_> {

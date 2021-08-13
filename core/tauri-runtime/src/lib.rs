@@ -14,8 +14,6 @@ use uuid::Uuid;
 use winapi::shared::windef::HWND;
 
 /// Create window and system tray menus.
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -353,8 +351,6 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   /// Registers a window event handler.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   // GETTERS
@@ -394,7 +390,6 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   fn is_visible(&self) -> crate::Result<bool>;
 
   /// Gets the window menu current visibility state.
-  #[cfg(feature = "menu")]
   fn is_menu_visible(&self) -> crate::Result<bool>;
 
   /// Returns the monitor on which the window currently resides.
@@ -466,11 +461,9 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   fn unminimize(&self) -> crate::Result<()>;
 
   /// Shows the window menu.
-  #[cfg(feature = "menu")]
   fn show_menu(&self) -> crate::Result<()>;
 
   /// Hides the window menu.
-  #[cfg(feature = "menu")]
   fn hide_menu(&self) -> crate::Result<()>;
 
   /// Shows the window.
@@ -519,6 +512,5 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
-  #[cfg(feature = "menu")]
   fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
 }

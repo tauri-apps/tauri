@@ -6,7 +6,6 @@
 
 use crate::{window::DetachedWindow, Icon};
 
-#[cfg(feature = "menu")]
 use crate::menu::Menu;
 
 use serde::Deserialize;
@@ -118,8 +117,6 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn with_config(config: WindowConfig) -> Self;
 
   /// Sets the menu for the window.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn menu(self, menu: Menu) -> Self;
 
   /// Show window in the center of the screen.
@@ -194,8 +191,6 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn has_icon(&self) -> bool;
 
   /// Whether the menu was set or not.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn has_menu(&self) -> bool;
 }
 

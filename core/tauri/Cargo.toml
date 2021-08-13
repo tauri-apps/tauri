@@ -106,7 +106,6 @@ api-all = [
   "path-all"
 ]
 updater = [ "minisign-verify", "base64" ]
-menu = [ "tauri-runtime/menu", "tauri-runtime-wry/menu" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 reqwest-client = [ "reqwest", "bytes" ]
 fs-all = [ "fs-write-binary-file" ]

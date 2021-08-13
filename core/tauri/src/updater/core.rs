@@ -639,7 +639,7 @@ fn copy_files_and_run(
 // Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
 // Should return; `updater-example.app`
 #[cfg(target_os = "macos")]
-fn macos_app_name_in_path(extract_path: &PathBuf) -> String {
+fn macos_app_name_in_path(extract_path: &Path) -> String {
   let components = extract_path.components();
   let app_name = components.last().unwrap();
   let app_name = app_name.as_os_str().to_str().unwrap();

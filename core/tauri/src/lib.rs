@@ -72,7 +72,7 @@ pub use runtime::menu::CustomMenuItem;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::menu::NativeImage;
+pub use runtime::{menu::NativeImage, ActivationPolicy};
 
 pub use {
   self::api::assets::Assets,

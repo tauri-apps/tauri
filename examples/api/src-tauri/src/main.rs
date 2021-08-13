@@ -34,7 +34,7 @@ async fn menu_toggle(window: tauri::Window) {
 }
 
 fn main() {
-  tauri::Builder::default()
+  let mut app = tauri::Builder::default()
     .on_page_load(|window, _| {
       let window_ = window.clone();
       window.listen("js-event", move |event| {
@@ -155,12 +155,16 @@ fn main() {
       menu_toggle,
     ])
     .build(tauri::generate_context!())
-    .expect("error while building tauri application")
-    .run(|app_handle, e| {
-      if let Event::CloseRequested { label, api, .. } = e {
-        api.prevent_close();
-        let window = app_handle.get_window(&label).unwrap();
-        window.emit("close-requested", ()).unwrap();
-      }
-    })
+    .expect("error while building tauri application");
+
+  #[cfg(target_os = "macos")]
+  app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
+  app.run(|app_handle, e| {
+    if let Event::CloseRequested { label, api, .. } = e {
+      api.prevent_close();
+      let window = app_handle.get_window(&label).unwrap();
+      window.emit("close-requested", ()).unwrap();
+    }
+  })
 }

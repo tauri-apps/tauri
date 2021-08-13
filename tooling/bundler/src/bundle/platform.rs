@@ -28,7 +28,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
     let target_spec: TargetSpec = serde_json::from_reader(Cursor::new(output.stdout))?;
     target_spec
       .llvm_target
-      .split("-")
+      .split('-')
       .next()
       .unwrap()
       .to_string()

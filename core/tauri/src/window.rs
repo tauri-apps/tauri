@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub(crate) mod menu;
 
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use menu::{MenuEvent, MenuHandle};
 
 use crate::{
@@ -86,6 +82,7 @@ impl Monitor {
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   window: DetachedWindow<R>,
@@ -292,8 +289,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Registers a menu event listener.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
@@ -306,7 +301,6 @@ impl<R: Runtime> Window<R> {
   // Getters
 
   /// Gets a handle to the window menu.
-  #[cfg(feature = "menu")]
   pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
       ids: self.manager.menu_ids(),

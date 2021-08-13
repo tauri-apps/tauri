@@ -1893,6 +1893,7 @@ dependencies = [
  "dirs-next",
  "glob",
  "handlebars",
+ "heck",
  "hex",
  "icns",
  "image",

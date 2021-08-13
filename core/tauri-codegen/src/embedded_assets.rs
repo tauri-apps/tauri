@@ -196,7 +196,7 @@ impl EmbeddedAssets {
           "import \\*",
           "import (\"|');?$",
           "import\\(",
-          "import (.|\n)+ from (\"|')([A-Za-z\\-]+)(\"|')",
+          "import (.|\n)+ from (\"|')([A-Za-z/\\.@-]+)(\"|')",
           // export keywords
           "export\\{",
           "export \\{",

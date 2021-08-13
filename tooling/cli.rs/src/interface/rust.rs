@@ -11,6 +11,8 @@ use std::{
 };
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
@@ -212,8 +214,7 @@ impl AppSettings {
             BundleBinary::new(
               config
                 .package
-                .product_name
-                .clone()
+                .binary_name()
                 .unwrap_or_else(|| binary.name.clone()),
               true,
             )
@@ -244,16 +245,15 @@ impl AppSettings {
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
-          if let Some(product_name) = config.package.product_name.clone() {
-            bin.set_name(product_name);
+          if let Some(bin_name) = config.package.binary_name() {
+            bin.set_name(bin_name);
           }
         }
         None => {
           binaries.push(BundleBinary::new(
             config
               .package
-              .product_name
-              .clone()
+              .binary_name()
               .unwrap_or_else(|| default_run.to_string()),
             true,
           ));
@@ -263,6 +263,9 @@ impl AppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
+        #[cfg(target_os = "linux")]
+        self.package_settings.product_name.to_kebab_case(),
+        #[cfg(not(target_os = "linux"))]
         self.package_settings.product_name.clone(),
         true,
       )),
@@ -385,9 +388,6 @@ fn tauri_config_to_bundle_settings(
     // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
     depends.push("libwebkit2gtk-4.0-37".to_string());
     depends.push("libgtk-3-0".to_string());
-    if manifest.features.contains("menu") || system_tray_config.is_some() {
-      depends.push("libgtksourceview-3.0-1".to_string());
-    }
   }
 
   let signing_identity = match std::env::var_os("APPLE_SIGNING_IDENTITY") {

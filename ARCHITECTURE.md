@@ -3,9 +3,13 @@ https://tauri.studio
 https://github.com/tauri-apps/tauri
 
 ## Introduction
-Tauri is a polyglot and generic system that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
+Tauri is a polyglot and generic toolkit that is very composable and allows engineers to make a wide variety of applications. It is used for building applications for Desktop Computers using a combination of Rust tools and HTML rendered in a Webview. Apps built with Tauri can ship with any number of pieces of an optional JS API / Rust API so that webviews can control the system via message passing. In fact, developers can extend the default API with their own functionality and bridge the Webview and Rust-based backend easily.
 
-Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
+Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the OS's webview. They do not ship a runtime, since the final binary is compiled from Rust. This makes the reversing of Tauri apps not a trivial task.
+
+## What Tauri is NOT
+- Tauri is not a lightweight kernel wrapper...instead it directly uses WRY and TAO to do the heavy-lifting in making system calls to the OS.
+- Tauri is not a VM or virtualized environment...instead it is an application toolkit that allows making Webview OS applications.
 
 ## Major Components
 The following section briefly describes the roles of the various parts of Tauri.
@@ -49,7 +53,7 @@ This rust executable provides the full interface to all of the required activiti
 #### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
 
-## RUST API
+## TAURI RUST API
 - **app**	The App API module allows you to manage application processes.
 - **assets**	The Assets module allows you to read files that have been bundled by tauri Assets handled by Tauri during compile time and runtime.
 - **config**	The Tauri config definition.

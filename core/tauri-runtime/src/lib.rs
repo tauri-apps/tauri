@@ -14,8 +14,6 @@ use uuid::Uuid;
 use winapi::shared::windef::HWND;
 
 /// Create window and system tray menus.
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
@@ -31,6 +29,7 @@ use window::{
 
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
+#[derive(Debug)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
@@ -172,6 +171,8 @@ pub enum RunEvent {
   Exit,
   /// Event loop is about to exit
   ExitRequested {
+    /// Label of the last window managed by the runtime.
+    window_label: String,
     tx: Sender<ExitRequestedEventAction>,
   },
   /// Window close was requested by the user.
@@ -193,6 +194,7 @@ pub enum ExitRequestedEventAction {
 }
 
 /// A system tray event.
+#[derive(Debug)]
 pub enum SystemTrayEvent {
   MenuItemClick(u16),
   LeftClick {
@@ -216,7 +218,7 @@ pub struct RunIteration {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Send + Sized + Clone + 'static {
+pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
   /// Create a new webview window.
   fn create_window(
@@ -230,7 +232,7 @@ pub trait RuntimeHandle: Send + Sized + Clone + 'static {
 }
 
 /// A global shortcut manager.
-pub trait GlobalShortcutManager {
+pub trait GlobalShortcutManager: Debug {
   /// Whether the application has registered the given `accelerator`.
   ///
   /// # Panics
@@ -269,7 +271,7 @@ pub trait GlobalShortcutManager {
 }
 
 /// Clipboard manager.
-pub trait ClipboardManager {
+pub trait ClipboardManager: Debug {
   /// Writes the text into the clipboard as plain text.
   ///
   /// # Panics
@@ -335,7 +337,7 @@ pub trait Runtime: Sized + 'static {
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Clone + Send + Sized + 'static {
+pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime;
 
@@ -349,8 +351,6 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   /// Registers a window event handler.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   // GETTERS
@@ -390,7 +390,6 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn is_visible(&self) -> crate::Result<bool>;
 
   /// Gets the window menu current visibility state.
-  #[cfg(feature = "menu")]
   fn is_menu_visible(&self) -> crate::Result<bool>;
 
   /// Returns the monitor on which the window currently resides.
@@ -462,11 +461,9 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn unminimize(&self) -> crate::Result<()>;
 
   /// Shows the window menu.
-  #[cfg(feature = "menu")]
   fn show_menu(&self) -> crate::Result<()>;
 
   /// Hides the window menu.
-  #[cfg(feature = "menu")]
   fn hide_menu(&self) -> crate::Result<()>;
 
   /// Shows the window.
@@ -515,6 +512,5 @@ pub trait Dispatch: Clone + Send + Sized + 'static {
   fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
-  #[cfg(feature = "menu")]
   fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
 }

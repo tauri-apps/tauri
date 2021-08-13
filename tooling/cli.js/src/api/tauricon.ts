@@ -18,7 +18,7 @@
  * @license MIT
  */
 
-import { access, ensureDir, ensureFileSync, writeFileSync } from 'fs-extra'
+import * as fsExtra from 'fs-extra'
 import imagemin, { Plugin } from 'imagemin'
 import optipng from 'imagemin-optipng'
 import zopfli from 'imagemin-zopfli'
@@ -31,7 +31,14 @@ import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
 import * as settings from '../helpers/tauricon.config'
 import chalk from 'chalk'
-import { version } from '../../package.json'
+import { createRequire } from 'module'
+
+// @ts-expect-error
+const { access, ensureDir, ensureFileSync, writeFileSync } = fsExtra.default
+
+const require = createRequire(import.meta.url)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version } = require('../../package.json')
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', chalk.red)
@@ -200,7 +207,7 @@ const spinner = (): NodeJS.Timeout | null => {
   }, 500)
 }
 
-const tauricon = (exports.tauricon = {
+const tauricon = {
   validate: async function (src: string, target: string) {
     await validate(src, target)
     return typeof image === 'object'
@@ -512,12 +519,6 @@ const tauricon = (exports.tauricon = {
       throw err
     }
   }
-})
-/* eslint-enable @typescript-eslint/restrict-template-expressions */
-
-if (typeof exports !== 'undefined') {
-  if (typeof module !== 'undefined' && module.exports) {
-    exports = module.exports = tauricon
-  }
-  exports.tauricon = tauricon
 }
+
+export default tauricon

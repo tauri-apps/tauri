@@ -66,15 +66,10 @@ use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
 
-#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
-#[cfg_attr(
-  doc_cfg,
-  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
-)]
+#[cfg(target_os = "macos")]
+#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::menu::NativeImage;
 
 pub use {
@@ -108,8 +103,6 @@ pub use {
     SystemTray,
   },
 };
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem, Submenu},
@@ -155,6 +148,7 @@ macro_rules! tauri_build_context {
 /// # Stability
 /// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
+#[derive(Debug)]
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,

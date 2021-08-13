@@ -27,13 +27,7 @@ impl PackageInfo {
   /// Returns the application package name.
   /// On macOS and Windows it's the `name` field, and on Linux it's the `name` in `kebab-case`.
   pub fn package_name(&self) -> String {
-    #[cfg(target_os = "linux")]
-    {
-      use heck::KebabCase;
-      self.name.to_kebab_case()
-    }
-    #[cfg(not(target_os = "linux"))]
-    return self.name.clone();
+    self.name.clone()
   }
 }
 

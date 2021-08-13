@@ -4,15 +4,6 @@ title: Window Menu
 
 Native application menus can be attached to a window.
 
-### Setup
-
-Enable the `menu` feature flag on `src-tauri/Cargo.toml`:
-
-```toml
-[dependencies]
-tauri = { version = "1.0.0-beta.0", features = ["menu"] }
-```
-
 ### Creating a menu
 
 To create a native window menu, import the `Menu`, `Submenu`, `MenuItem` and `CustomMenuItem` types.

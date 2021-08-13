@@ -26,10 +26,8 @@ use crate::{
 #[cfg(target_os = "windows")]
 use crate::api::path::{resolve_path, BaseDirectory};
 
-#[cfg(feature = "menu")]
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
-#[cfg(feature = "menu")]
 use crate::{
   runtime::menu::{Menu, MenuEntry, MenuHash, MenuId},
   MenuEvent,
@@ -55,7 +53,6 @@ const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
-#[cfg(feature = "menu")]
 const MENU_EVENT: &str = "tauri://menu";
 
 #[default_runtime(crate::Wry, wry)]
@@ -81,13 +78,10 @@ pub struct InnerWindowManager<R: Runtime> {
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
   /// The menu set to all windows.
-  #[cfg(feature = "menu")]
   menu: Option<Menu>,
   /// Maps runtime id to a strongly typed menu id.
-  #[cfg(feature = "menu")]
   menu_ids: HashMap<MenuHash, MenuId>,
   /// Menu event listeners to all windows.
-  #[cfg(feature = "menu")]
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
@@ -104,7 +98,6 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("default_window_icon", &self.default_window_icon)
       .field("salts", &self.salts)
       .field("package_info", &self.package_info);
-    #[cfg(feature = "menu")]
     {
       w = w
         .field("menu", &self.menu)
@@ -130,7 +123,6 @@ impl<R: Runtime> Clone for WindowManager<R> {
   }
 }
 
-#[cfg(feature = "menu")]
 fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
   for item in &menu.items {
     match item {
@@ -153,10 +145,7 @@ impl<R: Runtime> WindowManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Option<Menu>,
-      Vec<GlobalMenuEventListener<R>>,
-    ),
+    (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -172,7 +161,6 @@ impl<R: Runtime> WindowManager<R> {
         salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
-        #[cfg(feature = "menu")]
         menu_ids: {
           let mut map = HashMap::new();
           if let Some(menu) = &menu {
@@ -180,9 +168,7 @@ impl<R: Runtime> WindowManager<R> {
           }
           map
         },
-        #[cfg(feature = "menu")]
         menu,
-        #[cfg(feature = "menu")]
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
       }),
@@ -201,7 +187,6 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// Get the menu ids mapper.
-  #[cfg(feature = "menu")]
   pub(crate) fn menu_ids(&self) -> HashMap<MenuHash, MenuId> {
     self.inner.menu_ids.clone()
   }
@@ -284,7 +269,6 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
       if let Some(menu) = &self.inner.menu {
         pending.window_builder = pending.window_builder.menu(menu.clone());
@@ -513,7 +497,6 @@ mod test {
       Default::default(),
       StateManager::new(),
       Default::default(),
-      #[cfg(feature = "menu")]
       Default::default(),
     );
 
@@ -639,7 +622,6 @@ impl<R: Runtime> WindowManager<R> {
         });
       }
     });
-    #[cfg(feature = "menu")]
     {
       let window_ = window.clone();
       let menu_event_listeners = self.inner.menu_event_listeners.clone();
@@ -819,7 +801,6 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
-#[cfg(feature = "menu")]
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
   window.emit(MENU_EVENT, Some(event.menu_item_id.clone()))
 }

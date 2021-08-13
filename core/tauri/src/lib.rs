@@ -66,15 +66,10 @@ use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 
 // Export types likely to be used by the application.
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(feature = "menu", feature = "system-tray"))))]
 pub use runtime::menu::CustomMenuItem;
 
-#[cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray")))]
-#[cfg_attr(
-  doc_cfg,
-  doc(cfg(all(target_os = "macos", any(feature = "menu", feature = "system-tray"))))
-)]
+#[cfg(target_os = "macos")]
+#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::menu::NativeImage;
 
 pub use {
@@ -108,8 +103,6 @@ pub use {
     SystemTray,
   },
 };
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem, Submenu},

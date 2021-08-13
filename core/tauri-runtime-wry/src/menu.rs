@@ -31,7 +31,6 @@ pub use wry::application::platform::macos::{
 #[cfg(feature = "system-tray")]
 use crate::{Error, Message, Result, TrayMessage};
 
-#[cfg(any(feature = "menu", feature = "system-tray"))]
 use tauri_runtime::menu::MenuHash;
 
 use uuid::Uuid;
@@ -41,11 +40,8 @@ use std::{
   sync::{Arc, Mutex},
 };
 
-#[cfg(feature = "menu")]
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
-#[cfg(feature = "menu")]
 pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
-#[cfg(feature = "menu")]
 pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 #[cfg(feature = "system-tray")]
@@ -213,7 +209,6 @@ impl From<SystemTrayMenuItem> for MenuItemWrapper {
   }
 }
 
-#[cfg(feature = "menu")]
 pub fn convert_menu_id(mut new_menu: Menu, menu: Menu) -> Menu {
   for item in menu.items {
     match item {
@@ -246,7 +241,6 @@ pub fn convert_menu_id(mut new_menu: Menu, menu: Menu) -> Menu {
   new_menu
 }
 
-#[cfg(feature = "menu")]
 pub fn to_wry_menu(
   custom_menu_items: &mut HashMap<MenuHash, WryCustomMenuItem>,
   menu: Menu,

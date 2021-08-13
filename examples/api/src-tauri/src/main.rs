@@ -30,6 +30,7 @@ async fn menu_toggle(window: tauri::Window) {
 }
 
 fn main() {
+  #[allow(unused_mut)]
   let mut app = tauri::Builder::default()
     .on_page_load(|window, _| {
       let window_ = window.clone();

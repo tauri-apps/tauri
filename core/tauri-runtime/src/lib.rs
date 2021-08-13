@@ -217,6 +217,19 @@ pub struct RunIteration {
   pub window_count: usize,
 }
 
+/// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
+#[cfg(target_os = "macos")]
+#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[non_exhaustive]
+pub enum ActivationPolicy {
+  /// Corresponds to NSApplicationActivationPolicyRegular.
+  Regular,
+  /// Corresponds to NSApplicationActivationPolicyAccessory.
+  Accessory,
+  /// Corresponds to NSApplicationActivationPolicyProhibited.
+  Prohibited,
+}
+
 /// A [`Send`] handle to the runtime.
 pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   type Runtime: Runtime<Handle = Self>;
@@ -327,6 +340,11 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]

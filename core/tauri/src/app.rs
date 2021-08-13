@@ -40,6 +40,9 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 #[cfg(feature = "updater")]
 use crate::updater;
 
+#[cfg(target_os = "macos")]
+use crate::ActivationPolicy;
+
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
@@ -388,6 +391,29 @@ impl<R: Runtime> App<R> {
     self.handle.clone()
   }
 
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let mut app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   #[cfg(target_os = "macos")]
+  ///   app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///   app.run(|_app_handle, _event| {});
+  /// }
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_activation_policy(activation_policy);
+  }
+
   /// Runs the application.
   pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
     let app_handle = self.handle();
@@ -438,6 +464,7 @@ impl<R: Runtime> App<R> {
   ///     }
   ///   }
   /// }
+  /// ```
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();

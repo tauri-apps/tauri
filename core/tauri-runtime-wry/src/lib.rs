@@ -23,8 +23,6 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -68,10 +66,11 @@ pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, Wi
 use wry::webview::WebviewExtWindows;
 
 #[cfg(target_os = "macos")]
-use tauri_runtime::menu::NativeImage;
+use tauri_runtime::{menu::NativeImage, ActivationPolicy};
 #[cfg(target_os = "macos")]
 pub use wry::application::platform::macos::{
-  CustomMenuItemExtMacOS, NativeImage as WryNativeImage,
+  ActivationPolicy as WryActivationPolicy, CustomMenuItemExtMacOS, EventLoopExtMacOS,
+  NativeImage as WryNativeImage, WindowExtMacOS,
 };
 
 use std::{
@@ -1651,6 +1650,18 @@ impl Runtime for Wry {
       .unwrap()
       .insert(id, Box::new(f));
     id
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .event_loop
+      .set_activation_policy(match activation_policy {
+        ActivationPolicy::Regular => WryActivationPolicy::Regular,
+        ActivationPolicy::Accessory => WryActivationPolicy::Accessory,
+        ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
+        _ => unimplemented!(),
+      });
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]

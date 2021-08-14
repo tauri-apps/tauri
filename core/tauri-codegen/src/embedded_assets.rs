@@ -202,7 +202,7 @@ impl EmbeddedAssets {
           "export \\{",
           "export\\*",
           "export \\*",
-          "export (default|class|let|const|function)",
+          "export (default|class|let|const|function|async)",
         ])
         .unwrap()
         .is_match(&js)

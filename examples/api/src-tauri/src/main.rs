@@ -15,8 +15,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use tauri::{
-  CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  api::dialog::ask, CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
+  WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -160,8 +160,12 @@ fn main() {
   app.run(|app_handle, e| {
     if let Event::CloseRequested { label, api, .. } = e {
       api.prevent_close();
-      let window = app_handle.get_window(&label).unwrap();
-      window.emit("close-requested", ()).unwrap();
+      let app_handle = app_handle.clone();
+      ask("Tauri API", "Are you sure?", move |answer| {
+        if answer {
+          app_handle.get_window(&label).unwrap().close().unwrap();
+        }
+      });
     }
   })
 }

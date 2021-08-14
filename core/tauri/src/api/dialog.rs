@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_os = "linux"))]
 macro_rules! run_dialog {
   ($e:expr, $h: ident) => {{
-    crate::async_runtime::spawn(async move {
+    std::thread::spawn(move || {
       let response = $e;
       $h(response);
     });

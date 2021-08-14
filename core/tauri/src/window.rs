@@ -239,11 +239,10 @@ impl<R: Runtime> Window<R> {
   /// Emits an event to the current window.
   pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, payload: {}}}, '{}')",
+      "window['{}']({{event: {}, payload: {}}})",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_value(payload)?,
-      self.manager.generate_salt(),
     ))?;
 
     Ok(())
@@ -688,9 +687,5 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
-  }
-
-  pub(crate) fn verify_salt(&self, salt: String) -> bool {
-    self.manager.verify_salt(salt)
   }
 }

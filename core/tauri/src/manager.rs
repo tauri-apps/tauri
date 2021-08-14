@@ -290,6 +290,9 @@ impl<R: Runtime> WindowManager<R> {
     if !webview_attributes.has_uri_scheme_protocol("asset") {
       webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
         let path = url.replace("asset://", "");
+        let path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
         let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
         Ok(data)
       });

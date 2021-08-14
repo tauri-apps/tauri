@@ -44,7 +44,6 @@ use std::{
 };
 use tauri_macros::default_runtime;
 use url::Url;
-use uuid::Uuid;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -72,8 +71,6 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   default_window_icon: Option<Vec<u8>>,
 
-  /// A list of salts that are valid for the current application.
-  salts: Mutex<HashSet<Uuid>>,
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
@@ -96,7 +93,6 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("state", &self.state)
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
-      .field("salts", &self.salts)
       .field("package_info", &self.package_info);
     {
       w = w
@@ -158,7 +154,6 @@ impl<R: Runtime> WindowManager<R> {
         config: Arc::new(context.config),
         assets: context.assets,
         default_window_icon: context.default_window_icon,
-        salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
         menu_ids: {
@@ -444,37 +439,24 @@ impl<R: Runtime> WindowManager<R> {
       } else {
         ""
       },
-      event_initialization_script = self.event_initialization_script(key),
+      event_initialization_script = self.event_initialization_script(),
       plugin_initialization_script = plugin_initialization_script
     )
   }
 
-  fn event_initialization_script(&self, key: u32) -> String {
+  fn event_initialization_script(&self) -> String {
     return format!(
       "
-      window['{function}'] = function (eventData, salt) {{
+      window['{function}'] = function (eventData) {{
       const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
 
-      if (listeners.length > 0) {{
-        window.__TAURI_INVOKE__('tauri', {{
-          __tauriModule: 'Internal',
-          message: {{
-            cmd: 'validateSalt',
-            salt: salt
-          }}
-        }}, {key}).then(function (flag) {{
-          if (flag) {{
-            for (let i = listeners.length - 1; i >= 0; i--) {{
-              const listener = listeners[i]
-              eventData.id = listener.id
-              listener.handler(eventData)
-            }}
-          }}
-        }})
+      for (let i = listeners.length - 1; i >= 0; i--) {{
+        const listener = listeners[i]
+        eventData.id = listener.id
+        listener.handler(eventData)
       }}
     }}
     ",
-      key = key,
       function = self.inner.listeners.function_name(),
       listeners = self.inner.listeners.listeners_object_name()
     );
@@ -708,36 +690,13 @@ impl<R: Runtime> WindowManager<R> {
   ) -> EventHandler {
     self.inner.listeners.once(event, window, handler)
   }
+
   pub fn event_listeners_object_name(&self) -> String {
     self.inner.listeners.listeners_object_name()
   }
+
   pub fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()
-  }
-  pub fn generate_salt(&self) -> Uuid {
-    let salt = Uuid::new_v4();
-    self
-      .inner
-      .salts
-      .lock()
-      .expect("poisoned salt mutex")
-      .insert(salt);
-    salt
-  }
-  pub fn verify_salt(&self, salt: String) -> bool {
-    // flat out ignore any invalid uuids
-    let uuid: Uuid = match salt.parse() {
-      Ok(uuid) => uuid,
-      Err(_) => return false,
-    };
-
-    // HashSet::remove lets us know if the entry was found
-    self
-      .inner
-      .salts
-      .lock()
-      .expect("poisoned salt mutex")
-      .remove(&uuid)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {

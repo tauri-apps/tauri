@@ -59,7 +59,7 @@ If the user accepts, the download and install are initialized. The user will be 
 
 ```js
 import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
-import { relaunch } from "@tauri-apps/api/app";
+import { relaunch } from "@tauri-apps/api/process";
 try {
     const {shouldUpdate, manifest} = await checkUpdate();
     if (shouldUpdate) {

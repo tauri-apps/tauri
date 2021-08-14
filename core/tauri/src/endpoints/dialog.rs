@@ -6,13 +6,13 @@ use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
+  api::dialog::{ask as ask_dialog, message as message_dialog},
   runtime::Runtime,
   Window,
 };
 use serde::Deserialize;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::mpsc::channel};
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -175,14 +175,18 @@ pub fn open<R: Runtime>(
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
-  let response = if options.directory {
-    dialog_builder.pick_folder().into()
+
+  let (tx, rx) = channel();
+
+  if options.directory {
+    dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
   } else if options.multiple {
-    dialog_builder.pick_files().into()
+    dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
   } else {
-    dialog_builder.pick_file().into()
-  };
-  Ok(response)
+    dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
+  }
+
+  Ok(rx.recv().unwrap())
 }
 
 /// Shows a save dialog.
@@ -204,13 +208,14 @@ pub fn save<R: Runtime>(
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
-  Ok(dialog_builder.save_file().into())
+  let (tx, rx) = channel();
+  dialog_builder.save_file(move |p| tx.send(p).unwrap());
+  Ok(rx.recv().unwrap().into())
 }
 
 /// Shows a dialog with a yes/no question.
 pub fn ask(title: String, message: String) -> crate::Result<InvokeResponse> {
-  match ask_dialog(title, message) {
-    AskResponse::Yes => Ok(true.into()),
-    _ => Ok(false.into()),
-  }
+  let (tx, rx) = channel();
+  ask_dialog(title, message, move |m| tx.send(m).unwrap());
+  Ok(rx.recv().unwrap().into())
 }

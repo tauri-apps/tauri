@@ -105,20 +105,23 @@ pub fn request_permission(config: &Config, package_info: &PackageInfo) -> crate:
       PERMISSION_DENIED.to_string()
     });
   }
-  let answer = crate::api::dialog::ask(
+  let (tx, rx) = std::sync::mpsc::channel();
+  crate::api::dialog::ask(
     "Permissions",
     "This app wants to show notifications. Do you allow?",
+    move |answer| {
+      tx.send(answer).unwrap();
+    },
   );
-  match answer {
-    crate::api::dialog::AskResponse::Yes => {
-      settings.allow_notification = Some(true);
-      crate::settings::write_settings(config, package_info, settings)?;
-      Ok(PERMISSION_GRANTED.to_string())
-    }
-    crate::api::dialog::AskResponse::No => {
-      settings.allow_notification = Some(false);
-      crate::settings::write_settings(config, package_info, settings)?;
-      Ok(PERMISSION_DENIED.to_string())
-    }
+
+  let answer = rx.recv().unwrap();
+
+  settings.allow_notification = Some(answer);
+  crate::settings::write_settings(config, package_info, settings)?;
+
+  if answer {
+    Ok(PERMISSION_GRANTED.to_string())
+  } else {
+    Ok(PERMISSION_DENIED.to_string())
   }
 }

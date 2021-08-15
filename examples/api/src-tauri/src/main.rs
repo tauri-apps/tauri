@@ -15,8 +15,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use tauri::{
-  api::dialog::ask, CustomMenuItem, Event, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
-  WindowBuilder, WindowUrl,
+  api::dialog::ask, async_runtime, CustomMenuItem, Event, GlobalShortcutManager, Manager,
+  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -55,7 +55,8 @@ fn main() {
           .add_item(CustomMenuItem::new("toggle", "Toggle"))
           .add_item(CustomMenuItem::new("new", "New window"))
           .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
-          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2")),
+          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
+          .add_item(CustomMenuItem::new("exit_app", "Quit")),
       ),
     )
     .on_system_tray_event(|app, event| match event {
@@ -71,6 +72,10 @@ fn main() {
       SystemTrayEvent::MenuItemClick { id, .. } => {
         let item_handle = app.tray_handle().get_item(&id);
         match id.as_str() {
+          "exit_app" => {
+            // exit the app
+            app.exit(0);
+          }
           "toggle" => {
             let window = app.get_window("main").unwrap();
             let new_title = if window.is_visible().unwrap() {
@@ -157,15 +162,42 @@ fn main() {
   #[cfg(target_os = "macos")]
   app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-  app.run(|app_handle, e| {
-    if let Event::CloseRequested { label, api, .. } = e {
-      api.prevent_close();
+  app.run(|app_handle, e| match e {
+    // Application is ready (triggered only once)
+    Event::Ready => {
       let app_handle = app_handle.clone();
+      // launch a new thread so it doesnt block any channel
+      async_runtime::spawn(async move {
+        let app_handle = app_handle.clone();
+        app_handle
+          .global_shortcut_manager()
+          .register("CmdOrCtrl+1", move || {
+            let app_handle = app_handle.clone();
+            let window = app_handle.get_window("main").unwrap();
+            window.set_title("New title!").unwrap();
+          })
+          .unwrap();
+      });
+    }
+
+    // Triggered when a window is trying to close
+    Event::CloseRequested { label, api, .. } => {
+      let app_handle = app_handle.clone();
+      // use the exposed close api, and prevent the event loop to close
+      api.prevent_close();
+      // ask the user if he wants to quit
       ask("Tauri API", "Are you sure?", move |answer| {
         if answer {
           app_handle.get_window(&label).unwrap().close().unwrap();
         }
       });
     }
+
+    // Keep the event loop running even if all windows are closed
+    // This allow us to catch system tray events when there is no window
+    Event::ExitRequested { api, .. } => {
+      api.prevent_exit();
+    }
+    _ => {}
   })
 }

@@ -95,6 +95,8 @@ pub enum Event {
   },
   /// Window closed.
   WindowClosed(String),
+  /// Application ready.
+  Ready,
 }
 
 /// A menu event that was triggered on a window.
@@ -438,6 +440,7 @@ impl<R: Runtime> App<R> {
               api: CloseRequestApi(signal_tx),
             },
             RunEvent::WindowClose(label) => Event::WindowClosed(label),
+            RunEvent::Ready => Event::Ready,
             _ => unimplemented!(),
           },
         );

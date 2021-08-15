@@ -184,6 +184,8 @@ pub enum RunEvent {
   },
   /// Window closed.
   WindowClose(String),
+  /// Application ready.
+  Ready,
 }
 
 /// Action to take when the event loop is about to exit

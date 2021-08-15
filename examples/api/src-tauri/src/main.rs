@@ -55,7 +55,8 @@ fn main() {
           .add_item(CustomMenuItem::new("toggle", "Toggle"))
           .add_item(CustomMenuItem::new("new", "New window"))
           .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
-          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2")),
+          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
+          .add_item(CustomMenuItem::new("exit_app", "Quit")),
       ),
     )
     .on_system_tray_event(|app, event| match event {
@@ -71,6 +72,10 @@ fn main() {
       SystemTrayEvent::MenuItemClick { id, .. } => {
         let item_handle = app.tray_handle().get_item(&id);
         match id.as_str() {
+          "exit_app" => {
+            // exit the app
+            app.exit(0);
+          }
           "toggle" => {
             let window = app.get_window("main").unwrap();
             let new_title = if window.is_visible().unwrap() {
@@ -175,6 +180,7 @@ fn main() {
       });
     }
 
+    // Triggered when a window is trying to close
     Event::CloseRequested { label, api, .. } => {
       let app_handle = app_handle.clone();
       // use the exposed close api, and prevent the event loop to close
@@ -185,6 +191,12 @@ fn main() {
           app_handle.get_window(&label).unwrap().close().unwrap();
         }
       });
+    }
+
+    // Keep the event loop running even if all windows are closed
+    // This allow us to catch system tray events when there is no window
+    Event::ExitRequested { api, .. } => {
+      api.prevent_exit();
     }
     _ => {}
   })

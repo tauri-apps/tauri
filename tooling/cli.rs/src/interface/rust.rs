@@ -443,7 +443,7 @@ fn tauri_config_to_bundle_settings(
         } else {
           None
         }
-      }
+      },
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,

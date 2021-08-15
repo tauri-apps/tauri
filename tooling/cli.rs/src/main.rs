@@ -264,7 +264,7 @@ fn main() -> Result<()> {
   let app = App::from(yaml)
     .version(crate_version!())
     .setting(AppSettings::ArgRequiredElseHelp)
-    .setting(AppSettings::GlobalVersion)
+    .setting(AppSettings::PropagateVersion)
     .setting(AppSettings::SubcommandRequired)
     .arg(clap::Arg::new("cargo").hidden(true).possible_value("tauri"));
   let matches = app.get_matches();

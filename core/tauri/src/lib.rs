@@ -106,7 +106,10 @@ pub use {
   self::window::menu::MenuEvent,
 };
 
-pub use tauri_utils::{config::{Config, WindowUrl}, PackageInfo};
+pub use tauri_utils::{
+  config::{Config, WindowUrl},
+  PackageInfo,
+};
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///

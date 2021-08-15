@@ -39,7 +39,8 @@ pub use clap;
 #[cfg(notification_all)]
 pub mod notification;
 
-pub(crate) use tauri_utils::*;
+#[doc(hidden)]
+pub use tauri_utils::*;
 
 mod error;
 

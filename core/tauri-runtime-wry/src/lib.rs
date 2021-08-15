@@ -44,7 +44,7 @@ use wry::{
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
       Position as WryPosition, Size as WrySize,
     },
-    event::{Event, WindowEvent as WryWindowEvent},
+    event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     menu::{
@@ -1781,6 +1781,10 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::NewEvents(StartCause::Init) => {
+      callback(RunEvent::Ready);
+    }
+
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {

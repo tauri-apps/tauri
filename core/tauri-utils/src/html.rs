@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The module to process HTML in Tauri.
+
 use html5ever::{interface::QualName, namespace_url, ns, LocalName};
 use kuchiki::{Attribute, ExpandedName, NodeRef};
 

@@ -198,7 +198,7 @@ impl Default for UpdaterConfig {
 #[derive(PartialEq, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SecurityConfig {
-  /// Content security policy to inject to HTML files with the custom protocol.
+  /// Content security policy to inject to HTML files with `tauri://` and other user-defined custom protocols.
   pub csp: Option<String>,
 }
 
@@ -301,21 +301,30 @@ pub struct CliArg {
   pub index: Option<u64>,
 }
 
-/// The CLI root command definition.
+/// The CLI command definition.
 #[derive(PartialEq, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-#[allow(missing_docs)] // TODO
 pub struct CliConfig {
+  /// Command description which will be shown on the help information.
   pub description: Option<String>,
+  /// Command long description which will be shown on the help information.
   pub long_description: Option<String>,
+  /// Adds additional help information to be displayed in addition to auto-generated help.
+  /// This information is displayed before the auto-generated help information.
+  /// This is often used for header information.
   pub before_help: Option<String>,
+  /// Adds additional help information to be displayed in addition to auto-generated help.
+  /// This information is displayed after the auto-generated help information.
+  /// This is often used to describe how to use the arguments, or caveats to be noted.
   pub after_help: Option<String>,
+  /// List of arguments for the command
   pub args: Option<Vec<CliArg>>,
+  /// List of subcommands of this command
   pub subcommands: Option<HashMap<String, CliConfig>>,
 }
 
 impl CliConfig {
-  /// List of args for the command
+  /// List of arguments for the command
   pub fn args(&self) -> Option<&Vec<CliArg>> {
     self.args.as_ref()
   }
@@ -426,10 +435,10 @@ pub enum AppUrl {
 #[derive(PartialEq, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct BuildConfig {
-  /// the devPath config.
+  /// Directory path or URL to use on development. Default to `http://localhost:8080`.
   #[serde(default = "default_dev_path")]
   pub dev_path: AppUrl,
-  /// the dist config.
+  /// Distribution directory to use in release build. Default to `../dist`.
   #[serde(default = "default_dist_path")]
   pub dist_dir: AppUrl,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
@@ -467,7 +476,7 @@ pub struct PackageConfig {
   pub version: Option<String>,
 }
 
-/// The tauri.conf.json mapper.
+/// The config type mapped to `tauri.conf.json`.
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {

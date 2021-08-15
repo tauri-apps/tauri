@@ -149,9 +149,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     if dev {
       let info_plist_path = config_parent.join("Info.plist");
       if info_plist_path.exists() {
-        let info_plist_path = info_plist_path
-          .display()
-          .to_string();
+        let info_plist_path = info_plist_path.display().to_string();
         quote!({
           tauri::embed_plist::embed_info_plist!(#info_plist_path);
         })
@@ -162,6 +160,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       quote!(())
     }
   };
+  #[cfg(not(target_os = "macos"))]
+  let info_plist = quote!(());
 
   // double braces are purposeful to force the code into a block expression
   Ok(quote!(#root::Context::new(
@@ -170,7 +170,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #default_window_icon,
     #system_tray_icon,
     #package_info,
-    #[cfg(target_os = "macos")]
     #info_plist,
   )))
 }

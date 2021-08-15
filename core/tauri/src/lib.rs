@@ -19,11 +19,12 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
-#[doc(hidden)]
-pub use embed_plist;
 
 pub mod api;
 pub(crate) mod app;
@@ -62,7 +63,7 @@ use crate::{
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{collections::HashMap, sync::Arc, fmt};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use runtime::menu::CustomMenuItem;
@@ -154,7 +155,6 @@ pub struct Context<A: Assets> {
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: crate::api::PackageInfo,
-  #[cfg(target_os = "macos")]
   pub(crate) _info_plist: (),
 }
 
@@ -238,7 +238,6 @@ impl<A: Assets> Context<A> {
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
     package_info: crate::api::PackageInfo,
-    #[cfg(target_os = "macos")]
     info_plist: (),
   ) -> Self {
     Self {
@@ -247,7 +246,6 @@ impl<A: Assets> Context<A> {
       default_window_icon,
       system_tray_icon,
       package_info,
-      #[cfg(target_os = "macos")]
       _info_plist: info_plist,
     }
   }

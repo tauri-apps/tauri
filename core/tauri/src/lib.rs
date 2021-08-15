@@ -11,7 +11,6 @@
 //! The following are a list of Cargo features that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
-//! - **menu**: Enables application menus support.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
@@ -72,10 +71,6 @@ pub use runtime::{menu::NativeImage, ActivationPolicy};
 
 pub use {
   self::api::assets::Assets,
-  self::api::{
-    config::{Config, WindowUrl},
-    PackageInfo,
-  },
   self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
@@ -105,6 +100,11 @@ pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem, Submenu},
   self::window::menu::MenuEvent,
+};
+
+pub use tauri_utils::{
+  config::{Config, WindowUrl},
+  PackageInfo,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

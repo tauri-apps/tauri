@@ -26,9 +26,6 @@ pub mod shell;
 /// The semver API.
 pub mod version;
 
-/// The Tauri config definition.
-pub use tauri_utils::config;
-
 /// The CLI args interface.
 #[cfg(feature = "cli")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
@@ -42,6 +39,7 @@ pub use clap;
 #[cfg(notification_all)]
 pub mod notification;
 
+#[doc(hidden)]
 pub use tauri_utils::*;
 
 mod error;

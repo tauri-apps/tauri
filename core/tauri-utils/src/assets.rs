@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Assets handled by Tauri during compile time and runtime.
+//! The Assets module allows you to read files that have been bundled by tauri
+//! during both compile time and runtime.
 
 #[doc(hidden)]
 pub use phf;

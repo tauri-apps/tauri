@@ -22,6 +22,10 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
 
+wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
 wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+
+chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-x86_64.AppImage
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage --appdir "{{app_name}}.AppDir" --output appimage
+
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

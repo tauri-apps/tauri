@@ -111,25 +111,12 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on macOS, the dialog must run on another thread: https://github.com/rust-windowing/winit/issues/1779
-      // we do the same on Windows just to stay consistent with `tao` (and it also improves UX because of the event loop)
-      #[cfg(not(target_os = "linux"))]
       Self::Dialog(cmd) => resolver.respond_async(async move {
         cmd
           .run(window)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      // on Linux, the dialog must run on the rpc task.
-      #[cfg(target_os = "linux")]
-      Self::Dialog(cmd) => {
-        resolver.respond_closure(move || {
-          cmd
-            .run(window)
-            .and_then(|r| r.json)
-            .map_err(InvokeError::from)
-        });
-      }
       Self::Cli(cmd) => {
         if let Some(cli_config) = config.tauri.cli.clone() {
           resolver.respond_async(async move {

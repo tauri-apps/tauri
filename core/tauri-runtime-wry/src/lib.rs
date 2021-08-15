@@ -1785,6 +1785,14 @@ fn handle_event_loop(
       callback(RunEvent::Ready);
     }
 
+    Event::NewEvents(StartCause::Poll) => {
+      callback(RunEvent::Resumed);
+    }
+
+    Event::MainEventsCleared => {
+      callback(RunEvent::MainEventsCleared);
+    }
+
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {

@@ -6,8 +6,6 @@
 pub(crate) mod tray;
 
 use crate::{
-  api::assets::Assets,
-  api::config::{Config, WindowUrl},
   command::{CommandArg, CommandItem},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
   manager::WindowManager,
@@ -18,6 +16,8 @@ use crate::{
     Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
+  utils::assets::Assets,
+  utils::config::{Config, WindowUrl},
   Context, Invoke, InvokeError, Manager, StateManager, Window,
 };
 

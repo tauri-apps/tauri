@@ -5,12 +5,12 @@
 #[cfg(window_create)]
 use crate::runtime::{webview::WindowBuilder, Dispatch};
 use crate::{
-  api::config::WindowConfig,
   endpoints::InvokeResponse,
   runtime::{
     window::dpi::{Position, Size},
     Runtime, UserAttentionType,
   },
+  utils::config::WindowConfig,
   Manager, Window,
 };
 use serde::Deserialize;

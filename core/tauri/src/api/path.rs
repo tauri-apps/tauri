@@ -219,7 +219,7 @@ pub fn video_dir() -> Option<PathBuf> {
 
 /// Returns the path to the resource directory of this app.
 pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
-  crate::api::platform::resource_dir(package_info).ok()
+  crate::utils::platform::resource_dir(package_info).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.

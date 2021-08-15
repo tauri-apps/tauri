@@ -304,7 +304,7 @@ impl ToTokens for EmbeddedAssets {
 
     // we expect phf related items to be in path when generating the path code
     tokens.append_all(quote! {{
-        use ::tauri::api::assets::{EmbeddedAssets, phf, phf::phf_map};
+        use ::tauri::utils::assets::{EmbeddedAssets, phf, phf::phf_map};
         EmbeddedAssets::from_zstd(phf_map! { #map })
     }});
   }

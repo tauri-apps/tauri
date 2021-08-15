@@ -5,7 +5,7 @@
 //! Extend Tauri functionality.
 
 use crate::{
-  api::config::PluginConfig, runtime::Runtime, AppHandle, Invoke, PageLoadPayload, Window,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, PageLoadPayload, Window,
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;

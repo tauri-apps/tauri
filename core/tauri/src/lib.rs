@@ -45,6 +45,8 @@ mod state;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
+pub use tauri_utils as utils;
+
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::Wry;
@@ -69,24 +71,6 @@ pub use runtime::menu::CustomMenuItem;
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
 
-pub use {
-  self::api::assets::Assets,
-  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
-    PageLoadPayload, SetupHook,
-  },
-  self::runtime::{
-    webview::{WebviewAttributes, WindowBuilder},
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      WindowEvent,
-    },
-    ClipboardManager, GlobalShortcutManager, Icon, RunIteration, Runtime, UserAttentionType,
-  },
-  self::state::{State, StateManager},
-  self::window::{Monitor, Window},
-};
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
@@ -101,10 +85,27 @@ pub use {
   self::runtime::menu::{Menu, MenuItem, Submenu},
   self::window::menu::MenuEvent,
 };
-
-pub use tauri_utils::{
-  config::{Config, WindowUrl},
-  PackageInfo,
+pub use {
+  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
+  self::hooks::{
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
+    PageLoadPayload, SetupHook,
+  },
+  self::runtime::{
+    webview::{WebviewAttributes, WindowBuilder},
+    window::{
+      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+      WindowEvent,
+    },
+    ClipboardManager, GlobalShortcutManager, Icon, RunIteration, Runtime, UserAttentionType,
+  },
+  self::state::{State, StateManager},
+  self::utils::{
+    assets::Assets,
+    config::{Config, WindowUrl},
+    PackageInfo,
+  },
+  self::window::{Monitor, Window},
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -152,7 +153,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
-  pub(crate) package_info: crate::api::PackageInfo,
+  pub(crate) package_info: crate::PackageInfo,
 }
 
 impl<A: Assets> Context<A> {
@@ -206,13 +207,13 @@ impl<A: Assets> Context<A> {
 
   /// Package information.
   #[inline(always)]
-  pub fn package_info(&self) -> &crate::api::PackageInfo {
+  pub fn package_info(&self) -> &crate::PackageInfo {
     &self.package_info
   }
 
   /// A mutable reference to the package information.
   #[inline(always)]
-  pub fn package_info_mut(&mut self) -> &mut crate::api::PackageInfo {
+  pub fn package_info_mut(&mut self) -> &mut crate::PackageInfo {
     &mut self.package_info
   }
 
@@ -223,7 +224,7 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
-    package_info: crate::api::PackageInfo,
+    package_info: crate::PackageInfo,
   ) -> Self {
     Self {
       config,

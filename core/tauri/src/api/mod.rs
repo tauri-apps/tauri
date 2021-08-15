@@ -39,9 +39,6 @@ pub use clap;
 #[cfg(notification_all)]
 pub mod notification;
 
-#[doc(hidden)]
-pub use tauri_utils::*;
-
 mod error;
 
 /// Tauri API error.
@@ -55,9 +52,9 @@ pub mod private {
   pub use once_cell::sync::OnceCell;
 
   pub trait AsTauriContext {
-    fn config() -> &'static crate::api::config::Config;
-    fn assets() -> &'static crate::api::assets::EmbeddedAssets;
+    fn config() -> &'static crate::Config;
+    fn assets() -> &'static crate::utils::assets::EmbeddedAssets;
     fn default_window_icon() -> Option<&'static [u8]>;
-    fn package_info() -> crate::api::PackageInfo;
+    fn package_info() -> crate::PackageInfo;
   }
 }

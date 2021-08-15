@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::api::config::{CliArg, CliConfig};
+use crate::utils::config::{CliArg, CliConfig};
 
 use clap::{
   crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches, ErrorKind,

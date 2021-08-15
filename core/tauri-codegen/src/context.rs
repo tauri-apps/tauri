@@ -97,7 +97,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(env!("CARGO_PKG_VERSION").to_string())
   };
   let package_info = quote!(
-    #root::api::PackageInfo {
+    #root::PackageInfo {
       name: #package_name,
       version: #package_version,
     }

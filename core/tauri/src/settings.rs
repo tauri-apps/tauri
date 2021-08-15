@@ -6,9 +6,8 @@ use crate::{
   api::{
     file::read_binary,
     path::{resolve_path, BaseDirectory},
-    PackageInfo,
   },
-  Config,
+  Config, PackageInfo,
 };
 use serde::{Deserialize, Serialize};
 use std::{

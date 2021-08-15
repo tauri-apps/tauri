@@ -648,7 +648,7 @@ mod build {
   macro_rules! literal_struct {
     ($tokens:ident, $struct:ident, $($field:ident),+) => {
       $tokens.append_all(quote! {
-        ::tauri::api::config::$struct {
+        ::tauri::utils::config::$struct {
           $($field: #$field),+
         }
       });
@@ -657,7 +657,7 @@ mod build {
 
   impl ToTokens for WindowUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::api::config::WindowUrl };
+      let prefix = quote! { ::tauri::utils::config::WindowUrl };
 
       tokens.append_all(match self {
         Self::App(path) => {
@@ -834,7 +834,7 @@ mod build {
 
   impl ToTokens for AppUrl {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::api::config::AppUrl };
+      let prefix = quote! { ::tauri::utils::config::AppUrl };
 
       tokens.append_all(match self {
         Self::Url(url) => {
@@ -915,7 +915,7 @@ mod build {
         str_lit,
         json_value_lit,
       );
-      tokens.append_all(quote! { ::tauri::api::config::PluginConfig(#config) })
+      tokens.append_all(quote! { ::tauri::utils::config::PluginConfig(#config) })
     }
   }
 

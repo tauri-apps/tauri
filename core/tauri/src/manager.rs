@@ -3,11 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::{
-    assets::Assets,
-    config::{AppUrl, Config, WindowUrl},
-    PackageInfo,
-  },
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{Event, EventHandler, Listeners},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
@@ -19,6 +14,11 @@ use crate::{
     },
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
+  },
+  utils::{
+    assets::Assets,
+    config::{AppUrl, Config, WindowUrl},
+    PackageInfo,
   },
   Context, Invoke, StateManager, Window,
 };

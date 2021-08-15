@@ -436,6 +436,14 @@ fn tauri_config_to_bundle_settings(
       exception_domain: config.macos.exception_domain,
       signing_identity,
       entitlements: config.macos.entitlements,
+      info_plist_path: {
+        let path = tauri_dir().join("Info.plist");
+        if path.exists() {
+          Some(path)
+        } else {
+          None
+        }
+      }
     },
     windows: WindowsSettings {
       timestamp_url: config.windows.timestamp_url,

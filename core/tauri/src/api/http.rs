@@ -88,8 +88,10 @@ impl Client {
 
     if let Some(headers) = request.headers {
       for (header, header_value) in headers.iter() {
-        request_builder =
-          request_builder.header(HeaderName::from_bytes(header.as_bytes())?, header_value);
+        request_builder = request_builder.header(
+          HeaderName::from_bytes(header.as_bytes())?,
+          header_value.as_bytes(),
+        );
       }
     }
 
@@ -169,7 +171,7 @@ impl Client {
       for (header, value) in headers.iter() {
         http_request.headers_mut().insert(
           HeaderName::from_bytes(header.as_bytes())?,
-          http::header::HeaderValue::from_str(value)?,
+          http::header::HeaderValue::from_bytes(value.as_bytes())?,
         );
       }
     }
@@ -348,7 +350,10 @@ impl Response {
 
     let mut headers = HashMap::new();
     for (name, value) in self.1.headers() {
-      headers.insert(name.as_str().to_string(), value.to_str()?.to_string());
+      headers.insert(
+        name.as_str().to_string(),
+        String::from_utf8(value.as_bytes().to_vec())?,
+      );
     }
     let status = self.1.status().as_u16();
 

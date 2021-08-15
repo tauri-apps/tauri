@@ -34,43 +34,43 @@ pub enum Error {
   #[error("Network Error: {0}")]
   Network(#[from] reqwest::Error),
   /// HTTP method error.
-  #[error("{0}")]
+  #[error(transparent)]
   HttpMethod(#[from] http::method::InvalidMethod),
   /// Invalid HTTP header value.
   #[cfg(feature = "reqwest-client")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "reqwest-client")))]
-  #[error("{0}")]
+  #[error(transparent)]
   HttpHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Invalid HTTP header value.
-  #[error("{0}")]
+  #[error(transparent)]
   HttpHeader(#[from] http::header::InvalidHeaderName),
   /// Failed to serialize header value as string.
-  #[error("failed to convert response header value to string")]
-  HttpHeaderToString(#[from] http::header::ToStrError),
+  #[error(transparent)]
+  Utf8(#[from] std::string::FromUtf8Error),
   /// HTTP form to must be an object.
   #[error("http form must be an object")]
   InvalidHttpForm,
   /// Semver error.
-  #[error("{0}")]
+  #[error(transparent)]
   Semver(#[from] semver::Error),
   /// JSON error.
-  #[error("{0}")]
+  #[error(transparent)]
   Json(#[from] serde_json::Error),
   /// Bincode error.
-  #[error("{0}")]
+  #[error(transparent)]
   Bincode(#[from] Box<bincode::ErrorKind>),
   /// IO error.
-  #[error("{0}")]
+  #[error(transparent)]
   Io(#[from] std::io::Error),
   /// Ignore error.
   #[error("failed to walkdir: {0}")]
   Ignore(#[from] ignore::Error),
   /// ZIP error.
-  #[error("{0}")]
+  #[error(transparent)]
   Zip(#[from] zip::result::ZipError),
   /// Notification error.
   #[cfg(notification_all)]
-  #[error("{0}")]
+  #[error(transparent)]
   Notification(#[from] notify_rust::error::Error),
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]

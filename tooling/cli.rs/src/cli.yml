@@ -25,16 +25,16 @@ subcommands:
               short: t
               long: target
               about: target triple to build against
-              multiple: true
+              multiple_values: true
           - features:
               short: f
               long: features
               about: list of cargo features to activate
-              multiple: true
+              multiple_values: true
           - args:
               about: Args passed to the binary
               index: 1
-              multiple: true
+              multiple_values: true
           - release:
               long: release
               about: Run the code in release mode
@@ -59,7 +59,7 @@ subcommands:
               long: bundle
               about: list of bundles to package
               takes_value: true
-              multiple: true
+              multiple_values: true
           - config:
               short: c
               long: config
@@ -69,12 +69,12 @@ subcommands:
               short: t
               long: target
               about: target triple to build against
-              multiple: true
+              multiple_values: true
           - features:
               short: f
               long: features
               about: list of cargo features to activate
-              multiple: true
+              multiple_values: true
   - sign:
       about: Tauri updates signer.
       args:

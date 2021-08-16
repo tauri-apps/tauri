@@ -89,6 +89,11 @@ pub struct WixConfig {
   ///
   /// The required dimensions are 493px × 58px.
   pub banner_path: Option<PathBuf>,
+  /// Path to a bitmap file to use on the installation user interface dialogs.
+  /// It is used on the welcome and completion dialogs.
+
+  /// The required dimensions are 493px × 312px.
+  pub dialog_image_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

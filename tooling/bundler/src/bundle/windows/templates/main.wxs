@@ -34,6 +34,9 @@
         {{#if banner_path}}
         <WixVariable Id="WixUIBannerBmp" Value="{{{banner_path}}}" />
         {{/if}}
+        {{#if dialog_image_path}}
+        <WixVariable Id="WixUIDialogBmp" Value="{{{dialog_image_path}}}" />
+        {{/if}}
         {{#if license}}
         <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
         {{/if}}

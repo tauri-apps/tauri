@@ -175,7 +175,8 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
           { property: "featureRefs", optional: true, type: "string[]", description: `The Feature element ids you want to reference from the fragments.` },
           { property: "mergeRefs", optional: true, type: "string[]", description: `The Merge element ids you want to reference from the fragments.` },
           { property: "skipWebviewInstall", optional: true, type: "boolean", description: `Disables the Webview2 runtime installation after app install.` },
-          { property: "license", optional: true, type: "string", description: `The path to the license file to render on the installer. Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.` }]} />
+          { property: "license", optional: true, type: "string", description: `The path to the license file to render on the installer. Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.` },
+          { property: "bannerPath", optional: true, type: "string", description: `Path to a bitmap file to use as the installation user interface banner. This bitmap will appear at the top of all but the first page of the installer. The required dimensions are 493px × 58px.` }]} />
         }
         ]} />
       },

@@ -394,8 +394,15 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
         // if dialog enabled only
         if updater.should_update && updater_config.dialog {
           let body = updater.body.clone().unwrap_or_else(|| String::from(""));
-          let dialog =
-            prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
+          let window_ = window.clone();
+          let dialog = prompt_for_install(
+            window_,
+            &updater.clone(),
+            &package_info.name,
+            &body.clone(),
+            pubkey,
+          )
+          .await;
 
           if dialog.is_err() {
             send_status_update(
@@ -516,7 +523,8 @@ fn send_status_update<R: Runtime>(window: Window<R>, status: &str, error: Option
 
 // Prompt a dialog asking if the user want to install the new version
 // Maybe we should add an option to customize it in future versions.
-async fn prompt_for_install(
+async fn prompt_for_install<R: Runtime>(
+  window: Window<R>,
   updater: &self::core::Update,
   app_name: &str,
   body: &str,
@@ -530,6 +538,7 @@ async fn prompt_for_install(
   // todo(lemarier): We should review this and make sure we have
   // something more conventional.
   ask(
+    Some(&window),
     format!(r#"A new version of {} is available! "#, app_name),
     format!(
       r#"{} {} is now available -- you have {}.
@@ -552,6 +561,7 @@ Release Notes:
 
     // Ask user if we need to restart the application
     ask(
+      Some(&window),
       "Ready to Restart",
       "The installation was successful, do you want to restart the application now?",
       |should_exit| {

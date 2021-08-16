@@ -128,7 +128,7 @@ impl Module {
       }
       Self::Notification(cmd) => resolver.respond_closure(move || {
         cmd
-          .run(config, &package_info)
+          .run(window, config, &package_info)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),

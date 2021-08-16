@@ -145,14 +145,14 @@ impl ResourceDirectory {
 
 /// Copies the icon to the binary path, under the `resources` folder,
 /// and returns the path to the file.
-fn copy_icon(settings: &Settings) -> crate::Result<PathBuf> {
+fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<PathBuf> {
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
   std::fs::create_dir_all(&resource_dir)?;
-  let icon_target_path = resource_dir.join("icon.ico");
+  let icon_target_path = resource_dir.join(filename);
 
-  let icon_path = std::env::current_dir()?.join(&settings.windows().icon_path);
+  let icon_path = std::env::current_dir()?.join(&path);
 
   copy_file(
     icon_path,
@@ -504,8 +504,8 @@ pub fn build_wix_app_installer(
 
   data.insert("app_exe_source", to_json(&app_exe_source));
 
-  // copy icon from $CWD/icons/icon.ico folder to resource folder near msi
-  let icon_path = copy_icon(settings)?;
+  // copy icon from `settings.windows().icon_path` folder to resource folder near msi
+  let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
 
   data.insert("icon_path", to_json(icon_path));
 
@@ -532,6 +532,19 @@ pub fn build_wix_app_installer(
         .map_err(|e| e.to_string())
         .expect("Failed to setup custom handlebar template");
       has_custom_template = true;
+    }
+
+    if let Some(banner_path) = &wix.banner_path {
+      let filename = banner_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned()
+        .to_string();
+      data.insert(
+        "banner_path",
+        to_json(copy_icon(settings, &filename, banner_path)?),
+      );
     }
   }
 

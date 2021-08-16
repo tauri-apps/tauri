@@ -198,8 +198,13 @@ pub struct WixSettings {
   pub skip_webview_install: bool,
   /// The path to the LICENSE file.
   pub license: Option<String>,
-  /// Create an elevated update task within Windows Task Scheduler
+  /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
+  /// Path to a bitmap file to use as the installation user interface banner.
+  /// This bitmap will appear at the top of all but the first page of the installer.
+  ///
+  /// The required dimensions are 493px × 58px.
+  pub banner_path: Option<PathBuf>,
 }
 
 /// The Windows bundle settings.

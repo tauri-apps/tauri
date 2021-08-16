@@ -84,6 +84,11 @@ pub struct WixConfig {
   pub license: Option<String>,
   #[serde(default)]
   pub enable_elevated_update_task: bool,
+  /// Path to a bitmap file to use as the installation user interface banner.
+  /// This bitmap will appear at the top of all but the first page of the installer.
+  ///
+  /// The required dimensions are 493px × 58px.
+  pub banner_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]

@@ -25,6 +25,7 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       skip_webview_install: config.skip_webview_install,
       license: config.license,
       enable_elevated_update_task: config.enable_elevated_update_task,
+      banner_path: config.banner_path,
     }
   }
 }

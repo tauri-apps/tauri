@@ -1324,6 +1324,13 @@
     "WixConfig": {
       "type": "object",
       "properties": {
+        "bannerPath": {
+          "description": "Path to a bitmap file to use as the installation user interface banner. This bitmap will appear at the top of all but the first page of the installer.\n\nThe required dimensions are 493px × 58px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "componentGroupRefs": {
           "default": [],
           "type": "array",

@@ -31,7 +31,9 @@
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 
-        <WixVariable Id="WixUIBannerBmp" Value="{{{icon_path}}}" />
+        {{#if banner_path}}
+        <WixVariable Id="WixUIBannerBmp" Value="{{{banner_path}}}" />
+        {{/if}}
         {{#if license}}
         <WixVariable Id="WixUILicenseRtf" Value="{{{license}}}" />
         {{/if}}

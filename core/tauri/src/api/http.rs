@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to HTTP request.
+
 use http::{header::HeaderName, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -9,13 +11,13 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
-/// Client builder.
+/// The builder of [`Client`].
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientBuilder {
-  /// Max number of redirections to follow
+  /// Max number of redirections to follow.
   pub max_redirections: Option<usize>,
-  /// Connect timeout in seconds for the request
+  /// Connect timeout in seconds for the request.
   pub connect_timeout: Option<u64>,
 }
 
@@ -61,7 +63,7 @@ impl ClientBuilder {
   }
 }
 
-/// The HTTP client.
+/// The HTTP client based on [`reqwest`].
 #[cfg(feature = "reqwest-client")]
 #[derive(Debug, Clone)]
 pub struct Client(reqwest::Client);
@@ -75,8 +77,8 @@ pub struct Client(ClientBuilder);
 impl Client {
   /// Executes an HTTP request
   ///
-  /// The response will be transformed to String,
-  /// If reading the response as binary, the byte array will be serialized using serde_json.
+  /// The response will be transformed to String.
+  /// If reading the response as binary, the byte array will be serialized using [`serde_json`].
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
@@ -132,7 +134,7 @@ impl Client {
 impl Client {
   /// Executes an HTTP request
   ///
-  /// The response will be transformed to String,
+  /// The response will be transformed to String.
   /// If reading the response as binary, the byte array will be serialized using serde_json.
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
@@ -188,7 +190,7 @@ impl Client {
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
 #[non_exhaustive]
-/// The request's response type
+/// The HTTP response type.
 pub enum ResponseType {
   /// Read the response as JSON
   Json = 1,
@@ -198,7 +200,7 @@ pub enum ResponseType {
   Binary,
 }
 
-/// FormBody data types.
+/// [`FormBody`] data types.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 #[non_exhaustive]
@@ -290,7 +292,7 @@ impl HttpRequestBuilder {
     }
   }
 
-  /// Sets the request params.
+  /// Sets the request parameters.
   pub fn query(mut self, query: HashMap<String, String>) -> Self {
     self.query = Some(query);
     self
@@ -390,7 +392,7 @@ pub struct RawResponse {
   pub data: Vec<u8>,
 }
 
-/// The response type.
+/// The response data.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]

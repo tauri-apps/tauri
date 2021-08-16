@@ -15,7 +15,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 The following section briefly describes the roles of the various parts of Tauri.
 ### Tauri Core [STABLE RUST]
 #### [tauri](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)
-This is the glue crate that holds everything together. It brings the runtimes, macros, utilities and API into one final product. It reads the `tauri.conf.json` file at compile time in order to bring in features and undertake actual configuration of the app (and even the `Cargo.toml` file in the project's folder). It handles script injection (for polyfills / prototype revision) at runtime, hosts the API for systems interaction, and even manages updating.
+This is the major crate that holds everything together. It brings the runtimes, macros, utilities and API into one final product. It reads the `tauri.conf.json` file at compile time in order to bring in features and undertake actual configuration of the app (and even the `Cargo.toml` file in the project's folder). It handles script injection (for polyfills / prototype revision) at runtime, hosts the API for systems interaction, and even manages updating.
 
 #### [tauri-build](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build)
 Apply the macros at build-time in order to rig some special features needed by `cargo`.
@@ -52,24 +52,6 @@ This rust executable provides the full interface to all of the required activiti
 
 #### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
-
-## TAURI RUST API
-- **app**	The App API module allows you to manage application processes.
-- **assets**	The Assets module allows you to read files that have been bundled by tauri Assets handled by Tauri during compile time and runtime.
-- **config**	The Tauri config definition.
-- **dialog**	The Dialog API module allows you to show messages and prompt for file paths.
-- **dir**	The Dir module is a helper for file system directory management.
-- **file**	The File API module contains helpers to perform file operations.
-- **http**	The HTTP request API.
-- **notification**	The desktop notifications API module.
-- **path**	The file system path operations API.
-- **process**	Process helpers including the management of child processes.
-- **rpc**	The RPC module includes utilities to send messages to the JS layer of the webview.
-- **shell**	The shell api.
-- **shortcuts**	Global shortcuts interface.
-- **version**	The semver API.
-
-
 
 # External Crates
 The Tauri-Apps organisation maintains two "upstream" crates from Tauri, namely TAO for creating and managing application windows, and WRY for interfacing with the Webview that lives within the window.

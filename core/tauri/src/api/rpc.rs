@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to Remote Procedure Call(RPC).
+//!
+//! This module includes utilities to send messages to the JS layer of the webview.
+
 use serde::Serialize;
 use serde_json::value::RawValue;
 
@@ -15,7 +19,7 @@ use serde_json::value::RawValue;
 const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
 /// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
-// todo: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
+// TODO: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
 
@@ -62,13 +66,15 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// See [json-parse-benchmark](https://github.com/GoogleChromeLabs/json-parse-benchmark).
 ///
 /// # Examples
+/// - With string literals:
 /// ```
 /// use tauri::api::rpc::format_callback;
 /// // callback with a string argument
-/// let cb = format_callback("callback-function-name", &"the string response").expect("failed to serialize");
+/// let cb = format_callback("callback-function-name", &"the string response").unwrap();
 /// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
 /// ```
 ///
+/// - With types implement [`serde::Serialize`]:
 /// ```
 /// use tauri::api::rpc::format_callback;
 /// use serde::Serialize;
@@ -79,8 +85,10 @@ fn escape_json_parse(json: &RawValue) -> String {
 ///   value: String
 /// }
 ///
-/// let cb = format_callback("callback-function-name", &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()})
-///   .expect("failed to serialize");
+/// let cb = format_callback(
+///   "callback-function-name",
+///   &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()
+/// }).expect("failed to serialize");
 ///
 /// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"XXXXXXXXX"#));
 /// ```
@@ -158,6 +166,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
 /// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
 /// assert!(cb.contains(r#"window["error_cb"]("error message here")"#));
 /// ```
+// TODO: better example to explain
 pub fn format_callback_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
   success_callback: impl AsRef<str>,

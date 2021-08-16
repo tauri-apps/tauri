@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! # Tauri Updater
+//! The Tauri updater.
 //!
 //! The updater is focused on making Tauri's application updates **as safe and transparent as updates to a website**.
 //!
@@ -333,8 +333,9 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::{config::UpdaterConfig, dialog::ask, process::restart},
+  api::{dialog::ask, process::restart},
   runtime::Runtime,
+  utils::config::UpdaterConfig,
   Window,
 };
 
@@ -376,7 +377,7 @@ struct UpdateManifest {
 /// Check if there is any new update with builtin dialog.
 pub(crate) async fn check_update_with_dialog<R: Runtime>(
   updater_config: UpdaterConfig,
-  package_info: crate::api::PackageInfo,
+  package_info: crate::PackageInfo,
   window: Window<R>,
 ) {
   if let Some(endpoints) = updater_config.endpoints.clone() {
@@ -418,7 +419,7 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
 /// This function should be run on the main thread once.
 pub(crate) fn listener<R: Runtime>(
   updater_config: UpdaterConfig,
-  package_info: crate::api::PackageInfo,
+  package_info: crate::PackageInfo,
   window: &Window<R>,
 ) {
   let isolated_window = window.clone();

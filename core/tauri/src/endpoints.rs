@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::{config::Config, PackageInfo},
   hooks::{InvokeError, InvokeMessage, InvokeResolver},
   runtime::Runtime,
-  Invoke, Window,
+  Config, Invoke, PackageInfo, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

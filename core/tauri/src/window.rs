@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The Tauri window types and functions.
+
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
 
 use crate::{
-  api::config::WindowUrl,
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
@@ -23,6 +24,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
+  utils::config::WindowUrl,
   Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
 };
 

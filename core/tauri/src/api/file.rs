@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to file operations.
+
 mod extract;
 mod file_move;
 

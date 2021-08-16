@@ -33,7 +33,7 @@ fn commands() -> &'static ChildStore {
   &STORE
 }
 
-/// Kill all child process created with [`Command`].
+/// Kills all child processes created with [`Command`].
 /// By default it's called before the [`crate::App`] exits.
 pub fn kill_children() {
   for child in commands().lock().unwrap().values() {
@@ -41,7 +41,7 @@ pub fn kill_children() {
   }
 }
 
-/// Payload for the `Terminated` command event.
+/// Payload for the [`CommandEvent::Terminated`] command event.
 #[derive(Debug, Clone, Serialize)]
 pub struct TerminatedPayload {
   /// Exit code of the process.
@@ -85,7 +85,7 @@ macro_rules! get_std_command {
   }};
 }
 
-/// API to spawn commands.
+/// The type to spawn commands.
 #[derive(Debug)]
 pub struct Command {
   program: String,
@@ -95,7 +95,7 @@ pub struct Command {
   current_dir: Option<PathBuf>,
 }
 
-/// Child spawned.
+/// Spawned child process.
 #[derive(Debug)]
 pub struct CommandChild {
   inner: Arc<SharedChild>,
@@ -103,13 +103,13 @@ pub struct CommandChild {
 }
 
 impl CommandChild {
-  /// Write to process stdin.
+  /// Writes to process stdin.
   pub fn write(&mut self, buf: &[u8]) -> crate::api::Result<()> {
     self.stdin_writer.write_all(buf)?;
     Ok(())
   }
 
-  /// Send a kill signal to the child.
+  /// Sends a kill signal to the child.
   pub fn kill(self) -> crate::api::Result<()> {
     self.inner.kill()?;
     Ok(())
@@ -133,7 +133,7 @@ impl ExitStatus {
     self.code
   }
 
-  /// Was termination successful? Signal termination is not considered a success, and success is defined as a zero exit status.
+  /// Returns true if exit status is zero. Signal termination is not considered a success, and success is defined as a zero exit status.
   pub fn success(&self) -> bool {
     self.code == Some(0)
   }
@@ -187,6 +187,9 @@ impl Command {
   }
 
   /// Creates a new Command for launching the given sidecar program.
+  ///
+  /// A sidecar program is a embedded external binary in order to make your application work
+  /// or to prevent users having to install additional dependencies (e.g. Node.js, Python, etc).
   pub fn new_sidecar<S: Into<String>>(program: S) -> crate::Result<Self> {
     let program = format!(
       "{}-{}",
@@ -196,7 +199,7 @@ impl Command {
     Ok(Self::new(relative_command_path(program)?))
   }
 
-  /// Append args to the command.
+  /// Appends arguments to the command.
   pub fn args<I, S>(mut self, args: I) -> Self
   where
     I: IntoIterator<Item = S>,

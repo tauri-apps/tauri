@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to file system path operations.
+
 use std::{
   env,
   path::{Component, Path, PathBuf},
@@ -11,11 +13,12 @@ use crate::{Config, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/// A Base Directory to use.
-/// The base directory is the optional root of a FS operation.
+/// A base directory to be used in [`resolve_path`].
+///
+/// The base directory is the optional root of a file system operation.
 /// If informed by the API call, all paths will be relative to the path of the given directory.
 ///
-/// For more information, check the [dirs_next documentation](https://docs.rs/dirs_next/).
+/// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
 #[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
 #[repr(u16)]
 #[non_exhaustive]
@@ -55,7 +58,7 @@ pub enum BaseDirectory {
   /// The Resource directory.
   Resource,
   /// The default App config directory.
-  /// Resolves to ${BaseDirectory::Config}/${config.tauri.bundle.identifier}
+  /// Resolves to [`BaseDirectory::Config`].
   App,
   /// The current working directory.
   Current,
@@ -65,8 +68,9 @@ pub enum BaseDirectory {
 ///
 /// # Example
 /// ```
-/// use tauri::api::{path::{resolve_path, BaseDirectory}, PackageInfo};
-/// // we use the default config and a mock PackageInfo, but in an actual app you should get the Config created from tauri.conf.json and the app's PackageInfo instance
+/// use tauri::{api::path::{resolve_path, BaseDirectory}, PackageInfo};
+/// // we use the default config and a mock PackageInfo, but in an actual app you should get the
+/// // Config created from `tauri.conf.json` and the app's PackageInfo instance.
 /// let path = resolve_path(
 ///   &Default::default(),
 ///   &PackageInfo {
@@ -219,7 +223,7 @@ pub fn video_dir() -> Option<PathBuf> {
 
 /// Returns the path to the resource directory of this app.
 pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
-  crate::api::platform::resource_dir(package_info).ok()
+  crate::utils::platform::resource_dir(package_info).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.

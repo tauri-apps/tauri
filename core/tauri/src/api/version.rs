@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to semantics versioning.
+
 use semver::Version;
 use std::cmp::Ordering;
 

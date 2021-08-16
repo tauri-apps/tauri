@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to display dialog.
+
 #[cfg(any(dialog_open, dialog_save))]
 use std::path::{Path, PathBuf};
 
@@ -29,6 +31,7 @@ macro_rules! run_dialog {
 }
 
 /// The file dialog builder.
+///
 /// Constructs file picker dialogs that can select single/multiple files or directories.
 #[cfg(any(dialog_open, dialog_save))]
 #[derive(Debug, Default)]

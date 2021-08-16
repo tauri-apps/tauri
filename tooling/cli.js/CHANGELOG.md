@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.8]
+
+- Reverts ESM distribution.
+  - [01ad2925](https://www.github.com/tauri-apps/tauri/commit/01ad29257ca0a0d5b56d93dab4f68f4521aa30a6) fix(cli.js): revert ESM distribution ([#2457](https://www.github.com/tauri-apps/tauri/pull/2457)) on 2021-08-16
+
 ## \[1.0.0-beta.7]
 
 - Force Cargo manifest update when running the `deps update` command and fix the version that is written to the file.

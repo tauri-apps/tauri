@@ -186,11 +186,15 @@ fn main() {
       // use the exposed close api, and prevent the event loop to close
       api.prevent_close();
       // ask the user if he wants to quit
-      ask("Tauri API", "Are you sure that you want to close this window?", move |answer| {
-        if answer {
-          app_handle.get_window(&label).unwrap().close().unwrap();
-        }
-      });
+      ask(
+        "Tauri API",
+        "Are you sure that you want to close this window?",
+        move |answer| {
+          if answer {
+            app_handle.get_window(&label).unwrap().close().unwrap();
+          }
+        },
+      );
     }
 
     // Keep the event loop running even if all windows are closed

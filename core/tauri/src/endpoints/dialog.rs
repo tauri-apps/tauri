@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
+#[cfg(any(windows, target_os = "macos"))]
+use crate::api::dialog::window_parent;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
@@ -77,7 +79,7 @@ impl Cmd {
   pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       #[cfg(dialog_open)]
-      Self::OpenDialog { options } => open(window, options),
+      Self::OpenDialog { options } => open(&window, options),
       #[cfg(not(dialog_open))]
       Self::OpenDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string())),
 
@@ -93,12 +95,13 @@ impl Cmd {
           .expect("failed to get binary filename")
           .to_string_lossy()
           .to_string();
-        message_dialog(app_name, message);
+        message_dialog(Some(&window), app_name, message);
         Ok(().into())
       }
       Self::AskDialog { title, message } => {
         let exe = std::env::current_exe()?;
         let answer = ask(
+          &window,
           title.unwrap_or_else(|| {
             exe
               .file_stem()
@@ -132,38 +135,17 @@ fn set_default_path(
   }
 }
 
-#[cfg(all(windows, any(dialog_open, dialog_save)))]
-struct WindowParent {
-  hwnd: *mut std::ffi::c_void,
-}
-
-#[cfg(all(windows, any(dialog_open, dialog_save)))]
-unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::windows::WindowsHandle::empty();
-    handle.hwnd = self.hwnd;
-    raw_window_handle::RawWindowHandle::Windows(handle)
-  }
-}
-
-#[cfg(all(windows, any(dialog_open, dialog_save)))]
-fn parent<R: Runtime>(window: Window<R>) -> crate::Result<WindowParent> {
-  Ok(WindowParent {
-    hwnd: window.hwnd()?,
-  })
-}
-
 /// Shows an open dialog.
 #[cfg(dialog_open)]
 #[allow(unused_variables)]
 pub fn open<R: Runtime>(
-  window: Window<R>,
+  window: &Window<R>,
   options: OpenDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
-  #[cfg(windows)]
+  #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&parent(window)?);
+    dialog_builder = dialog_builder.set_parent(&window_parent(window)?);
   }
   if let Some(default_path) = options.default_path {
     if !default_path.exists() {
@@ -197,9 +179,9 @@ pub fn save<R: Runtime>(
   options: SaveDialogOptions,
 ) -> crate::Result<InvokeResponse> {
   let mut dialog_builder = FileDialogBuilder::new();
-  #[cfg(windows)]
+  #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&parent(window)?);
+    dialog_builder = dialog_builder.set_parent(&window_parent(&window)?);
   }
   if let Some(default_path) = options.default_path {
     dialog_builder = set_default_path(dialog_builder, default_path);
@@ -214,8 +196,12 @@ pub fn save<R: Runtime>(
 }
 
 /// Shows a dialog with a yes/no question.
-pub fn ask(title: String, message: String) -> crate::Result<InvokeResponse> {
+pub fn ask<R: Runtime>(
+  window: &Window<R>,
+  title: String,
+  message: String,
+) -> crate::Result<InvokeResponse> {
   let (tx, rx) = channel();
-  ask_dialog(title, message, move |m| tx.send(m).unwrap());
+  ask_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
   Ok(rx.recv().unwrap().into())
 }

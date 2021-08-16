@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 #[cfg(notification_all)]
 use crate::api::notification::Notification;
-use crate::{Config, PackageInfo};
+use crate::{Config, PackageInfo, Runtime, Window};
 
 use std::sync::Arc;
 
@@ -42,8 +42,9 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run(
+  pub fn run<R: Runtime>(
     self,
+    window: Window<R>,
     config: Arc<Config>,
     package_info: &PackageInfo,
   ) -> crate::Result<InvokeResponse> {
@@ -60,7 +61,7 @@ impl Cmd {
       }
       Self::RequestNotificationPermission => {
         #[cfg(notification_all)]
-        return request_permission(&config, package_info).map(Into::into);
+        return request_permission(&window, &config, package_info).map(Into::into);
         #[cfg(not(notification_all))]
         Ok(PERMISSION_DENIED.into())
       }
@@ -96,7 +97,11 @@ pub fn is_permission_granted(
 }
 
 #[cfg(notification_all)]
-pub fn request_permission(config: &Config, package_info: &PackageInfo) -> crate::Result<String> {
+pub fn request_permission<R: Runtime>(
+  window: &Window<R>,
+  config: &Config,
+  package_info: &PackageInfo,
+) -> crate::Result<String> {
   let mut settings = crate::settings::read_settings(config, package_info);
   if let Some(allow_notification) = settings.allow_notification {
     return Ok(if allow_notification {
@@ -107,6 +112,7 @@ pub fn request_permission(config: &Config, package_info: &PackageInfo) -> crate:
   }
   let (tx, rx) = std::sync::mpsc::channel();
   crate::api::dialog::ask(
+    Some(window),
     "Permissions",
     "This app wants to show notifications. Do you allow?",
     move |answer| {

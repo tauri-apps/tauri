@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! # Tauri Updater
+//! The Tauri updater.
 //!
 //! The updater is focused on making Tauri's application updates **as safe and transparent as updates to a website**.
 //!

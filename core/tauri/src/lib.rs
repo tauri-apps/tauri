@@ -25,7 +25,6 @@ pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
 pub(crate) mod app;
-/// Async runtime.
 pub mod async_runtime;
 pub mod command;
 /// The Tauri API endpoints.
@@ -35,10 +34,8 @@ mod event;
 mod hooks;
 mod manager;
 pub mod plugin;
-/// Tauri window.
 pub mod window;
 use tauri_runtime as runtime;
-/// The Tauri-specific settings for your runtime e.g. notification permission status.
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Extend Tauri functionality.
+//! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
   runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, PageLoadPayload, Window,
@@ -12,7 +12,7 @@ use tauri_macros::default_runtime;
 
 use std::{collections::HashMap, fmt};
 
-/// The plugin result type.
+/// The result type of Tauri plugin module.
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
@@ -20,7 +20,7 @@ pub trait Plugin<R: Runtime>: Send {
   /// The plugin name. Used as key on the plugin config object.
   fn name(&self) -> &'static str;
 
-  /// Initialize the plugin.
+  /// Initializes the plugin.
   #[allow(unused_variables)]
   fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
     Ok(())
@@ -39,11 +39,11 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn created(&mut self, window: Window<R>) {}
 
-  /// Callback invoked when the webview performs a navigation.
+  /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
 
-  /// Add invoke_handler API extension commands.
+  /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }

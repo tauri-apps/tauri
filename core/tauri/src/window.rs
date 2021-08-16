@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The Tauri window types and functions.
+
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};

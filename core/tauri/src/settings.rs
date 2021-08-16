@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! The Tauri-specific settings for your application.
+//!
+//! This only contains notification permission status for now, but is able to expand in the future.
+
 use crate::{
   api::{
     file::read_binary,
@@ -16,7 +20,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-/// Tauri Settings.
+/// The Tauri Settings.
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[non_exhaustive]
 pub struct Settings {
@@ -25,7 +29,7 @@ pub struct Settings {
   pub allow_notification: Option<bool>,
 }
 
-/// Gets the path to the settings file
+/// Gets the path to the settings file.
 fn get_settings_path(config: &Config, package_info: &PackageInfo) -> crate::api::Result<PathBuf> {
   resolve_path(
     config,

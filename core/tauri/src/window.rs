@@ -313,8 +313,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
   }
@@ -323,8 +325,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.inner_position().map_err(Into::into)
   }
@@ -333,8 +337,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.outer_position().map_err(Into::into)
   }
@@ -345,8 +351,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.inner_size().map_err(Into::into)
   }
@@ -357,8 +365,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.outer_size().map_err(Into::into)
   }
@@ -367,8 +377,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_fullscreen(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
@@ -377,8 +389,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
@@ -387,8 +401,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
@@ -397,8 +413,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
@@ -407,8 +425,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
@@ -423,8 +443,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -444,8 +466,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -463,8 +487,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -478,8 +504,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.ns_window().map_err(Into::into)
@@ -488,8 +516,10 @@ impl<R: Runtime> Window<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
     self

@@ -86,8 +86,10 @@ impl<R: Runtime> MenuHandle<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.dispatcher.is_menu_visible().map_err(Into::into)
   }
@@ -96,8 +98,10 @@ impl<R: Runtime> MenuHandle<R> {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// You can spawn a task to use the API using the [`async_runtime`](crate::async_runtime) to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn toggle(&self) -> crate::Result<()> {
     if self.is_visible()? {
       self.hide()

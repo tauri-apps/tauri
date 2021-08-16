@@ -3,7 +3,7 @@
   export let onMessage;
 
   const constraints = window.constraints = {
-    audio: false,
+    audio: true,
     video: true
   };
 
@@ -46,5 +46,6 @@
 </script>
 
 <div>
+  <div class="alert"><p>Not available for Linux</p></div>
   <video id="localVideo" autoplay playsinline></video>
 </div>

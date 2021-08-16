@@ -1,5 +1,35 @@
 # Changelog
 
+## \[1.0.0-beta.6]
+
+- `bundle` now exports `clipboard` module so you can `import { clipboard } from "@tauri-apps/api"`.
+  - [4f88c3fb](https://www.github.com/tauri-apps/tauri/commit/4f88c3fb94286f3daafb906e3513c9210ecfa76b) fix(api.js): `bundle` now exports `clipboard` mod, closes [#2243](https://www.github.com/tauri-apps/tauri/pull/2243) ([#2244](https://www.github.com/tauri-apps/tauri/pull/2244)) on 2021-07-19
+- Fix double window creation
+  - [9fbcc024](https://www.github.com/tauri-apps/tauri/commit/9fbcc024542d87f71afd364acdcf2302cf82912c) fix(api.js): fix double window creation, closes [#2284](https://www.github.com/tauri-apps/tauri/pull/2284) ([#2285](https://www.github.com/tauri-apps/tauri/pull/2285)) on 2021-07-23
+- Add `os` module which exports `EOL`, `platform()`, `version()`, `type()`, `arch()`, `tempdir()`
+  - [05e679a6](https://www.github.com/tauri-apps/tauri/commit/05e679a6d2aca5642c780052bcf1384c49a462de) feat(api.js): add `os` module ([#2299](https://www.github.com/tauri-apps/tauri/pull/2299)) on 2021-07-28
+- - Add new nodejs-inspired functions which are `join`, `resolve`, `normalize`, `dirname`, `basename` and `extname`.
+- Add `sep` and `delimiter` constants.
+- Removed `resolvePath` API, use `resolve` instead.
+- [05b9d81e](https://www.github.com/tauri-apps/tauri/commit/05b9d81ee6bcc920defca76cff00178b301fffe8) feat(api.js): add nodejs-inspired functions in `path` module ([#2310](https://www.github.com/tauri-apps/tauri/pull/2310)) on 2021-08-02
+- Change target to ES2021.
+  - [97bc52ee](https://www.github.com/tauri-apps/tauri/commit/97bc52ee03dec0b67cc1cced23305a4c53e9eb62) Tooling: \[API] Changed target in tsconfig to es6 ([#2362](https://www.github.com/tauri-apps/tauri/pull/2362)) on 2021-08-09
+- Add `toggleMaximize()` function to the `WebviewWindow` class.
+  - [1a510066](https://www.github.com/tauri-apps/tauri/commit/1a510066732d5f61c88c0ceed1c5f5cc559faf7d) fix(core): `data-tauri-drag-region` didn't respect resizable, closes [#2314](https://www.github.com/tauri-apps/tauri/pull/2314) ([#2316](https://www.github.com/tauri-apps/tauri/pull/2316)) on 2021-08-02
+- Fix `@ts-expect` error usage
+  - [dd52e738](https://www.github.com/tauri-apps/tauri/commit/dd52e738f1fd323bd8d185d6e650f412eb031200) fix(api.js): fix `@ts-expect-error` usage, closes [#2249](https://www.github.com/tauri-apps/tauri/pull/2249) ([#2250](https://www.github.com/tauri-apps/tauri/pull/2250)) on 2021-07-20
+- Fixes file drop events being swapped (`file-drop-hover` on drop and `file-drop` on hover).
+  - [c2b0fe1c](https://www.github.com/tauri-apps/tauri/commit/c2b0fe1ce58e54dbcfdb63162ad17d7e6d8774d9) fix(core): fix wrong file drop events ([#2300](https://www.github.com/tauri-apps/tauri/pull/2300)) on 2021-07-31
+- Fixes the global bundle UMD code.
+  - [268450b1](https://www.github.com/tauri-apps/tauri/commit/268450b1329a4b55f2043890c565a8563f890c3a) fix(api): global bundle broken code, closes [#2289](https://www.github.com/tauri-apps/tauri/pull/2289) ([#2297](https://www.github.com/tauri-apps/tauri/pull/2297)) on 2021-07-26
+- - Fixes monitor api not working.
+- Fixes window.print() not working on macOS.
+- [0f63f5e7](https://www.github.com/tauri-apps/tauri/commit/0f63f5e757873f1787a1ae07ca531340d0d45ec3) fix(api): Fix monitor functions, closes [#2294](https://www.github.com/tauri-apps/tauri/pull/2294) ([#2301](https://www.github.com/tauri-apps/tauri/pull/2301)) on 2021-07-29
+- Improve `EventName` type using `type-fest`'s `LiteralUnion`.
+  - [8e480297](https://www.github.com/tauri-apps/tauri/commit/8e48029790857b38988da4d291aa7458f51bb265) feat(api): improve `EventName` type definition ([#2379](https://www.github.com/tauri-apps/tauri/pull/2379)) on 2021-08-10
+- Update protocol url path with wry 0.12.1 on Windows.
+  - [88382fe1](https://www.github.com/tauri-apps/tauri/commit/88382fe147ebcb3f59308cc529e5562a04970876) chore(api): update protocol url path with wry 0.12.1 on Windows ([#2409](https://www.github.com/tauri-apps/tauri/pull/2409)) on 2021-08-13
+
 ## \[1.0.0-beta.5]
 
 - Adds `convertFileSrc` helper to the `tauri` module, simplifying the process of using file paths as webview source (`img`, `video`, etc).

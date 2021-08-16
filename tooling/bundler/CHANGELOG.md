@@ -1,5 +1,22 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- Merge Tauri-generated Info.plist with the contents of `src-tauri/Info.plist` if it exists.
+  - [537ab1b6](https://www.github.com/tauri-apps/tauri/commit/537ab1b6d5a792c550a535619965c9e4126292e6) feat(core): inject src-tauri/Info.plist file on dev and merge on bundle, closes [#1570](https://www.github.com/tauri-apps/tauri/pull/1570) [#2338](https://www.github.com/tauri-apps/tauri/pull/2338) ([#2444](https://www.github.com/tauri-apps/tauri/pull/2444)) on 2021-08-15
+- Change the WiX config to allow upgrading installation with same version instead of duplicating the application.
+  - [dd5e1ede](https://www.github.com/tauri-apps/tauri/commit/dd5e1ede32ab8c10849fe6583d93ef493dd6f184) fix(bundler): `AllowSameVersionUpgrades` on WiX, closes [#2211](https://www.github.com/tauri-apps/tauri/pull/2211) ([#2428](https://www.github.com/tauri-apps/tauri/pull/2428)) on 2021-08-14
+- Check target architecture at runtime running `$ RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json` and parsing the `llvm-target` field, fixing macOS M1 sidecar check until we can compile the CLI with M1 target on GitHub Actions.
+  - [5ebf389f](https://www.github.com/tauri-apps/tauri/commit/5ebf389f6c6805ccd2b15d81fe12416770e39222) feat(bundler): check target arch at runtime, closes [#2286](https://www.github.com/tauri-apps/tauri/pull/2286) ([#2422](https://www.github.com/tauri-apps/tauri/pull/2422)) on 2021-08-13
+- Added `banner_path` field to the `WixSettings` struct.
+  - [13003ec7](https://www.github.com/tauri-apps/tauri/commit/13003ec761b1530705d6129519dc4e226eb992c7) feat(bundler): add config for WiX banner path, closes [#2175](https://www.github.com/tauri-apps/tauri/pull/2175) ([#2448](https://www.github.com/tauri-apps/tauri/pull/2448)) on 2021-08-16
+- Added `dialog_image_path` field to the `WixSettings` struct.
+  - [9bfdeb42](https://www.github.com/tauri-apps/tauri/commit/9bfdeb42effeeec27aa15bbc5b05040eadfda5ba) feat(bundler): add config for WiX dialog image path ([#2449](https://www.github.com/tauri-apps/tauri/pull/2449)) on 2021-08-16
+- Only convert package name and binary name to kebab-case, keeping the `.desktop` `Name` field with the original configured value.
+  - [3f039cb8](https://www.github.com/tauri-apps/tauri/commit/3f039cb8a308b0f18deaa37d7cfb1cc50d308d0e) fix: keep original `productName` for .desktop `Name` field, closes [#2295](https://www.github.com/tauri-apps/tauri/pull/2295) ([#2384](https://www.github.com/tauri-apps/tauri/pull/2384)) on 2021-08-10
+- Use `linuxdeploy` instead of `appimagetool` for `AppImage` bundling.
+  - [397710b2](https://www.github.com/tauri-apps/tauri/commit/397710b2c5699dab78118f58760dda07e276d4c2) refactor(bundler): use linuxdeploy instead of appimagetool, closes [#1986](https://www.github.com/tauri-apps/tauri/pull/1986) ([#2437](https://www.github.com/tauri-apps/tauri/pull/2437)) on 2021-08-15
+
 ## \[1.0.0-beta.3]
 
 - Fix WIX uninstaller by using unique `GUID` shortcut.

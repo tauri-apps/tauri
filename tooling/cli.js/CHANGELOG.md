@@ -1,5 +1,16 @@
 # Changelog
 
+## \[1.0.0-beta.7]
+
+- Force Cargo manifest update when running the `deps update` command and fix the version that is written to the file.
+  - [c544cea8](https://www.github.com/tauri-apps/tauri/commit/c544cea8c971a4f133dc48b4700b86684bcec5f8) fix(cli.js): force version update on Cargo manifest ([#2419](https://www.github.com/tauri-apps/tauri/pull/2419)) on 2021-08-13
+- The CLI is now a ES module and requires at least Node.js v12.20.
+  - [5f6e135f](https://www.github.com/tauri-apps/tauri/commit/5f6e135f23b370e008fc5e1849be0fcb78fc87e2) refactor(cli.js): package as ES module, closes [#2256](https://www.github.com/tauri-apps/tauri/pull/2256) ([#2392](https://www.github.com/tauri-apps/tauri/pull/2392)) on 2021-08-11
+- Adds support to HTTPS proxy set with the `HTTPS_PROXY` environment variable.
+  - [9c4032ba](https://www.github.com/tauri-apps/tauri/commit/9c4032ba10d800bccc307f7afcc8e00f282b041e) fix(cli.js): usage with HTTPS_PROXY, closes [#2237](https://www.github.com/tauri-apps/tauri/pull/2237) ([#2381](https://www.github.com/tauri-apps/tauri/pull/2381)) on 2021-08-10
+- Adjust check for `dev` mode and switch CTA test to a script runner. The script gives us more control and better output into any failures.
+  - [c410e034](https://www.github.com/tauri-apps/tauri/commit/c410e034f74d0624c8465b1f30bb7af58eb98b34) convert jest tests to child_process run script ([#2308](https://www.github.com/tauri-apps/tauri/pull/2308)) on 2021-08-08
+
 ## \[1.0.0-beta.6]
 
 - Run powershell commands with `-NoProfile` flag

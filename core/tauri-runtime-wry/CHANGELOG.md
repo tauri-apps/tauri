@@ -1,5 +1,52 @@
 # Changelog
 
+## \[0.1.5]
+
+- Fix blur/focus events being incorrect on Windows.
+  - [d832d575](https://www.github.com/tauri-apps/tauri/commit/d832d575d9b03a0ff78accabe4631cc638c08c3b) fix(windows): use webview events on windows ([#2277](https://www.github.com/tauri-apps/tauri/pull/2277)) on 2021-07-23
+
+- Add `ExitRequested` event that allows preventing the app from exiting when all windows are closed, and an `AppHandle.exit()` function to exit the app manually.
+  - [892c63a0](https://www.github.com/tauri-apps/tauri/commit/892c63a0538f8d62680dce5848657128ad6b7af3) feat([#2287](https://www.github.com/tauri-apps/tauri/pull/2287)): Add `ExitRequested` event to let users prevent app from exiting ([#2293](https://www.github.com/tauri-apps/tauri/pull/2293)) on 2021-08-09
+
+- Update gtk and its related libraries to v0.14. This also remove requirements of `clang` as build dependency.
+  - [63ad3039](https://www.github.com/tauri-apps/tauri/commit/63ad303903bbee7c9a7382413b342e2a05d3ea75) chore(linux): bump gtk to v0.14 ([#2361](https://www.github.com/tauri-apps/tauri/pull/2361)) on 2021-08-07
+
+- Implement `Debug` on public API structs and enums.
+  - [fa9341ba](https://www.github.com/tauri-apps/tauri/commit/fa9341ba18ba227735341530900714dba0f27291) feat(core): implement `Debug` on public API structs/enums, closes [#2292](https://www.github.com/tauri-apps/tauri/pull/2292) ([#2387](https://www.github.com/tauri-apps/tauri/pull/2387)) on 2021-08-11
+
+- Fix the error "cannot find type MenuHash in this scope"
+  - [226414d1](https://www.github.com/tauri-apps/tauri/commit/226414d1a588c8bc2b540a71fcd84c318319d6af) "cannot find type `MenuHash` in this scope" ([#2240](https://www.github.com/tauri-apps/tauri/pull/2240)) on 2021-07-20
+
+- Panic when a dispatcher getter method (`Window`, `GlobalShortcutHandle`, `ClipboardManager` and `MenuHandle` APIs) is called on the main thread.
+  - [50ffdc06](https://www.github.com/tauri-apps/tauri/commit/50ffdc06fbde56aba32b4291fd130104935d1408) feat(core): panic when a dispatcher getter is used on the main thread ([#2455](https://www.github.com/tauri-apps/tauri/pull/2455)) on 2021-08-16
+
+- Remove menu feature flag since there's no package dependency need to be installed on any platform anymore.
+  - [f81ebddf](https://www.github.com/tauri-apps/tauri/commit/f81ebddfcc1aea0d4989706aef43538e8ea98bea) feat: remove menu feature flag ([#2415](https://www.github.com/tauri-apps/tauri/pull/2415)) on 2021-08-13
+
+- Adds `Resumed` and `MainEventsCleared` variants to the `RunEvent` enum.
+  - [6be3f433](https://www.github.com/tauri-apps/tauri/commit/6be3f4339168651fe4e003b09f7d181fd12cd5a8) feat(core): add `Resumed` and `MainEventsCleared` events, closes [#2127](https://www.github.com/tauri-apps/tauri/pull/2127) ([#2439](https://www.github.com/tauri-apps/tauri/pull/2439)) on 2021-08-15
+
+- Adds `set_activation_policy` API to the `Runtime` trait (macOS only).
+  - [4a031add](https://www.github.com/tauri-apps/tauri/commit/4a031add69014a1f3823f4ea19b172a2557f6794) feat(core): expose `set_activation_policy`, closes [#2258](https://www.github.com/tauri-apps/tauri/pull/2258) ([#2420](https://www.github.com/tauri-apps/tauri/pull/2420)) on 2021-08-13
+
+- Allow creation of empty Window with `create_tao_window()` and management with `send_tao_window_event()` on the AppHandler.
+  - [88080855](https://www.github.com/tauri-apps/tauri/commit/8808085541a629b8e22b612a06cef01cf9b3722e) feat(window): Allow creation of Window without `wry` ([#2321](https://www.github.com/tauri-apps/tauri/pull/2321)) on 2021-07-29
+  - [15566cfd](https://www.github.com/tauri-apps/tauri/commit/15566cfd64f5072fa4980a6ce5b33259958e9021) feat(core): add API to send wry window message to the event loop ([#2339](https://www.github.com/tauri-apps/tauri/pull/2339)) on 2021-08-02
+
+- - Support [macOS tray icon template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) to adjust automatically based on taskbar color.
+
+- Images you mark as template images should consist of only black and clear colors. You can use the alpha channel in the image to adjust the opacity of black content, however.
+
+- [426a6b49](https://www.github.com/tauri-apps/tauri/commit/426a6b49962de8faf061db2e820ac10fcbb300d6) feat(macOS): Implement tray icon template ([#2322](https://www.github.com/tauri-apps/tauri/pull/2322)) on 2021-07-29
+
+- Add `Event::Ready` on the `run()` callback. Triggered once when the event loop is ready.
+  - [28c6b7ad](https://www.github.com/tauri-apps/tauri/commit/28c6b7adfe98e701b158e936eafb7541ddc700e0) feat: add `Event::Ready` ([#2433](https://www.github.com/tauri-apps/tauri/pull/2433)) on 2021-08-15
+
+- Add webdriver support to Tauri.
+  - [be76fb1d](https://www.github.com/tauri-apps/tauri/commit/be76fb1dfe73a1605cc2ad246418579f4c2e1999) WebDriver support ([#1972](https://www.github.com/tauri-apps/tauri/pull/1972)) on 2021-06-23
+  - [b4426eda](https://www.github.com/tauri-apps/tauri/commit/b4426eda9e64fcdd25a2d72e548b8b0fbfa09619) Revert "WebDriver support ([#1972](https://www.github.com/tauri-apps/tauri/pull/1972))" on 2021-06-23
+  - [4b2aa356](https://www.github.com/tauri-apps/tauri/commit/4b2aa35684632ed2afd7dec4ad848df5704868e4) Add back WebDriver support ([#2324](https://www.github.com/tauri-apps/tauri/pull/2324)) on 2021-08-01
+
 ## \[0.1.4]
 
 - Allow preventing window close when the user requests it.

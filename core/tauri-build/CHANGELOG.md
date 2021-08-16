@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- Implement `Debug` on public API structs and enums.
+  - [fa9341ba](https://www.github.com/tauri-apps/tauri/commit/fa9341ba18ba227735341530900714dba0f27291) feat(core): implement `Debug` on public API structs/enums, closes [#2292](https://www.github.com/tauri-apps/tauri/pull/2292) ([#2387](https://www.github.com/tauri-apps/tauri/pull/2387)) on 2021-08-11
+
 ## \[1.0.0-beta.3]
 
 - Improve ESM detection with regexes.

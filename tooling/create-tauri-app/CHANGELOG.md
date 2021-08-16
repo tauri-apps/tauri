@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-beta.4]
+
+- [`pnpm`](https://pnpm.io) package manager is now officially supported, either run `pnpx create-tauri-app` or explicitly specifiy it `npx create-tauri-app --manager pnpm`.
+  - [235e0f67](https://www.github.com/tauri-apps/tauri/commit/235e0f6785b87dc83cc6ebb6f5b022a82fa18eec) feat(CTA): add official support for `pnpm` package manager ([#2348](https://www.github.com/tauri-apps/tauri/pull/2348)) on 2021-08-06
+- `create-tauri-app` will prompt users to install `@tauri-apps/api` npm package.
+  - [c0f42ad0](https://www.github.com/tauri-apps/tauri/commit/c0f42ad0e3d30623b83cfcd692eb1bcb4c4391a2) feat(cta): prompt users to install `@tauri-apps/api` package ([#2251](https://www.github.com/tauri-apps/tauri/pull/2251)) on 2021-07-29
+- Add Svelte recipe using the official template.
+  - [151c3157](https://www.github.com/tauri-apps/tauri/commit/151c3157bef28c267592ebdf717e4ff66a5b27e1) Add svelte recipe to create-tauri-app ([#2276](https://www.github.com/tauri-apps/tauri/pull/2276)) ([#2279](https://www.github.com/tauri-apps/tauri/pull/2279)) on 2021-07-22
+- Adjust check for `dev` mode and switch CTA test to a script runner. The script gives us more control and better output into any failures.
+  - [c410e034](https://www.github.com/tauri-apps/tauri/commit/c410e034f74d0624c8465b1f30bb7af58eb98b34) convert jest tests to child_process run script ([#2308](https://www.github.com/tauri-apps/tauri/pull/2308)) on 2021-08-08
+- Update vite recipe to use the new vite npm [package](https://github.com/vitejs/vite/tree/main/packages/create-vite).
+  - [718d9513](https://www.github.com/tauri-apps/tauri/commit/718d9513ce8013594a21c7fedb2dcb3dcd7bbad8) refactor(cta): update `vite` recipe to use their new npm package ([#2220](https://www.github.com/tauri-apps/tauri/pull/2220)) on 2021-07-29
+
 ## \[1.0.0-beta.3]
 
 - Added Angular CLI recipe.

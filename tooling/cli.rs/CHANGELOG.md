@@ -1,5 +1,20 @@
 # Changelog
 
+## \[1.0.0-beta.6]
+
+- Added `APPLE_SIGNING_IDENTITY` as supported environment variable for the bundler.
+  - [44f6ee4c](https://www.github.com/tauri-apps/tauri/commit/44f6ee4cfdfad5fb21d96e69f8776c0e68685682) chore(ci): add step to detect code signing ([#2245](https://www.github.com/tauri-apps/tauri/pull/2245)) on 2021-08-08
+- Added configuration for the WiX banner icon under `tauri.conf.json > tauri > bundle > windows > wix > bannerPath`.
+  - [13003ec7](https://www.github.com/tauri-apps/tauri/commit/13003ec761b1530705d6129519dc4e226eb992c7) feat(bundler): add config for WiX banner path, closes [#2175](https://www.github.com/tauri-apps/tauri/pull/2175) ([#2448](https://www.github.com/tauri-apps/tauri/pull/2448)) on 2021-08-16
+- Added configuration for the WiX dialog background bitmap under `tauri.conf.json > tauri > bundle > windows > wix > dialogImagePath`.
+  - [9bfdeb42](https://www.github.com/tauri-apps/tauri/commit/9bfdeb42effeeec27aa15bbc5b05040eadfda5ba) feat(bundler): add config for WiX dialog image path ([#2449](https://www.github.com/tauri-apps/tauri/pull/2449)) on 2021-08-16
+- Only convert package name and binary name to kebab-case, keeping the `.desktop` `Name` field with the original configured value.
+  - [3f039cb8](https://www.github.com/tauri-apps/tauri/commit/3f039cb8a308b0f18deaa37d7cfb1cc50d308d0e) fix: keep original `productName` for .desktop `Name` field, closes [#2295](https://www.github.com/tauri-apps/tauri/pull/2295) ([#2384](https://www.github.com/tauri-apps/tauri/pull/2384)) on 2021-08-10
+- Merge platform-specific `tauri.linux.conf.json`, `tauri.windows.conf.json` and `tauri.macos.conf.json` into the config JSON from `tauri.conf.json`.
+  - [71d687b7](https://www.github.com/tauri-apps/tauri/commit/71d687b787cd722c60879adda543897826bf42c9) feat(cli.rs): platform-specific conf.json ([#2309](https://www.github.com/tauri-apps/tauri/pull/2309)) on 2021-07-28
+- Update minimum Rust version to 1.54.0.
+  - [a5394716](https://www.github.com/tauri-apps/tauri/commit/a53947160985a4f5b0ad1fbb4aa6865d6f852c66) chore: update rust to 1.54.0 ([#2434](https://www.github.com/tauri-apps/tauri/pull/2434)) on 2021-08-15
+
 ## \[1.0.0-beta.5]
 
 - Run powershell commands with `-NoProfile` flag

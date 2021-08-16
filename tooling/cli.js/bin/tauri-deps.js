@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import {
-  installDependencies,
-  updateDependencies
-} from '../dist/api/dependency-manager.js'
-
 async function run() {
+  const {
+    installDependencies,
+    updateDependencies
+  } = require('../dist/api/dependency-manager')
+
   const choice = process.argv[2]
   if (choice === 'install') {
     await installDependencies()

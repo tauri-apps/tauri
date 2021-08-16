@@ -2,7 +2,6 @@ const path = require('path')
 const nodeExternals = require('webpack-node-externals')
 
 module.exports = {
-  target: 'es2020',
   entry: {
     'api/cli': './src/api/cli.ts',
     'api/tauricon': './src/api/tauricon.ts',
@@ -21,6 +20,10 @@ module.exports = {
         exclude: /node_modules/
       },
       {
+        test: /(templates|api)[\\/].+\.js/,
+        use: 'raw-loader'
+      },
+      {
         test: /\.toml?$/,
         use: 'toml-loader'
       }
@@ -31,19 +34,15 @@ module.exports = {
     extensions: ['.ts', '.js']
   },
   output: {
-    library: {
-      type: 'module'
-    },
+    library: 'tauri',
+    libraryTarget: 'umd',
     filename: '[name].js',
     path: path.resolve(__dirname, 'dist'),
     globalObject: 'this'
   },
-  experiments: {
-    outputModule: true
-  },
   externals: [
     nodeExternals({
-      importType: 'module'
+      allowlist: ['imagemin', 'is-png', 'p-pipe', 'file-type']
     })
   ],
   externalsPresets: { node: true }

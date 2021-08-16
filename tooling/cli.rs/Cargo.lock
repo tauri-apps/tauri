@@ -1872,7 +1872,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.4"
 dependencies = [
  "anyhow",
  "ar",
@@ -1906,7 +1906,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.0.0-beta.5"
+version = "1.0.0-beta.6"
 dependencies = [
  "anyhow",
  "base64",

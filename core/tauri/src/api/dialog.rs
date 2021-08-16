@@ -53,7 +53,7 @@ unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
 
   #[cfg(target_os = "macos")]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::windows::MacOSHandle::empty();
+    let mut handle = raw_window_handle::macos::MacOSHandle::empty();
     handle.ns_window = self.ns_window;
     raw_window_handle::RawWindowHandle::MacOS(handle)
   }

@@ -333,14 +333,12 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::{
-    config::UpdaterConfig,
-    dialog::{ask, AskResponse},
-    process::restart,
-  },
+  api::{config::UpdaterConfig, dialog::ask, process::restart},
   runtime::Runtime,
   Window,
 };
+
+use std::sync::mpsc::channel;
 
 /// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
@@ -490,7 +488,7 @@ pub(crate) fn listener<R: Runtime>(
                   // emit {"status": "DONE"}
                   send_status_update(window.clone(), EVENT_STATUS_SUCCESS, None);
                 }
-              })
+              });
             });
           } else {
             send_status_update(window.clone(), EVENT_STATUS_UPTODATE, None);
@@ -500,7 +498,7 @@ pub(crate) fn listener<R: Runtime>(
           send_status_update(window.clone(), EVENT_STATUS_ERROR, Some(e.to_string()));
         }
       }
-    })
+    });
   });
 }
 
@@ -526,9 +524,11 @@ async fn prompt_for_install(
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
 
+  let (tx, rx) = channel();
+
   // todo(lemarier): We should review this and make sure we have
   // something more conventional.
-  let should_install = ask(
+  ask(
     format!(r#"A new version of {} is available! "#, app_name),
     format!(
       r#"{} {} is now available -- you have {}.
@@ -539,36 +539,26 @@ Release Notes:
 {}"#,
       app_name, updater.version, updater.current_version, escaped_body,
     ),
+    move |should_install| tx.send(should_install).unwrap(),
   );
 
-  match should_install {
-    AskResponse::Yes => {
-      // Launch updater download process
-      // macOS we display the `Ready to restart dialog` asking to restart
-      // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
-      // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-      updater.download_and_install(pubkey.clone()).await?;
+  if rx.recv().unwrap() {
+    // Launch updater download process
+    // macOS we display the `Ready to restart dialog` asking to restart
+    // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+    // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
+    updater.download_and_install(pubkey.clone()).await?;
 
-      // Ask user if we need to restart the application
-      let should_exit = ask(
-        "Ready to Restart",
-        "The installation was successful, do you want to restart the application now?",
-      );
-      match should_exit {
-        AskResponse::Yes => {
+    // Ask user if we need to restart the application
+    ask(
+      "Ready to Restart",
+      "The installation was successful, do you want to restart the application now?",
+      |should_exit| {
+        if should_exit {
           restart();
-          // safely exit even if the process
-          // should be killed
-          return Ok(());
         }
-        AskResponse::No => {
-          // Do nothing -- maybe we can emit some event here
-        }
-      }
-    }
-    AskResponse::No => {
-      // Do nothing -- maybe we can emit some event here
-    }
+      },
+    );
   }
 
   Ok(())

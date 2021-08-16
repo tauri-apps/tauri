@@ -6,13 +6,13 @@ use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog, AskResponse},
+  api::dialog::{ask as ask_dialog, message as message_dialog},
   runtime::Runtime,
   Window,
 };
 use serde::Deserialize;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::mpsc::channel};
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -114,35 +114,18 @@ impl Cmd {
   }
 }
 
-#[cfg(all(target_os = "linux", any(dialog_open, dialog_save)))]
+#[cfg(any(dialog_open, dialog_save))]
 fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,
 ) -> FileDialogBuilder {
   if default_path.is_file() || !default_path.exists() {
-    dialog_builder = dialog_builder.set_file_name(&default_path.to_string_lossy().to_string());
-    dialog_builder.set_directory(default_path.parent().unwrap())
-  } else {
-    dialog_builder.set_directory(default_path)
-  }
-}
-
-#[cfg(all(any(windows, target_os = "macos"), any(dialog_open, dialog_save)))]
-fn set_default_path(
-  mut dialog_builder: FileDialogBuilder,
-  default_path: PathBuf,
-) -> FileDialogBuilder {
-  if default_path.is_file() {
-    if let Some(parent) = default_path.parent() {
+    if let (Some(parent), Some(file_name)) = (default_path.parent(), default_path.file_name()) {
       dialog_builder = dialog_builder.set_directory(parent);
+      dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy().to_string());
+    } else {
+      dialog_builder = dialog_builder.set_directory(default_path);
     }
-    dialog_builder = dialog_builder.set_file_name(
-      &default_path
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string(),
-    );
     dialog_builder
   } else {
     dialog_builder.set_directory(default_path)
@@ -192,14 +175,18 @@ pub fn open<R: Runtime>(
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
-  let response = if options.directory {
-    dialog_builder.pick_folder().into()
+
+  let (tx, rx) = channel();
+
+  if options.directory {
+    dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
   } else if options.multiple {
-    dialog_builder.pick_files().into()
+    dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
   } else {
-    dialog_builder.pick_file().into()
-  };
-  Ok(response)
+    dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
+  }
+
+  Ok(rx.recv().unwrap())
 }
 
 /// Shows a save dialog.
@@ -221,13 +208,14 @@ pub fn save<R: Runtime>(
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
-  Ok(dialog_builder.save_file().into())
+  let (tx, rx) = channel();
+  dialog_builder.save_file(move |p| tx.send(p).unwrap());
+  Ok(rx.recv().unwrap().into())
 }
 
 /// Shows a dialog with a yes/no question.
 pub fn ask(title: String, message: String) -> crate::Result<InvokeResponse> {
-  match ask_dialog(title, message) {
-    AskResponse::Yes => Ok(true.into()),
-    _ => Ok(false.into()),
-  }
+  let (tx, rx) = channel();
+  ask_dialog(title, message, move |m| tx.send(m).unwrap());
+  Ok(rx.recv().unwrap().into())
 }

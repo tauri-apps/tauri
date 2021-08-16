@@ -12,10 +12,12 @@ use std::path::{Path, PathBuf};
 mod codegen;
 
 #[cfg(feature = "codegen")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
 /// Attributes used on Windows.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: PathBuf,
 }
@@ -43,7 +45,7 @@ impl WindowsAttributes {
 }
 
 /// The attributes used on the build.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Attributes {
   #[allow(dead_code)]
   windows_attributes: WindowsAttributes,

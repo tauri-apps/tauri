@@ -48,7 +48,7 @@ pub enum WindowEvent {
 }
 
 /// A menu event.
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MenuEvent {
   pub menu_item_id: u16,
@@ -110,6 +110,7 @@ impl<R: Runtime> PendingWindow<R> {
 }
 
 /// A webview window that is not yet managed by Tauri.
+#[derive(Debug)]
 pub struct DetachedWindow<R: Runtime> {
   /// Name of the window
   pub label: String,

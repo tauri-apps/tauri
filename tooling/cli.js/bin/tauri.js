@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const chalk = require('chalk')
+import chalk from 'chalk'
+import updateNotifier from 'update-notifier'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
 const pkg = require('../package.json')
-const updateNotifier = require('update-notifier')
 
 const cmds = ['icon', 'deps']
 const rustCliCmds = ['dev', 'build', 'init', 'info', 'sign']
@@ -66,9 +68,9 @@ ${chalk.yellow('Options')}
       process.argv.splice(2, 1)
     }
     console.log(`[tauri]: running ${command}`)
-    require(`./tauri-${command}`)
+    await import(`./tauri-${command}.js`)
   } else {
-    const { runOnRustCli } = require('../dist/helpers/rust-cli')
+    const { runOnRustCli } = await import('../dist/helpers/rust-cli.js')
     if (process.argv && process.env.NODE_ENV !== 'test') {
       process.argv.splice(0, 3)
     }
@@ -80,19 +82,16 @@ ${chalk.yellow('Options')}
     ).promise
       .then(() => {
         if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
-          const {
-            installDependencies
-          } = require('../dist/api/dependency-manager')
-          return installDependencies()
+          return import('../dist/api/dependency-manager.js').then(
+            ({ installDependencies }) => installDependencies()
+          )
         }
       })
       .catch(() => process.exit(1))
   }
 }
 
-module.exports = {
-  tauri
-}
+export default tauri
 
 // on test we use the module.exports
 if (process.env.NODE_ENV !== 'test') {

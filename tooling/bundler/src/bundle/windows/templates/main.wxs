@@ -26,9 +26,8 @@
                  InstallScope="perMachine"
                  SummaryCodepage="{{ascii_codepage}}"/>
 
-         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
-                  MigrateFeatures="yes" />
-
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+          AllowSameVersionUpgrades="yes" />
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 

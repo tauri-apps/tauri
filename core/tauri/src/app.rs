@@ -30,7 +30,6 @@ use std::{
   sync::{mpsc::Sender, Arc},
 };
 
-#[cfg(feature = "menu")]
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 #[cfg(all(windows, feature = "system-tray"))]
@@ -41,7 +40,9 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 #[cfg(feature = "updater")]
 use crate::updater;
 
-#[cfg(feature = "menu")]
+#[cfg(target_os = "macos")]
+use crate::ActivationPolicy;
+
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
@@ -78,6 +79,9 @@ pub enum Event {
   /// The app is about to exit
   #[non_exhaustive]
   ExitRequested {
+    /// The label of the window that requested the exit.
+    /// It is the last window managed by tauri.
+    window_label: String,
     /// Event API
     api: ExitRequestApi,
   },
@@ -91,18 +95,24 @@ pub enum Event {
   },
   /// Window closed.
   WindowClosed(String),
+  /// Application ready.
+  Ready,
+  /// Sent if the event loop is being resumed.
+  Resumed,
+  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  ///
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  MainEventsCleared,
 }
 
 /// A menu event that was triggered on a window.
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct WindowMenuEvent<R: Runtime> {
   pub(crate) menu_item_id: MenuId,
   pub(crate) window: Window<R>,
 }
 
-#[cfg(feature = "menu")]
 impl<R: Runtime> WindowMenuEvent<R> {
   /// The menu item id.
   pub fn menu_item_id(&self) -> MenuIdRef<'_> {
@@ -117,6 +127,7 @@ impl<R: Runtime> WindowMenuEvent<R> {
 
 /// A window event that was triggered on the specified window.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct GlobalWindowEvent<R: Runtime> {
   pub(crate) event: WindowEvent,
   pub(crate) window: Window<R>,
@@ -157,6 +168,7 @@ impl PathResolver {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
@@ -280,6 +292,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,
@@ -386,6 +399,29 @@ impl<R: Runtime> App<R> {
     self.handle.clone()
   }
 
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let mut app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   #[cfg(target_os = "macos")]
+  ///   app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///   app.run(|_app_handle, _event| {});
+  /// }
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_activation_policy(activation_policy);
+  }
+
   /// Runs the application.
   pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
     let app_handle = self.handle();
@@ -401,16 +437,18 @@ impl<R: Runtime> App<R> {
           &app_handle,
           match event {
             RunEvent::Exit => Event::Exit,
-            RunEvent::ExitRequested { tx } => Event::ExitRequested {
+            RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+              window_label,
               api: ExitRequestApi(tx),
             },
             RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-              label: label.parse().unwrap_or_else(|_| unreachable!()),
+              label,
               api: CloseRequestApi(signal_tx),
             },
-            RunEvent::WindowClose(label) => {
-              Event::WindowClosed(label.parse().unwrap_or_else(|_| unreachable!()))
-            }
+            RunEvent::WindowClose(label) => Event::WindowClosed(label),
+            RunEvent::Ready => Event::Ready,
+            RunEvent::Resumed => Event::Resumed,
+            RunEvent::MainEventsCleared => Event::MainEventsCleared,
             _ => unimplemented!(),
           },
         );
@@ -437,6 +475,7 @@ impl<R: Runtime> App<R> {
   ///     }
   ///   }
   /// }
+  /// ```
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
@@ -455,18 +494,9 @@ impl<R: Runtime> App<R> {
     let updater_config = self.manager.config().tauri.updater.clone();
     let package_info = self.manager.package_info().clone();
 
-    #[cfg(not(target_os = "linux"))]
     crate::async_runtime::spawn(async move {
       updater::check_update_with_dialog(updater_config, package_info, window).await
     });
-
-    #[cfg(target_os = "linux")]
-    {
-      let context = glib::MainContext::default();
-      context.spawn_with_priority(glib::PRIORITY_HIGH, async move {
-        updater::check_update_with_dialog(updater_config, package_info, window).await
-      });
-    }
   }
 
   /// Listen updater events when dialog are disabled.
@@ -537,11 +567,9 @@ pub struct Builder<R: Runtime> {
   state: StateManager,
 
   /// The menu set to all windows.
-  #[cfg(feature = "menu")]
   menu: Option<Menu>,
 
   /// Menu event handlers that listens to all windows.
-  #[cfg(feature = "menu")]
   menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
 
   /// Window event handlers that listens to all windows.
@@ -567,9 +595,7 @@ impl<R: Runtime> Builder<R> {
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
-      #[cfg(feature = "menu")]
       menu: None,
-      #[cfg(feature = "menu")]
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
@@ -731,16 +757,12 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Sets the menu to use on all windows.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
     self
   }
 
   /// Registers a menu event handler for all windows.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -844,7 +866,6 @@ impl<R: Runtime> Builder<R> {
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
-      #[cfg(feature = "menu")]
       (self.menu, self.menu_event_listeners),
     );
 
@@ -1024,6 +1045,7 @@ fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>)
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()

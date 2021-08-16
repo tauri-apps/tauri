@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub(crate) mod menu;
 
-#[cfg(feature = "menu")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
 pub use menu::{MenuEvent, MenuHandle};
 
 use crate::{
@@ -86,6 +82,7 @@ impl Monitor {
 /// This type also implements [`Manager`] which allows you to manage other windows attached to
 /// the same application.
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
   window: DetachedWindow<R>,
@@ -242,11 +239,10 @@ impl<R: Runtime> Window<R> {
   /// Emits an event to the current window.
   pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, payload: {}}}, '{}')",
+      "window['{}']({{event: {}, payload: {}}})",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_value(payload)?,
-      self.manager.generate_salt(),
     ))?;
 
     Ok(())
@@ -292,8 +288,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Registers a menu event listener.
-  #[cfg(feature = "menu")]
-  #[cfg_attr(doc_cfg, doc(cfg(feature = "menu")))]
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.manager.menu_ids();
     self.window.dispatcher.on_menu_event(move |event| {
@@ -306,7 +300,6 @@ impl<R: Runtime> Window<R> {
   // Getters
 
   /// Gets a handle to the window menu.
-  #[cfg(feature = "menu")]
   pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
       ids: self.manager.menu_ids(),
@@ -694,9 +687,5 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
-  }
-
-  pub(crate) fn verify_salt(&self, salt: String) -> bool {
-    self.manager.verify_salt(salt)
   }
 }

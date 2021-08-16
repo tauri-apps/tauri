@@ -5,6 +5,7 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use tauri_runtime::{
+  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu},
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
@@ -17,14 +18,11 @@ use tauri_runtime::{
   RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
 };
 
-#[cfg(feature = "menu")]
 use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -46,9 +44,13 @@ use wry::{
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
       Position as WryPosition, Size as WrySize,
     },
-    event::{Event, WindowEvent as WryWindowEvent},
+    event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
+    menu::{
+      CustomMenuItem as WryCustomMenuItem, MenuBar, MenuId as WryMenuId, MenuItem as WryMenuItem,
+      MenuItemAttributes as WryMenuItemAttributes, MenuType,
+    },
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType},
   },
@@ -63,12 +65,21 @@ pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, Wi
 #[cfg(target_os = "windows")]
 use wry::webview::WebviewExtWindows;
 
+#[cfg(target_os = "macos")]
+use tauri_runtime::{menu::NativeImage, ActivationPolicy};
+#[cfg(target_os = "macos")]
+pub use wry::application::platform::macos::{
+  ActivationPolicy as WryActivationPolicy, CustomMenuItemExtMacOS, EventLoopExtMacOS,
+  NativeImage as WryNativeImage, WindowExtMacOS,
+};
+
 use std::{
   collections::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap,
   },
   convert::TryFrom,
+  fmt,
   fs::read,
   path::PathBuf,
   sync::{
@@ -79,19 +90,25 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-mod menu;
-#[cfg(any(feature = "menu", feature = "system-tray"))]
-use menu::*;
+#[cfg(feature = "system-tray")]
+mod system_tray;
+#[cfg(feature = "system-tray")]
+use system_tray::*;
 
 mod mime_type;
 use mime_type::MimeType;
 
 type WebContextStore = Mutex<HashMap<Option<PathBuf>, WebContext>>;
+// window
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 type WindowEventListeners = Arc<Mutex<HashMap<WindowId, WindowEventListenersMap>>>;
+// global shortcut
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
+// menu
+pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
+pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
+pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 macro_rules! dispatcher_getter {
   ($self: ident, $message: expr) => {{
@@ -126,11 +143,129 @@ macro_rules! getter {
   }};
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct EventLoopContext {
   main_thread_id: ThreadId,
   is_event_loop_running: Arc<AtomicBool>,
   proxy: EventLoopProxy<Message>,
+}
+
+pub struct MenuItemAttributesWrapper<'a>(pub WryMenuItemAttributes<'a>);
+
+impl<'a> From<&'a CustomMenuItem> for MenuItemAttributesWrapper<'a> {
+  fn from(item: &'a CustomMenuItem) -> Self {
+    let mut attributes = WryMenuItemAttributes::new(&item.title)
+      .with_enabled(item.enabled)
+      .with_selected(item.selected)
+      .with_id(WryMenuId(item.id));
+    if let Some(accelerator) = item.keyboard_accelerator.as_ref() {
+      attributes = attributes.with_accelerators(&accelerator.parse().expect("invalid accelerator"));
+    }
+    Self(attributes)
+  }
+}
+
+pub struct MenuItemWrapper(pub WryMenuItem);
+
+impl From<MenuItem> for MenuItemWrapper {
+  fn from(item: MenuItem) -> Self {
+    match item {
+      MenuItem::About(v) => Self(WryMenuItem::About(v)),
+      MenuItem::Hide => Self(WryMenuItem::Hide),
+      MenuItem::Services => Self(WryMenuItem::Services),
+      MenuItem::HideOthers => Self(WryMenuItem::HideOthers),
+      MenuItem::ShowAll => Self(WryMenuItem::ShowAll),
+      MenuItem::CloseWindow => Self(WryMenuItem::CloseWindow),
+      MenuItem::Quit => Self(WryMenuItem::Quit),
+      MenuItem::Copy => Self(WryMenuItem::Copy),
+      MenuItem::Cut => Self(WryMenuItem::Cut),
+      MenuItem::Undo => Self(WryMenuItem::Undo),
+      MenuItem::Redo => Self(WryMenuItem::Redo),
+      MenuItem::SelectAll => Self(WryMenuItem::SelectAll),
+      MenuItem::Paste => Self(WryMenuItem::Paste),
+      MenuItem::EnterFullScreen => Self(WryMenuItem::EnterFullScreen),
+      MenuItem::Minimize => Self(WryMenuItem::Minimize),
+      MenuItem::Zoom => Self(WryMenuItem::Zoom),
+      MenuItem::Separator => Self(WryMenuItem::Separator),
+      _ => unimplemented!(),
+    }
+  }
+}
+
+#[cfg(target_os = "macos")]
+pub struct NativeImageWrapper(pub WryNativeImage);
+
+#[cfg(target_os = "macos")]
+impl std::fmt::Debug for NativeImageWrapper {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("NativeImageWrapper").finish()
+  }
+}
+
+#[cfg(target_os = "macos")]
+impl From<NativeImage> for NativeImageWrapper {
+  fn from(image: NativeImage) -> NativeImageWrapper {
+    let wry_image = match image {
+      NativeImage::Add => WryNativeImage::Add,
+      NativeImage::Advanced => WryNativeImage::Advanced,
+      NativeImage::Bluetooth => WryNativeImage::Bluetooth,
+      NativeImage::Bookmarks => WryNativeImage::Bookmarks,
+      NativeImage::Caution => WryNativeImage::Caution,
+      NativeImage::ColorPanel => WryNativeImage::ColorPanel,
+      NativeImage::ColumnView => WryNativeImage::ColumnView,
+      NativeImage::Computer => WryNativeImage::Computer,
+      NativeImage::EnterFullScreen => WryNativeImage::EnterFullScreen,
+      NativeImage::Everyone => WryNativeImage::Everyone,
+      NativeImage::ExitFullScreen => WryNativeImage::ExitFullScreen,
+      NativeImage::FlowView => WryNativeImage::FlowView,
+      NativeImage::Folder => WryNativeImage::Folder,
+      NativeImage::FolderBurnable => WryNativeImage::FolderBurnable,
+      NativeImage::FolderSmart => WryNativeImage::FolderSmart,
+      NativeImage::FollowLinkFreestanding => WryNativeImage::FollowLinkFreestanding,
+      NativeImage::FontPanel => WryNativeImage::FontPanel,
+      NativeImage::GoLeft => WryNativeImage::GoLeft,
+      NativeImage::GoRight => WryNativeImage::GoRight,
+      NativeImage::Home => WryNativeImage::Home,
+      NativeImage::IChatTheater => WryNativeImage::IChatTheater,
+      NativeImage::IconView => WryNativeImage::IconView,
+      NativeImage::Info => WryNativeImage::Info,
+      NativeImage::InvalidDataFreestanding => WryNativeImage::InvalidDataFreestanding,
+      NativeImage::LeftFacingTriangle => WryNativeImage::LeftFacingTriangle,
+      NativeImage::ListView => WryNativeImage::ListView,
+      NativeImage::LockLocked => WryNativeImage::LockLocked,
+      NativeImage::LockUnlocked => WryNativeImage::LockUnlocked,
+      NativeImage::MenuMixedState => WryNativeImage::MenuMixedState,
+      NativeImage::MenuOnState => WryNativeImage::MenuOnState,
+      NativeImage::MobileMe => WryNativeImage::MobileMe,
+      NativeImage::MultipleDocuments => WryNativeImage::MultipleDocuments,
+      NativeImage::Network => WryNativeImage::Network,
+      NativeImage::Path => WryNativeImage::Path,
+      NativeImage::PreferencesGeneral => WryNativeImage::PreferencesGeneral,
+      NativeImage::QuickLook => WryNativeImage::QuickLook,
+      NativeImage::RefreshFreestanding => WryNativeImage::RefreshFreestanding,
+      NativeImage::Refresh => WryNativeImage::Refresh,
+      NativeImage::Remove => WryNativeImage::Remove,
+      NativeImage::RevealFreestanding => WryNativeImage::RevealFreestanding,
+      NativeImage::RightFacingTriangle => WryNativeImage::RightFacingTriangle,
+      NativeImage::Share => WryNativeImage::Share,
+      NativeImage::Slideshow => WryNativeImage::Slideshow,
+      NativeImage::SmartBadge => WryNativeImage::SmartBadge,
+      NativeImage::StatusAvailable => WryNativeImage::StatusAvailable,
+      NativeImage::StatusNone => WryNativeImage::StatusNone,
+      NativeImage::StatusPartiallyAvailable => WryNativeImage::StatusPartiallyAvailable,
+      NativeImage::StatusUnavailable => WryNativeImage::StatusUnavailable,
+      NativeImage::StopProgressFreestanding => WryNativeImage::StopProgressFreestanding,
+      NativeImage::StopProgress => WryNativeImage::StopProgress,
+
+      NativeImage::TrashEmpty => WryNativeImage::TrashEmpty,
+      NativeImage::TrashFull => WryNativeImage::TrashFull,
+      NativeImage::User => WryNativeImage::User,
+      NativeImage::UserAccounts => WryNativeImage::UserAccounts,
+      NativeImage::UserGroup => WryNativeImage::UserGroup,
+      NativeImage::UserGuest => WryNativeImage::UserGuest,
+    };
+    Self(wry_image)
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -144,6 +279,15 @@ pub struct GlobalShortcutManagerHandle {
   context: EventLoopContext,
   shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   listeners: GlobalShortcutListeners,
+}
+
+impl fmt::Debug for GlobalShortcutManagerHandle {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("GlobalShortcutManagerHandle")
+      .field("context", &self.context)
+      .field("shortcuts", &self.shortcuts)
+      .finish()
+  }
 }
 
 impl GlobalShortcutManager for GlobalShortcutManagerHandle {
@@ -205,7 +349,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ClipboardManagerWrapper {
   context: EventLoopContext,
 }
@@ -428,7 +572,6 @@ impl From<UserAttentionType> for UserAttentionTypeWrapper {
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
-  #[cfg(feature = "menu")]
   menu: Menu,
 }
 
@@ -471,7 +614,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     window
   }
 
-  #[cfg(feature = "menu")]
   fn menu(mut self, menu: Menu) -> Self {
     self.menu = convert_menu_id(Menu::new(), menu);
     self
@@ -594,7 +736,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner.window.window_icon.is_some()
   }
 
-  #[cfg(feature = "menu")]
   fn has_menu(&self) -> bool {
     self.inner.window.window_menu.is_some()
   }
@@ -665,7 +806,6 @@ pub enum WindowMessage {
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
-  #[cfg(feature = "menu")]
   IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -691,9 +831,7 @@ pub enum WindowMessage {
   Unmaximize,
   Minimize,
   Unminimize,
-  #[cfg(feature = "menu")]
   ShowMenu,
-  #[cfg(feature = "menu")]
   HideMenu,
   Show,
   Hide,
@@ -709,8 +847,7 @@ pub enum WindowMessage {
   SetIcon(WindowIcon),
   SetSkipTaskbar(bool),
   DragWindow,
-  #[cfg(feature = "menu")]
-  UpdateMenuItem(u16, menu::MenuUpdate),
+  UpdateMenuItem(u16, MenuUpdate),
 }
 
 #[derive(Debug, Clone)]
@@ -728,15 +865,15 @@ pub enum WebviewEvent {
 }
 
 #[cfg(feature = "system-tray")]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum TrayMessage {
-  UpdateItem(u16, menu::MenuUpdate),
+  UpdateItem(u16, MenuUpdate),
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum GlobalShortcutMessage {
   IsRegistered(Accelerator, Sender<bool>),
   Register(Accelerator, Sender<Result<GlobalShortcutWrapper>>),
@@ -744,7 +881,7 @@ pub enum GlobalShortcutMessage {
   UnregisterAll(Sender<Result<()>>),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum ClipboardMessage {
   WriteText(String, Sender<()>),
   ReadText(Sender<Option<String>>),
@@ -776,12 +913,21 @@ struct DispatcherContext {
   is_event_loop_running: Arc<AtomicBool>,
   proxy: EventLoopProxy<Message>,
   window_event_listeners: WindowEventListeners,
-  #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
 }
 
+impl fmt::Debug for DispatcherContext {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("DispatcherContext")
+      .field("main_thread_id", &self.main_thread_id)
+      .field("is_event_loop_running", &self.is_event_loop_running)
+      .field("proxy", &self.proxy)
+      .finish()
+  }
+}
+
 /// The Tauri [`Dispatch`] for [`Wry`].
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WryDispatcher {
   window_id: WindowId,
   context: DispatcherContext,
@@ -814,7 +960,6 @@ impl Dispatch for WryDispatcher {
     id
   }
 
-  #[cfg(feature = "menu")]
   fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self
@@ -874,7 +1019,6 @@ impl Dispatch for WryDispatcher {
     Ok(dispatcher_getter!(self, WindowMessage::IsVisible))
   }
 
-  #[cfg(feature = "menu")]
   fn is_menu_visible(&self) -> Result<bool> {
     Ok(dispatcher_getter!(self, WindowMessage::IsMenuVisible))
   }
@@ -1032,7 +1176,6 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  #[cfg(feature = "menu")]
   fn show_menu(&self) -> Result<()> {
     self
       .context
@@ -1041,7 +1184,6 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  #[cfg(feature = "menu")]
   fn hide_menu(&self) -> Result<()> {
     self
       .context
@@ -1200,8 +1342,7 @@ impl Dispatch for WryDispatcher {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  #[cfg(feature = "menu")]
-  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()> {
+  fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     self
       .context
       .proxy
@@ -1238,7 +1379,6 @@ impl WindowHandle {
 pub struct WindowWrapper {
   label: String,
   inner: WindowHandle,
-  #[cfg(feature = "menu")]
   menu_items: HashMap<u16, WryCustomMenuItem>,
 }
 
@@ -1254,14 +1394,13 @@ pub struct Wry {
   windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   web_context: WebContextStore,
   window_event_listeners: WindowEventListeners,
-  #[cfg(feature = "menu")]
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
   tray_context: TrayContext,
 }
 
 /// A handle to the Wry runtime.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WryHandle {
   dispatcher_context: DispatcherContext,
 }
@@ -1372,7 +1511,6 @@ impl Runtime for Wry {
       windows: Default::default(),
       web_context: Default::default(),
       window_event_listeners: Default::default(),
-      #[cfg(feature = "menu")]
       menu_event_listeners: Default::default(),
       #[cfg(feature = "system-tray")]
       tray_context: Default::default(),
@@ -1386,7 +1524,6 @@ impl Runtime for Wry {
         is_event_loop_running: self.is_event_loop_running.clone(),
         proxy: self.event_loop.create_proxy(),
         window_event_listeners: self.window_event_listeners.clone(),
-        #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
     }
@@ -1411,7 +1548,6 @@ impl Runtime for Wry {
         is_event_loop_running: self.is_event_loop_running.clone(),
         proxy: proxy.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
-        #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
       pending,
@@ -1453,7 +1589,6 @@ impl Runtime for Wry {
         is_event_loop_running: self.is_event_loop_running.clone(),
         proxy,
         window_event_listeners: self.window_event_listeners.clone(),
-        #[cfg(feature = "menu")]
         menu_event_listeners: self.menu_event_listeners.clone(),
       },
     };
@@ -1517,13 +1652,24 @@ impl Runtime for Wry {
     id
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .event_loop
+      .set_activation_policy(match activation_policy {
+        ActivationPolicy::Regular => WryActivationPolicy::Regular,
+        ActivationPolicy::Accessory => WryActivationPolicy::Accessory,
+        ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
+        _ => unimplemented!(),
+      });
+  }
+
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.windows.clone();
     let web_context = &self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
-    #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context.clone();
@@ -1551,7 +1697,6 @@ impl Runtime for Wry {
             global_shortcut_manager: global_shortcut_manager.clone(),
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
             clipboard_manager: clipboard_manager.clone(),
-            #[cfg(feature = "menu")]
             menu_event_listeners: &menu_event_listeners,
             #[cfg(feature = "system-tray")]
             tray_context: &tray_context,
@@ -1569,7 +1714,6 @@ impl Runtime for Wry {
     let windows = self.windows.clone();
     let web_context = self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
-    #[cfg(feature = "menu")]
     let menu_event_listeners = self.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.tray_context;
@@ -1589,7 +1733,6 @@ impl Runtime for Wry {
           global_shortcut_manager: global_shortcut_manager.clone(),
           global_shortcut_manager_handle: &global_shortcut_manager_handle,
           clipboard_manager: clipboard_manager.clone(),
-          #[cfg(feature = "menu")]
           menu_event_listeners: &menu_event_listeners,
           #[cfg(feature = "system-tray")]
           tray_context: &tray_context,
@@ -1607,7 +1750,6 @@ struct EventLoopIterationContext<'a> {
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle,
   clipboard_manager: Arc<Mutex<Clipboard>>,
-  #[cfg(feature = "menu")]
   menu_event_listeners: &'a MenuEventListeners,
   #[cfg(feature = "system-tray")]
   tray_context: &'a TrayContext,
@@ -1627,7 +1769,6 @@ fn handle_event_loop(
     global_shortcut_manager,
     global_shortcut_manager_handle,
     clipboard_manager,
-    #[cfg(feature = "menu")]
     menu_event_listeners,
     #[cfg(feature = "system-tray")]
     tray_context,
@@ -1640,6 +1781,18 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::NewEvents(StartCause::Init) => {
+      callback(RunEvent::Ready);
+    }
+
+    Event::NewEvents(StartCause::Poll) => {
+      callback(RunEvent::Resumed);
+    }
+
+    Event::MainEventsCleared => {
+      callback(RunEvent::MainEventsCleared);
+    }
+
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {
@@ -1647,7 +1800,6 @@ fn handle_event_loop(
         }
       }
     }
-    #[cfg(feature = "menu")]
     Event::MenuEvent {
       window_id,
       menu_id,
@@ -1736,7 +1888,6 @@ fn handle_event_loop(
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
-                #[cfg(feature = "menu")]
                 menu_event_listeners.clone(),
               );
             }
@@ -1787,7 +1938,6 @@ fn handle_event_loop(
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
-            #[cfg(feature = "menu")]
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
@@ -1821,9 +1971,7 @@ fn handle_event_loop(
             WindowMessage::Unmaximize => window.set_maximized(false),
             WindowMessage::Minimize => window.set_minimized(true),
             WindowMessage::Unminimize => window.set_minimized(false),
-            #[cfg(feature = "menu")]
             WindowMessage::ShowMenu => window.show_menu(),
-            #[cfg(feature = "menu")]
             WindowMessage::HideMenu => window.hide_menu(),
             WindowMessage::Show => window.set_visible(true),
             WindowMessage::Hide => window.set_visible(false),
@@ -1835,7 +1983,6 @@ fn handle_event_loop(
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
-                #[cfg(feature = "menu")]
                 menu_event_listeners.clone(),
               );
             }
@@ -1873,7 +2020,6 @@ fn handle_event_loop(
             WindowMessage::DragWindow => {
               let _ = window.drag_window();
             }
-            #[cfg(feature = "menu")]
             WindowMessage::UpdateMenuItem(id, update) => {
               let item = webview
                 .menu_items
@@ -1942,7 +2088,6 @@ fn handle_event_loop(
             .unwrap()
             .insert(window.id(), WindowEventListenersMap::default());
 
-          #[cfg(feature = "menu")]
           context
             .menu_event_listeners
             .lock()
@@ -1956,7 +2101,6 @@ fn handle_event_loop(
             WindowWrapper {
               label,
               inner: WindowHandle::Window(w.clone()),
-              #[cfg(feature = "menu")]
               menu_items: Default::default(),
             },
           );
@@ -2055,23 +2199,26 @@ fn on_window_close<'a>(
   windows: &mut MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
   control_flow: &mut ControlFlow,
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
-  #[cfg(feature = "menu")] menu_event_listeners: MenuEventListeners,
+  menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = windows.remove(&window_id) {
-    #[cfg(feature = "menu")]
     menu_event_listeners.lock().unwrap().remove(&window_id);
-    callback(RunEvent::WindowClose(webview.label));
-  }
-  if windows.is_empty() {
-    let (tx, rx) = channel();
-    callback(RunEvent::ExitRequested { tx });
+    callback(RunEvent::WindowClose(webview.label.clone()));
 
-    let recv = rx.try_recv();
-    let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+    if windows.is_empty() {
+      let (tx, rx) = channel();
+      callback(RunEvent::ExitRequested {
+        window_label: webview.label,
+        tx,
+      });
 
-    if !should_prevent {
-      *control_flow = ControlFlow::Exit;
-      callback(RunEvent::Exit);
+      let recv = rx.try_recv();
+      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+      if !should_prevent {
+        *control_flow = ControlFlow::Exit;
+        callback(RunEvent::Exit);
+      }
     }
   }
   // TODO: tao does not fire the destroyed event properly
@@ -2104,6 +2251,71 @@ fn center_window(window: &Window) -> Result<()> {
   }
 }
 
+fn convert_menu_id(mut new_menu: Menu, menu: Menu) -> Menu {
+  for item in menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        let mut item = CustomMenuItem::new(c.id_str, c.title);
+        #[cfg(target_os = "macos")]
+        if let Some(native_image) = c.native_image {
+          item = item.native_image(native_image);
+        }
+        if let Some(accelerator) = c.keyboard_accelerator {
+          item = item.accelerator(accelerator);
+        }
+        if !c.enabled {
+          item = item.disabled();
+        }
+        if c.selected {
+          item = item.selected();
+        }
+        new_menu = new_menu.add_item(item);
+      }
+      MenuEntry::NativeItem(i) => {
+        new_menu = new_menu.add_native_item(i);
+      }
+      MenuEntry::Submenu(submenu) => {
+        let new_submenu = convert_menu_id(Menu::new(), submenu.inner);
+        new_menu = new_menu.add_submenu(Submenu::new(submenu.title, new_submenu));
+      }
+    }
+  }
+  new_menu
+}
+
+fn to_wry_menu(
+  custom_menu_items: &mut HashMap<MenuHash, WryCustomMenuItem>,
+  menu: Menu,
+) -> MenuBar {
+  let mut wry_menu = MenuBar::new();
+  for item in menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        let mut attributes = MenuItemAttributesWrapper::from(&c).0;
+        attributes = attributes.with_id(WryMenuId(c.id));
+        #[allow(unused_mut)]
+        let mut item = wry_menu.add_item(attributes);
+        #[cfg(target_os = "macos")]
+        if let Some(native_image) = c.native_image {
+          item.set_native_image(NativeImageWrapper::from(native_image).0);
+        }
+        custom_menu_items.insert(c.id, item);
+      }
+      MenuEntry::NativeItem(i) => {
+        wry_menu.add_native_item(MenuItemWrapper::from(i).0);
+      }
+      MenuEntry::Submenu(submenu) => {
+        wry_menu.add_submenu(
+          &submenu.title,
+          submenu.enabled,
+          to_wry_menu(custom_menu_items, submenu.inner),
+        );
+      }
+    }
+  }
+  wry_menu
+}
+
 fn create_webview(
   event_loop: &EventLoopWindowTarget<Message>,
   web_context: &WebContextStore,
@@ -2122,7 +2334,6 @@ fn create_webview(
   } = pending;
 
   let is_window_transparent = window_builder.inner.window.transparent;
-  #[cfg(feature = "menu")]
   let menu_items = {
     let mut menu_items = HashMap::new();
     let menu = to_wry_menu(&mut menu_items, window_builder.menu);
@@ -2137,7 +2348,6 @@ fn create_webview(
     .unwrap()
     .insert(window.id(), WindowEventListenersMap::default());
 
-  #[cfg(feature = "menu")]
   context
     .menu_event_listeners
     .lock()
@@ -2178,29 +2388,35 @@ fn create_webview(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context.lock().expect("poisoned WebContext store");
-  let is_first_context = web_context.is_empty();
-  let web_context = match web_context.entry(webview_attributes.data_directory) {
-    Occupied(occupied) => occupied.into_mut(),
-    Vacant(vacant) => {
-      let mut web_context = WebContext::new(vacant.key().clone());
-      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
-        Ok("true") => is_first_context,
-        _ => false,
-      });
-      vacant.insert(web_context)
-    }
+  let webview = if let Ok("true") = std::env::var("TAURI_AUTOMATION").as_deref() {
+    let mut web_context = web_context.lock().expect("poisoned WebContext store");
+    let is_first_context = web_context.is_empty();
+    let web_context = match web_context.entry(webview_attributes.data_directory) {
+      Occupied(occupied) => occupied.into_mut(),
+      Vacant(vacant) => {
+        let mut web_context = WebContext::new(vacant.key().clone());
+        web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
+          Ok("true") => is_first_context,
+          _ => false,
+        });
+        vacant.insert(web_context)
+      }
+    };
+    webview_builder
+      .with_web_context(web_context)
+      .build()
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  } else {
+    let mut context = WebContext::new(webview_attributes.data_directory.clone());
+    webview_builder
+      .with_web_context(&mut context)
+      .build()
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
   };
-
-  let webview = webview_builder
-    .with_web_context(web_context)
-    .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WindowWrapper {
     label,
     inner: WindowHandle::Webview(webview),
-    #[cfg(feature = "menu")]
     menu_items,
   })
 }

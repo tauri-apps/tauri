@@ -1,44 +1,21 @@
-const path = require('path')
-const process = require('process')
+import { jest } from '@jest/globals'
+import path from 'path'
+import http from 'http'
+import { fileURLToPath } from 'url'
 
-const mockFixtureDir = path.resolve(__dirname, '../fixtures')
+const currentDirName = path.dirname(fileURLToPath(import.meta.url))
+const mockFixtureDir = path.resolve(currentDirName, '../fixtures')
 
-module.exports.fixtureDir = mockFixtureDir
+export const fixtureDir = mockFixtureDir
 
-function mockResolvePath(basePath, dir) {
-  return dir && path.isAbsolute(dir) ? dir : path.resolve(basePath, dir)
-}
-
-module.exports.initJest = (mockFixture) => {
+export const initJest = (mockFixture) => {
   jest.setTimeout(1200000)
-  jest.mock('helpers/non-webpack-require', () => {
-    return (path) => {
-      const value = require('fs').readFileSync(path).toString()
-      if (path.endsWith('.json')) {
-        return JSON.parse(value)
-      }
-      return value
-    }
-  })
 
-  jest.mock('helpers/app-paths', () => {
-    const path = require('path')
-    const appDir = path.join(mockFixtureDir, mockFixture)
-    const tauriDir = path.join(appDir, 'src-tauri')
-    return {
-      appDir,
-      tauriDir,
-      resolve: {
-        app: (dir) => mockResolvePath(appDir, dir),
-        tauri: (dir) => mockResolvePath(tauriDir, dir)
-      }
-    }
-  })
+  const mockAppDir = path.join(mockFixtureDir, mockFixture)
+  process.env.__TAURI_TEST_APP_DIR = mockAppDir
 }
 
-module.exports.startServer = (onSuccess) => {
-  const http = require('http')
-
+export const startServer = (onSuccess) => {
   const responses = {
     writeFile: null,
     readFile: null,

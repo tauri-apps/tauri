@@ -28,7 +28,9 @@ $ sudo apt update && sudo apt install libwebkit2gtk-4.0-dev \
     wget \
     libssl-dev \
     libgtk-3-dev \
-    squashfs-tools
+    libappindicator3-dev \
+    patchelf \
+    librsvg2-dev
 ```
 
 </TabItem>
@@ -42,7 +44,9 @@ $ sudo pacman -Syy && sudo pacman -S  webkit2gtk \
     openssl \
     appmenu-gtk-module \
     gtk3 \
-    squashfs-tools \
+    libappindicator-gtk3 \
+    patchelf \
+    librsvg \
     libvips
 ```
 
@@ -54,12 +58,19 @@ $ sudo dnf check-update && sudo dnf install webkit2gtk3-devel.x86_64 \
     openssl-devel \
     curl \
     wget \
-    squashfs-tools \
+    libappindicator-gtk3 \ #
+    patchelf \
+    librsvg2-devel \
     && sudo dnf group install "C Development Tools and Libraries"
 ```
 
 </TabItem>
 </Tabs>
+
+### Optional dependencies:
+
+- `libappindicator`: needed to use the system tray feature.
+- `patchelf` and `librsvg`: needed to bundle `AppImage`.
 
 ## 2. Node.js Runtime and Package Manager&nbsp;<Icon title="control-skip-forward" color="warning"/>
 

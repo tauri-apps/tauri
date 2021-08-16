@@ -13,9 +13,12 @@ import { getCrateLatestVersion, semverLt } from './util'
 import logger from '../../helpers/logger'
 import { resolve as appResolve, tauriDir } from '../../helpers/app-paths'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import toml from '@tauri-apps/toml'
 import inquirer from 'inquirer'
+import { createRequire } from 'module'
 
+const require = createRequire(import.meta.url)
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires
+const toml = require('@tauri-apps/toml')
 const log = logger('dependency:crates')
 
 const dependencies = ['tauri']
@@ -23,13 +26,20 @@ const dependencies = ['tauri']
 function readToml<T>(tomlPath: string): T | null {
   if (existsSync(tomlPath)) {
     const manifest = readFileSync(tomlPath).toString()
-    return toml.parse(manifest) as any as T
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+    return toml.parse(manifest) as T
   }
   return null
 }
 
-function dependencyDefinition(version: string): CargoManifestDependency {
-  return { version: version.substring(0, version.lastIndexOf('.')) }
+function dependencyDefinition(
+  dependency: string | CargoManifestDependency,
+  version: string
+): string | CargoManifestDependency {
+  if (typeof dependency === 'string') {
+    return version
+  }
+  return { ...dependency, version }
 }
 
 async function manageDependencies(
@@ -69,29 +79,46 @@ async function manageDependencies(
       const latestVersion = getCrateLatestVersion(dependency)
       if (latestVersion !== null) {
         // eslint-disable-next-line security/detect-object-injection
-        manifest.dependencies[dependency] = dependencyDefinition(latestVersion)
+        manifest.dependencies[dependency] = dependencyDefinition(
+          // eslint-disable-next-line security/detect-object-injection
+          manifest.dependencies[dependency],
+          latestVersion
+        )
       }
       installedDeps.push(dependency)
     } else if (managementType === ManagementType.Update) {
       const latestVersion = getCrateLatestVersion(dependency)
-      if (latestVersion !== null && semverLt(currentVersion, latestVersion)) {
-        const inquired = (await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'answer',
-            message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
-            default: false
+      if (latestVersion !== null) {
+        if (semverLt(currentVersion, latestVersion)) {
+          const inquired = (await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'answer',
+              message: `[CRATES] "${dependency}" latest version is ${latestVersion}. Do you want to update?`,
+              default: false
+            }
+          ])) as { answer: boolean }
+          if (inquired.answer) {
+            log(`Updating ${dependency}...`)
+            // eslint-disable-next-line security/detect-object-injection
+            manifest.dependencies[dependency] = dependencyDefinition(
+              // eslint-disable-next-line security/detect-object-injection
+              manifest.dependencies[dependency],
+              latestVersion
+            )
+            updatedDeps.push(dependency)
           }
-        ])) as { answer: boolean }
-        if (inquired.answer) {
-          log(`Updating ${dependency}...`)
+        } else {
+          // force update the manifest to the show the latest version even if the lockfile is up to date
           // eslint-disable-next-line security/detect-object-injection
-          manifest.dependencies[dependency] =
-            dependencyDefinition(latestVersion)
+          manifest.dependencies[dependency] = dependencyDefinition(
+            // eslint-disable-next-line security/detect-object-injection
+            manifest.dependencies[dependency],
+            latestVersion
+          )
           updatedDeps.push(dependency)
+          log(`"${dependency}" is up to date`)
         }
-      } else {
-        log(`"${dependency}" is up to date`)
       }
     } else {
       log(`"${dependency}" is already installed`)
@@ -101,6 +128,7 @@ async function manageDependencies(
   if (installedDeps.length || updatedDeps.length) {
     writeFileSync(
       appResolve.tauri('Cargo.toml'),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       toml.stringify(manifest as any)
     )
   }

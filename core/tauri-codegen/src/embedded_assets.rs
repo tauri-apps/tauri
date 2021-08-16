@@ -196,13 +196,13 @@ impl EmbeddedAssets {
           "import \\*",
           "import (\"|');?$",
           "import\\(",
-          "import (.|\n)+ from (\"|')([A-Za-z\\-]+)(\"|')",
+          "import (.|\n)+ from (\"|')([A-Za-z/\\.@-]+)(\"|')",
           // export keywords
           "export\\{",
           "export \\{",
           "export\\*",
           "export \\*",
-          "export (default|class|let|const|function)",
+          "export (default|class|let|const|function|async)",
         ])
         .unwrap()
         .is_match(&js)

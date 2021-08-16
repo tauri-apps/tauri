@@ -91,7 +91,7 @@ impl RemoteRelease {
 
     let download_url;
     #[cfg(target_os = "windows")]
-    let mut with_elevated_task = false;
+    let with_elevated_task;
 
     match release.get("platforms") {
       //
@@ -169,6 +169,7 @@ impl RemoteRelease {
   }
 }
 
+#[derive(Debug)]
 pub struct UpdateBuilder<'a> {
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
@@ -375,7 +376,7 @@ pub fn builder<'a>() -> UpdateBuilder<'a> {
   UpdateBuilder::new()
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Update {
   /// Update description
   pub body: Option<String>,
@@ -638,7 +639,7 @@ fn copy_files_and_run(
 // Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
 // Should return; `updater-example.app`
 #[cfg(target_os = "macos")]
-fn macos_app_name_in_path(extract_path: &PathBuf) -> String {
+fn macos_app_name_in_path(extract_path: &Path) -> String {
   let components = extract_path.components();
   let app_name = components.last().unwrap();
   let app_name = app_name.as_os_str().to_str().unwrap();

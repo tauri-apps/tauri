@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Platform helper functions.
+
 use std::{
   env,
   path::{PathBuf, MAIN_SEPARATOR},

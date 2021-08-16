@@ -65,6 +65,7 @@ pub enum Error {
   Setup(Box<dyn std::error::Error + Send>),
   /// Tauri updater error.
   #[cfg(feature = "updater")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   #[error("Updater: {0}")]
   TauriUpdater(#[from] crate::updater::Error),
   /// Error initializing plugin.
@@ -80,6 +81,9 @@ pub enum Error {
   /// user-provided URLs and paths.
   #[error("invalid url: {0}")]
   InvalidUrl(url::ParseError),
+  /// Task join error.
+  #[error(transparent)]
+  JoinError(Box<dyn std::error::Error + Send>),
 }
 
 impl From<serde_json::Error> for Error {

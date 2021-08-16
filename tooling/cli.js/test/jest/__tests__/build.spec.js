@@ -1,13 +1,13 @@
-const path = require('path')
-const fixtureSetup = require('../fixtures/app-test-setup')
+import path from 'path'
+import * as fixtureSetup from '../fixtures/app-test-setup.js'
+import { spawn } from 'helpers/spawn'
+
 const appDir = path.join(fixtureSetup.fixtureDir, 'app')
 const distDir = path.join(appDir, 'dist')
 
-const spawn = require('helpers/spawn').spawn
-
 function runBuildTest(args) {
   fixtureSetup.initJest('app')
-  const { build } = require('dist/api/cli')
+  console.log(2)
   return new Promise(async (resolve, reject) => {
     try {
       let success = false
@@ -20,7 +20,7 @@ function runBuildTest(args) {
         setTimeout(resolve, 2000)
       })
       process.chdir(appDir)
-      console.log(server)
+      const { build } = await import('dist/api/cli')
       const { promise } = await build(args)
       await promise
 

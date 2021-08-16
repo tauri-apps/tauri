@@ -26,10 +26,8 @@ use crate::{
 #[cfg(target_os = "windows")]
 use crate::api::path::{resolve_path, BaseDirectory};
 
-#[cfg(feature = "menu")]
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
-#[cfg(feature = "menu")]
 use crate::{
   runtime::menu::{Menu, MenuEntry, MenuHash, MenuId},
   MenuEvent,
@@ -40,12 +38,12 @@ use serde_json::Value as JsonValue;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
+  fmt,
   fs::create_dir_all,
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
 use url::Url;
-use uuid::Uuid;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -54,7 +52,6 @@ const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
-#[cfg(feature = "menu")]
 const MENU_EVENT: &str = "tauri://menu";
 
 #[default_runtime(crate::Wry, wry)]
@@ -74,25 +71,40 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   default_window_icon: Option<Vec<u8>>,
 
-  /// A list of salts that are valid for the current application.
-  salts: Mutex<HashSet<Uuid>>,
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
   /// The menu set to all windows.
-  #[cfg(feature = "menu")]
   menu: Option<Menu>,
   /// Maps runtime id to a strongly typed menu id.
-  #[cfg(feature = "menu")]
   menu_ids: HashMap<MenuHash, MenuId>,
   /// Menu event listeners to all windows.
-  #[cfg(feature = "menu")]
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
 }
 
+impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut s = f.debug_struct("InnerWindowManager");
+    #[allow(unused_mut)]
+    let mut w = s
+      .field("plugins", &self.plugins)
+      .field("state", &self.state)
+      .field("config", &self.config)
+      .field("default_window_icon", &self.default_window_icon)
+      .field("package_info", &self.package_info);
+    {
+      w = w
+        .field("menu", &self.menu)
+        .field("menu_ids", &self.menu_ids);
+    }
+    w.finish()
+  }
+}
+
 #[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
 pub struct WindowManager<R: Runtime> {
   pub inner: Arc<InnerWindowManager<R>>,
   invoke_keys: Arc<Mutex<Vec<u32>>>,
@@ -107,7 +119,6 @@ impl<R: Runtime> Clone for WindowManager<R> {
   }
 }
 
-#[cfg(feature = "menu")]
 fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
   for item in &menu.items {
     match item {
@@ -130,10 +141,7 @@ impl<R: Runtime> WindowManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
-    #[cfg(feature = "menu")] (menu, menu_event_listeners): (
-      Option<Menu>,
-      Vec<GlobalMenuEventListener<R>>,
-    ),
+    (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -146,10 +154,8 @@ impl<R: Runtime> WindowManager<R> {
         config: Arc::new(context.config),
         assets: context.assets,
         default_window_icon: context.default_window_icon,
-        salts: Mutex::default(),
         package_info: context.package_info,
         uri_scheme_protocols,
-        #[cfg(feature = "menu")]
         menu_ids: {
           let mut map = HashMap::new();
           if let Some(menu) = &menu {
@@ -157,9 +163,7 @@ impl<R: Runtime> WindowManager<R> {
           }
           map
         },
-        #[cfg(feature = "menu")]
         menu,
-        #[cfg(feature = "menu")]
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
       }),
@@ -178,7 +182,6 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// Get the menu ids mapper.
-  #[cfg(feature = "menu")]
   pub(crate) fn menu_ids(&self) -> HashMap<MenuHash, MenuId> {
     self.inner.menu_ids.clone()
   }
@@ -261,7 +264,6 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    #[cfg(feature = "menu")]
     if !pending.window_builder.has_menu() {
       if let Some(menu) = &self.inner.menu {
         pending.window_builder = pending.window_builder.menu(menu.clone());
@@ -283,6 +285,9 @@ impl<R: Runtime> WindowManager<R> {
     if !webview_attributes.has_uri_scheme_protocol("asset") {
       webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
         let path = url.replace("asset://", "");
+        let path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
         let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
         Ok(data)
       });
@@ -422,10 +427,10 @@ impl<R: Runtime> WindowManager<R> {
       {core_script}
       {event_initialization_script}
       if (window.rpc) {{
-        window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
+        window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI__._invoke("__initialized", {{ url: window.location.href }}, {key})
+          window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
         }})
       }}
       {plugin_initialization_script}
@@ -437,37 +442,24 @@ impl<R: Runtime> WindowManager<R> {
       } else {
         ""
       },
-      event_initialization_script = self.event_initialization_script(key),
+      event_initialization_script = self.event_initialization_script(),
       plugin_initialization_script = plugin_initialization_script
     )
   }
 
-  fn event_initialization_script(&self, key: u32) -> String {
+  fn event_initialization_script(&self) -> String {
     return format!(
       "
-      window['{function}'] = function (eventData, salt) {{
+      window['{function}'] = function (eventData) {{
       const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
 
-      if (listeners.length > 0) {{
-        window.__TAURI__._invoke('tauri', {{
-          __tauriModule: 'Internal',
-          message: {{
-            cmd: 'validateSalt',
-            salt: salt
-          }}
-        }}, {key}).then(function (flag) {{
-          if (flag) {{
-            for (let i = listeners.length - 1; i >= 0; i--) {{
-              const listener = listeners[i]
-              eventData.id = listener.id
-              listener.handler(eventData)
-            }}
-          }}
-        }})
+      for (let i = listeners.length - 1; i >= 0; i--) {{
+        const listener = listeners[i]
+        eventData.id = listener.id
+        listener.handler(eventData)
       }}
     }}
     ",
-      key = key,
       function = self.inner.listeners.function_name(),
       listeners = self.inner.listeners.listeners_object_name()
     );
@@ -490,7 +482,6 @@ mod test {
       Default::default(),
       StateManager::new(),
       Default::default(),
-      #[cfg(feature = "menu")]
       Default::default(),
     );
 
@@ -616,7 +607,6 @@ impl<R: Runtime> WindowManager<R> {
         });
       }
     });
-    #[cfg(feature = "menu")]
     {
       let window_ = window.clone();
       let menu_event_listeners = self.inner.menu_event_listeners.clone();
@@ -703,36 +693,13 @@ impl<R: Runtime> WindowManager<R> {
   ) -> EventHandler {
     self.inner.listeners.once(event, window, handler)
   }
+
   pub fn event_listeners_object_name(&self) -> String {
     self.inner.listeners.listeners_object_name()
   }
+
   pub fn event_emit_function_name(&self) -> String {
     self.inner.listeners.function_name()
-  }
-  pub fn generate_salt(&self) -> Uuid {
-    let salt = Uuid::new_v4();
-    self
-      .inner
-      .salts
-      .lock()
-      .expect("poisoned salt mutex")
-      .insert(salt);
-    salt
-  }
-  pub fn verify_salt(&self, salt: String) -> bool {
-    // flat out ignore any invalid uuids
-    let uuid: Uuid = match salt.parse() {
-      Ok(uuid) => uuid,
-      Err(_) => return false,
-    };
-
-    // HashSet::remove lets us know if the entry was found
-    self
-      .inner
-      .salts
-      .lock()
-      .expect("poisoned salt mutex")
-      .remove(&uuid)
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -796,7 +763,6 @@ struct ScaleFactorChanged {
   size: PhysicalSize<u32>,
 }
 
-#[cfg(feature = "menu")]
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
   window.emit(MENU_EVENT, Some(event.menu_item_id.clone()))
 }

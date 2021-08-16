@@ -86,6 +86,7 @@ macro_rules! get_std_command {
 }
 
 /// API to spawn commands.
+#[derive(Debug)]
 pub struct Command {
   program: String,
   args: Vec<String>,
@@ -95,6 +96,7 @@ pub struct Command {
 }
 
 /// Child spawned.
+#[derive(Debug)]
 pub struct CommandChild {
   inner: Arc<SharedChild>,
   stdin_writer: PipeWriter,
@@ -120,6 +122,7 @@ impl CommandChild {
 }
 
 /// Describes the result of a process after it has terminated.
+#[derive(Debug)]
 pub struct ExitStatus {
   code: Option<i32>,
 }
@@ -137,6 +140,7 @@ impl ExitStatus {
 }
 
 /// The output of a finished process.
+#[derive(Debug)]
 pub struct Output {
   /// The status (exit code) of the process.
   pub status: ExitStatus,

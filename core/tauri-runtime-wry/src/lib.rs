@@ -112,10 +112,11 @@ pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 macro_rules! dispatcher_getter {
   ($self: ident, $message: expr) => {{
-    if current_thread().id() == $self.context.main_thread_id
-      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
-    {
-      panic!("This API cannot be called when the event loop is not running");
+    if current_thread().id() == $self.context.main_thread_id {
+      panic!("This API cannot be called on the main thread. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
+    }
+    if !$self.context.is_event_loop_running.load(Ordering::Relaxed) {
+      panic!("This API cannot be called when the event loop is not running. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
     }
     let (tx, rx) = channel();
     $self
@@ -129,10 +130,11 @@ macro_rules! dispatcher_getter {
 
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
-    if current_thread().id() == $self.context.main_thread_id
-      && !$self.context.is_event_loop_running.load(Ordering::Relaxed)
-    {
-      panic!("This API cannot be called when the event loop is not running");
+    if current_thread().id() == $self.context.main_thread_id {
+      panic!("This API cannot be called on the main thread. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
+    }
+    if !$self.context.is_event_loop_running.load(Ordering::Relaxed) {
+      panic!("This API cannot be called when the event loop is not running. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
     }
     $self
       .context

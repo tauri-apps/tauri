@@ -258,16 +258,20 @@ pub trait GlobalShortcutManager: Debug {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
 
   /// Register a global shortcut of `accelerator`.
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn register<F: Fn() + Send + 'static>(
     &mut self,
     accelerator: &str,
@@ -278,16 +282,20 @@ pub trait GlobalShortcutManager: Debug {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister_all(&mut self) -> crate::Result<()>;
 
   /// Unregister the provided `accelerator`.
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
 }
 
@@ -297,16 +305,19 @@ pub trait ClipboardManager: Debug {
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
-
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
   ///
   /// # Panics
   ///
-  /// Panics if the app is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// You can spawn a task to use the API using the `tauri::async_runtime` to prevent the panic.
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn read_text(&self) -> Result<Option<String>>;
 }
 

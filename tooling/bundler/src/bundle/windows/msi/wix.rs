@@ -546,6 +546,19 @@ pub fn build_wix_app_installer(
         to_json(copy_icon(settings, &filename, banner_path)?),
       );
     }
+
+    if let Some(dialog_image_path) = &wix.dialog_image_path {
+      let filename = dialog_image_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .into_owned()
+        .to_string();
+      data.insert(
+        "dialog_image_path",
+        to_json(copy_icon(settings, &filename, dialog_image_path)?),
+      );
+    }
   }
 
   if !has_custom_template {

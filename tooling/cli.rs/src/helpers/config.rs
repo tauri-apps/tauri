@@ -26,6 +26,7 @@ impl From<WixConfig> for tauri_bundler::WixSettings {
       license: config.license,
       enable_elevated_update_task: config.enable_elevated_update_task,
       banner_path: config.banner_path,
+      dialog_image_path: config.dialog_image_path,
     }
   }
 }

@@ -1345,6 +1345,13 @@
             "type": "string"
           }
         },
+        "dialogImagePath": {
+          "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs. The required dimensions are 493px × 312px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "enableElevatedUpdateTask": {
           "default": false,
           "type": "boolean"

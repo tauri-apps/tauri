@@ -184,6 +184,14 @@ pub enum RunEvent {
   },
   /// Window closed.
   WindowClose(String),
+  /// Application ready.
+  Ready,
+  /// Sent if the event loop is being resumed.
+  Resumed,
+  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  ///
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  MainEventsCleared,
 }
 
 /// Action to take when the event loop is about to exit
@@ -215,6 +223,19 @@ pub enum SystemTrayEvent {
 #[derive(Debug, Clone, Default)]
 pub struct RunIteration {
   pub window_count: usize,
+}
+
+/// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
+#[cfg(target_os = "macos")]
+#[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[non_exhaustive]
+pub enum ActivationPolicy {
+  /// Corresponds to NSApplicationActivationPolicyRegular.
+  Regular,
+  /// Corresponds to NSApplicationActivationPolicyAccessory.
+  Accessory,
+  /// Corresponds to NSApplicationActivationPolicyProhibited.
+  Prohibited,
 }
 
 /// A [`Send`] handle to the runtime.
@@ -327,6 +348,11 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(any(target_os = "windows", target_os = "macos"))]

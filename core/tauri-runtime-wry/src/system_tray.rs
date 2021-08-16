@@ -17,6 +17,9 @@ pub use wry::application::{
   },
 };
 
+#[cfg(target_os = "macos")]
+pub use wry::application::platform::macos::CustomMenuItemExtMacOS;
+
 use crate::{Error, Message, Result, TrayMessage};
 
 use tauri_runtime::menu::MenuHash;

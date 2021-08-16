@@ -80,7 +80,7 @@ fn main() {
   tauri::Builder::default()
     .menu(menu)
     .on_menu_event(|event| {
-      match event.menu_item_id().as_str() {
+      match event.menu_item_id() {
         "quit" => {
           std::process::exit(0);
         }

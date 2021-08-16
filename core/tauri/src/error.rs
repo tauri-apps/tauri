@@ -65,6 +65,7 @@ pub enum Error {
   Setup(Box<dyn std::error::Error + Send>),
   /// Tauri updater error.
   #[cfg(feature = "updater")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   #[error("Updater: {0}")]
   TauriUpdater(#[from] crate::updater::Error),
   /// Error initializing plugin.

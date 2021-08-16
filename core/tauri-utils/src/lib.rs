@@ -5,21 +5,17 @@
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
-/// The Assets module allows you to read files that have been bundled by tauri
 pub mod assets;
-/// Tauri config definition.
 pub mod config;
-/// Tauri HTML processing.
 pub mod html;
-/// Platform helpers
 pub mod platform;
 
-/// `App` package information.
+/// `tauri::App` package information.
 #[derive(Debug, Clone)]
 pub struct PackageInfo {
-  /// App name.
+  /// App name
   pub name: String,
-  /// App version.
+  /// App version
   pub version: String,
 }
 
@@ -31,10 +27,10 @@ impl PackageInfo {
   }
 }
 
-/// Result type alias using the crate's error type.
+/// The result type of `tauri-utils`.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// The error types.
+/// The error type of `tauri-utils`.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -47,7 +43,7 @@ pub enum Error {
   /// Target triple environment error
   #[error("Unable to determine target-environment")]
   Environment,
-  /// Tried to get resource on an unsupported platform.
+  /// Tried to get resource on an unsupported platform
   #[error("Unsupported platform for reading resources")]
   UnsupportedPlatform,
   /// Get parent process error
@@ -59,7 +55,7 @@ pub enum Error {
   /// Get child process error
   #[error("Could not get child process")]
   ChildProcess,
-  /// IO error.
+  /// IO error
   #[error("{0}")]
   Io(#[from] std::io::Error),
 }

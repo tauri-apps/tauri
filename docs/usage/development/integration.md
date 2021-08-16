@@ -41,6 +41,16 @@ If you decide to use Tauri as a local package with npm (not yarn), you will have
 }
 ```
 
+### 1. Install Tauri API Package as a Dependency (optional):
+
+The `@tauri-apps/api` package is recommended for projects using ES modules or modern build tools such as Webpack or Vite. It is the most secure way to access the Tauri APIs.
+
+```bash
+yarn add @tauri-apps/api
+# OR
+npm install @tauri-apps/api
+```
+
 ### 2. Initialize Tauri in Your App
 
 <Command name="init" />

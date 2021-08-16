@@ -5,6 +5,29 @@
 #[cfg(any(dialog_open, dialog_save))]
 use std::path::{Path, PathBuf};
 
+#[cfg(not(target_os = "linux"))]
+macro_rules! run_dialog {
+  ($e:expr, $h: ident) => {{
+    std::thread::spawn(move || {
+      let response = $e;
+      $h(response);
+    });
+  }};
+}
+
+#[cfg(target_os = "linux")]
+macro_rules! run_dialog {
+  ($e:expr, $h: ident) => {{
+    std::thread::spawn(move || {
+      let context = glib::MainContext::default();
+      context.invoke_with_priority(glib::PRIORITY_HIGH, move || {
+        let response = $e;
+        $h(response);
+      });
+    });
+  }};
+}
+
 /// The file dialog builder.
 /// Constructs file picker dialogs that can select single/multiple files or directories.
 #[cfg(any(dialog_open, dialog_save))]
@@ -44,55 +67,57 @@ impl FileDialogBuilder {
   }
 
   /// Pick one file.
-  pub fn pick_file(self) -> Option<PathBuf> {
-    self.0.pick_file()
+  pub fn pick_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+    run_dialog!(self.0.pick_file(), f)
   }
 
   /// Pick multiple files.
-  pub fn pick_files(self) -> Option<Vec<PathBuf>> {
-    self.0.pick_files()
+  pub fn pick_files<F: FnOnce(Option<Vec<PathBuf>>) + Send + 'static>(self, f: F) {
+    run_dialog!(self.0.pick_files(), f)
   }
 
   /// Pick one folder.
-  pub fn pick_folder(self) -> Option<PathBuf> {
-    self.0.pick_folder()
+  pub fn pick_folder<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+    run_dialog!(self.0.pick_folder(), f)
   }
 
   /// Opens save file dialog.
-  pub fn save_file(self) -> Option<PathBuf> {
-    self.0.save_file()
+  pub fn save_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+    run_dialog!(self.0.save_file(), f)
   }
 }
 
-/// Response for the ask dialog
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AskResponse {
-  /// User confirmed.
-  Yes,
-  /// User denied.
-  No,
+/// Displays a dialog with a message and an optional title with a "yes" and a "no" button.
+pub fn ask<F: FnOnce(bool) + Send + 'static>(
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+  f: F,
+) {
+  let title = title.as_ref().to_string();
+  let message = message.as_ref().to_string();
+  run_dialog!(
+    rfd::MessageDialog::new()
+      .set_title(&title)
+      .set_description(&message)
+      .set_buttons(rfd::MessageButtons::YesNo)
+      .set_level(rfd::MessageLevel::Info)
+      .show(),
+    f
+  )
 }
 
-/// Displays a dialog with a message and an optional title with a "yes" and a "no" button
-pub fn ask(title: impl AsRef<str>, message: impl AsRef<str>) -> AskResponse {
-  match rfd::MessageDialog::new()
-    .set_title(title.as_ref())
-    .set_description(message.as_ref())
-    .set_buttons(rfd::MessageButtons::YesNo)
-    .set_level(rfd::MessageLevel::Info)
-    .show()
-  {
-    true => AskResponse::Yes,
-    false => AskResponse::No,
-  }
-}
-
-/// Displays a message dialog
+/// Displays a message dialog.
 pub fn message(title: impl AsRef<str>, message: impl AsRef<str>) {
-  rfd::MessageDialog::new()
-    .set_title(title.as_ref())
-    .set_description(message.as_ref())
-    .set_buttons(rfd::MessageButtons::Ok)
-    .set_level(rfd::MessageLevel::Info)
-    .show();
+  let title = title.as_ref().to_string();
+  let message = message.as_ref().to_string();
+  let cb = |_| {};
+  run_dialog!(
+    rfd::MessageDialog::new()
+      .set_title(&title)
+      .set_description(&message)
+      .set_buttons(rfd::MessageButtons::Ok)
+      .set_level(rfd::MessageLevel::Info)
+      .show(),
+    cb
+  )
 }

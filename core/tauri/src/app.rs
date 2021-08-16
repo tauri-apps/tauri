@@ -40,6 +40,9 @@ use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
 #[cfg(feature = "updater")]
 use crate::updater;
 
+#[cfg(target_os = "macos")]
+use crate::ActivationPolicy;
+
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
 #[cfg(feature = "system-tray")]
@@ -92,6 +95,14 @@ pub enum Event {
   },
   /// Window closed.
   WindowClosed(String),
+  /// Application ready.
+  Ready,
+  /// Sent if the event loop is being resumed.
+  Resumed,
+  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  ///
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  MainEventsCleared,
 }
 
 /// A menu event that was triggered on a window.
@@ -388,6 +399,29 @@ impl<R: Runtime> App<R> {
     self.handle.clone()
   }
 
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let mut app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   #[cfg(target_os = "macos")]
+  ///   app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///   app.run(|_app_handle, _event| {});
+  /// }
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .runtime
+      .as_mut()
+      .unwrap()
+      .set_activation_policy(activation_policy);
+  }
+
   /// Runs the application.
   pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
     let app_handle = self.handle();
@@ -412,6 +446,9 @@ impl<R: Runtime> App<R> {
               api: CloseRequestApi(signal_tx),
             },
             RunEvent::WindowClose(label) => Event::WindowClosed(label),
+            RunEvent::Ready => Event::Ready,
+            RunEvent::Resumed => Event::Resumed,
+            RunEvent::MainEventsCleared => Event::MainEventsCleared,
             _ => unimplemented!(),
           },
         );
@@ -438,6 +475,7 @@ impl<R: Runtime> App<R> {
   ///     }
   ///   }
   /// }
+  /// ```
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
@@ -456,18 +494,9 @@ impl<R: Runtime> App<R> {
     let updater_config = self.manager.config().tauri.updater.clone();
     let package_info = self.manager.package_info().clone();
 
-    #[cfg(not(target_os = "linux"))]
     crate::async_runtime::spawn(async move {
       updater::check_update_with_dialog(updater_config, package_info, window).await
     });
-
-    #[cfg(target_os = "linux")]
-    {
-      let context = glib::MainContext::default();
-      context.spawn_with_priority(glib::PRIORITY_HIGH, async move {
-        updater::check_update_with_dialog(updater_config, package_info, window).await
-      });
-    }
   }
 
   /// Listen updater events when dialog are disabled.
@@ -1016,6 +1045,7 @@ fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>)
 
 /// Make `Wry` the default `Runtime` for `Builder`
 #[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()

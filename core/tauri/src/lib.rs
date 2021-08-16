@@ -11,19 +11,17 @@
 //! The following are a list of Cargo features that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
-//! - **menu**: Enables application menus support.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 
-#![allow(
-    // Clippy bug: https://github.com/rust-lang/rust-clippy/issues/7422
-    clippy::nonstandard_macro_braces,
-)]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
@@ -47,9 +45,11 @@ use tauri_runtime as runtime;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
 #[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub use tauri_runtime_wry::Wry;
 
 /// `Result<T, ::tauri::Error>`
@@ -63,21 +63,17 @@ use crate::{
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use runtime::menu::CustomMenuItem;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-pub use runtime::menu::NativeImage;
+pub use runtime::{menu::NativeImage, ActivationPolicy};
 
 pub use {
   self::api::assets::Assets,
-  self::api::{
-    config::{Config, WindowUrl},
-    PackageInfo,
-  },
   self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
@@ -107,6 +103,11 @@ pub use {
   self::app::WindowMenuEvent,
   self::runtime::menu::{Menu, MenuItem, Submenu},
   self::window::menu::MenuEvent,
+};
+
+pub use tauri_utils::{
+  config::{Config, WindowUrl},
+  PackageInfo,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
@@ -148,13 +149,24 @@ macro_rules! tauri_build_context {
 /// # Stability
 /// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-#[derive(Debug)]
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: crate::api::PackageInfo,
+  pub(crate) _info_plist: (),
+}
+
+impl<A: Assets> fmt::Debug for Context<A> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Context")
+      .field("config", &self.config)
+      .field("default_window_icon", &self.default_window_icon)
+      .field("system_tray_icon", &self.system_tray_icon)
+      .field("package_info", &self.package_info)
+      .finish()
+  }
 }
 
 impl<A: Assets> Context<A> {
@@ -226,6 +238,7 @@ impl<A: Assets> Context<A> {
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
     package_info: crate::api::PackageInfo,
+    info_plist: (),
   ) -> Self {
     Self {
       config,
@@ -233,6 +246,7 @@ impl<A: Assets> Context<A> {
       default_window_icon,
       system_tray_icon,
       package_info,
+      _info_plist: info_plist,
     }
   }
 }

@@ -23,8 +23,6 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
-#[cfg(target_os = "macos")]
-use wry::application::platform::macos::WindowExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -46,7 +44,7 @@ use wry::{
       PhysicalPosition as WryPhysicalPosition, PhysicalSize as WryPhysicalSize,
       Position as WryPosition, Size as WrySize,
     },
-    event::{Event, WindowEvent as WryWindowEvent},
+    event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopProxy, EventLoopWindowTarget},
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     menu::{
@@ -68,10 +66,11 @@ pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, Wi
 use wry::webview::WebviewExtWindows;
 
 #[cfg(target_os = "macos")]
-use tauri_runtime::menu::NativeImage;
+use tauri_runtime::{menu::NativeImage, ActivationPolicy};
 #[cfg(target_os = "macos")]
 pub use wry::application::platform::macos::{
-  CustomMenuItemExtMacOS, NativeImage as WryNativeImage,
+  ActivationPolicy as WryActivationPolicy, CustomMenuItemExtMacOS, EventLoopExtMacOS,
+  NativeImage as WryNativeImage, WindowExtMacOS,
 };
 
 use std::{
@@ -1653,6 +1652,18 @@ impl Runtime for Wry {
     id
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {
+    self
+      .event_loop
+      .set_activation_policy(match activation_policy {
+        ActivationPolicy::Regular => WryActivationPolicy::Regular,
+        ActivationPolicy::Accessory => WryActivationPolicy::Accessory,
+        ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
+        _ => unimplemented!(),
+      });
+  }
+
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
@@ -1770,6 +1781,18 @@ fn handle_event_loop(
   *control_flow = ControlFlow::Wait;
 
   match event {
+    Event::NewEvents(StartCause::Init) => {
+      callback(RunEvent::Ready);
+    }
+
+    Event::NewEvents(StartCause::Poll) => {
+      callback(RunEvent::Resumed);
+    }
+
+    Event::MainEventsCleared => {
+      callback(RunEvent::MainEventsCleared);
+    }
+
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {
@@ -2365,24 +2388,31 @@ fn create_webview(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context.lock().expect("poisoned WebContext store");
-  let is_first_context = web_context.is_empty();
-  let web_context = match web_context.entry(webview_attributes.data_directory) {
-    Occupied(occupied) => occupied.into_mut(),
-    Vacant(vacant) => {
-      let mut web_context = WebContext::new(vacant.key().clone());
-      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
-        Ok("true") => is_first_context,
-        _ => false,
-      });
-      vacant.insert(web_context)
-    }
+  let webview = if let Ok("true") = std::env::var("TAURI_AUTOMATION").as_deref() {
+    let mut web_context = web_context.lock().expect("poisoned WebContext store");
+    let is_first_context = web_context.is_empty();
+    let web_context = match web_context.entry(webview_attributes.data_directory) {
+      Occupied(occupied) => occupied.into_mut(),
+      Vacant(vacant) => {
+        let mut web_context = WebContext::new(vacant.key().clone());
+        web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
+          Ok("true") => is_first_context,
+          _ => false,
+        });
+        vacant.insert(web_context)
+      }
+    };
+    webview_builder
+      .with_web_context(web_context)
+      .build()
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  } else {
+    let mut context = WebContext::new(webview_attributes.data_directory.clone());
+    webview_builder
+      .with_web_context(&mut context)
+      .build()
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
   };
-
-  let webview = webview_builder
-    .with_web_context(web_context)
-    .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WindowWrapper {
     label,

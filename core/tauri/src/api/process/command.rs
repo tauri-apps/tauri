@@ -95,7 +95,7 @@ pub struct Command {
   current_dir: Option<PathBuf>,
 }
 
-/// Spawned chiled process.
+/// Spawned child process.
 #[derive(Debug)]
 pub struct CommandChild {
   inner: Arc<SharedChild>,

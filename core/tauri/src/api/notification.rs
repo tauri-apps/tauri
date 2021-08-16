@@ -7,7 +7,7 @@
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
-/// The desktio notification definition.
+/// The desktop notification definition.
 ///
 /// Allows you to construct a Notification data and send it.
 ///

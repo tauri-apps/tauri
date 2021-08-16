@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.1.5]
+## \[0.2.0]
 
 - Fix blur/focus events being incorrect on Windows.
   - [d832d575](https://www.github.com/tauri-apps/tauri/commit/d832d575d9b03a0ff78accabe4631cc638c08c3b) fix(windows): use webview events on windows ([#2277](https://www.github.com/tauri-apps/tauri/pull/2277)) on 2021-07-23

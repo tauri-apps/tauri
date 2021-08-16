@@ -1,4 +1,4 @@
-<h1 style="font-family:monospace, courier; font-size:3em"><img align="left" src="https://github.com/tauri-apps/tauri/raw/dev/app-icon.png" height="52" width="52">&nbsp;TAURI</h2>
+<img src="docs/splash.png" alt="Tauri" />
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
@@ -10,14 +10,6 @@
 [![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
-
-```yml
-Tauri Apps
-  footprint:   minuscule
-  performance: ludicrous
-  flexibility: gymnastic
-  security:    hardened
-```
 
 ## Current Releases
 
@@ -166,7 +158,7 @@ Code: (c) 2015 - 2021 - The Tauri Programme within The Commons Conservancy.
 MIT or MIT/Apache 2.0 where applicable.
 
 Logo: CC-BY-NC-ND
-- Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)
+- Original Tauri Logo Designs by [Alve Larsson](https://alve.io/), [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)
 
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_large)

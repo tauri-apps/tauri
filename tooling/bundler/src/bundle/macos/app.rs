@@ -181,7 +181,9 @@ fn create_info_plist(
   settings: &Settings,
 ) -> crate::Result<()> {
   let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
-  let file = &mut common::create_file(&bundle_dir.join("Info.plist"))?;
+
+  let bundle_plist_path = bundle_dir.join("Info.plist");
+  let file = &mut common::create_file(&bundle_plist_path)?;
   let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
   write!(
     file,
@@ -296,6 +298,27 @@ fn create_info_plist(
 
   write!(file, "</dict>\n</plist>\n")?;
   file.flush()?;
+
+  if let Some(user_plist_path) = &settings.macos().info_plist_path {
+    let mut cmd = Command::new("/usr/libexec/PlistBuddy");
+    cmd.args(&[
+      "-c".into(),
+      format!("Merge {}", user_plist_path.display()),
+      bundle_plist_path.display().to_string(),
+    ]);
+
+    common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
+      crate::Error::ShellScriptError(format!(
+        "error running /usr/libexec/PlistBuddy{}",
+        if settings.is_verbose() {
+          ""
+        } else {
+          ", try running with --verbose to see command output"
+        }
+      ))
+    })?;
+  }
+
   Ok(())
 }
 

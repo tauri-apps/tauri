@@ -170,6 +170,8 @@ pub struct MacOsSettings {
   pub signing_identity: Option<String>,
   /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
+  /// Path to the Info.plist file for the bundle.
+  pub info_plist_path: Option<PathBuf>,
 }
 
 /// Settings specific to the WiX implementation.

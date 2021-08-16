@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 //! The Tauri configuration used at runtime.
-//! It is pulled from a `tauri.conf.json` file and the [`config::Config`] struct is generated at compile time.
+//!
+//! It is pulled from a `tauri.conf.json` file and the [`Config`] struct is generated at compile time.
 //!
 //! # Stability
 //! This is a core functionality that is not considered part of the stable API.

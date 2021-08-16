@@ -26,7 +26,7 @@ pub enum Compression {
   Gz,
 }
 
-/// The extract manager.
+/// The extract manager to retrieve files from archives.
 #[derive(Debug)]
 pub struct Extract<'a> {
   source: &'a path::Path,

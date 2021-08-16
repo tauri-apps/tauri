@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to child processes management.
+
 use std::{
   env,
   path::PathBuf,
@@ -13,7 +15,7 @@ mod command;
 #[cfg(shell_execute)]
 pub use command::*;
 
-/// Get the current binary
+/// Gets the current binary.
 pub fn current_binary() -> Option<PathBuf> {
   let mut current_binary = None;
 
@@ -34,7 +36,7 @@ pub fn current_binary() -> Option<PathBuf> {
   current_binary
 }
 
-/// Restart the process.
+/// Restarts the process.
 pub fn restart() {
   if let Some(path) = current_binary() {
     StdCommand::new(path)

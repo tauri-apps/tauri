@@ -6,27 +6,17 @@
 #![warn(missing_docs)]
 // #![feature(const_int_pow)]
 
-/// A module for working with processes.
 pub mod dialog;
-/// The Dir module is a helper for file system directory management.
 pub mod dir;
-/// The File API module contains helpers to perform file operations.
 pub mod file;
-/// The HTTP request API.
 pub mod http;
-/// The file system path operations API.
 pub mod path;
-/// The Command API module allows you to manage child processes.
 pub mod process;
-/// The RPC module includes utilities to send messages to the JS layer of the webview.
 pub mod rpc;
-/// The shell api.
 #[cfg(shell_open)]
 pub mod shell;
-/// The semver API.
 pub mod version;
 
-/// The CLI args interface.
 #[cfg(feature = "cli")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub mod cli;
@@ -35,15 +25,14 @@ pub mod cli;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
-/// The desktop notifications API module.
 #[cfg(notification_all)]
 pub mod notification;
 
 mod error;
 
-/// Tauri API error.
+/// The error type of Tauri API module.
 pub use error::Error;
-/// Tauri API result type.
+/// The result type of Tauri API module.
 pub type Result<T> = std::result::Result<T, Error>;
 
 // Not public API

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/// Open path or URL with `with`, or system default
+//! Types and functions related to shell.
+
+/// Opens path or URL with `with`, or system default
 pub fn open(path: String, with: Option<String>) -> crate::api::Result<()> {
   {
     let exit_status = if let Some(with) = with {

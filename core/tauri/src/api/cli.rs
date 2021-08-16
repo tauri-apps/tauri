@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Types and functions related to CLI arguments.
+
 use crate::utils::config::{CliArg, CliConfig};
 
 use clap::{
@@ -14,17 +16,16 @@ use std::collections::HashMap;
 #[macro_use]
 mod macros;
 
-/// The resolution of a arg match.
+/// The resolution of a argument match.
 #[derive(Default, Debug, Serialize)]
 #[non_exhaustive]
 pub struct ArgData {
-  /// The value of the arg.
-  /// - Value::Bool if it's a flag,
-  /// - Value::Array if it's multiple,
-  /// - Value::String if it has value,
-  /// - Value::Null otherwise.
+  /// - [`Value::Bool`] if it's a flag,
+  /// - [`Value::Array`] if it's multiple,
+  /// - [`Value::String`] if it has value,
+  /// - [`Value::Null`] otherwise.
   pub value: Value,
-  /// The number of occurrences of the arg.
+  /// The number of occurrences of the argument.
   /// e.g. `./app --arg 1 --arg 2 --arg 2 3 4` results in three occurrences.
   pub occurrences: u64,
 }
@@ -35,11 +36,11 @@ pub struct ArgData {
 pub struct SubcommandMatches {
   /// The subcommand name.
   pub name: String,
-  /// The subcommand arg matches.
+  /// The subcommand argument matches.
   pub matches: Matches,
 }
 
-/// The arg matches of a command.
+/// The argument matches of a command.
 #[derive(Default, Debug, Serialize)]
 #[non_exhaustive]
 pub struct Matches {
@@ -61,7 +62,7 @@ impl Matches {
   }
 }
 
-/// Gets the arg matches of the CLI definition.
+/// Gets the argument matches of the CLI definition.
 pub fn get_matches(cli: &CliConfig) -> crate::api::Result<Matches> {
   let about = cli
     .description()

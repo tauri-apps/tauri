@@ -17,6 +17,7 @@
   import Shell from "./components/Shell.svelte";
   import Updater from "./components/Updater.svelte";
   import Clipboard from "./components/Clipboard.svelte";
+  import WebRTC from './components/WebRTC.svelte'
 
   const MENU_TOGGLE_HOTKEY = 'ctrl+b';
 
@@ -74,7 +75,11 @@
     {
       label: "Clipboard",
       component: Clipboard,
-    }
+    },
+    {
+      label: "WebRTC",
+      component: WebRTC,
+    },
   ];
 
   let selected = views[0];

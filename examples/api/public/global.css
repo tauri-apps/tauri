@@ -168,3 +168,21 @@ main {
 .hidden {
   display: none;
 }
+
+.alert {
+  width: auto;
+  height: 40px;
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  border-radius: 5px;
+  padding-left: 10px;
+  padding-right: 40px;
+  font-size: 15px;
+  color: #000;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  box-shadow: rgba(0, 0, 0, 0.06) 0px 0px 10px;
+  border-left: 6px solid #ff0000;
+  background: #f0f4f5;
+}

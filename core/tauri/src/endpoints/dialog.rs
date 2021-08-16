@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
+#[cfg(any(windows, target_os = "macos"))]
+use crate::api::dialog::window_parent;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog, window_parent},
+  api::dialog::{ask as ask_dialog, message as message_dialog},
   runtime::Runtime,
   Window,
 };

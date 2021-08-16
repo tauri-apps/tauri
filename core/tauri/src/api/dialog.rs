@@ -145,7 +145,7 @@ pub fn ask<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   let title = title.as_ref().to_string();
   let message = message.as_ref().to_string();
   #[allow(unused_mut)]
-  let mut builder = rfd::AsyncMessageDialog::new()
+  let mut builder = rfd::MessageDialog::new()
     .set_title(&title)
     .set_description(&message)
     .set_buttons(rfd::MessageButtons::YesNo)
@@ -160,7 +160,7 @@ pub fn ask<R: Runtime, F: FnOnce(bool) + Send + 'static>(
     }
   }
 
-  run_dialog!(crate::async_runtime::block_on(builder.show()), f)
+  run_dialog!(builder.show(), f)
 }
 
 /// Displays a message dialog.
@@ -175,7 +175,7 @@ pub fn message<R: Runtime>(
   let cb = |_| {};
 
   #[allow(unused_mut)]
-  let mut builder = rfd::AsyncMessageDialog::new()
+  let mut builder = rfd::MessageDialog::new()
     .set_title(&title)
     .set_description(&message)
     .set_buttons(rfd::MessageButtons::Ok)
@@ -190,5 +190,5 @@ pub fn message<R: Runtime>(
     }
   }
 
-  run_dialog!(crate::async_runtime::block_on(builder.show()), cb)
+  run_dialog!(builder.show(), cb)
 }

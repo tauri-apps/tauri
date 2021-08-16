@@ -451,9 +451,7 @@ fn tauri_config_to_bundle_settings(
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(|w| {
         let mut wix = WixSettings::from(w);
-        wix.license = wix
-          .license
-          .map(|l| tauri_dir().join(l).to_string_lossy().into_owned());
+        wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
       icon_path: windows_icon_path,

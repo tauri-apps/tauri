@@ -197,7 +197,7 @@ pub struct WixSettings {
   /// Disables the Webview2 runtime installation after app install.
   pub skip_webview_install: bool,
   /// The path to the LICENSE file.
-  pub license: Option<String>,
+  pub license: Option<PathBuf>,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.

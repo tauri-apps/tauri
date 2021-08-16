@@ -34,9 +34,12 @@ impl BundleTarget {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DebConfig {
+  /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// Enable the boostrapper script.
   #[serde(default)]
   pub use_bootstrapper: bool,
+  /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
 }
@@ -45,13 +48,23 @@ pub struct DebConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct MacConfig {
+  /// A list of strings indicating any macOS X frameworks that need to be bundled with the application.
+  ///
+  /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
+  /// A version string indicating the minimum macOS X version that the bundled application supports.
   pub minimum_system_version: Option<String>,
+  /// Allows your application to communicate with the outside world.
+  /// It should be a lowercase, without port and protocol domain name.
   pub exception_domain: Option<String>,
+  /// The path to the license file to add to the DMG bundle.
   pub license: Option<String>,
+  /// Enable the boostrapper script.
   #[serde(default)]
   pub use_bootstrapper: bool,
+  /// Identity to use for code signing.
   pub signing_identity: Option<String>,
+  /// Path to the entitlements file.
   pub entitlements: Option<String>,
 }
 
@@ -62,26 +75,36 @@ fn default_language() -> String {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
-  /// App language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  /// The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
   #[serde(default = "default_language")]
   pub language: String,
+  /// A custom .wxs template to use.
   pub template: Option<PathBuf>,
+  /// A list of paths to .wxs files with WiX fragments to use.
   #[serde(default)]
   pub fragment_paths: Vec<PathBuf>,
+  /// The ComponentGroup element ids you want to reference from the fragments.
   #[serde(default)]
   pub component_group_refs: Vec<String>,
+  /// The Component element ids you want to reference from the fragments.
   #[serde(default)]
   pub component_refs: Vec<String>,
+  /// The FeatureGroup element ids you want to reference from the fragments.
   #[serde(default)]
   pub feature_group_refs: Vec<String>,
+  /// The Feature element ids you want to reference from the fragments.
   #[serde(default)]
   pub feature_refs: Vec<String>,
+  /// The Merge element ids you want to reference from the fragments.
   #[serde(default)]
   pub merge_refs: Vec<String>,
+  /// Disables the Webview2 runtime installation after app install.
   #[serde(default)]
   pub skip_webview_install: bool,
-  /// Path to the license file.
-  pub license: Option<String>,
+  /// The path to the license file to render on the installer.
+  ///
+  /// Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.
+  pub license: Option<PathBuf>,
   #[serde(default)]
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -99,9 +122,14 @@ pub struct WixConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowsConfig {
+  /// Specifies the file digest algorithm to use for creating file signatures.
+  /// Required for code signing. SHA-256 is recommended.
   pub digest_algorithm: Option<String>,
+  /// Specifies the SHA1 hash of the signing certificate.
   pub certificate_thumbprint: Option<String>,
+  /// Server to use during timestamping.
   pub timestamp_url: Option<String>,
+  /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
 }
 
@@ -109,9 +137,9 @@ pub struct WindowsConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PackageConfig {
-  /// App name. Automatically converted to kebab-case on Linux.
+  /// Application name. Automatically converted to kebab-case on Linux.
   pub product_name: Option<String>,
-  /// App version.
+  /// Application version.
   pub version: Option<String>,
 }
 
@@ -146,15 +174,33 @@ pub struct BundleConfig {
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
   pub resources: Option<Vec<String>>,
+  /// A copyright string associated with your application.
   pub copyright: Option<String>,
+  /// The application kind.
   pub category: Option<String>,
+  /// A short description of your application.
   pub short_description: Option<String>,
+  /// A longer, multi-line description of the application.
   pub long_description: Option<String>,
+  /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
+  /// A list of—either absolute or relative—paths to binaries to embed with your application.
+  ///
+  /// Note that Tauri will look for system-specific binaries following the pattern "binary-name{-target-triple}{.system-extension}".
+  ///
+  /// E.g. for the external binary "my-binary", Tauri looks for:
+  ///
+  /// - "my-binary-x86_64-pc-windows-msvc.exe" for Windows
+  /// - "my-binary-x86_64-apple-darwin" for macOS
+  /// - "my-binary-x86_64-unknown-linux-gnu" for Linux
+  ///
+  /// so don't forget to provide binaries for all targeted platforms.
   pub external_bin: Option<Vec<String>>,
+  /// Configuration for the Windows bundle.
   #[serde(default)]
   pub windows: WindowsConfig,
 }
@@ -366,6 +412,10 @@ fn default_file_drop_enabled() -> bool {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
+  /// The Content Security Policy that will be injected on all HTML files.
+  ///
+  /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
+  /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.
   pub csp: Option<String>,
 }
 
@@ -384,26 +434,37 @@ macro_rules! check_feature {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FsAllowlistConfig {
+  /// Use this flag to enable all file system API features.
   #[serde(default)]
   pub all: bool,
+  /// Read text file from local filesystem.
   #[serde(default)]
   pub read_text_file: bool,
+  /// Read binary file from local filesystem.
   #[serde(default)]
   pub read_binary_file: bool,
+  /// Write text file to local filesystem.
   #[serde(default)]
   pub write_file: bool,
+  /// Write binary file to local filesystem.
   #[serde(default)]
   pub write_binary_file: bool,
+  /// Read directory from local filesystem.
   #[serde(default)]
   pub read_dir: bool,
+  /// Copy file from local filesystem.
   #[serde(default)]
   pub copy_file: bool,
+  /// Create directory from local filesystem.
   #[serde(default)]
   pub create_dir: bool,
+  /// Remove directory from local filesystem.
   #[serde(default)]
   pub remove_dir: bool,
+  /// Remove file from local filesystem.
   #[serde(default)]
   pub remove_file: bool,
+  /// Rename file from local filesystem.
   #[serde(default)]
   pub rename_file: bool,
 }
@@ -432,8 +493,10 @@ impl Allowlist for FsAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowAllowlistConfig {
+  /// Use this flag to enable all window API features.
   #[serde(default)]
   pub all: bool,
+  /// Allows dynamic window creation.
   #[serde(default)]
   pub create: bool,
 }
@@ -453,10 +516,13 @@ impl Allowlist for WindowAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ShellAllowlistConfig {
+  /// Use this flag to enable all shell API features.
   #[serde(default)]
   pub all: bool,
+  /// Enable binary execution.
   #[serde(default)]
   pub execute: bool,
+  /// Open URL with the user's default application.
   #[serde(default)]
   pub open: bool,
 }
@@ -477,10 +543,13 @@ impl Allowlist for ShellAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DialogAllowlistConfig {
+  /// Use this flag to enable all dialog API features.
   #[serde(default)]
   pub all: bool,
+  /// Open dialog window to pick files.
   #[serde(default)]
   pub open: bool,
+  /// Open dialog window to pick where to save files.
   #[serde(default)]
   pub save: bool,
 }
@@ -501,8 +570,10 @@ impl Allowlist for DialogAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HttpAllowlistConfig {
+  /// Use this flag to enable all HTTP API features.
   #[serde(default)]
   pub all: bool,
+  /// Allows making HTTP requests.
   #[serde(default)]
   pub request: bool,
 }
@@ -522,6 +593,7 @@ impl Allowlist for HttpAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NotificationAllowlistConfig {
+  /// Use this flag to enable all notification API features.
   #[serde(default)]
   pub all: bool,
 }
@@ -539,6 +611,7 @@ impl Allowlist for NotificationAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GlobalShortcutAllowlistConfig {
+  /// Use this flag to enable all global shortcut API features.
   #[serde(default)]
   pub all: bool,
 }
@@ -556,6 +629,7 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OsAllowlistConfig {
+  /// Use this flag to enable all OS API features.
   #[serde(default)]
   pub all: bool,
 }
@@ -573,6 +647,7 @@ impl Allowlist for OsAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PathAllowlistConfig {
+  /// Use this flag to enable all path API features.
   #[serde(default)]
   pub all: bool,
 }
@@ -590,24 +665,34 @@ impl Allowlist for PathAllowlistConfig {
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AllowlistConfig {
+  /// Use this flag to enable all API features.
   #[serde(default)]
   pub all: bool,
+  /// File system API allowlist.
   #[serde(default)]
   pub fs: FsAllowlistConfig,
+  /// Window API allowlist.
   #[serde(default)]
   pub window: WindowAllowlistConfig,
+  /// Shell API allowlist.
   #[serde(default)]
   pub shell: ShellAllowlistConfig,
+  /// Dialog API allowlist.
   #[serde(default)]
   pub dialog: DialogAllowlistConfig,
+  /// HTTP API allowlist.
   #[serde(default)]
   pub http: HttpAllowlistConfig,
+  /// Notification API allowlist.
   #[serde(default)]
   pub notification: NotificationAllowlistConfig,
+  /// Global shortcut API allowlist.
   #[serde(default)]
   pub global_shortcut: GlobalShortcutAllowlistConfig,
+  /// OS allowlist.
   #[serde(default)]
   pub os: OsAllowlistConfig,
+  /// Path API allowlist.
   #[serde(default)]
   pub path: PathAllowlistConfig,
 }
@@ -645,8 +730,10 @@ pub struct TauriConfig {
   /// The bundler configuration.
   #[serde(default)]
   pub bundle: BundleConfig,
+  /// The allowlist configuration.
   #[serde(default)]
   allowlist: AllowlistConfig,
+  /// Security configuration.
   pub security: Option<SecurityConfig>,
   /// The updater configuration.
   #[serde(default = "default_updater")]

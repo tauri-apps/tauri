@@ -118,10 +118,12 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all API features.",
           "default": false,
           "type": "boolean"
         },
         "dialog": {
+          "description": "Dialog API allowlist.",
           "default": {
             "all": false,
             "open": false,
@@ -134,6 +136,7 @@
           ]
         },
         "fs": {
+          "description": "File system API allowlist.",
           "default": {
             "all": false,
             "copyFile": false,
@@ -154,6 +157,7 @@
           ]
         },
         "globalShortcut": {
+          "description": "Global shortcut API allowlist.",
           "default": {
             "all": false
           },
@@ -164,6 +168,7 @@
           ]
         },
         "http": {
+          "description": "HTTP API allowlist.",
           "default": {
             "all": false,
             "request": false
@@ -175,6 +180,7 @@
           ]
         },
         "notification": {
+          "description": "Notification API allowlist.",
           "default": {
             "all": false
           },
@@ -185,6 +191,7 @@
           ]
         },
         "os": {
+          "description": "OS allowlist.",
           "default": {
             "all": false
           },
@@ -195,6 +202,7 @@
           ]
         },
         "path": {
+          "description": "Path API allowlist.",
           "default": {
             "all": false
           },
@@ -205,6 +213,7 @@
           ]
         },
         "shell": {
+          "description": "Shell API allowlist.",
           "default": {
             "all": false,
             "execute": false,
@@ -217,6 +226,7 @@
           ]
         },
         "window": {
+          "description": "Window API allowlist.",
           "default": {
             "all": false,
             "create": false
@@ -316,18 +326,21 @@
           "type": "boolean"
         },
         "category": {
+          "description": "The application kind.",
           "type": [
             "string",
             "null"
           ]
         },
         "copyright": {
+          "description": "A copyright string associated with your application.",
           "type": [
             "string",
             "null"
           ]
         },
         "deb": {
+          "description": "Configuration for the Debian bundle.",
           "default": {
             "files": {},
             "useBootstrapper": false
@@ -339,6 +352,7 @@
           ]
         },
         "externalBin": {
+          "description": "A list of—either absolute or relative—paths to binaries to embed with your application.\n\nNote that Tauri will look for system-specific binaries following the pattern \"binary-name{-target-triple}{.system-extension}\".\n\nE.g. for the external binary \"my-binary\", Tauri looks for:\n\n- \"my-binary-x86_64-pc-windows-msvc.exe\" for Windows - \"my-binary-x86_64-apple-darwin\" for macOS - \"my-binary-x86_64-unknown-linux-gnu\" for Linux\n\nso don't forget to provide binaries for all targeted platforms.",
           "type": [
             "array",
             "null"
@@ -365,12 +379,14 @@
           ]
         },
         "longDescription": {
+          "description": "A longer, multi-line description of the application.",
           "type": [
             "string",
             "null"
           ]
         },
         "macOS": {
+          "description": "Configuration for the macOS bundles.",
           "default": {
             "useBootstrapper": false
           },
@@ -391,6 +407,7 @@
           }
         },
         "shortDescription": {
+          "description": "A short description of your application.",
           "type": [
             "string",
             "null"
@@ -408,6 +425,7 @@
           ]
         },
         "windows": {
+          "description": "Configuration for the Windows bundle.",
           "default": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
@@ -693,6 +711,7 @@
       "type": "object",
       "properties": {
         "depends": {
+          "description": "The list of deb dependencies your application relies on.",
           "type": [
             "array",
             "null"
@@ -702,6 +721,7 @@
           }
         },
         "files": {
+          "description": "The files to include on the package.",
           "default": {},
           "type": "object",
           "additionalProperties": {
@@ -709,6 +729,7 @@
           }
         },
         "useBootstrapper": {
+          "description": "Enable the boostrapper script.",
           "default": false,
           "type": "boolean"
         }
@@ -719,14 +740,17 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all dialog API features.",
           "default": false,
           "type": "boolean"
         },
         "open": {
+          "description": "Open dialog window to pick files.",
           "default": false,
           "type": "boolean"
         },
         "save": {
+          "description": "Open dialog window to pick where to save files.",
           "default": false,
           "type": "boolean"
         }
@@ -737,46 +761,57 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all file system API features.",
           "default": false,
           "type": "boolean"
         },
         "copyFile": {
+          "description": "Copy file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "createDir": {
+          "description": "Create directory from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "readBinaryFile": {
+          "description": "Read binary file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "readDir": {
+          "description": "Read directory from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "readTextFile": {
+          "description": "Read text file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "removeDir": {
+          "description": "Remove directory from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "removeFile": {
+          "description": "Remove file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "renameFile": {
+          "description": "Rename file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "writeBinaryFile": {
+          "description": "Write binary file to local filesystem.",
           "default": false,
           "type": "boolean"
         },
         "writeFile": {
+          "description": "Write text file to local filesystem.",
           "default": false,
           "type": "boolean"
         }
@@ -787,6 +822,7 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all global shortcut API features.",
           "default": false,
           "type": "boolean"
         }
@@ -797,10 +833,12 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all HTTP API features.",
           "default": false,
           "type": "boolean"
         },
         "request": {
+          "description": "Allows making HTTP requests.",
           "default": false,
           "type": "boolean"
         }
@@ -811,18 +849,21 @@
       "type": "object",
       "properties": {
         "entitlements": {
+          "description": "Path to the entitlements file.",
           "type": [
             "string",
             "null"
           ]
         },
         "exceptionDomain": {
+          "description": "Allows your application to communicate with the outside world. It should be a lowercase, without port and protocol domain name.",
           "type": [
             "string",
             "null"
           ]
         },
         "frameworks": {
+          "description": "A list of strings indicating any macOS X frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
           "type": [
             "array",
             "null"
@@ -832,24 +873,28 @@
           }
         },
         "license": {
+          "description": "The path to the license file to add to the DMG bundle.",
           "type": [
             "string",
             "null"
           ]
         },
         "minimumSystemVersion": {
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports.",
           "type": [
             "string",
             "null"
           ]
         },
         "signingIdentity": {
+          "description": "Identity to use for code signing.",
           "type": [
             "string",
             "null"
           ]
         },
         "useBootstrapper": {
+          "description": "Enable the boostrapper script.",
           "default": false,
           "type": "boolean"
         }
@@ -860,6 +905,7 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all notification API features.",
           "default": false,
           "type": "boolean"
         }
@@ -870,6 +916,7 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all OS API features.",
           "default": false,
           "type": "boolean"
         }
@@ -880,14 +927,14 @@
       "type": "object",
       "properties": {
         "productName": {
-          "description": "App name. Automatically converted to kebab-case on Linux.",
+          "description": "Application name. Automatically converted to kebab-case on Linux.",
           "type": [
             "string",
             "null"
           ]
         },
         "version": {
-          "description": "App version.",
+          "description": "Application version.",
           "type": [
             "string",
             "null"
@@ -900,6 +947,7 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all path API features.",
           "default": false,
           "type": "boolean"
         }
@@ -910,6 +958,7 @@
       "type": "object",
       "properties": {
         "csp": {
+          "description": "The Content Security Policy that will be injected on all HTML files.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
           "type": [
             "string",
             "null"
@@ -922,14 +971,17 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all shell API features.",
           "default": false,
           "type": "boolean"
         },
         "execute": {
+          "description": "Enable binary execution.",
           "default": false,
           "type": "boolean"
         },
         "open": {
+          "description": "Open URL with the user's default application.",
           "default": false,
           "type": "boolean"
         }
@@ -959,6 +1011,7 @@
       "type": "object",
       "properties": {
         "allowlist": {
+          "description": "The allowlist configuration.",
           "default": {
             "all": false,
             "dialog": {
@@ -1047,6 +1100,7 @@
           ]
         },
         "security": {
+          "description": "Security configuration.",
           "anyOf": [
             {
               "$ref": "#/definitions/SecurityConfig"
@@ -1130,10 +1184,12 @@
       "type": "object",
       "properties": {
         "all": {
+          "description": "Use this flag to enable all window API features.",
           "default": false,
           "type": "boolean"
         },
         "create": {
+          "description": "Allows dynamic window creation.",
           "default": false,
           "type": "boolean"
         }
@@ -1291,24 +1347,28 @@
       "type": "object",
       "properties": {
         "certificateThumbprint": {
+          "description": "Specifies the SHA1 hash of the signing certificate.",
           "type": [
             "string",
             "null"
           ]
         },
         "digestAlgorithm": {
+          "description": "Specifies the file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.",
           "type": [
             "string",
             "null"
           ]
         },
         "timestampUrl": {
+          "description": "Server to use during timestamping.",
           "type": [
             "string",
             "null"
           ]
         },
         "wix": {
+          "description": "Configuration for the MSI generated with WiX.",
           "anyOf": [
             {
               "$ref": "#/definitions/WixConfig"
@@ -1332,6 +1392,7 @@
           ]
         },
         "componentGroupRefs": {
+          "description": "The ComponentGroup element ids you want to reference from the fragments.",
           "default": [],
           "type": "array",
           "items": {
@@ -1339,6 +1400,7 @@
           }
         },
         "componentRefs": {
+          "description": "The Component element ids you want to reference from the fragments.",
           "default": [],
           "type": "array",
           "items": {
@@ -1357,6 +1419,7 @@
           "type": "boolean"
         },
         "featureGroupRefs": {
+          "description": "The FeatureGroup element ids you want to reference from the fragments.",
           "default": [],
           "type": "array",
           "items": {
@@ -1364,6 +1427,7 @@
           }
         },
         "featureRefs": {
+          "description": "The Feature element ids you want to reference from the fragments.",
           "default": [],
           "type": "array",
           "items": {
@@ -1371,6 +1435,7 @@
           }
         },
         "fragmentPaths": {
+          "description": "A list of paths to .wxs files with WiX fragments to use.",
           "default": [],
           "type": "array",
           "items": {
@@ -1378,18 +1443,19 @@
           }
         },
         "language": {
-          "description": "App language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
+          "description": "The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
           "default": "en-US",
           "type": "string"
         },
         "license": {
-          "description": "Path to the license file.",
+          "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
           "type": [
             "string",
             "null"
           ]
         },
         "mergeRefs": {
+          "description": "The Merge element ids you want to reference from the fragments.",
           "default": [],
           "type": "array",
           "items": {
@@ -1397,10 +1463,12 @@
           }
         },
         "skipWebviewInstall": {
+          "description": "Disables the Webview2 runtime installation after app install.",
           "default": false,
           "type": "boolean"
         },
         "template": {
+          "description": "A custom .wxs template to use.",
           "type": [
             "string",
             "null"

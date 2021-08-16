@@ -106,7 +106,6 @@ impl FileDialogBuilder {
     self
   }
 
-  #[cfg(windows)]
   /// Sets the parent window of the dialog.
   pub fn set_parent<W: raw_window_handle::HasRawWindowHandle>(mut self, parent: &W) -> Self {
     self.0 = self.0.set_parent(parent);

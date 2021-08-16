@@ -68,7 +68,7 @@ pub enum BaseDirectory {
 ///
 /// # Example
 /// ```
-/// use tauri::api::{path::{resolve_path, BaseDirectory}, PackageInfo};
+/// use tauri::{api::path::{resolve_path, BaseDirectory}, PackageInfo};
 /// // we use the default config and a mock PackageInfo, but in an actual app you should get the
 /// // Config created from `tauri.conf.json` and the app's PackageInfo instance.
 /// let path = resolve_path(

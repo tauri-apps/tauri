@@ -4,7 +4,7 @@
 
 //! Types and functions related to shell.
 
-/// Opens path or URL with `with`, or system default
+/// Opens path or URL with program specified in `with`, or system default if `None`.
 pub fn open(path: String, with: Option<String>) -> crate::api::Result<()> {
   {
     let exit_status = if let Some(with) = with {

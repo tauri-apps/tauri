@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Useful items for custom commands.
+//! The Tauri custom commands types and traits.
+//!
+//! You usually don't need to create these items yourself. These are created from [command](../attr.command.html)
+//! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
 use crate::hooks::InvokeError;
 use crate::runtime::Runtime;

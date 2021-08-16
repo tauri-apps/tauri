@@ -1,11 +1,10 @@
-import path from 'path'
-import isRunning from 'is-running'
-import http from 'http'
-import { statSync, createReadStream } from 'fs'
-import * as fixtureSetup from '../fixtures/app-test-setup.js'
+const path = require('path')
+const fixtureSetup = require('../fixtures/app-test-setup')
 const distDir = path.resolve(fixtureSetup.fixtureDir, 'app', 'dist')
 
 function startDevServer() {
+  const http = require('http')
+  const { statSync, createReadStream } = require('fs')
   const app = http.createServer((req, res) => {
     if (req.method === 'GET') {
       if (req.url === '/') {
@@ -31,12 +30,13 @@ function startDevServer() {
 
 function runDevTest(tauriConfig) {
   fixtureSetup.initJest('app')
+  const { dev } = require('dist/api/cli')
   return new Promise(async (resolve, reject) => {
     try {
       process.chdir(path.join(fixtureSetup.fixtureDir, 'app'))
-      const { dev } = await import('dist/api/cli')
       const { promise, pid } = await dev({ config: tauriConfig })
 
+      const isRunning = require('is-running')
       let success = false
       const checkIntervalId = setInterval(async () => {
         if (!isRunning(pid) && !success) {

@@ -13,12 +13,9 @@ import { getCrateLatestVersion, semverLt } from './util'
 import logger from '../../helpers/logger'
 import { resolve as appResolve, tauriDir } from '../../helpers/app-paths'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
+import toml from '@tauri-apps/toml'
 import inquirer from 'inquirer'
-import { createRequire } from 'module'
 
-const require = createRequire(import.meta.url)
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires
-const toml = require('@tauri-apps/toml')
 const log = logger('dependency:crates')
 
 const dependencies = ['tauri']
@@ -26,8 +23,7 @@ const dependencies = ['tauri']
 function readToml<T>(tomlPath: string): T | null {
   if (existsSync(tomlPath)) {
     const manifest = readFileSync(tomlPath).toString()
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    return toml.parse(manifest) as T
+    return toml.parse(manifest) as any as T
   }
   return null
 }
@@ -128,7 +124,6 @@ async function manageDependencies(
   if (installedDeps.length || updatedDeps.length) {
     writeFileSync(
       appResolve.tauri('Cargo.toml'),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       toml.stringify(manifest as any)
     )
   }

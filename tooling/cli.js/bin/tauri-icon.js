@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import parseArgs from 'minimist'
-import tauricon from '../dist/api/tauricon.js'
+const parseArgs = require('minimist')
+const { tauricon } = require('../dist/api/tauricon')
 
 /**
  * @type {object}

@@ -2,7 +2,6 @@
   "name": "@tauri-apps/cli",
   "version": "1.0.0-beta.7",
   "description": "Command line interface for building Tauri apps",
-  "type": "module",
   "bin": {
     "tauri": "./bin/tauri.js"
   },
@@ -18,10 +17,10 @@
   "scripts": {
     "build": "rimraf ./dist && webpack --progress",
     "build-release": "rimraf ./dist && cross-env NODE_ENV=production webpack",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
+    "test": "jest --runInBand --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
     "pretest": "yarn build",
     "prepublishOnly": "yarn build-release",
-    "test:local": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit",
+    "test:local": "jest --runInBand",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
@@ -44,7 +43,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 12.20.0",
+    "node": ">= 12.13.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
@@ -73,7 +72,6 @@
     "@babel/core": "7.15.0",
     "@babel/preset-env": "7.15.0",
     "@babel/preset-typescript": "7.15.0",
-    "@jest/globals": "27.0.6",
     "@types/cross-spawn": "6.0.2",
     "@types/fs-extra": "9.0.12",
     "@types/global-agent": "2.1.1",
@@ -100,6 +98,7 @@
     "lockfile-lint": "4.6.2",
     "prettier": "2.3.2",
     "promise": "8.1.0",
+    "raw-loader": "4.0.2",
     "rimraf": "3.0.2",
     "toml-loader": "1.0.0",
     "ts-loader": "9.2.5",

@@ -19,6 +19,9 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+#[cfg(target_os = "macos")]
+#[doc(hidden)]
+pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
 pub use tauri_macros::{command, generate_handler};
@@ -59,7 +62,7 @@ use crate::{
   runtime::window::PendingWindow,
 };
 use serde::Serialize;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
 pub use runtime::menu::CustomMenuItem;
@@ -144,13 +147,24 @@ macro_rules! tauri_build_context {
 /// # Stability
 /// This is the output of the `tauri::generate_context!` macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-#[derive(Debug)]
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: crate::PackageInfo,
+  pub(crate) _info_plist: (),
+}
+
+impl<A: Assets> fmt::Debug for Context<A> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Context")
+      .field("config", &self.config)
+      .field("default_window_icon", &self.default_window_icon)
+      .field("system_tray_icon", &self.system_tray_icon)
+      .field("package_info", &self.package_info)
+      .finish()
+  }
 }
 
 impl<A: Assets> Context<A> {
@@ -222,6 +236,7 @@ impl<A: Assets> Context<A> {
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
     package_info: crate::PackageInfo,
+    info_plist: (),
   ) -> Self {
     Self {
       config,
@@ -229,6 +244,7 @@ impl<A: Assets> Context<A> {
       default_window_icon,
       system_tray_icon,
       package_info,
+      _info_plist: info_plist,
     }
   }
 }

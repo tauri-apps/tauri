@@ -9,13 +9,27 @@
 
 ## \[1.0.0-beta.6]
 
+- **Breaking change:** The `tauri::async_runtime::spawn` function now returns `tauri::async_runtime::JoinHandle<T>`.
+  - [9aeb04fa](https://www.github.com/tauri-apps/tauri/commit/9aeb04faf40989e8fd9d3dcac1d430a9e8bd23a9) feat(core): `async_runtime` `handle` API, `spawn` returns `JoinHandle` ([#2399](https://www.github.com/tauri-apps/tauri/pull/2399)) on 2021-08-11
+
+- **Breaking change:** Added `window_parent: Option<&Window>` as first argument to the `ask` and `message` APIs on the `tauri::api::dialog` module.
+  - [c76f4b7d](https://www.github.com/tauri-apps/tauri/commit/c76f4b7d39a620c7710c2046bb13b140a4793881) feat(core): set parent window on ask and message dialog APIs ([#2454](https://www.github.com/tauri-apps/tauri/pull/2454)) on 2021-08-16
+
+- Allow the `tauri::api::dialog` APIs to be executed on any secondary thread.
+  **Breaking change:** All dialog APIs now takes a closure instead of returning the response on the function call.
+  - [2088cd0f](https://www.github.com/tauri-apps/tauri/commit/2088cd0f24cd56ba427241136138c74bebee28f2) refactor(core): handle dialog threading internally, closes [#2223](https://www.github.com/tauri-apps/tauri/pull/2223) ([#2429](https://www.github.com/tauri-apps/tauri/pull/2429)) on 2021-08-14
+  - [60b1e260](https://www.github.com/tauri-apps/tauri/commit/60b1e260f511f50bbebceb6367f412c11f8dcf11) chore: adjust change file on 2021-08-16
+
+- **Breaking change**: The `Plugin` trait `initialize` method now takes an `AppHandle` reference instead of `App`.
+  - [c17532f7](https://www.github.com/tauri-apps/tauri/commit/c17532f7412bdcc57ae850c1251052ad1421fd67) refactor(core): change Plugin `initialize` signature, move register t… ([#2347](https://www.github.com/tauri-apps/tauri/pull/2347)) on 2021-08-03
+
+- **Breaking change**: Remove menu feature flag since there's no package dependency need to be installed on any platform anymore.
+  - [f81ebddf](https://www.github.com/tauri-apps/tauri/commit/f81ebddfcc1aea0d4989706aef43538e8ea98bea) feat: remove menu feature flag ([#2415](https://www.github.com/tauri-apps/tauri/pull/2415)) on 2021-08-13
+
 - Adds `set_activation_policy` API to the `tauri::App` struct (macOS only).
   - [4a031add](https://www.github.com/tauri-apps/tauri/commit/4a031add69014a1f3823f4ea19b172a2557f6794) feat(core): expose `set_activation_policy`, closes [#2258](https://www.github.com/tauri-apps/tauri/pull/2258) ([#2420](https://www.github.com/tauri-apps/tauri/pull/2420)) on 2021-08-13
 
 - Add `handle` API to `tauri::async_runtime`.
-  - [9aeb04fa](https://www.github.com/tauri-apps/tauri/commit/9aeb04faf40989e8fd9d3dcac1d430a9e8bd23a9) feat(core): `async_runtime` `handle` API, `spawn` returns `JoinHandle` ([#2399](https://www.github.com/tauri-apps/tauri/pull/2399)) on 2021-08-11
-
-- **Breaking change:** The `tauri::async_runtime::spawn` function now returns `tauri::async_runtime::JoinHandle<T>`.
   - [9aeb04fa](https://www.github.com/tauri-apps/tauri/commit/9aeb04faf40989e8fd9d3dcac1d430a9e8bd23a9) feat(core): `async_runtime` `handle` API, `spawn` returns `JoinHandle` ([#2399](https://www.github.com/tauri-apps/tauri/pull/2399)) on 2021-08-11
 
 - Assets will now fallback to `<uri>/index.html` before `/index.html`, allowing anchor links to work as expected.
@@ -29,14 +43,6 @@
 
 - Fix blur/focus events being incorrect on Windows.
   - [d832d575](https://www.github.com/tauri-apps/tauri/commit/d832d575d9b03a0ff78accabe4631cc638c08c3b) fix(windows): use webview events on windows ([#2277](https://www.github.com/tauri-apps/tauri/pull/2277)) on 2021-07-23
-
-- **Breaking change:** Added `window_parent: Option<&Window>` as first argument to the `ask` and `message` APIs on the `tauri::api::dialog` module.
-  - [c76f4b7d](https://www.github.com/tauri-apps/tauri/commit/c76f4b7d39a620c7710c2046bb13b140a4793881) feat(core): set parent window on ask and message dialog APIs ([#2454](https://www.github.com/tauri-apps/tauri/pull/2454)) on 2021-08-16
-
-- Allow the `tauri::api::dialog` APIs to be executed on any secondary thread.
-  **Breaking change:** All dialog APIs now takes a closure instead of returning the response on the function call.
-  - [2088cd0f](https://www.github.com/tauri-apps/tauri/commit/2088cd0f24cd56ba427241136138c74bebee28f2) refactor(core): handle dialog threading internally, closes [#2223](https://www.github.com/tauri-apps/tauri/pull/2223) ([#2429](https://www.github.com/tauri-apps/tauri/pull/2429)) on 2021-08-14
-  - [60b1e260](https://www.github.com/tauri-apps/tauri/commit/60b1e260f511f50bbebceb6367f412c11f8dcf11) chore: adjust change file on 2021-08-16
 
 - Move items which `tauri::api` re-exports from `tauri-utils` to individual module `utils`. Because these items has their
   own Error/Result types which are not related to api module at all.
@@ -103,17 +109,11 @@
 - Use `percent_encoding::percent_decode` on the `asset` custom protocol URL before reading the file.
   - [9acd8301](https://www.github.com/tauri-apps/tauri/commit/9acd83017f25b5b04e97e6e98af80f3076f8dbe3) fix(core): percent decode asset protocol URL ([#2427](https://www.github.com/tauri-apps/tauri/pull/2427)) on 2021-08-14
 
-- **Breaking change**: The `Plugin` trait `initialize` method now takes an `AppHandle` reference instead of `App`.
-  - [c17532f7](https://www.github.com/tauri-apps/tauri/commit/c17532f7412bdcc57ae850c1251052ad1421fd67) refactor(core): change Plugin `initialize` signature, move register t… ([#2347](https://www.github.com/tauri-apps/tauri/pull/2347)) on 2021-08-03
-
 - Keep original value on `config > package > productName` on Linux (previously converted to kebab-case).
   - [3f039cb8](https://www.github.com/tauri-apps/tauri/commit/3f039cb8a308b0f18deaa37d7cfb1cc50d308d0e) fix: keep original `productName` for .desktop `Name` field, closes [#2295](https://www.github.com/tauri-apps/tauri/pull/2295) ([#2384](https://www.github.com/tauri-apps/tauri/pull/2384)) on 2021-08-10
 
 - Inject the invoke key on regular `<script></script>` tags.
   - [d0142e87](https://www.github.com/tauri-apps/tauri/commit/d0142e87ddf5231fd46e2cbe4769bb16f3fe01e9) fix(core): invoke key injection on regular JS scripts, closes [#2342](https://www.github.com/tauri-apps/tauri/pull/2342) ([#2344](https://www.github.com/tauri-apps/tauri/pull/2344)) on 2021-08-03
-
-- Remove menu feature flag since there's no package dependency need to be installed on any platform anymore.
-  - [f81ebddf](https://www.github.com/tauri-apps/tauri/commit/f81ebddfcc1aea0d4989706aef43538e8ea98bea) feat: remove menu feature flag ([#2415](https://www.github.com/tauri-apps/tauri/pull/2415)) on 2021-08-13
 
 - Remove salt-related APIs (no longer needed after the `__TAURI_INVOKE_KEY__` implementation).
   - [e2a0704c](https://www.github.com/tauri-apps/tauri/commit/e2a0704c6c7a447b628a95f8920f9bbe9feef229) refactor(core): remove salt APIs ([#2426](https://www.github.com/tauri-apps/tauri/pull/2426)) on 2021-08-14

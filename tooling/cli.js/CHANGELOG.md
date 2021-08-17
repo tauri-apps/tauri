@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.9]
+
+- The CLI is now an ES module and requires at least Node.js v12.20. Fixed previous releases by using Rollup instead of Webpack.
+  - [8d1fe0ea](https://www.github.com/tauri-apps/tauri/commit/8d1fe0ea056f4ef0ab0a90c89c6391f3e3185bc7) feat(cli.js): readd ESM distribution ([#2468](https://www.github.com/tauri-apps/tauri/pull/2468)) on 2021-08-17
+
 ## \[1.0.0-beta.8]
 
 - Reverts ESM distribution.

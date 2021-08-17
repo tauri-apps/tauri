@@ -1,16 +1,14 @@
 import { promisify } from 'util'
 import stream from 'stream'
 import fs from 'fs'
-import { CargoManifest } from '../types/cargo'
 import path from 'path'
 import { bootstrap } from 'global-agent'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 
-// Webpack reads the file at build-time, so this becomes a static var
-// @ts-expect-error
-import manifest from '../../../cli.rs/Cargo.toml'
-const tauriCliManifest = manifest as CargoManifest
+// eslint-disable-next-line
+declare let __RUST_CLI_VERSION__: string
+
 const currentDirName = path.dirname(fileURLToPath(import.meta.url))
 
 const require = createRequire(import.meta.url)
@@ -59,7 +57,7 @@ async function downloadBinaryRelease(
       try {
         // eslint-disable-next-line security/detect-non-literal-fs-filename
         fs.unlinkSync(outPath)
-      } catch {}
+      } catch { }
       throw e
     }
   )
@@ -71,7 +69,6 @@ async function downloadBinaryRelease(
 }
 
 async function downloadCli(): Promise<void> {
-  const version = tauriCliManifest.package.version
   let platform: string = process.platform
   if (platform === 'win32') {
     platform = 'windows'
@@ -86,7 +83,7 @@ async function downloadCli(): Promise<void> {
   const outPath = path.join(currentDirName, `../../bin/tauri-cli${extension}`)
   console.log('Downloading Rust CLI...')
   await downloadBinaryRelease(
-    `tauri-cli-v${version}`,
+    `tauri-cli-v${__RUST_CLI_VERSION__}`,
     `tauri-cli_${platform}${extension}`,
     outPath
   )

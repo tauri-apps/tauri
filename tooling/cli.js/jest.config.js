@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   globals: {
     __DEV__: true
   },
@@ -8,22 +8,24 @@ module.exports = {
   // cache: false,
   // verbose: true,
   // watch: true,
-  collectCoverage: true,
-  coverageDirectory: '<rootDir>/test/jest/coverage',
-  collectCoverageFrom: [
-    '<rootDir>/bin/**/*.js',
-    '<rootDir>/helpers/**/*.js',
-    '<rootDir>/api/**/*.js'
-  ],
-  coverageReporters: ['json-summary', 'text', 'lcov'],
-  coverageThreshold: {
-    global: {
-      //  branches: 50,
-      //  functions: 50,
-      //  lines: 50,
-      //  statements: 50
-    }
-  },
+
+  // TODO: coverage does not work with esm
+  // collectCoverage: true,
+  // coverageDirectory: '<rootDir>/test/jest/coverage',
+  // collectCoverageFrom: [
+  //   '<rootDir>/bin/**/*.js',
+  //   '<rootDir>/helpers/**/*.js',
+  //   '<rootDir>/api/**/*.js'
+  // ],
+  // coverageReporters: ['json-summary', 'text', 'lcov'],
+  // coverageThreshold: {
+  //   global: {
+  //  branches: 50,
+  //  functions: 50,
+  //  lines: 50,
+  //  statements: 50
+  //   }
+  // },
   testMatch: [
     '<rootDir>/test/jest/__tests__/**/*.spec.js',
     '<rootDir>/test/jest/__tests__/**/*.test.js'
@@ -37,11 +39,12 @@ module.exports = {
     '^api/(.*)$': '<rootDir>/src/api/$1',
     '^templates/(.*)$': '<rootDir>/src/templates/$1',
     '^test/(.*)$': '<rootDir>/test/$1',
-    '../../package.json': '<rootDir>/package.json'
+    '../../package.json': '<rootDir>/package.json',
+    'node:(.*)$': '$1'
   },
   transform: {
     '\\.toml$': 'jest-transform-toml',
     '\\.(js|ts)$': 'babel-jest'
   },
-  transformIgnorePatterns: ['node_modules/(?!(is-png|imagemin|p-pipe)/)']
+  extensionsToTreatAsEsm: ['.ts']
 }

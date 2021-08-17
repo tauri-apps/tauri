@@ -1,6 +1,6 @@
-jest.setTimeout(1200000)
+import { jest } from '@jest/globals'
 
-global.Promise = require('promise')
+jest.setTimeout(1200000)
 
 setTimeout(() => {
   // do nothing

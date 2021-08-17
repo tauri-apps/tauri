@@ -1,15 +1,25 @@
-import stream from 'stream'
 import { promisify } from 'util'
+import stream from 'stream'
 import fs from 'fs'
-import got from 'got'
 import { CargoManifest } from '../types/cargo'
 import path from 'path'
 import { bootstrap } from 'global-agent'
-const pipeline = promisify(stream.pipeline)
+import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
 
 // Webpack reads the file at build-time, so this becomes a static var
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-member-access
-const tauriCliManifest = require('../../../cli.rs/Cargo.toml') as CargoManifest
+// @ts-expect-error
+import manifest from '../../../cli.rs/Cargo.toml'
+const tauriCliManifest = manifest as CargoManifest
+const currentDirName = path.dirname(fileURLToPath(import.meta.url))
+
+const require = createRequire(import.meta.url)
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires */
+const got = require('got')
+/* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-var-requires */
+
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+const pipeline = promisify(stream.pipeline)
 
 const downloads: { [url: string]: boolean } = {}
 
@@ -44,13 +54,15 @@ async function downloadBinaryRelease(
 
   // TODO: Check hash of download
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, security/detect-non-literal-fs-filename
-  await pipeline(got.stream(url), fs.createWriteStream(outPath)).catch((e) => {
-    try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      fs.unlinkSync(outPath)
-    } catch {}
-    throw e
-  })
+  await pipeline(got.stream(url), fs.createWriteStream(outPath)).catch(
+    (e: unknown) => {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        fs.unlinkSync(outPath)
+      } catch {}
+      throw e
+    }
+  )
   // eslint-disable-next-line security/detect-object-injection
   downloads[url] = true
   // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -71,7 +83,7 @@ async function downloadCli(): Promise<void> {
     throw Error('Unsupported platform')
   }
   const extension = platform === 'windows' ? '.exe' : ''
-  const outPath = path.join(__dirname, `../../bin/tauri-cli${extension}`)
+  const outPath = path.join(currentDirName, `../../bin/tauri-cli${extension}`)
   console.log('Downloading Rust CLI...')
   await downloadBinaryRelease(
     `tauri-cli-v${version}`,
@@ -87,7 +99,7 @@ async function downloadRustup(): Promise<void> {
   return await downloadBinaryRelease(
     'rustup',
     assetName,
-    path.join(__dirname, `../../bin/${assetName}`)
+    path.join(currentDirName, `../../bin/${assetName}`)
   )
 }
 

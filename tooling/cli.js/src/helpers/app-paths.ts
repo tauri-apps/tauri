@@ -14,7 +14,7 @@ function resolvePath(basePath: string, dir: string): string {
 }
 
 const getAppDir = (): string => {
-  let dir = process.cwd()
+  let dir = process.env.__TAURI_TEST_APP_DIR ?? process.cwd()
   let count = 0
 
   // only go up three folders max
@@ -26,9 +26,7 @@ const getAppDir = (): string => {
     dir = normalize(join(dir, '..'))
   }
 
-  warn(
-    "Couldn't find recognize the current folder as a part of a Tauri project"
-  )
+  warn("Couldn't recognize the current folder as a part of a Tauri project")
   process.exit(1)
 }
 

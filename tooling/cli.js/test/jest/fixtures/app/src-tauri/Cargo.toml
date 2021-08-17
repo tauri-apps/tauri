@@ -26,7 +26,7 @@ tauri-build = { path = "../../../../../../../core/tauri-build" }
 serde_json = "1.0.66"
 serde = "1.0"
 serde_derive = "1.0"
-tauri = { path = "../../../../../../../core/tauri", features =["api-all"]}
+tauri = { path = "../../../../../../../core/tauri", features = ["api-all"] }
 
 [features]
 default = [ "custom-protocol" ]

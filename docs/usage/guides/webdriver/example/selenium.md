@@ -7,7 +7,7 @@ import TabItem from '@theme/TabItem'
 
 <Alert title="Example Application" type="info" icon="info-alt">
 
-This [WebdriverIO] guide expects you to have already gone through the [example Application setup] in order to follow
+This [Selenium] guide expects you to have already gone through the [example Application setup] in order to follow
 step-by-step. The general information may still be useful otherwise.
 </Alert>
 

@@ -24,6 +24,8 @@ fn main() {
         (window_builder.title("Tauri - Rust"), webview_attributes)
       },
     )
-    .run(tauri::generate_context!())
+    .run(tauri::generate_context!(
+      "../../examples/multiwindow/src-tauri/tauri.conf.json"
+    ))
     .expect("failed to run tauri application");
 }

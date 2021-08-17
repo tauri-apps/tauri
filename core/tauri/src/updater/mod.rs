@@ -410,8 +410,6 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
               EVENT_STATUS_ERROR,
               Some(dialog.err().unwrap().to_string()),
             );
-
-            return;
           }
         }
       }

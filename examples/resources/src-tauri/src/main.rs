@@ -16,7 +16,7 @@ use tauri::{
 };
 
 fn main() {
-  let context = tauri::generate_context!();
+  let context = tauri::generate_context!("../../examples/resources/src-tauri/tauri.conf.json");
   let script_path = resolve_path(
     context.config(),
     context.package_info(),
@@ -34,6 +34,7 @@ fn main() {
           .spawn()
           .expect("Failed to spawn node");
 
+        #[allow(clippy::collapsible_match)]
         while let Some(event) = rx.recv().await {
           if let CommandEvent::Stdout(line) = event {
             window

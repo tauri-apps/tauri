@@ -318,6 +318,7 @@ impl Command {
     let (mut rx, _child) = self.spawn()?;
     let code = crate::async_runtime::block_on(async move {
       let mut code = None;
+      #[allow(clippy::collapsible_match)]
       while let Some(event) = rx.recv().await {
         if let CommandEvent::Terminated(payload) = event {
           code = payload.code;

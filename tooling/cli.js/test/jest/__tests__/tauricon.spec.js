@@ -1,54 +1,17 @@
-const appTestSetup = require('../fixtures/app-test-setup')
+import * as appTestSetup from '../fixtures/app-test-setup.js'
 appTestSetup.initJest('app')
 
-const tauricon = require('api/tauricon')
-
 describe('[CLI] tauri-icon internals', () => {
-  it('tells you the version', () => {
+  it('tells you the version', async () => {
+    const tauricon = (await import('api/tauricon')).default
     const version = tauricon.version()
     expect(!!version).toBe(true)
-  })
-
-  it('will not validate a non-file', async () => {
-    jest.spyOn(process, 'exit').mockImplementation(() => true)
-    await tauricon.validate(
-      'test/jest/fixtures/doesnotexist.png',
-      'test/jest/fixtures/'
-    )
-    expect(process.exit.mock.calls[0][0]).toBe(1)
-    jest.clearAllMocks()
-  })
-  it('will not validate a non-png', async () => {
-    jest.spyOn(process, 'exit').mockImplementation(() => true)
-    await tauricon.validate(
-      'test/jest/fixtures/notAMeme.jpg',
-      'test/jest/fixtures/'
-    )
-    expect(process.exit.mock.calls[0][0]).toBe(1)
-    jest.clearAllMocks()
-  })
-
-  it('should fail if PNG does not have transparency', async () => {
-    jest.spyOn(process, 'exit').mockImplementation(() => true)
-    await tauricon.validate(
-      'test/jest/fixtures/no-alpha.png',
-      'test/jest/fixtures/'
-    )
-    expect(process.exit.mock.calls[0][0]).toBe(1)
-    jest.clearAllMocks()
-  })
-
-  it('can validate an image as PNG', async () => {
-    const valid = await tauricon.validate(
-      'test/jest/fixtures/tauri-logo.png',
-      'test/jest/fixtures/'
-    )
-    expect(valid).toBe(true)
   })
 })
 
 describe('[CLI] tauri-icon builder', () => {
   it('will still use default compression if missing compression chosen', async () => {
+    const tauricon = (await import('api/tauricon')).default
     const valid = await tauricon.make(
       'test/jest/fixtures/tauri-logo.png',
       'test/jest/tmp/missing',
@@ -59,6 +22,7 @@ describe('[CLI] tauri-icon builder', () => {
 
   it('will not validate a non-file', async () => {
     try {
+      const tauricon = (await import('api/tauricon')).default
       await tauricon.make(
         'test/jest/fixtures/tauri-foo-not-found.png',
         'test/jest/tmp/optipng',
@@ -70,6 +34,7 @@ describe('[CLI] tauri-icon builder', () => {
   })
 
   it('makes a set of icons with optipng', async () => {
+    const tauricon = (await import('api/tauricon')).default
     const valid = await tauricon.make(
       'test/jest/fixtures/tauri-logo.png',
       'test/jest/tmp/optipng',

@@ -3,24 +3,21 @@
 // SPDX-License-Identifier: MIT
 
 import { existsSync } from 'fs'
-import { resolve, join } from 'path'
+import { resolve, join, dirname } from 'path'
 import { spawnSync, spawn } from './spawn'
-import { CargoManifest } from '../types/cargo'
 import { downloadCli } from './download-binary'
+import { fileURLToPath } from 'url'
 
-const currentTauriCliVersion = (): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-  const tauriCliManifest =
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('../../../cli.rs/Cargo.toml') as CargoManifest
-  return tauriCliManifest.package.version
-}
+// eslint-disable-next-line
+declare let __RUST_CLI_VERSION__: string
+
+const currentDirName = dirname(fileURLToPath(import.meta.url))
 
 export async function runOnRustCli(
   command: string,
   args: string[]
 ): Promise<{ pid: number; promise: Promise<void> }> {
-  const targetPath = resolve(__dirname, '../..')
+  const targetPath = resolve(currentDirName, '../..')
   const targetCliPath = join(
     targetPath,
     'bin/tauri-cli' + (process.platform === 'win32' ? '.exe' : '')
@@ -80,7 +77,7 @@ export async function runOnRustCli(
           targetPath,
           'tauri-cli',
           '--version',
-          currentTauriCliVersion()
+          __RUST_CLI_VERSION__
         ],
         process.cwd()
       )

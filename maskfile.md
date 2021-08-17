@@ -117,7 +117,7 @@ switch ($smoke_test_path.parent) {
   }
   # if tauri run the helloworld example from the tauri folder.
   "tauri" {
-    cd $CWD/tauri; cargo run --bin helloworld
+    cd $CWD/tauri; cargo run --example helloworld
   }
   # transpiled are not supported yet.
   "transpiled" {

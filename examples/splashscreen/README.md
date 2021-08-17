@@ -8,7 +8,7 @@ Run the following scripts on the root directory of the repository:
 
 ```bash
 # runs the example that wait on a Rust initialization script to show the main window
-$ cargo run --bin splashscreen
+$ cargo run --example splashscreen
 # runs the example that wait on the UI to load to show the main window
-$ cargo run --bin splashscreen --features ui
+$ cargo run --example splashscreen --features ui
 ```

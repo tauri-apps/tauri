@@ -185,6 +185,8 @@ fn main() {
       future_simple_command_with_result,
       async_stateful_command_with_result,
     ])
-    .run(tauri::generate_context!())
+    .run(tauri::generate_context!(
+      "../../examples/commands/src-tauri/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

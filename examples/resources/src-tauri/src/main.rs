@@ -7,16 +7,21 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{
-  api::{
-    path::{resolve_path, BaseDirectory},
-    process::{Command, CommandEvent},
-  },
-  Manager,
-};
-
+#[cfg(not(any(feature = "api-all", feature = "shell-all", feature = "shell-execute")))]
 fn main() {
-  let context = tauri::generate_context!();
+  eprintln!("Not supported without `api-all`, `shell-all` or `shell-execute`")
+}
+
+#[cfg(any(feature = "api-all", feature = "shell-all", feature = "shell-execute"))]
+fn main() {
+  use tauri::{
+    api::{
+      path::{resolve_path, BaseDirectory},
+      process::{Command, CommandEvent},
+    },
+    Manager,
+  };
+  let context = tauri::generate_context!("../../examples/resources/src-tauri/tauri.conf.json");
   let script_path = resolve_path(
     context.config(),
     context.package_info(),
@@ -34,6 +39,7 @@ fn main() {
           .spawn()
           .expect("Failed to spawn node");
 
+        #[allow(clippy::collapsible_match)]
         while let Some(event) = rx.recv().await {
           if let CommandEvent::Stdout(line) = event {
             window

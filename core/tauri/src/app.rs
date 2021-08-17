@@ -257,6 +257,7 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Exits the app
   pub fn exit(&self, exit_code: i32) {
+    self.cleanup_before_exit();
     std::process::exit(exit_code);
   }
 

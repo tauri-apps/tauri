@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-beta.7]
+
+- Cleanup application on `AppHandle#exit`.
+  - [a54bba6c](https://www.github.com/tauri-apps/tauri/commit/a54bba6c868508844d68a9f4ea9f5519a2b94d09) fix(core): cleanup app before exit, closes [#2464](https://www.github.com/tauri-apps/tauri/pull/2464) ([#2466](https://www.github.com/tauri-apps/tauri/pull/2466)) on 2021-08-17
+- Fix `raw-window-handle` dependency declaration.
+  - [aecdfaf7](https://www.github.com/tauri-apps/tauri/commit/aecdfaf76fcf0d2820d6ce6eb7590ebe399bfa04) fix(core): `raw-window-handle` dependency, closes [#2460](https://www.github.com/tauri-apps/tauri/pull/2460) ([#2465](https://www.github.com/tauri-apps/tauri/pull/2465)) on 2021-08-17
+
 ## \[1.0.0-beta.6]
 
 - Adds `set_activation_policy` API to the `tauri::App` struct (macOS only).

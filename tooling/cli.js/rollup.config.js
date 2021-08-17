@@ -36,7 +36,8 @@ export default {
   },
   plugins: [
     replace({
-      __RUST_CLI_VERSION__: JSON.stringify(cliManifest.package.version)
+      __RUST_CLI_VERSION__: JSON.stringify(cliManifest.package.version),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV)
     }),
     commonjs({}),
     resolve({

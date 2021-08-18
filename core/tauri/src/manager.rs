@@ -284,7 +284,10 @@ impl<R: Runtime> WindowManager<R> {
     }
     if !webview_attributes.has_uri_scheme_protocol("asset") {
       webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
+        #[cfg(target_os = "windows")]
         let path = url.replace("asset://localhost/", "");
+        #[cfg(not(target_os = "windows"))]
+        let path = url.replace("asset://", "");
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();

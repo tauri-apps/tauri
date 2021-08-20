@@ -18,6 +18,7 @@ pub enum MimeType {
   OctetStream,
   Rtf,
   Svg,
+  Mp4,
 }
 
 impl std::fmt::Display for MimeType {
@@ -33,6 +34,7 @@ impl std::fmt::Display for MimeType {
       MimeType::OctetStream => "application/octet-stream",
       MimeType::Rtf => "application/rtf",
       MimeType::Svg => "image/svg+xml",
+      MimeType::Mp4 => "video/mp4",
     };
     write!(f, "{}", mime)
   }
@@ -53,6 +55,7 @@ impl MimeType {
       Some("jsonld") => Self::Jsonld,
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
+      Some("mp4") => Self::Mp4,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.studio` | `wry://hello.com`
       Some(_) => Self::Html,
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types

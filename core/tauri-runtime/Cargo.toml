@@ -28,6 +28,7 @@ thiserror = "1.0"
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 http = "0.2.4"
+http-range = "0.1.4"
 infer = "0.4"
 
 [target."cfg(windows)".dependencies]

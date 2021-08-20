@@ -7,8 +7,9 @@ use super::{
   status::StatusCode,
   version::Version,
 };
-use crate::Result;
 use std::{convert::TryFrom, fmt};
+
+type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
 /// Represents an HTTP response
 ///

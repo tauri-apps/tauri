@@ -8,7 +8,7 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    http::{MimeType, ResponseBuilder as HttpResponseBuilder},
+    http::{HttpRange, MimeType, ResponseBuilder as HttpResponseBuilder},
     webview::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
@@ -34,7 +34,6 @@ use crate::{
   MenuEvent,
 };
 
-use http_range::HttpRange;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::{

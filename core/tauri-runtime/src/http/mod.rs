@@ -15,3 +15,6 @@ pub use self::{
 
 // re-expose default http types
 pub use http::{header, method, status, uri::InvalidUri, version, Uri};
+
+// re-export httprange helper as it can be useful and we need it locally
+pub use http_range::HttpRange;

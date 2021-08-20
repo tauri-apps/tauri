@@ -22,10 +22,11 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 /// # Examples
 ///
 /// ```
-/// # use wry::http::*;
+/// # use tauri_runtime::http::*;
 ///
-/// let response = ResponseBuilder::new("text/html")
+/// let response = ResponseBuilder::new()
 ///     .status(202)
+///     .mimetype("text/html")
 ///     .body("hello!".as_bytes().to_vec())
 ///     .unwrap();
 /// ```
@@ -151,10 +152,11 @@ impl Builder {
   /// # Examples
   ///
   /// ```
-  /// # use wry::http::*;
+  /// # use tauri_runtime::http::*;
   ///
-  /// let response = ResponseBuilder::new("text/html")
+  /// let response = ResponseBuilder::new()
   ///     .status(200)
+  ///     .mimetype("text/html")
   ///     .body(Vec::new())
   ///     .unwrap();
   /// ```
@@ -232,9 +234,10 @@ impl Builder {
   /// # Examples
   ///
   /// ```
-  /// # use wry::http::*;
+  /// # use tauri_runtime::http::*;
   ///
-  /// let response = ResponseBuilder::new("text/html")
+  /// let response = ResponseBuilder::new()
+  ///     .mimetype("text/html")
   ///     .body(Vec::new())
   ///     .unwrap();
   /// ```

@@ -7,7 +7,6 @@ use std::fmt;
 use super::{
   header::{HeaderMap, HeaderValue},
   method::Method,
-  Uri,
 };
 
 /// Represents an HTTP request from the WebView.

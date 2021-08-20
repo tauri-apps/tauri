@@ -343,7 +343,7 @@ impl<R: Runtime> WindowManager<R> {
               (response, status_code, buf)
             });
 
-            if data.len() > 0 {
+            if !data.is_empty() {
               let mime_type = MimeType::parse(&data, &path);
               return Ok(
                 response

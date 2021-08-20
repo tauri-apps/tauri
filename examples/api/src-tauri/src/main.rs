@@ -64,7 +64,7 @@ fn main() {
       if request.method() == "POST" {
         let request: HttpPost = serde_json::from_slice(request.body()).unwrap();
         return ResponseBuilder::new()
-          .mimetype("text/html")
+          .mimetype("application/json")
           .header("Access-Control-Allow-Origin", "*")
           .status(200)
           .body(serde_json::to_vec(&HttpReply {

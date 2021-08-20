@@ -13,15 +13,28 @@ mod menu;
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, async_runtime, CustomMenuItem, Event, GlobalShortcutManager, Manager,
-  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  api::dialog::ask, async_runtime, http::ResponseBuilder, CustomMenuItem, Event,
+  GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
 #[derive(Serialize)]
 struct Reply {
   data: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct HttpPost {
+  foo: String,
+  bar: String,
+}
+
+#[derive(Serialize)]
+struct HttpReply {
+  msg: String,
+  request: HttpPost,
 }
 
 #[tauri::command]
@@ -44,6 +57,26 @@ fn main() {
           .emit("rust-event", Some(reply))
           .expect("failed to emit");
       });
+    })
+    .register_global_uri_scheme_protocol("customprotocol", move |request| {
+      // FIXME: would be great to access the app_handle
+      // to emit global function or access the state
+      if request.method() == "POST" {
+        let request: HttpPost = serde_json::from_slice(request.body()).unwrap();
+        return ResponseBuilder::new()
+          .mimetype("text/html")
+          .header("Access-Control-Allow-Origin", "*")
+          .status(200)
+          .body(serde_json::to_vec(&HttpReply {
+            request,
+            msg: "Hello from rust!".to_string(),
+          })?);
+      }
+
+      ResponseBuilder::new()
+        .mimetype("text/html")
+        .status(404)
+        .body(Vec::new())
     })
     .menu(menu::get_menu())
     .on_menu_event(|event| {

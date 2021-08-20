@@ -2920,7 +2920,6 @@ dependencies = [
  "glib",
  "gtk",
  "http",
- "http-range",
  "ignore",
  "minisign-verify",
  "notify-rust",
@@ -3019,6 +3018,7 @@ version = "0.2.0"
 dependencies = [
  "gtk",
  "http",
+ "http-range",
  "infer",
  "serde",
  "serde_json",
@@ -3169,6 +3169,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01cf844b23c6131f624accf65ce0e4e9956a8bb329400ea5bcc26ae3a5c20b0b"
 dependencies = [
  "autocfg",
+ "bytes",
+ "memchr",
  "num_cpus",
  "pin-project-lite",
 ]
@@ -3557,6 +3559,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.12.1"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/refactor-protocol#c37ed37e2933e8b6fbcaf83fd325f45f657101fc"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.2",

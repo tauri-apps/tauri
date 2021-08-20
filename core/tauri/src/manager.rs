@@ -344,19 +344,17 @@ impl<R: Runtime> WindowManager<R> {
 
             if !data.is_empty() {
               let mime_type = MimeType::parse(&data, &path);
-              return Ok(
-                response
+              return response
                   .mimetype(&mime_type)
                   .status(status_code)
-                  .body(data)?,
-              );
+                  .body(data);
             }
           }
 
           let data =
             crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
           let mime_type = MimeType::parse(&data, &path);
-          Ok(HttpResponseBuilder::new().mimetype(&mime_type).body(data)?)
+          HttpResponseBuilder::new().mimetype(&mime_type).body(data)
         });
     }
 
@@ -432,7 +430,7 @@ impl<R: Runtime> WindowManager<R> {
             eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
             assets.get(&"index.html".into())
           })
-          .ok_or(crate::Error::AssetNotFound(path.clone()))
+          .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
           .map(Cow::into_owned);
 
         match asset_response {

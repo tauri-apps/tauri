@@ -44,7 +44,7 @@ fn main() {
       // get the wanted path
       let path = request.uri().replace("stream://", "");
 
-      if path != "test_video.mp4" {
+      if path != "example/test_video.mp4" {
         // return error 404 if it's not out video
         return response.mimetype("text/plain").status(404).body(Vec::new());
       }

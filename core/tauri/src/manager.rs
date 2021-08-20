@@ -344,10 +344,7 @@ impl<R: Runtime> WindowManager<R> {
 
             if !data.is_empty() {
               let mime_type = MimeType::parse(&data, &path);
-              return response
-                  .mimetype(&mime_type)
-                  .status(status_code)
-                  .body(data);
+              return response.mimetype(&mime_type).status(status_code).body(data);
             }
           }
 

@@ -17,8 +17,10 @@ use winapi::shared::windef::HWND;
 
 use std::{collections::HashMap, fmt, path::PathBuf};
 
+use crate::http::{Request as HttpRequest, Response as HttpResponse};
+
 type UriSchemeProtocol =
-  dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static;
+  dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 /// The attributes used to create an webview.
 pub struct WebviewAttributes {
@@ -80,7 +82,7 @@ impl WebviewAttributes {
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static,
+    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -89,7 +91,7 @@ impl WebviewAttributes {
     let uri_scheme = uri_scheme.into();
     self
       .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(move |data| (protocol)(data)));
+      .insert(uri_scheme, Box::new(move |request| (protocol)(request)));
     self
   }
 
@@ -207,7 +209,8 @@ pub struct RpcRequest {
 pub struct CustomProtocol {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
-  pub protocol: Box<dyn Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync>,
+  pub protocol:
+    Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>,
 }
 
 /// The file drop event payload.

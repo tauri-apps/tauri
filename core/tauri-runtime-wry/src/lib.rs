@@ -5,6 +5,10 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use tauri_runtime::{
+  http::{
+    Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
+    ResponseParts as HttpResponseParts,
+  },
   menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu},
   monitor::Monitor,
   webview::{
@@ -54,6 +58,10 @@ use wry::{
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType},
   },
+  http::{
+    Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
+    ResponseParts as WryResponseParts,
+  },
   webview::{
     FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
     WebView, WebViewBuilder,
@@ -94,9 +102,6 @@ use std::{
 mod system_tray;
 #[cfg(feature = "system-tray")]
 use system_tray::*;
-
-mod mime_type;
-use mime_type::MimeType;
 
 type WebContextStore = Mutex<HashMap<Option<PathBuf>, WebContext>>;
 // window
@@ -150,6 +155,72 @@ struct EventLoopContext {
   main_thread_id: ThreadId,
   is_event_loop_running: Arc<AtomicBool>,
   proxy: EventLoopProxy<Message>,
+}
+
+struct HttpRequestPartsWrapper(HttpRequestParts);
+
+impl From<HttpRequestPartsWrapper> for HttpRequestParts {
+  fn from(parts: HttpRequestPartsWrapper) -> Self {
+    Self {
+      method: parts.0.method,
+      uri: parts.0.uri,
+      headers: parts.0.headers,
+    }
+  }
+}
+
+impl From<HttpRequestParts> for HttpRequestPartsWrapper {
+  fn from(request: HttpRequestParts) -> Self {
+    Self(HttpRequestParts {
+      method: request.method,
+      uri: request.uri,
+      headers: request.headers,
+    })
+  }
+}
+
+impl From<WryRequestParts> for HttpRequestPartsWrapper {
+  fn from(request: WryRequestParts) -> Self {
+    Self(HttpRequestParts {
+      method: request.method,
+      uri: request.uri,
+      headers: request.headers,
+    })
+  }
+}
+
+struct HttpRequestWrapper(HttpRequest);
+
+impl From<&WryHttpRequest> for HttpRequestWrapper {
+  fn from(req: &WryHttpRequest) -> Self {
+    Self(HttpRequest {
+      body: req.body.clone(),
+      head: HttpRequestPartsWrapper::from(req.head.clone()).0,
+    })
+  }
+}
+
+// response
+struct HttpResponsePartsWrapper(WryResponseParts);
+impl From<HttpResponseParts> for HttpResponsePartsWrapper {
+  fn from(response: HttpResponseParts) -> Self {
+    Self(WryResponseParts {
+      mimetype: response.mimetype,
+      status: response.status,
+      version: response.version,
+      headers: response.headers,
+    })
+  }
+}
+
+struct HttpResponseWrapper(WryHttpResponse);
+impl From<HttpResponse> for HttpResponseWrapper {
+  fn from(response: HttpResponse) -> Self {
+    Self(WryHttpResponse {
+      body: response.body,
+      head: HttpResponsePartsWrapper::from(response.head).0,
+    })
+  }
 }
 
 pub struct MenuItemAttributesWrapper<'a>(pub WryMenuItemAttributes<'a>);
@@ -2376,12 +2447,9 @@ fn create_webview(
     ));
   }
   for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
-    webview_builder = webview_builder.with_custom_protocol(scheme, move |url| {
-      protocol(url)
-        .map(|data| {
-          let mime_type = MimeType::parse(&data, url);
-          (data, mime_type)
-        })
+    webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
+      protocol(&HttpRequestWrapper::from(wry_request).0)
+        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
         .map_err(|_| wry::Error::InitScriptError)
     });
   }

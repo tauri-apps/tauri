@@ -7,7 +7,7 @@ use std::fmt;
 const MIMETYPE_PLAIN: &str = "text/plain";
 
 /// [Web Compatible MimeTypes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#important_mime_types_for_web_developers)
-pub(crate) enum MimeType {
+pub enum MimeType {
   Css,
   Csv,
   Html,
@@ -117,6 +117,9 @@ mod tests {
 
     let svg: String = MimeType::parse_from_uri("https://example.com/picture.svg").to_string();
     assert_eq!(svg, String::from("image/svg+xml"));
+
+    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
+    assert_eq!(mp4, String::from("video/mp4"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.studio").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));

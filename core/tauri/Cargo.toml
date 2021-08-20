@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.9", features = [ "rt", "rt-multi-thread", "sync", "fs" ] }
+tokio = { version = "1.9", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
@@ -71,6 +71,7 @@ raw-window-handle = "0.3.3"
 minisign-verify = { version = "0.1", optional = true }
 os_info = { version = "3.0.6", optional = true }
 futures-lite = "1.12"
+http-range = "0.1.4"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.14", features = [ "v3_20" ] }

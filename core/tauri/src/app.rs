@@ -11,6 +11,7 @@ use crate::{
   manager::WindowManager,
   plugin::{Plugin, PluginStore},
   runtime::{
+    http::{Request as HttpRequest, Response as HttpResponse},
     webview::{CustomProtocol, WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
@@ -805,7 +806,7 @@ impl<R: Runtime> Builder<R> {
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
   pub fn register_global_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&str) -> Result<Vec<u8>, Box<dyn std::error::Error>> + Send + Sync + 'static,
+    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

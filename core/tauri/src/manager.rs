@@ -8,6 +8,7 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
+    http::{MimeType, ResponseBuilder as HttpResponseBuilder},
     webview::{
       CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
       WindowBuilder,
@@ -33,6 +34,7 @@ use crate::{
   MenuEvent,
 };
 
+use http_range::HttpRange;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::{
@@ -40,9 +42,11 @@ use std::{
   collections::{HashMap, HashSet},
   fmt,
   fs::create_dir_all,
+  io::SeekFrom,
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use url::Url;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -283,14 +287,78 @@ impl<R: Runtime> WindowManager<R> {
         .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
     }
     if !webview_attributes.has_uri_scheme_protocol("asset") {
-      webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
-        let path = url.replace("asset://", "");
-        let path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
-        Ok(data)
-      });
+      webview_attributes =
+        webview_attributes.register_uri_scheme_protocol("asset", move |request| {
+          let path = request.uri().replace("asset://", "");
+          let path = percent_encoding::percent_decode(path.as_bytes())
+            .decode_utf8_lossy()
+            .to_string();
+          let path_for_data = path.clone();
+
+          // handle 206 (partial range) http request
+          if let Some(range) = request.headers().get("range") {
+            let mut status_code = 200;
+            let path_for_data = path_for_data.clone();
+            let mut response = HttpResponseBuilder::new();
+            let (response, status_code, data) = crate::async_runtime::block_on(async move {
+              let mut buf = Vec::new();
+              let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
+              // Get the file size
+              let file_size = file.metadata().await.unwrap().len();
+              // parse the range
+              let range = HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
+
+              // FIXME: Support multiple ranges
+              // let support only 1 range for now
+              let first_range = range.first();
+              if let Some(range) = first_range {
+                let mut real_length = range.length;
+                // prevent max_length;
+                // specially on webview2
+                if range.length > file_size / 3 {
+                  // max size sent (400ko / request)
+                  // as it's local file system we can afford to read more often
+                  real_length = 1024 * 400;
+                }
+
+                // last byte we are reading, the length of the range include the last byte
+                // who should be skipped on the header
+                let last_byte = range.start + real_length - 1;
+                // partial content
+                status_code = 206;
+
+                response = response
+                  .header("Connection", "Keep-Alive")
+                  .header("Accept-Ranges", "bytes")
+                  .header("Content-Length", real_length)
+                  .header(
+                    "Content-Range",
+                    format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                  );
+
+                file.seek(SeekFrom::Start(range.start)).await.unwrap();
+                file.take(real_length).read_to_end(&mut buf).await.unwrap();
+              }
+
+              (response, status_code, buf)
+            });
+
+            if data.len() > 0 {
+              let mime_type = MimeType::parse(&data, &path);
+              return Ok(
+                response
+                  .mimetype(&mime_type)
+                  .status(status_code)
+                  .body(data)?,
+              );
+            }
+          }
+
+          let data =
+            crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
+          let mime_type = MimeType::parse(&data, &path);
+          Ok(HttpResponseBuilder::new().mimetype(&mime_type).body(data)?)
+        });
     }
 
     pending.webview_attributes = webview_attributes;
@@ -331,8 +399,9 @@ impl<R: Runtime> WindowManager<R> {
     let assets = self.inner.assets.clone();
     let manager = self.clone();
     CustomProtocol {
-      protocol: Box::new(move |path| {
-        let mut path = path
+      protocol: Box::new(move |request| {
+        let mut path = request
+          .uri()
           .split(&['?', '#'][..])
           // ignore query string
           .next()
@@ -364,25 +433,30 @@ impl<R: Runtime> WindowManager<R> {
             eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
             assets.get(&"index.html".into())
           })
-          .ok_or(crate::Error::AssetNotFound(path))
+          .ok_or(crate::Error::AssetNotFound(path.clone()))
           .map(Cow::into_owned);
+
         match asset_response {
           Ok(asset) => {
-            if is_javascript || is_html {
-              let contents = String::from_utf8_lossy(&asset).into_owned();
-              Ok(
-                contents
-                  .replacen(
-                    "__TAURI__INVOKE_KEY_TOKEN__",
-                    &manager.generate_invoke_key().to_string(),
-                    1,
-                  )
-                  .as_bytes()
-                  .to_vec(),
-              )
-            } else {
-              Ok(asset)
-            }
+            let final_data = match is_javascript || is_html {
+              true => String::from_utf8_lossy(&asset)
+                .into_owned()
+                .replacen(
+                  "__TAURI__INVOKE_KEY_TOKEN__",
+                  &manager.generate_invoke_key().to_string(),
+                  1,
+                )
+                .as_bytes()
+                .to_vec(),
+              false => asset,
+            };
+
+            let mime_type = MimeType::parse(&final_data, &path);
+            Ok(
+              HttpResponseBuilder::new()
+                .mimetype(&mime_type)
+                .body(final_data)?,
+            )
           }
           Err(e) => {
             #[cfg(debug_assertions)]

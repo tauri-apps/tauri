@@ -1938,6 +1938,7 @@ dependencies = [
  "unicode-width",
  "ureq",
  "valico",
+ "vfs",
  "winapi 0.3.9",
  "zeroize",
 ]
@@ -2215,6 +2216,15 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "vfs"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "feb0df0abbe81534013b326c5e3d723a2c9b06c04160fa0f7d8b4d42eb9b7052"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "walkdir"

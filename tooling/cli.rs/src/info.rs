@@ -8,6 +8,7 @@ use crate::helpers::{
   framework::infer_from_package_json as infer_framework,
 };
 use serde::Deserialize;
+use vfs::{PhysicalFS, VfsPath};
 
 use std::{
   collections::HashMap,
@@ -72,6 +73,12 @@ struct CargoManifest {
   dependencies: HashMap<String, CargoManifestDependency>,
 }
 
+enum PackageManager {
+  Npm,
+  Pnpm,
+  Yarn,
+}
+
 #[derive(Default)]
 pub struct Info;
 
@@ -86,96 +93,141 @@ fn crate_latest_version(name: &str) -> Option<String> {
   }
 }
 
-fn npm_latest_version(use_yarn: bool, name: &str) -> crate::Result<Option<String>> {
+fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
   let mut cmd;
-  if use_yarn {
-    #[cfg(target_os = "windows")]
-    {
-      cmd = Command::new("cmd");
-      cmd.arg("/c").arg("yarn");
-    }
+  match pm {
+    PackageManager::Yarn => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("yarn");
+      }
 
-    #[cfg(not(target_os = "windows"))]
-    {
-      cmd = Command::new("yarn")
-    }
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("yarn")
+      }
 
-    let output = cmd
-      .arg("info")
-      .arg(name)
-      .args(&["version", "--json"])
-      .output()?;
-    if output.status.success() {
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      let info: YarnVersionInfo = serde_json::from_str(&stdout)?;
-      Ok(Some(info.data.last().unwrap().to_string()))
-    } else {
-      Ok(None)
+      let output = cmd
+        .arg("info")
+        .arg(name)
+        .args(&["version", "--json"])
+        .output()?;
+      if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let info: YarnVersionInfo = serde_json::from_str(&stdout)?;
+        Ok(Some(info.data.last().unwrap().to_string()))
+      } else {
+        Ok(None)
+      }
     }
-  } else {
-    #[cfg(target_os = "windows")]
-    {
-      cmd = Command::new("cmd");
-      cmd.arg("/c").arg("npm");
-    }
+    PackageManager::Npm => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("npm");
+      }
 
-    #[cfg(not(target_os = "windows"))]
-    {
-      cmd = Command::new("npm")
-    }
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("npm")
+      }
 
-    let output = cmd.arg("show").arg(name).arg("version").output()?;
-    if output.status.success() {
-      let stdout = String::from_utf8_lossy(&output.stdout);
-      Ok(Some(stdout.replace("\n", "")))
-    } else {
-      Ok(None)
+      let output = cmd.arg("show").arg(name).arg("version").output()?;
+      if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(Some(stdout.replace("\n", "")))
+      } else {
+        Ok(None)
+      }
+    }
+    PackageManager::Pnpm => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("pnpm");
+      }
+
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("pnpm")
+      }
+
+      let output = cmd.arg("info").arg(name).arg("version").output()?;
+      if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        Ok(Some(stdout.replace("\n", "")))
+      } else {
+        Ok(None)
+      }
     }
   }
 }
 
 fn npm_package_version<P: AsRef<Path>>(
-  use_yarn: bool,
+  pm: &PackageManager,
   name: &str,
   app_dir: P,
 ) -> crate::Result<Option<String>> {
   let mut cmd;
-  let output = if use_yarn {
-    #[cfg(target_os = "windows")]
-    {
-      cmd = Command::new("cmd");
-      cmd.arg("/c").arg("yarn");
-    }
+  let output = match pm {
+    PackageManager::Yarn => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("yarn");
+      }
 
-    #[cfg(not(target_os = "windows"))]
-    {
-      cmd = Command::new("yarn")
-    }
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("yarn")
+      }
 
-    cmd
-      .args(&["list", "--pattern"])
-      .arg(name)
-      .args(&["--depth", "0"])
-      .current_dir(app_dir)
-      .output()?
-  } else {
-    #[cfg(target_os = "windows")]
-    {
-      cmd = Command::new("cmd");
-      cmd.arg("/c").arg("npm");
+      cmd
+        .args(&["list", "--pattern"])
+        .arg(name)
+        .args(&["--depth", "0"])
+        .current_dir(app_dir)
+        .output()?
     }
+    PackageManager::Npm => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("npm");
+      }
 
-    #[cfg(not(target_os = "windows"))]
-    {
-      cmd = Command::new("npm")
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("npm")
+      }
+
+      cmd
+        .arg("list")
+        .arg(name)
+        .args(&["version", "--depth", "0"])
+        .current_dir(app_dir)
+        .output()?
     }
+    PackageManager::Pnpm => {
+      #[cfg(target_os = "windows")]
+      {
+        cmd = Command::new("cmd");
+        cmd.arg("/c").arg("npm");
+      }
 
-    cmd
-      .arg("list")
-      .arg(name)
-      .args(&["version", "--depth", "0"])
-      .current_dir(app_dir)
-      .output()?
+      #[cfg(not(target_os = "windows"))]
+      {
+        cmd = Command::new("pnpm")
+      }
+
+      cmd
+        .arg("list")
+        .arg(name)
+        .args(&["--parseable", "--depth", "0"])
+        .current_dir(app_dir)
+        .output()?
+    }
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -360,9 +412,11 @@ impl Info {
     let app_dir = panic::catch_unwind(app_dir).map(Some).unwrap_or_default();
     panic::set_hook(hook);
 
-    let use_yarn = app_dir
-      .map(|dir| dir.join("yarn.lock").exists())
-      .unwrap_or_default();
+    let mut package_manager = PackageManager::Npm;
+    if let Some(dir) = &app_dir {
+      let vs_app_dir: VfsPath = PhysicalFS::new(dir.to_path_buf()).into();
+      package_manager = get_package_manager(&vs_app_dir)?;
+    }
 
     if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
       InfoBlock::new("Node.js environment").section().display();
@@ -375,20 +429,21 @@ impl Info {
       .display();
 
       VersionBlock::new("  @tauri-apps/cli", metadata.js_cli.version)
-        .target_version(npm_latest_version(use_yarn, "@tauri-apps/cli").unwrap_or_default())
+        .target_version(npm_latest_version(&package_manager, "@tauri-apps/cli").unwrap_or_default())
         .display();
       if let Some(app_dir) = &app_dir {
         VersionBlock::new(
           "  @tauri-apps/api",
-          npm_package_version(use_yarn, "@tauri-apps/api", app_dir).unwrap_or_default(),
+          npm_package_version(&package_manager, "@tauri-apps/api", app_dir).unwrap_or_default(),
         )
-        .target_version(npm_latest_version(use_yarn, "@tauri-apps/api").unwrap_or_default())
+        .target_version(npm_latest_version(&package_manager, "@tauri-apps/api").unwrap_or_default())
         .display();
       }
 
       InfoBlock::new("Global packages").section().display();
 
       VersionBlock::new("  npm", get_version("npm", &[]).unwrap_or_default()).display();
+      VersionBlock::new("  pnpm", get_version("pnpm", &[]).unwrap_or_default()).display();
       VersionBlock::new("  yarn", get_version("yarn", &[]).unwrap_or_default()).display();
     }
 
@@ -574,5 +629,136 @@ impl Info {
     }
 
     Ok(())
+  }
+}
+
+fn get_package_manager(app_dir: &VfsPath) -> crate::Result<PackageManager> {
+  let use_yarn = app_dir.join("yarn.lock")?.exists().unwrap_or_default();
+
+  let use_npm = app_dir
+    .join("package-lock.json")?
+    .exists()
+    .unwrap_or_default();
+
+  let use_pnpm = app_dir.join("pnpm-lock.yaml")?.exists().unwrap_or_default();
+
+  if !use_npm && !use_pnpm && !use_yarn {
+    return Err(anyhow::anyhow!(
+      "no lock file found, please first run your package manager install"
+    ));
+  }
+
+  if use_npm && (use_pnpm || use_yarn)
+    || use_pnpm && (use_npm || use_yarn)
+    || use_yarn && (use_npm || use_pnpm)
+  {
+    return Err(anyhow::anyhow!(
+      "only one package mangager should be used, but found npm {}, pnpm {}, yarn {}\nplease remove unused package manager lock files",
+      use_npm,
+      use_pnpm,
+      use_yarn
+    ));
+  }
+
+  if use_npm {
+    return Ok(PackageManager::Npm);
+  }
+
+  if use_pnpm {
+    return Ok(PackageManager::Pnpm);
+  }
+
+  Ok(PackageManager::Yarn)
+}
+
+#[cfg(test)]
+mod tests {
+  use vfs::{FileSystem, MemoryFS, VfsPath};
+
+  use crate::info::get_package_manager;
+
+  #[test]
+  fn no_package_manager_lock_file() -> crate::Result<()> {
+    let app_dir: VfsPath = MemoryFS::new().into();
+    let pm = get_package_manager(&app_dir);
+    match pm {
+      Ok(_) => panic!("get_package_manager did not return expected error"),
+      Err(m) => assert_eq!(
+        "no lock file found, please first run your package manager install",
+        m.to_string().as_str()
+      ),
+    }
+    Ok(())
+  }
+
+  #[test]
+  fn package_managers_npm_and_yarn() -> crate::Result<()> {
+    let fs = MemoryFS::new();
+    fs.create_dir("/app")?;
+    fs.create_file("/app/package-lock.json")?;
+    fs.create_file("/app/yarn.lock")?;
+    let mut app_dir = VfsPath::new(fs);
+    app_dir = app_dir.join("app")?;
+    let pm = get_package_manager(&app_dir);
+    match pm {
+      Ok(_) => panic!("expected error"),
+      Err(m) => assert_eq!(
+        m.to_string().as_str(),
+        "only one package mangager should be used, but found npm true, pnpm false, yarn true\nplease remove unused package manager lock files"
+      ),
+    }
+    Ok(())
+  }
+
+  #[test]
+  fn package_managers_npm_and_pnpm() -> crate::Result<()> {
+    let fs = MemoryFS::new();
+    fs.create_dir("/app")?;
+    fs.create_file("/app/package-lock.json")?;
+    fs.create_file("/app/pnpm-lock.yaml")?;
+    let mut app_dir = VfsPath::new(fs);
+    app_dir = app_dir.join("app")?;
+    let pm = get_package_manager(&app_dir);
+    match pm {
+      Ok(_) => panic!("expected error"),
+      Err(m) => assert_eq!(
+        m.to_string().as_str(),
+        "only one package mangager should be used, but found npm true, pnpm true, yarn false\nplease remove unused package manager lock files"
+      ),
+    }
+    Ok(())
+  }
+
+  #[test]
+  fn package_managers_pnpm_and_yarn() -> crate::Result<()> {
+    let fs = MemoryFS::new();
+    fs.create_dir("/app")?;
+    fs.create_file("/app/yarn.lock")?;
+    fs.create_file("/app/pnpm-lock.yaml")?;
+    let mut app_dir = VfsPath::new(fs);
+    app_dir = app_dir.join("app")?;
+    let pm = get_package_manager(&app_dir);
+    match pm {
+      Ok(_) => panic!("expected error"),
+      Err(m) => assert_eq!(
+        m.to_string().as_str(),
+        "only one package mangager should be used, but found npm false, pnpm true, yarn true\nplease remove unused package manager lock files"
+      ),
+    }
+    Ok(())
+  }
+
+  #[test]
+  fn package_managers_yarn() -> crate::Result<()> {
+    let fs = MemoryFS::new();
+    fs.create_dir("/app")?;
+    fs.create_file("/app/yarn.lock")?;
+    let mut app_dir = VfsPath::new(fs);
+    app_dir = app_dir.join("app")?;
+    let pm = get_package_manager(&app_dir);
+    match pm {
+      Ok(_) => Ok(()),
+      Err(m) => Err(m),
+    }
   }
 }

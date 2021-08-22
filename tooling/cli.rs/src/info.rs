@@ -415,10 +415,15 @@ impl Info {
     if let Some(app_dir) = &app_dir {
       let file_names = read_dir(app_dir)
         .unwrap()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.metadata().unwrap().file_type().is_file())
-        .map(|e| e.file_name())
-        .map(|e| e.to_string_lossy().into_owned())
+        .filter(|e| {
+          e.as_ref()
+            .unwrap()
+            .metadata()
+            .unwrap()
+            .file_type()
+            .is_file()
+        })
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect::<Vec<String>>();
       package_manager = get_package_manager(&file_names)?;
     }

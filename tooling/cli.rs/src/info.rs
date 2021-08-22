@@ -213,7 +213,7 @@ fn npm_package_version<P: AsRef<Path>>(
       #[cfg(target_os = "windows")]
       {
         cmd = Command::new("cmd");
-        cmd.arg("/c").arg("npm");
+        cmd.arg("/c").arg("pnpm");
       }
 
       #[cfg(not(target_os = "windows"))]
@@ -648,27 +648,32 @@ fn get_package_manager(app_dir: &VfsPath) -> crate::Result<PackageManager> {
     ));
   }
 
-  if use_npm && (use_pnpm || use_yarn)
-    || use_pnpm && (use_npm || use_yarn)
-    || use_yarn && (use_npm || use_pnpm)
-  {
+  let mut found = Vec::new();
+
+  if use_npm {
+    found.push("npm");
+  }
+  if use_pnpm {
+    found.push("pnpm");
+  }
+  if use_yarn {
+    found.push("yarn");
+  }
+
+  if found.len() > 1 {
     return Err(anyhow::anyhow!(
-      "only one package mangager should be used, but found npm {}, pnpm {}, yarn {}\nplease remove unused package manager lock files",
-      use_npm,
-      use_pnpm,
-      use_yarn
+      "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
+      found.join(" and ")
     ));
   }
 
   if use_npm {
-    return Ok(PackageManager::Npm);
+    Ok(PackageManager::Npm)
+  } else if use_pnpm {
+    Ok(PackageManager::Pnpm)
+  } else {
+    Ok(PackageManager::Yarn)
   }
-
-  if use_pnpm {
-    return Ok(PackageManager::Pnpm);
-  }
-
-  Ok(PackageManager::Yarn)
 }
 
 #[cfg(test)]
@@ -704,7 +709,7 @@ mod tests {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
         m.to_string().as_str(),
-        "only one package mangager should be used, but found npm true, pnpm false, yarn true\nplease remove unused package manager lock files"
+        "only one package mangager should be used, but found npm and yarn\nplease remove unused package manager lock files"
       ),
     }
     Ok(())
@@ -723,7 +728,7 @@ mod tests {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
         m.to_string().as_str(),
-        "only one package mangager should be used, but found npm true, pnpm true, yarn false\nplease remove unused package manager lock files"
+        "only one package mangager should be used, but found npm and pnpm\nplease remove unused package manager lock files"
       ),
     }
     Ok(())
@@ -742,7 +747,7 @@ mod tests {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
         m.to_string().as_str(),
-        "only one package mangager should be used, but found npm false, pnpm true, yarn true\nplease remove unused package manager lock files"
+        "only one package mangager should be used, but found pnpm and yarn\nplease remove unused package manager lock files"
       ),
     }
     Ok(())

@@ -8,7 +8,6 @@ use crate::helpers::{
   framework::infer_from_package_json as infer_framework,
 };
 use serde::Deserialize;
-use vfs::{PhysicalFS, VfsPath};
 
 use std::{
   collections::HashMap,
@@ -413,9 +412,18 @@ impl Info {
     panic::set_hook(hook);
 
     let mut package_manager = PackageManager::Npm;
-    if let Some(dir) = &app_dir {
-      let vs_app_dir: VfsPath = PhysicalFS::new(dir.to_path_buf()).into();
-      package_manager = get_package_manager(&vs_app_dir)?;
+    if let Some(app_dir) = &app_dir {
+      let file_names = read_dir(app_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| match e.metadata() {
+          Ok(m) => m.file_type().is_file(),
+          Err(err) => panic!("could not filter files, Error: {}", err),
+        })
+        .map(|e| e.file_name())
+        .map(|e| e.to_string_lossy().into_owned())
+        .collect::<Vec<String>>();
+      package_manager = get_package_manager(&file_names)?;
     }
 
     if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
@@ -632,15 +640,20 @@ impl Info {
   }
 }
 
-fn get_package_manager(app_dir: &VfsPath) -> crate::Result<PackageManager> {
-  let use_yarn = app_dir.join("yarn.lock")?.exists().unwrap_or_default();
+fn get_package_manager<T: AsRef<str>>(file_names: &[T]) -> crate::Result<PackageManager> {
+  let mut use_npm = false;
+  let mut use_pnpm = false;
+  let mut use_yarn = false;
 
-  let use_npm = app_dir
-    .join("package-lock.json")?
-    .exists()
-    .unwrap_or_default();
-
-  let use_pnpm = app_dir.join("pnpm-lock.yaml")?.exists().unwrap_or_default();
+  for name in file_names {
+    if name.as_ref() == "package-lock.json" {
+      use_npm = true;
+    } else if name.as_ref() == "pnpm-lock.yaml" {
+      use_pnpm = true;
+    } else if name.as_ref() == "yarn.lock" {
+      use_yarn = true;
+    }
+  }
 
   if !use_npm && !use_pnpm && !use_yarn {
     return Err(anyhow::anyhow!(
@@ -678,14 +691,12 @@ fn get_package_manager(app_dir: &VfsPath) -> crate::Result<PackageManager> {
 
 #[cfg(test)]
 mod tests {
-  use vfs::{FileSystem, MemoryFS, VfsPath};
-
   use crate::info::get_package_manager;
 
   #[test]
   fn no_package_manager_lock_file() -> crate::Result<()> {
-    let app_dir: VfsPath = MemoryFS::new().into();
-    let pm = get_package_manager(&app_dir);
+    let file_names = vec!["package.json"];
+    let pm = get_package_manager(&file_names);
     match pm {
       Ok(_) => panic!("get_package_manager did not return expected error"),
       Err(m) => assert_eq!(
@@ -698,13 +709,8 @@ mod tests {
 
   #[test]
   fn package_managers_npm_and_yarn() -> crate::Result<()> {
-    let fs = MemoryFS::new();
-    fs.create_dir("/app")?;
-    fs.create_file("/app/package-lock.json")?;
-    fs.create_file("/app/yarn.lock")?;
-    let mut app_dir = VfsPath::new(fs);
-    app_dir = app_dir.join("app")?;
-    let pm = get_package_manager(&app_dir);
+    let file_names = vec!["package.json", "package-lock.json", "yarn.lock"];
+    let pm = get_package_manager(&file_names);
     match pm {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
@@ -717,13 +723,8 @@ mod tests {
 
   #[test]
   fn package_managers_npm_and_pnpm() -> crate::Result<()> {
-    let fs = MemoryFS::new();
-    fs.create_dir("/app")?;
-    fs.create_file("/app/package-lock.json")?;
-    fs.create_file("/app/pnpm-lock.yaml")?;
-    let mut app_dir = VfsPath::new(fs);
-    app_dir = app_dir.join("app")?;
-    let pm = get_package_manager(&app_dir);
+    let file_names = vec!["package.json", "package-lock.json", "pnpm-lock.yaml"];
+    let pm = get_package_manager(&file_names);
     match pm {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
@@ -736,13 +737,8 @@ mod tests {
 
   #[test]
   fn package_managers_pnpm_and_yarn() -> crate::Result<()> {
-    let fs = MemoryFS::new();
-    fs.create_dir("/app")?;
-    fs.create_file("/app/yarn.lock")?;
-    fs.create_file("/app/pnpm-lock.yaml")?;
-    let mut app_dir = VfsPath::new(fs);
-    app_dir = app_dir.join("app")?;
-    let pm = get_package_manager(&app_dir);
+    let file_names = vec!["package.json", "pnpm-lock.yaml", "yarn.lock"];
+    let pm = get_package_manager(&file_names);
     match pm {
       Ok(_) => panic!("expected error"),
       Err(m) => assert_eq!(
@@ -755,12 +751,8 @@ mod tests {
 
   #[test]
   fn package_managers_yarn() -> crate::Result<()> {
-    let fs = MemoryFS::new();
-    fs.create_dir("/app")?;
-    fs.create_file("/app/yarn.lock")?;
-    let mut app_dir = VfsPath::new(fs);
-    app_dir = app_dir.join("app")?;
-    let pm = get_package_manager(&app_dir);
+    let file_names = vec!["package.json", "yarn.lock"];
+    let pm = get_package_manager(&file_names);
     match pm {
       Ok(_) => Ok(()),
       Err(m) => Err(m),

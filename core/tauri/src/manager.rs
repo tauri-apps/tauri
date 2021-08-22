@@ -304,6 +304,9 @@ impl<R: Runtime> WindowManager<R> {
     }
     if !registered_scheme_protocols.contains(&"asset".into()) {
       pending.register_uri_scheme_protocol("asset", move |request| {
+        #[cfg(target_os = "windows")]
+        let path = request.uri().replace("asset://localhost/", "");
+        #[cfg(not(target_os = "windows"))]
         let path = request.uri().replace("asset://", "");
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()

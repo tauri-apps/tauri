@@ -38,7 +38,7 @@ fn main() {
   }
 
   tauri::Builder::default()
-    .register_global_uri_scheme_protocol("stream", move |request| {
+    .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
       // get the wanted path

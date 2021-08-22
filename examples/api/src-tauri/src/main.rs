@@ -58,9 +58,7 @@ fn main() {
           .expect("failed to emit");
       });
     })
-    .register_global_uri_scheme_protocol("customprotocol", move |request| {
-      // FIXME: would be great to access the app_handle
-      // to emit global function or access the state
+    .register_uri_scheme_protocol("customprotocol", move |_app_handle, request| {
       if request.method() == "POST" {
         let request: HttpPost = serde_json::from_slice(request.body()).unwrap();
         return ResponseBuilder::new()

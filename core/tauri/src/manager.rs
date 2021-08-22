@@ -8,11 +8,11 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    http::{HttpRange, MimeType, ResponseBuilder as HttpResponseBuilder},
-    webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
-      WindowBuilder,
+    http::{
+      HttpRange, MimeType, Request as HttpRequest, Response as HttpResponse,
+      ResponseBuilder as HttpResponseBuilder,
     },
+    webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
@@ -76,7 +76,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
   /// Maps runtime id to a strongly typed menu id.
@@ -104,6 +104,17 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
     }
     w.finish()
   }
+}
+
+/// Uses a custom URI scheme handler to resolve file requests
+pub struct CustomProtocol<R: Runtime> {
+  /// Handler for protocol
+  #[allow(clippy::type_complexity)]
+  pub protocol: Box<
+    dyn Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
+      + Send
+      + Sync,
+  >,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -141,7 +152,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
@@ -231,6 +242,7 @@ impl<R: Runtime> WindowManager<R> {
     mut pending: PendingWindow<R>,
     label: &str,
     pending_labels: &[String],
+    app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -280,11 +292,14 @@ impl<R: Runtime> WindowManager<R> {
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
+      let app_handle = Mutex::new(app_handle.clone());
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| {
+        (protocol.protocol)(&app_handle.lock().unwrap(), p)
+      });
     }
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
-      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol());
       registered_scheme_protocols.push("tauri".into());
     }
     if !registered_scheme_protocols.contains(&"asset".into()) {
@@ -388,77 +403,78 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
-  fn prepare_uri_scheme_protocol(&self) -> CustomProtocol {
+  #[allow(clippy::type_complexity)]
+  fn prepare_uri_scheme_protocol(
+    &self,
+  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
+  {
     let assets = self.inner.assets.clone();
     let manager = self.clone();
-    CustomProtocol {
-      protocol: Box::new(move |request| {
-        let mut path = request
-          .uri()
-          .split(&['?', '#'][..])
-          // ignore query string
-          .next()
-          .unwrap()
-          .to_string()
-          .replace("tauri://localhost", "");
-        if path.ends_with('/') {
-          path.pop();
+    Box::new(move |request| {
+      let mut path = request
+        .uri()
+        .split(&['?', '#'][..])
+        // ignore query string
+        .next()
+        .unwrap()
+        .to_string()
+        .replace("tauri://localhost", "");
+      if path.ends_with('/') {
+        path.pop();
+      }
+      path = percent_encoding::percent_decode(path.as_bytes())
+        .decode_utf8_lossy()
+        .to_string();
+      let path = if path.is_empty() {
+        // if the url is `tauri://localhost`, we should load `index.html`
+        "index.html".to_string()
+      } else {
+        // skip leading `/`
+        path.chars().skip(1).collect::<String>()
+      };
+      let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
+      let is_html = path.ends_with(".html");
+
+      let asset_response = assets
+        .get(&path.as_str().into())
+        .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
+        .or_else(|| {
+          #[cfg(debug_assertions)]
+          eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+          assets.get(&"index.html".into())
+        })
+        .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
+        .map(Cow::into_owned);
+
+      match asset_response {
+        Ok(asset) => {
+          let final_data = match is_javascript || is_html {
+            true => String::from_utf8_lossy(&asset)
+              .into_owned()
+              .replacen(
+                "__TAURI__INVOKE_KEY_TOKEN__",
+                &manager.generate_invoke_key().to_string(),
+                1,
+              )
+              .as_bytes()
+              .to_vec(),
+            false => asset,
+          };
+
+          let mime_type = MimeType::parse(&final_data, &path);
+          Ok(
+            HttpResponseBuilder::new()
+              .mimetype(&mime_type)
+              .body(final_data)?,
+          )
         }
-        path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let path = if path.is_empty() {
-          // if the url is `tauri://localhost`, we should load `index.html`
-          "index.html".to_string()
-        } else {
-          // skip leading `/`
-          path.chars().skip(1).collect::<String>()
-        };
-        let is_javascript =
-          path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
-        let is_html = path.ends_with(".html");
-
-        let asset_response = assets
-          .get(&path.as_str().into())
-          .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
-          .or_else(|| {
-            #[cfg(debug_assertions)]
-            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
-            assets.get(&"index.html".into())
-          })
-          .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
-          .map(Cow::into_owned);
-
-        match asset_response {
-          Ok(asset) => {
-            let final_data = match is_javascript || is_html {
-              true => String::from_utf8_lossy(&asset)
-                .into_owned()
-                .replacen(
-                  "__TAURI__INVOKE_KEY_TOKEN__",
-                  &manager.generate_invoke_key().to_string(),
-                  1,
-                )
-                .as_bytes()
-                .to_vec(),
-              false => asset,
-            };
-
-            let mime_type = MimeType::parse(&final_data, &path);
-            Ok(
-              HttpResponseBuilder::new()
-                .mimetype(&mime_type)
-                .body(final_data)?,
-            )
-          }
-          Err(e) => {
-            #[cfg(debug_assertions)]
-            eprintln!("{:?}", e); // TODO log::error!
-            Err(Box::new(e))
-          }
+        Err(e) => {
+          #[cfg(debug_assertions)]
+          eprintln!("{:?}", e); // TODO log::error!
+          Err(Box::new(e))
         }
-      }),
-    }
+      }
+    })
   }
 
   fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
@@ -624,7 +640,7 @@ impl<R: Runtime> WindowManager<R> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, &label, pending_labels)?;
+      pending = self.prepare_pending_window(pending, &label, pending_labels, app_handle.clone())?;
       pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 

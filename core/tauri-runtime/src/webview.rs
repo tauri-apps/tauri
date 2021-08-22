@@ -17,8 +17,6 @@ use winapi::shared::windef::HWND;
 
 use std::{fmt, path::PathBuf};
 
-use crate::http::{Request as HttpRequest, Response as HttpResponse};
-
 /// The attributes used to create an webview.
 pub struct WebviewAttributes {
   pub url: WindowUrl,
@@ -169,14 +167,6 @@ pub struct RpcRequest {
   pub command: String,
   /// Params.
   pub params: Option<JsonValue>,
-}
-
-/// Uses a custom URI scheme handler to resolve file requests
-pub struct CustomProtocol {
-  /// Handler for protocol
-  #[allow(clippy::type_complexity)]
-  pub protocol:
-    Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>,
 }
 
 /// The file drop event payload.

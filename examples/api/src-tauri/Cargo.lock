@@ -3559,7 +3559,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.12.1"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/refactor-protocol#c37ed37e2933e8b6fbcaf83fd325f45f657101fc"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#851af5dae9f1c5a3aef021c1272b8a28119078dc"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.2",

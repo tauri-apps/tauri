@@ -15,19 +15,15 @@ use tauri_utils::config::{WindowConfig, WindowUrl};
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
 
-use std::{collections::HashMap, fmt, path::PathBuf};
+use std::{fmt, path::PathBuf};
 
 use crate::http::{Request as HttpRequest, Response as HttpResponse};
-
-type UriSchemeProtocol =
-  dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static;
 
 /// The attributes used to create an webview.
 pub struct WebviewAttributes {
   pub url: WindowUrl,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
-  pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
   pub file_drop_handler_enabled: bool,
 }
 
@@ -49,7 +45,6 @@ impl WebviewAttributes {
       url,
       initialization_scripts: Vec::new(),
       data_directory: None,
-      uri_scheme_protocols: Default::default(),
       file_drop_handler_enabled: true,
     }
   }
@@ -63,35 +58,6 @@ impl WebviewAttributes {
   /// Data directory for the webview.
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
     self.data_directory.replace(data_directory);
-    self
-  }
-
-  /// Whether the webview URI scheme protocol is defined or not.
-  pub fn has_uri_scheme_protocol(&self, name: &str) -> bool {
-    self.uri_scheme_protocols.contains_key(name)
-  }
-
-  /// Registers a webview protocol handler.
-  /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
-  /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
-  /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
-  ///
-  /// # Arguments
-  ///
-  /// * `uri_scheme` The URI scheme to register, such as `example`.
-  /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
-  pub fn register_uri_scheme_protocol<
-    N: Into<String>,
-    H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
-  >(
-    mut self,
-    uri_scheme: N,
-    protocol: H,
-  ) -> Self {
-    let uri_scheme = uri_scheme.into();
-    self
-      .uri_scheme_protocols
-      .insert(uri_scheme, Box::new(move |request| (protocol)(request)));
     self
   }
 

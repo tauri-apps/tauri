@@ -2398,6 +2398,7 @@ fn create_webview(
   #[allow(unused_mut)]
   let PendingWindow {
     webview_attributes,
+    uri_scheme_protocols,
     mut window_builder,
     rpc_handler,
     file_drop_handler,
@@ -2446,7 +2447,7 @@ fn create_webview(
       handler,
     ));
   }
-  for (scheme, protocol) in webview_attributes.uri_scheme_protocols {
+  for (scheme, protocol) in uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
       protocol(&HttpRequestWrapper::from(wry_request).0)
         .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
@@ -2477,7 +2478,7 @@ fn create_webview(
       .build()
       .map_err(|e| Error::CreateWebview(Box::new(e)))?
   } else {
-    let mut context = WebContext::new(webview_attributes.data_directory.clone());
+    let mut context = WebContext::new(webview_attributes.data_directory);
     webview_builder
       .with_web_context(&mut context)
       .build()

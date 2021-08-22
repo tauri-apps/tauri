@@ -260,6 +260,8 @@ impl<R: Runtime> WindowManager<R> {
       ));
     }
 
+    pending.webview_attributes = webview_attributes;
+
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
         let icon = Icon::Raw(default_window_icon.clone());
@@ -273,89 +275,86 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    let mut registered_scheme_protocols = Vec::new();
+
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
-      if !webview_attributes.has_uri_scheme_protocol(uri_scheme) {
-        let protocol = protocol.clone();
-        webview_attributes = webview_attributes
-          .register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
-      }
+      registered_scheme_protocols.push(uri_scheme.clone());
+      let protocol = protocol.clone();
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
     }
 
-    if !webview_attributes.has_uri_scheme_protocol("tauri") {
-      webview_attributes = webview_attributes
-        .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+    if !registered_scheme_protocols.contains(&"tauri".into()) {
+      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
+      registered_scheme_protocols.push("tauri".into());
     }
-    if !webview_attributes.has_uri_scheme_protocol("asset") {
-      webview_attributes =
-        webview_attributes.register_uri_scheme_protocol("asset", move |request| {
-          let path = request.uri().replace("asset://", "");
-          let path = percent_encoding::percent_decode(path.as_bytes())
-            .decode_utf8_lossy()
-            .to_string();
-          let path_for_data = path.clone();
+    if !registered_scheme_protocols.contains(&"asset".into()) {
+      pending.register_uri_scheme_protocol("asset", move |request| {
+        let path = request.uri().replace("asset://", "");
+        let path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let path_for_data = path.clone();
 
-          // handle 206 (partial range) http request
-          if let Some(range) = request.headers().get("range") {
-            let mut status_code = 200;
-            let path_for_data = path_for_data.clone();
-            let mut response = HttpResponseBuilder::new();
-            let (response, status_code, data) = crate::async_runtime::block_on(async move {
-              let mut buf = Vec::new();
-              let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
-              // Get the file size
-              let file_size = file.metadata().await.unwrap().len();
-              // parse the range
-              let range = HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
+        // handle 206 (partial range) http request
+        if let Some(range) = request.headers().get("range") {
+          let mut status_code = 200;
+          let path_for_data = path_for_data.clone();
+          let mut response = HttpResponseBuilder::new();
+          let (response, status_code, data) = crate::async_runtime::block_on(async move {
+            let mut buf = Vec::new();
+            let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
+            // Get the file size
+            let file_size = file.metadata().await.unwrap().len();
+            // parse the range
+            let range = HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
 
-              // FIXME: Support multiple ranges
-              // let support only 1 range for now
-              let first_range = range.first();
-              if let Some(range) = first_range {
-                let mut real_length = range.length;
-                // prevent max_length;
-                // specially on webview2
-                if range.length > file_size / 3 {
-                  // max size sent (400ko / request)
-                  // as it's local file system we can afford to read more often
-                  real_length = 1024 * 400;
-                }
-
-                // last byte we are reading, the length of the range include the last byte
-                // who should be skipped on the header
-                let last_byte = range.start + real_length - 1;
-                // partial content
-                status_code = 206;
-
-                response = response
-                  .header("Connection", "Keep-Alive")
-                  .header("Accept-Ranges", "bytes")
-                  .header("Content-Length", real_length)
-                  .header(
-                    "Content-Range",
-                    format!("bytes {}-{}/{}", range.start, last_byte, file_size),
-                  );
-
-                file.seek(SeekFrom::Start(range.start)).await.unwrap();
-                file.take(real_length).read_to_end(&mut buf).await.unwrap();
+            // FIXME: Support multiple ranges
+            // let support only 1 range for now
+            let first_range = range.first();
+            if let Some(range) = first_range {
+              let mut real_length = range.length;
+              // prevent max_length;
+              // specially on webview2
+              if range.length > file_size / 3 {
+                // max size sent (400ko / request)
+                // as it's local file system we can afford to read more often
+                real_length = 1024 * 400;
               }
 
-              (response, status_code, buf)
-            });
+              // last byte we are reading, the length of the range include the last byte
+              // who should be skipped on the header
+              let last_byte = range.start + real_length - 1;
+              // partial content
+              status_code = 206;
 
-            if !data.is_empty() {
-              let mime_type = MimeType::parse(&data, &path);
-              return response.mimetype(&mime_type).status(status_code).body(data);
+              response = response
+                .header("Connection", "Keep-Alive")
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Length", real_length)
+                .header(
+                  "Content-Range",
+                  format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                );
+
+              file.seek(SeekFrom::Start(range.start)).await.unwrap();
+              file.take(real_length).read_to_end(&mut buf).await.unwrap();
             }
+
+            (response, status_code, buf)
+          });
+
+          if !data.is_empty() {
+            let mime_type = MimeType::parse(&data, &path);
+            return response.mimetype(&mime_type).status(status_code).body(data);
           }
+        }
 
-          let data =
-            crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
-          let mime_type = MimeType::parse(&data, &path);
-          HttpResponseBuilder::new().mimetype(&mime_type).body(data)
-        });
+        let data =
+          crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
+        let mime_type = MimeType::parse(&data, &path);
+        HttpResponseBuilder::new().mimetype(&mime_type).body(data)
+      });
     }
-
-    pending.webview_attributes = webview_attributes;
 
     Ok(pending)
   }

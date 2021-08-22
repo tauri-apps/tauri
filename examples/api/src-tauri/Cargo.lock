@@ -2898,7 +2898,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-beta.6"
+version = "1.0.0-beta.7"
 dependencies = [
  "attohttpc",
  "base64",
@@ -3038,6 +3038,7 @@ dependencies = [
 name = "tauri-utils"
 version = "1.0.0-beta.3"
 dependencies = [
+ "heck",
  "html5ever",
  "kuchiki",
  "phf 0.10.0",

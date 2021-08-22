@@ -653,9 +653,8 @@ fn get_package_manager<T: AsRef<str>>(file_names: &[T]) -> crate::Result<Package
   }
 
   if !use_npm && !use_pnpm && !use_yarn {
-    return Err(anyhow::anyhow!(
-      "no lock file found, please first run your package manager install"
-    ));
+    println!("WARNING: no lock files found, defaulting to npm");
+    return Ok(PackageManager::Npm);
   }
 
   let mut found = Vec::new();
@@ -695,13 +694,9 @@ mod tests {
     let file_names = vec!["package.json"];
     let pm = get_package_manager(&file_names);
     match pm {
-      Ok(_) => panic!("get_package_manager did not return expected error"),
-      Err(m) => assert_eq!(
-        "no lock file found, please first run your package manager install",
-        m.to_string().as_str()
-      ),
+      Ok(_) => Ok(()),
+      Err(m) => Err(m),
     }
-    Ok(())
   }
 
   #[test]

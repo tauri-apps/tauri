@@ -416,10 +416,7 @@ impl Info {
       let file_names = read_dir(app_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| match e.metadata() {
-          Ok(m) => m.file_type().is_file(),
-          Err(err) => panic!("could not filter files, Error: {}", err),
-        })
+        .filter(|e| e.metadata().unwrap().file_type().is_file())
         .map(|e| e.file_name())
         .map(|e| e.to_string_lossy().into_owned())
         .collect::<Vec<String>>();

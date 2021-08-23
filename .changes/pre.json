@@ -236,6 +236,7 @@
     ".changes/resources-dir-refactor.md",
     ".changes/restart-application.md",
     ".changes/revert-cli.js-es-module.md",
+    ".changes/revert-es2021.md",
     ".changes/rpc-security.md",
     ".changes/run-iteration.md",
     ".changes/run-on-main-thread-refactor.md",

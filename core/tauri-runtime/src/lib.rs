@@ -13,6 +13,7 @@ use uuid::Uuid;
 #[cfg(windows)]
 use winapi::shared::windef::HWND;
 
+pub mod http;
 /// Create window and system tray menus.
 pub mod menu;
 /// Types useful for interacting with a user's monitors.
@@ -25,6 +26,13 @@ use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   DetachedWindow, PendingWindow, WindowEvent,
+};
+
+use crate::http::{
+  header::{InvalidHeaderName, InvalidHeaderValue},
+  method::InvalidMethod,
+  status::InvalidStatusCode,
+  InvalidUri,
 };
 
 #[cfg(feature = "system-tray")]
@@ -123,6 +131,18 @@ pub enum Error {
   /// Global shortcut error.
   #[error(transparent)]
   GlobalShortcut(Box<dyn std::error::Error + Send>),
+  #[error("Invalid header name: {0}")]
+  InvalidHeaderName(#[from] InvalidHeaderName),
+  #[error("Invalid header value: {0}")]
+  InvalidHeaderValue(#[from] InvalidHeaderValue),
+  #[error("Invalid uri: {0}")]
+  InvalidUri(#[from] InvalidUri),
+  #[error("Invalid status code: {0}")]
+  InvalidStatusCode(#[from] InvalidStatusCode),
+  #[error("Invalid method: {0}")]
+  InvalidMethod(#[from] InvalidMethod),
+  #[error("Infallible error, something went really wrong: {0}")]
+  Infallible(#[from] std::convert::Infallible),
 }
 
 /// Result type.

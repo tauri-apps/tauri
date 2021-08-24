@@ -85,6 +85,7 @@ pub enum Error {
   Shell(String),
 }
 
+#[cfg(feature = "cli")]
 impl From<clap::Error> for Error {
   fn from(error: clap::Error) -> Self {
     Self::ParseCliArguments(error.to_string())

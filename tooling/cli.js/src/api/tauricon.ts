@@ -25,7 +25,7 @@ import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
 import * as png2icons from 'png2icons'
-import readChunk from 'read-chunk'
+import { readChunk } from 'read-chunk'
 import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
@@ -74,7 +74,7 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
       warn('[ERROR] Source image for tauricon not found')
       process.exit(1)
     } else {
-      const buffer = await readChunk(src, 0, 8)
+      const buffer = await readChunk(src, { startPosition: 0, length: 8 })
       if (isPng(buffer)) {
         image = sharp(src)
         const meta = await image.metadata()
@@ -149,10 +149,10 @@ const hexToRgb = (
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result
     ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      }
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    }
     : undefined
 }
 

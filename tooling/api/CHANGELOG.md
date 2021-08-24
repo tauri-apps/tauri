@@ -1,5 +1,16 @@
 # Changelog
 
+## \[1.0.0-beta.8]
+
+- Revert target back to ES5.
+  - [657c7dac](https://www.github.com/tauri-apps/tauri/commit/657c7dac734661956b87d021ff531ba530dd92a3) fix(api): revert ES2021 target on 2021-08-23
+
+## \[1.0.0-beta.7]
+
+- Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Lunix and macOS
+  is still `asset://path/to/file`.
+  - [994b5325](https://www.github.com/tauri-apps/tauri/commit/994b5325dd385f564b37fe1530c5d798dc925fff) fix: missing asset protocol path ([#2484](https://www.github.com/tauri-apps/tauri/pull/2484)) on 2021-08-23
+
 ## \[1.0.0-beta.6]
 
 - `bundle` now exports `clipboard` module so you can `import { clipboard } from "@tauri-apps/api"`.

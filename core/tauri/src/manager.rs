@@ -8,10 +8,11 @@ use crate::{
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
-    webview::{
-      CustomProtocol, FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler,
-      WindowBuilder,
+    http::{
+      HttpRange, MimeType, Request as HttpRequest, Response as HttpResponse,
+      ResponseBuilder as HttpResponseBuilder,
     },
+    webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
@@ -40,9 +41,11 @@ use std::{
   collections::{HashMap, HashSet},
   fmt,
   fs::create_dir_all,
+  io::SeekFrom,
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use url::Url;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -73,7 +76,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
-  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+  uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
   /// Maps runtime id to a strongly typed menu id.
@@ -101,6 +104,17 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
     }
     w.finish()
   }
+}
+
+/// Uses a custom URI scheme handler to resolve file requests
+pub struct CustomProtocol<R: Runtime> {
+  /// Handler for protocol
+  #[allow(clippy::type_complexity)]
+  pub protocol: Box<
+    dyn Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
+      + Send
+      + Sync,
+  >,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -138,7 +152,7 @@ impl<R: Runtime> WindowManager<R> {
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
-    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol>>,
+    uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
@@ -228,6 +242,7 @@ impl<R: Runtime> WindowManager<R> {
     mut pending: PendingWindow<R>,
     label: &str,
     pending_labels: &[String],
+    app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -257,6 +272,8 @@ impl<R: Runtime> WindowManager<R> {
       ));
     }
 
+    pending.webview_attributes = webview_attributes;
+
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = &self.inner.default_window_icon {
         let icon = Icon::Raw(default_window_icon.clone());
@@ -270,33 +287,92 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
-      if !webview_attributes.has_uri_scheme_protocol(uri_scheme) {
-        let protocol = protocol.clone();
-        webview_attributes = webview_attributes
-          .register_uri_scheme_protocol(uri_scheme.clone(), move |p| (protocol.protocol)(p));
-      }
-    }
+    let mut registered_scheme_protocols = Vec::new();
 
-    if !webview_attributes.has_uri_scheme_protocol("tauri") {
-      webview_attributes = webview_attributes
-        .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol().protocol);
-    }
-    if !webview_attributes.has_uri_scheme_protocol("asset") {
-      webview_attributes = webview_attributes.register_uri_scheme_protocol("asset", move |url| {
-        #[cfg(target_os = "windows")]
-        let path = url.replace("asset://localhost/", "");
-        #[cfg(not(target_os = "windows"))]
-        let path = url.replace("asset://", "");
-        let path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let data = crate::async_runtime::block_on(async move { tokio::fs::read(path).await })?;
-        Ok(data)
+    for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
+      registered_scheme_protocols.push(uri_scheme.clone());
+      let protocol = protocol.clone();
+      let app_handle = Mutex::new(app_handle.clone());
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p| {
+        (protocol.protocol)(&app_handle.lock().unwrap(), p)
       });
     }
 
-    pending.webview_attributes = webview_attributes;
+    if !registered_scheme_protocols.contains(&"tauri".into()) {
+      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol());
+      registered_scheme_protocols.push("tauri".into());
+    }
+    if !registered_scheme_protocols.contains(&"asset".into()) {
+      pending.register_uri_scheme_protocol("asset", move |request| {
+        #[cfg(target_os = "windows")]
+        let path = request.uri().replace("asset://localhost/", "");
+        #[cfg(not(target_os = "windows"))]
+        let path = request.uri().replace("asset://", "");
+        let path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let path_for_data = path.clone();
+
+        // handle 206 (partial range) http request
+        if let Some(range) = request.headers().get("range") {
+          let mut status_code = 200;
+          let path_for_data = path_for_data.clone();
+          let mut response = HttpResponseBuilder::new();
+          let (response, status_code, data) = crate::async_runtime::block_on(async move {
+            let mut buf = Vec::new();
+            let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
+            // Get the file size
+            let file_size = file.metadata().await.unwrap().len();
+            // parse the range
+            let range = HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
+
+            // FIXME: Support multiple ranges
+            // let support only 1 range for now
+            let first_range = range.first();
+            if let Some(range) = first_range {
+              let mut real_length = range.length;
+              // prevent max_length;
+              // specially on webview2
+              if range.length > file_size / 3 {
+                // max size sent (400ko / request)
+                // as it's local file system we can afford to read more often
+                real_length = 1024 * 400;
+              }
+
+              // last byte we are reading, the length of the range include the last byte
+              // who should be skipped on the header
+              let last_byte = range.start + real_length - 1;
+              // partial content
+              status_code = 206;
+
+              response = response
+                .header("Connection", "Keep-Alive")
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Length", real_length)
+                .header(
+                  "Content-Range",
+                  format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                );
+
+              file.seek(SeekFrom::Start(range.start)).await.unwrap();
+              file.take(real_length).read_to_end(&mut buf).await.unwrap();
+            }
+
+            (response, status_code, buf)
+          });
+
+          if !data.is_empty() {
+            let mime_type = MimeType::parse(&data, &path);
+            return response.mimetype(&mime_type).status(status_code).body(data);
+          }
+        }
+
+        let data =
+          crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
+        let mime_type = MimeType::parse(&data, &path);
+        HttpResponseBuilder::new().mimetype(&mime_type).body(data)
+      });
+    }
 
     Ok(pending)
   }
@@ -330,71 +406,78 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
-  fn prepare_uri_scheme_protocol(&self) -> CustomProtocol {
+  #[allow(clippy::type_complexity)]
+  fn prepare_uri_scheme_protocol(
+    &self,
+  ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
+  {
     let assets = self.inner.assets.clone();
     let manager = self.clone();
-    CustomProtocol {
-      protocol: Box::new(move |path| {
-        let mut path = path
-          .split(&['?', '#'][..])
-          // ignore query string
-          .next()
-          .unwrap()
-          .to_string()
-          .replace("tauri://localhost", "");
-        if path.ends_with('/') {
-          path.pop();
-        }
-        path = percent_encoding::percent_decode(path.as_bytes())
-          .decode_utf8_lossy()
-          .to_string();
-        let path = if path.is_empty() {
-          // if the url is `tauri://localhost`, we should load `index.html`
-          "index.html".to_string()
-        } else {
-          // skip leading `/`
-          path.chars().skip(1).collect::<String>()
-        };
-        let is_javascript =
-          path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
-        let is_html = path.ends_with(".html");
+    Box::new(move |request| {
+      let mut path = request
+        .uri()
+        .split(&['?', '#'][..])
+        // ignore query string
+        .next()
+        .unwrap()
+        .to_string()
+        .replace("tauri://localhost", "");
+      if path.ends_with('/') {
+        path.pop();
+      }
+      path = percent_encoding::percent_decode(path.as_bytes())
+        .decode_utf8_lossy()
+        .to_string();
+      let path = if path.is_empty() {
+        // if the url is `tauri://localhost`, we should load `index.html`
+        "index.html".to_string()
+      } else {
+        // skip leading `/`
+        path.chars().skip(1).collect::<String>()
+      };
+      let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
+      let is_html = path.ends_with(".html");
 
-        let asset_response = assets
-          .get(&path.as_str().into())
-          .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
-          .or_else(|| {
-            #[cfg(debug_assertions)]
-            eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
-            assets.get(&"index.html".into())
-          })
-          .ok_or(crate::Error::AssetNotFound(path))
-          .map(Cow::into_owned);
-        match asset_response {
-          Ok(asset) => {
-            if is_javascript || is_html {
-              let contents = String::from_utf8_lossy(&asset).into_owned();
-              Ok(
-                contents
-                  .replacen(
-                    "__TAURI__INVOKE_KEY_TOKEN__",
-                    &manager.generate_invoke_key().to_string(),
-                    1,
-                  )
-                  .as_bytes()
-                  .to_vec(),
+      let asset_response = assets
+        .get(&path.as_str().into())
+        .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
+        .or_else(|| {
+          #[cfg(debug_assertions)]
+          eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+          assets.get(&"index.html".into())
+        })
+        .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
+        .map(Cow::into_owned);
+
+      match asset_response {
+        Ok(asset) => {
+          let final_data = match is_javascript || is_html {
+            true => String::from_utf8_lossy(&asset)
+              .into_owned()
+              .replacen(
+                "__TAURI__INVOKE_KEY_TOKEN__",
+                &manager.generate_invoke_key().to_string(),
+                1,
               )
-            } else {
-              Ok(asset)
-            }
-          }
-          Err(e) => {
-            #[cfg(debug_assertions)]
-            eprintln!("{:?}", e); // TODO log::error!
-            Err(Box::new(e))
-          }
+              .as_bytes()
+              .to_vec(),
+            false => asset,
+          };
+
+          let mime_type = MimeType::parse(&final_data, &path);
+          Ok(
+            HttpResponseBuilder::new()
+              .mimetype(&mime_type)
+              .body(final_data)?,
+          )
         }
-      }),
-    }
+        Err(e) => {
+          #[cfg(debug_assertions)]
+          eprintln!("{:?}", e); // TODO log::error!
+          Err(Box::new(e))
+        }
+      }
+    })
   }
 
   fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
@@ -560,7 +643,7 @@ impl<R: Runtime> WindowManager<R> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, &label, pending_labels)?;
+      pending = self.prepare_pending_window(pending, &label, pending_labels, app_handle.clone())?;
       pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
     }
 

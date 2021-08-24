@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-beta.7]
+
+- Update cli.yml to pass clap ArgSettings::MultipleValues assertion.
+  - [0391ac3d](https://www.github.com/tauri-apps/tauri/commit/0391ac3dc96d9c74c34a957e4cb70da88a0a85b7) fix: Update cli.yml to pass clap ArgSettings::MultipleValues assertion. ([#2506](https://www.github.com/tauri-apps/tauri/pull/2506)) ([#2507](https://www.github.com/tauri-apps/tauri/pull/2507)) on 2021-08-22
+
 ## \[1.0.0-beta.6]
 
 - Added `APPLE_SIGNING_IDENTITY` as supported environment variable for the bundler.

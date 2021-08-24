@@ -69,6 +69,23 @@
               "usage/guides/visual/menu",
               "usage/guides/visual/system-tray"
             ]
+          },
+          {
+            "label": "WebDriver Testing",
+            "type": "category",
+            "items": [
+              "usage/guides/webdriver/introduction",
+              {
+                "label": "Example Application",
+                "type": "category",
+                "items": [
+                  "usage/guides/webdriver/example/setup",
+                  "usage/guides/webdriver/example/webdriverio",
+                  "usage/guides/webdriver/example/selenium"
+                ]
+              },
+              "usage/guides/webdriver/ci"
+            ]
           }
         ]
       },

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-beta.10]
+
+- Update cli.yml to pass clap ArgSettings::MultipleValues assertion.
+  - Bumped due to a bump in cli.rs.
+  - [0391ac3d](https://www.github.com/tauri-apps/tauri/commit/0391ac3dc96d9c74c34a957e4cb70da88a0a85b7) fix: Update cli.yml to pass clap ArgSettings::MultipleValues assertion. ([#2506](https://www.github.com/tauri-apps/tauri/pull/2506)) ([#2507](https://www.github.com/tauri-apps/tauri/pull/2507)) on 2021-08-22
+
 ## \[1.0.0-beta.9]
 
 - The CLI is now an ES module and requires at least Node.js v12.20. Fixed previous releases by using Rollup instead of Webpack.

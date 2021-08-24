@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-beta.6"
+version = "1.0.0-beta.7"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2018"
 categories = [ "gui", "web-programming" ]
@@ -17,7 +17,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.0.0-beta.2", features = [ "yaml" ] }
+clap = { version = "3.0.0-beta.4", features = [ "yaml" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.0-beta.4", path = "../bundler" }
 colored = "2.0"

@@ -7,7 +7,7 @@ use std::fmt;
 const MIMETYPE_PLAIN: &str = "text/plain";
 
 /// [Web Compatible MimeTypes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#important_mime_types_for_web_developers)
-pub(crate) enum MimeType {
+pub enum MimeType {
   Css,
   Csv,
   Html,
@@ -18,6 +18,7 @@ pub(crate) enum MimeType {
   OctetStream,
   Rtf,
   Svg,
+  Mp4,
 }
 
 impl std::fmt::Display for MimeType {
@@ -33,6 +34,7 @@ impl std::fmt::Display for MimeType {
       MimeType::OctetStream => "application/octet-stream",
       MimeType::Rtf => "application/rtf",
       MimeType::Svg => "image/svg+xml",
+      MimeType::Mp4 => "video/mp4",
     };
     write!(f, "{}", mime)
   }
@@ -53,6 +55,7 @@ impl MimeType {
       Some("jsonld") => Self::Jsonld,
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
+      Some("mp4") => Self::Mp4,
       // Assume HTML when a TLD is found for eg. `wry:://tauri.studio` | `wry://hello.com`
       Some(_) => Self::Html,
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
@@ -117,6 +120,9 @@ mod tests {
 
     let svg: String = MimeType::parse_from_uri("https://example.com/picture.svg").to_string();
     assert_eq!(svg, String::from("image/svg+xml"));
+
+    let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
+    assert_eq!(mp4, String::from("video/mp4"));
 
     let custom_scheme = MimeType::parse_from_uri("wry://tauri.studio").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));

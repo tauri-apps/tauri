@@ -756,10 +756,9 @@ where
   R: Read,
 {
   // we need to convert the pub key
-  let pub_key_decoded = &base64_to_string(pub_key)?;
-  let public_key = PublicKey::decode(pub_key_decoded)?;
+  let pub_key_decoded = base64_to_string(pub_key)?;
+  let public_key = PublicKey::decode(&pub_key_decoded)?;
   let signature_base64_decoded = base64_to_string(release_signature)?;
-
   let signature = Signature::decode(&signature_base64_decoded)?;
 
   // read all bytes until EOF in the buffer
@@ -774,12 +773,7 @@ where
 #[cfg(test)]
 mod test {
   use super::*;
-  #[cfg(target_os = "macos")]
-  use std::env::current_exe;
-  #[cfg(target_os = "macos")]
-  use std::fs::File;
-  #[cfg(target_os = "macos")]
-  use std::path::Path;
+  use std::{env::current_exe, fs::File, path::Path};
 
   macro_rules! block {
     ($e:expr) => {
@@ -1077,13 +1071,22 @@ mod test {
 
   // run complete process on mac only for now as we don't have
   // server (api) that we can use to test
-  #[cfg(target_os = "macos")]
   #[test]
   fn http_updater_complete_process() {
-    let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
+    #[cfg(target_os = "macos")]
+    let archive_file = "archive.macos.tar.gz";
+    #[cfg(target_os = "linux")]
+    let archive_file = "archive.linux.tar.gz";
+    #[cfg(target_os = "windows")]
+    let archive_file = "archive.windows.zip";
 
-    let mut signature_file = File::open("./test/updater/fixture/archives/archive.tar.gz.sig")
-      .expect("Unable to open signature");
+    let good_archive_url = format!("{}/{}", mockito::server_url(), archive_file);
+
+    let mut signature_file = File::open(format!(
+      "./test/updater/fixture/archives/{}.sig",
+      archive_file
+    ))
+    .expect("Unable to open signature");
     let mut signature = String::new();
     signature_file
       .read_to_string(&mut signature)
@@ -1097,10 +1100,10 @@ mod test {
       .expect("Unable to read signature as string");
 
     // add sample file
-    let _m = mockito::mock("GET", "/archive.tar.gz")
+    let _m = mockito::mock("GET", format!("/{}", archive_file).as_str())
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file("./test/updater/fixture/archives/archive.tar.gz")
+      .with_body_from_file(format!("./test/updater/fixture/archives/{}", archive_file))
       .create();
 
     // sample mock for update file
@@ -1157,7 +1160,13 @@ mod test {
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
+    #[cfg(target_os = "macos")]
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
+    #[cfg(target_os = "linux")]
+    let bin_file = tmp_dir_path.join("updater-example_0.1.0_amd64.AppImage");
+    #[cfg(target_os = "windows")]
+    let bin_file = tmp_dir_path.join("with").join("long").join("path.json");
+
     let bin_file_exist = Path::new(&bin_file).exists();
     assert!(bin_file_exist);
   }

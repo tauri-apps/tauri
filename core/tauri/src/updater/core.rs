@@ -250,21 +250,14 @@ impl<'a> UpdateBuilder<'a> {
     let current_version = self.current_version;
 
     // If no executable path provided, we use current_exe from rust
-    let executable_path = if let Some(v) = &self.executable_path {
-      v.clone()
-    } else {
-      // we expect it to fail if we can't find the executable path
-      // without this path we can't continue the update process.
-      env::current_exe()?
-    };
+    let executable_path = self.executable_path.unwrap_or(env::current_exe()?);
 
     // Did the target is provided by the config?
     // Should be: linux, darwin, win32 or win64
-    let target = if let Some(t) = &self.target {
-      t.clone()
-    } else {
-      get_updater_target().ok_or(Error::UnsupportedPlatform)?
-    };
+    let target = self
+      .target
+      .or_else(|| get_updater_target())
+      .ok_or(Error::UnsupportedPlatform)?;
 
     // Get the extract_path from the provided executable_path
     let extract_path = extract_path_from_executable(&executable_path);
@@ -317,7 +310,10 @@ impl<'a> UpdateBuilder<'a> {
       if let Ok(res) = resp {
         let res = res.read().await?;
         // got status code 2XX
-        if StatusCode::from_u16(res.status).unwrap().is_success() {
+        if StatusCode::from_u16(res.status)
+          .map_err(|e| Error::Builder(e.to_string()))?
+          .is_success()
+        {
           // if we got 204
           if StatusCode::NO_CONTENT.as_u16() == res.status {
             // return with `UpToDate` error
@@ -407,9 +403,9 @@ impl Update {
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
   pub async fn download_and_install(&self, pub_key: Option<String>) -> Result {
     // download url for selected release
-    let url = self.download_url.clone();
+    let url = self.download_url.as_str();
     // extract path
-    let extract_path = self.extract_path.clone();
+    let extract_path = &self.extract_path;
 
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
@@ -430,7 +426,7 @@ impl Update {
     let resp = ClientBuilder::new()
       .build()?
       .send(
-        HttpRequestBuilder::new("GET", &url)
+        HttpRequestBuilder::new("GET", url)
           .headers(headers)
           // wait 20sec for the firewall
           .timeout(20),
@@ -440,7 +436,10 @@ impl Update {
       .await?;
 
     // make sure it's success
-    if !StatusCode::from_u16(resp.status).unwrap().is_success() {
+    if !StatusCode::from_u16(resp.status)
+      .map_err(|e| Error::Network(e.to_string()))?
+      .is_success()
+    {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
         resp.status
@@ -487,7 +486,7 @@ impl Update {
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) -> Result {
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf) -> Result {
   let tmp_dir = tempfile::Builder::new()
     .prefix("tauri_current_app")
     .tempdir()?;
@@ -495,7 +494,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
   let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
   // create a backup of our current app image
-  Move::from_source(&extract_path).to_dest(tmp_app_image)?;
+  Move::from_source(extract_path).to_dest(tmp_app_image)?;
 
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file
@@ -505,8 +504,8 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
   for file in extractor.files()? {
     if file.extension() == Some(OsStr::new("AppImage")) {
       // if something went wrong during the extraction, we should restore previous app
-      if let Err(err) = extractor.extract_file(&extract_path, &file) {
-        Move::from_source(tmp_app_image).to_dest(&extract_path)?;
+      if let Err(err) = extractor.extract_file(extract_path, &file) {
+        Move::from_source(tmp_app_image).to_dest(extract_path)?;
         return Err(Error::Extract(err.to_string()));
       }
       // early finish we have everything we need here
@@ -535,9 +534,17 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
-  _extract_path: PathBuf,
+  _extract_path: &PathBuf,
   with_elevated_task: bool,
 ) -> Result {
+
+  // FIXME: We need to create a memory buffer with the MSI and then run it.
+  //        (instead of extracting the MSI to a temp path)
+  //
+  // The tricky part is the MSI need to be exposed and spawned so the memory allocation
+  // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
+  // is done, otherwise we have a huge memory leak.
+
   let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
   // extract the buffer to the tmp_dir
@@ -626,7 +633,7 @@ fn copy_files_and_run<R: Read + Seek>(
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) -> Result {
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf) -> Result {
   let mut extracted_files: Vec<PathBuf> = Vec::new();
 
   // extract the buffer to the tmp_dir
@@ -640,7 +647,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
     .prefix("tauri_current_app")
     .tempdir()?;
 
-  Move::from_source(&extract_path).to_dest(&tmp_dir.path())?;
+  Move::from_source(extract_path).to_dest(&tmp_dir.path())?;
   for file in all_files {
     // skip the first folder (should be the app name)
     let collected_path: PathBuf = file.iter().skip(1).collect();
@@ -656,7 +663,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
           std::fs::remove_file(file)?;
         }
       }
-      Move::from_source(&tmp_dir.path()).to_dest(&extract_path)?;
+      Move::from_source(&tmp_dir.path()).to_dest(extract_path)?;
       return Err(Error::Extract(err.to_string()));
     }
 

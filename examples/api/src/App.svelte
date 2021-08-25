@@ -18,6 +18,7 @@
   import Updater from "./components/Updater.svelte";
   import Clipboard from "./components/Clipboard.svelte";
   import WebRTC from './components/WebRTC.svelte'
+  import HttpForm from "./components/HttpForm.svelte";
 
   const MENU_TOGGLE_HOTKEY = 'ctrl+b';
 
@@ -51,6 +52,10 @@
     {
       label: "HTTP",
       component: Http,
+    },
+    {
+      label: "HTTP Form",
+      component: HttpForm,
     },
     {
       label: "Notifications",

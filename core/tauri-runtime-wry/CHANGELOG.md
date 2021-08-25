@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.2.1]
+
+- Migrate to latest custom protocol allowing `Partial content` streaming and Header parsing.
+  - [539e4489](https://www.github.com/tauri-apps/tauri/commit/539e4489e0bac7029d86917e9982ea49e02fe489) refactor: custom protocol ([#2503](https://www.github.com/tauri-apps/tauri/pull/2503)) on 2021-08-23
+
 ## \[0.2.0]
 
 - Fix blur/focus events being incorrect on Windows.

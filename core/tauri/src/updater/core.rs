@@ -537,7 +537,6 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: &PathBuf,
   with_elevated_task: bool,
 ) -> Result {
-
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
   //

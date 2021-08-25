@@ -4,7 +4,8 @@
 
 use super::error::{Error, Result};
 use crate::api::{
-  file::{ArchiveFormat, Compression, Extract},
+  http::{ClientBuilder, HttpRequestBuilder},
+  file::{Move, ArchiveFormat, Extract},
   version,
 };
 use base64::decode;
@@ -19,14 +20,16 @@ use std::{
 };
 
 #[cfg(not(target_os = "macos"))]
-use std::process::Command;
+use std::ffi::OsStr;
+
+#[cfg(not(target_os = "windows"))]
+use crate::api::file::Compression;
 
 #[cfg(target_os = "macos")]
 use crate::api::file::Move;
 
-use crate::api::http::{ClientBuilder, HttpRequestBuilder};
 #[cfg(target_os = "windows")]
-use std::process::exit;
+use std::{process::{exit, Command}, fs::read_dir};
 
 #[derive(Debug)]
 pub struct RemoteRelease {
@@ -465,7 +468,7 @@ impl Update {
     // we run the setup, appimage re-install or overwrite the
     // macos .app
     #[cfg(target_os = "windows")]
-    copy_files_and_run(tmp_dir, extract_path, self.with_elevated_task)?;
+    copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
     #[cfg(not(target_os = "windows"))]
     copy_files_and_run(archive_buffer, extract_path)?;
     // We are done!
@@ -535,7 +538,8 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: PathBuf,
   with_elevated_task: bool,
 ) -> Result {
-  let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
+  let tmp_path = tempfile::Builder::new().tempdir()?;
+  let tmp_dir = tmp_path.into_path();
 
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file

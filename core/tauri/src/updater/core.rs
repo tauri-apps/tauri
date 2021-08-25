@@ -3,23 +3,21 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
-use crate::api::{file::Extract, version};
+use crate::api::{
+  file::{ArchiveFormat, Compression, Extract},
+  version,
+};
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
 use std::{
   collections::HashMap,
   env,
-  ffi::OsStr,
-  fs::{read_dir, remove_file, File, OpenOptions},
-  io::{prelude::*, BufReader, Read},
+  io::{Cursor, Read, Seek},
   path::{Path, PathBuf},
   str::from_utf8,
-  time::{SystemTime, UNIX_EPOCH},
 };
 
-#[cfg(target_os = "macos")]
-use std::fs::rename;
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
 
@@ -27,7 +25,6 @@ use std::process::Command;
 use crate::api::file::Move;
 
 use crate::api::http::{ClientBuilder, HttpRequestBuilder};
-
 #[cfg(target_os = "windows")]
 use std::process::exit;
 
@@ -421,31 +418,6 @@ impl Update {
       return Err(Error::UnsupportedPlatform);
     }
 
-    // used  for temp file name
-    // if we cant extract app name, we use unix epoch duration
-    let current_time = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .expect("Unable to get Unix Epoch")
-      .subsec_nanos()
-      .to_string();
-
-    // get the current app name
-    let bin_name = std::env::current_exe()
-      .ok()
-      .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
-      .and_then(|s| s.into_string().ok())
-      .unwrap_or_else(|| current_time.clone());
-
-    // tmp dir for extraction
-    let tmp_dir = tempfile::Builder::new()
-      .prefix(&format!("{}_{}_download", bin_name, current_time))
-      .tempdir()?;
-
-    // tmp directories are used to create backup of current application
-    // if something goes wrong, we can restore to previous state
-    let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url));
-    let mut tmp_archive = File::create(&tmp_archive_path)?;
-
     // set our headers
     let mut headers = HashMap::new();
     headers.insert("Accept".into(), "application/octet-stream".into());
@@ -472,7 +444,8 @@ impl Update {
       )));
     }
 
-    tmp_archive.write_all(&resp.data)?;
+    // create memory buffer from our archive (Seek + Read)
+    let mut archive_buffer = Cursor::new(resp.data);
 
     // Validate signature ONLY if pubkey is available in tauri.conf.json
     if let Some(pub_key) = pub_key {
@@ -480,24 +453,21 @@ impl Update {
       // if there is no signature, bail out.
       if let Some(signature) = self.signature.clone() {
         // we make sure the archive is valid and signed with the private key linked with the publickey
-        verify_signature(&tmp_archive_path, signature, &pub_key)?;
+        verify_signature(&mut archive_buffer, signature, &pub_key)?;
       } else {
         // We have a public key inside our source file, but not announced by the server,
         // we assume this update is NOT valid.
         return Err(Error::PubkeyButNoSignature);
       }
     }
-    // extract using tauri api inside a tmp path
-    Extract::from_source(&tmp_archive_path).extract_into(tmp_dir.path())?;
-    // Remove archive (not needed anymore)
-    remove_file(&tmp_archive_path)?;
+
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app
     #[cfg(target_os = "windows")]
     copy_files_and_run(tmp_dir, extract_path, self.with_elevated_task)?;
     #[cfg(not(target_os = "windows"))]
-    copy_files_and_run(tmp_dir, extract_path)?;
+    copy_files_and_run(archive_buffer, extract_path)?;
     // We are done!
     Ok(())
   }
@@ -514,25 +484,28 @@ impl Update {
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
-  // we delete our current AppImage (we'll create a new one later)
-  remove_file(&extract_path)?;
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) -> Result {
+  let tmp_dir = tempfile::Builder::new()
+    .prefix("tauri_current_app")
+    .tempdir()?;
 
-  // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir)?;
+  let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
-  for path in paths {
-    let found_path = path?.path();
-    // make sure it's our .AppImage
-    if found_path.extension() == Some(OsStr::new("AppImage")) {
-      // Simply overwrite our AppImage (we use the command)
-      // because it prevent failing of bytes stream
-      Command::new("mv")
-        .arg("-f")
-        .arg(&found_path)
-        .arg(&extract_path)
-        .status()?;
+  // create a backup of our current app image
+  Move::from_source(&extract_path).to_dest(&tmp_app_image)?;
 
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor =
+    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+
+  for file in extractor.files()? {
+    if file.extension() == Some(OsStr::new("AppImage")) {
+      // if something went wrong during the extraction, we should restore previous app
+      if let Err(err) = extractor.extract_file(&extract_path, &file) {
+        Move::from_source(&tmp_app_image).to_dest(&extract_path)?;
+        return Err(Error::Extract(err.to_string()));
+      }
       // early finish we have everything we need here
       return Ok(());
     }
@@ -557,17 +530,24 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 // Update server can provide a custom EXE (installer) who can run any task.
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
-fn copy_files_and_run(
-  tmp_dir: tempfile::TempDir,
+fn copy_files_and_run<R: Read + Seek>(
+  archive_buffer: R,
   _extract_path: PathBuf,
   with_elevated_task: bool,
 ) -> Result {
-  use crate::api::file::Move;
+  let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
+
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor = Extract::from_cursor(archive_buffer, ArchiveFormat::Zip);
+
+  // extract the msi
+  extractor.extract_into(&tmp_dir);
 
   let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  let tmp_path = tmp_dir.into_path();
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
@@ -635,17 +615,6 @@ fn copy_files_and_run(
   Ok(())
 }
 
-// Get the current app name in the path
-// Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
-// Should return; `updater-example.app`
-#[cfg(target_os = "macos")]
-fn macos_app_name_in_path(extract_path: &Path) -> String {
-  let components = extract_path.components();
-  let app_name = components.last().unwrap();
-  let app_name = app_name.as_os_str().to_str().unwrap();
-  app_name.to_string()
-}
-
 // MacOS
 // ### Expected structure:
 // ├── [AppName]_[version]_x64.app.tar.gz       # GZ generated by tauri-bundler
@@ -654,41 +623,41 @@ fn macos_app_name_in_path(extract_path: &Path) -> String {
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
-  // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir)?;
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) -> Result {
+  let mut extracted_files: Vec<PathBuf> = Vec::new();
 
-  // current app name in /Applications/<app>.app
-  let app_name = macos_app_name_in_path(&extract_path);
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor =
+    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+  // the first file in the tar.gz will always be
+  // <app_name>/Contents
+  let all_files = extractor.files()?;
+  let tmp_dir = tempfile::Builder::new()
+    .prefix("tauri_current_app")
+    .tempdir()?;
 
-  for path in paths {
-    let mut found_path = path?.path();
-    // make sure it's our .app
-    if found_path.extension() == Some(OsStr::new("app")) {
-      let found_app_name = macos_app_name_in_path(&found_path);
-      // make sure the app name in the archive matche the installed app name on path
-      if found_app_name != app_name {
-        // we need to replace the app name in the updater archive to match
-        // installed app name
-        let new_path = found_path.parent().unwrap().join(app_name);
-        rename(&found_path, &new_path)?;
+  Move::from_source(&extract_path).to_dest(&tmp_dir.path())?;
+  for file in all_files {
+    // skip the first folder (should be the app name)
+    let collected_path: PathBuf = file.iter().skip(1).collect();
+    let extraction_path = extract_path.join(collected_path);
 
-        found_path = new_path;
+    // if something went wrong during the extraction, we should restore previous app
+    if let Err(err) = extractor.extract_file(&extraction_path, &file) {
+      for file in extracted_files {
+        // delete all the files we extracted
+        if file.is_dir() {
+          std::fs::remove_dir(file)?;
+        } else {
+          std::fs::remove_file(file)?;
+        }
       }
-
-      let sandbox_app_path = tempfile::Builder::new()
-        .prefix("tauri_current_app_sandbox")
-        .tempdir()?;
-
-      // Replace the whole application to make sure the
-      // code signature is following
-      Move::from_source(&found_path)
-        .replace_using_temp(sandbox_app_path.path())
-        .to_dest(&extract_path)?;
-
-      // early finish we have everything we need here
-      return Ok(());
+      Move::from_source(&tmp_dir.path()).to_dest(&extract_path)?;
+      return Err(Error::Extract(err.to_string()));
     }
+
+    extracted_files.push(extraction_path);
   }
 
   Ok(())
@@ -754,30 +723,6 @@ pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
   extract_path
 }
 
-// Return the archive type to save on disk
-fn detect_archive_in_url(path: &str) -> String {
-  path
-    .split('/')
-    .next_back()
-    .unwrap_or(&default_archive_name_by_os())
-    .to_string()
-}
-
-// Fallback archive name by os
-// The main objective is to provide the right extension based on the target
-// if we cant extract the archive type in the url we'll fallback to this value
-fn default_archive_name_by_os() -> String {
-  #[cfg(target_os = "windows")]
-  {
-    "update.zip".into()
-  }
-
-  #[cfg(not(target_os = "windows"))]
-  {
-    "update.tar.gz".into()
-  }
-}
-
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string.to_owned())?;
@@ -788,11 +733,14 @@ fn base64_to_string(base64_string: &str) -> Result<String> {
 // Validate signature
 // need to be public because its been used
 // by our tests in the bundler
-pub fn verify_signature(
-  archive_path: &Path,
+pub fn verify_signature<R>(
+  archive_reader: &mut R,
   release_signature: String,
   pub_key: &str,
-) -> Result<bool> {
+) -> Result<bool>
+where
+  R: Read,
+{
   // we need to convert the pub key
   let pub_key_decoded = &base64_to_string(pub_key)?;
   let public_key = PublicKey::decode(pub_key_decoded)?;
@@ -800,14 +748,9 @@ pub fn verify_signature(
 
   let signature = Signature::decode(&signature_base64_decoded)?;
 
-  // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
-
-  let mut file_buff: BufReader<File> = BufReader::new(file_open);
-
   // read all bytes since EOF in the buffer
-  let mut data = vec![];
-  file_buff.read_to_end(&mut data)?;
+  let mut data = Vec::new();
+  archive_reader.read_to_end(&mut data)?;
 
   // Validate signature or bail out
   public_key.verify(&data, &signature)?;
@@ -899,17 +842,6 @@ mod test {
       "date": "2020-02-20T15:41:00Z",
       "download_link": "https://github.com/lemarier/tauri-test/releases/download/v0.0.1/update3.tar.gz"
     }"#.into()
-  }
-
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn test_app_name_in_path() {
-    let executable = extract_path_from_executable(Path::new(
-      "/Applications/updater-example.app/Contents/MacOS/updater-example",
-    ));
-    let app_name = macos_app_name_in_path(&executable);
-    assert!(executable.ends_with("updater-example.app"));
-    assert_eq!(app_name, "updater-example.app".to_string());
   }
 
   #[test]

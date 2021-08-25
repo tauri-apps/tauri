@@ -8,7 +8,6 @@ use std::{
   io::{self, Read, Seek},
   path::{self, Path, PathBuf},
 };
-use tar::EntryType;
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -184,7 +183,7 @@ impl<R: Read + Seek> Extract<R> {
               })?;
 
             // determine if it's a file or a directory
-            if entry.header().entry_type() == EntryType::Directory {
+            if entry.header().entry_type() == tar::EntryType::Directory {
               // this is a directory, lets create it
               match fs::create_dir_all(into_path) {
                 Ok(_) => (),

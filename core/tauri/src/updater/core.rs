@@ -453,7 +453,7 @@ impl Update {
     if let Some(pub_key) = pub_key {
       // We need an announced signature by the server
       // if there is no signature, bail out.
-      if let Some(signature) = self.signature.clone() {
+      if let Some(signature) = &self.signature {
         // we make sure the archive is valid and signed with the private key linked with the publickey
         verify_signature(&mut archive_buffer, signature, &pub_key)?;
       } else {
@@ -745,9 +745,11 @@ fn base64_to_string(base64_string: &str) -> Result<String> {
 // Validate signature
 // need to be public because its been used
 // by our tests in the bundler
+//
+// NOTE: The buffer position is not reset.
 pub fn verify_signature<R>(
   archive_reader: &mut R,
-  release_signature: String,
+  release_signature: &str,
   pub_key: &str,
 ) -> Result<bool>
 where
@@ -756,11 +758,11 @@ where
   // we need to convert the pub key
   let pub_key_decoded = &base64_to_string(pub_key)?;
   let public_key = PublicKey::decode(pub_key_decoded)?;
-  let signature_base64_decoded = base64_to_string(&release_signature)?;
+  let signature_base64_decoded = base64_to_string(release_signature)?;
 
   let signature = Signature::decode(&signature_base64_decoded)?;
 
-  // read all bytes since EOF in the buffer
+  // read all bytes until EOF in the buffer
   let mut data = Vec::new();
   archive_reader.read_to_end(&mut data)?;
 

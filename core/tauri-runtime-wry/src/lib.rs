@@ -9,7 +9,9 @@ use tauri_runtime::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
     ResponseParts as HttpResponseParts,
   },
-  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu},
+  menu::{
+    CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu, SystemTrayMenu,
+  },
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
@@ -941,6 +943,7 @@ pub enum WebviewEvent {
 #[derive(Debug, Clone)]
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
+  UpdateMenu(SystemTrayMenu),
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
@@ -2196,6 +2199,11 @@ fn handle_event_loop(
             MenuUpdate::SetNativeImage(image) => {
               item.set_native_image(NativeImageWrapper::from(image).0)
             }
+          }
+        }
+        TrayMessage::UpdateMenu(menu) => {
+          if let Some(tray) = &*tray_context.tray.lock().unwrap() {
+            tray.lock().unwrap().set_menu(menu);
           }
         }
         TrayMessage::UpdateIcon(icon) => {

@@ -82,7 +82,7 @@ jobs:
 
       - name: test
         run: |
-          cargo test --all-features
+          cargo test
 
   test-tauri-cli:
     runs-on: ${{ matrix.platform }}

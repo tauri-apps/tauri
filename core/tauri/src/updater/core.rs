@@ -773,7 +773,8 @@ where
 #[cfg(test)]
 mod test {
   use super::*;
-  use std::{env, fs::File, path::Path};
+  #[cfg(target_os = "macos")]
+  use std::{env, fs::File};
 
   macro_rules! block {
     ($e:expr) => {
@@ -1072,6 +1073,7 @@ mod test {
   // run complete process on mac only for now as we don't have
   // server (api) that we can use to test
   #[test]
+  #[cfg(target_os = "macos")]
   fn http_updater_complete_process() {
     #[cfg(target_os = "macos")]
     let archive_file = "archive.macos.tar.gz";
@@ -1180,7 +1182,6 @@ mod test {
     #[cfg(target_os = "windows")]
     let bin_file = tmp_dir_path.join("with").join("long").join("path.json");
 
-    let bin_file_exist = Path::new(&bin_file).exists();
-    assert!(bin_file_exist);
+    assert!(bin_file.exists());
   }
 }

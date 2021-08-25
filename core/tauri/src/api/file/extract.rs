@@ -41,7 +41,7 @@ pub struct Extract<R> {
 impl<R: Read + Seek> Extract<R> {
   /// Create archive from reader
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<R> {
-    if let Err(_) = reader.seek(io::SeekFrom::Start(0)) {
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
       println!("Could not seek to start of the file");
     }
     Extract {
@@ -55,7 +55,7 @@ impl<R: Read + Seek> Extract<R> {
   pub fn files(&mut self) -> crate::api::Result<Vec<PathBuf>> {
     let reader = &mut self.reader;
     let mut all_files = Vec::new();
-    if let Err(_) = reader.seek(io::SeekFrom::Start(0)) {
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
       println!("Could not seek to start of the file");
     }
     match self.archive_format {
@@ -64,11 +64,9 @@ impl<R: Read + Seek> Extract<R> {
         match self.archive_format {
           ArchiveFormat::Tar(_) => {
             let mut archive = tar::Archive::new(reader);
-            for entry in archive.entries()? {
-              if let Ok(entry) = entry {
-                if let Ok(path) = entry.path() {
-                  all_files.push(path.to_path_buf());
-                }
+            for entry in archive.entries()?.flatten() {
+              if let Ok(path) = entry.path() {
+                all_files.push(path.to_path_buf());
               }
             }
           }
@@ -92,7 +90,7 @@ impl<R: Read + Seek> Extract<R> {
     source: &mut R,
     compression: Option<Compression>,
   ) -> Either<&mut R, flate2::read::GzDecoder<&mut R>> {
-    if let Err(_) = source.seek(io::SeekFrom::Start(0)) {
+    if source.seek(io::SeekFrom::Start(0)).is_err() {
       println!("Could not seek to start of the file");
     }
     match compression {
@@ -106,7 +104,7 @@ impl<R: Read + Seek> Extract<R> {
   /// `into_dir`.
   pub fn extract_into(&mut self, into_dir: &path::Path) -> crate::api::Result<()> {
     let reader = &mut self.reader;
-    if let Err(_) = reader.seek(io::SeekFrom::Start(0)) {
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
       println!("Could not seek to start of the file");
     }
     match self.archive_format {

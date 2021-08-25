@@ -25,9 +25,6 @@ use std::ffi::OsStr;
 #[cfg(not(target_os = "windows"))]
 use crate::api::file::Compression;
 
-#[cfg(target_os = "macos")]
-use crate::api::file::Move;
-
 #[cfg(target_os = "windows")]
 use std::{process::{exit, Command}, fs::read_dir};
 
@@ -495,7 +492,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
   let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
   // create a backup of our current app image
-  Move::from_source(&extract_path).to_dest(&tmp_app_image)?;
+  Move::from_source(&extract_path).to_dest(tmp_app_image)?;
 
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file
@@ -506,7 +503,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: PathBuf) 
     if file.extension() == Some(OsStr::new("AppImage")) {
       // if something went wrong during the extraction, we should restore previous app
       if let Err(err) = extractor.extract_file(&extract_path, &file) {
-        Move::from_source(&tmp_app_image).to_dest(&extract_path)?;
+        Move::from_source(tmp_app_image).to_dest(&extract_path)?;
         return Err(Error::Extract(err.to_string()));
       }
       // early finish we have everything we need here
@@ -538,8 +535,7 @@ fn copy_files_and_run<R: Read + Seek>(
   _extract_path: PathBuf,
   with_elevated_task: bool,
 ) -> Result {
-  let tmp_path = tempfile::Builder::new().tempdir()?;
-  let tmp_dir = tmp_path.into_path();
+  let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file
@@ -582,7 +578,7 @@ fn copy_files_and_run<R: Read + Seek>(
           {
             if status.success() {
               // Rename the MSI to the match file name the Skip UAC task is expecting it to be
-              let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+              let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
               Move::from_source(&found_path)
                 .to_dest(&temp_msi)
                 .expect("Unable to move update MSI");

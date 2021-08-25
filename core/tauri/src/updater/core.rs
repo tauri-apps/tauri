@@ -256,7 +256,7 @@ impl<'a> UpdateBuilder<'a> {
     // Should be: linux, darwin, win32 or win64
     let target = self
       .target
-      .or_else(|| get_updater_target())
+      .or_else(get_updater_target)
       .ok_or(Error::UnsupportedPlatform)?;
 
     // Get the extract_path from the provided executable_path
@@ -486,7 +486,7 @@ impl Update {
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf) -> Result {
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let tmp_dir = tempfile::Builder::new()
     .prefix("tauri_current_app")
     .tempdir()?;
@@ -534,7 +534,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf)
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
-  _extract_path: &PathBuf,
+  _extract_path: &Path,
   with_elevated_task: bool,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
@@ -632,7 +632,7 @@ fn copy_files_and_run<R: Read + Seek>(
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf) -> Result {
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let mut extracted_files: Vec<PathBuf> = Vec::new();
 
   // extract the buffer to the tmp_dir
@@ -646,7 +646,10 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &PathBuf)
     .prefix("tauri_current_app")
     .tempdir()?;
 
+  // create backup of our current app
   Move::from_source(extract_path).to_dest(&tmp_dir.path())?;
+
+  // extract all the files
   for file in all_files {
     // skip the first folder (should be the app name)
     let collected_path: PathBuf = file.iter().skip(1).collect();

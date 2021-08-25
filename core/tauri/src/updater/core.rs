@@ -773,7 +773,7 @@ where
 #[cfg(test)]
 mod test {
   use super::*;
-  use std::{env::current_exe, fs::File, path::Path};
+  use std::{env, fs::File, path::Path};
 
   macro_rules! block {
     ($e:expr) => {
@@ -1120,7 +1120,7 @@ mod test {
     // Build a tmpdir so we can test our extraction inside
     // We dont want to overwrite our current executable or the directory
     // Otherwise tests are failing...
-    let executable_path = current_exe().expect("Can't extract executable path");
+    let executable_path = env::current_exe().expect("Can't extract executable path");
     let parent_path = executable_path
       .parent()
       .expect("Can't find the parent path");
@@ -1133,15 +1133,27 @@ mod test {
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
+    #[cfg(target_os = "linux")]
+    let my_executable = &tmp_dir_path.join("updater-example_0.1.0_amd64.AppImage");
+    #[cfg(target_os = "macos")]
+    let my_executable = &tmp_dir_path.join("my_app");
+    #[cfg(target_os = "windows")]
+    let my_executable = &tmp_dir_path.join("my_app.exe");
+
     // configure the updater
     let check_update = block!(builder()
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
-      .executable_path(&tmp_dir_path.join("my_app.exe"))
+      .executable_path(my_executable)
       // make sure we force an update
       .current_version("1.0.0")
       .build());
+
+    #[cfg(target_os = "linux")]
+    {
+      env::set_var("APPIMAGE", my_executable);
+    }
 
     // make sure the process worked
     assert!(check_update.is_ok());
@@ -1163,7 +1175,8 @@ mod test {
     #[cfg(target_os = "macos")]
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
     #[cfg(target_os = "linux")]
-    let bin_file = tmp_dir_path.join("updater-example_0.1.0_amd64.AppImage");
+    // linux should extract at same place as the executable path
+    let bin_file = my_executable;
     #[cfg(target_os = "windows")]
     let bin_file = tmp_dir_path.join("with").join("long").join("path.json");
 

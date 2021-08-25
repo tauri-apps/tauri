@@ -34,29 +34,27 @@ pub enum Compression {
 #[derive(Debug)]
 pub struct Extract<R> {
   reader: R,
-  file_name: String,
   archive_format: ArchiveFormat,
 }
 
 impl<R: Read + Seek> Extract<R> {
-  /// Create archive from reader
+  /// Create archive from reader.
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<R> {
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      println!("Could not seek to start of the file");
+      eprintln!("Could not seek to start of the file");
     }
     Extract {
       reader,
-      file_name: "archive".to_string(),
       archive_format,
     }
   }
 
-  /// Get the files Path in the archive buffer.
+  /// Get the archive content.
   pub fn files(&mut self) -> crate::api::Result<Vec<PathBuf>> {
     let reader = &mut self.reader;
     let mut all_files = Vec::new();
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      println!("Could not seek to start of the file");
+      eprintln!("Could not seek to start of the file");
     }
     match self.archive_format {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
@@ -91,7 +89,7 @@ impl<R: Read + Seek> Extract<R> {
     compression: Option<Compression>,
   ) -> Either<&mut R, flate2::read::GzDecoder<&mut R>> {
     if source.seek(io::SeekFrom::Start(0)).is_err() {
-      println!("Could not seek to start of the file");
+      eprintln!("Could not seek to start of the file");
     }
     match compression {
       Some(Compression::Gz) => Either::Right(flate2::read::GzDecoder::new(source)),
@@ -105,7 +103,7 @@ impl<R: Read + Seek> Extract<R> {
   pub fn extract_into(&mut self, into_dir: &path::Path) -> crate::api::Result<()> {
     let reader = &mut self.reader;
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      println!("Could not seek to start of the file");
+      eprintln!("Could not seek to start of the file");
     }
     match self.archive_format {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
@@ -121,9 +119,7 @@ impl<R: Read + Seek> Extract<R> {
               }
             }
 
-            let mut out_path = into_dir.join(&self.file_name);
-            out_path.set_extension("");
-            let mut out_file = fs::File::create(&out_path)?;
+            let mut out_file = fs::File::create(&into_dir)?;
             io::copy(&mut reader, &mut out_file)?;
           }
           ArchiveFormat::Tar(_) => {
@@ -147,9 +143,9 @@ impl<R: Read + Seek> Extract<R> {
     Ok(())
   }
 
-  /// Extract a single file from a source and save to a file of the same name in `into_dir`.
-  /// If the source is a single compressed file, it will be saved with the name `file_to_extract`
-  /// in the specified `into_dir`.
+  /// Extract a single file from a source and extract it `into_path`.
+  /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
+  /// Note: You need to include the complete path, with file name and extension.
   pub fn extract_file<T: AsRef<path::Path>>(
     &mut self,
     into_path: &path::Path,
@@ -171,8 +167,7 @@ impl<R: Read + Seek> Extract<R> {
                 }
               }
             }
-            let out_path = into_path.join(&self.file_name);
-            let mut out_file = fs::File::create(&out_path)?;
+            let mut out_file = fs::File::create(into_path)?;
             io::copy(&mut reader, &mut out_file)?;
           }
           ArchiveFormat::Tar(_) => {
@@ -188,14 +183,24 @@ impl<R: Read + Seek> Extract<R> {
                 ))
               })?;
 
+            // determine if it's a file or a directory
             if entry.header().entry_type() == EntryType::Directory {
               // this is a directory, lets create it
-              fs::create_dir_all(into_path)?;
+              match fs::create_dir_all(into_path) {
+                Ok(_) => (),
+                Err(e) => {
+                  if e.kind() != io::ErrorKind::AlreadyExists {
+                    return Err(e.into());
+                  }
+                }
+              }
             } else {
-              let mut file = &mut fs::File::create(into_path)?;
-              io::copy(&mut entry, file)?;
+              let mut out_file = fs::File::create(into_path)?;
+              io::copy(&mut entry, &mut out_file)?;
+
+              // make sure we set permissions
               if let Ok(mode) = entry.header().mode() {
-                set_perms(into_path, Some(&mut file), mode, false)?;
+                set_perms(into_path, Some(&mut out_file), mode, true)?;
               }
             }
           }
@@ -211,8 +216,21 @@ impl<R: Read + Seek> Extract<R> {
             .to_str()
             .expect("Could not convert file to str"),
         )?;
-        let mut output = fs::File::create(into_path.join(file.name()))?;
-        io::copy(&mut file, &mut output)?;
+
+        if file.is_dir() {
+          // this is a directory, lets create it
+          match fs::create_dir_all(into_path) {
+            Ok(_) => (),
+            Err(e) => {
+              if e.kind() != io::ErrorKind::AlreadyExists {
+                return Err(e.into());
+              }
+            }
+          }
+        } else {
+          let mut out_file = fs::File::create(into_path)?;
+          io::copy(&mut file, &mut out_file)?;
+        }
       }
     }
 

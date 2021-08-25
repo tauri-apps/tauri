@@ -4,8 +4,8 @@
 
 use super::error::{Error, Result};
 use crate::api::{
+  file::{ArchiveFormat, Extract, Move},
   http::{ClientBuilder, HttpRequestBuilder},
-  file::{Move, ArchiveFormat, Extract},
   version,
 };
 use base64::decode;
@@ -26,7 +26,10 @@ use std::ffi::OsStr;
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
-use std::{process::{exit, Command}, fs::read_dir};
+use std::{
+  fs::read_dir,
+  process::{exit, Command},
+};
 
 #[derive(Debug)]
 pub struct RemoteRelease {

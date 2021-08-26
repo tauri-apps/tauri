@@ -516,6 +516,8 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         scale_factor: *scale_factor,
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
+      #[cfg(any(target_os = "linux", target_os = "macos"))]
+      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
       _ => return Self(None),
     };
     Self(Some(event))

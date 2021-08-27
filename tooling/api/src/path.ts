@@ -166,7 +166,7 @@ async function desktopdir(): Promise<string> {
  *
  * @returns
  */
-async function documentDir(): Promise<string> {
+async function documentdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -545,7 +545,7 @@ export {
   configdir,
   datadir,
   desktopdir,
-  documentDir,
+  documentdir,
   downloaddir,
   executabledir,
   fontdir,

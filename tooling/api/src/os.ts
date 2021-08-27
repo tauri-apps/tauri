@@ -25,6 +25,7 @@
 
 import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
+import { homedir } from './path'
 
 /**
  * The operating system-specific end-of-line marker.
@@ -85,7 +86,7 @@ async function arch(): Promise<string> {
 /**
  * Returns the operating system's default directory for temporary files as a string.
  */
-async function tempdir(): Promise<string> {
+async function tmpdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
@@ -94,4 +95,4 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
+export { EOL, platform, version, type, arch, tmpdir, homedir }

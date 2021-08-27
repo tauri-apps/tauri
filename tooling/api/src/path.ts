@@ -5,6 +5,7 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
 import { isWindows } from './helpers/os-check'
+import { tmpdir } from './os'
 
 /**
  * The path module provides utilities for working with file and directory paths.
@@ -33,7 +34,7 @@ import { isWindows } from './helpers/os-check'
  *
  * @returns
  */
-async function appDir(): Promise<string> {
+async function appdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -55,7 +56,7 @@ async function appDir(): Promise<string> {
  *
  * @returns
  */
-async function audioDir(): Promise<string> {
+async function audiodir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -77,7 +78,7 @@ async function audioDir(): Promise<string> {
  *
  * @returns
  */
-async function cacheDir(): Promise<string> {
+async function cachedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -99,7 +100,7 @@ async function cacheDir(): Promise<string> {
  *
  * @returns
  */
-async function configDir(): Promise<string> {
+async function configdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -121,7 +122,7 @@ async function configDir(): Promise<string> {
  *
  * @returns
  */
-async function dataDir(): Promise<string> {
+async function datadir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -143,7 +144,7 @@ async function dataDir(): Promise<string> {
 
  * @returns
  */
-async function desktopDir(): Promise<string> {
+async function desktopdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -187,7 +188,7 @@ async function documentDir(): Promise<string> {
  *
  * @returns
  */
-async function downloadDir(): Promise<string> {
+async function downloaddir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -209,7 +210,7 @@ async function downloadDir(): Promise<string> {
  *
  * @returns
  */
-async function executableDir(): Promise<string> {
+async function executabledir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -231,7 +232,7 @@ async function executableDir(): Promise<string> {
  *
  * @returns
  */
-async function fontDir(): Promise<string> {
+async function fontdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -253,7 +254,7 @@ async function fontDir(): Promise<string> {
  *
  * @returns
  */
-async function homeDir(): Promise<string> {
+async function homedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -275,7 +276,7 @@ async function homeDir(): Promise<string> {
  *
  * @returns
  */
-async function localDataDir(): Promise<string> {
+async function localdatadir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -297,7 +298,7 @@ async function localDataDir(): Promise<string> {
  *
  * @returns
  */
-async function pictureDir(): Promise<string> {
+async function picturedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -319,7 +320,7 @@ async function pictureDir(): Promise<string> {
  *
  * @returns
  */
-async function publicDir(): Promise<string> {
+async function publicdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -335,7 +336,7 @@ async function publicDir(): Promise<string> {
  *
  * @returns
  */
-async function resourceDir(): Promise<string> {
+async function resourcedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -357,7 +358,7 @@ async function resourceDir(): Promise<string> {
  *
  * @returns
  */
-async function runtimeDir(): Promise<string> {
+async function runtimedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -379,7 +380,7 @@ async function runtimeDir(): Promise<string> {
  *
  * @returns
  */
-async function templateDir(): Promise<string> {
+async function templatedir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -401,7 +402,7 @@ async function templateDir(): Promise<string> {
  *
  * @returns
  */
-async function videoDir(): Promise<string> {
+async function videodir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -417,7 +418,7 @@ async function videoDir(): Promise<string> {
  *
  * @returns
  */
-async function currentDir(): Promise<string> {
+async function currentdir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -538,25 +539,26 @@ async function isAbsolute(path: string): Promise<boolean> {
 }
 
 export {
-  appDir,
-  audioDir,
-  cacheDir,
-  configDir,
-  dataDir,
-  desktopDir,
+  appdir,
+  audiodir,
+  cachedir,
+  configdir,
+  datadir,
+  desktopdir,
   documentDir,
-  downloadDir,
-  executableDir,
-  fontDir,
-  homeDir,
-  localDataDir,
-  pictureDir,
-  publicDir,
-  resourceDir,
-  runtimeDir,
-  templateDir,
-  videoDir,
-  currentDir,
+  downloaddir,
+  executabledir,
+  fontdir,
+  homedir,
+  localdatadir,
+  picturedir,
+  publicdir,
+  resourcedir,
+  runtimedir,
+  templatedir,
+  videodir,
+  currentdir,
+  tmpdir,
   BaseDirectory,
   sep,
   delimiter,

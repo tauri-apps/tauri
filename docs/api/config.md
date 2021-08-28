@@ -46,7 +46,7 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
 
 <Properties anchorRoot="package" rows={[
   { property: "productName", optional: true, type: "string", description: `Application name. The binary name is converted to snake-case on Linux.` },
-  { property: "version", optional: true, type: "string", description: `Application version.` }
+  { property: "version", optional: true, type: "string", description: `Application version. Defaults to the version specified in Cargo.toml` }
 ]}/>
 
 ## `tauri`

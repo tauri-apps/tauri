@@ -101,7 +101,7 @@ fn join(paths: Vec<String>) -> crate::Result<String> {
         // Doing this to ensure that the vector elements are separated in
         // the resulting string so path.components() can work correctly when called
         //  in normalize_path_no_absolute() later
-        if !p.starts_with("/") && !p.starts_with("\\") && p != &paths[0] {
+        if !p.starts_with('/') && !p.starts_with('\\') && p != &paths[0] {
           let mut tmp = String::from(MAIN_SEPARATOR);
           tmp.push_str(p);
           tmp
@@ -126,11 +126,15 @@ fn normalize(path: String) -> crate::Result<String> {
   Ok(if p.is_empty() {
     // Nodejs will return ".." if we used normalize("..")
     // and will return "." if we used normalize("") or normalize(".")
-    String::from(if path == ".." { path } else { ".".into() })
+    if path == ".." {
+      path
+    } else {
+      ".".into()
+    }
   } else {
     // If the path passed to this function contains a trailing separator,
     // we make sure to perserve it. That's how NodeJS works
-    if (path.ends_with("/") || path.ends_with("\\")) && (!p.ends_with("/") || !p.ends_with("\\")) {
+    if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\')) {
       p.push(MAIN_SEPARATOR);
     }
     p
@@ -238,7 +242,7 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
         let mut p = ret.to_string_lossy().to_string();
         // Don't add the separator if the resolved path is empty,
         // otherwise we are gonna have unwanted leading separator
-        if !p.is_empty() && !p.ends_with("/") && !p.ends_with("\\") {
+        if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }
         if let Some(c) = c.to_str() {

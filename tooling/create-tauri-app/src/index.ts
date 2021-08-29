@@ -158,7 +158,7 @@ const runInit = async (argv: Argv): Promise<void> => {
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
-    recipeName: 'vanillajs',
+    recipeName: 'Vanilla.js',
     installApi: true
   }
 

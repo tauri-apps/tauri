@@ -1927,6 +1927,8 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      // NOTE(amrbashir): we handle this event here instead of `match` statement below because
+      // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
         if let Some(WindowHandle::Webview(webview)) = windows.get(&window_id).map(|w| &w.inner) {
           webview.focus();

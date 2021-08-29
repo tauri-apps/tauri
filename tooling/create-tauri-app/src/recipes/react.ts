@@ -64,7 +64,7 @@ export const cra: Recipe = {
       }
     ]
   },
-  preInit: async ({ cwd, cfg, packageManager, answers }) => {
+  preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
     let template = 'cra.js'
     if (answers) {
       template = answers.template ? (answers.template as string) : 'vue'
@@ -74,6 +74,7 @@ export const cra: Recipe = {
       await shell(
         'yarn',
         [
+          ci ? '--non-interactive' : '',
           'create',
           'react-app',
           ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
@@ -87,6 +88,7 @@ export const cra: Recipe = {
       await shell(
         'npx',
         [
+          ci ? '--yes' : '',
           'create-react-app@latest',
           ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
           `${cfg.appName}`,

@@ -58,11 +58,12 @@ const ngcli: Recipe = {
       }
     ]
   },
-  preInit: async ({ cwd, cfg, answers, packageManager }) => {
+  preInit: async ({ cwd, cfg, answers, packageManager, ci }) => {
     // Angular CLI creates the folder for you
     await shell(
       'npx',
       [
+        ci ? '--yes' : '',
         '-p',
         '@angular/cli',
         'ng',

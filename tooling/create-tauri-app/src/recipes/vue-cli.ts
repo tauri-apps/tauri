@@ -20,6 +20,7 @@ const vuecli: Recipe = {
     await shell(
       'npx',
       [
+        ci ? '--yes' : '',
         '@vue/cli@latest',
         'create',
         `${cfg.appName}`,
@@ -32,6 +33,7 @@ const vuecli: Recipe = {
     await shell(
       'npx',
       [
+        ci ? '--yes' : '',
         '@vue/cli',
         'add',
         'tauri',

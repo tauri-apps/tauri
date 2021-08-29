@@ -52,7 +52,7 @@ const vite: Recipe = {
       }
     ]
   },
-  preInit: async ({ cwd, cfg, packageManager, answers }) => {
+  preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
     let template = 'vue'
     if (answers) {
       template = answers.template ? (answers.template as string) : 'vue'
@@ -62,7 +62,14 @@ const vite: Recipe = {
     if (packageManager === 'yarn') {
       await shell(
         'yarn',
-        ['create', 'vite', `${cfg.appName}`, '--template', `${template}`],
+        [
+          ci ? '--non-interactive' : '',
+          'create',
+          'vite',
+          `${cfg.appName}`,
+          '--template',
+          `${template}`
+        ],
         {
           cwd
         }
@@ -70,7 +77,13 @@ const vite: Recipe = {
     } else {
       await shell(
         packageManager === 'pnpm' ? 'pnpx' : 'npx',
-        ['create-vite@latest', `${cfg.appName}`, '--template', `${template}`],
+        [
+          ci ? '--yes' : '',
+          'create-vite@latest',
+          `${cfg.appName}`,
+          '--template',
+          `${template}`
+        ],
         {
           cwd
         }

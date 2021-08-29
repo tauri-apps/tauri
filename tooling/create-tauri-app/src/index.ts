@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import minimist from 'minimist'
 import inquirer from 'inquirer'
+import { Command, Option } from 'commander'
 import { bold, cyan, green, reset, yellow } from 'chalk'
 import { platform } from 'os'
 import { resolve, join, relative } from 'path'
@@ -21,93 +21,67 @@ import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
 
 interface Argv {
-  h: boolean
   help: boolean
-  v: string
   version: string
   ci: boolean
   dev: boolean
-  b: string
   binary: string
-  f: string
   force: string
-  l: boolean
   log: boolean
-  m: string
   manager: string
-  d: string
   directory: string
-  t: string
-  tauriPath: string
-  A: string
   appName: string
-  W: string
   windowTitle: string
-  D: string
   distDir: string
-  P: string
   devPath: string
-  r: string
   recipe: string
 }
 
-const printUsage = (): void => {
-  console.log(`
-  Description
-    Starts a new tauri app from a "recipe" or pre-built template.
-  Usage
-    $ yarn create tauri-app <app-name> # npm create-tauri-app <app-name>
-  Options
-    --help, -h           Displays this message
-    -v, --version        Displays the Tauri CLI version
-    --ci                 Skip prompts
-    --force, -f          Force init to overwrite [conf|template|all]
-    --log, -l            Logging [boolean]
-    --manager, -m        Set package manager to use [npm|yarn|pnpm]
-    --directory, -d      Set target directory for init
-    --app-name, -A       Name of your Tauri application
-    --window-title, -W   Window title of your Tauri application
-    --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
-    --dev-path, -P       Url of your dev server
-    --recipe, -r         Add UI framework recipe. None by default.
-                         Supported recipes: [${recipeShortNames.join('|')}]
-    `)
-}
-
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
-  const argv = minimist(cliArgs, {
-    alias: {
-      h: 'help',
-      v: 'version',
-      f: 'force',
-      l: 'log',
-      m: 'manager',
-      d: 'directory',
-      t: 'tauri-path',
-      A: 'app-name',
-      W: 'window-title',
-      D: 'dist-dir',
-      P: 'dev-path',
-      r: 'recipe'
-    },
-    boolean: ['h', 'l', 'ci', 'dev']
-  }) as unknown as Argv
-
-  if (argv.help) {
-    printUsage()
-    return 0
-  }
-
-  if (argv.v) {
-    /* eslint-disable @typescript-eslint/no-var-requires */
-    /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-    console.log(require('../package.json').version)
-    return false // do this for node consumers and tests
-    /* eslint-enable @typescript-eslint/no-var-requires */
-    /* eslint-enable @typescript-eslint/no-unsafe-member-access */
-  }
-
-  return await runInit(argv)
+  const program = new Command()
+    .description('Starts a new tauri app from a "recipe" or pre-built template')
+    .helpOption('-h, --help', 'Displays this message')
+    .version(
+      // eslint-disable-next-line
+      require('../package.json').version,
+      '-v, --version',
+      'Displays the Tauri CLI version'
+    )
+    .option('-c, --ci', 'Skip prompts')
+    .addOption(
+      new Option('-f, --force [option]', 'Force init to overwrite')
+        .choices(['conf', 'template', 'all'])
+        .default('all')
+    )
+    .option('-l, --log', 'Add log messages')
+    .addOption(
+      new Option(
+        '-m, --manager <package-manager>',
+        'Set package manager to use'
+      ).choices(['npm', 'yarn', 'pnpm'])
+    )
+    .option('-d, --directory <path>', 'Set target directory for init')
+    .option('-A, --app-name <name>', 'Name of your Tauri application')
+    .option(
+      '-W, --window-title <title>',
+      'Title of your Tauri application window'
+    )
+    .option(
+      '-D, --dist-dir <path>',
+      'Web assets location, relative to "<project-dir>/src-tauri/tauri.conf.json"'
+    )
+    .option('-p, --dev-path <path>', 'Url of your dev server')
+    .addOption(
+      new Option(
+        '-r, --recipe <recipe>',
+        'Add UI framework recipe. None by default'
+      ).choices(recipeShortNames)
+    )
+    .addOption(new Option('-b, --binary <path>').hideHelp())
+    .showHelpAfterError('For more information try --help')
+    .parse(process.argv)
+  const argv = program.opts()
+  return await runInit(argv as Argv)
 }
 
 interface Responses {
@@ -196,14 +170,14 @@ const runInit = async (argv: Argv): Promise<void> => {
         name: 'appName',
         message: 'What is your app name?',
         default: defaults.appName,
-        when: !argv.ci && !argv.A
+        when: !argv.ci && !argv.appName
       },
       {
         type: 'input',
         name: 'tauri.window.title',
         message: 'What should the window title be?',
         default: defaults.tauri.window.title,
-        when: !argv.ci && !argv.W
+        when: !argv.ci && !argv.windowTitle
       },
       {
         type: 'list',
@@ -211,7 +185,7 @@ const runInit = async (argv: Argv): Promise<void> => {
         message: 'What UI recipe would you like to add?',
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
-        when: !argv.ci && !argv.r
+        when: !argv.ci && !argv.recipe
       },
       {
         type: 'confirm',
@@ -243,8 +217,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   } = { ...defaults, ...answers }
 
   let recipe: Recipe | undefined
-  if (argv.r) {
-    recipe = recipeByShortName(argv.r)
+  if (argv.recipe) {
+    recipe = recipeByShortName(argv.recipe)
   } else if (recipeName !== undefined) {
     recipe = recipeByDescriptiveName(recipeName)
   }
@@ -255,8 +229,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   }
 
   const packageManager =
-    argv.m === 'yarn' || argv.m === 'npm' || argv.m === 'pnpm'
-      ? argv.m
+    argv.manager === 'yarn' || argv.manager === 'npm' || argv.manager === 'pnpm'
+      ? argv.manager
       : // @ts-expect-error
       // this little fun snippet pulled from vite determines the package manager the script was run from
       /yarn/.test(process?.env?.npm_execpath)
@@ -267,13 +241,13 @@ const runInit = async (argv: Argv): Promise<void> => {
       : 'npm'
 
   const buildConfig = {
-    distDir: argv.D,
-    devPath: argv.P,
-    appName: argv.A || appName,
-    windowTitle: argv.W || title
+    distDir: argv.distDir,
+    devPath: argv.devPath,
+    appName: argv.appName || appName,
+    windowTitle: argv.windowTitle || title
   }
 
-  const directory = argv.d || process.cwd()
+  const directory = argv.directory || process.cwd()
 
   // prompt additional recipe questions
   let recipeAnswers
@@ -369,11 +343,13 @@ const runInit = async (argv: Argv): Promise<void> => {
     updatePackageJson(appDirectory, appName)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
-    const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
+    const binary = !argv.binary
+      ? packageManager
+      : resolve(appDirectory, argv.binary)
     // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
     // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/
     const runTauriArgs =
-      packageManager === 'yarn' || argv.b
+      packageManager === 'yarn' || argv.binary
         ? ['tauri', 'init']
         : ['run', 'tauri', '--', 'init']
 

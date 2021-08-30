@@ -326,13 +326,16 @@ You may find the requirements here: ${cyan(setupLink)}
   const tauriCLIVersion = !argv.dev
     ? 'latest'
     : `file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+  const apiVersion = !argv.dev
+    ? 'latest'
+    : `file:${relative(appDirectory, join(__dirname, '../../api/dist'))}`
 
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
     await install({
       appDir: appDirectory,
-      dependencies: [installApi ? '@tauri-apps/api@latest' : ''].concat(
+      dependencies: [installApi ? `@tauri-apps/api@${apiVersion}` : ''].concat(
         recipe.extraNpmDependencies
       ),
       devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(

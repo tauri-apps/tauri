@@ -64,8 +64,8 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
         'Specify UI framework recipe'
       ).choices(recipeShortNames)
     )
-    .option('  , --ci', 'Skip prompts')
-    .option('  , --dev', 'Use local development packages')
+    .option('    --ci', 'Skip prompts')
+    .option('    --dev', 'Use local development packages')
     .addOption(
       createOption('-f, --force [option]', 'Force init to overwrite')
         .choices(['conf', 'template', 'all'])

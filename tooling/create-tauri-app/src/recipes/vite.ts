@@ -101,9 +101,7 @@ const vite: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '-- ' : ''
-    }dev
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
     return await Promise.resolve()
   }

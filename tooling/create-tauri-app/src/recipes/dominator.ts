@@ -51,7 +51,7 @@ export const dominator: Recipe = {
     $ cd ${cfg.appName}
     $ ${packageManager} install
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '--' : ''
+      packageManager === 'npm' ? '-- ' : ''
     }dev
     `)
     return await Promise.resolve()

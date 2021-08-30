@@ -76,24 +76,22 @@ const ngcli: Recipe = {
       }
     )
 
-    if (answers) {
-      if (answers.material) {
-        await addAdditionalPackage(
-          packageManager,
-          cwd,
-          cfg.appName,
-          '@angular/material'
-        )
-      }
+    if (answers?.material) {
+      await addAdditionalPackage(
+        packageManager,
+        cwd,
+        cfg.appName,
+        '@angular/material'
+      )
+    }
 
-      if (answers.eslint) {
-        await addAdditionalPackage(
-          packageManager,
-          cwd,
-          cfg.appName,
-          '@angular-eslint/schematics'
-        )
-      }
+    if (answers?.eslint) {
+      await addAdditionalPackage(
+        packageManager,
+        cwd,
+        cfg.appName,
+        '@angular-eslint/schematics'
+      )
     }
   },
   postInit: async ({ packageManager, cfg }) => {

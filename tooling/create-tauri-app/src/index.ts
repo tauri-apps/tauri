@@ -20,6 +20,22 @@ import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
 
+const allRecipes: Recipe[] = [
+  vanillajs,
+  cra,
+  vite,
+  vuecli,
+  ngcli,
+  svelte,
+  dominator
+]
+const recipeShortNames = allRecipes.map((r) => r.shortName)
+const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
+const recipeByShortName = (name: string): Recipe | undefined =>
+  allRecipes.find((r) => r.shortName === name)
+const recipeByDescriptiveName = (name: string): Recipe | undefined =>
+  allRecipes.find((r) => r.descriptiveName.value === name)
+
 interface Argv {
   help: boolean
   version: string
@@ -94,26 +110,6 @@ interface Responses {
   installApi: boolean
 }
 
-const allRecipes: Recipe[] = [
-  vanillajs,
-  cra,
-  vite,
-  vuecli,
-  ngcli,
-  svelte,
-  dominator
-]
-
-const recipeByShortName = (name: string): Recipe | undefined =>
-  allRecipes.find((r) => r.shortName === name)
-
-const recipeByDescriptiveName = (name: string): Recipe | undefined =>
-  allRecipes.find((r) => r.descriptiveName.value === name)
-
-const recipeShortNames = allRecipes.map((r) => r.shortName)
-
-const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
-
 const keypress = async (skip: boolean): Promise<void> => {
   if (skip) return
   process.stdin.setRawMode(true)
@@ -132,18 +128,6 @@ const keypress = async (skip: boolean): Promise<void> => {
 }
 
 const runInit = async (argv: Argv): Promise<void> => {
-  console.log(
-    `We hope to help you create something special with ${bold(
-      yellow('Tauri')
-    )}!`
-  )
-  console.log(
-    'You will have a choice of one of the UI frameworks supported by the greater web tech community.'
-  )
-  console.log(
-    `This should get you started. See our docs at https://tauri.studio/`
-  )
-
   const setupLink =
     platform() === 'win32'
       ? 'https://tauri.studio/en/docs/getting-started/setup-windows/'
@@ -151,10 +135,17 @@ const runInit = async (argv: Argv): Promise<void> => {
       ? 'https://tauri.studio/en/docs/getting-started/setup-macos/'
       : 'https://tauri.studio/en/docs/getting-started/setup-linux/'
 
+  // prettier-ignore
   console.log(
-    `If you haven't already, please take a moment to setup your system.`
+    `
+We hope to help you create something special with ${bold(yellow('Tauri'))}!
+You will have a choice of one of the UI frameworks supported by the greater web tech community.
+This tool should get you quickly started. See our docs at ${cyan('https://tauri.studio/')}
+
+If you haven't already, please take a moment to setup your system.
+You may find the requirements here: ${cyan(setupLink)}
+    `
   )
-  console.log(`You may find the requirements here: ${setupLink}`)
 
   await keypress(argv.ci)
 
@@ -284,7 +275,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager,
       ci: argv.ci,
       cwd: directory,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
   const cfg = {
@@ -307,7 +298,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cfg,
       packageManager,
       ci: argv.ci,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
 
@@ -371,7 +362,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cfg,
       packageManager,
       ci: argv.ci,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
 }

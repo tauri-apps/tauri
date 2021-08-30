@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import inquirer from 'inquirer'
-import { Command, Option } from 'commander'
+import { program, createOption } from 'commander'
 import { bold, cyan, green, reset, yellow } from 'chalk'
 import { platform } from 'os'
 import { resolve, join, relative } from 'path'
@@ -38,27 +38,19 @@ interface Argv {
 }
 
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
-  const program = new Command()
+  program
     .description('Starts a new tauri app from a "recipe" or pre-built template')
-    .helpOption('-h, --help', 'Displays this message')
-    .version(
-      // eslint-disable-next-line
-      require('../package.json').version,
-      '-v, --version',
-      'Displays the Tauri CLI version'
+    .addOption(
+      createOption(
+        '-r, --recipe <recipe>',
+        'Specify UI framework recipe'
+      ).choices(recipeShortNames)
     )
     .option('-c, --ci', 'Skip prompts')
     .addOption(
-      new Option('-f, --force [option]', 'Force init to overwrite')
+      createOption('-f, --force [option]', 'Force init to overwrite')
         .choices(['conf', 'template', 'all'])
         .default('all')
-    )
-    .option('-l, --log', 'Add log messages')
-    .addOption(
-      new Option(
-        '-m, --manager <package-manager>',
-        'Set package manager to use'
-      ).choices(['npm', 'yarn', 'pnpm'])
     )
     .option('-d, --directory <path>', 'Set target directory for init')
     .option('-A, --app-name <name>', 'Name of your Tauri application')
@@ -72,14 +64,25 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
     )
     .option('-p, --dev-path <path>', 'Url of your dev server')
     .addOption(
-      new Option(
-        '-r, --recipe <recipe>',
-        'Add UI framework recipe. None by default'
-      ).choices(recipeShortNames)
+      createOption(
+        '-m, --manager <package-manager>',
+        'Set package manager to use'
+      ).choices(['npm', 'yarn', 'pnpm'])
     )
-    .addOption(new Option('-b, --binary <path>').hideHelp())
+    .addOption(
+      createOption('-b, --binary <path>', 'Use a prebuilt Tauri CLI binary')
+    )
+    .option('-l, --log', 'Add log messages')
+    .version(
+      // eslint-disable-next-line
+      require('../package.json').version,
+      '-v, --version',
+      'Displays create-tauri-app version'
+    )
+    .helpOption('-h, --help', 'Displays this message')
     .showHelpAfterError('For more information try --help')
     .parse(process.argv)
+
   const argv = program.opts()
   return await runInit(argv as Argv)
 }

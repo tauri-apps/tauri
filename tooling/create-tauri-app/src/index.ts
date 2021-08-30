@@ -55,7 +55,9 @@ interface Argv {
 
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
   program
-    .description('Starts a new tauri app from a "recipe" or pre-built template')
+    .description(
+      'Bootstrap a new tauri app from a "recipe" or pre-built template.'
+    )
     .addOption(
       createOption(
         '-r, --recipe <recipe>',
@@ -97,6 +99,11 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
     )
     .helpOption('-h, --help', 'Displays this message')
     .showHelpAfterError('For more information try --help')
+    .configureHelp({
+      optionTerm: (option) => cyan(option.flags),
+      commandUsage: (command) => cyan(command.name()) + ' [options]',
+      commandDescription: (command) => yellow(command.description())
+    })
     .parse(process.argv)
 
   const argv = program.opts()

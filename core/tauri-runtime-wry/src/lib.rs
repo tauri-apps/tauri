@@ -516,6 +516,8 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         scale_factor: *scale_factor,
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
+      #[cfg(any(target_os = "linux", target_os = "macos"))]
+      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
       _ => return Self(None),
     };
     Self(Some(event))
@@ -1925,6 +1927,8 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      // NOTE(amrbashir): we handle this event here instead of `match` statement below because
+      // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
         if let Some(WindowHandle::Webview(webview)) = windows.get(&window_id).map(|w| &w.inner) {
           webview.focus();

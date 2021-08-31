@@ -103,4 +103,4 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
+export { EOL, Platform, platform, version, OsType, type, Arch, arch, tempdir }

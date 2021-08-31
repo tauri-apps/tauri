@@ -23,6 +23,7 @@
  * @module
  */
 
+import { LiteralUnion } from 'type-fest'
 import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
 
@@ -33,15 +34,10 @@ import { invokeTauriCommand } from './helpers/tauri'
  * */
 const EOL = isWindows() ? '\r\n' : '\n'
 
-type Platform =
-  | 'aix'
-  | 'darwin'
-  | 'freebsd'
-  | 'linux'
-  | 'openbsd'
-  | 'sunos'
-  | 'win32'
-  | string
+type Platform = LiteralUnion<
+  'aix' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32',
+  string
+>
 
 /**
  * Returns a string identifying the operating system platform.
@@ -68,7 +64,7 @@ async function version(): Promise<string> {
   })
 }
 
-type OsType = 'Linux' | 'Darwin' | 'Windows_NT' | string
+type OsType = LiteralUnion<'Linux' | 'Darwin' | 'Windows_NT', string>
 
 /**
  * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
@@ -82,7 +78,7 @@ async function type(): Promise<OsType> {
   })
 }
 
-type Arch =
+type Arch = LiteralUnion<
   | 'x86'
   | 'x86_64'
   | 'arm'
@@ -93,8 +89,9 @@ type Arch =
   | 'powerpc64'
   | 'riscv64'
   | 's390x'
-  | 'sparc64'
-  | string
+  | 'sparc64',
+  string
+>
 
 /**
  * Returns the operating system CPU architecture for which the tauri app was compiled. Possible values are `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'mips'`, `'mips64'`, `'powerpc'`, `'powerpc64'`, `'riscv64'`, `'s390x'`, `'sparc64'`

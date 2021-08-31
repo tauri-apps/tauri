@@ -28,7 +28,7 @@ use tauri_utils::PackageInfo;
 use std::{
   collections::HashMap,
   path::PathBuf,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, Weak},
 };
 
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
@@ -187,7 +187,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 

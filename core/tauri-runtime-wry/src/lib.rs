@@ -93,7 +93,7 @@ use std::{
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
-    Arc, Mutex, MutexGuard,
+    Arc, Mutex, MutexGuard, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
@@ -976,7 +976,7 @@ pub enum Message {
   ),
   CreateWindow(
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
-    Sender<Result<Arc<Window>>>,
+    Sender<Result<Weak<Window>>>,
   ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
@@ -1485,7 +1485,7 @@ impl WryHandle {
   pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
     &self,
     f: F,
-  ) -> Result<Arc<Window>> {
+  ) -> Result<Weak<Window>> {
     let (tx, rx) = channel();
     self
       .dispatcher_context
@@ -2181,7 +2181,7 @@ fn handle_event_loop(
               menu_items: Default::default(),
             },
           );
-          sender.send(Ok(w)).unwrap();
+          sender.send(Ok(Arc::downgrade(&w))).unwrap();
         } else {
           sender.send(Err(Error::CreateWindow)).unwrap();
         }

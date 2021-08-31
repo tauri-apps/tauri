@@ -62,7 +62,7 @@ async function version(): Promise<string> {
 }
 
 
-type Type = 'Linux' | 'Darwin' | 'Windows_NT'
+type OsType = 'Linux' | 'Darwin' | 'Windows_NT'
 
 /**
  * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.

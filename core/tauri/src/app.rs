@@ -914,29 +914,6 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manager.initialize_plugins(&app.handle())?;
-
-    let pending_labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
-    for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(app.handle(), detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(_window);
-      }
-    }
-
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
@@ -1024,6 +1001,29 @@ impl<R: Runtime> Builder<R> {
               listener.lock().unwrap()(&app_handle, event);
             });
           });
+      }
+    }
+
+    app.manager.initialize_plugins(&app.handle())?;
+
+    let pending_labels = self
+      .pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    #[cfg(feature = "updater")]
+    let mut main_window = None;
+
+    for pending in self.pending_windows {
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
+      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
+      let _window = app.manager.attach_window(app.handle(), detached);
+      #[cfg(feature = "updater")]
+      if main_window.is_none() {
+        main_window = Some(_window);
       }
     }
 

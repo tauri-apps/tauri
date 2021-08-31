@@ -67,8 +67,8 @@ type OsType = 'Linux' | 'Darwin' | 'Windows_NT'
 /**
  * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
  */
-async function type(): Promise<Type> {
-  return invokeTauriCommand<Type>({
+async function type(): Promise<OsType> {
+  return invokeTauriCommand<OsType>({
     __tauriModule: 'Os',
     message: {
       cmd: 'type'

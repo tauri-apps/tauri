@@ -136,14 +136,14 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
-          path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
+          path: ./examples/updater/src-tauri/target/release/bundle/appimage/updater-example_*.AppImage.*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./target/release/bundle/msi/*
+          path: ./examples/updater/src-tauri/target/release/bundle/msi/*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: macos-updater-artifacts
-          path: ./target/release/bundle/macos/updater-example.app.tar.*
+          path: ./examples/updater/src-tauri/target/release/bundle/macos/updater-example.app.tar.*

@@ -3,6 +3,7 @@ name = "<%= name %>"
 version = "1.0.0"
 categories = ["wasm"]
 edition = "2018"
+description = ""
 
 [profile.release]
 lto = true

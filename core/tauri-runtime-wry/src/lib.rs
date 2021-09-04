@@ -93,7 +93,7 @@ use std::{
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::{channel, Sender},
-    Arc, Mutex, MutexGuard,
+    Arc, Mutex, MutexGuard, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
@@ -516,6 +516,8 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
         scale_factor: *scale_factor,
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
+      #[cfg(any(target_os = "linux", target_os = "macos"))]
+      WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
       _ => return Self(None),
     };
     Self(Some(event))
@@ -974,7 +976,7 @@ pub enum Message {
   ),
   CreateWindow(
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
-    Sender<Result<Arc<Window>>>,
+    Sender<Result<Weak<Window>>>,
   ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
@@ -1483,7 +1485,7 @@ impl WryHandle {
   pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
     &self,
     f: F,
-  ) -> Result<Arc<Window>> {
+  ) -> Result<Weak<Window>> {
     let (tx, rx) = channel();
     self
       .dispatcher_context
@@ -1925,6 +1927,8 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      // NOTE(amrbashir): we handle this event here instead of `match` statement below because
+      // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
         if let Some(WindowHandle::Webview(webview)) = windows.get(&window_id).map(|w| &w.inner) {
           webview.focus();
@@ -2177,7 +2181,7 @@ fn handle_event_loop(
               menu_items: Default::default(),
             },
           );
-          sender.send(Ok(w)).unwrap();
+          sender.send(Ok(Arc::downgrade(&w))).unwrap();
         } else {
           sender.send(Err(Error::CreateWindow)).unwrap();
         }

@@ -39,7 +39,7 @@
     "scaffe": "1.1.0"
   },
   "devDependencies": {
-    "@effection/process": "2.0.0-beta.12",
+    "@effection/process": "2.0.0-beta.13",
     "@rollup/plugin-commonjs": "20.0.0",
     "@rollup/plugin-node-resolve": "13.0.4",
     "@rollup/plugin-typescript": "8.2.5",
@@ -47,21 +47,21 @@
     "@types/inquirer": "7.3.3",
     "@types/minimist": "1.2.2",
     "@types/semver": "7.3.8",
-    "@typescript-eslint/eslint-plugin": "4.29.2",
-    "@typescript-eslint/parser": "4.29.2",
-    "effection": "2.0.0-beta.12",
+    "@typescript-eslint/eslint-plugin": "4.30.0",
+    "@typescript-eslint/parser": "4.30.0",
+    "effection": "2.0.0-beta.13",
     "eslint": "7.32.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
-    "eslint-plugin-import": "2.24.0",
+    "eslint-plugin-import": "2.24.2",
     "eslint-plugin-lodash-template": "0.19.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.0",
     "eslint-plugin-security": "1.4.0",
     "prettier": "2.3.2",
-    "rollup": "2.56.2",
+    "rollup": "2.56.3",
     "temp-dir": "2.0.0",
     "tslib": "2.3.1",
-    "typescript": "4.3.5"
+    "typescript": "4.4.2"
   }
 }

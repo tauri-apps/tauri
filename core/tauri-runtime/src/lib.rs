@@ -11,7 +11,7 @@ use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
 
 #[cfg(windows)]
-use winapi::shared::windef::HWND;
+use webview2_com_sys::Windows::Win32::Foundation::HWND;
 
 pub mod http;
 /// Create window and system tray menus.

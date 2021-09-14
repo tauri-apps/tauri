@@ -32,7 +32,7 @@ http-range = "0.1.4"
 infer = "0.4"
 
 [target."cfg(windows)".dependencies]
-winapi = "0.3"
+webview2-com-sys = "0.4.0"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.14", features = [ "v3_20" ] }

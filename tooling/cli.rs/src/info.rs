@@ -50,8 +50,6 @@ struct VersionMetadata {
 struct CargoManifestDependencyPackage {
   version: Option<String>,
   path: Option<PathBuf>,
-  #[serde(default)]
-  features: Vec<String>,
 }
 
 #[derive(Clone, Deserialize)]

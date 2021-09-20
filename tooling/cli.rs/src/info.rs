@@ -319,7 +319,7 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
       versions.push(caps["version"].to_string());
     }
 
-    if versions.len() == 0 {
+    if versions.is_empty() {
       None
     } else {
       Some(versions)

@@ -291,6 +291,45 @@ fn webview2_version() -> crate::Result<Option<String>> {
   Ok(version)
 }
 
+#[cfg(windows)]
+fn run_vs_setup_instance() -> std::io::Result<std::process::Output> {
+  Command::new("powershell")
+    .args(&["-NoProfile", "-Command"])
+    .arg("Get-VSSetupInstance")
+    .output()
+}
+
+#[cfg(windows)]
+fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
+  let mut output = run_vs_setup_instance();
+  if output.is_err() {
+    Command::new("powershell")
+      .args(&["-NoProfile", "-Command"])
+      .arg("Install-Module VSSetup -Scope CurrentUser")
+      .output()?;
+    output = run_vs_setup_instance();
+  }
+  let output = output?;
+  let versions = if output.status.success() {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut versions = Vec::new();
+
+    let regex = regex::Regex::new(r"Visual Studio Build Tools (?P<version>\d+)").unwrap();
+    for caps in regex.captures_iter(&stdout) {
+      versions.push(caps["version"].to_string());
+    }
+
+    if versions.len() == 0 {
+      None
+    } else {
+      Some(versions)
+    }
+  } else {
+    None
+  };
+  Ok(versions)
+}
+
 struct InfoBlock {
   section: bool,
   key: &'static str,
@@ -403,6 +442,24 @@ impl Info {
 
     #[cfg(windows)]
     VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
+    #[cfg(windows)]
+    VersionBlock::new(
+      "Visual Studio Build Tools",
+      build_tools_version()
+        .map(|r| {
+          let required_string = "(>= 2019 required)";
+          let multiple_string =
+            "(multiple versions might conflict; keep only 2019 if build errors occur)";
+          r.map(|v| match v.len() {
+            1 if v[0].as_str() < "2019" => format!("{} {}", v[0], required_string),
+            1 if v[0].as_str() >= "2019" => v[0].clone(),
+            _ if v.contains(&"2019".into()) => format!("{} {}", v.join(", "), multiple_string),
+            _ => format!("{} {} {}", v.join(", "), required_string, multiple_string),
+          })
+        })
+        .unwrap_or_default(),
+    )
+    .display();
 
     let hook = panic::take_hook();
     panic::set_hook(Box::new(|_info| {

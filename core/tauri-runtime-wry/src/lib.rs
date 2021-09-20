@@ -2036,7 +2036,7 @@ fn handle_event_loop(
             #[cfg(target_os = "macos")]
             WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
             #[cfg(windows)]
-            WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as HWND)).unwrap(),
+            WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",

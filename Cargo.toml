@@ -15,9 +15,6 @@ exclude = [
   "examples/updater/src-tauri"
 ]
 
-[patch.crates-io]
-tao = { git = "https://github.com/wravery/tao", branch = "webview2-com" }
-
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"

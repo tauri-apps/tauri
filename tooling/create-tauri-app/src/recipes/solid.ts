@@ -37,7 +37,7 @@ const solid: Recipe = {
   configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../public`,
-    devPath: 'http://localhost:5000',
+    devPath: 'http://localhost:3000',
     beforeDevCommand: `${
       packageManager === 'yarn' ? 'npm run' : packageManager
     } dev`,

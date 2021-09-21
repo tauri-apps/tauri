@@ -330,7 +330,7 @@ class WindowManager extends WebviewWindowHandle {
 
   /** The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop. */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<PhysicalPosition>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -341,12 +341,12 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({x, y}) => new PhysicalPosition(x, y))
   }
 
   /** The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop. */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<PhysicalPosition>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -357,7 +357,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({x, y}) => new PhysicalPosition(x, y))
   }
 
   /**
@@ -365,7 +365,7 @@ class WindowManager extends WebviewWindowHandle {
    * The client area is the content of the window, excluding the title bar and borders.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<PhysicalSize>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -376,7 +376,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({width, height}) => new PhysicalSize(width, height))
   }
 
   /**
@@ -384,7 +384,7 @@ class WindowManager extends WebviewWindowHandle {
    * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<PhysicalSize>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -395,7 +395,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({width, height}) => new PhysicalSize(width, height))
   }
 
   /** Gets the window's current fullscreen state. */

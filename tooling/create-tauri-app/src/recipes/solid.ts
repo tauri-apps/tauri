@@ -9,7 +9,7 @@ import { Recipe } from '../types/recipe'
 const solid: Recipe = {
   descriptiveName: {
     name: 'SolidJS (https://github.com/solidjs/solid)',
-    value: 'solidjs'
+    value: 'solid'
   },
   shortName: 'solid',
   extraNpmDevDependencies: [],

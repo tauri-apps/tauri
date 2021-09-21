@@ -10,9 +10,9 @@ Here you will find guides and techniques to add to your own project in order to 
 
 ## A Step Further
 
-- [Understanding Tauri Patterns](/docs/usage/patterns/about-patterns)
-- [Add Tauri to my existing project](/docs/usage/development/integration)
+- [Tauri project integration](/docs/usage/development/integration)
 - [Tauri Development Cycle](/docs/usage/development/development)
+- [Understanding Tauri Patterns](/docs/usage/patterns/about-patterns)
 
 ## Guides
 

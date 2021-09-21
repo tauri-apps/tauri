@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.9", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1.10", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
@@ -58,7 +58,7 @@ bincode = "1.3"
 dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
-clap = { version = "=3.0.0-beta.2", optional = true }
+clap = { version = "=3.0.0-beta.4", optional = true }
 notify-rust = { version = "4.5", optional = true }
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
@@ -69,7 +69,7 @@ os_pipe = { version = "0.9", optional = true }
 rfd = { version = "0.4.3", features = [ "parent" ] }
 raw-window-handle = "0.3.3"
 minisign-verify = { version = "0.1", optional = true }
-os_info = { version = "3.0.6", optional = true }
+os_info = { version = "3.0.7", optional = true }
 futures-lite = "1.12"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -90,7 +90,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 tokio-test = "0.4.2"
-tokio = { version = "1.9", features = [ "full" ] }
+tokio = { version = "1.10", features = [ "full" ] }
 mockito = "0.30"
 
 [features]

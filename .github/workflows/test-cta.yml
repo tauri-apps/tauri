@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        default: "ubuntu"
+        default: 'ubuntu'
   pull_request:
     paths:
       - 'tooling/create-tauri-app/**'

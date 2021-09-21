@@ -39,10 +39,10 @@ const solid: Recipe = {
     distDir: `../public`,
     devPath: 'http://localhost:3000',
     beforeDevCommand: `${
-      packageManager === 'yarn' ? 'npm run' : packageManager
+      packageManager === 'npm' ? 'npm run' : packageManager
     } dev`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'npm run' : packageManager
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
@@ -57,9 +57,7 @@ const solid: Recipe = {
     Your installation completed.
     $ cd ${cfg.appName}
     $ ${packageManager} install
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '--' : ''
-    }dev
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
 
     return await Promise.resolve()

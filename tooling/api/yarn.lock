@@ -3544,10 +3544,10 @@ type-check@^0.4.0, type-check@~0.4.0:
   dependencies:
     prelude-ls "^1.2.1"
 
-type-fest@2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.2.0.tgz#046d9b65ab5083e691ac4c7c264b54207046a755"
-  integrity sha512-T/HWTs/P20wqgy3GoIDv80tAB3Xvgk2vpxnS1vF8oVboipjrSB1hP5f1gFhCVt5QuMvOsALSwBBd02J94P51lg==
+type-fest@2.3.4:
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.3.4.tgz#59bd28c5715a7ea39f8fb0d7e424355ae231a24e"
+  integrity sha512-2UdQc7cx8F4Ky81Xj7NYQKPhZVtDFbtorrkairIW66rW7xQj5msAhioXa04HqEdP4MD4K2G6QAF7Zyiw/Hju1Q==
 
 type-fest@^0.20.2:
   version "0.20.2"

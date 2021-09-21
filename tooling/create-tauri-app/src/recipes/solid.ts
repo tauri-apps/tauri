@@ -48,7 +48,7 @@ const solid: Recipe = {
   preInit: async ({ cwd, cfg, answers }) => {
     await shell(
       'npx',
-      ['degit', `solidjs/templates/${answers?.template}`, `${cfg.appName}`],
+      ['degit', `solidjs/templates/${answers?.template ?? 'js'}`, cfg.appName],
       { cwd }
     )
   },

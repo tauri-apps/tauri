@@ -8,7 +8,7 @@ import { Recipe } from '../types/recipe'
 
 const solid: Recipe = {
   descriptiveName: {
-    name: 'Solid (https://github.com/solidjs/solid)',
+    name: 'Solid (https://github.com/solidjs/templates)',
     value: 'solid'
   },
   shortName: 'solid',
@@ -19,7 +19,7 @@ const solid: Recipe = {
       {
         type: 'list',
         name: 'template',
-        message: 'Which Solid template would you like to use? (Read more at https://github.com/solidjs/templates)',
+        message: 'Which Solid template would you like to use?',
         choices: [
           'js',
           'ts-bootstrap',

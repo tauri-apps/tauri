@@ -31,10 +31,10 @@ const svelte: Recipe = {
     distDir: `../public`,
     devPath: 'http://localhost:5000',
     beforeDevCommand: `${
-      packageManager === 'yarn' ? 'npm run' : packageManager
+      packageManager === 'npm' ? 'npm run' : packageManager
     } dev`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'npm run' : packageManager
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
@@ -60,9 +60,7 @@ const svelte: Recipe = {
 
     $ cd ${cfg.appName}
     $ ${packageManager} install
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '--' : ''
-    }dev
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
 
     return await Promise.resolve()

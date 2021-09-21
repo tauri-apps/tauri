@@ -47,7 +47,7 @@ async function appDir(): Promise<string> {
 /**
  * Returns the path to the user's audio directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_MUSIC_DIR`.
  * - **macOS:** Resolves to `$HOME/Music`.
@@ -69,7 +69,7 @@ async function audioDir(): Promise<string> {
 /**
  * Returns the path to the user's cache directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_CACHE_HOME` or `$HOME/.cache`.
  * - **macOS:** Resolves to `$HOME/Library/Caches`.
@@ -91,7 +91,7 @@ async function cacheDir(): Promise<string> {
 /**
  * Returns the path to the user's config directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
  * - **macOS:** Resolves to `$HOME/Library/Application Support`.
@@ -113,7 +113,7 @@ async function configDir(): Promise<string> {
 /**
  * Returns the path to the user's data directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
  * - **macOS:** Resolves to `$HOME/Library/Application Support`.
@@ -135,7 +135,7 @@ async function dataDir(): Promise<string> {
 /**
  * Returns the path to the user's desktop directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_DESKTOP_DIR`.
  * - **macOS:** Resolves to `$HOME/Library/Desktop`.
@@ -157,7 +157,7 @@ async function desktopDir(): Promise<string> {
 /**
  * Returns the path to the user's document directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_DOCUMENTS_DIR`.
  * - **macOS:** Resolves to `$HOME/Documents`.
@@ -179,7 +179,7 @@ async function documentDir(): Promise<string> {
 /**
  * Returns the path to the user's download directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux**: Resolves to `$XDG_DOWNLOAD_DIR`.
  * - **macOS**: Resolves to `$HOME/Downloads`.
@@ -201,7 +201,7 @@ async function downloadDir(): Promise<string> {
 /**
  * Returns the path to the user's executable directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
  * - **macOS:** Not supported.
@@ -223,7 +223,7 @@ async function executableDir(): Promise<string> {
 /**
  * Returns the path to the user's font directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
  * - **macOS:** Resolves to `$HOME/Library/Fonts`.
@@ -245,7 +245,7 @@ async function fontDir(): Promise<string> {
 /**
  * Returns the path to the user's home directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$HOME`.
  * - **macOS:** Resolves to `$HOME`.
@@ -267,7 +267,7 @@ async function homeDir(): Promise<string> {
 /**
  * Returns the path to the user's local data directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
  * - **macOS:** Resolves to `$HOME/Library/Application Support`.
@@ -289,7 +289,7 @@ async function localDataDir(): Promise<string> {
 /**
  * Returns the path to the user's picture directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_PICTURES_DIR`.
  * - **macOS:** Resolves to `$HOME/Pictures`.
@@ -311,7 +311,7 @@ async function pictureDir(): Promise<string> {
 /**
  * Returns the path to the user's public directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_PUBLICSHARE_DIR`.
  * - **macOS:** Resolves to `$HOME/Public`.
@@ -349,7 +349,7 @@ async function resourceDir(): Promise<string> {
 /**
  * Returns the path to the user's runtime directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_RUNTIME_DIR`.
  * - **macOS:** Not supported.
@@ -371,7 +371,7 @@ async function runtimeDir(): Promise<string> {
 /**
  * Returns the path to the user's template directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_TEMPLATES_DIR`.
  * - **macOS:** Not supported.
@@ -393,7 +393,7 @@ async function templateDir(): Promise<string> {
 /**
  * Returns the path to the user's video directory.
  *
- * ## Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `$XDG_VIDEOS_DIR`.
  * - **macOS:** Resolves to `$HOME/Movies`.

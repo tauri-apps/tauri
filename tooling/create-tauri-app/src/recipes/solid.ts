@@ -17,10 +17,18 @@ const solid: Recipe = {
   extraQuestions: ({ ci }) => {
     return [
       {
-        type: 'confirm',
-        name: 'typescript',
-        message: 'Enable Typescript?',
-        default: true,
+        type: 'list',
+        name: 'template',
+        message: 'Which SolidJS template would you like to use? (Read more at https://github.com/solidjs/templates)',
+        choices: [
+          'js',
+          'ts-bootstrap',
+          'ts-minimal',
+          'ts-router',
+          'ts-windicss',
+          'ts'
+        ],
+        default: 'ts',
         loop: false,
         when: !ci
       }
@@ -39,9 +47,9 @@ const solid: Recipe = {
   }),
   preInit: async ({ cwd, cfg, answers }) => {
     await shell(
-        'npx',
-        ['degit', `solidjs/template/${!!answers.typescript ? 'ts' : 'js'}`, `${cfg.appName}`],
-        { cwd }
+      'npx',
+      ['degit', `solidjs/templates/${answers?.template}`, `${cfg.appName}`],
+      { cwd }
     )
   },
   postInit: async ({ cfg, packageManager }) => {

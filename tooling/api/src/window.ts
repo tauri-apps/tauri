@@ -176,13 +176,13 @@ declare global {
 /** Attention type to request on a window. */
 enum UserAttentionType {
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    *  - **macOS:** Bounces the dock icon until the application is in focus.
    * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
    */
   Critical = 1,
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    * - **macOS:** Bounces the dock icon once.
    * - **Windows:** Flashes the taskbar button until the application is in focus.
    */
@@ -509,7 +509,7 @@ class WindowManager extends WebviewWindowHandle {
    * Providing `null` will unset the request for user attention. Unsetting the request for
    * user attention might not be done automatically by the WM when the window receives input.
    *
-   * ## Platform-specific
+   * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
    *

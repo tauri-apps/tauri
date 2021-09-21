@@ -17,7 +17,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.0.0-beta.2", features = [ "yaml" ] }
+clap = { version = "3.0.0-beta.4", features = [ "yaml" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.0-beta.4", path = "../bundler" }
 colored = "2.0"
@@ -36,7 +36,7 @@ handlebars = "4.1"
 include_dir = "0.6"
 minisign = "0.6"
 base64 = "0.13.0"
-ureq = "2.1"
+ureq = "2.2"
 os_info = "3.0"
 semver = "1.0"
 regex = "1.5"

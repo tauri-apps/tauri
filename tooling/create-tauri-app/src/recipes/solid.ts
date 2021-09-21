@@ -42,7 +42,7 @@ const solid: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } dev`,
     beforeBuildCommand: `${
-      packageManager === 'yarn' ? 'npm run' : packageManager
+      packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {

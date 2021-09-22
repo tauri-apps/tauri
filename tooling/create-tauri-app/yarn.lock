@@ -208,10 +208,10 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-0.0.39.tgz#e177e699ee1b8c22d23174caaa7422644389509f"
   integrity sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==
 
-"@types/inquirer@8.1.1":
-  version "8.1.1"
-  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-8.1.1.tgz#885e39b53ed3fe3ea48de416aaeeb02e8253e1f7"
-  integrity sha512-01diGjEMJjyTCOXwlnhEQcNH8LYRzy3zpqk19WxKBKmV1nt9yAmpNNS577OWAVhekAesULxIkG1PwsCvjqWYKA==
+"@types/inquirer@8.1.2":
+  version "8.1.2"
+  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-8.1.2.tgz#48be1d741fa39ade7ce099dbdb8a077eee8f5090"
+  integrity sha512-TYNYd9YEb1SdEo71AJ2sSYSS22gYiLV1/UzDjGY51Tx0LuVSbY3ftFR+eOP8qjowFKvDUnC2jmQP3hLulg6y6Q==
   dependencies:
     "@types/through" "*"
     rxjs "^7.2.0"

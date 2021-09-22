@@ -44,7 +44,7 @@
     "@rollup/plugin-node-resolve": "13.0.5",
     "@rollup/plugin-typescript": "8.2.5",
     "@types/cross-spawn": "6.0.2",
-    "@types/inquirer": "8.1.1",
+    "@types/inquirer": "8.1.2",
     "@types/minimist": "1.2.2",
     "@types/semver": "7.3.8",
     "@typescript-eslint/eslint-plugin": "4.31.2",

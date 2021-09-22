@@ -3060,6 +3060,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-webview2"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7685d17e9007618d13f011f916e28a8830c7108c46cf263bd3ab53a19e1a4fc3"
+dependencies = [
+ "com",
+ "once_cell",
+ "webview2-sys",
+ "widestring",
+ "winapi",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3110,18 +3123,18 @@ checksum = "8eaa81235c7058867fa8c0e7314f33dcce9c215f535d1913822a2b3f5e289f3c"
 
 [[package]]
 name = "thiserror"
-version = "1.0.26"
+version = "1.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93119e4feac1cbe6c798c34d3a53ea0026b0b1de6a120deef895137c0529bfe2"
+checksum = "602eca064b2d83369e2b2f34b09c70b605402801927c65c11071ac911d299b88"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.26"
+version = "1.0.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "060d69a0afe7796bf42e9e2ff91f5ee691fb15c53d38b4b62a9a53eb23164745"
+checksum = "bad553cc2c78e8de258400763a647e80e6d1b31ee237275d756f6836d204494c"
 dependencies = [
  "proc-macro2",
  "quote 1.0.9",
@@ -3451,19 +3464,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "webview2"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fab1ccfdabb098b047293c8d496c1914d1c654b68fdaa3bb77cfa47c4bca2c7"
-dependencies = [
- "com",
- "once_cell",
- "webview2-sys",
- "widestring",
- "winapi",
-]
-
-[[package]]
 name = "webview2-sys"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3556,11 +3556,11 @@ dependencies = [
  "xml-rs",
 ]
 
+
 [[package]]
 name = "wry"
 version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f9549393a3917b5303277abb0267f8eecf9fd629b25f1c04e5284aa58b61915"
+source = "git+https://github.com/tauri-apps/wry?branch=next#9bc201d80811d27529024457c6700364088dc0dd"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.2",
@@ -3577,11 +3577,11 @@ dependencies = [
  "serde",
  "serde_json",
  "tao",
+ "tauri-webview2",
  "thiserror",
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2",
  "webview2-sys",
  "winapi",
 ]

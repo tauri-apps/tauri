@@ -33,7 +33,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.10", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1.12", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
@@ -66,7 +66,7 @@ attohttpc = { version = "0.17", features = [ "json", "form" ] }
 open = { version = "2.0", optional = true }
 shared_child = { version = "0.3", optional = true }
 os_pipe = { version = "0.9", optional = true }
-rfd = { version = "0.4.3", features = [ "parent" ] }
+rfd = { version = "0.5.0", features = [ "parent" ] }
 raw-window-handle = "0.3.3"
 minisign-verify = { version = "0.1", optional = true }
 os_info = { version = "3.0.7", optional = true }
@@ -90,7 +90,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 tokio-test = "0.4.2"
-tokio = { version = "1.10", features = [ "full" ] }
+tokio = { version = "1.12", features = [ "full" ] }
 mockito = "0.30"
 
 [features]

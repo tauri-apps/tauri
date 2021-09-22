@@ -16,7 +16,9 @@ use tauri::{command, State, Window};
 
 #[derive(Debug)]
 pub struct MyState {
+  #[allow(dead_code)]
   value: u64,
+  #[allow(dead_code)]
   label: String,
 }
 

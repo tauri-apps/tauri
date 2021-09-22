@@ -2,25 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
-const svelte: Recipe = {
+const solid: Recipe = {
   descriptiveName: {
-    name: 'Svelte (https://github.com/sveltejs/template)',
-    value: 'svelte'
+    name: 'Solid (https://github.com/solidjs/templates)',
+    value: 'solid'
   },
-  shortName: 'svelte',
+  shortName: 'solid',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
   extraQuestions: ({ ci }) => {
     return [
       {
-        type: 'confirm',
-        name: 'typescript',
-        message: 'Enable Typescript?',
-        default: true,
+        type: 'list',
+        name: 'template',
+        message: 'Which Solid template would you like to use?',
+        choices: [
+          'js',
+          'ts-bootstrap',
+          'ts-minimal',
+          'ts-router',
+          'ts-windicss',
+          'ts'
+        ],
+        default: 'ts',
         loop: false,
         when: !ci
       }
@@ -29,7 +36,7 @@ const svelte: Recipe = {
   configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../public`,
-    devPath: 'http://localhost:5000',
+    devPath: 'http://localhost:3000',
     beforeDevCommand: `${
       packageManager === 'npm' ? 'npm run' : packageManager
     } dev`,
@@ -38,26 +45,19 @@ const svelte: Recipe = {
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
-    let typescript = false
+    let template = 'js'
     if (answers) {
-      typescript = !!answers.typescript
+      template = answers.template ? (answers.template as string) : 'js'
     }
-
-    await shell('npx', ['degit', 'sveltejs/template', `${cfg.appName}`], {
-      cwd
-    })
-
-    // Add Typescript
-    if (typescript) {
-      await shell('node', ['scripts/setupTypeScript.js'], {
-        cwd: join(cwd, cfg.appName)
-      })
-    }
+    await shell(
+      'npx',
+      ['degit', `solidjs/templates/${template}`, cfg.appName],
+      { cwd }
+    )
   },
   postInit: async ({ cfg, packageManager }) => {
     console.log(`
     Your installation completed.
-
     $ cd ${cfg.appName}
     $ ${packageManager} install
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
@@ -67,4 +67,4 @@ const svelte: Recipe = {
   }
 }
 
-export { svelte }
+export { solid }

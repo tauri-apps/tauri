@@ -5,7 +5,7 @@ title: Icons
 import Command from '@theme/Command'
 import Alert from '@theme/Alert'
 
-Tauri ships with a default iconset based on its logo. This is probably NOT what you want when you ship your application. To remedy this common situation, Tauri provides the `icon` command that will take an input file and create all the icons needed for the various platforms:
+Tauri ships with a default iconset based on its logo. This is probably NOT what you want when you ship your application. To remedy this common situation, Tauri provides the `icon` command that will take an input file ("./app-icon.png" by default) and create all the icons needed for the various platforms:
 
 <Command name="icon"/>
 

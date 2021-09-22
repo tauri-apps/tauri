@@ -208,13 +208,13 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-0.0.39.tgz#e177e699ee1b8c22d23174caaa7422644389509f"
   integrity sha512-EYNwp3bU+98cpU4lAWYYL7Zz+2gryWH1qbdDTidVd6hkiR6weksdbMadyXKXNPEkQFhXM+hVO9ZygomHXp+AIw==
 
-"@types/inquirer@7.3.3":
-  version "7.3.3"
-  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-7.3.3.tgz#92e6676efb67fa6925c69a2ee638f67a822952ac"
-  integrity sha512-HhxyLejTHMfohAuhRun4csWigAMjXTmRyiJTU1Y/I1xmggikFMkOUoMQRlFm+zQcPEGHSs3io/0FAmNZf8EymQ==
+"@types/inquirer@8.1.1":
+  version "8.1.1"
+  resolved "https://registry.yarnpkg.com/@types/inquirer/-/inquirer-8.1.1.tgz#885e39b53ed3fe3ea48de416aaeeb02e8253e1f7"
+  integrity sha512-01diGjEMJjyTCOXwlnhEQcNH8LYRzy3zpqk19WxKBKmV1nt9yAmpNNS577OWAVhekAesULxIkG1PwsCvjqWYKA==
   dependencies:
     "@types/through" "*"
-    rxjs "^6.4.0"
+    rxjs "^7.2.0"
 
 "@types/json-schema@^7.0.7":
   version "7.0.9"
@@ -2265,7 +2265,7 @@ run-parallel@^1.1.9:
   dependencies:
     queue-microtask "^1.2.2"
 
-rxjs@^6.4.0, rxjs@^6.6.0:
+rxjs@^6.6.0:
   version "6.6.7"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-6.6.7.tgz#90ac018acabf491bf65044235d5863c4dab804c9"
   integrity sha512-hTdwr+7yYNIT5n4AMYp85KA6yw2Va0FLa3Rguvbpa4W3I5xynaBZo41cM3XM+4Q6fRMj3sBYIR1VAmZMXYJvRQ==

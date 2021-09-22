@@ -13,6 +13,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
+#wry = { git = "https://github.com/tauri-apps/wry", branch = "next", default-features = false, features = [ "file-drop", "protocol" ] }
 wry = { git = "https://github.com/wravery/wry", branch = "webview2-com", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }

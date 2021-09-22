@@ -37,24 +37,12 @@ use crate::http::{
 
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
-}
-
-#[cfg(feature = "system-tray")]
-impl Default for SystemTray {
-  fn default() -> Self {
-    Self {
-      icon: None,
-      menu: None,
-      #[cfg(target_os = "macos")]
-      icon_as_template: false,
-    }
-  }
 }
 
 #[cfg(feature = "system-tray")]

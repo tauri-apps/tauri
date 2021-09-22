@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a report to help us improve Tauri
 title: ''
-labels: bug
+labels: 'type: bug'
 assignees: ''
 
 ---
@@ -11,8 +11,8 @@ assignees: ''
 <!--
 
 0. Please search open issues before duplicating a new one.
-1. Make sure you are using the latest version of everything including: 
-  - rustc 
+1. Make sure you are using the latest version of everything including:
+  - rustc
   - ALL relevant Tauri Libs
 2. You must attach the results of cargo tauri info or yarn tauri info to your issue.
 3. Make sure it is an issue with Tauri, and not something to do with your side of the stack.
@@ -44,25 +44,25 @@ If applicable, add screenshots to help explain your problem.
 Operating System
 
 Node.js environment
-Node.js 
-@tauri-apps/cli 
-@tauri-apps/api 
+Node.js
+@tauri-apps/cli
+@tauri-apps/api
 
 Global packages
-npm 
-yarn 
+npm
+yarn
 
 Rust environment
-rustc 
-cargo 
+rustc
+cargo
 
 App directory structure
 
 
 App
-tauri.rs 
-build-type 
-CSP 
+tauri.rs
+build-type
+CSP
 ```
 
 ### **Additional context**

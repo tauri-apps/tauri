@@ -389,6 +389,7 @@ pub struct Update {
   /// Update publish date
   pub date: String,
   /// Target
+  #[allow(dead_code)]
   target: String,
   /// Extract path
   extract_path: PathBuf,

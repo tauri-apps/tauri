@@ -154,7 +154,7 @@ pub trait TrayHandle: fmt::Debug {
 }
 
 /// A window menu.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct Menu {
   pub items: Vec<MenuEntry>,
@@ -176,12 +176,6 @@ impl Submenu {
       enabled: true,
       inner: menu,
     }
-  }
-}
-
-impl Default for Menu {
-  fn default() -> Self {
-    Self { items: Vec::new() }
   }
 }
 
@@ -274,16 +268,10 @@ impl CustomMenuItem {
 }
 
 /// A system tray menu.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct SystemTrayMenu {
   pub items: Vec<SystemTrayMenuEntry>,
-}
-
-impl Default for SystemTrayMenu {
-  fn default() -> Self {
-    Self { items: Vec::new() }
-  }
 }
 
 #[derive(Debug, Clone)]

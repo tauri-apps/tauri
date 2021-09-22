@@ -72,6 +72,8 @@
   function handleWindowResize() {
     windowMap[selectedWindow].innerSize().then(response => {
       innerSize = response
+      width = innerSize.width
+      height = innerSize.height
     });
     windowMap[selectedWindow].outerSize().then(response => {
       outerSize = response
@@ -84,6 +86,8 @@
     });
     windowMap[selectedWindow].outerPosition().then(response => {
       outerPosition = response
+      x = outerPosition.x
+      y = outerPosition.y
     });
   }
 

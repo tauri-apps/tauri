@@ -341,28 +341,30 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   let logger = Logger::new("tauri:rust");
 
   while dir.pop() {
-    match CargoSettings::load(&dir) {
-      Ok(cargo_settings) => {
-        if let Some(workspace_settings) = cargo_settings.workspace {
-          if let Some(members) = workspace_settings.members {
-            if members.iter().any(|member| {
-              glob::glob(&dir.join(member).to_string_lossy().into_owned())
-                .unwrap()
-                .any(|p| p.unwrap() == project_path)
-            }) {
-              return dir;
+    if dir.join("Cargo.toml").exists() {
+      match CargoSettings::load(&dir) {
+        Ok(cargo_settings) => {
+          if let Some(workspace_settings) = cargo_settings.workspace {
+            if let Some(members) = workspace_settings.members {
+              if members.iter().any(|member| {
+                glob::glob(&dir.join(member).to_string_lossy().into_owned())
+                  .unwrap()
+                  .any(|p| p.unwrap() == project_path)
+              }) {
+                return dir;
+              }
             }
           }
         }
-      }
-      Err(e) => {
-        logger.warn(format!(
-          "Found `{}`, which may define a parent workspace, but \
+        Err(e) => {
+          logger.warn(format!(
+            "Found `{}`, which may define a parent workspace, but \
           failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
           \n    {:#}",
-          dir.display(),
-          e
-        ));
+            dir.display(),
+            e
+          ));
+        }
       }
     }
   }

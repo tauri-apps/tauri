@@ -1379,9 +1379,9 @@ dependencies = [
 
 [[package]]
 name = "instant"
-version = "0.1.10"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bee0328b1209d157ef001c94dd85b4f8f64139adb0eac2659f4b08382b2f474d"
+checksum = "716d3d89f35ac6a34fd0eed635395f4c3b76fa889338a4632e5231a8684216bd"
 dependencies = [
  "cfg-if 1.0.0",
 ]
@@ -2382,9 +2382,9 @@ dependencies = [
 
 [[package]]
 name = "rfd"
-version = "0.4.4"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "609ed912e110af7d7084b6b17d2a68b25e766208e015a37beba1be3c2d7cbb3b"
+checksum = "84b4745feef3bc92e709042c78d205e9a566ec46e18c58d4fac458e6fc12627e"
 dependencies = [
  "block",
  "dispatch",
@@ -3582,11 +3582,10 @@ dependencies = [
  "xml-rs",
 ]
 
-
 [[package]]
 name = "wry"
 version = "0.12.2"
-source = "git+https://github.com/wravery/wry?branch=webview2-com#ab847a27833c574360ac6cdd3b364b2202f86e4c"
+source = "git+https://github.com/tauri-apps/wry?branch=next#e056fb2a15e29de1b8ed85a548cfeb1f85031357"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.2",

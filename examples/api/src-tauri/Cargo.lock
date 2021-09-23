@@ -2929,8 +2929,6 @@ name = "tauri-build"
 version = "1.0.0-beta.4"
 dependencies = [
  "anyhow",
- "proc-macro2",
- "quote 1.0.9",
  "serde_json",
  "tauri-utils",
  "winres",

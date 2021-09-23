@@ -1922,6 +1922,7 @@ dependencies = [
  "clap",
  "colored",
  "encode_unicode",
+ "glob",
  "handlebars",
  "heck",
  "include_dir",

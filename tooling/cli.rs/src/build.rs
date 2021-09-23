@@ -133,7 +133,11 @@ impl Build {
       .get_out_dir(self.target.clone(), self.debug)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
-      let bin_name = app_settings.cargo_package_settings().name.clone();
+      let bin_name = app_settings
+        .cargo_package_settings()
+        .name
+        .clone()
+        .expect("Cargo manifest must have the `package.name` field");
       #[cfg(windows)]
       let (bin_path, product_path) = {
         (

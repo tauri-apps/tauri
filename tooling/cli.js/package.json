@@ -84,7 +84,7 @@
     "@types/global-agent": "2.1.1",
     "@types/imagemin": "7.0.1",
     "@types/imagemin-optipng": "5.2.1",
-    "@types/inquirer": "8.1.1",
+    "@types/inquirer": "8.1.2",
     "@types/ms": "0.7.31",
     "@types/semver": "7.3.8",
     "@types/sharp": "0.29.2",

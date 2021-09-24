@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "21692d986138570d2edc31f84bddb442a3c84a9c", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "e056fb2a15e29de1b8ed85a548cfeb1f85031357", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -21,7 +21,7 @@ infer = "0.4"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
-winapi = "0.3"
+webview2-com = "0.4.0"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"

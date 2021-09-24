@@ -4,6 +4,7 @@
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
+  command_env,
   config::{get as get_config, reload as reload_config},
   manifest::{get_workspace_members, rewrite_manifest},
   Logger,
@@ -141,6 +142,7 @@ impl Dev {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
+          .envs(command_env())
           .spawn()
           .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
         #[cfg(not(target_os = "windows"))]
@@ -148,6 +150,7 @@ impl Dev {
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
+          .envs(command_env())
           .spawn()
           .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();

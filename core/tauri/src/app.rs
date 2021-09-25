@@ -431,10 +431,10 @@ impl<R: Runtime> App<R> {
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, &callback);
+        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&callback));
       }
       _ => {
-        on_event_loop_event(&app_handle, event, &manager, &callback);
+        on_event_loop_event(&app_handle, event, &manager, Some(&callback));
       }
     });
   }
@@ -463,12 +463,11 @@ impl<R: Runtime> App<R> {
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
-    let callback = |_, _| {};
     self
       .runtime
       .as_mut()
       .unwrap()
-      .run_iteration(move |event| on_event_loop_event(&app_handle, event, &manager, &callback))
+      .run_iteration(move |event| on_event_loop_event(&app_handle, event, &manager, None))
   }
 }
 
@@ -1029,7 +1028,7 @@ fn on_event_loop_event<R: Runtime, F: Fn(&AppHandle<R>, Event) + 'static>(
   app_handle: &AppHandle<R>,
   event: RunEvent,
   manager: &WindowManager<R>,
-  callback: &F,
+  callback: Option<&F>,
 ) {
   if let RunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
@@ -1059,7 +1058,9 @@ fn on_event_loop_event<R: Runtime, F: Fn(&AppHandle<R>, Event) + 'static>(
     .expect("poisoned plugin store")
     .on_event(app_handle, &event);
 
-  callback(&app_handle, event);
+  if let Some(c) = callback {
+    c(app_handle, event);
+  }
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`

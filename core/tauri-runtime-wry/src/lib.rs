@@ -1888,8 +1888,11 @@ fn handle_user_message(
   match message {
     Message::Task(task) => task(),
     Message::Window(id, window_message) => {
-      let mut windows = windows.lock().expect("poisoned webview collection");
-      if let Some(webview) = windows.get_mut(&id) {
+      if let Some(webview) = windows
+        .lock()
+        .expect("poisoned webview collection")
+        .get_mut(&id)
+      {
         let window = webview.inner.window();
         match window_message {
           // Getters
@@ -1961,7 +1964,7 @@ fn handle_user_message(
               on_window_close(
                 callback,
                 id,
-                &mut windows,
+                windows.lock().expect("poisoned webview collection"),
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
@@ -2314,11 +2317,13 @@ fn handle_event_loop(
       }
       match event {
         WryWindowEvent::CloseRequested => {
-          let mut windows = windows.lock().expect("poisoned webview collection");
           let (tx, rx) = channel();
-          if let Some(w) = windows.get(&window_id) {
+          let windows_guard = windows.lock().expect("poisoned webview collection");
+          if let Some(w) = windows_guard.get(&window_id) {
+            let label = w.label.clone();
+            drop(windows_guard);
             callback(RunEvent::CloseRequested {
-              label: w.label.clone(),
+              label,
               signal_tx: tx,
             });
             if let Ok(true) = rx.try_recv() {
@@ -2326,7 +2331,7 @@ fn handle_event_loop(
               on_window_close(
                 callback,
                 window_id,
-                &mut windows,
+                windows.lock().expect("poisoned webview collection"),
                 control_flow,
                 #[cfg(target_os = "linux")]
                 window_event_listeners,
@@ -2380,16 +2385,18 @@ fn handle_event_loop(
 fn on_window_close<'a>(
   callback: &'a (dyn Fn(RunEvent) + 'static),
   window_id: WindowId,
-  windows: &mut MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
+  mut windows: MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
   control_flow: &mut ControlFlow,
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = windows.remove(&window_id) {
+    let is_empty = windows.is_empty();
+    drop(windows);
     menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label.clone()));
 
-    if windows.is_empty() {
+    if is_empty {
       let (tx, rx) = channel();
       callback(RunEvent::ExitRequested {
         window_label: webview.label,

@@ -12,6 +12,7 @@ pub mod updater_signature;
 pub use logger::Logger;
 
 use std::{
+  collections::HashMap,
   io::{BufRead, BufReader},
   process::{Command, Stdio},
 };
@@ -36,4 +37,21 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   } else {
     Err(anyhow::anyhow!("command failed"))
   }
+}
+
+pub fn command_env() -> HashMap<String, String> {
+  let mut map = HashMap::new();
+  map.insert("PLATFORM".into(), std::env::consts::OS.into());
+  map.insert("ARCH".into(), std::env::consts::ARCH.into());
+  map.insert("FAMILY".into(), std::env::consts::FAMILY.into());
+  map.insert("VERSION".into(), os_info::get().version().to_string());
+
+  #[cfg(target_os = "linux")]
+  map.insert("PLATFORM_TYPE".into(), "Linux".into());
+  #[cfg(target_os = "windows")]
+  map.insert("PLATFORM_TYPE".into(), "Windows_NT".into());
+  #[cfg(target_os = "macos")]
+  map.insert("PLATFORM_TYPE".into(), "Darwing".into());
+
+  map
 }

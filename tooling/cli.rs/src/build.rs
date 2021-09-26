@@ -9,6 +9,7 @@ use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
+  command_env,
   config::{get as get_config, AppUrl},
   execute_with_output,
   manifest::rewrite_manifest,
@@ -89,7 +90,8 @@ impl Build {
           &mut Command::new("cmd")
             .arg("/C")
             .arg(before_build)
-            .current_dir(app_dir()),
+            .current_dir(app_dir())
+            .envs(command_env()),
         )
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
         #[cfg(not(target_os = "windows"))]
@@ -97,7 +99,8 @@ impl Build {
           &mut Command::new("sh")
             .arg("-c")
             .arg(before_build)
-            .current_dir(app_dir()),
+            .current_dir(app_dir())
+            .envs(command_env()),
         )
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
       }

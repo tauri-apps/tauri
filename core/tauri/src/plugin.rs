@@ -5,7 +5,7 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, PageLoadPayload, Window,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Event, Invoke, PageLoadPayload, Window,
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
@@ -42,6 +42,10 @@ pub trait Plugin<R: Runtime>: Send {
   /// Callback invoked when the webview performs a navigation to a page.
   #[allow(unused_variables)]
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
+
+  /// Callback invoked when the event loop receives a new event.
+  #[allow(unused_variables)]
+  fn on_event(&mut self, app: &AppHandle<R>, event: &Event) {}
 
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
@@ -119,6 +123,14 @@ impl<R: Runtime> PluginStore<R> {
       .store
       .values_mut()
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+  }
+
+  /// Runs the on_event hook for all plugins in the store.
+  pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &Event) {
+    self
+      .store
+      .values_mut()
+      .for_each(|plugin| plugin.on_event(app, event))
   }
 
   pub(crate) fn extend_api(&mut self, mut invoke: Invoke<R>) {

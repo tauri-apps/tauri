@@ -463,11 +463,14 @@ impl<R: Runtime> App<R> {
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .run_iteration(move |event| on_event_loop_event(&app_handle, event, &manager, None))
+    self.runtime.as_mut().unwrap().run_iteration(move |event| {
+      on_event_loop_event(
+        &app_handle,
+        event,
+        &manager,
+        Option::<&Box<dyn Fn(&AppHandle<R>, Event)>>::None,
+      )
+    })
   }
 }
 

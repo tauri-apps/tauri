@@ -124,8 +124,8 @@ macro_rules! window_getter {
   }};
 }
 
-macro_rules! getter {
-  ($self: ident, $rx: expr, $message: expr) => {{
+macro_rules! send_user_message {
+  ($self: ident, $message: expr) => {{
     if current_thread().id() == $self.context.main_thread_id {
       handle_user_message(
         &mut ControlFlow::Wait,
@@ -143,14 +143,20 @@ macro_rules! getter {
         },
         &$self.context.main_thread.web_context,
       );
+      Ok(())
     } else {
       $self
         .context
         .proxy
         .send_event($message)
-        .map_err(|_| Error::FailedToSendMessage)?;
+        .map_err(|_| Error::FailedToSendMessage)
     }
+  }};
+}
 
+macro_rules! getter {
+  ($self: ident, $rx: expr, $message: expr) => {{
+    send_user_message!($self, $message)?;
     $rx.recv().unwrap()
   }};
 }
@@ -1042,11 +1048,7 @@ impl Dispatch for WryDispatcher {
   type WindowBuilder = WindowBuilderWrapper;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Task(Box::new(f)))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(self, Message::Task(Box::new(f)))
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
@@ -1173,22 +1175,20 @@ impl Dispatch for WryDispatcher {
   }
 
   fn print(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Webview(self.window_id, WebviewMessage::Print))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Webview(self.window_id, WebviewMessage::Print)
+    )
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
+    send_user_message!(
+      self,
+      Message::Window(
         self.window_id,
         WindowMessage::RequestUserAttention(request_type.map(Into::into)),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+      )
+    )
   }
 
   // Creates a window by dispatching a message to the event loop.
@@ -1225,89 +1225,67 @@ impl Dispatch for WryDispatcher {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetResizable(resizable),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetResizable(resizable),)
+    )
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetTitle(title.into()),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetTitle(title.into()),)
+    )
   }
 
   fn maximize(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Maximize))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::Maximize)
+    )
   }
 
   fn unmaximize(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Unmaximize))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::Unmaximize)
+    )
   }
 
   fn minimize(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Minimize))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::Minimize)
+    )
   }
 
   fn unminimize(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Unminimize))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::Unminimize)
+    )
   }
 
   fn show_menu(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::ShowMenu))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::ShowMenu)
+    )
   }
 
   fn hide_menu(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::HideMenu))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::HideMenu)
+    )
   }
 
   fn show(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Show))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(self, Message::Window(self.window_id, WindowMessage::Show))
   }
 
   fn hide(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::Hide))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(self, Message::Window(self.window_id, WindowMessage::Hide))
   }
 
   fn close(&self) -> Result<()> {
@@ -1322,140 +1300,100 @@ impl Dispatch for WryDispatcher {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetDecorations(decorations),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetDecorations(decorations),)
+    )
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetAlwaysOnTop(always_on_top),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top),)
+    )
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetSize(size),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetSize(size),)
+    )
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetMinSize(size),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetMinSize(size),)
+    )
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetMaxSize(size),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetMaxSize(size),)
+    )
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetPosition(position),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetPosition(position),)
+    )
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetFullscreen(fullscreen),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetFullscreen(fullscreen),)
+    )
   }
 
   fn set_focus(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::SetFocus))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetFocus)
+    )
   }
 
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
+    send_user_message!(
+      self,
+      Message::Window(
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+      )
+    )
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetSkipTaskbar(skip),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip),)
+    )
   }
 
   fn start_dragging(&self) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(self.window_id, WindowMessage::DragWindow))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::DragWindow)
+    )
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Webview(
+    send_user_message!(
+      self,
+      Message::Webview(
         self.window_id,
         WebviewMessage::EvaluateScript(script.into()),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+      )
+    )
   }
 
   fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::UpdateMenuItem(id, update),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message!(
+      self,
+      Message::Window(self.window_id, WindowMessage::UpdateMenuItem(id, update),)
+    )
   }
 }
 

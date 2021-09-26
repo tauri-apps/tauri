@@ -15,9 +15,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, async_runtime, http::ResponseBuilder, CustomMenuItem, Event,
-  GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
+  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]

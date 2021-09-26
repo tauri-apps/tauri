@@ -2024,40 +2024,45 @@ fn handle_user_message(
         }
       }
     }
-    Message::Webview(id, webview_message) => {
-      if let Some(WindowHandle::Webview(webview)) = windows
-        .lock()
-        .expect("poisoned webview collection")
-        .get(&id)
-        .map(|w| &w.inner)
-      {
-        match webview_message {
-          WebviewMessage::EvaluateScript(script) => {
-            if let Err(e) = webview.evaluate_script(&script) {
-              eprintln!("{}", e);
-            }
-          }
-          WebviewMessage::Print => {
-            let _ = webview.print();
-          }
-          WebviewMessage::WebviewEvent(event) => {
-            if let Some(event) = WindowEventWrapper::from(&event).0 {
-              for handler in window_event_listeners
-                .lock()
-                .unwrap()
-                .get(&id)
-                .unwrap()
-                .lock()
-                .unwrap()
-                .values()
-              {
-                handler(&event);
-              }
-            }
+    Message::Webview(id, webview_message) => match webview_message {
+      WebviewMessage::EvaluateScript(script) => {
+        if let Some(WindowHandle::Webview(webview)) = windows
+          .lock()
+          .expect("poisoned webview collection")
+          .get(&id)
+          .map(|w| &w.inner)
+        {
+          if let Err(e) = webview.evaluate_script(&script) {
+            eprintln!("{}", e);
           }
         }
       }
-    }
+      WebviewMessage::Print => {
+        if let Some(WindowHandle::Webview(webview)) = windows
+          .lock()
+          .expect("poisoned webview collection")
+          .get(&id)
+          .map(|w| &w.inner)
+        {
+          let _ = webview.print();
+        }
+      }
+      WebviewMessage::WebviewEvent(event) => {
+        if let Some(event) = WindowEventWrapper::from(&event).0 {
+          for handler in window_event_listeners
+            .lock()
+            .unwrap()
+            .get(&id)
+            .unwrap()
+            .lock()
+            .unwrap()
+            .values()
+          {
+            handler(&event);
+          }
+        }
+      }
+    },
     Message::CreateWebview(handler, sender) => {
       if let Some(event_loop) = event_loop {
         match handler(event_loop, web_context) {

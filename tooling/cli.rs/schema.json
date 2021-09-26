@@ -261,14 +261,14 @@
       "type": "object",
       "properties": {
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you need conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you need conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"

@@ -44,10 +44,7 @@ pub fn command_env() -> HashMap<String, String> {
   map.insert("PLATFORM".into(), std::env::consts::OS.into());
   map.insert("ARCH".into(), std::env::consts::ARCH.into());
   map.insert("FAMILY".into(), std::env::consts::FAMILY.into());
-  map.insert(
-    "VERSION".into(),
-    os_info::get().version().to_string().into(),
-  );
+  map.insert("VERSION".into(), os_info::get().version().to_string());
 
   #[cfg(target_os = "linux")]
   map.insert("PLATFORM_TYPE".into(), "Linux".into());

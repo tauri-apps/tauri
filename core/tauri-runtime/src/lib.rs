@@ -336,7 +336,7 @@ pub trait Runtime: Sized + 'static {
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
+  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.

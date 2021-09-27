@@ -271,6 +271,11 @@ impl<R: Runtime> Window<R> {
     self.manager.listen(event.into(), Some(label), handler)
   }
 
+  /// Unlisten to an event on this window.
+  pub fn unlisten(&self, handler_id: EventHandler) {
+    self.manager.unlisten(handler_id)
+  }
+
   /// Listen to a an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where

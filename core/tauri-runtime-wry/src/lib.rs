@@ -135,11 +135,9 @@ macro_rules! window_getter {
 fn send_user_message(context: &Context, message: Message) -> Result<()> {
   if current_thread().id() == context.main_thread_id {
     handle_user_message(
-      &mut ControlFlow::Wait,
       &context.main_thread.window_target,
       message,
       UserMessageContext {
-        callback: None,
         window_event_listeners: &context.window_event_listeners,
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
@@ -1285,9 +1283,7 @@ impl Dispatch for WryDispatcher {
   }
 
   fn close(&self) -> Result<()> {
-    if current_thread().id() == self.context.main_thread_id {
-      panic!("This API cannot be called on the main thread. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
-    }
+    // NOTE: close cannot use the `send_user_message` function because it accesses the event loop callback
     self
       .context
       .proxy
@@ -1850,7 +1846,6 @@ struct EventLoopIterationContext<'a> {
 }
 
 struct UserMessageContext<'a> {
-  callback: Option<&'a (dyn Fn(RunEvent) + 'static)>,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
@@ -1861,14 +1856,12 @@ struct UserMessageContext<'a> {
 }
 
 fn handle_user_message(
-  control_flow: &mut ControlFlow,
   event_loop: &EventLoopWindowTarget<Message>,
   message: Message,
   context: UserMessageContext<'_>,
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
-    callback,
     window_event_listeners,
     menu_event_listeners,
     global_shortcut_manager,
@@ -1951,19 +1944,7 @@ fn handle_user_message(
           WindowMessage::HideMenu => window.hide_menu(),
           WindowMessage::Show => window.set_visible(true),
           WindowMessage::Hide => window.set_visible(false),
-          WindowMessage::Close => {
-            if let Some(callback) = callback {
-              on_window_close(
-                callback,
-                id,
-                windows.lock().expect("poisoned webview collection"),
-                control_flow,
-                #[cfg(target_os = "linux")]
-                window_event_listeners,
-                menu_event_listeners.clone(),
-              );
-            }
-          }
+          WindowMessage::Close => panic!("cannot handle `WindowMessage::Close` on the main thread"),
           WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
           WindowMessage::SetSize(size) => {
@@ -2073,14 +2054,12 @@ fn handle_user_message(
       if let Ok(window) = builder.build(event_loop) {
         let window_id = window.id();
 
-        context
-          .window_event_listeners
+        window_event_listeners
           .lock()
           .unwrap()
           .insert(window.id(), WindowEventListenersMap::default());
 
-        context
-          .menu_event_listeners
+        menu_event_listeners
           .lock()
           .unwrap()
           .insert(window.id(), WindowMenuEventListeners::default());
@@ -2347,22 +2326,32 @@ fn handle_event_loop(
       }
     }
     Event::UserEvent(message) => {
-      return handle_user_message(
-        control_flow,
-        event_loop,
-        message,
-        UserMessageContext {
-          callback: Some(callback),
+      if let Message::Window(id, WindowMessage::Close) = message {
+        on_window_close(
+          callback,
+          id,
+          windows.lock().expect("poisoned webview collection"),
+          control_flow,
+          #[cfg(target_os = "linux")]
           window_event_listeners,
-          global_shortcut_manager,
-          clipboard_manager,
-          menu_event_listeners,
-          windows,
-          #[cfg(feature = "system-tray")]
-          tray_context,
-        },
-        web_context,
-      )
+          menu_event_listeners.clone(),
+        );
+      } else {
+        return handle_user_message(
+          event_loop,
+          message,
+          UserMessageContext {
+            window_event_listeners,
+            global_shortcut_manager,
+            clipboard_manager,
+            menu_event_listeners,
+            windows,
+            #[cfg(feature = "system-tray")]
+            tray_context,
+          },
+          web_context,
+        );
+      }
     }
     _ => (),
   }

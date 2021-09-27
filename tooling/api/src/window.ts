@@ -220,7 +220,7 @@ function getAll(): WebviewWindow[] {
 // events that are emitted right here instead of by the created webview
 const localTauriEvents = ['tauri://created', 'tauri://error']
 /** @ignore */
-export type WindowLabel = string | null | undefined
+export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
@@ -230,8 +230,8 @@ class WebviewWindowHandle {
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel) {
-    this.label = label
+  constructor(label: WindowLabel | null | undefined) {
+    this.label = label ?? window.__TAURI__.__currentWindow.label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }
@@ -1092,7 +1092,10 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(label: WindowLabel, options: WindowOptions = {}) {
+  constructor(
+    label: WindowLabel | null | undefined,
+    options: WindowOptions = {}
+  ) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {

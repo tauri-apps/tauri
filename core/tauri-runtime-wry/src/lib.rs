@@ -118,6 +118,13 @@ pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
 pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
 pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
+macro_rules! getter {
+  ($self: ident, $rx: expr, $message: expr) => {{
+    send_user_message(&$self.context, $message)?;
+    $rx.recv().unwrap()
+  }};
+}
+
 macro_rules! window_getter {
   ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
@@ -125,45 +132,35 @@ macro_rules! window_getter {
   }};
 }
 
-macro_rules! send_user_message {
-  ($self: ident, $message: expr) => {{
-    if current_thread().id() == $self.context.main_thread_id {
-      handle_user_message(
-        &mut ControlFlow::Wait,
-        &$self.context.main_thread.window_target,
-        $message,
-        UserMessageContext {
-          callback: None,
-          window_event_listeners: &$self.context.window_event_listeners,
-          global_shortcut_manager: $self.context.main_thread.global_shortcut_manager.clone(),
-          clipboard_manager: $self.context.main_thread.clipboard_manager.clone(),
-          menu_event_listeners: &$self.context.menu_event_listeners,
-          windows: $self.context.main_thread.windows.clone(),
-          #[cfg(feature = "system-tray")]
-          tray_context: &$self.context.main_thread.tray_context,
-        },
-        &$self.context.main_thread.web_context,
-      );
-      Ok(())
-    } else {
-      $self
-        .context
-        .proxy
-        .send_event($message)
-        .map_err(|_| Error::FailedToSendMessage)
-    }
-  }};
-}
-
-macro_rules! getter {
-  ($self: ident, $rx: expr, $message: expr) => {{
-    send_user_message!($self, $message)?;
-    $rx.recv().unwrap()
-  }};
+fn send_user_message(context: &Context, message: Message) -> Result<()> {
+  if current_thread().id() == context.main_thread_id {
+    handle_user_message(
+      &mut ControlFlow::Wait,
+      &context.main_thread.window_target,
+      message,
+      UserMessageContext {
+        callback: None,
+        window_event_listeners: &context.window_event_listeners,
+        global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
+        clipboard_manager: context.main_thread.clipboard_manager.clone(),
+        menu_event_listeners: &context.menu_event_listeners,
+        windows: context.main_thread.windows.clone(),
+        #[cfg(feature = "system-tray")]
+        tray_context: &context.main_thread.tray_context,
+      },
+      &context.main_thread.web_context,
+    );
+    Ok(())
+  } else {
+    context
+      .proxy
+      .send_event(message)
+      .map_err(|_| Error::FailedToSendMessage)
+  }
 }
 
 #[derive(Clone)]
-struct EventLoopContext {
+struct Context {
   main_thread_id: ThreadId,
   proxy: EventLoopProxy<Message>,
   window_event_listeners: WindowEventListeners,
@@ -171,9 +168,23 @@ struct EventLoopContext {
   main_thread: DispatcherMainThreadContext,
 }
 
-impl fmt::Debug for EventLoopContext {
+#[derive(Debug, Clone)]
+struct DispatcherMainThreadContext {
+  window_target: EventLoopWindowTarget<Message>,
+  web_context: WebContextStore,
+  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  clipboard_manager: Arc<Mutex<Clipboard>>,
+  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  #[cfg(feature = "system-tray")]
+  tray_context: TrayContext,
+}
+
+// the main thread context is only used on the main thread
+unsafe impl Send for DispatcherMainThreadContext {}
+
+impl fmt::Debug for Context {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("EventLoopContext")
+    f.debug_struct("Context")
       .field("main_thread_id", &self.main_thread_id)
       .field("proxy", &self.proxy)
       .field("main_thread", &self.main_thread)
@@ -373,7 +384,7 @@ unsafe impl Send for GlobalShortcutWrapper {}
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
 pub struct GlobalShortcutManagerHandle {
-  context: EventLoopContext,
+  context: Context,
   shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   listeners: GlobalShortcutListeners,
 }
@@ -448,7 +459,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
 
 #[derive(Debug, Clone)]
 pub struct ClipboardManagerWrapper {
-  context: EventLoopContext,
+  context: Context,
 }
 
 impl ClipboardManager for ClipboardManagerWrapper {
@@ -1020,43 +1031,11 @@ impl Clone for Message {
   }
 }
 
-#[derive(Clone)]
-struct DispatcherContext {
-  main_thread_id: ThreadId,
-  proxy: EventLoopProxy<Message>,
-  window_event_listeners: WindowEventListeners,
-  menu_event_listeners: MenuEventListeners,
-  main_thread: DispatcherMainThreadContext,
-}
-
-#[derive(Debug, Clone)]
-struct DispatcherMainThreadContext {
-  window_target: EventLoopWindowTarget<Message>,
-  web_context: WebContextStore,
-  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  clipboard_manager: Arc<Mutex<Clipboard>>,
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
-  #[cfg(feature = "system-tray")]
-  tray_context: TrayContext,
-}
-
-// the main thread context is only used on the main thread
-unsafe impl Send for DispatcherMainThreadContext {}
-
-impl fmt::Debug for DispatcherContext {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("DispatcherContext")
-      .field("main_thread_id", &self.main_thread_id)
-      .field("proxy", &self.proxy)
-      .finish()
-  }
-}
-
 /// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryDispatcher {
   window_id: WindowId,
-  context: DispatcherContext,
+  context: Context,
 }
 
 impl Dispatch for WryDispatcher {
@@ -1064,7 +1043,7 @@ impl Dispatch for WryDispatcher {
   type WindowBuilder = WindowBuilderWrapper;
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message!(self, Message::Task(Box::new(f)))
+    send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
@@ -1191,19 +1170,19 @@ impl Dispatch for WryDispatcher {
   }
 
   fn print(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Webview(self.window_id, WebviewMessage::Print)
+    send_user_message(
+      &self.context,
+      Message::Webview(self.window_id, WebviewMessage::Print),
     )
   }
 
   fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()> {
-    send_user_message!(
-      self,
+    send_user_message(
+      &self.context,
       Message::Window(
         self.window_id,
         WindowMessage::RequestUserAttention(request_type.map(Into::into)),
-      )
+      ),
     )
   }
 
@@ -1217,14 +1196,14 @@ impl Dispatch for WryDispatcher {
     let label = pending.label.clone();
     let context = self.context.clone();
 
-    send_user_message!(
-      self,
+    send_user_message(
+      &self.context,
       Message::CreateWebview(
         Box::new(move |event_loop, web_context| {
           create_webview(event_loop, web_context, context, pending)
         }),
         tx,
-      )
+      ),
     )?;
     let window_id = rx.recv().unwrap();
 
@@ -1236,67 +1215,73 @@ impl Dispatch for WryDispatcher {
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetResizable(resizable),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetResizable(resizable)),
     )
   }
 
   fn set_title<S: Into<String>>(&self, title: S) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetTitle(title.into()),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTitle(title.into())),
     )
   }
 
   fn maximize(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::Maximize)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Maximize),
     )
   }
 
   fn unmaximize(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::Unmaximize)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Unmaximize),
     )
   }
 
   fn minimize(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::Minimize)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Minimize),
     )
   }
 
   fn unminimize(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::Unminimize)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Unminimize),
     )
   }
 
   fn show_menu(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::ShowMenu)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::ShowMenu),
     )
   }
 
   fn hide_menu(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::HideMenu)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::HideMenu),
     )
   }
 
   fn show(&self) -> Result<()> {
-    send_user_message!(self, Message::Window(self.window_id, WindowMessage::Show))
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Show),
+    )
   }
 
   fn hide(&self) -> Result<()> {
-    send_user_message!(self, Message::Window(self.window_id, WindowMessage::Hide))
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Hide),
+    )
   }
 
   fn close(&self) -> Result<()> {
@@ -1311,99 +1296,99 @@ impl Dispatch for WryDispatcher {
   }
 
   fn set_decorations(&self, decorations: bool) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetDecorations(decorations),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetDecorations(decorations)),
     )
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
     )
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetSize(size),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetSize(size)),
     )
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetMinSize(size),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetMinSize(size)),
     )
   }
 
   fn set_max_size(&self, size: Option<Size>) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetMaxSize(size),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetMaxSize(size)),
     )
   }
 
   fn set_position(&self, position: Position) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetPosition(position),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetPosition(position)),
     )
   }
 
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetFullscreen(fullscreen),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetFullscreen(fullscreen)),
     )
   }
 
   fn set_focus(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetFocus)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetFocus),
     )
   }
 
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    send_user_message!(
-      self,
+    send_user_message(
+      &self.context,
       Message::Window(
         self.window_id,
         WindowMessage::SetIcon(WryIcon::try_from(icon)?.0),
-      )
+      ),
     )
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip)),
     )
   }
 
   fn start_dragging(&self) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::DragWindow)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::DragWindow),
     )
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
-    send_user_message!(
-      self,
+    send_user_message(
+      &self.context,
       Message::Webview(
         self.window_id,
         WebviewMessage::EvaluateScript(script.into()),
-      )
+      ),
     )
   }
 
   fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
-    send_user_message!(
-      self,
-      Message::Window(self.window_id, WindowMessage::UpdateMenuItem(id, update),)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::UpdateMenuItem(id, update)),
     )
   }
 }
@@ -1471,7 +1456,7 @@ pub struct Wry {
 /// A handle to the Wry runtime.
 #[derive(Debug, Clone)]
 pub struct WryHandle {
-  context: DispatcherContext,
+  context: Context,
 }
 
 impl WryHandle {
@@ -1481,7 +1466,7 @@ impl WryHandle {
     f: F,
   ) -> Result<Weak<Window>> {
     let (tx, rx) = channel();
-    send_user_message!(self, Message::CreateWindow(Box::new(f), tx))?;
+    send_user_message(&self.context, Message::CreateWindow(Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
@@ -1508,14 +1493,14 @@ impl RuntimeHandle for WryHandle {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
-    send_user_message!(
-      self,
+    send_user_message(
+      &self.context,
       Message::CreateWebview(
         Box::new(move |event_loop, web_context| {
           create_webview(event_loop, web_context, context, pending)
         }),
         tx,
-      )
+      ),
     )?;
     let window_id = rx.recv().unwrap();
 
@@ -1555,7 +1540,7 @@ impl Runtime for Wry {
     #[cfg(feature = "system-tray")]
     let tray_context = TrayContext::default();
 
-    let event_loop_context = EventLoopContext {
+    let event_loop_context = Context {
       main_thread_id,
       proxy,
       window_event_listeners: window_event_listeners.clone(),
@@ -1598,7 +1583,7 @@ impl Runtime for Wry {
 
   fn handle(&self) -> Self::Handle {
     WryHandle {
-      context: DispatcherContext {
+      context: Context {
         main_thread_id: self.main_thread_id,
         proxy: self.event_loop.create_proxy(),
         window_event_listeners: self.window_event_listeners.clone(),
@@ -1630,7 +1615,7 @@ impl Runtime for Wry {
     let webview = create_webview(
       &self.event_loop,
       &self.web_context,
-      DispatcherContext {
+      Context {
         main_thread_id: self.main_thread_id,
         proxy: proxy.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
@@ -1688,7 +1673,7 @@ impl Runtime for Wry {
 
     let dispatcher = WryDispatcher {
       window_id: webview.inner.window().id(),
-      context: DispatcherContext {
+      context: Context {
         main_thread_id: self.main_thread_id,
         proxy,
         window_event_listeners: self.window_event_listeners.clone(),
@@ -2516,7 +2501,7 @@ fn to_wry_menu(
 fn create_webview(
   event_loop: &EventLoopWindowTarget<Message>,
   web_context: &WebContextStore,
-  context: DispatcherContext,
+  context: Context,
   pending: PendingWindow<Wry>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
@@ -2618,7 +2603,7 @@ fn create_webview(
 
 /// Create a wry rpc handler from a tauri rpc handler.
 fn create_rpc_handler(
-  context: DispatcherContext,
+  context: Context,
   label: String,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
@@ -2639,7 +2624,7 @@ fn create_rpc_handler(
 
 /// Create a wry file drop handler from a tauri file drop handler.
 fn create_file_drop_handler(
-  context: DispatcherContext,
+  context: Context,
   label: String,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {

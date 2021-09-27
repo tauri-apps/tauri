@@ -1472,7 +1472,7 @@ pub struct Wry {
 /// A handle to the Wry runtime.
 #[derive(Debug, Clone)]
 pub struct WryHandle {
-  dispatcher_context: DispatcherContext,
+  context: DispatcherContext,
 }
 
 impl WryHandle {
@@ -1482,18 +1482,14 @@ impl WryHandle {
     f: F,
   ) -> Result<Weak<Window>> {
     let (tx, rx) = channel();
-    self
-      .dispatcher_context
-      .proxy
-      .send_event(Message::CreateWindow(Box::new(f), tx))
-      .map_err(|_| Error::FailedToSendMessage)?;
+    send_user_message!(self, Message::CreateWindow(Box::new(f), tx))?;
     rx.recv().unwrap()
   }
 
   /// Send a message to the event loop.
   pub fn send_event(&self, message: Message) -> Result<()> {
     self
-      .dispatcher_context
+      .context
       .proxy
       .send_event(message)
       .map_err(|_| Error::FailedToSendMessage)?;
@@ -1512,13 +1508,13 @@ impl RuntimeHandle for WryHandle {
   ) -> Result<DetachedWindow<Self::Runtime>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
-    let dispatcher_context = self.dispatcher_context.clone();
+    let context = self.context.clone();
     self
-      .dispatcher_context
+      .context
       .proxy
       .send_event(Message::CreateWebview(
         Box::new(move |event_loop, web_context| {
-          create_webview(event_loop, web_context, dispatcher_context, pending)
+          create_webview(event_loop, web_context, context, pending)
         }),
         tx,
       ))
@@ -1527,7 +1523,7 @@ impl RuntimeHandle for WryHandle {
 
     let dispatcher = WryDispatcher {
       window_id,
-      context: self.dispatcher_context.clone(),
+      context: self.context.clone(),
     };
     Ok(DetachedWindow { label, dispatcher })
   }
@@ -1604,7 +1600,7 @@ impl Runtime for Wry {
 
   fn handle(&self) -> Self::Handle {
     WryHandle {
-      dispatcher_context: DispatcherContext {
+      context: DispatcherContext {
         main_thread_id: self.main_thread_id,
         proxy: self.event_loop.create_proxy(),
         window_event_listeners: self.window_event_listeners.clone(),

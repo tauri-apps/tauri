@@ -324,13 +324,6 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Creates a new webview window.
-      ///
-      /// # Panics
-      ///
-      /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-      /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-      ///
-      /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,

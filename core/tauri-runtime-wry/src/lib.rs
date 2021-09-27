@@ -1217,16 +1217,15 @@ impl Dispatch for WryDispatcher {
     let label = pending.label.clone();
     let context = self.context.clone();
 
-    self
-      .context
-      .proxy
-      .send_event(Message::CreateWebview(
+    send_user_message!(
+      self,
+      Message::CreateWebview(
         Box::new(move |event_loop, web_context| {
           create_webview(event_loop, web_context, context, pending)
         }),
         tx,
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
+      )
+    )?;
     let window_id = rx.recv().unwrap();
 
     let dispatcher = WryDispatcher {
@@ -1509,16 +1508,15 @@ impl RuntimeHandle for WryHandle {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
-    self
-      .context
-      .proxy
-      .send_event(Message::CreateWebview(
+    send_user_message!(
+      self,
+      Message::CreateWebview(
         Box::new(move |event_loop, web_context| {
           create_webview(event_loop, web_context, context, pending)
         }),
         tx,
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
+      )
+    )?;
     let window_id = rx.recv().unwrap();
 
     let dispatcher = WryDispatcher {

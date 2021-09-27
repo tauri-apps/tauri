@@ -1020,8 +1020,8 @@ pub enum Message {
 impl Clone for Message {
   fn clone(&self) -> Self {
     match self {
-      Self::Window(i, m) => Self::Window(i.clone(), m.clone()),
-      Self::Webview(i, m) => Self::Webview(i.clone(), m.clone()),
+      Self::Window(i, m) => Self::Window(*i, m.clone()),
+      Self::Webview(i, m) => Self::Webview(*i, m.clone()),
       #[cfg(feature = "system-tray")]
       Self::Tray(m) => Self::Tray(m.clone()),
       Self::GlobalShortcut(m) => Self::GlobalShortcut(m.clone()),

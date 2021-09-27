@@ -5,8 +5,7 @@ import { move } from 'fs-extra'
 import { init, build } from 'dist/api/cli'
 import { fileURLToPath } from 'url'
 
-const currentDirName = dirname(fileURLToPath(
-  import.meta.url))
+const currentDirName = dirname(fileURLToPath(import.meta.url))
 
 describe('[CLI] cli.js template', () => {
   it('init a project and builds it', async () => {
@@ -25,9 +24,7 @@ describe('[CLI] cli.js template', () => {
       await move(outPath, cacheOutPath)
     }
 
-    const {
-      promise
-    } = await init({
+    const { promise } = await init({
       directory: process.cwd(),
       force: true,
       tauriPath: resolve(currentDirName, '../../../../..'),
@@ -45,9 +42,7 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
-    const {
-      promise: buildPromise
-    } = await build()
+    const { promise: buildPromise } = await build()
     await buildPromise
     process.chdir(cwd)
   })

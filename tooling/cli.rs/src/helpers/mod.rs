@@ -7,6 +7,7 @@ pub mod config;
 pub mod framework;
 mod logger;
 pub mod manifest;
+pub mod template;
 pub mod updater_signature;
 
 pub use logger::Logger;
@@ -14,6 +15,7 @@ pub use logger::Logger;
 use std::{
   collections::HashMap,
   io::{BufRead, BufReader},
+  path::{Path, PathBuf},
   process::{Command, Stdio},
 };
 
@@ -54,4 +56,13 @@ pub fn command_env() -> HashMap<String, String> {
   map.insert("PLATFORM_TYPE".into(), "Darwing".into());
 
   map
+}
+
+pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf {
+  let path = path.as_ref();
+  if path.is_absolute() {
+    path.join(crate_name)
+  } else {
+    PathBuf::from("..").join(path).join(crate_name)
+  }
 }

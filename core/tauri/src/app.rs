@@ -432,16 +432,16 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&callback));
+        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&mut callback));
       }
       _ => {
-        on_event_loop_event(&app_handle, event, &manager, Some(&callback));
+        on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
       }
     });
   }
@@ -475,7 +475,7 @@ impl<R: Runtime> App<R> {
         &app_handle,
         event,
         &manager,
-        Option::<&Box<dyn Fn(&AppHandle<R>, Event)>>::None,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
       )
     })
   }
@@ -1034,11 +1034,11 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-fn on_event_loop_event<R: Runtime, F: Fn(&AppHandle<R>, Event) + 'static>(
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
   app_handle: &AppHandle<R>,
   event: RunEvent,
   manager: &WindowManager<R>,
-  callback: Option<&F>,
+  callback: Option<&mut F>,
 ) {
   if let RunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);

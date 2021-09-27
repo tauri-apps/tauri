@@ -1770,7 +1770,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
+  fn run_iteration<F: FnMut(RunEvent) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.windows.clone();
     let web_context = &self.web_context;
@@ -1795,7 +1795,7 @@ impl Runtime for Wry {
           event_loop,
           control_flow,
           EventLoopIterationContext {
-            callback: &callback,
+            callback: &mut callback,
             windows: windows.clone(),
             window_event_listeners: &window_event_listeners,
             global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1812,7 +1812,7 @@ impl Runtime for Wry {
     iteration
   }
 
-  fn run<F: Fn(RunEvent) + 'static>(self, callback: F) {
+  fn run<F: FnMut(RunEvent) + 'static>(self, mut callback: F) {
     let windows = self.windows.clone();
     let web_context = self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
@@ -1829,7 +1829,7 @@ impl Runtime for Wry {
         event_loop,
         control_flow,
         EventLoopIterationContext {
-          callback: &callback,
+          callback: &mut callback,
           windows: windows.clone(),
           window_event_listeners: &window_event_listeners,
           global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1846,7 +1846,7 @@ impl Runtime for Wry {
 }
 
 struct EventLoopIterationContext<'a> {
-  callback: &'a (dyn Fn(RunEvent) + 'static),
+  callback: &'a mut (dyn FnMut(RunEvent) + 'static),
   windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
@@ -1858,7 +1858,7 @@ struct EventLoopIterationContext<'a> {
 }
 
 struct UserMessageContext<'a> {
-  callback: Option<&'a (dyn Fn(RunEvent) + 'static)>,
+  callback: Option<&'a mut (dyn FnMut(RunEvent) + 'static)>,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
@@ -2388,7 +2388,7 @@ fn handle_event_loop(
 }
 
 fn on_window_close<'a>(
-  callback: &'a (dyn Fn(RunEvent) + 'static),
+  callback: &'a mut (dyn FnMut(RunEvent) + 'static),
   window_id: WindowId,
   mut windows: MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
   control_flow: &mut ControlFlow,

@@ -209,10 +209,10 @@ jobs:
         with:
           path: tooling/cli.js/test/jest/fixtures/empty/src-tauri/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/src-tauri/**') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/src-tauri/**') }}
+            ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}
             ${{ matrix.platform }}-stable-template-
 
       - name: test

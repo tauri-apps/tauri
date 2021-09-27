@@ -92,6 +92,7 @@ use std::{
   convert::TryFrom,
   fmt,
   fs::read,
+  ops::Deref,
   path::PathBuf,
   sync::{
     mpsc::{channel, Sender},
@@ -129,7 +130,7 @@ macro_rules! send_user_message {
     if current_thread().id() == $self.context.main_thread_id {
       handle_user_message(
         &mut ControlFlow::Wait,
-        None,
+        &$self.context.main_thread.window_target,
         $message,
         UserMessageContext {
           callback: None,
@@ -1005,6 +1006,20 @@ pub enum Message {
   Clipboard(ClipboardMessage),
 }
 
+impl Clone for Message {
+  fn clone(&self) -> Self {
+    match self {
+      Self::Window(i, m) => Self::Window(i.clone(), m.clone()),
+      Self::Webview(i, m) => Self::Webview(i.clone(), m.clone()),
+      #[cfg(feature = "system-tray")]
+      Self::Tray(m) => Self::Tray(m.clone()),
+      Self::GlobalShortcut(m) => Self::GlobalShortcut(m.clone()),
+      Self::Clipboard(m) => Self::Clipboard(m.clone()),
+      _ => unimplemented!(),
+    }
+  }
+}
+
 #[derive(Clone)]
 struct DispatcherContext {
   main_thread_id: ThreadId,
@@ -1016,6 +1031,7 @@ struct DispatcherContext {
 
 #[derive(Debug, Clone)]
 struct DispatcherMainThreadContext {
+  window_target: EventLoopWindowTarget<Message>,
   web_context: WebContextStore,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
@@ -1197,10 +1213,6 @@ impl Dispatch for WryDispatcher {
     &mut self,
     pending: PendingWindow<Self::Runtime>,
   ) -> Result<DetachedWindow<Self::Runtime>> {
-    if current_thread().id() == self.context.main_thread_id {
-      panic!("This API cannot be called on the main thread. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
-    }
-
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let context = self.context.clone();
@@ -1469,9 +1481,6 @@ impl WryHandle {
     &self,
     f: F,
   ) -> Result<Weak<Window>> {
-    if current_thread().id() == self.dispatcher_context.main_thread_id {
-      panic!("This API cannot be called on the main thread. Try using `std::thread::spawn` or `tauri::async_runtime::spawn`.");
-    }
     let (tx, rx) = channel();
     self
       .dispatcher_context
@@ -1558,6 +1567,7 @@ impl Runtime for Wry {
       window_event_listeners: window_event_listeners.clone(),
       menu_event_listeners: menu_event_listeners.clone(),
       main_thread: DispatcherMainThreadContext {
+        window_target: event_loop.deref().clone(),
         web_context: web_context.clone(),
         global_shortcut_manager: global_shortcut_manager.clone(),
         clipboard_manager: clipboard_manager.clone(),
@@ -1600,6 +1610,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         menu_event_listeners: self.menu_event_listeners.clone(),
         main_thread: DispatcherMainThreadContext {
+          window_target: self.event_loop.deref().clone(),
           web_context: self.web_context.clone(),
           global_shortcut_manager: self.global_shortcut_manager.clone(),
           clipboard_manager: self.clipboard_manager.clone(),
@@ -1631,6 +1642,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         menu_event_listeners: self.menu_event_listeners.clone(),
         main_thread: DispatcherMainThreadContext {
+          window_target: self.event_loop.deref().clone(),
           web_context: self.web_context.clone(),
           global_shortcut_manager: self.global_shortcut_manager.clone(),
           clipboard_manager: self.clipboard_manager.clone(),
@@ -1688,6 +1700,7 @@ impl Runtime for Wry {
         window_event_listeners: self.window_event_listeners.clone(),
         menu_event_listeners: self.menu_event_listeners.clone(),
         main_thread: DispatcherMainThreadContext {
+          window_target: self.event_loop.deref().clone(),
           web_context: self.web_context.clone(),
           global_shortcut_manager: self.global_shortcut_manager.clone(),
           clipboard_manager: self.clipboard_manager.clone(),
@@ -1870,7 +1883,7 @@ struct UserMessageContext<'a> {
 
 fn handle_user_message(
   control_flow: &mut ControlFlow,
-  event_loop: Option<&EventLoopWindowTarget<Message>>,
+  event_loop: &EventLoopWindowTarget<Message>,
   message: Message,
   context: UserMessageContext<'_>,
   web_context: &WebContextStore,
@@ -2063,55 +2076,49 @@ fn handle_user_message(
         }
       }
     },
-    Message::CreateWebview(handler, sender) => {
-      if let Some(event_loop) = event_loop {
-        match handler(event_loop, web_context) {
-          Ok(webview) => {
-            let window_id = webview.inner.window().id();
-            windows
-              .lock()
-              .expect("poisoned webview collection")
-              .insert(window_id, webview);
-            sender.send(window_id).unwrap();
-          }
-          Err(e) => {
-            eprintln!("{}", e);
-          }
-        }
+    Message::CreateWebview(handler, sender) => match handler(event_loop, web_context) {
+      Ok(webview) => {
+        let window_id = webview.inner.window().id();
+        windows
+          .lock()
+          .expect("poisoned webview collection")
+          .insert(window_id, webview);
+        sender.send(window_id).unwrap();
       }
-    }
+      Err(e) => {
+        eprintln!("{}", e);
+      }
+    },
     Message::CreateWindow(handler, sender) => {
-      if let Some(event_loop) = event_loop {
-        let (label, builder) = handler();
-        if let Ok(window) = builder.build(event_loop) {
-          let window_id = window.id();
+      let (label, builder) = handler();
+      if let Ok(window) = builder.build(event_loop) {
+        let window_id = window.id();
 
-          context
-            .window_event_listeners
-            .lock()
-            .unwrap()
-            .insert(window.id(), WindowEventListenersMap::default());
+        context
+          .window_event_listeners
+          .lock()
+          .unwrap()
+          .insert(window.id(), WindowEventListenersMap::default());
 
-          context
-            .menu_event_listeners
-            .lock()
-            .unwrap()
-            .insert(window.id(), WindowMenuEventListeners::default());
+        context
+          .menu_event_listeners
+          .lock()
+          .unwrap()
+          .insert(window.id(), WindowMenuEventListeners::default());
 
-          let w = Arc::new(window);
+        let w = Arc::new(window);
 
-          windows.lock().expect("poisoned webview collection").insert(
-            window_id,
-            WindowWrapper {
-              label,
-              inner: WindowHandle::Window(w.clone()),
-              menu_items: Default::default(),
-            },
-          );
-          sender.send(Ok(Arc::downgrade(&w))).unwrap();
-        } else {
-          sender.send(Err(Error::CreateWindow)).unwrap();
-        }
+        windows.lock().expect("poisoned webview collection").insert(
+          window_id,
+          WindowWrapper {
+            label,
+            inner: WindowHandle::Window(w.clone()),
+            menu_items: Default::default(),
+          },
+        );
+        sender.send(Ok(Arc::downgrade(&w))).unwrap();
+      } else {
+        sender.send(Err(Error::CreateWindow)).unwrap();
       }
     }
 
@@ -2363,7 +2370,7 @@ fn handle_event_loop(
     Event::UserEvent(message) => {
       return handle_user_message(
         control_flow,
-        Some(event_loop),
+        event_loop,
         message,
         UserMessageContext {
           callback: Some(callback),

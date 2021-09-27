@@ -22,3 +22,6 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+[patch.'https://github.com/tauri-apps/tao']
+tao = { path = "../tao" }

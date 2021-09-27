@@ -1770,7 +1770,7 @@ impl Runtime for Wry {
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
+  fn run_iteration<F: FnMut(RunEvent) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.windows.clone();
     let web_context = &self.web_context;
@@ -1795,7 +1795,7 @@ impl Runtime for Wry {
           event_loop,
           control_flow,
           EventLoopIterationContext {
-            callback: &callback,
+            callback: &mut callback,
             windows: windows.clone(),
             window_event_listeners: &window_event_listeners,
             global_shortcut_manager: global_shortcut_manager.clone(),

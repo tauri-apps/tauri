@@ -475,7 +475,7 @@ impl<R: Runtime> App<R> {
         &app_handle,
         event,
         &manager,
-        Option::<&Box<dyn Fn(&AppHandle<R>, Event)>>::None,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
       )
     })
   }

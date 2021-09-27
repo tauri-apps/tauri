@@ -83,7 +83,7 @@ jobs:
         with:
           path: tooling/cli.rs/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}

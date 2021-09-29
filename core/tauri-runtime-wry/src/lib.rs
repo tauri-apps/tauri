@@ -2559,10 +2559,11 @@ fn create_webview(
 
   let mut web_context = web_context.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
+  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
   let web_context = match web_context.entry(
     // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
-    if let Ok("true") = std::env::var("TAURI_AUTOMATION").as_deref() {
+    if automation_enabled {
       webview_attributes.data_directory.clone()
     } else {
       // random unique key
@@ -2572,9 +2573,10 @@ fn create_webview(
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
       let mut web_context = WebContext::new(webview_attributes.data_directory);
-      web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
-        Ok("true") => is_first_context,
-        _ => false,
+      web_context.set_allows_automation(if automation_enabled {
+        is_first_context
+      } else {
+        false
       });
       vacant.insert(web_context)
     }

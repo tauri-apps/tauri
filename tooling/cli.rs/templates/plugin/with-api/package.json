@@ -15,10 +15,10 @@
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "13.0.5",
-    "@rollup/plugin-typescript": "^8.1.0",
-    "rollup": "^2.38.0",
-    "rollup-plugin-terser": "^7.0.2",
-    "typescript": "^4.1.3"
+    "@rollup/plugin-typescript": "8.2.5",
+    "rollup": "2.57.0",
+    "rollup-plugin-terser": "7.0.2",
+    "typescript": "4.4.3"
   },
   "dependencies": {
     "@tauri-apps/api": "1.0.0-beta.8",

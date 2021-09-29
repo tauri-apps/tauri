@@ -84,7 +84,7 @@
     "@types/fs-extra": "9.0.13",
     "@types/glob": "7.1.4",
     "@types/global-agent": "2.1.1",
-    "@types/imagemin": "7.0.1",
+    "@types/imagemin": "8.0.0",
     "@types/imagemin-optipng": "5.2.1",
     "@types/inquirer": "8.1.2",
     "@types/ms": "0.7.31",

@@ -2557,31 +2557,34 @@ fn create_webview(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let webview = if let Ok("true") = std::env::var("TAURI_AUTOMATION").as_deref() {
-    let mut web_context = web_context.lock().expect("poisoned WebContext store");
-    let is_first_context = web_context.is_empty();
-    let web_context = match web_context.entry(webview_attributes.data_directory) {
-      Occupied(occupied) => occupied.into_mut(),
-      Vacant(vacant) => {
-        let mut web_context = WebContext::new(vacant.key().clone());
-        web_context.set_allows_automation(match std::env::var("TAURI_AUTOMATION").as_deref() {
-          Ok("true") => is_first_context,
-          _ => false,
-        });
-        vacant.insert(web_context)
-      }
-    };
-    webview_builder
-      .with_web_context(web_context)
-      .build()
-      .map_err(|e| Error::CreateWebview(Box::new(e)))?
-  } else {
-    let mut context = WebContext::new(webview_attributes.data_directory);
-    webview_builder
-      .with_web_context(&mut context)
-      .build()
-      .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  let mut web_context = web_context.lock().expect("poisoned WebContext store");
+  let is_first_context = web_context.is_empty();
+  let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
+  let web_context = match web_context.entry(
+    // force a unique WebContext when automation is false;
+    // the context must be stored on the HashMap because it must outlive the WebView on macOS
+    if automation_enabled {
+      webview_attributes.data_directory.clone()
+    } else {
+      // random unique key
+      Some(Uuid::new_v4().to_hyphenated().to_string().into())
+    },
+  ) {
+    Occupied(occupied) => occupied.into_mut(),
+    Vacant(vacant) => {
+      let mut web_context = WebContext::new(webview_attributes.data_directory);
+      web_context.set_allows_automation(if automation_enabled {
+        is_first_context
+      } else {
+        false
+      });
+      vacant.insert(web_context)
+    }
   };
+  let webview = webview_builder
+    .with_web_context(web_context)
+    .build()
+    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   Ok(WindowWrapper {
     label,

@@ -13,7 +13,6 @@ mod helpers;
 mod info;
 mod init;
 mod interface;
-mod plugin;
 mod sign;
 
 // temporary fork from https://github.com/mitsuhiko/console until 0.14.1+ release
@@ -26,13 +25,6 @@ mod dialoguer;
 use helpers::framework::{infer_from_package_json as infer_framework, Framework};
 
 use std::{env::current_dir, fs::read_to_string, path::PathBuf};
-
-#[derive(Deserialize)]
-pub struct VersionMetadata {
-  tauri: String,
-  #[serde(rename = "tauri-build")]
-  tauri_build: String,
-}
 
 #[derive(Deserialize)]
 struct PackageJson {
@@ -62,27 +54,6 @@ macro_rules! value_or_prompt {
     }
     init_runner
   }};
-}
-
-fn plugin_command(matches: &ArgMatches) -> Result<()> {
-  let api = matches.is_present("api");
-  let plugin_name = matches.value_of("name").expect("name is required");
-  let directory = matches.value_of("directory");
-  let tauri_path = matches.value_of("tauri-path");
-
-  let mut plugin_runner = plugin::Plugin::new().plugin_name(plugin_name.to_string());
-
-  if api {
-    plugin_runner = plugin_runner.api();
-  }
-  if let Some(directory) = directory {
-    plugin_runner = plugin_runner.directory(directory);
-  }
-  if let Some(tauri_path) = tauri_path {
-    plugin_runner = plugin_runner.tauri_path(tauri_path);
-  }
-
-  plugin_runner.run()
 }
 
 fn init_command(matches: &ArgMatches) -> Result<()> {
@@ -299,11 +270,7 @@ fn main() -> Result<()> {
   let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {
-    if let Some(matches) = matches.subcommand_matches("plugin") {
-      plugin_command(matches)?;
-    } else {
-      init_command(matches)?;
-    }
+    init_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("dev") {
     dev_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {

@@ -8,7 +8,7 @@ use std::{
 };
 
 /// Directory options.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct DirOpts {
   pub depth: u64,
 }
@@ -48,6 +48,12 @@ impl Default for Options {
       content_only: false,
       depth: 0,
     }
+  }
+}
+
+impl Default for DirOpts {
+  fn default() -> DirOpts {
+    DirOpts { depth: 0 }
   }
 }
 

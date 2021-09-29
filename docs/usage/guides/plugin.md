@@ -5,8 +5,9 @@ title: Write Tauri Plugins
 import Alert from '@theme/Alert'
 
 <Alert title="Note" icon="info-alt">
-The Tauri CLI can bootstrap a Plugin project with the `$ tauri init plugin --name your-plugin-name` command.
-It setups the recommended folder structure, optionally adding a TypeScript API wrapper with the `--api` flag.
+Tauri will soon offer Plugin starter kits so the process of writing a Plugin crate will be simplified.
+
+For now it's recommended to follow the [official Tauri plugins](#official-tauri-plugins).
 </Alert>
 
 Plugins allow you to hook into the Tauri application lifecycle and introduce new commands.
@@ -93,10 +94,7 @@ fn main() {
 
 ## Official Tauri Plugins
 
-- [Stronghold](https://github.com/tauri-apps/tauri-plugin-stronghold)
-- [Authenticator](https://github.com/tauri-apps/tauri-plugin-authenticator)
-- [Logging](https://github.com/tauri-apps/tauri-plugin-log)
-- [SQL](https://github.com/tauri-apps/tauri-plugin-sql)
-- [WebSocket](https://github.com/tauri-apps/tauri-plugin-websocket)
-- [Restoring window state](https://github.com/tauri-apps/tauri-plugin-window-state)
-- [Store](https://github.com/tauri-apps/tauri-plugin-store)
+- [Stronghold (WIP)](https://github.com/tauri-apps/tauri-plugin-stronghold)
+- [Authenticator (WIP)](https://github.com/tauri-apps/tauri-plugin-authenticator)
+- [Logging (WIP)](https://github.com/tauri-apps/tauri-plugin-log)
+- [SQL (WIP)](https://github.com/tauri-apps/tauri-plugin-sql)

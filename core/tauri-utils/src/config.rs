@@ -238,40 +238,28 @@ pub struct CliArg {
   /// - Using an equals and no space such as -o=value or --option=value
   /// - Use a short and no space such as -ovalue
   pub takes_value: Option<bool>,
-  /// Specifies that the argument may have an unknown number of multiple values. Without any other settings, this argument may appear only once.
-  ///
-  /// For example, --opt val1 val2 is allowed, but --opt val1 val2 --opt val3 is not.
-  ///
-  /// NOTE: Setting this requires `takes_value` to be set to true.
-  pub multiple: Option<bool>,
   /// Specifies that the argument may appear more than once.
-  /// For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences.
-  /// For options or arguments that take a value, this does not affect how many values they can accept. (i.e. only one at a time is allowed)
   ///
-  /// For example, --opt val1 --opt val2 is allowed, but --opt val1 val2 is not.
+  /// - For flags, this results in the number of occurrences of the flag being recorded.
+  /// For example -ddd or -d -d -d would count as three occurrences.
+  /// - For options there is a distinct difference in multiple occurrences vs multiple values.
+  /// For example, --opt val1 val2 is one occurrence, but two values. Whereas --opt val1 --opt val2 is two occurrences.
+  pub multiple: Option<bool>,
+  ///
   pub multiple_occurrences: Option<bool>,
-  /// Specifies how many values are required to satisfy this argument. For example, if you had a
-  /// `-f <file>` argument where you wanted exactly 3 'files' you would set
-  /// `number_of_values = 3`, and this argument wouldn't be satisfied unless the user provided
-  /// 3 and only 3 values.
   ///
-  /// **NOTE:** Does *not* require `multiple_occurrences = true` to be set. Setting
-  /// `multiple_occurrences = true` would allow `-f <file> <file> <file> -f <file> <file> <file>` where
-  /// as *not* setting it would only allow one occurrence of this argument.
-  ///
-  /// **NOTE:** implicitly sets `takes_value = true` and `multiple_values = true`.
-  pub number_of_values: Option<usize>,
+  pub number_of_values: Option<u64>,
   /// Specifies a list of possible values for this argument.
   /// At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.
   pub possible_values: Option<Vec<String>>,
   /// Specifies the minimum number of values for this argument.
   /// For example, if you had a -f <file> argument where you wanted at least 2 'files',
   /// you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.
-  pub min_values: Option<usize>,
+  pub min_values: Option<u64>,
   /// Specifies the maximum number of values are for this argument.
   /// For example, if you had a -f <file> argument where you wanted up to 3 'files',
   /// you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.
-  pub max_values: Option<usize>,
+  pub max_values: Option<u64>,
   /// Sets whether or not the argument is required by default.
   ///
   /// - Required by default means it is required, when no other conflicting rules have been evaluated
@@ -311,7 +299,7 @@ pub struct CliArg {
   /// The index refers to position according to other positional argument.
   /// It does not define position in the argument list as a whole. When utilized with multiple=true,
   /// only the last positional argument may be defined as multiple (i.e. the one with the highest index).
-  pub index: Option<usize>,
+  pub index: Option<u64>,
 }
 
 /// The CLI command definition.

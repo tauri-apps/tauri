@@ -815,18 +815,14 @@ pub struct BuildConfig {
   /// The path or URL to use on development.
   #[serde(default = "default_dev_path")]
   pub dev_path: AppUrl,
-  /// The path to the app's dist dir. This path must contain your index.html file.
+  /// the path to the app's dist dir. This path must contain your index.html file.
   #[serde(default = "default_dist_dir")]
   pub dist_dir: AppUrl,
-  /// A shell command to run before `tauri dev` kicks in.
-  ///
-  /// The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.
+  /// a shell command to run before `tauri dev` kicks in
   pub before_dev_command: Option<String>,
-  /// A shell command to run before `tauri build` kicks in.
-  ///
-  /// The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.
+  /// a shell command to run before `tauri build` kicks in
   pub before_build_command: Option<String>,
-  /// Features passed to `cargo` commands.
+  /// features passed to `cargo` commands
   pub features: Option<Vec<String>>,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]

@@ -72,7 +72,7 @@ jobs:
         with:
           path: tooling/bundler/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}

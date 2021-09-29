@@ -5,30 +5,30 @@
 name: test create-tauri-app
 env:
   RUST_BACKTRACE: 1
-  TAURI_RECIPE: 'vanillajs,cra,vite,ngcli,solid'
+  TAURI_RECIPE: 'vanillajs,cra,vite,ngcli'
 
 on:
   workflow_dispatch:
     inputs:
       platform:
-        default: 'ubuntu'
+        default: "ubuntu"
   pull_request:
     paths:
-      - 'tooling/create-tauri-app/**'
+      - "tooling/create-tauri-app/**"
 
 jobs:
   create-recipe-with-npm:
-    name: 'node@${{ matrix.node }} + npm@${{ matrix.manager }}'
+    name: "node@${{ matrix.node }} + npm@${{ matrix.manager }}"
     runs-on: ${{ github.event.inputs.platform || 'ubuntu' }}-latest
 
     strategy:
       fail-fast: false
       matrix:
-        node: ['14', '16']
-        manager: ['7']
+        node: ["14", "16"]
+        manager: ["7"]
         exclude:
-          - node: '16'
-            manager: '6'
+          - node: "16"
+            manager: "6"
 
     steps:
       - uses: actions/checkout@v2
@@ -61,7 +61,7 @@ jobs:
       - run: yarn test
         working-directory: tooling/create-tauri-app
         env:
-          TAURI_RUN_MANAGER: 'npm'
+          TAURI_RUN_MANAGER: "npm"
 
   # create-recipe-with-yarn:
   #   name: "node@${{ matrix.node }} + yarn@1"

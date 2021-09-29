@@ -79,15 +79,8 @@ pub enum Error {
   #[cfg(feature = "cli")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
   #[error("failed to parse CLI arguments: {0}")]
-  ParseCliArguments(String),
+  ParseCliArguments(#[from] clap::Error),
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),
-}
-
-#[cfg(feature = "cli")]
-impl From<clap::Error> for Error {
-  fn from(error: clap::Error) -> Self {
-    Self::ParseCliArguments(error.to_string())
-  }
 }

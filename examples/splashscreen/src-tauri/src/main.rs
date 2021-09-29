@@ -22,7 +22,7 @@ mod rust {
       .setup(|app| {
         let splashscreen_window = app.get_window("splashscreen").unwrap();
         let main_window = app.get_window("main").unwrap();
-        // we perform the initialization code on a new task so the app doesn't crash
+        // we perform the initialization code on a new task so the app doesn't freeze
         tauri::async_runtime::spawn(async move {
           println!("Initializing...");
           sleep(Duration::from_secs(2));

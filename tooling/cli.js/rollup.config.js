@@ -27,23 +27,13 @@ export default {
   },
   treeshake: true,
   perf: true,
-  output: [
-    {
-      dir: 'dist/',
-      entryFileNames: '[name].js',
-      format: 'esm',
-      exports: 'named',
-      globals: {}
-    },
-    {
-      dir: 'dist/',
-      entryFileNames: '[name].cjs',
-      format: 'cjs',
-      chunkFileNames: '[name]-[hash].cjs',
-      exports: 'named',
-      globals: {}
-    }
-  ],
+  output: {
+    dir: 'dist/',
+    entryFileNames: '[name].js',
+    format: 'esm',
+    exports: 'named',
+    globals: {}
+  },
   plugins: [
     replace({
       __RUST_CLI_VERSION__: JSON.stringify(cliManifest.package.version),

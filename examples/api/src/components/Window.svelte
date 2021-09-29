@@ -1,10 +1,10 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, getCurrent } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
   window.UserAttentionType = UserAttentionType;
-  let selectedWindow = appWindow.label;
+  let selectedWindow = getCurrent().label;
   const windowMap = {
     [selectedWindow]: appWindow
   }
@@ -26,13 +26,6 @@
   let maxHeight = null;
   let x = 100;
   let y = 100;
-  let scaleFactor = 1;
-  let innerPosition = new PhysicalPosition(x, y);
-  let outerPosition = new PhysicalPosition(x, y);
-  let innerSize = new PhysicalSize(width, height);
-  let outerSize = new PhysicalSize(width, height);
-  let resizeEventUnlisten;
-  let moveEventUnlisten;
 
   let windowTitle = "Awesome Tauri Example!";
 
@@ -69,39 +62,6 @@
     })
   }
 
-  function handleWindowResize() {
-    windowMap[selectedWindow].innerSize().then(response => {
-      innerSize = response
-      width = innerSize.width
-      height = innerSize.height
-    });
-    windowMap[selectedWindow].outerSize().then(response => {
-      outerSize = response
-    });
-  }
-
-  function handleWindowMove() {
-    windowMap[selectedWindow].innerPosition().then(response => {
-      innerPosition = response
-    });
-    windowMap[selectedWindow].outerPosition().then(response => {
-      outerPosition = response
-      x = outerPosition.x
-      y = outerPosition.y
-    });
-  }
-
-  function addWindowEventListeners(window) {
-    if (resizeEventUnlisten) {
-      resizeEventUnlisten();
-    }
-    if(moveEventUnlisten) {
-      moveEventUnlisten();
-    }
-    moveEventUnlisten = window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = window.listen('tauri://resize', handleWindowResize);
-  }
-
   async function requestUserAttention_() {
     await windowMap[selectedWindow].minimize();
     await windowMap[selectedWindow].requestUserAttention(UserAttentionType.Critical);
@@ -119,8 +79,6 @@
   $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
   $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
   $: windowMap[selectedWindow].setPosition(new LogicalPosition(x, y));
-  $: windowMap[selectedWindow].scaleFactor().then(factor => scaleFactor = factor);
-  $: addWindowEventListeners(windowMap[selectedWindow]);
 </script>
 
 <div class="flex col">
@@ -213,56 +171,6 @@
     </div>
   </div>
 </div>
-<div>
-  <div class="flex">
-    <div class="grow window-property">
-      <div>Inner Size</div>
-      <span>Width: {innerSize.width}</span>
-      <span>Height: {innerSize.height}</span>
-    </div>
-    <div class="grow window-property">
-      <div>Outer Size</div>
-      <span>Width: {outerSize.width}</span>
-      <span>Height: {outerSize.height}</span>
-    </div>
-  </div>
-  <div class="flex">
-    <div class="grow window-property">
-      <div>Inner Logical Size</div>
-      <span>Width: {innerSize.toLogical(scaleFactor).width}</span>
-      <span>Height: {innerSize.toLogical(scaleFactor).height}</span>
-    </div>
-    <div class="grow window-property">
-      <div>Outer Logical Size</div>
-      <span>Width: {outerSize.toLogical(scaleFactor).width}</span>
-      <span>Height: {outerSize.toLogical(scaleFactor).height}</span>
-    </div>
-  </div>
-  <div class="flex">
-    <div class="grow window-property">
-      <div>Inner Position</div>
-      <span>x: {innerPosition.x}</span>
-      <span>y: {innerPosition.y}</span>
-    </div>
-    <div class="grow window-property">
-      <div>Outer Position</div>
-      <span>x: {outerPosition.x}</span>
-      <span>y: {outerPosition.y}</span>
-    </div>
-  </div>
-  <div class="flex">
-    <div class="grow window-property">
-      <div>Inner Logical Position</div>
-      <span>x: {innerPosition.toLogical(scaleFactor).x}</span>
-      <span>y: {innerPosition.toLogical(scaleFactor).y}</span>
-    </div>
-    <div class="grow window-property">
-      <div>Outer Logical Position</div>
-      <span>x: {outerPosition.toLogical(scaleFactor).x}</span>
-      <span>y: {outerPosition.toLogical(scaleFactor).y}</span>
-    </div>
-  </div>
-</div>
 <form style="margin-top: 24px" on:submit|preventDefault={setTitle_}>
   <input id="title" bind:value={windowTitle} />
   <button class="button" type="submit">Set title</button>
@@ -285,12 +193,5 @@
 
   .window-controls input {
     width: 50px;
-  }
-
-  .window-property {
-    margin-top: 12px;
-  }
-  .window-property span {
-    font-size: 0.8rem;
   }
 </style>

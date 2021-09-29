@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an idea for Tauri
 title: ''
-labels: 'type: feature request'
+labels: feature request
 assignees: ''
 
 ---

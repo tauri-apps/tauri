@@ -8,7 +8,7 @@ use super::{
 };
 
 use anyhow::Context;
-use toml_edit::{Array, Document, InlineTable, Item, Table, Value};
+use toml_edit::{Array, Document, InlineTable, Item, Value};
 
 use std::{
   collections::HashSet,
@@ -41,7 +41,7 @@ fn toml_array(features: &HashSet<String>) -> Array {
   let mut features: Vec<String> = features.iter().map(|f| f.to_string()).collect();
   features.sort();
   for feature in features {
-    f.push(feature.as_str());
+    f.push(feature.as_str()).unwrap();
   }
   f
 }
@@ -52,11 +52,10 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let dependencies = manifest
     .as_table_mut()
     .entry("dependencies")
-    .or_insert(Item::Table(Table::new()))
     .as_table_mut()
     .expect("manifest dependencies isn't a table");
 
-  let tauri_item = dependencies.entry("tauri").or_insert(Item::None);
+  let tauri_entry = dependencies.entry("tauri");
 
   let config_guard = config.lock().unwrap();
   let config = config_guard.as_ref().unwrap();
@@ -79,8 +78,8 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let mut cli_managed_features = all_allowlist_features();
   cli_managed_features.extend(vec!["cli", "updater", "system-tray"]);
 
-  if let Some(tauri) = tauri_item.as_table_mut() {
-    let manifest_features = tauri.entry("features").or_insert(Item::None);
+  if let Some(tauri) = tauri_entry.as_table_mut() {
+    let manifest_features = tauri.entry("features");
     if let Item::Value(Value::Array(f)) = &manifest_features {
       for feat in f.iter() {
         if let Value::String(feature) = feat {
@@ -91,7 +90,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
       }
     }
     *manifest_features = Item::Value(Value::Array(toml_array(&features)));
-  } else if let Some(tauri) = tauri_item.as_value_mut() {
+  } else if let Some(tauri) = tauri_entry.as_value_mut() {
     match tauri {
       Value::InlineTable(table) => {
         let manifest_features = table.get_or_insert("features", Value::Array(Default::default()));
@@ -129,7 +128,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
     File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
   manifest_file.write_all(
     manifest
-      .to_string()
+      .to_string_in_original_order()
       // apply some formatting fixes
       .replace(r#"" ,features =["#, r#"", features = ["#)
       .replace("]}", "] }")
@@ -144,17 +143,12 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
 
 pub fn get_workspace_members() -> crate::Result<Vec<String>> {
   let mut manifest = read_manifest(&tauri_dir().join("Cargo.toml"))?;
-  let workspace = manifest
-    .as_table_mut()
-    .entry("workspace")
-    .or_insert(Item::None)
-    .as_table_mut();
+  let workspace = manifest.as_table_mut().entry("workspace").as_table_mut();
 
   match workspace {
     Some(workspace) => {
       let members = workspace
         .entry("members")
-        .or_insert(Item::None)
         .as_array()
         .expect("workspace members aren't an array");
       Ok(

@@ -14,7 +14,6 @@ import { vite } from './recipes/vite'
 import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
-import { solid } from './recipes/solid'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
@@ -125,7 +124,6 @@ const allRecipes: Recipe[] = [
   vuecli,
   ngcli,
   svelte,
-  solid,
   dominator
 ]
 

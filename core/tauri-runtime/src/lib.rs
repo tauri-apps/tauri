@@ -11,7 +11,7 @@ use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
 
 #[cfg(windows)]
-use webview2_com_sys::Windows::Win32::Foundation::HWND;
+use winapi::shared::windef::HWND;
 
 pub mod http;
 /// Create window and system tray menus.
@@ -37,12 +37,24 @@ use crate::http::{
 
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
+}
+
+#[cfg(feature = "system-tray")]
+impl Default for SystemTray {
+  fn default() -> Self {
+    Self {
+      icon: None,
+      menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
+    }
+  }
 }
 
 #[cfg(feature = "system-tray")]
@@ -263,9 +275,23 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
 /// A global shortcut manager.
 pub trait GlobalShortcutManager: Debug {
   /// Whether the application has registered the given `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
 
   /// Register a global shortcut of `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn register<F: Fn() + Send + 'static>(
     &mut self,
     accelerator: &str,
@@ -273,17 +299,45 @@ pub trait GlobalShortcutManager: Debug {
   ) -> crate::Result<()>;
 
   /// Unregister all accelerators registered by the manager instance.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister_all(&mut self) -> crate::Result<()>;
 
   /// Unregister the provided `accelerator`.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
 }
 
 /// Clipboard manager.
 pub trait ClipboardManager: Debug {
   /// Writes the text into the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
+  ///
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
+  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
+  ///
+  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn read_text(&self) -> Result<Option<String>>;
 }
 
@@ -336,7 +390,7 @@ pub trait Runtime: Sized + 'static {
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
+  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.

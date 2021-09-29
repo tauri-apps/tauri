@@ -83,7 +83,7 @@ jobs:
         with:
           path: tooling/cli.rs/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
@@ -136,14 +136,14 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/appimage/updater-example_*.AppImage.*
+          path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/msi/*
+          path: ./target/release/bundle/msi/*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: macos-updater-artifacts
-          path: ./examples/updater/src-tauri/target/release/bundle/macos/updater-example.app.tar.*
+          path: ./target/release/bundle/macos/updater-example.app.tar.*

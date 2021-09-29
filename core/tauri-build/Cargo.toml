@@ -17,7 +17,8 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 
 [dependencies]
 anyhow = "1"
-quote = { version = "1", optional = true }
+proc-macro2 = "1"
+quote = "1"
 tauri-codegen = { version = "1.0.0-beta.4", path = "../tauri-codegen", optional = true }
 
 [target."cfg(windows)".dependencies]
@@ -26,4 +27,4 @@ serde_json = "1.0"
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils", features = [ "build" ] }
 
 [features]
-codegen = [ "tauri-codegen", "quote" ]
+codegen = [ "tauri-codegen" ]

@@ -187,9 +187,7 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
   clap_arg = bind_string_arg!(arg, clap_arg, description, about);
   clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_about);
   clap_arg = bind_value_arg!(arg, clap_arg, takes_value);
-  if let Some(value) = arg.multiple {
-    clap_arg = clap_arg.multiple_values(value);
-  }
+  clap_arg = bind_value_arg!(arg, clap_arg, multiple);
   clap_arg = bind_value_arg!(arg, clap_arg, multiple_occurrences);
   clap_arg = bind_value_arg!(arg, clap_arg, number_of_values);
   clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);

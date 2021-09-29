@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
+#[cfg(any(windows, target_os = "macos"))]
+use crate::api::dialog::window_parent;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
@@ -143,7 +145,7 @@ pub fn open<R: Runtime>(
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&crate::api::dialog::window_parent(window)?);
+    dialog_builder = dialog_builder.set_parent(&window_parent(window)?);
   }
   if let Some(default_path) = options.default_path {
     if !default_path.exists() {
@@ -179,7 +181,7 @@ pub fn save<R: Runtime>(
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&crate::api::dialog::window_parent(&window)?);
+    dialog_builder = dialog_builder.set_parent(&window_parent(&window)?);
   }
   if let Some(default_path) = options.default_path {
     dialog_builder = set_default_path(dialog_builder, default_path);

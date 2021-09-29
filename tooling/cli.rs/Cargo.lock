@@ -868,6 +868,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kstring"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e8d7e992938cc9078c8db5fd5bdc400e7f9da6efa384c280902a8922b676221"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2061,14 +2070,14 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d30834716e93eef7db510648299f647427858e7e2c0beeec2699ea2289c7739"
+checksum = "c520e9977bc6d8d72ccf5d3a3af54ea69ef8ff0deead3a13808f066626e987b4"
 dependencies = [
  "combine",
  "indexmap",
  "itertools",
- "vec1",
+ "kstring",
 ]
 
 [[package]]
@@ -2214,12 +2223,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "vec1"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fc1631c774f0f9570797191e01247cbefde789eebfbf128074cb934115a6133"
 
 [[package]]
 name = "vec_map"

@@ -2296,7 +2296,7 @@ fn handle_event_loop(
       {
         let windows_lock = windows.lock().expect("poisoned webview collection");
         if let Some(window_handle) = windows_lock.get(&window_id).map(|w| &w.inner) {
-          if let Some(event) = WindowEventWrapper::parse(&window_handle, &event).0 {
+          if let Some(event) = WindowEventWrapper::parse(window_handle, &event).0 {
             drop(windows_lock);
             for handler in window_event_listeners
               .lock()

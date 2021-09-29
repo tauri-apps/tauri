@@ -131,7 +131,7 @@ impl Cmd {
       }
       Self::Manage { label, cmd } => {
         let window = match label {
-          Some(l) if l != "" => window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?,
+          Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?,
           _ => window,
         };
         match cmd {

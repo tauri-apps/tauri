@@ -28,7 +28,7 @@ Here is a sample to illustrate the configuration, this is not a complete `tauri.
 A binary with the same name and a `-$TARGET_TRIPLE` suffix must exist on the specified path. For instance, `"externalBin": ["bin/python"]` requires a `src-tauri/bin/python-x86_64-unknown-linux-gnu` executable on Linux. You can find the current platform's target triple running the following command:
 
 ```bash
-RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json
+rustc -Vv | grep host | cut -f2 -d' '
 ```
 
 Here's a Node.js script to append the target triple to a binary:

@@ -2,16 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// polyfills
-if (!String.prototype.startsWith) {
-  String.prototype.startsWith = function (searchString, position) {
-    position = position || 0
-    return this.substr(position, searchString.length) === searchString
-  }
-}
-
-;
-(function () {
+;(function () {
   function uid() {
     const length = new Int8Array(1)
     window.crypto.getRandomValues(length)
@@ -115,7 +106,8 @@ if (!String.prototype.startsWith) {
       if (window.rpc) {
         window.rpc.notify(
           cmd,
-          _objectSpread({
+          _objectSpread(
+            {
               callback: callback,
               error: error,
               __invokeKey: key || __TAURI_INVOKE_KEY__
@@ -127,7 +119,8 @@ if (!String.prototype.startsWith) {
         window.addEventListener('DOMContentLoaded', function () {
           window.rpc.notify(
             cmd,
-            _objectSpread({
+            _objectSpread(
+              {
                 callback: callback,
                 error: error,
                 __invokeKey: key || __TAURI_INVOKE_KEY__
@@ -147,16 +140,15 @@ if (!String.prototype.startsWith) {
       function (e) {
         var target = e.target
         while (target != null) {
-          if (
-            target.matches ? target.matches('a') : target.msMatchesSelector('a')
-          ) {
+          if (target.matches('a')) {
             if (
               target.href &&
               target.href.startsWith('http') &&
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE__(
-                'tauri', {
+                'tauri',
+                {
                   __tauriModule: 'Shell',
                   message: {
                     cmd: 'open',
@@ -196,7 +188,8 @@ if (!String.prototype.startsWith) {
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__(
-        'tauri', {
+        'tauri',
+        {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',
@@ -213,7 +206,8 @@ if (!String.prototype.startsWith) {
   })
 
   window.__TAURI_INVOKE__(
-    'tauri', {
+    'tauri',
+    {
       __tauriModule: 'Event',
       message: {
         cmd: 'listen',
@@ -239,7 +233,8 @@ if (!String.prototype.startsWith) {
       return Promise.resolve(window.Notification.permission === 'granted')
     }
     return window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Notification',
         message: {
           cmd: 'isNotificationPermissionGranted'
@@ -256,8 +251,10 @@ if (!String.prototype.startsWith) {
   }
 
   function requestPermission() {
-    return window.__TAURI_INVOKE__(
-        'tauri', {
+    return window
+      .__TAURI_INVOKE__(
+        'tauri',
+        {
           __tauriModule: 'Notification',
           message: {
             cmd: 'requestNotificationPermission'
@@ -279,13 +276,17 @@ if (!String.prototype.startsWith) {
     isPermissionGranted().then(function (permission) {
       if (permission) {
         return window.__TAURI_INVOKE__(
-          'tauri', {
+          'tauri',
+          {
             __tauriModule: 'Notification',
             message: {
               cmd: 'notification',
-              options: typeof options === 'string' ? {
-                title: options
-              } : options
+              options:
+                typeof options === 'string'
+                  ? {
+                      title: options
+                    }
+                  : options
             }
           },
           _KEY_VALUE_
@@ -328,7 +329,8 @@ if (!String.prototype.startsWith) {
 
   window.alert = function (message) {
     window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'messageDialog',
@@ -341,7 +343,8 @@ if (!String.prototype.startsWith) {
 
   window.confirm = function (message) {
     return window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'askDialog',
@@ -356,7 +359,8 @@ if (!String.prototype.startsWith) {
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
       return window.__TAURI_INVOKE__(
-        'tauri', {
+        'tauri',
+        {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',

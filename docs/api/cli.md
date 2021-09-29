@@ -29,17 +29,50 @@ This command is pretty helpful when you need to have a quick overview of your ap
 <Command name="init" />
 
 ```
-  Description
-    Inits the Tauri template. If Tauri cannot find the src-tauri/tauri.conf.json
-    it will create one.
-  Usage
-    $ tauri init
-  Options
-    --help, -h        Displays this message
-    --force, -f       Force init to overwrite [conf|template|all]
-    --log, -l         Logging [boolean]
-    --directory, -d   Set target directory for init
-    --tauriPath, -t   Path of the Tauri project to use (relative to the cwd)
+Initializes a Tauri project
+
+USAGE:
+    cargo tauri init [FLAGS] [OPTIONS] [SUBCOMMAND]
+
+FLAGS:
+        --ci         Skip prompting for values
+    -f, --force      Force init to overwrite the src-tauri folder
+    -h, --help       Print help information
+    -l, --log        Enables logging
+    -V, --version    Print version information
+
+OPTIONS:
+    -A, --app-name <app-name>            Name of your Tauri application
+    -d, --directory <directory>          Set target directory for init
+    -D, --dist-dir <dist-dir>            Web assets location, relative to <project-dir>/src-tauri
+    -P, --dev-path <dev-path>            Url of your dev server
+    -t, --tauri-path <tauri-path>        Path of the Tauri project to use (relative to the cwd)
+    -W, --window-title <window-title>    Window title of your Tauri application
+
+SUBCOMMANDS:
+    help      Print this message or the help of the given subcommand(s)
+    plugin    Initialize a Tauri plugin.
+```
+
+### `init plugin`
+
+<Command name="init plugin" />
+
+```
+Initializes a Tauri plugin project.
+
+USAGE:
+    cargo tauri init plugin [FLAGS] [OPTIONS] --name <name>
+
+FLAGS:
+    -a, --api        Initializes a Tauri plugin with TypeScript API.
+    -h, --help       Print help information
+    -V, --version    Print version information
+
+OPTIONS:
+    -d, --directory <directory>      Set target directory for init
+    -n, --name <name>                Name of your Tauri plugin
+    -t, --tauri-path <tauri-path>    Path of the Tauri project to use (relative to the cwd)
 ```
 
 ## `dev`
@@ -47,12 +80,25 @@ This command is pretty helpful when you need to have a quick overview of your ap
 <Command name="dev" />
 
 ```
-  Description
-    Tauri dev.
-  Usage
-    $ tauri dev
-  Options
-    --help, -h     Displays this message
+Tauri dev.
+
+USAGE:
+    cargo tauri dev [FLAGS] [OPTIONS] [--] [args]...
+
+ARGS:
+    <args>...    Args passed to the binary
+
+FLAGS:
+    -e, --exit-on-panic    Exit on panic
+    -h, --help             Print help information
+        --release          Run the code in release mode
+    -V, --version          Print version information
+
+OPTIONS:
+    -c, --config <config>           config JSON to merge with tauri.conf.json
+    -f, --features <features>...    list of cargo features to activate
+    -r, --runner <runner>           binary to use to run the application
+    -t, --target <target>...        target triple to build against
 ```
 
 This command will open the WebView in development mode. It makes use of the `build.devPath` property from your `src-tauri/tauri.conf.json` file.
@@ -83,13 +129,23 @@ If you're not using `build.beforeDevCommand`, make sure your `build.devPath` is 
 <Command name="build" />
 
 ```
-  Description
-    Tauri build.
-  Usage
-    $ tauri build
-  Options
-    --help, -h     Displays this message
-    --debug, -d    Build a tauri app with debugging
+Tauri build.
+
+USAGE:
+    cargo tauri build [FLAGS] [OPTIONS]
+
+FLAGS:
+    -d, --debug      Builds with the debug flag
+    -h, --help       Print help information
+    -v, --verbose    Enables verbose logging
+    -V, --version    Print version information
+
+OPTIONS:
+    -b, --bundle <bundle>...        list of bundles to package
+    -c, --config <config>           config JSON to merge with tauri.conf.json
+    -f, --features <features>...    list of cargo features to activate
+    -r, --runner <runner>           binary to use to build the application
+    -t, --target <target>...        target triple to build against
 ```
 
 This command will bundle your application, either in production mode or debug mode if you used the `--debug` flag. It makes use of the `build.distDir` property from your `src-tauri/tauri.conf.json` file.
@@ -133,4 +189,3 @@ This command will show the current version of Tauri.
 ## CLI usage
 
 See more about the usage through this [complete guide](/docs/usage/development/integration).
-

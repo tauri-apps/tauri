@@ -71,7 +71,7 @@
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
-                    <RegistryValue Root="HKCU" Key="Software\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="HKCU" Key="Software\\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes" />
                 </Component>
             </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
@@ -115,7 +115,7 @@
 							  On="uninstall" />
 
 				<RegistryValue Root="HKCR"
-							   Key="Software\{{{manufacturer}}}\{{{product_name}}}"
+							   Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
 							   Name="installed"
 							   Type="integer"
 							   Value="1"
@@ -134,7 +134,7 @@
                     <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\{{{manufacturer}}}\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
            </Component>
         </DirectoryRef>
 

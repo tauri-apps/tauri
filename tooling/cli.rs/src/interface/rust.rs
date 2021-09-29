@@ -15,7 +15,7 @@ use anyhow::Context;
 use heck::KebabCase;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest};
+use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest, Logger};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings, WixSettings,
@@ -38,11 +38,11 @@ struct BinarySettings {
 #[derive(Debug, Clone, Deserialize)]
 pub struct CargoPackageSettings {
   /// the package's name.
-  pub name: String,
+  pub name: Option<String>,
   /// the package's version.
-  pub version: String,
+  pub version: Option<String>,
   /// the package's description.
-  pub description: String,
+  pub description: Option<String>,
   /// the package's homepage.
   pub homepage: Option<String>,
   /// the package's authors.
@@ -148,17 +148,22 @@ impl AppSettings {
     };
 
     let package_settings = PackageSettings {
-      product_name: config
-        .package
-        .product_name
+      product_name: config.package.product_name.clone().unwrap_or_else(|| {
+        cargo_package_settings
+          .name
+          .clone()
+          .expect("Cargo manifest must have the `package.name` field")
+      }),
+      version: config.package.version.clone().unwrap_or_else(|| {
+        cargo_package_settings
+          .version
+          .clone()
+          .expect("Cargo manifest must have the `package.version` field")
+      }),
+      description: cargo_package_settings
+        .description
         .clone()
-        .unwrap_or_else(|| cargo_package_settings.name.clone()),
-      version: config
-        .package
-        .version
-        .clone()
-        .unwrap_or_else(|| cargo_package_settings.version.clone()),
-      description: cargo_package_settings.description.clone(),
+        .unwrap_or_default(),
       homepage: cargo_package_settings.homepage.clone(),
       authors: cargo_package_settings.authors.clone(),
       default_run: cargo_package_settings.default_run.clone(),
@@ -208,7 +213,7 @@ impl AppSettings {
         .unwrap_or_else(|| "".to_string());
       for binary in bin {
         binaries.push(
-          if binary.name.as_str() == self.cargo_package_settings.name
+          if Some(&binary.name) == self.cargo_package_settings.name.as_ref()
             || binary.name.as_str() == default_run
           {
             BundleBinary::new(
@@ -333,17 +338,32 @@ fn get_target_dir(
 pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   let mut dir = current_dir.to_path_buf();
   let project_path = dir.clone();
+  let logger = Logger::new("tauri:rust");
 
   while dir.pop() {
-    if let Ok(cargo_settings) = CargoSettings::load(&dir) {
-      if let Some(workspace_settings) = cargo_settings.workspace {
-        if let Some(members) = workspace_settings.members {
-          if members
-            .iter()
-            .any(|member| dir.join(member) == project_path)
-          {
-            return dir;
+    if dir.join("Cargo.toml").exists() {
+      match CargoSettings::load(&dir) {
+        Ok(cargo_settings) => {
+          if let Some(workspace_settings) = cargo_settings.workspace {
+            if let Some(members) = workspace_settings.members {
+              if members.iter().any(|member| {
+                glob::glob(&dir.join(member).to_string_lossy().into_owned())
+                  .unwrap()
+                  .any(|p| p.unwrap() == project_path)
+              }) {
+                return dir;
+              }
+            }
           }
+        }
+        Err(e) => {
+          logger.warn(format!(
+            "Found `{}`, which may define a parent workspace, but \
+          failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
+          \n    {:#}",
+            dir.display(),
+            e
+          ));
         }
       }
     }

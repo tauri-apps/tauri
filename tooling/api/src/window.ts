@@ -795,14 +795,14 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Resizes the window.
+   * Resizes the window with a new inner size.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
@@ -833,18 +833,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window min size. If the `size` argument is not provided, the min size is unset.
+   * Sets the window minimum inner size. If the `size` argument is not provided, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMinSize(new PhysicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -861,12 +861,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -875,18 +875,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window max size. If the `size` argument is undefined, the max size is unset.
+   * Sets the window maximum inner size. If the `size` argument is undefined, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMaxSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaxSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -903,12 +903,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -917,7 +917,7 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window position.
+   * Sets the window outer position.
    * @example
    * ```typescript
    * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'

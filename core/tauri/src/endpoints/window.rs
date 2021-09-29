@@ -130,10 +130,9 @@ impl Cmd {
           .emit_others("tauri://window-created", Some(WindowCreatedEvent { label }))?;
       }
       Self::Manage { label, cmd } => {
-        let window = if let Some(l) = label {
-          window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?
-        } else {
-          window
+        let window = match label {
+          Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?,
+          _ => window,
         };
         match cmd {
           // Getters

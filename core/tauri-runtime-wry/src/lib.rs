@@ -533,6 +533,19 @@ impl TryFrom<Icon> for WryIcon {
 
 struct WindowEventWrapper(Option<WindowEvent>);
 
+impl WindowEventWrapper {
+  fn parse(webview: &WindowHandle, event: &WryWindowEvent) -> Self {
+    match event {
+      // resized event from tao doesn't include a reliable size on macOS
+      // because wry replaces the NSView
+      WryWindowEvent::Resized(_) => Self(Some(WindowEvent::Resized(
+        PhysicalSizeWrapper(webview.inner_size()).into(),
+      ))),
+      e => e.into(),
+    }
+  }
+}
+
 impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
   fn from(event: &WryWindowEvent<'a>) -> Self {
     let event = match event {
@@ -1424,6 +1437,13 @@ impl WindowHandle {
       Self::Window(w) => w,
     }
   }
+
+  fn inner_size(&self) -> WryPhysicalSize<u32> {
+    match self {
+      WindowHandle::Window(w) => w.inner_size(),
+      WindowHandle::Webview(w) => w.inner_size(),
+    }
+  }
 }
 
 #[derive(Debug)]
@@ -1899,7 +1919,7 @@ fn handle_user_message(
             )
             .unwrap(),
           WindowMessage::InnerSize(tx) => tx
-            .send(PhysicalSizeWrapper(window.inner_size()).into())
+            .send(PhysicalSizeWrapper(webview.inner.inner_size()).into())
             .unwrap(),
           WindowMessage::OuterSize(tx) => tx
             .send(PhysicalSizeWrapper(window.outer_size()).into())
@@ -1929,7 +1949,8 @@ fn handle_user_message(
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
           // Setters
           WindowMessage::Center(tx) => {
-            tx.send(center_window(window)).unwrap();
+            tx.send(center_window(window, webview.inner.inner_size()))
+              .unwrap();
           }
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
@@ -2272,19 +2293,26 @@ fn handle_event_loop(
         }
       }
 
-      if let Some(event) = WindowEventWrapper::from(&event).0 {
-        for handler in window_event_listeners
-          .lock()
-          .unwrap()
-          .get(&window_id)
-          .unwrap()
-          .lock()
-          .unwrap()
-          .values()
-        {
-          handler(&event);
+      {
+        let windows_lock = windows.lock().expect("poisoned webview collection");
+        if let Some(window_handle) = windows_lock.get(&window_id).map(|w| &w.inner) {
+          if let Some(event) = WindowEventWrapper::parse(window_handle, &event).0 {
+            drop(windows_lock);
+            for handler in window_event_listeners
+              .lock()
+              .unwrap()
+              .get(&window_id)
+              .unwrap()
+              .lock()
+              .unwrap()
+              .values()
+            {
+              handler(&event);
+            }
+          }
         }
       }
+
       match event {
         WryWindowEvent::CloseRequested => {
           let (tx, rx) = channel();
@@ -2409,10 +2437,9 @@ fn on_window_close<'a>(
   }
 }
 
-fn center_window(window: &Window) -> Result<()> {
+fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
-    let window_size = window.inner_size();
     let x = (screen_size.width - window_size.width) / 2;
     let y = (screen_size.height - window_size.height) / 2;
     window.set_outer_position(WryPhysicalPosition::new(x, y));
@@ -2527,7 +2554,7 @@ fn create_webview(
     .insert(window.id(), WindowMenuEventListeners::default());
 
   if window_builder.center {
-    let _ = center_window(&window);
+    let _ = center_window(&window, window.inner_size());
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?

@@ -39,6 +39,8 @@ const { access, ensureDir, ensureFileSync, writeFileSync } = fsExtra.default
 const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version } = require('../../package.json')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pngToIco = require('png-to-ico')
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', chalk.red)
@@ -498,8 +500,9 @@ const tauricon = {
       }
       await this.validate(src, target)
 
-      const sharpSrc = sharp(src)
-      const buf = await sharpSrc.toBuffer()
+      const s = sharp(src)
+      const buf = await s.toBuffer()
+      const resizedBuf = await s.resize(256, 256).toBuffer()
 
       const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0)
       if (out === null) {
@@ -508,7 +511,7 @@ const tauricon = {
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
-      const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
+      const out2 = await pngToIco(resizedBuf)
       if (out2 === null) {
         throw new Error('Failed to create icon.ico')
       }

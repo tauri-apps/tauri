@@ -7,7 +7,6 @@ license = ""
 repository = ""
 default-run = "app"
 edition = "2018"
-build = "src/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

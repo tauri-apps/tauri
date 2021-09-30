@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - next
   workflow_dispatch:
 
 jobs:
@@ -83,7 +84,7 @@ jobs:
         with:
           path: tooling/bench/tests/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-nightly-cargo-benches-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}

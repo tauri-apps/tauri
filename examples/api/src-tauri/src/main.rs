@@ -15,9 +15,8 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, async_runtime, http::ResponseBuilder, CustomMenuItem, Event,
-  GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
+  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -197,18 +196,14 @@ fn main() {
     // Application is ready (triggered only once)
     Event::Ready => {
       let app_handle = app_handle.clone();
-      // launch a new thread so it doesnt block any channel
-      async_runtime::spawn(async move {
-        let app_handle = app_handle.clone();
-        app_handle
-          .global_shortcut_manager()
-          .register("CmdOrCtrl+1", move || {
-            let app_handle = app_handle.clone();
-            let window = app_handle.get_window("main").unwrap();
-            window.set_title("New title!").unwrap();
-          })
-          .unwrap();
-      });
+      app_handle
+        .global_shortcut_manager()
+        .register("CmdOrCtrl+1", move || {
+          let app_handle = app_handle.clone();
+          let window = app_handle.get_window("main").unwrap();
+          window.set_title("New title!").unwrap();
+        })
+        .unwrap();
     }
 
     // Triggered when a window is trying to close
@@ -218,20 +213,19 @@ fn main() {
       // use the exposed close api, and prevent the event loop to close
       api.prevent_close();
       // ask the user if he wants to quit
-      // we need to run this on another thread because this is the event loop callback handler
-      // and the dialog API needs to communicate with the event loop.
-      std::thread::spawn(move || {
-        ask(
-          Some(&window),
-          "Tauri API",
-          "Are you sure that you want to close this window?",
-          move |answer| {
-            if answer {
+      ask(
+        Some(&window),
+        "Tauri API",
+        "Are you sure that you want to close this window?",
+        move |answer| {
+          if answer {
+            // .close() cannot be called on the main thread
+            std::thread::spawn(move || {
               app_handle.get_window(&label).unwrap().close().unwrap();
-            }
-          },
-        );
-      });
+            });
+          }
+        },
+      );
     }
 
     // Keep the event loop running even if all windows are closed

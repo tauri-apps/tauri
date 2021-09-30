@@ -425,35 +425,16 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        callback(&app_handle, Event::Exit);
+        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&mut callback));
       }
       _ => {
-        on_event_loop_event(&event, &manager);
-        callback(
-          &app_handle,
-          match event {
-            RunEvent::Exit => Event::Exit,
-            RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
-              window_label,
-              api: ExitRequestApi(tx),
-            },
-            RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-              label,
-              api: CloseRequestApi(signal_tx),
-            },
-            RunEvent::WindowClose(label) => Event::WindowClosed(label),
-            RunEvent::Ready => Event::Ready,
-            RunEvent::Resumed => Event::Resumed,
-            RunEvent::MainEventsCleared => Event::MainEventsCleared,
-            _ => unimplemented!(),
-          },
-        );
+        on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
       }
     });
   }
@@ -481,11 +462,15 @@ impl<R: Runtime> App<R> {
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .run_iteration(move |event| on_event_loop_event(&event, &manager))
+    let app_handle = self.handle();
+    self.runtime.as_mut().unwrap().run_iteration(move |event| {
+      on_event_loop_event(
+        &app_handle,
+        event,
+        &manager,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
+      )
+    })
   }
 }
 
@@ -1042,9 +1027,42 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>) {
-  if let RunEvent::WindowClose(label) = event {
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
+  app_handle: &AppHandle<R>,
+  event: RunEvent,
+  manager: &WindowManager<R>,
+  callback: Option<&mut F>,
+) {
+  if let RunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
+  }
+
+  let event = match event {
+    RunEvent::Exit => Event::Exit,
+    RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+      window_label,
+      api: ExitRequestApi(tx),
+    },
+    RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+      label,
+      api: CloseRequestApi(signal_tx),
+    },
+    RunEvent::WindowClose(label) => Event::WindowClosed(label),
+    RunEvent::Ready => Event::Ready,
+    RunEvent::Resumed => Event::Resumed,
+    RunEvent::MainEventsCleared => Event::MainEventsCleared,
+    _ => unimplemented!(),
+  };
+
+  manager
+    .inner
+    .plugins
+    .lock()
+    .expect("poisoned plugin store")
+    .on_event(app_handle, &event);
+
+  if let Some(c) = callback {
+    c(app_handle, event);
   }
 }
 

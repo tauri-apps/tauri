@@ -861,12 +861,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }
@@ -903,12 +903,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                type: size.type,
-                data: {
-                  width: size.width,
-                  height: size.height
+                  type: size.type,
+                  data: {
+                    width: size.width,
+                    height: size.height
+                  }
                 }
-              }
               : null
           }
         }

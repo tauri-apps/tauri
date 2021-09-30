@@ -53,9 +53,7 @@ const vite: Recipe = {
     ]
   },
   preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
-    const template = answers?.template ? (answers.template as string) : 'vue'
-
-    // Vite creates the folder for you
+    const template = (answers?.template as string) ?? 'vue'
     if (packageManager === 'yarn') {
       await shell(
         'yarn',

@@ -45,13 +45,13 @@ const solid: Recipe = {
     } build`
   }),
   preInit: async ({ cwd, cfg, answers }) => {
-    let template = 'js'
-    if (answers) {
-      template = answers.template ? (answers.template as string) : 'js'
-    }
     await shell(
       'npx',
-      ['degit', `solidjs/templates/${template}`, cfg.appName],
+      [
+        'degit',
+        `solidjs/templates/${(answers?.template as string) ?? 'js'}`,
+        cfg.appName
+      ],
       { cwd }
     )
   },

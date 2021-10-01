@@ -81,7 +81,10 @@ ${chalk.yellow('Options')}
       )
     ).promise
       .then(() => {
-        if (command === 'init' && !process.argv.some((arg) => arg === '--ci')) {
+        if (
+          command === 'init' &&
+          !process.argv.some((arg) => arg === '--ci' || arg === 'plugin')
+        ) {
           return import('../dist/api/dependency-manager.js').then(
             ({ installDependencies }) => installDependencies()
           )

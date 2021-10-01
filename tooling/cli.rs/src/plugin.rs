@@ -75,7 +75,7 @@ impl Plugin {
       let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = self.tauri_path {
         (
           format!(
-            "{{  path = {:?} }}",
+            r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
@@ -89,10 +89,7 @@ impl Plugin {
             r#"{{ version = "{}", features = [ "api-all" ] }}"#,
             metadata.tauri
           ),
-          format!(
-            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-            metadata.tauri_build
-          ),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
         )
       };
 

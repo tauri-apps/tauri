@@ -17,9 +17,7 @@ impl Serialize for Error {
   where
     S: Serializer,
   {
-    match self {
-      Self::Io(error) => serializer.serialize_str(error.to_string().as_ref()),
-    }
+    serializer.serialize_str(self.to_string().as_ref())
   }
 }
 

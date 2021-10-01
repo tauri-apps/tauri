@@ -85,8 +85,14 @@ impl Plugin {
         )
       } else {
         (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          format!(
+            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
+            metadata.tauri
+          ),
+          format!(
+            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
+            metadata.tauri_build
+          ),
         )
       };
 

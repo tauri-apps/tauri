@@ -1,9 +1,10 @@
 [package]
 name = "tauri-plugin-{{ plugin_name }}"
-version = "0.1.0"
+version = "0.0.0"
 authors = [ "You" ]
 description = ""
 edition = "2018"
+exclude = ["/examples"]
 
 [dependencies]
 tauri = {{{  tauri_dep  }}}

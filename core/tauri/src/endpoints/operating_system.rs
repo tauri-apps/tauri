@@ -39,7 +39,7 @@ fn os_type() -> String {
   #[cfg(target_os = "windows")]
   return "Windows_NT".into();
   #[cfg(target_os = "macos")]
-  return "Darwing".into();
+  return "Darwin".into();
 }
 #[cfg(os_all)]
 fn os_platform() -> String {

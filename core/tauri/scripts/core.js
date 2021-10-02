@@ -347,7 +347,7 @@
       {
         __tauriModule: 'Dialog',
         message: {
-          cmd: 'askDialog',
+          cmd: 'confirmDialog',
           message: message
         }
       },

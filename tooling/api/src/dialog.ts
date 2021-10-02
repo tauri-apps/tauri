@@ -77,7 +77,7 @@ async function open(
     Object.freeze(options)
   }
 
-  return invokeTauriCommand<string | string[]>({
+  return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'openDialog',
@@ -96,7 +96,7 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
     Object.freeze(options)
   }
 
-  return invokeTauriCommand<string>({
+  return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'saveDialog',
@@ -105,6 +105,61 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
   })
 }
 
+/**
+ * Shows a message dialog with an `Ok` button.
+ *
+ * @param {string} message The message to show.
+ *
+ * @return {Promise<void>} A promise indicating the success or failure of the operation.
+ */
+async function message(message: string): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Dialog',
+    message: {
+      cmd: 'messageDialog',
+      message
+    }
+  })
+}
+
+/**
+ * Shows a question dialog with `Yes` and `No` buttons.
+ *
+ * @param {string} message The message to show.
+ * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ *
+ * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
+ */
+async function ask(message: string, title?: string): Promise<boolean> {
+  return invokeTauriCommand({
+    __tauriModule: 'Dialog',
+    message: {
+      cmd: 'askDialog',
+      title,
+      message
+    }
+  })
+}
+
+/**
+ * Shows a question dialog with `Ok` and `Cancel` buttons.
+ *
+ * @param {string} message The message to show.
+ * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ *
+ * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
+ */
+async function confirm(message: string, title?: string): Promise<boolean> {
+  return invokeTauriCommand({
+    __tauriModule: 'Dialog',
+    message: {
+      cmd: 'confirmDialog',
+      title,
+      message
+    }
+  })
+}
+
 export type { DialogFilter, OpenDialogOptions, SaveDialogOptions }
 
-export { open, save }
+export { open, save, message, ask, confirm }

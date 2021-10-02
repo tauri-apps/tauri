@@ -114,6 +114,22 @@ impl Build {
           web_asset_path
         ));
       }
+      let mut out_folders = Vec::new();
+      for folder in &["node_modules", "src-tauri", "target"] {
+        if web_asset_path.join(folder).is_dir() {
+          out_folders.push(folder.to_string());
+        }
+      }
+      if !out_folders.is_empty() {
+        logger.warn(
+          format!(
+            "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
+            out_folders,
+            if out_folders.len() == 1 { "folder" }else { "folders" }
+          )
+        );
+        std::process::exit(1);
+      }
     }
 
     let runner_from_config = config_.build.runner.clone();

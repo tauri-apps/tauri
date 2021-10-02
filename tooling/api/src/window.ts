@@ -176,13 +176,13 @@ declare global {
 /** Attention type to request on a window. */
 enum UserAttentionType {
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    *  - **macOS:** Bounces the dock icon until the application is in focus.
    * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
    */
   Critical = 1,
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    * - **macOS:** Bounces the dock icon once.
    * - **Windows:** Flashes the taskbar button until the application is in focus.
    */
@@ -220,7 +220,7 @@ function getAll(): WebviewWindow[] {
 // events that are emitted right here instead of by the created webview
 const localTauriEvents = ['tauri://created', 'tauri://error']
 /** @ignore */
-export type WindowLabel = string | null | undefined
+export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
@@ -230,8 +230,12 @@ class WebviewWindowHandle {
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel) {
-    this.label = label
+  constructor(label: WindowLabel | null | undefined) {
+    try {
+      this.label = label ?? window.__TAURI__.__currentWindow.label
+    } catch {
+      this.label = ''
+    }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }
@@ -330,7 +334,7 @@ class WindowManager extends WebviewWindowHandle {
 
   /** The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop. */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -341,12 +345,12 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ x, y }) => new PhysicalPosition(x, y))
   }
 
   /** The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop. */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -357,7 +361,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ x, y }) => new PhysicalPosition(x, y))
   }
 
   /**
@@ -365,7 +369,7 @@ class WindowManager extends WebviewWindowHandle {
    * The client area is the content of the window, excluding the title bar and borders.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ width: number; height: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -376,7 +380,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
   /**
@@ -384,7 +388,7 @@ class WindowManager extends WebviewWindowHandle {
    * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ width: number; height: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -395,7 +399,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
   /** Gets the window's current fullscreen state. */
@@ -509,7 +513,7 @@ class WindowManager extends WebviewWindowHandle {
    * Providing `null` will unset the request for user attention. Unsetting the request for
    * user attention might not be done automatically by the WM when the window receives input.
    *
-   * ## Platform-specific
+   * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
    *
@@ -791,14 +795,14 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Resizes the window.
+   * Resizes the window with a new inner size.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
@@ -829,18 +833,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window min size. If the `size` argument is not provided, the min size is unset.
+   * Sets the window minimum inner size. If the `size` argument is not provided, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMinSize(new PhysicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -871,18 +875,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window max size. If the `size` argument is undefined, the max size is unset.
+   * Sets the window maximum inner size. If the `size` argument is undefined, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMaxSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaxSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -913,7 +917,7 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window position.
+   * Sets the window outer position.
    * @example
    * ```typescript
    * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'
@@ -1092,7 +1096,10 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(label: WindowLabel, options: WindowOptions = {}) {
+  constructor(
+    label: WindowLabel | null | undefined,
+    options: WindowOptions = {}
+  ) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {

@@ -126,7 +126,7 @@ impl Module {
           })
         }
       }
-      Self::Notification(cmd) => resolver.respond_closure(move || {
+      Self::Notification(cmd) => resolver.respond_async(async move {
         cmd
           .run(window, config, &package_info)
           .and_then(|r| r.json)

@@ -40,7 +40,12 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
 impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.state_ref().get())
+    Ok(command.message.state_ref().try_get().unwrap_or_else(|| {
+      panic!(
+        "state not managed for field `{}` on command `{}`. You muse call `.manage()` before using this command",
+        command.key, command.name
+      )
+    }))
   }
 }
 
@@ -59,7 +64,12 @@ impl StateManager {
 
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
-    State(self.0.get())
+    State(
+      self
+        .0
+        .try_get()
+        .expect("state: get() called before set() for given type"),
+    )
   }
 
   /// Gets the state associated with the specified type.

@@ -28,7 +28,7 @@ use tauri_utils::PackageInfo;
 use std::{
   collections::HashMap,
   path::PathBuf,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, Weak},
 };
 
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
@@ -187,7 +187,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
@@ -425,35 +425,16 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        callback(&app_handle, Event::Exit);
+        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&mut callback));
       }
       _ => {
-        on_event_loop_event(&event, &manager);
-        callback(
-          &app_handle,
-          match event {
-            RunEvent::Exit => Event::Exit,
-            RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
-              window_label,
-              api: ExitRequestApi(tx),
-            },
-            RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-              label,
-              api: CloseRequestApi(signal_tx),
-            },
-            RunEvent::WindowClose(label) => Event::WindowClosed(label),
-            RunEvent::Ready => Event::Ready,
-            RunEvent::Resumed => Event::Resumed,
-            RunEvent::MainEventsCleared => Event::MainEventsCleared,
-            _ => unimplemented!(),
-          },
-        );
+        on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
       }
     });
   }
@@ -481,11 +462,15 @@ impl<R: Runtime> App<R> {
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .run_iteration(move |event| on_event_loop_event(&event, &manager))
+    let app_handle = self.handle();
+    self.runtime.as_mut().unwrap().run_iteration(move |event| {
+      on_event_loop_event(
+        &app_handle,
+        event,
+        &manager,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
+      )
+    })
   }
 }
 
@@ -720,10 +705,11 @@ impl<R: Runtime> Builder<R> {
     T: Send + Sync + 'static,
   {
     let type_name = std::any::type_name::<T>();
-    if !self.state.set(state) {
-      panic!("state for type '{}' is already being managed", type_name);
-    }
-
+    assert!(
+      self.state.set(state),
+      "state for type '{}' is already being managed",
+      type_name
+    );
     self
   }
 
@@ -914,29 +900,6 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manager.initialize_plugins(&app.handle())?;
-
-    let pending_labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
-    for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(app.handle(), detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(_window);
-      }
-    }
-
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
@@ -1027,6 +990,29 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
+    app.manager.initialize_plugins(&app.handle())?;
+
+    let pending_labels = self
+      .pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    #[cfg(feature = "updater")]
+    let mut main_window = None;
+
+    for pending in self.pending_windows {
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
+      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
+      let _window = app.manager.attach_window(app.handle(), detached);
+      #[cfg(feature = "updater")]
+      if main_window.is_none() {
+        main_window = Some(_window);
+      }
+    }
+
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "updater")]
@@ -1042,9 +1028,42 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>) {
-  if let RunEvent::WindowClose(label) = event {
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
+  app_handle: &AppHandle<R>,
+  event: RunEvent,
+  manager: &WindowManager<R>,
+  callback: Option<&mut F>,
+) {
+  if let RunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
+  }
+
+  let event = match event {
+    RunEvent::Exit => Event::Exit,
+    RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+      window_label,
+      api: ExitRequestApi(tx),
+    },
+    RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+      label,
+      api: CloseRequestApi(signal_tx),
+    },
+    RunEvent::WindowClose(label) => Event::WindowClosed(label),
+    RunEvent::Ready => Event::Ready,
+    RunEvent::Resumed => Event::Resumed,
+    RunEvent::MainEventsCleared => Event::MainEventsCleared,
+    _ => unimplemented!(),
+  };
+
+  manager
+    .inner
+    .plugins
+    .lock()
+    .expect("poisoned plugin store")
+    .on_event(app_handle, &event);
+
+  if let Some(c) = callback {
+    c(app_handle, event);
   }
 }
 

@@ -319,7 +319,12 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   where
     T: Send + Sync + 'static,
   {
-    self.manager().inner.state.get()
+    self
+      .manager()
+      .inner
+      .state
+      .try_get()
+      .expect("state() called before manage() for given type")
   }
 
   /// Tries to get the managed state for the type `T`. Returns `None` if the type is not managed.

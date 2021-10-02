@@ -9,6 +9,7 @@ use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
+  command_env,
   config::{get as get_config, AppUrl},
   execute_with_output,
   manifest::rewrite_manifest,
@@ -86,18 +87,20 @@ impl Build {
         logger.log(format!("Running `{}`", before_build));
         #[cfg(target_os = "windows")]
         execute_with_output(
-          &mut Command::new("cmd")
+          Command::new("cmd")
             .arg("/C")
             .arg(before_build)
-            .current_dir(app_dir()),
+            .current_dir(app_dir())
+            .envs(command_env()),
         )
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
         #[cfg(not(target_os = "windows"))]
         execute_with_output(
-          &mut Command::new("sh")
+          Command::new("sh")
             .arg("-c")
             .arg(before_build)
-            .current_dir(app_dir()),
+            .current_dir(app_dir())
+            .envs(command_env()),
         )
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
       }
@@ -133,7 +136,11 @@ impl Build {
       .get_out_dir(self.target.clone(), self.debug)
       .with_context(|| "failed to get project out directory")?;
     if let Some(product_name) = config_.package.product_name.clone() {
-      let bin_name = app_settings.cargo_package_settings().name.clone();
+      let bin_name = app_settings
+        .cargo_package_settings()
+        .name
+        .clone()
+        .expect("Cargo manifest must have the `package.name` field");
       #[cfg(windows)]
       let (bin_path, product_path) = {
         (

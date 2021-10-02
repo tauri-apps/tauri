@@ -945,7 +945,7 @@ pub enum WebviewEvent {
 #[derive(Debug, Clone)]
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
-  UpdateMenu(SystemTrayItems, SystemTrayMenu),
+  UpdateMenu(SystemTrayMenu),
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
@@ -2203,12 +2203,14 @@ fn handle_event_loop(
             }
           }
         }
-        TrayMessage::UpdateMenu(items, menu) => {
+        TrayMessage::UpdateMenu(menu) => {
           if let Some(tray) = &*tray_context.tray.lock().unwrap() {
+            let mut items = HashMap::new();
             tray
               .lock()
               .unwrap()
               .set_menu(&to_wry_context_menu(&mut items, menu));
+            *tray_context.items.lock().unwrap() = items;
           }
         }
         TrayMessage::UpdateIcon(icon) => {

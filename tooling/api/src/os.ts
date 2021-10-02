@@ -34,17 +34,26 @@ import { invokeTauriCommand } from './helpers/tauri'
  * */
 const EOL = isWindows() ? '\r\n' : '\n'
 
-type Platform = LiteralUnion<
-  'aix' | 'darwin' | 'freebsd' | 'linux' | 'openbsd' | 'sunos' | 'win32',
-  string
->
-
 /**
  * Returns a string identifying the operating system platform.
- * The value is set at compile time. Possible values are `'aix'`, `'darwin'`, `'freebsd'`, `'linux'`, `'openbsd'`, `'sunos'`, and `'win32'`.
+ * The value is set at compile time. Possible values are `'linux'`, `'darwin'`, `'ios'`, `'freebsd'`, `'dragonfly'`, `'netbsd'`, `'openbsd'`, `'solaris'`, `'android'`, `'win32'`
  */
-async function platform(): Promise<Platform> {
-  return invokeTauriCommand<Platform>({
+async function platform(): Promise<
+  LiteralUnion<
+    | 'linux'
+    | 'darwin'
+    | 'ios'
+    | 'freebsd'
+    | 'dragonfly'
+    | 'netbsd'
+    | 'openbsd'
+    | 'solaris'
+    | 'android'
+    | 'win32',
+    string
+  >
+> {
+  return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
       cmd: 'platform'
@@ -64,13 +73,13 @@ async function version(): Promise<string> {
   })
 }
 
-type OsType = LiteralUnion<'Linux' | 'Darwin' | 'Windows_NT', string>
-
 /**
  * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
  */
-async function type(): Promise<OsType> {
-  return invokeTauriCommand<OsType>({
+async function type(): Promise<
+  LiteralUnion<'Linux' | 'Darwin' | 'Windows_NT', string>
+> {
+  return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
       cmd: 'type'
@@ -78,26 +87,26 @@ async function type(): Promise<OsType> {
   })
 }
 
-type Arch = LiteralUnion<
-  | 'x86'
-  | 'x86_64'
-  | 'arm'
-  | 'aarch64'
-  | 'mips'
-  | 'mips64'
-  | 'powerpc'
-  | 'powerpc64'
-  | 'riscv64'
-  | 's390x'
-  | 'sparc64',
-  string
->
-
 /**
  * Returns the operating system CPU architecture for which the tauri app was compiled. Possible values are `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'mips'`, `'mips64'`, `'powerpc'`, `'powerpc64'`, `'riscv64'`, `'s390x'`, `'sparc64'`
  */
-async function arch(): Promise<Arch> {
-  return invokeTauriCommand<Arch>({
+async function arch(): Promise<
+  LiteralUnion<
+    | 'x86'
+    | 'x86_64'
+    | 'arm'
+    | 'aarch64'
+    | 'mips'
+    | 'mips64'
+    | 'powerpc'
+    | 'powerpc64'
+    | 'riscv64'
+    | 's390x'
+    | 'sparc64',
+    string
+  >
+> {
+  return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
       cmd: 'arch'
@@ -118,4 +127,3 @@ async function tempdir(): Promise<string> {
 }
 
 export { EOL, platform, version, type, arch, tempdir }
-export type { Platform, OsType, Arch }

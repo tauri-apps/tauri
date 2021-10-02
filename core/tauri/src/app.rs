@@ -705,10 +705,11 @@ impl<R: Runtime> Builder<R> {
     T: Send + Sync + 'static,
   {
     let type_name = std::any::type_name::<T>();
-    if !self.state.set(state) {
-      panic!("state for type '{}' is already being managed", type_name);
-    }
-
+    assert!(
+      self.state.set(state),
+      "state for type '{}' is already being managed",
+      type_name
+    );
     self
   }
 

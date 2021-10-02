@@ -1,6 +1,5 @@
 ---
-title: App Development
-sidebar_label: 'App Development (2/4)'
+title: Development Cycle
 ---
 
 import Alert from '@theme/Alert'

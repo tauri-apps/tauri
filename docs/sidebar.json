@@ -51,7 +51,8 @@
               "usage/guides/bundler/introduction",
               "usage/guides/bundler/anti-bloat",
               "usage/guides/bundler/sidecar",
-              "usage/guides/bundler/debian"
+              "usage/guides/bundler/debian",
+              "usage/guides/bundler/sign-osx"
             ]
           },
           "usage/guides/cli",

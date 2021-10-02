@@ -9,9 +9,7 @@ use tauri_runtime::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
     ResponseParts as HttpResponseParts,
   },
-  menu::{
-    CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu, SystemTrayMenu,
-  },
+  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu},
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,

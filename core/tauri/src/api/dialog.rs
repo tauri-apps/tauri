@@ -155,7 +155,7 @@ fn run_message_dialog<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   #[cfg(any(windows, target_os = "macos"))]
   {
     if let Some(window) = parent_window {
-      builder = builder.set_parent(&window);
+      builder = builder.set_parent(window);
     }
   }
 

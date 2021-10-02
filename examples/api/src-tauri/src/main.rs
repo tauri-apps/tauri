@@ -12,6 +12,7 @@ mod menu;
 
 #[cfg(target_os = "linux")]
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
@@ -42,6 +43,20 @@ async fn menu_toggle(window: tauri::Window) {
 }
 
 fn main() {
+  let tray_menu1 = SystemTrayMenu::new()
+    .add_item(CustomMenuItem::new("toggle", "Toggle"))
+    .add_item(CustomMenuItem::new("new", "New window"))
+    .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
+    .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
+    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("exit_app", "Quit"));
+  let tray_menu2 = SystemTrayMenu::new()
+    .add_item(CustomMenuItem::new("toggle", "Toggle"))
+    .add_item(CustomMenuItem::new("new", "New window"))
+    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("exit_app", "Quit"));
+  let is_menu1 = AtomicBool::new(true);
+
   #[allow(unused_mut)]
   let mut app = tauri::Builder::default()
     .on_page_load(|window, _| {
@@ -79,17 +94,8 @@ fn main() {
     .on_menu_event(|event| {
       println!("{:?}", event.menu_item_id());
     })
-    .system_tray(
-      SystemTray::new().with_menu(
-        SystemTrayMenu::new()
-          .add_item(CustomMenuItem::new("toggle", "Toggle"))
-          .add_item(CustomMenuItem::new("new", "New window"))
-          .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
-          .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
-          .add_item(CustomMenuItem::new("exit_app", "Quit")),
-      ),
-    )
-    .on_system_tray_event(|app, event| match event {
+    .system_tray(SystemTray::new().with_menu(tray_menu1.clone()))
+    .on_system_tray_event(move |app, event| match event {
       SystemTrayEvent::LeftClick {
         position: _,
         size: _,
@@ -176,6 +182,18 @@ fn main() {
               include_bytes!("../../../.icons/icon.ico").to_vec(),
             ))
             .unwrap(),
+          "switch_menu" => {
+            let flag = is_menu1.load(Ordering::Relaxed);
+            app
+              .tray_handle()
+              .set_menu(if flag {
+                tray_menu2.clone()
+              } else {
+                tray_menu1.clone()
+              })
+              .unwrap();
+            is_menu1.store(!flag, Ordering::Relaxed);
+          }
           _ => {}
         }
       }

@@ -87,7 +87,7 @@ impl Build {
         logger.log(format!("Running `{}`", before_build));
         #[cfg(target_os = "windows")]
         execute_with_output(
-          &mut Command::new("cmd")
+          Command::new("cmd")
             .arg("/C")
             .arg(before_build)
             .current_dir(app_dir())
@@ -96,7 +96,7 @@ impl Build {
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
         #[cfg(not(target_os = "windows"))]
         execute_with_output(
-          &mut Command::new("sh")
+          Command::new("sh")
             .arg("-c")
             .arg(before_build)
             .current_dir(app_dir())

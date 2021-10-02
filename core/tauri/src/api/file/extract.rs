@@ -39,7 +39,7 @@ fn detect_archive_type(path: &path::Path) -> ArchiveFormat {
     Some(extension) if extension == std::ffi::OsStr::new("tar") => ArchiveFormat::Tar(None),
     Some(extension) if extension == std::ffi::OsStr::new("gz") => match path
       .file_stem()
-      .map(|e| path::Path::new(e))
+      .map(path::Path::new)
       .and_then(|f| f.extension())
     {
       Some(extension) if extension == std::ffi::OsStr::new("tar") => {

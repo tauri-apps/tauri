@@ -93,6 +93,26 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
 }
 
+#[cfg(any(windows, target_os = "macos"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
+unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
+  #[cfg(windows)]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::windows::WindowsHandle::empty();
+    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
+    raw_window_handle::RawWindowHandle::Windows(handle)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::macos::MacOSHandle::empty();
+    handle.ns_window = self
+      .ns_window()
+      .expect("failed to get window's `ns_window`");
+    raw_window_handle::RawWindowHandle::MacOS(handle)
+  }
+}
+
 impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {

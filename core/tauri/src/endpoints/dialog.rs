@@ -6,7 +6,7 @@ use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, message as message_dialog},
+  api::dialog::{ask as ask_dialog, confirm as confirm_dialog, message as message_dialog},
   runtime::Runtime,
   Window,
 };
@@ -70,6 +70,10 @@ pub enum Cmd {
     title: Option<String>,
     message: String,
   },
+  ConfirmDialog {
+    title: Option<String>,
+    message: String,
+  },
 }
 
 impl Cmd {
@@ -88,25 +92,25 @@ impl Cmd {
 
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
-        let app_name = exe
-          .file_stem()
-          .expect("failed to get binary filename")
-          .to_string_lossy()
-          .to_string();
-        message_dialog(Some(&window), app_name, message);
+        message_dialog(
+          Some(&window),
+          &window.app_handle.package_info().name,
+          message,
+        );
         Ok(().into())
       }
       Self::AskDialog { title, message } => {
-        let exe = std::env::current_exe()?;
         let answer = ask(
           &window,
-          title.unwrap_or_else(|| {
-            exe
-              .file_stem()
-              .expect("failed to get binary filename")
-              .to_string_lossy()
-              .to_string()
-          }),
+          title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
+          message,
+        )?;
+        Ok(answer)
+      }
+      Self::ConfirmDialog { title, message } => {
+        let answer = confirm(
+          &window,
+          title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
           message,
         )?;
         Ok(answer)
@@ -143,7 +147,7 @@ pub fn open<R: Runtime>(
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&crate::api::dialog::window_parent(window)?);
+    dialog_builder = dialog_builder.set_parent(window);
   }
   if let Some(default_path) = options.default_path {
     if !default_path.exists() {
@@ -179,7 +183,7 @@ pub fn save<R: Runtime>(
   let mut dialog_builder = FileDialogBuilder::new();
   #[cfg(any(windows, target_os = "macos"))]
   {
-    dialog_builder = dialog_builder.set_parent(&crate::api::dialog::window_parent(&window)?);
+    dialog_builder = dialog_builder.set_parent(&window);
   }
   if let Some(default_path) = options.default_path {
     dialog_builder = set_default_path(dialog_builder, default_path);
@@ -201,5 +205,16 @@ pub fn ask<R: Runtime>(
 ) -> crate::Result<InvokeResponse> {
   let (tx, rx) = channel();
   ask_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
+  Ok(rx.recv().unwrap().into())
+}
+
+/// Shows a dialog with a ok/cancel message.
+pub fn confirm<R: Runtime>(
+  window: &Window<R>,
+  title: String,
+  message: String,
+) -> crate::Result<InvokeResponse> {
+  let (tx, rx) = channel();
+  confirm_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
   Ok(rx.recv().unwrap().into())
 }

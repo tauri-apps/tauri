@@ -1,7 +1,7 @@
 [package]
 name = "tauri-plugin-{{ plugin_name }}"
 version = "0.0.0"
-authors = [ "You" ]
+authors = [ "{{ author }}" ]
 description = ""
 edition = "2018"
 exclude = ["/examples", "/webview-dist", "/webview-src", "node_modules"]

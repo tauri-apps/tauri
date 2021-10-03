@@ -1,9 +1,7 @@
 {
   "name": "tauri-plugin-{{ plugin_name }}-api",
   "version": "0.0.0",
-  "authors": [
-    "You"
-  ],
+  "author": "{{ author }}",
   "description": "",
   "browser": "webview-dist/index.js",
   "main": "webview-dist/index.js",

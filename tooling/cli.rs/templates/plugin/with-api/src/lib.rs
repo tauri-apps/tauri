@@ -1,3 +1,7 @@
+{{#if license_header}}
+{{ license_header }}
+{{/if}}
+
 use serde::{ser::Serializer, Serialize};
 use serde_json::Value as JsonValue;
 use tauri::{command, plugin::Plugin, AppHandle, Invoke, Manager, Runtime, State, Window};

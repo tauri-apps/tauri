@@ -2,7 +2,7 @@
 name = "app"
 version = "0.1.0"
 description = "A Tauri App"
-authors = [ "You" ]
+authors = [ "{{ author }}" ]
 repository = ""
 edition = "2018"
 

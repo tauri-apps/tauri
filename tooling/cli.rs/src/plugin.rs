@@ -19,8 +19,10 @@ const API_PLUGIN_DIR: Dir = include_dir!("templates/plugin/with-api");
 pub struct Plugin {
   plugin_name: String,
   api: bool,
+  tauri: bool,
   directory: PathBuf,
   tauri_path: Option<PathBuf>,
+  author: String,
 }
 
 impl Default for Plugin {
@@ -28,8 +30,10 @@ impl Default for Plugin {
     Self {
       plugin_name: "".into(),
       api: false,
+      tauri: false,
       directory: current_dir().expect("failed to read cwd"),
       tauri_path: None,
+      author: "".into(),
     }
   }
 }
@@ -49,6 +53,11 @@ impl Plugin {
     self
   }
 
+  pub fn tauri(mut self) -> Self {
+    self.tauri = true;
+    self
+  }
+
   pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
     self.directory = directory.into();
     self
@@ -56,6 +65,11 @@ impl Plugin {
 
   pub fn tauri_path(mut self, tauri_path: impl Into<PathBuf>) -> Self {
     self.tauri_path = Some(tauri_path.into());
+    self
+  }
+
+  pub fn author(mut self, author: String) -> Self {
+    self.author = author;
     self
   }
 
@@ -105,6 +119,30 @@ impl Plugin {
       );
       data.insert("tauri_dep", to_json(tauri_dep));
       data.insert("tauri_build_dep", to_json(tauri_build_dep));
+      data.insert("author", to_json(self.author));
+
+      if self.tauri {
+        data.insert(
+          "license_template",
+          to_json(
+            "// Copyright {20\\d{2}(-20\\d{2})?} Tauri Programme within The Commons Conservancy
+             // SPDX-License-Identifier: Apache-2.0
+             // SPDX-License-Identifier: MIT\n\n"
+              .replace("  ", "")
+              .replace(" //", "//"),
+          ),
+        );
+        data.insert(
+          "license_header",
+          to_json(
+            "// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+             // SPDX-License-Identifier: Apache-2.0
+             // SPDX-License-Identifier: MIT\n\n"
+              .replace("  ", "")
+              .replace(" //", "//"),
+          ),
+        );
+      }
 
       template::render(
         &handlebars,

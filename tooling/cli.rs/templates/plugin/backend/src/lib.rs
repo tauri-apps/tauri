@@ -1,3 +1,6 @@
+{{#if license_header}}
+{{ license_header }}
+{{/if}}
 use tauri::{plugin::Plugin, Runtime};
 
 #[derive(Default)]

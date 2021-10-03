@@ -69,11 +69,27 @@ fn plugin_command(matches: &ArgMatches) -> Result<()> {
   let plugin_name = matches.value_of("name").expect("name is required");
   let directory = matches.value_of("directory");
   let tauri_path = matches.value_of("tauri-path");
+  let tauri = matches.is_present("tauri");
+  let author = matches
+    .value_of("author")
+    .map(|p| p.to_string())
+    .unwrap_or_else(|| {
+      if tauri {
+        "Tauri Programme within The Commons Conservancy".into()
+      } else {
+        "You".into()
+      }
+    });
 
-  let mut plugin_runner = plugin::Plugin::new().plugin_name(plugin_name.to_string());
+  let mut plugin_runner = plugin::Plugin::new()
+    .plugin_name(plugin_name.to_string())
+    .author(author);
 
   if api {
     plugin_runner = plugin_runner.api();
+  }
+  if tauri {
+    plugin_runner = plugin_runner.tauri();
   }
   if let Some(directory) = directory {
     plugin_runner = plugin_runner.directory(directory);

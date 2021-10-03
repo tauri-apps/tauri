@@ -18,6 +18,7 @@ Windows:
 ```
 ./.scripts/setup.ps1
 ```
+When prompted to install Node.js CLI, press `Y` (default `N`)
 
 - Install dependencies (Run inside of this folder tauri/examples/api/)
 ```bash

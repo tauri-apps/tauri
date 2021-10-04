@@ -33,7 +33,6 @@ use std::{
 
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
-#[cfg(all(windows, feature = "system-tray"))]
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
@@ -225,6 +224,14 @@ impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
 }
 
 impl<R: Runtime> AppHandle<R> {
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .run_on_main_thread(f)
+      .map_err(Into::into)
+  }
+
   /// Removes the system tray.
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]

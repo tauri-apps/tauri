@@ -57,6 +57,12 @@ Now you will need to install <a href="https://www.rust-lang.org/" target="_blank
 
 Download and install the proper variant for your computer's architecture.
 
+:::info 
+
+We recommend you reboot your computer before using Tauri for everything to work perfectly.
+
+:::
+
 ## 4. Install WebView2
 
 <Alert title="Note">

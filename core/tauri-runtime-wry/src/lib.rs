@@ -1528,6 +1528,10 @@ impl RuntimeHandle for WryHandle {
     Ok(DetachedWindow { label, dispatcher })
   }
 
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
+    send_user_message(&self.context, Message::Task(Box::new(f)))
+  }
+
   #[cfg(all(windows, feature = "system-tray"))]
   /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {

@@ -206,8 +206,8 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.clone()
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self
       .window
       .dispatcher

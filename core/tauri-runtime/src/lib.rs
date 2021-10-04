@@ -255,6 +255,9 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
     pending: PendingWindow<Self::Runtime>,
   ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()>;

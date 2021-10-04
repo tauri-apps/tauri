@@ -114,6 +114,13 @@ impl Build {
           web_asset_path
         ));
       }
+      if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
+        return Err(anyhow::anyhow!(
+            "The configured distDir is the `src-tauri` folder.
+            Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
+          ));
+      }
+
       let mut out_folders = Vec::new();
       for folder in &["node_modules", "src-tauri", "target"] {
         if web_asset_path.join(folder).is_dir() {
@@ -121,14 +128,12 @@ impl Build {
         }
       }
       if !out_folders.is_empty() {
-        logger.warn(
-          format!(
+        return Err(anyhow::anyhow!(
             "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
             out_folders,
             if out_folders.len() == 1 { "folder" }else { "folders" }
           )
         );
-        std::process::exit(1);
       }
     }
 

@@ -45,7 +45,7 @@
     "@babel/preset-env": "7.15.6",
     "@babel/preset-typescript": "7.15.0",
     "@rollup/plugin-babel": "5.3.0",
-    "@rollup/plugin-commonjs": "20.0.0",
+    "@rollup/plugin-commonjs": "21.0.0",
     "@rollup/plugin-node-resolve": "13.0.5",
     "@rollup/plugin-sucrase": "4.0.0",
     "@rollup/plugin-typescript": "8.2.5",

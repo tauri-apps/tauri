@@ -9,7 +9,7 @@
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "20.0.0",
+    "@rollup/plugin-commonjs": "21.0.0",
     "@rollup/plugin-node-resolve": "13.0.5",
     "@rollup/plugin-typescript": "8.2.5",
     "@tauri-apps/cli": "1.0.0-beta.10",

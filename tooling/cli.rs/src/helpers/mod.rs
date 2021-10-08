@@ -41,8 +41,9 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   }
 }
 
-pub fn command_env() -> HashMap<String, String> {
+pub fn command_env(debug: bool) -> HashMap<String, String> {
   let mut map = HashMap::new();
+  map.insert("TAURI_DEBUG".into(), debug);
   map.insert("PLATFORM".into(), std::env::consts::OS.into());
   map.insert("ARCH".into(), std::env::consts::ARCH.into());
   map.insert("FAMILY".into(), std::env::consts::FAMILY.into());

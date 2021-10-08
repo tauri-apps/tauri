@@ -90,7 +90,7 @@ pub enum WindowManagerCmd {
 #[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   CreateWebview {
-    options: WindowConfig,
+    options: Box<WindowConfig>,
   },
   Manage {
     label: Option<String>,
@@ -123,7 +123,7 @@ impl Cmd {
         window
           .create_window(label.clone(), url, |_, webview_attributes| {
             (
-              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(options),
+              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
               webview_attributes,
             )
           })?

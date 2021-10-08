@@ -316,7 +316,7 @@ impl<R: Runtime> Window<R> {
 
   /// Registers a menu event listener.
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
-    let menu_ids = self.manager.menu_ids();
+    let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
       f(MenuEvent {
         menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
@@ -329,7 +329,7 @@ impl<R: Runtime> Window<R> {
   /// Gets a handle to the window menu.
   pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
-      ids: self.manager.menu_ids(),
+      ids: self.window.menu_ids.clone(),
       dispatcher: self.dispatcher(),
     }
   }

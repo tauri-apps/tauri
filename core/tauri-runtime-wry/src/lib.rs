@@ -9,7 +9,7 @@ use tauri_runtime::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
     ResponseParts as HttpResponseParts,
   },
-  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuItem, MenuUpdate, Submenu},
+  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
@@ -693,7 +693,7 @@ impl From<UserAttentionType> for UserAttentionTypeWrapper {
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
-  menu: Menu,
+  menu: Option<Menu>,
 }
 
 // safe since `menu_items` are read only here
@@ -736,7 +736,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn menu(mut self, menu: Menu) -> Self {
-    self.menu = convert_menu_id(Menu::new(), menu);
+    self.menu.replace(menu);
     self
   }
 
@@ -857,8 +857,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner.window.window_icon.is_some()
   }
 
-  fn has_menu(&self) -> bool {
-    self.inner.window.window_menu.is_some()
+  fn get_menu(&self) -> Option<&Menu> {
+    self.menu.as_ref()
   }
 }
 
@@ -1206,6 +1206,7 @@ impl Dispatch for WryDispatcher {
   ) -> Result<DetachedWindow<Self::Runtime>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
+    let menu_ids = pending.menu_ids.clone();
     let context = self.context.clone();
 
     send_user_message(
@@ -1223,7 +1224,11 @@ impl Dispatch for WryDispatcher {
       window_id,
       context: self.context.clone(),
     };
-    Ok(DetachedWindow { label, dispatcher })
+    Ok(DetachedWindow {
+      label,
+      dispatcher,
+      menu_ids,
+    })
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1451,7 +1456,7 @@ impl WindowHandle {
 pub struct WindowWrapper {
   label: String,
   inner: WindowHandle,
-  menu_items: HashMap<u16, WryCustomMenuItem>,
+  menu_items: Option<HashMap<u16, WryCustomMenuItem>>,
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.
@@ -1509,6 +1514,7 @@ impl RuntimeHandle for WryHandle {
   ) -> Result<DetachedWindow<Self::Runtime>> {
     let (tx, rx) = channel();
     let label = pending.label.clone();
+    let menu_ids = pending.menu_ids.clone();
     let context = self.context.clone();
     send_user_message(
       &self.context,
@@ -1525,7 +1531,11 @@ impl RuntimeHandle for WryHandle {
       window_id,
       context: self.context.clone(),
     };
-    Ok(DetachedWindow { label, dispatcher })
+    Ok(DetachedWindow {
+      label,
+      dispatcher,
+      menu_ids,
+    })
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1632,6 +1642,7 @@ impl Runtime for Wry {
 
   fn create_window(&self, pending: PendingWindow<Self>) -> Result<DetachedWindow<Self>> {
     let label = pending.label.clone();
+    let menu_ids = pending.menu_ids.clone();
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
       &self.event_loop,
@@ -1717,7 +1728,11 @@ impl Runtime for Wry {
       .unwrap()
       .insert(webview.inner.window().id(), webview);
 
-    Ok(DetachedWindow { label, dispatcher })
+    Ok(DetachedWindow {
+      label,
+      dispatcher,
+      menu_ids,
+    })
   }
 
   #[cfg(feature = "system-tray")]
@@ -2006,17 +2021,16 @@ fn handle_user_message(
             let _ = window.drag_window();
           }
           WindowMessage::UpdateMenuItem(id, update) => {
-            let item = webview
-              .menu_items
-              .get_mut(&id)
-              .expect("menu item not found");
-            match update {
-              MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
-              MenuUpdate::SetTitle(title) => item.set_title(&title),
-              MenuUpdate::SetSelected(selected) => item.set_selected(selected),
-              #[cfg(target_os = "macos")]
-              MenuUpdate::SetNativeImage(image) => {
-                item.set_native_image(NativeImageWrapper::from(image).0)
+            if let Some(menu_items) = webview.menu_items.as_mut() {
+              let item = menu_items.get_mut(&id).expect("menu item not found");
+              match update {
+                MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+                MenuUpdate::SetTitle(title) => item.set_title(&title),
+                MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+                #[cfg(target_os = "macos")]
+                MenuUpdate::SetNativeImage(image) => {
+                  item.set_native_image(NativeImageWrapper::from(image).0)
+                }
               }
             }
           }
@@ -2464,38 +2478,6 @@ fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<(
   }
 }
 
-fn convert_menu_id(mut new_menu: Menu, menu: Menu) -> Menu {
-  for item in menu.items {
-    match item {
-      MenuEntry::CustomItem(c) => {
-        let mut item = CustomMenuItem::new(c.id_str, c.title);
-        #[cfg(target_os = "macos")]
-        if let Some(native_image) = c.native_image {
-          item = item.native_image(native_image);
-        }
-        if let Some(accelerator) = c.keyboard_accelerator {
-          item = item.accelerator(accelerator);
-        }
-        if !c.enabled {
-          item = item.disabled();
-        }
-        if c.selected {
-          item = item.selected();
-        }
-        new_menu = new_menu.add_item(item);
-      }
-      MenuEntry::NativeItem(i) => {
-        new_menu = new_menu.add_native_item(i);
-      }
-      MenuEntry::Submenu(submenu) => {
-        let new_submenu = convert_menu_id(Menu::new(), submenu.inner);
-        new_menu = new_menu.add_submenu(Submenu::new(submenu.title, new_submenu));
-      }
-    }
-  }
-  new_menu
-}
-
 fn to_wry_menu(
   custom_menu_items: &mut HashMap<MenuHash, WryCustomMenuItem>,
   menu: Menu,
@@ -2544,15 +2526,18 @@ fn create_webview(
     file_drop_handler,
     label,
     url,
+    menu_ids,
     ..
   } = pending;
 
   let is_window_transparent = window_builder.inner.window.transparent;
-  let menu_items = {
+  let menu_items = if let Some(menu) = window_builder.menu {
     let mut menu_items = HashMap::new();
-    let menu = to_wry_menu(&mut menu_items, window_builder.menu);
+    let menu = to_wry_menu(&mut menu_items, menu);
     window_builder.inner = window_builder.inner.with_menu(menu);
-    menu_items
+    Some(menu_items)
+  } else {
+    None
   };
   let window = window_builder.inner.build(event_loop).unwrap();
 
@@ -2577,13 +2562,18 @@ fn create_webview(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent);
   if let Some(handler) = rpc_handler {
-    webview_builder =
-      webview_builder.with_rpc_handler(create_rpc_handler(context.clone(), label.clone(), handler));
+    webview_builder = webview_builder.with_rpc_handler(create_rpc_handler(
+      context.clone(),
+      label.clone(),
+      menu_ids.clone(),
+      handler,
+    ));
   }
   if let Some(handler) = file_drop_handler {
     webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(
       context,
       label.clone(),
+      menu_ids,
       handler,
     ));
   }
@@ -2639,6 +2629,7 @@ fn create_webview(
 fn create_rpc_handler(
   context: Context,
   label: String,
+  menu_ids: HashMap<MenuHash, MenuId>,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
@@ -2649,6 +2640,7 @@ fn create_rpc_handler(
           context: context.clone(),
         },
         label: label.clone(),
+        menu_ids: menu_ids.clone(),
       },
       RpcRequestWrapper(request).into(),
     );
@@ -2660,6 +2652,7 @@ fn create_rpc_handler(
 fn create_file_drop_handler(
   context: Context,
   label: String,
+  menu_ids: HashMap<MenuHash, MenuId>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
@@ -2671,6 +2664,7 @@ fn create_file_drop_handler(
           context: context.clone(),
         },
         label: label.clone(),
+        menu_ids: menu_ids.clone(),
       },
     )
   })

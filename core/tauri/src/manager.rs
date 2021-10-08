@@ -29,10 +29,7 @@ use crate::api::path::{resolve_path, BaseDirectory};
 
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
-use crate::{
-  runtime::menu::{Menu, MenuEntry, MenuHash, MenuId},
-  MenuEvent,
-};
+use crate::{runtime::menu::Menu, MenuEvent};
 
 use serde::Serialize;
 use serde_json::Value as JsonValue;
@@ -79,8 +76,6 @@ pub struct InnerWindowManager<R: Runtime> {
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
-  /// Maps runtime id to a strongly typed menu id.
-  menu_ids: HashMap<MenuHash, MenuId>,
   /// Menu event listeners to all windows.
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
   /// Window event listeners to all windows.
@@ -89,20 +84,14 @@ pub struct InnerWindowManager<R: Runtime> {
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    let mut s = f.debug_struct("InnerWindowManager");
-    #[allow(unused_mut)]
-    let mut w = s
+    f.debug_struct("InnerWindowManager")
       .field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
-      .field("package_info", &self.package_info);
-    {
-      w = w
-        .field("menu", &self.menu)
-        .field("menu_ids", &self.menu_ids);
-    }
-    w.finish()
+      .field("package_info", &self.package_info)
+      .field("menu", &self.menu)
+      .finish()
   }
 }
 
@@ -133,18 +122,6 @@ impl<R: Runtime> Clone for WindowManager<R> {
   }
 }
 
-fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
-  for item in &menu.items {
-    match item {
-      MenuEntry::CustomItem(c) => {
-        map.insert(c.id, c.id_str.clone());
-      }
-      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
-      _ => {}
-    }
-  }
-}
-
 impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn with_handlers(
@@ -170,13 +147,6 @@ impl<R: Runtime> WindowManager<R> {
         default_window_icon: context.default_window_icon,
         package_info: context.package_info,
         uri_scheme_protocols,
-        menu_ids: {
-          let mut map = HashMap::new();
-          if let Some(menu) = &menu {
-            get_menu_ids(&mut map, menu)
-          }
-          map
-        },
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
@@ -193,11 +163,6 @@ impl<R: Runtime> WindowManager<R> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
-  }
-
-  /// Get the menu ids mapper.
-  pub(crate) fn menu_ids(&self) -> HashMap<MenuHash, MenuId> {
-    self.inner.menu_ids.clone()
   }
 
   /// Get the base path to serve data from.
@@ -281,7 +246,7 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if !pending.window_builder.has_menu() {
+    if pending.window_builder.get_menu().is_none() {
       if let Some(menu) = &self.inner.menu {
         pending.window_builder = pending.window_builder.menu(menu.clone());
       }

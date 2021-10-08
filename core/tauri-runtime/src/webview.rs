@@ -156,8 +156,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
 
-  /// Whether the menu was set or not.
-  fn has_menu(&self) -> bool;
+  /// Gets the window menu.
+  fn get_menu(&self) -> Option<&Menu>;
 }
 
 /// Rpc request.

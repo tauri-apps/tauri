@@ -142,7 +142,7 @@ impl Dev {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env())
+          .envs(command_env(true)) // development build always includes debug information
           .spawn()
           .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
         #[cfg(not(target_os = "windows"))]
@@ -150,7 +150,7 @@ impl Dev {
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env())
+          .envs(command_env(true)) // development build always includes debug information
           .spawn()
           .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();

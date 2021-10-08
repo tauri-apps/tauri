@@ -91,7 +91,7 @@ impl Build {
             .arg("/C")
             .arg(before_build)
             .current_dir(app_dir())
-            .envs(command_env()),
+            .envs(command_env(self.debug)),
         )
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
         #[cfg(not(target_os = "windows"))]
@@ -100,7 +100,7 @@ impl Build {
             .arg("-c")
             .arg(before_build)
             .current_dir(app_dir())
-            .envs(command_env()),
+            .envs(command_env(self.debug)),
         )
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
       }

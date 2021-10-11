@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@effection/process": "2.0.0-beta.17",
-    "@rollup/plugin-commonjs": "20.0.0",
+    "@rollup/plugin-commonjs": "21.0.0",
     "@rollup/plugin-node-resolve": "13.0.5",
     "@rollup/plugin-typescript": "8.2.5",
     "@types/cross-spawn": "6.0.2",

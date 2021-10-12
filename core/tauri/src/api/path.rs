@@ -60,12 +60,12 @@ pub enum BaseDirectory {
   /// The default App config directory.
   /// Resolves to [`BaseDirectory::Config`].
   App,
-  /// The Log directory.
-  /// Resolves to [`BaseDirectory::Home/Library/Logs/{app identifies}`] on macos
-  /// and [`BaseDirectory::Config/{app identifier}/logs`] on linux and windows.
-  Log,
   /// The current working directory.
-  Current
+  Current,
+  /// The Log directory.
+  /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macos
+  /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
+  Log,
 }
 
 /// Resolves the path with the optional base directory.
@@ -113,8 +113,8 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(package_info),
       BaseDirectory::App => app_dir(config),
-      BaseDirectory::Log => log_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
+      BaseDirectory::Log => log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       // use the same path resolution mechanism as the bundler's resource injection algorithm

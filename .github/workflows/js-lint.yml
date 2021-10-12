@@ -7,19 +7,20 @@ name: eslint check
 on:
   pull_request:
     paths:
-      - '.github/workflows/js-lint.yml'
-      - 'tooling/cli.js/**'
-      - 'tooling/api/**'
-      - 'tooling/create-tauri-app/**'
+      - ".github/workflows/js-lint.yml"
+      - "tooling/cli.js/**"
+      - "tooling/api/**"
+      - "tooling/create-tauri-app/**"
 
 jobs:
   eslint-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
-          node-version: '12'
+          node-version: "12"
+          cache: npm
       - name: install cli.js deps via yarn
         working-directory: ./tooling/cli.js/
         run: yarn

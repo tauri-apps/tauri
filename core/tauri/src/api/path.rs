@@ -239,10 +239,15 @@ pub fn app_dir(config: &Config) -> Option<PathBuf> {
 /// Returns the path to the log directory.
 pub fn log_dir(config: &Config) -> Option<PathBuf> {
   #[cfg(target_os = "macos")]
-  let path = dirs_next::home_dir().map(|dir| dir.join("Library/Logs").join(&config.tauri.bundle.identifier));
+  let path = dirs_next::home_dir().map(|dir| {
+    dir
+      .join("Library/Logs")
+      .join(&config.tauri.bundle.identifier)
+  });
 
   #[cfg(not(target_os = "macos"))]
-  let path = dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
+  let path =
+    dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
 
   path
 }

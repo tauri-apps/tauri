@@ -163,17 +163,17 @@ If you have entered a command to the `build.beforeBuildCommand` property, this o
     Create all the icons you need for your Tauri app.
 
   Usage
-    $ tauri icon
+    $ tauri icon /path/to/icon.png
 
   Options
-    --help, -h          Displays this message
+    --help, -h           Displays this message
     --log, -l            Logging [boolean]
-    --icon, -i           Source icon (png, 1240x1240 with transparency)
     --target, -t         Target folder (default: 'src-tauri/icons')
-    --compression, -c    Compression type [pngquant|optipng|zopfli]
+    --compression, -c    Compression type [optipng|zopfli]
+    --ci                 Runs the script in CI mode     
 ```
 
-This command will generate a set of icons, based on the source icon you've entered.
+This command will generate a set of icons, based on the source icon you've entered. Note that the source icon must be 1240x1240 with transparency.
 
 ## `version`
 

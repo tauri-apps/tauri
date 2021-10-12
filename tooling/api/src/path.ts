@@ -439,7 +439,7 @@ async function currentDir(): Promise<string> {
  *
  * @returns
  */
- async function logDir(): Promise<string> {
+async function logDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {

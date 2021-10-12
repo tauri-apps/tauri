@@ -63,7 +63,7 @@ pub enum BaseDirectory {
   /// The current working directory.
   Current,
   /// The Log directory.
-  /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macos
+  /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macOS
   /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
   Log,
 }

@@ -579,6 +579,7 @@ export {
   templateDir,
   videoDir,
   currentDir,
+  logDir,
   BaseDirectory,
   sep,
   delimiter,

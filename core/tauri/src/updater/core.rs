@@ -811,7 +811,7 @@ pub fn verify_signature(
   file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
-  public_key.verify(&data, &signature)?;
+  public_key.verify(&data, &signature, false)?;
   Ok(true)
 }
 

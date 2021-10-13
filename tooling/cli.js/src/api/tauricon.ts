@@ -266,7 +266,7 @@ const tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-argument
           const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
@@ -332,7 +332,7 @@ const tauricon = {
   ) {
     let output
     let block = false
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-argument
     const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,
@@ -405,7 +405,9 @@ const tauricon = {
           }
           const pvar = [output, size]
           let sharpData = sharp(data)
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           sharpData = sharpData.resize(pvar[1][0], pvar[1][1])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           await sharpData.toFile(pvar[0])
         }
       }
@@ -447,7 +449,7 @@ const tauricon = {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
-      }).catch((err) => {
+      }).catch((err: string) => {
         warn(err)
       })
     }

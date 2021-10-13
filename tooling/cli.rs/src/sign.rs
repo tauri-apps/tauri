@@ -64,7 +64,6 @@ impl Signer {
       self.private_key.unwrap(),
       self.password.unwrap(),
       self.file.unwrap(),
-      false,
     )
     .with_context(|| "failed to sign file")?;
 

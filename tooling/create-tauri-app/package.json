@@ -39,7 +39,7 @@
     "scaffe": "1.1.0"
   },
   "devDependencies": {
-    "@effection/process": "2.0.0-beta.21",
+    "@effection/process": "2.0.1",
     "@rollup/plugin-commonjs": "21.0.0",
     "@rollup/plugin-node-resolve": "13.0.5",
     "@rollup/plugin-typescript": "8.2.5",
@@ -49,7 +49,7 @@
     "@types/semver": "7.3.8",
     "@typescript-eslint/eslint-plugin": "5.0.0",
     "@typescript-eslint/parser": "5.0.0",
-    "effection": "2.0.0-beta.22",
+    "effection": "2.0.1",
     "eslint": "8.0.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
@@ -62,6 +62,6 @@
     "rollup": "2.58.0",
     "temp-dir": "2.0.0",
     "tslib": "2.3.1",
-    "typescript": "4.4.3"
+    "typescript": "4.4.4"
   }
 }

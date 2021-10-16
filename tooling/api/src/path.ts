@@ -429,6 +429,28 @@ async function currentDir(): Promise<string> {
 }
 
 /**
+ * Returns the path to the log directory.
+ *
+ * ### Platform-specific
+ *
+ * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}`.
+ * - **macOS:** Resolves to `${homeDir}//Library/Logs/{bundleIdentifier}`
+ * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}`.
+ *
+ * @returns
+ */
+async function logDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.Log
+    }
+  })
+}
+
+/**
  * Provides the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
@@ -557,6 +579,7 @@ export {
   templateDir,
   videoDir,
   currentDir,
+  logDir,
   BaseDirectory,
   sep,
   delimiter,

@@ -429,7 +429,7 @@ async function currentDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the log directory.
+ * Returns the path to the suggested log directory.
  *
  * ### Platform-specific
  *

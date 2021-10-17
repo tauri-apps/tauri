@@ -677,6 +677,7 @@ impl<R: Runtime> WindowManager<R> {
       let local_app_data = resolve_path(
         &self.inner.config,
         &self.inner.package_info,
+        self.inner.state.get::<crate::Env>().inner(),
         &self.inner.config.tauri.bundle.identifier,
         Some(BaseDirectory::LocalData),
       );

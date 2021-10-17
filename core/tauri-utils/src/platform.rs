@@ -73,6 +73,7 @@ pub fn target_triple() -> crate::Result<String> {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
+#[allow(unused_variables)]
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
@@ -86,8 +87,12 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
     return Ok(exe_dir.to_path_buf());
   }
 
-  if cfg!(target_os = "linux") {
-    if curr_dir.ends_with("/data/usr/bin") {
+  #[allow(unused_mut)]
+  let mut res = Err(crate::Error::UnsupportedPlatform);
+
+  #[cfg(target_os = "linux")]
+  {
+    res = if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
       Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
     } else if let Some(appdir) = &env.appdir {
@@ -103,10 +108,13 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
         "/usr/lib/{}",
         package_info.package_name()
       )))
-    }
-  } else if cfg!(target_os = "macos") {
-    Ok(exe_dir.join("../Resources"))
-  } else {
-    Err(crate::Error::UnsupportedPlatform)
+    };
   }
+
+  #[cfg(target_os = "macos")]
+  {
+    res = Ok(exe_dir.join("../Resources"));
+  }
+
+  res
 }

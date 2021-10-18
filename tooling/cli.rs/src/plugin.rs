@@ -86,26 +86,32 @@ impl Plugin {
         template_target_path
       ));
     } else {
-      let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = self.tauri_path {
-        (
-          format!(
-            r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
-            resolve_tauri_path(&tauri_path, "core/tauri")
-          ),
-          format!(
-            "{{  path = {:?} }}",
-            resolve_tauri_path(&tauri_path, "core/tauri-build")
-          ),
-        )
-      } else {
-        (
-          format!(
-            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-            metadata.tauri
-          ),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-        )
-      };
+      let (tauri_dep, tauri_example_dep, tauri_build_dep) =
+        if let Some(tauri_path) = self.tauri_path {
+          (
+            format!(
+              r#"{{  path = {:?} }}"#,
+              resolve_tauri_path(&tauri_path, "core/tauri")
+            ),
+            format!(
+              r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
+              resolve_tauri_path(&tauri_path, "core/tauri")
+            ),
+            format!(
+              "{{  path = {:?} }}",
+              resolve_tauri_path(&tauri_path, "core/tauri-build")
+            ),
+          )
+        } else {
+          (
+            format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+            format!(
+              r#"{{ version = "{}", features = [ "api-all" ] }}"#,
+              metadata.tauri
+            ),
+            format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          )
+        };
 
       let _ = remove_dir_all(&template_target_path);
       let handlebars = Handlebars::new();
@@ -118,6 +124,7 @@ impl Plugin {
         to_json(self.plugin_name.to_snake_case()),
       );
       data.insert("tauri_dep", to_json(tauri_dep));
+      data.insert("tauri_example_dep", to_json(tauri_example_dep));
       data.insert("tauri_build_dep", to_json(tauri_build_dep));
       data.insert("author", to_json(self.author));
 

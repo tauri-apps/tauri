@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = {{{  tauri_dep  }}}
+tauri = {{{  tauri_example_dep  }}}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
 
 [build-dependencies]

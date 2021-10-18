@@ -1815,6 +1815,7 @@ impl Runtime for Wry {
     self
       .event_loop
       .run_return(|event, event_loop, control_flow| {
+        *control_flow = ControlFlow::Poll;
         if let Event::MainEventsCleared = &event {
           *control_flow = ControlFlow::Exit;
         }

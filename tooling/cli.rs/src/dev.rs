@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
+  app_paths::{app_dir as get_app_dir, tauri_dir},
   command_env,
   config::{get as get_config, reload as reload_config},
   manifest::{get_workspace_members, rewrite_manifest},
@@ -127,33 +127,38 @@ impl Dev {
     settings.copy_resources(&out_dir)?;
     settings.copy_binaries(&out_dir)?;
 
-    if let Some(before_dev) = &config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .before_dev_command
     {
-      if !before_dev.is_empty() {
-        logger.log(format!("Running `{}`", before_dev));
-        #[cfg(target_os = "windows")]
-        let child = Command::new("cmd")
-          .arg("/C")
-          .arg(before_dev)
-          .current_dir(app_dir())
-          .envs(command_env(true)) // development build always includes debug information
-          .spawn()
-          .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
-        #[cfg(not(target_os = "windows"))]
-        let child = Command::new("sh")
-          .arg("-c")
-          .arg(before_dev)
-          .current_dir(app_dir())
-          .envs(command_env(true)) // development build always includes debug information
-          .spawn()
-          .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
-        BEFORE_DEV.set(Mutex::new(child)).unwrap();
+      let config_guard = config.lock().unwrap();
+      let config_ = config_guard.as_ref().unwrap();
+      if let Some(before_dev) = &config_.build.before_dev_command {
+        if !before_dev.is_empty() {
+          logger.log(format!("Running `{}`", before_dev));
+
+          let app_dir = {
+            match config_.build.app_dir.clone() {
+              Some(app_dir) => app_dir,
+              None => get_app_dir().to_owned(),
+            }
+          };
+
+          #[cfg(target_os = "windows")]
+          let child = Command::new("cmd")
+            .arg("/C")
+            .arg(before_dev)
+            .current_dir(app_dir)
+            .envs(command_env(true)) // development build always includes debug information
+            .spawn()
+            .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
+          #[cfg(not(target_os = "windows"))]
+          let child = Command::new("sh")
+            .arg("-c")
+            .arg(before_dev)
+            .current_dir(app_dir)
+            .envs(command_env(true)) // development build always includes debug information
+            .spawn()
+            .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
+          BEFORE_DEV.set(Mutex::new(child)).unwrap();
+        }
       }
     }
 

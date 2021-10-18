@@ -260,6 +260,13 @@
       "description": "The Build configuration object.",
       "type": "object",
       "properties": {
+        "appDir": {
+          "description": "Directory path to app code. Can be omitted if the `package.json` is relative to the parent directory of this file. Defaults to `None`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "beforeBuildCommand": {
           "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
           "type": [

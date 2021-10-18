@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
+  app_paths::{app_dir as get_app_dir, tauri_dir},
   config::get as get_config,
   framework::infer_from_package_json as infer_framework,
 };
@@ -459,17 +459,35 @@ impl Info {
     )
     .display();
 
-    let hook = panic::take_hook();
-    panic::set_hook(Box::new(|_info| {
-      // do nothing
-    }));
-    let app_dir = panic::catch_unwind(app_dir).map(Some).unwrap_or_default();
-    panic::set_hook(hook);
+    let config = match get_config(None) {
+      Ok(config) => Some(config),
+      Err(_) => None,
+    };
+
+    let mut app_dir = None;
+
+    if let Some(ref config) = config {
+      let config_guard = config.lock().unwrap();
+      let config = config_guard.as_ref().unwrap();
+      app_dir = config.build.app_dir.clone()
+    }
+
+    if app_dir.is_none() {
+      let hook = panic::take_hook();
+      panic::set_hook(Box::new(|_info| {
+        // do nothing
+      }));
+      app_dir = panic::catch_unwind(get_app_dir)
+        .map(|p| p.to_owned())
+        .map(Some)
+        .unwrap_or_default();
+      panic::set_hook(hook);
+    };
 
     let mut package_manager = PackageManager::Npm;
     if let Some(app_dir) = &app_dir {
       let file_names = read_dir(app_dir)
-        .unwrap()
+        .expect("could not read app directory")
         .filter(|e| {
           e.as_ref()
             .unwrap()
@@ -532,7 +550,7 @@ impl Info {
     )
     .display();
 
-    if let Some(app_dir) = app_dir {
+    if let Some(ref app_dir) = app_dir {
       InfoBlock::new("App directory structure")
         .section()
         .display();
@@ -652,7 +670,7 @@ impl Info {
         .suffix(suffix)
         .display();
 
-      if let Ok(config) = get_config(None) {
+      if let Some(config) = config {
         let config_guard = config.lock().unwrap();
         let config = config_guard.as_ref().unwrap();
         InfoBlock::new("  build-type")

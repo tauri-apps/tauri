@@ -818,6 +818,10 @@ pub struct BuildConfig {
   /// The path to the app's dist dir. This path must contain your index.html file.
   #[serde(default = "default_dist_dir")]
   pub dist_dir: AppUrl,
+  /// Directory path to app code. Can be omitted if the `package.json` is relative to the parent directory of this file.
+  /// Defaults to `None`.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub app_dir: Option<PathBuf>,
   /// A shell command to run before `tauri dev` kicks in.
   ///
   /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
@@ -867,6 +871,7 @@ fn default_build() -> BuildConfig {
     runner: None,
     dev_path: default_dev_path(),
     dist_dir: default_dist_dir(),
+    app_dir: None,
     before_dev_command: None,
     before_build_command: None,
     features: None,

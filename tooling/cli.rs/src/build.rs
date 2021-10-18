@@ -8,7 +8,7 @@ use heck::KebabCase;
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
 use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
+  app_paths::{app_dir as get_app_dir, tauri_dir},
   command_env,
   config::{get as get_config, AppUrl},
   execute_with_output,
@@ -85,12 +85,18 @@ impl Build {
     if let Some(before_build) = &config_.build.before_build_command {
       if !before_build.is_empty() {
         logger.log(format!("Running `{}`", before_build));
+
+        let app_dir = match config_.build.app_dir.clone() {
+          Some(app_dir) => app_dir,
+          None => get_app_dir().to_owned(),
+        };
+
         #[cfg(target_os = "windows")]
         execute_with_output(
           Command::new("cmd")
             .arg("/C")
             .arg(before_build)
-            .current_dir(app_dir())
+            .current_dir(app_dir)
             .envs(command_env(self.debug)),
         )
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
@@ -99,7 +105,7 @@ impl Build {
           Command::new("sh")
             .arg("-c")
             .arg(before_build)
-            .current_dir(app_dir())
+            .current_dir(app_dir)
             .envs(command_env(self.debug)),
         )
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;

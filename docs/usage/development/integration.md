@@ -28,7 +28,7 @@ Just follow the instructions and choose the web frontend framework you prefer. `
 
 The Tauri CLI tool helps you build your project, so install it at first.
 
-You can install Tauri CLI [using `Node.js`](#Install-Tauri-CLI-package-as-a-dev-dependency:) or [using `Rust`](#Alternatively,-install-Tauri-CLI-as-a-cargo-subcommand:)
+You can install Tauri CLI [using `Node.js`](#install-tauri-cli-package-as-a-dev-dependency) or [using `Rust`](#alternatively-install-tauri-cli-as-a-cargo-subcommand)
 
 #### Install Tauri CLI package as a dev dependency:
 

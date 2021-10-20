@@ -42,7 +42,7 @@ tempfile = "3.2.0"
 regex = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = "0.17"
+attohttpc = "0.18"
 uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"

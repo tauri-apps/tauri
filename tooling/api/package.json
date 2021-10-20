@@ -45,13 +45,13 @@
     "@babel/preset-env": "7.15.8",
     "@babel/preset-typescript": "7.15.0",
     "@rollup/plugin-babel": "5.3.0",
-    "@rollup/plugin-commonjs": "21.0.0",
-    "@rollup/plugin-node-resolve": "13.0.5",
+    "@rollup/plugin-commonjs": "21.0.1",
+    "@rollup/plugin-node-resolve": "13.0.6",
     "@rollup/plugin-sucrase": "4.0.1",
-    "@rollup/plugin-typescript": "8.2.5",
-    "@typescript-eslint/eslint-plugin": "5.0.0",
-    "@typescript-eslint/parser": "5.0.0",
-    "eslint": "8.0.0",
+    "@rollup/plugin-typescript": "8.3.0",
+    "@typescript-eslint/eslint-plugin": "5.1.0",
+    "@typescript-eslint/parser": "5.1.0",
+    "eslint": "8.0.1",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
     "eslint-plugin-import": "2.25.2",
@@ -65,11 +65,11 @@
     "rollup": "2.58.0",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.3.1",
-    "typedoc": "0.22.5",
+    "typedoc": "0.22.6",
     "typedoc-plugin-markdown": "3.11.3",
     "typescript": "4.4.4"
   },
   "dependencies": {
-    "type-fest": "2.5.0"
+    "type-fest": "2.5.1"
   }
 }

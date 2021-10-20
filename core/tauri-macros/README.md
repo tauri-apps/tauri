@@ -25,7 +25,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 ## This module
 Create macros for the context, handler, and commands by leveraging the `tauri-codegen` crate.
 
-To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](/docs/getting-started/architecture) document.
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).

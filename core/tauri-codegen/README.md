@@ -26,7 +26,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 - Embed, hash, and compress assets, including icons for the app as well as the system-tray.
 - Parse `tauri.conf.json` at compile time and generate the Config struct.
 
-To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](/docs/getting-started/architecture) document.
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).

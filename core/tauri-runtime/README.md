@@ -25,7 +25,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 ## This module
 This is the glue layer between tauri itself and lower level webview libraries.
 
-To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](/docs/getting-started/architecture) document.
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).

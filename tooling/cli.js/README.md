@@ -23,7 +23,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 ## This module
 Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli.rs).
 
-To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](/docs/getting-started/architecture) document.
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
 
 ## Installation

@@ -25,7 +25,7 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 ## This module
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
 
-To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](/docs/getting-started/architecture) document.
+To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
 ## Usage
 Run and answer the prompts to get started with your first Tauri app!

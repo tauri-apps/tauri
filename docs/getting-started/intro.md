@@ -13,7 +13,7 @@ Anything that can be displayed on a website, can be displayed in a Tauri webview
 Developers are free to build the web front-end displayed in a Webview through Tauri with any web frameworks of their choice!
 **Developers can even extend the default API** with their own functionality and bridge the Webview and Rust-based backend easily!
 
-The Architecture is more fully described in [Architecture](/docs/getting-started/architecture).
+The Architecture is more fully described in [Architecture](/docs/about/architecture).
 
 This guide will help you create your first Tauri app. It should only take about 10 minutes, although it could take longer if you have a slower internet connection.
 

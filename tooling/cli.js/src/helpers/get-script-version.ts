@@ -9,7 +9,7 @@ export default function getVersion(
   args: string[] = []
 ): string | null {
   try {
-    const child = spawn(command, [...args, '--version'])
+    const child = spawn.sync(command, [...args, '--version'])
     if (child.status === 0) {
       const output = String(child.output[1])
       return output.replace(/\n/g, '')

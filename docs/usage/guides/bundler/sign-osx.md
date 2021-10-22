@@ -19,7 +19,7 @@ This guide will give a brief overview of how to sign an application, and how to 
 - Working Tauri application, being built and published via GitHub Actions, as shown in [tauri-action](https://github.com/tauri-apps/tauri-action)  
 
 <Alert title="Note" icon="info-alt">
-If you are not utilizing GitHub Actions to perform builds of OSX DMGs. You will need to ensure the environment variable `CI=true` exists. For more information refer to [Issue #592](https://github.com/tauri-apps/tauri/issues/592)
+If you are not utilizing GitHub Actions to perform builds of OSX DMGs, you will need to ensure the environment variable `CI=true` exists. For more information refer to [Issue #592](https://github.com/tauri-apps/tauri/issues/592).
 </Alert>
 
 ## GitHub Secrets

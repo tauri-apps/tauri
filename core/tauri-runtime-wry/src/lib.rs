@@ -89,7 +89,6 @@ use std::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap,
   },
-  convert::TryFrom,
   fmt,
   fs::read,
   ops::Deref,

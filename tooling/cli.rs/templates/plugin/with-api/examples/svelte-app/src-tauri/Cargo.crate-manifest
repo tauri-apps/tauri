@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = [ "{{ author }}" ]
 repository = ""
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 
 [dependencies]
 serde_json = "1.0"

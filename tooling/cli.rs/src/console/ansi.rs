@@ -13,7 +13,7 @@ lazy_static::lazy_static! {
 }
 
 /// Helper function to strip ansi codes.
-pub fn strip_ansi_codes(s: &str) -> Cow<str> {
+pub fn strip_ansi_codes(s: &str) -> Cow<'_, str> {
   STRIP_ANSI_RE.replace_all(s, "")
 }
 

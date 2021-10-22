@@ -12,7 +12,7 @@ use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 
-const TEMPLATE_DIR: Dir = include_dir!("templates/app");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 
 pub struct Init {
   force: bool,

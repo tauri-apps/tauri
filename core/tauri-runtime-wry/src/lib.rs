@@ -89,7 +89,6 @@ use std::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap,
   },
-  convert::TryFrom,
   fmt,
   fs::read,
   ops::Deref,
@@ -534,7 +533,7 @@ impl TryFrom<Icon> for WryIcon {
 struct WindowEventWrapper(Option<WindowEvent>);
 
 impl WindowEventWrapper {
-  fn parse(webview: &WindowHandle, event: &WryWindowEvent) -> Self {
+  fn parse(webview: &WindowHandle, event: &WryWindowEvent<'_>) -> Self {
     match event {
       // resized event from tao doesn't include a reliable size on macOS
       // because wry replaces the NSView
@@ -2214,7 +2213,7 @@ fn handle_user_message(
 }
 
 fn handle_event_loop(
-  event: Event<Message>,
+  event: Event<'_, Message>,
   event_loop: &EventLoopWindowTarget<Message>,
   control_flow: &mut ControlFlow,
   context: EventLoopIterationContext<'_>,

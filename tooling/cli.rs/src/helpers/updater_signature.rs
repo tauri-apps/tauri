@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-extern crate minisign;
-
 use base64::{decode, encode};
 use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{

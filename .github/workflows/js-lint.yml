@@ -20,7 +20,8 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: "12"
-          cache: npm
+          cache: yarn
+          cache-dependency-path: tooling/*/yarn.lock
       - name: install cli.js deps via yarn
         working-directory: ./tooling/cli.js/
         run: yarn

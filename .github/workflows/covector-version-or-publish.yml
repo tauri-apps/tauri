@@ -26,7 +26,8 @@ jobs:
         with:
           node-version: 14
           registry-url: "https://registry.npmjs.org"
-          cache: npm
+          cache: yarn
+          cache-dependency-path: tooling/*/yarn.lock
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
       - name: git config

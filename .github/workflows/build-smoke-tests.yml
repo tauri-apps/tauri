@@ -60,8 +60,8 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: 14
-          cache: npm
-      - name: install rust stable
+          cache: yarn
+          cache-dependency-path: tooling/*/yarn.lock
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable

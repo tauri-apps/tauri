@@ -582,7 +582,7 @@ impl<D> StyledObject<D> {
 macro_rules! impl_fmt {
   ($name:ident) => {
     impl<D: fmt::$name> fmt::$name for StyledObject<D> {
-      fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut reset = false;
         if self
           .style
@@ -659,7 +659,7 @@ impl<'a, 'b> Emoji<'a, 'b> {
 }
 
 impl<'a, 'b> fmt::Display for Emoji<'a, 'b> {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     if wants_emoji() {
       write!(f, "{}", self.0)
     } else {

@@ -113,7 +113,11 @@ impl<'a> Password<'a> {
     }
   }
 
-  fn prompt_password(&self, render: &mut TermThemeRenderer, prompt: &str) -> io::Result<String> {
+  fn prompt_password(
+    &self,
+    render: &mut TermThemeRenderer<'_>,
+    prompt: &str,
+  ) -> io::Result<String> {
     loop {
       render.password_prompt(prompt)?;
       render.term().flush()?;

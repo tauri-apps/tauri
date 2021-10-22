@@ -13,8 +13,8 @@ use include_dir::{include_dir, Dir};
 
 use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
 
-const BACKEND_PLUGIN_DIR: Dir = include_dir!("templates/plugin/backend");
-const API_PLUGIN_DIR: Dir = include_dir!("templates/plugin/with-api");
+const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
+const API_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/with-api");
 
 pub struct Plugin {
   plugin_name: String,

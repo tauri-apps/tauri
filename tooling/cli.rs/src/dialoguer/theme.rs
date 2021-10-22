@@ -573,7 +573,9 @@ impl<'a> TermThemeRenderer<'a> {
     self.height += 1;
   }
 
-  fn write_formatted_str<F: FnOnce(&mut TermThemeRenderer, &mut dyn fmt::Write) -> fmt::Result>(
+  fn write_formatted_str<
+    F: FnOnce(&mut TermThemeRenderer<'_>, &mut dyn fmt::Write) -> fmt::Result,
+  >(
     &mut self,
     f: F,
   ) -> io::Result<()> {
@@ -583,7 +585,9 @@ impl<'a> TermThemeRenderer<'a> {
     self.term.write_str(&buf)
   }
 
-  fn write_formatted_line<F: FnOnce(&mut TermThemeRenderer, &mut dyn fmt::Write) -> fmt::Result>(
+  fn write_formatted_line<
+    F: FnOnce(&mut TermThemeRenderer<'_>, &mut dyn fmt::Write) -> fmt::Result,
+  >(
     &mut self,
     f: F,
   ) -> io::Result<()> {
@@ -594,7 +598,7 @@ impl<'a> TermThemeRenderer<'a> {
   }
 
   fn write_formatted_prompt<
-    F: FnOnce(&mut TermThemeRenderer, &mut dyn fmt::Write) -> fmt::Result,
+    F: FnOnce(&mut TermThemeRenderer<'_>, &mut dyn fmt::Write) -> fmt::Result,
   >(
     &mut self,
     f: F,

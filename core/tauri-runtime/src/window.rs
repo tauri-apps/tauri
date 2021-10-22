@@ -146,6 +146,14 @@ impl<R: Runtime> PendingWindow<R> {
     }
   }
 
+  pub fn set_menu(mut self, menu: Menu) -> Self {
+    let mut menu_ids = HashMap::new();
+    get_menu_ids(&mut menu_ids, &menu);
+    self.menu_ids = menu_ids;
+    self.window_builder = self.window_builder.menu(menu);
+    self
+  }
+
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,

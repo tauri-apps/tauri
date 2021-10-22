@@ -16,7 +16,7 @@ pub struct Handler {
 }
 
 impl Parse for Handler {
-  fn parse(input: &ParseBuffer) -> syn::Result<Self> {
+  fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
     let paths = input.parse_terminated::<Path, Token![,]>(Path::parse)?;
 
     // parse the command names and wrappers from the passed paths

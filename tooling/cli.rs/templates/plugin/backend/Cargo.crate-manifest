@@ -3,7 +3,8 @@ name = "tauri-plugin-{{ plugin_name }}"
 version = "0.0.0"
 authors = [ "{{ author }}" ]
 description = ""
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 exclude = ["/examples"]
 
 [dependencies]

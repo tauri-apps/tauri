@@ -6,7 +6,6 @@
       "publish": true,
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -"
     },
-    ,
     "javascript": {
       "version": true,
       "publish": true,

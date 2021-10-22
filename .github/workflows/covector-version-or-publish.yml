@@ -105,7 +105,7 @@ jobs:
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
-        run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en
+        run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en && mv ARCHITECTURE.md ../tauri-docs/docs/en/about/architecture.md
 
       # Indexing
       - name: meilisearch indexation

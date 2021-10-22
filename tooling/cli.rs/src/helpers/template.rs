@@ -13,9 +13,9 @@ use handlebars::Handlebars;
 use include_dir::Dir;
 
 pub fn render<P: AsRef<Path>>(
-  handlebars: &Handlebars,
+  handlebars: &Handlebars<'_>,
   data: &BTreeMap<&str, serde_json::Value>,
-  dir: &Dir,
+  dir: &Dir<'_>,
   out_dir: P,
 ) -> crate::Result<()> {
   create_dir_all(out_dir.as_ref().join(dir.path()))?;

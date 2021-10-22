@@ -1116,7 +1116,7 @@ class WebviewWindow extends WindowManager {
         }
       })
         .then(async () => this.emit('tauri://created'))
-        .catch(async (e) => this.emit('tauri://error', e))
+        .catch(async (e: string) => this.emit('tauri://error', e))
     }
   }
 

@@ -162,6 +162,11 @@ impl PathResolver {
   pub fn app_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_dir(&self.config)
   }
+
+  /// Returns the path to the suggested log directory.
+  pub fn log_dir(&self) -> Option<PathBuf> {
+    crate::api::path::log_dir(&self.config)
+  }
 }
 
 /// A handle to the currently running application.

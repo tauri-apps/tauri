@@ -200,7 +200,6 @@ subcommands:
                     about: Author name.
                     takes_value: true
                 - tauri:
-                    short: t
                     long: tauri
                     about: Initializes a Tauri core plugin (internal usage).
                     setting: Hidden

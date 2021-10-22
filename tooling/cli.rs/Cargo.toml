@@ -4,7 +4,8 @@ workspace = { }
 name = "tauri-cli"
 version = "1.0.0-beta.7"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
@@ -17,24 +18,24 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.0.0-beta.4", features = [ "yaml" ] }
+clap = { version = "3.0.0-beta.5", features = [ "yaml" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.0-beta.4", path = "../bundler" }
 colored = "2.0"
 once_cell = "1.8"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.10"
+serde_with = "1.11"
 notify = "4.0"
 shared_child = "0.3"
-toml_edit = "0.5"
+toml_edit = "0.6"
 json-patch = "0.2"
 schemars = "0.8"
 toml = "0.5"
 valico = "3.6"
 handlebars = "4.1"
 include_dir = "0.6"
-minisign = "0.6"
+minisign = "0.7"
 base64 = "0.13.0"
 ureq = "2.2"
 os_info = "3.0"
@@ -48,6 +49,7 @@ tempfile = "3"
 zeroize = "1.4"
 glob = "0.3"
 heck = "0.3"
+dialoguer = "0.9"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "winbase", "winuser", "consoleapi", "processenv", "wincon" ] }
@@ -60,4 +62,4 @@ heck = "0.3"
 schemars = "0.8"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "1.10"
+serde_with = "1.11"

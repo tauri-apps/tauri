@@ -248,7 +248,7 @@ impl<R: Runtime> WindowManager<R> {
 
     if pending.window_builder.get_menu().is_none() {
       if let Some(menu) = &self.inner.menu {
-        pending.window_builder = pending.window_builder.menu(menu.clone());
+        pending = pending.set_menu(menu.clone());
       }
     }
 

@@ -19,7 +19,7 @@ There are two ways to integrate with Tauri depends on your need:
 ```bash
 yarn create tauri-app
 #OR
-npm x create-tauri-app
+npx create-tauri-app
 ```
 
 Just follow the instructions and choose the web frontend framework you prefer. `create-tauri-app` will create a template project depends on your inputs. You can go straight to [check `tauri info`](#3-check-tauri-info-to-make-sure-everything-is-set-up-properly) after this.
@@ -28,7 +28,7 @@ Just follow the instructions and choose the web frontend framework you prefer. `
 
 The Tauri CLI tool helps you build your project, so install it at first.
 
-You can install Tauri CLI [using `Node.js`](#Install-Tauri-CLI-package-as-a-dev-dependency:) or [using `Rust`](#Alternatively,-install-Tauri-CLI-as-a-cargo-subcommand:)
+You can install Tauri CLI [using `Node.js`](#install-tauri-cli-package-as-a-dev-dependency) or [using `Rust`](#alternatively-install-tauri-cli-as-a-cargo-subcommand)
 
 #### Install Tauri CLI package as a dev dependency:
 

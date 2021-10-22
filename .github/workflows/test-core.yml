@@ -158,6 +158,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |

@@ -3149,6 +3149,11 @@ fn create_webview(
       vacant.insert(web_context)
     }
   };
+
+  if webview_attributes.clipboard {
+    webview_builder.webview.clipboard = true;
+  }
+
   let webview = webview_builder
     .with_web_context(web_context)
     .build()

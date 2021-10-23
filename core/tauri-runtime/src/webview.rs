@@ -18,22 +18,13 @@ use windows::Win32::Foundation::HWND;
 use std::{fmt, path::PathBuf};
 
 /// The attributes used to create an webview.
+#[derive(Debug)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
   pub file_drop_handler_enabled: bool,
-}
-
-impl fmt::Debug for WebviewAttributes {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("WebviewAttributes")
-      .field("url", &self.url)
-      .field("initialization_scripts", &self.initialization_scripts)
-      .field("data_directory", &self.data_directory)
-      .field("file_drop_handler_enabled", &self.file_drop_handler_enabled)
-      .finish()
-  }
+  pub clipboard: bool,
 }
 
 impl WebviewAttributes {
@@ -44,6 +35,7 @@ impl WebviewAttributes {
       initialization_scripts: Vec::new(),
       data_directory: None,
       file_drop_handler_enabled: true,
+      clipboard: false,
     }
   }
 
@@ -62,6 +54,15 @@ impl WebviewAttributes {
   /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
   pub fn disable_file_drop_handler(mut self) -> Self {
     self.file_drop_handler_enabled = false;
+    self
+  }
+
+  /// Enables clipboard access for the page rendered on **Linux** and **Windows**.
+  ///
+  /// **macOS** doesn't provide such method and is always enabled by default,
+  /// but you still need to add menu item accelerators to use shortcuts.
+  pub fn enable_clipboard_access(mut self) -> Self {
+    self.clipboard = true;
     self
   }
 }

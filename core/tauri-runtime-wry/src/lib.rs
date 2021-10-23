@@ -2172,6 +2172,7 @@ fn handle_user_message(
           .map(|w| &w.inner)
         {
           if let Err(e) = webview.evaluate_script(&script) {
+            #[cfg(debug_assertions)]
             eprintln!("{}", e);
           }
         }
@@ -2212,6 +2213,7 @@ fn handle_user_message(
         sender.send(window_id).unwrap();
       }
       Err(e) => {
+        #[cfg(debug_assertions)]
         eprintln!("{}", e);
       }
     },
@@ -2679,6 +2681,7 @@ fn handle_event_loop(
             .map(|w| &w.inner)
           {
             if let Err(e) = webview.resize() {
+              #[cfg(debug_assertions)]
               eprintln!("{}", e);
             }
           }

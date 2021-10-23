@@ -403,7 +403,7 @@ impl CliConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowConfig {
-  /// The window identifier.
+  /// The window identifier. It must be alphanumeric.
   #[serde(default = "default_window_label")]
   pub label: String,
   /// The window webview URL.

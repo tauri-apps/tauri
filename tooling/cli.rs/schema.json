@@ -1405,7 +1405,7 @@
           "format": "double"
         },
         "label": {
-          "description": "The window identifier.",
+          "description": "The window identifier. It must be alphanumeric.",
           "default": "main",
           "type": "string"
         },

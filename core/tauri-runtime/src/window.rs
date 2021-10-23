@@ -109,6 +109,13 @@ pub struct PendingWindow<R: Runtime> {
   pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
 }
 
+fn validate_label(label: &str) {
+  assert!(
+    label.chars().all(char::is_alphanumeric),
+    "Window label must be alphanumeric"
+  );
+}
+
 impl<R: Runtime> PendingWindow<R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
@@ -120,11 +127,13 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    validate_label(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
+      label,
       ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
@@ -144,11 +153,13 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    validate_label(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
+      label,
       ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),

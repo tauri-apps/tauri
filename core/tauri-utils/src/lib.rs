@@ -39,6 +39,7 @@ impl PackageInfo {
 
 /// Information about environment variables.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Env {
   /// The APPIMAGE environment variable.
   #[cfg(target_os = "linux")]
@@ -51,12 +52,24 @@ pub struct Env {
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    Self {
+    let env = Self {
       #[cfg(target_os = "linux")]
       appimage: std::env::var_os("APPIMAGE"),
       #[cfg(target_os = "linux")]
       appdir: std::env::var_os("APPDIR"),
+    };
+    if env.appimage.is_some() || env.appdir.is_some() {
+      // validate that we're actually running on an AppImage
+      // an AppImage is mounted to `/tmp/.mount_${appPrefix}${hash}`
+      // see https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501
+      if !std::env::current_exe()
+        .map(|p| p.to_string_lossy().into_owned().starts_with("/tmp/.mount_"))
+        .unwrap_or(true)
+      {
+        panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+      }
     }
+    env
   }
 }
 

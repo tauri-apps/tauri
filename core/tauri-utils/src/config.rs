@@ -840,6 +840,11 @@ pub struct ShellAllowlistConfig {
   /// Enable binary execution.
   #[serde(default)]
   pub execute: bool,
+  /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program,
+  /// an executable that is shipped with the application.
+  /// For more information see https://tauri.studio/en/docs/usage/guides/bundler/sidecar.
+  #[serde(default)]
+  pub sidecar: bool,
   /// Open URL with the user's default application.
   #[serde(default)]
   pub open: bool,
@@ -850,6 +855,7 @@ impl Allowlist for ShellAllowlistConfig {
     let allowlist = Self {
       all: false,
       execute: true,
+      sidecar: true,
       open: true,
     };
     let mut features = allowlist.to_features();
@@ -863,6 +869,7 @@ impl Allowlist for ShellAllowlistConfig {
     } else {
       let mut features = Vec::new();
       check_feature!(self, features, execute, "shell-execute");
+      check_feature!(self, features, sidecar, "shell-sidecar");
       check_feature!(self, features, open, "shell-open");
       features
     }

@@ -81,13 +81,23 @@ impl Cmd {
         on_event_fn,
         options,
       } => {
-        #[cfg(shell_execute)]
+        let mut command = if options.sidecar {
+          #[cfg(not(shell_sidecar))]
+          return Err(crate::Error::ApiNotAllowlisted(
+            "shell > sidecar".to_string(),
+          ));
+          #[cfg(shell_sidecar)]
+          crate::api::process::Command::new_sidecar(program)?
+        } else {
+          #[cfg(not(shell_execute))]
+          return Err(crate::Error::ApiNotAllowlisted(
+            "shell > execute".to_string(),
+          ));
+          #[cfg(shell_execute)]
+          crate::api::process::Command::new(program)
+        };
+        #[cfg(any(shell_execute, shell_sidecar))]
         {
-          let mut command = if options.sidecar {
-            crate::api::process::Command::new_sidecar(program)?
-          } else {
-            crate::api::process::Command::new(program)
-          };
           command = command.args(args);
           if let Some(cwd) = options.cwd {
             command = command.current_dir(cwd);
@@ -116,10 +126,6 @@ impl Cmd {
 
           Ok(pid.into())
         }
-        #[cfg(not(shell_execute))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "shell > execute".to_string(),
-        ))
       }
       Self::KillChild { pid } => {
         #[cfg(shell_execute)]

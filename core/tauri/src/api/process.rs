@@ -12,9 +12,11 @@ use std::{
   process::{exit, Command as StdCommand},
 };
 
-#[cfg(shell_execute)]
+#[cfg(feature = "command")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
 mod command;
-#[cfg(shell_execute)]
+#[cfg(feature = "command")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
 pub use command::*;
 
 /// Gets the current binary.

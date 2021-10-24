@@ -51,8 +51,9 @@ fn main() {
 
     // shell
     shell_all: { any(api_all, feature = "shell-all") },
-    shell_open: { any(shell_all, feature = "shell-open") },
     shell_execute: { any(shell_all, feature = "shell-execute") },
+    shell_sidecar: { any(shell_all, feature = "shell-sidecar") },
+    shell_open: { any(shell_all, feature = "shell-open") },
 
     // dialog
     dialog_all: { any(api_all, feature = "dialog-all") },

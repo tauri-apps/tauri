@@ -103,7 +103,8 @@
           "shell": {
             "all": false,
             "execute": false,
-            "open": false
+            "open": false,
+            "sidecar": false
           },
           "window": {
             "all": false,
@@ -338,7 +339,8 @@
           "default": {
             "all": false,
             "execute": false,
-            "open": false
+            "open": false,
+            "sidecar": false
           },
           "allOf": [
             {
@@ -1265,6 +1267,11 @@
           "description": "Open URL with the user's default application.",
           "default": false,
           "type": "boolean"
+        },
+        "sidecar": {
+          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program, an executable that is shipped with the application. For more information see https://tauri.studio/en/docs/usage/guides/bundler/sidecar.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1356,7 +1363,8 @@
             "shell": {
               "all": false,
               "execute": false,
-              "open": false
+              "open": false,
+              "sidecar": false
             },
             "window": {
               "all": false,

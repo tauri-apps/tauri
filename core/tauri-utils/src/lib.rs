@@ -58,6 +58,7 @@ impl Default for Env {
       #[cfg(target_os = "linux")]
       appdir: std::env::var_os("APPDIR"),
     };
+    #[cfg(target_os = "linux")]
     if env.appimage.is_some() || env.appdir.is_some() {
       // validate that we're actually running on an AppImage
       // an AppImage is mounted to `/tmp/.mount_${appPrefix}${hash}`

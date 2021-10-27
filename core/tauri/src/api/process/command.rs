@@ -153,11 +153,7 @@ pub struct Output {
 #[cfg(not(windows))]
 fn relative_command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!(
-      "{}/{}",
-      exe_dir.to_string_lossy().to_string(),
-      command
-    )),
+    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.to_string_lossy(), command)),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }

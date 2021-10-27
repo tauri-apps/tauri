@@ -389,8 +389,9 @@ fn tauri_config_to_bundle_settings(
   let windows_icon_path = PathBuf::from(
     config
       .icon
-      .as_ref()
-      .and_then(|icons| icons.iter().find(|i| i.ends_with(".ico")).cloned())
+      .iter()
+      .find(|i| i.ends_with(".ico"))
+      .cloned()
       .expect("the bundle config must have a `.ico` icon"),
   );
   #[cfg(not(windows))]

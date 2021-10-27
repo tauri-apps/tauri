@@ -70,6 +70,6 @@
     "typescript": "4.4.4"
   },
   "dependencies": {
-    "type-fest": "2.5.1"
+    "type-fest": "2.5.2"
   }
 }

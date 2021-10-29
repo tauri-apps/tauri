@@ -437,6 +437,21 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   app.run(|_app_handle, event| match event {
+  ///     tauri::Event::ExitRequested { api, .. } => {
+  ///       api.prevent_exit();
+  ///     }
+  ///     _ => {}
+  ///   });
+  /// }
+  /// ```
   pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();

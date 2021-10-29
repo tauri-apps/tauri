@@ -178,10 +178,13 @@ fn get_app<'a>(name: &str, about: Option<&'a String>, config: &'a CliConfig) -> 
 }
 
 fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
-  let mut clap_arg = Arg::new(arg_name).long(arg_name);
+  let mut clap_arg = Arg::new(arg_name);
 
-  if let Some(short) = arg.short {
-    clap_arg = clap_arg.short(short);
+  if arg.index.is_none() {
+    clap_arg = clap_arg.long(arg_name);
+    if let Some(short) = arg.short {
+      clap_arg = clap_arg.short(short);
+    }
   }
 
   clap_arg = bind_string_arg!(arg, clap_arg, description, about);

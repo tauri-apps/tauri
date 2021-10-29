@@ -74,6 +74,9 @@
       "protocol": {
         "asset": true,
         "assetScope": ["$RESOURCE/**"]
+      },
+      "http": {
+        "scope": ["https://jsonplaceholder.typicode.com"]
       }
     },
     "windows": [

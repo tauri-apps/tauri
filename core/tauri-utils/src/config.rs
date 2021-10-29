@@ -932,11 +932,19 @@ impl Allowlist for DialogAllowlistConfig {
   }
 }
 
+/// HTTP API scope definition.
+/// It is a list of URLs that can be accessed by the webview when using the HTTP APIs.
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct HttpAllowlistScope(pub Vec<Url>);
+
 /// Allowlist for the HTTP APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HttpAllowlistConfig {
+  /// The access scope for the HTTP APIs.
+  pub scope: HttpAllowlistScope,
   /// Use this flag to enable all HTTP API features.
   #[serde(default)]
   pub all: bool,
@@ -948,6 +956,7 @@ pub struct HttpAllowlistConfig {
 impl Allowlist for HttpAllowlistConfig {
   fn all_features() -> Vec<&'static str> {
     let allowlist = Self {
+      scope: Default::default(),
       all: false,
       request: true,
     };
@@ -1653,6 +1662,12 @@ mod build {
     quote! { ::std::path::PathBuf::from(#s) }
   }
 
+  /// Creates a `Url` constructor `TokenStream`.
+  fn url_lit(url: &Url) -> TokenStream {
+    let url = url.as_str();
+    quote! { #url.parse().unwrap() }
+  }
+
   /// Create a map constructor, mapping keys and values with other `TokenStream`s.
   ///
   /// This function is pretty generic because the types of keys AND values get transformed.
@@ -1758,8 +1773,8 @@ mod build {
           quote! { #prefix::App(#path) }
         }
         Self::External(url) => {
-          let url = url.as_str();
-          quote! { #prefix::External(#url.parse().unwrap()) }
+          let url = url_lit(url);
+          quote! { #prefix::External(#url) }
         }
       })
     }
@@ -2041,12 +2056,27 @@ mod build {
     }
   }
 
+  impl ToTokens for HttpAllowlistScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allowed_urls = vec_lit(&self.0, url_lit);
+      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistScope(#allowed_urls) })
+    }
+  }
+
+  impl ToTokens for HttpAllowlistConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scope = &self.scope;
+      tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
+    }
+  }
+
   impl ToTokens for AllowlistConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let fs = &self.fs;
       let protocol = &self.protocol;
+      let http = &self.http;
       tokens.append_all(
-        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, ..Default::default() } },
+        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, ..Default::default() } },
       )
     }
   }

@@ -77,7 +77,8 @@
           },
           "http": {
             "all": false,
-            "request": false
+            "request": false,
+            "scope": []
           },
           "notification": {
             "all": false
@@ -265,7 +266,8 @@
           "description": "HTTP API allowlist.",
           "default": {
             "all": false,
-            "request": false
+            "request": false,
+            "scope": []
           },
           "allOf": [
             {
@@ -1044,6 +1046,9 @@
     "HttpAllowlistConfig": {
       "description": "Allowlist for the HTTP APIs.",
       "type": "object",
+      "required": [
+        "scope"
+      ],
       "properties": {
         "all": {
           "description": "Use this flag to enable all HTTP API features.",
@@ -1054,9 +1059,25 @@
           "description": "Allows making HTTP requests.",
           "default": false,
           "type": "boolean"
+        },
+        "scope": {
+          "description": "The access scope for the HTTP APIs.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HttpAllowlistScope"
+            }
+          ]
         }
       },
       "additionalProperties": false
+    },
+    "HttpAllowlistScope": {
+      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
     },
     "MacConfig": {
       "description": "Configuration for the macOS bundles.",
@@ -1337,7 +1358,8 @@
             },
             "http": {
               "all": false,
-              "request": false
+              "request": false,
+              "scope": []
             },
             "notification": {
               "all": false

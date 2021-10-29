@@ -66,17 +66,27 @@ impl Cmd {
 
   #[module_command_handler(http_request, "http > request")]
   async fn http_request<R: Runtime>(
-    _context: InvokeContext<R>,
+    context: InvokeContext<R>,
     client_id: ClientId,
     options: Box<HttpRequestBuilder>,
   ) -> crate::Result<ResponseData> {
-    let client = clients()
-      .lock()
-      .unwrap()
-      .get(&client_id)
-      .ok_or(crate::Error::HttpClientNotInitialized)?
-      .clone();
-    let response = client.send(*options).await?;
-    Ok(response.read().await?)
+    use crate::Manager;
+    if context
+      .window
+      .state::<crate::Scopes>()
+      .http
+      .is_allowed(&options.url)
+    {
+      let client = clients()
+        .lock()
+        .unwrap()
+        .get(&client_id)
+        .ok_or(crate::Error::HttpClientNotInitialized)?
+        .clone();
+      let response = client.send(*options).await?;
+      Ok(response.read().await?)
+    } else {
+      Err(crate::Error::UrlNotAllowed(options.url))
+    }
   }
 }

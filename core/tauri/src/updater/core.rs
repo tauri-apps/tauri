@@ -305,7 +305,7 @@ impl<'a> UpdateBuilder<'a> {
       let resp = ClientBuilder::new()
         .build()?
         .send(
-          HttpRequestBuilder::new("GET", &fixed_link)
+          HttpRequestBuilder::new("GET", &fixed_link)?
             .headers(headers)
             // wait 20sec for the firewall
             .timeout(20),
@@ -459,7 +459,7 @@ impl Update {
     let resp = ClientBuilder::new()
       .build()?
       .send(
-        HttpRequestBuilder::new("GET", &url)
+        HttpRequestBuilder::new("GET", &url)?
           .headers(headers)
           // wait 20sec for the firewall
           .timeout(20),

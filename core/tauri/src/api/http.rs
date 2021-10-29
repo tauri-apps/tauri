@@ -8,6 +8,7 @@ use http::{header::HeaderName, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use url::Url;
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
@@ -139,7 +140,7 @@ impl Client {
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
-    let mut request_builder = self.0.request(method, &request.url);
+    let mut request_builder = self.0.request(method, request.url.as_str());
 
     if let Some(query) = request.query {
       request_builder = request_builder.query(&query);
@@ -265,7 +266,7 @@ pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
   pub method: String,
   /// The request URL
-  pub url: String,
+  pub url: Url,
   /// The request query params
   pub query: Option<HashMap<String, String>>,
   /// The request headers
@@ -280,16 +281,16 @@ pub struct HttpRequestBuilder {
 
 impl HttpRequestBuilder {
   /// Initializes a new instance of the HttpRequestrequest_builder.
-  pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
-    Self {
+  pub fn new(method: impl Into<String>, url: impl AsRef<str>) -> crate::api::Result<Self> {
+    Ok(Self {
       method: method.into(),
-      url: url.into(),
+      url: Url::parse(url.as_ref())?,
       query: None,
       headers: None,
       body: None,
       timeout: None,
       response_type: None,
-    }
+    })
   }
 
   /// Sets the request parameters.
@@ -330,7 +331,7 @@ pub struct Response(ResponseType, reqwest::Response);
 /// The HTTP response.
 #[cfg(not(feature = "reqwest-client"))]
 #[derive(Debug)]
-pub struct Response(ResponseType, attohttpc::Response, String);
+pub struct Response(ResponseType, attohttpc::Response, Url);
 
 impl Response {
   /// Reads the response as raw bytes.
@@ -346,7 +347,7 @@ impl Response {
   /// Reads the response and returns its info.
   pub async fn read(self) -> crate::api::Result<ResponseData> {
     #[cfg(feature = "reqwest-client")]
-    let url = self.1.url().to_string();
+    let url = self.1.url().clone();
     #[cfg(not(feature = "reqwest-client"))]
     let url = self.2;
 
@@ -410,7 +411,7 @@ pub struct RawResponse {
 #[non_exhaustive]
 pub struct ResponseData {
   /// Response URL. Useful if it followed redirects.
-  pub url: String,
+  pub url: Url,
   /// Response status code.
   pub status: u16,
   /// Response headers.

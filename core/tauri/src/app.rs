@@ -1025,6 +1025,8 @@ impl<R: Runtime> Builder<R> {
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
       ),
+      #[cfg(http_request)]
+      http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
     });
     app.manage(env);
 

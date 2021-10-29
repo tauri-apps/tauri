@@ -87,6 +87,9 @@ pub enum Error {
   /// The user did not allow sending notifications.
   #[error("sending notification was not allowed by the user")]
   NotificationNotAllowed,
+  /// URL not allowed by the scope.
+  #[error("url not allowed on the configured scope: {0}")]
+  UrlNotAllowed(url::Url),
 }
 
 impl From<serde_json::Error> for Error {

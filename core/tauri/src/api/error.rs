@@ -72,6 +72,9 @@ pub enum Error {
   #[cfg(notification_all)]
   #[error(transparent)]
   Notification(#[from] notify_rust::error::Error),
+  /// Url error.
+  #[error(transparent)]
+  Url(#[from] url::ParseError),
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),

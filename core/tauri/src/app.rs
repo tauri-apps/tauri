@@ -276,7 +276,7 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  pub fn hide(&mut self) -> crate::Result<()> {
+  pub fn hide(&self) -> crate::Result<()> {
     self.runtime_handle.hide().map_err(Into::into)
   }
 

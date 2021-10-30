@@ -274,6 +274,11 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
+  /// Hides the application.
+  pub fn hide(&mut self) -> crate::Result<()> {
+    self.runtime_handle.hide().map_err(Into::into)
+  }
+
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
     #[cfg(shell_execute)]

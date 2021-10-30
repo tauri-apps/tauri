@@ -261,6 +261,9 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()>;
+
+  /// Hides the application.
+  fn hide(&self) -> crate::Result<()>;
 }
 
 /// A global shortcut manager.

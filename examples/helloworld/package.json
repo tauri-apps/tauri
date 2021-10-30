@@ -1,6 +1,6 @@
 {
   "name": "hello-world",
-  "version": "1.0.0",
+  "private": true,
   "scripts": {
     "tauri": "node ../../tooling/cli.js/bin/tauri"
   }

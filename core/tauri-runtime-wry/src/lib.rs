@@ -30,6 +30,7 @@ use webview2_com::{
   FocusChangedEventHandler,
   Windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken},
 };
+use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -914,6 +915,11 @@ pub struct GtkWindow(gtk::ApplicationWindow);
 unsafe impl Send for GtkWindow {}
 
 #[derive(Debug, Clone)]
+pub enum ApplicationMessage {
+  Hide,
+}
+
+#[derive(Debug, Clone)]
 pub enum WindowMessage {
   // Getters
   ScaleFactor(Sender<f64>),
@@ -1010,6 +1016,7 @@ pub enum ClipboardMessage {
 
 pub enum Message {
   Task(Box<dyn FnOnce() + Send>),
+  Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewMessage),
   #[cfg(feature = "system-tray")]
@@ -1546,6 +1553,13 @@ impl RuntimeHandle for WryHandle {
   fn remove_system_tray(&self) -> Result<()> {
     Ok(())
   }
+
+  fn hide(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Hide),
+    )
+  }
 }
 
 impl Runtime for Wry {
@@ -1912,6 +1926,11 @@ fn handle_user_message(
   } = context;
   match message {
     Message::Task(task) => task(),
+    Message::Application(application_message) => match application_message {
+      ApplicationMessage::Hide => {
+        event_loop.hide_application();
+      }
+    },
     Message::Window(id, window_message) => {
       if let Some(webview) = windows
         .lock()

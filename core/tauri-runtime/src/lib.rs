@@ -263,6 +263,7 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   fn remove_system_tray(&self) -> crate::Result<()>;
 
   /// Hides the application.
+  #[cfg(target_os = "macos")]
   fn hide(&self) -> crate::Result<()>;
 }
 

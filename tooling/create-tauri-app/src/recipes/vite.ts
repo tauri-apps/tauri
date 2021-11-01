@@ -9,7 +9,7 @@ import { Recipe } from '../types/recipe'
 
 const vite: Recipe = {
   descriptiveName: {
-    name: 'create-vite (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
+    name: 'create-vite (vue, react, svelte ...) (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
     value: 'create-vite'
   },
   shortName: 'vite',
@@ -54,13 +54,12 @@ const vite: Recipe = {
   },
   preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
     const template = (answers?.template as string) ?? 'vue'
-    if (packageManager === 'yarn') {
+    if (packageManager === 'npm') {
       await shell(
-        'yarn',
+        'npx',
         [
-          ci ? '--non-interactive' : '',
-          'create',
-          'vite',
+          ci ? '--yes' : '',
+          'create-vite@latest',
           `${cfg.appName}`,
           '--template',
           `${template}`
@@ -71,10 +70,11 @@ const vite: Recipe = {
       )
     } else {
       await shell(
-        packageManager === 'pnpm' ? 'pnpx' : 'npx',
+        packageManager,
         [
-          ci ? '--yes' : '',
-          'create-vite@latest',
+          ci ? (packageManager === 'yarn' ? '--non-interactive' : '') : '',
+          'create',
+          'vite',
           `${cfg.appName}`,
           '--template',
           `${template}`

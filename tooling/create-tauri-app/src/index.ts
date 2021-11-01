@@ -347,7 +347,16 @@ You may find the requirements here: ${cyan(setupLink)}
     })
 
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
-    updatePackageJson(appDirectory, appName)
+    updatePackageJson((pkg) => {
+      return {
+        ...pkg,
+        name: appName,
+        scripts: {
+          ...pkg.scripts,
+          tauri: 'tauri'
+        }
+      }
+    }, appDirectory)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
     const binary = !argv.binary
@@ -365,7 +374,16 @@ You may find the requirements here: ${cyan(setupLink)}
     })
 
     logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
-    updateTauriConf(appDirectory, cfg)
+    updateTauriConf((tauriConf) => {
+      return {
+        ...tauriConf,
+        build: {
+          ...tauriConf.build,
+          beforeDevCommand: cfg.beforeDevCommand,
+          beforeBuildCommand: cfg.beforeBuildCommand
+        }
+      }
+    }, appDirectory)
   }
 
   if (recipe.postInit) {

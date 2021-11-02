@@ -181,6 +181,11 @@ pub struct WindowsConfig {
   pub certificate_thumbprint: Option<String>,
   /// Server to use during timestamping.
   pub timestamp_url: Option<String>,
+  /// Path to the webview fixed runtime to use.
+  ///
+  /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
+  /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
+  pub webview_fixed_runtime_path: Option<PathBuf>,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
 }
@@ -1931,6 +1936,22 @@ mod build {
     }
   }
 
+  impl ToTokens for WindowsConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let webview_fixed_runtime_path = opt_lit(
+        self
+          .webview_fixed_runtime_path
+          .as_ref()
+          .map(path_buf_lit)
+          .as_ref(),
+      );
+      tokens.append_all(quote! { ::tauri::utils::config::WindowsConfig {
+        webview_fixed_runtime_path: #webview_fixed_runtime_path,
+        ..Default::default()
+      }})
+    }
+  }
+
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
@@ -1945,7 +1966,7 @@ mod build {
       let deb = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = quote!(None);
-      let windows = quote!(Default::default());
+      let windows = &self.windows;
 
       literal_struct!(
         tokens,

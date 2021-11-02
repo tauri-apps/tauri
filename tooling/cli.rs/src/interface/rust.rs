@@ -416,6 +416,13 @@ fn tauri_config_to_bundle_settings(
     depends.push("libgtk-3-0".to_string());
   }
 
+  #[cfg(windows)]
+  {
+    if let Some(webview_fixed_runtime_path) = &config.windows.webview_fixed_runtime_path {
+      resources.push(webview_fixed_runtime_path.display().to_string());
+    }
+  }
+
   let signing_identity = match std::env::var_os("APPLE_SIGNING_IDENTITY") {
     Some(signing_identity) => Some(
       signing_identity
@@ -481,6 +488,7 @@ fn tauri_config_to_bundle_settings(
         wix
       }),
       icon_path: windows_icon_path,
+      webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

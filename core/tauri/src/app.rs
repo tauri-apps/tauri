@@ -1030,6 +1030,27 @@ impl<R: Runtime> Builder<R> {
     });
     app.manage(env);
 
+    #[cfg(windows)]
+    {
+      if let Some(w) = &app
+        .manager
+        .config()
+        .tauri
+        .bundle
+        .windows
+        .webview_fixed_runtime_path
+      {
+        if let Some(resource_dir) = app.path_resolver().resource_dir() {
+          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", resource_dir.join(w));
+        } else {
+          #[cfg(debug_assertions)]
+          eprintln!(
+            "failed to resolve resource directory; fallback to the installed Webview2 runtime."
+          );
+        }
+      }
+    }
+
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();

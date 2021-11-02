@@ -225,6 +225,8 @@ pub struct WindowsSettings {
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
+  /// Path to the webview fixed runtime to use.
+  pub webview_fixed_runtime_path: Option<PathBuf>,
 }
 
 impl Default for WindowsSettings {
@@ -235,6 +237,7 @@ impl Default for WindowsSettings {
       timestamp_url: None,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
+      webview_fixed_runtime_path: None,
     }
   }
 }

@@ -518,7 +518,7 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
-  let mut install_webview = true;
+  let mut install_webview = settings.windows().webview_fixed_runtime_path.is_none();
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -528,7 +528,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
-    install_webview = !wix.skip_webview_install;
+    if wix.skip_webview_install {
+      install_webview = false;
+    }
     enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {

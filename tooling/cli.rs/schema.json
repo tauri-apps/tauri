@@ -150,6 +150,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "webviewFixedRuntimePath": null,
             "wix": null
           }
         },
@@ -581,6 +582,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "webviewFixedRuntimePath": null,
             "wix": null
           },
           "allOf": [
@@ -1439,6 +1441,7 @@
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "timestampUrl": null,
+              "webviewFixedRuntimePath": null,
               "wix": null
             }
           },
@@ -1867,6 +1870,13 @@
         },
         "timestampUrl": {
           "description": "Server to use during timestamping.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "webviewFixedRuntimePath": {
+          "description": "Path to the webview fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
           "type": [
             "string",
             "null"

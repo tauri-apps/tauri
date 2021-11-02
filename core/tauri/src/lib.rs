@@ -123,7 +123,7 @@ pub use {
 ///
 /// This macro should not be called if you are using [`tauri-build`] to generate the context from
 /// inside your build script as it will just cause excess computations that will be discarded. Use
-/// either the [`tauri-build] method or this macro - not both.
+/// either the [`tauri-build`] method or this macro - not both.
 ///
 /// [`tauri-build`]: https://docs.rs/tauri-build
 pub use tauri_macros::generate_context;

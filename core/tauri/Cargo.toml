@@ -34,7 +34,7 @@ normal = [ "attohttpc" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.12", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1.13", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
@@ -91,7 +91,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 tokio-test = "0.4.2"
-tokio = { version = "1.12", features = [ "full" ] }
+tokio = { version = "1.13", features = [ "full" ] }
 mockito = "0.30"
 
 [features]

@@ -43,7 +43,7 @@ pub use command::*;
 /// The linked [Hard Link] Wikipedia page provides a decent overview.
 ///
 /// In short, unless the attacker was able to create the link with elevated
-/// permissions, it should generally not be possible for an them to hard link
+/// permissions, it should generally not be possible for them to hard link
 /// to a file they do not have permissions to - with exception to possible
 /// operating system exploits.
 ///

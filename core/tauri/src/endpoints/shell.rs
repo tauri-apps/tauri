@@ -22,7 +22,7 @@ fn command_childs() -> &'static ChildStore {
   &STORE
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Buffer {
   Text(String),
@@ -35,7 +35,7 @@ fn default_env() -> Option<HashMap<String, String>> {
 }
 
 #[allow(dead_code)]
-#[derive(Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommandOptions {
   #[serde(default)]
@@ -129,7 +129,7 @@ impl Cmd {
     }
   }
 
-  #[module_command_handler(shell_execute, "shell > execute")]
+  #[cfg(any(shell_execute, shell_sidecar))]
   fn stdin_write<R: Runtime>(
     _context: InvokeContext<R>,
     pid: ChildId,
@@ -144,12 +144,30 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(shell_execute, "shell > execute")]
+  #[cfg(not(any(shell_execute, shell_sidecar)))]
+  fn stdin_write<R: Runtime>(
+    _context: InvokeContext<R>,
+    _pid: ChildId,
+    _buffer: Buffer,
+  ) -> crate::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted(
+      "shell > execute or shell > sidecar".into(),
+    ))
+  }
+
+  #[cfg(any(shell_execute, shell_sidecar))]
   fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> crate::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
       child.kill()?;
     }
     Ok(())
+  }
+
+  #[cfg(not(any(shell_execute, shell_sidecar)))]
+  fn kill_child<R: Runtime>(_context: InvokeContext<R>, _pid: ChildId) -> crate::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted(
+      "shell > execute or shell > sidecar".into(),
+    ))
   }
 
   #[module_command_handler(shell_open, "shell > open")]
@@ -171,4 +189,50 @@ impl Cmd {
       Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
     }
   }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Buffer, ChildId, CommandOptions};
+  use crate::api::ipc::CallbackFn;
+
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for CommandOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        sidecar: false,
+        cwd: Option::arbitrary(g),
+        env: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for Buffer {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Buffer::Text(String::arbitrary(g))
+    }
+  }
+
+  #[tauri_macros::module_command_test(shell_execute, "shell > execute")]
+  #[quickcheck_macros::quickcheck]
+  fn execute(
+    _program: String,
+    _args: Vec<String>,
+    _on_event_fn: CallbackFn,
+    _options: CommandOptions,
+  ) {
+  }
+
+  #[tauri_macros::module_command_test(shell_execute, "shell > execute or shell > sidecar")]
+  #[quickcheck_macros::quickcheck]
+  fn stdin_write(_pid: ChildId, _buffer: Buffer) {}
+
+  #[tauri_macros::module_command_test(shell_execute, "shell > execute or shell > sidecar")]
+  #[quickcheck_macros::quickcheck]
+  fn kill_child(_pid: ChildId) {}
+
+  #[tauri_macros::module_command_test(shell_open, "shell > open")]
+  #[quickcheck_macros::quickcheck]
+  fn open(_path: String, _with: Option<String>) {}
 }

@@ -35,3 +35,14 @@ impl Cmd {
     std::process::exit(exit_code);
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch")]
+  #[quickcheck_macros::quickcheck]
+  fn relaunch() {}
+
+  #[tauri_macros::module_command_test(process_exit, "process > exit")]
+  #[quickcheck_macros::quickcheck]
+  fn exit(_exit_code: i32) {}
+}

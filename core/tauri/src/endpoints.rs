@@ -35,6 +35,17 @@ pub struct InvokeContext<R: Runtime> {
   pub package_info: PackageInfo,
 }
 
+#[cfg(test)]
+impl<R: Runtime> Clone for InvokeContext<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      config: self.config.clone(),
+      package_info: self.package_info.clone(),
+    }
+  }
+}
+
 /// The response for a JS `invoke` call.
 pub struct InvokeResponse {
   json: crate::Result<JsonValue>,

@@ -17,7 +17,7 @@ const PERMISSION_GRANTED: &str = "granted";
 const PERMISSION_DENIED: &str = "denied";
 
 /// The options for the notification API.
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NotificationOptions {
   /// The notification title.
   pub title: String,
@@ -142,4 +142,43 @@ fn is_permission_granted<R: Runtime>(context: &InvokeContext<R>) -> Option<bool>
     context.window.state::<Env>().inner(),
   )
   .allow_notification
+}
+
+#[cfg(test)]
+mod tests {
+  use super::NotificationOptions;
+
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for NotificationOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        title: String::arbitrary(g),
+        body: Option::arbitrary(g),
+        icon: Option::arbitrary(g),
+      }
+    }
+  }
+
+  #[cfg(not(notification_all))]
+  #[test]
+  fn request_notification_permission() {
+    assert_eq!(
+      super::Cmd::request_notification_permission(crate::test::mock_invoke_context()).unwrap(),
+      super::PERMISSION_DENIED
+    )
+  }
+
+  #[cfg(not(notification_all))]
+  #[test]
+  fn is_notification_permission_granted() {
+    assert_eq!(
+      super::Cmd::is_notification_permission_granted(crate::test::mock_invoke_context()).unwrap(),
+      Some(false)
+    );
+  }
+
+  #[tauri_macros::module_command_test(notification_all, "notification > all")]
+  #[quickcheck_macros::quickcheck]
+  fn notification(_options: NotificationOptions) {}
 }

@@ -421,3 +421,18 @@ pub struct ResponseData {
   /// Response data.
   pub data: Value,
 }
+
+#[cfg(test)]
+mod test {
+  use super::ClientBuilder;
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for ClientBuilder {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        max_redirections: Option::arbitrary(g),
+        connect_timeout: Option::arbitrary(g),
+      }
+    }
+  }
+}

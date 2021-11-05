@@ -95,3 +95,11 @@ pub fn module_command_handler(attributes: TokenStream, input: TokenStream) -> To
   let input = parse_macro_input!(input as ItemFn);
   command_module::command_handler(attributes, input).into()
 }
+
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn module_command_test(attributes: TokenStream, input: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as command_module::HandlerTestAttributes);
+  let input = parse_macro_input!(input as ItemFn);
+  command_module::command_test(attributes, input).into()
+}

@@ -21,7 +21,7 @@ use std::{
 };
 
 /// The options for the directory functions on the file system API.
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DirOperationOptions {
   /// Whether the API should recursively perform the operation on the directory.
   #[serde(default)]
@@ -32,7 +32,7 @@ pub struct DirOperationOptions {
 }
 
 /// The options for the file functions on the file system API.
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FileOperationOptions {
   /// The base directory of the operation.
   /// The directory path of the BaseDirectory will be the prefix of the defined file path.
@@ -348,5 +348,121 @@ fn resolve_path<R: Runtime, P: AsRef<Path>>(
       }
     }
     Err(e) => Err(e.into()),
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  use super::{BaseDirectory, DirOperationOptions, FileOperationOptions};
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for BaseDirectory {
+    fn arbitrary(g: &mut Gen) -> Self {
+      if bool::arbitrary(g) {
+        BaseDirectory::App
+      } else {
+        BaseDirectory::Resource
+      }
+    }
+  }
+
+  impl Arbitrary for FileOperationOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for DirOperationOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        recursive: bool::arbitrary(g),
+        dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  #[tauri_macros::module_command_test(fs_read_text_file, "fs > readTextFile")]
+  #[quickcheck_macros::quickcheck]
+  fn read_text_file(path: PathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::read_text_file(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_read_binary_file, "fs > readBinaryFile")]
+  #[quickcheck_macros::quickcheck]
+  fn read_binary_file(path: PathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::read_binary_file(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn write_file(path: PathBuf, contents: String, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, contents, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_read_binary_file, "fs > writeBinaryFile")]
+  #[quickcheck_macros::quickcheck]
+  fn write_binary_file(path: PathBuf, contents: String, options: Option<FileOperationOptions>) {
+    let res =
+      super::Cmd::write_binary_file(crate::test::mock_invoke_context(), path, contents, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_read_dir, "fs > readDir")]
+  #[quickcheck_macros::quickcheck]
+  fn read_dir(path: PathBuf, options: Option<DirOperationOptions>) {
+    let res = super::Cmd::read_dir(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_copy_file, "fs > copyFile")]
+  #[quickcheck_macros::quickcheck]
+  fn copy_file(source: PathBuf, destination: PathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::copy_file(
+      crate::test::mock_invoke_context(),
+      source,
+      destination,
+      options,
+    );
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_create_dir, "fs > createDir")]
+  #[quickcheck_macros::quickcheck]
+  fn create_dir(path: PathBuf, options: Option<DirOperationOptions>) {
+    let res = super::Cmd::create_dir(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_remove_dir, "fs > removeDir")]
+  #[quickcheck_macros::quickcheck]
+  fn remove_dir(path: PathBuf, options: Option<DirOperationOptions>) {
+    let res = super::Cmd::remove_dir(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_remove_file, "fs > removeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn remove_file(path: PathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::remove_file(crate::test::mock_invoke_context(), path, options);
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+  }
+
+  #[tauri_macros::module_command_test(fs_rename_file, "fs > renameFile")]
+  #[quickcheck_macros::quickcheck]
+  fn rename_file(old_path: PathBuf, new_path: PathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::rename_file(
+      crate::test::mock_invoke_context(),
+      old_path,
+      new_path,
+      options,
+    );
+    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
   }
 }

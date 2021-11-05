@@ -248,3 +248,40 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
   }
   ret
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::api::path::BaseDirectory;
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn resolve_path(_path: String, _directory: Option<BaseDirectory>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn resolve(_paths: Vec<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn normalize(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn join(_paths: Vec<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn dirname(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn extname(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn basename(_path: String, _ext: Option<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn is_absolute(_path: String) {}
+}

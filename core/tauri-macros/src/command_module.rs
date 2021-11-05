@@ -10,7 +10,7 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::{
   parse::{Parse, ParseStream},
   spanned::Spanned,
-  Data, DeriveInput, Error, Fields, Ident, ItemFn, LitStr, Token,
+  Data, DeriveInput, Error, Fields, FnArg, Ident, ItemFn, LitStr, Pat, Token,
 };
 
 pub fn generate_run_fn(input: DeriveInput) -> TokenStream {
@@ -121,6 +121,32 @@ impl Parse for HandlerAttributes {
   }
 }
 
+pub struct HandlerTestAttributes {
+  allowlist: Ident,
+  error_message: String,
+  is_async: bool,
+}
+
+impl Parse for HandlerTestAttributes {
+  fn parse(input: ParseStream) -> syn::Result<Self> {
+    let allowlist = input.parse()?;
+    input.parse::<Token![,]>()?;
+    let error_message_raw: LitStr = input.parse()?;
+    let error_message = error_message_raw.value();
+    let _ = input.parse::<Token![,]>();
+    let is_async = input
+      .parse::<Ident>()
+      .map(|i| i == "async")
+      .unwrap_or_default();
+
+    Ok(Self {
+      allowlist,
+      error_message,
+      is_async,
+    })
+  }
+}
+
 pub fn command_handler(attributes: HandlerAttributes, function: ItemFn) -> TokenStream2 {
   let allowlist = attributes.allowlist;
   let error_message = attributes.error_message.as_str();
@@ -137,6 +163,46 @@ pub fn command_handler(attributes: HandlerAttributes, function: ItemFn) -> Token
       Err(crate::Error::ApiNotAllowlisted(
         #error_message.to_string(),
       ))
+    }
+  )
+}
+
+pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> TokenStream2 {
+  let allowlist = attributes.allowlist;
+  let is_async = attributes.is_async;
+  let error_message = attributes.error_message.as_str();
+  let signature = function.sig.clone();
+  let test_name = function.sig.ident.clone();
+  let mut args = quote!();
+  for arg in &function.sig.inputs {
+    if let FnArg::Typed(t) = arg {
+      if let Pat::Ident(i) = &*t.pat {
+        let ident = &i.ident;
+        args.extend(quote!(#ident,))
+      }
+    }
+  }
+
+  let response = if is_async {
+    quote!(crate::async_runtime::block_on(
+      super::Cmd::#test_name(crate::test::mock_invoke_context(), #args)
+    ))
+  } else {
+    quote!(super::Cmd::#test_name(crate::test::mock_invoke_context(), #args))
+  };
+
+  quote!(
+    #[cfg(#allowlist)]
+    #function
+
+    #[cfg(not(#allowlist))]
+    #[quickcheck_macros::quickcheck]
+    #signature {
+      if let Err(crate::Error::ApiNotAllowlisted(e)) = #response {
+        assert_eq!(e, #error_message);
+      } else {
+        panic!("unexpected response");
+      }
     }
   )
 }

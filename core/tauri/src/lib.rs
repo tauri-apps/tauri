@@ -500,8 +500,12 @@ pub(crate) mod sealed {
   }
 }
 
+/// Utilities for unit testing on Tauri applications.
 #[cfg(test)]
-mod test {
+pub mod test;
+
+#[cfg(test)]
+mod tests {
   use proptest::prelude::*;
 
   pub fn assert_send<T: Send>() {}

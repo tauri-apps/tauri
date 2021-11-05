@@ -63,3 +63,26 @@ fn os_platform() -> &'static str {
     _ => std::env::consts::OS,
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[quickcheck_macros::quickcheck]
+  fn platform() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[quickcheck_macros::quickcheck]
+  fn version() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[quickcheck_macros::quickcheck]
+  fn os_type() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[quickcheck_macros::quickcheck]
+  fn arch() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[quickcheck_macros::quickcheck]
+  fn tempdir() {}
+}

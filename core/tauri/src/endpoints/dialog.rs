@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::channel;
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DialogFilter {
   name: String,
@@ -22,7 +22,7 @@ pub struct DialogFilter {
 }
 
 /// The options for the open dialog API.
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
   /// The filters of the dialog.
@@ -39,7 +39,7 @@ pub struct OpenDialogOptions {
 }
 
 /// The options for the save dialog API.
-#[derive(Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
   /// The filters of the dialog.
@@ -190,4 +190,38 @@ fn set_default_path(
   } else {
     dialog_builder.set_directory(default_path)
   }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{OpenDialogOptions, SaveDialogOptions};
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for OpenDialogOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        filters: Vec::new(),
+        multiple: bool::arbitrary(g),
+        directory: bool::arbitrary(g),
+        default_path: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for SaveDialogOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        filters: Vec::new(),
+        default_path: Option::arbitrary(g),
+      }
+    }
+  }
+
+  #[tauri_macros::module_command_test(dialog_open, "dialog > open")]
+  #[quickcheck_macros::quickcheck]
+  fn open_dialog(_options: OpenDialogOptions) {}
+
+  #[tauri_macros::module_command_test(dialog_save, "dialog > save")]
+  #[quickcheck_macros::quickcheck]
+  fn save_dialog(_options: SaveDialogOptions) {}
 }

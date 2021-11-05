@@ -98,3 +98,38 @@ impl Cmd {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::{ClientBuilder, ClientId};
+
+  #[tauri_macros::module_command_test(http_request, "http > request", async)]
+  #[quickcheck_macros::quickcheck]
+  fn create_client(options: Option<ClientBuilder>) {
+    assert!(crate::async_runtime::block_on(super::Cmd::create_client(
+      crate::test::mock_invoke_context(),
+      options
+    ))
+    .is_ok());
+  }
+
+  #[tauri_macros::module_command_test(http_request, "http > request", async)]
+  #[quickcheck_macros::quickcheck]
+  fn drop_client(client_id: ClientId) {
+    crate::async_runtime::block_on(async move {
+      assert!(
+        super::Cmd::drop_client(crate::test::mock_invoke_context(), client_id)
+          .await
+          .is_ok()
+      );
+      let id = super::Cmd::create_client(crate::test::mock_invoke_context(), None)
+        .await
+        .unwrap();
+      assert!(
+        super::Cmd::drop_client(crate::test::mock_invoke_context(), id)
+          .await
+          .is_ok()
+      );
+    });
+  }
+}

@@ -36,3 +36,24 @@ impl Cmd {
     Ok(context.window.app_handle.clipboard_manager().read_text()?)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[tauri_macros::module_command_test(clipboard_write_text, "clipboard > writeText")]
+  #[quickcheck_macros::quickcheck]
+  fn write_text(text: String) {
+    let ctx = crate::test::mock_invoke_context();
+    super::Cmd::write_text(ctx.clone(), text.clone()).unwrap();
+    assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
+  }
+
+  #[tauri_macros::module_command_test(clipboard_read_text, "clipboard > readText")]
+  #[quickcheck_macros::quickcheck]
+  fn read_text() {
+    let ctx = crate::test::mock_invoke_context();
+    assert_eq!(super::Cmd::read_text(ctx.clone()).unwrap(), None);
+    let text = "Tauri!".to_string();
+    super::Cmd::write_text(ctx.clone(), text.clone()).unwrap();
+    assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
+  }
+}

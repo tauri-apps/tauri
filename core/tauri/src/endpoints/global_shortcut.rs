@@ -104,3 +104,56 @@ fn register_shortcut<R: Runtime>(
   })?;
   Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+  use crate::api::ipc::CallbackFn;
+
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[quickcheck_macros::quickcheck]
+  fn register(shortcut: String, handler: CallbackFn) {
+    let ctx = crate::test::mock_invoke_context();
+    super::Cmd::register(ctx.clone(), shortcut.clone(), handler).unwrap();
+    assert!(super::Cmd::is_registered(ctx, shortcut).unwrap());
+  }
+
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[quickcheck_macros::quickcheck]
+  fn register_all(shortcuts: Vec<String>, handler: CallbackFn) {
+    let ctx = crate::test::mock_invoke_context();
+    super::Cmd::register_all(ctx.clone(), shortcuts.clone(), handler).unwrap();
+    for shortcut in shortcuts {
+      assert!(super::Cmd::is_registered(ctx.clone(), shortcut).unwrap(),);
+    }
+  }
+
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[quickcheck_macros::quickcheck]
+  fn unregister(shortcut: String) {
+    let ctx = crate::test::mock_invoke_context();
+    super::Cmd::register(ctx.clone(), shortcut.clone(), CallbackFn(0)).unwrap();
+    super::Cmd::unregister(ctx.clone(), shortcut.clone()).unwrap();
+    assert!(!super::Cmd::is_registered(ctx, shortcut).unwrap());
+  }
+
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[quickcheck_macros::quickcheck]
+  fn unregister_all() {
+    let shortcuts = vec!["CTRL+X".to_string(), "SUPER+C".to_string(), "D".to_string()];
+    let ctx = crate::test::mock_invoke_context();
+    super::Cmd::register_all(ctx.clone(), shortcuts.clone(), CallbackFn(0)).unwrap();
+    super::Cmd::unregister_all(ctx.clone()).unwrap();
+    for shortcut in shortcuts {
+      assert!(!super::Cmd::is_registered(ctx.clone(), shortcut).unwrap(),);
+    }
+  }
+
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[quickcheck_macros::quickcheck]
+  fn is_registered(shortcut: String) {
+    let ctx = crate::test::mock_invoke_context();
+    assert!(!super::Cmd::is_registered(ctx.clone(), shortcut.clone()).unwrap(),);
+    super::Cmd::register(ctx.clone(), shortcut.clone(), CallbackFn(0)).unwrap();
+    assert!(super::Cmd::is_registered(ctx, shortcut).unwrap());
+  }
+}

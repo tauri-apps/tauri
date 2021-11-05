@@ -30,6 +30,8 @@ use webview2_com::{
   FocusChangedEventHandler,
   Windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken},
 };
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND as External_HWND;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -823,13 +825,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(windows)]
-  fn parent_window(mut self, parent: HWND) -> Self {
+  fn parent_window(mut self, parent: External_HWND) -> Self {
     self.inner = self.inner.with_parent_window(parent);
     self
   }
 
   #[cfg(windows)]
-  fn owner_window(mut self, owner: HWND) -> Self {
+  fn owner_window(mut self, owner: External_HWND) -> Self {
     self.inner = self.inner.with_owner_window(owner);
     self
   }
@@ -1158,8 +1160,8 @@ impl Dispatch for WryDispatcher {
   }
 
   #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND> {
-    Ok(window_getter!(self, WindowMessage::Hwnd).0)
+  fn hwnd(&self) -> Result<External_HWND> {
+    Ok(External_HWND(window_getter!(self, WindowMessage::Hwnd).0.0))
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -1672,7 +1674,7 @@ impl Runtime for Wry {
           let proxy = self.event_loop.create_proxy();
           let mut token = EventRegistrationToken::default();
           unsafe {
-            controller.add_GotFocus(
+            controller.GotFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,
@@ -1686,7 +1688,7 @@ impl Runtime for Wry {
           .unwrap();
           let proxy = self.event_loop.create_proxy();
           unsafe {
-            controller.add_LostFocus(
+            controller.LostFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,

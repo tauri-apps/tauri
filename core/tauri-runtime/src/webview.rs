@@ -13,7 +13,7 @@ use serde_json::Value as JsonValue;
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
 #[cfg(windows)]
-use webview2_com_sys::Windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::HWND;
 
 use std::{fmt, path::PathBuf};
 

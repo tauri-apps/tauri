@@ -58,7 +58,6 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.1",
     "eslint-plugin-security": "1.4.0",
-    "lockfile-lint": "^4.6.2",
     "prettier": "2.4.1",
     "rollup": "2.59.0",
     "temp-dir": "2.0.0",

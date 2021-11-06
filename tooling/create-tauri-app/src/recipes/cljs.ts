@@ -2,24 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// import { join } from 'path'
+import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
+import { rmSync, existsSync } from 'fs'
 
 const cljs: Recipe = {
   descriptiveName: {
-    name: 'ClojureScript (https://clojurescript.org/)',
+    name: 'ClojureScript (https://github.com/filipesilva/create-cljs-app)',
     value: 'cljs'
   },
   shortName: 'cljs',
   extraNpmDevDependencies: [],
   extraNpmDependencies: [],
-  configUpdate: ({ cfg }) => ({
+  configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../public`,
     devPath: 'http://localhost:3000',
+    beforeDevCommand: `${packageManager === 'npm' ? 'npm run' : packageManager
+      } start`,
+    beforeBuildCommand: `${packageManager === 'npm' ? 'npm run' : packageManager
+      } build`
   }),
-  preInit: async ({ cwd, cfg, ci, packageManager }) => {
+  preInit: async ({ cwd, cfg, packageManager }) => {
     // create-cljs-app creates the folder for you
     if (packageManager === 'yarn') {
       await shell(
@@ -33,6 +38,11 @@ const cljs: Recipe = {
           cwd
         }
       )
+      /* `create-cljs-app` has both a `package-lock.json` and a `yarn.lock`
+         I think it's a good idea to get rid of conflicting lockfiles. */
+      const npmLock = join(cwd, cfg.appName, 'package-lock.json')
+      if (existsSync(npmLock)) rmSync(npmLock)
+
     } else {
       await shell(
         'npx',
@@ -44,6 +54,9 @@ const cljs: Recipe = {
           cwd
         }
       )
+      /* Remove Unnecessary lockfile as above. */
+      const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
+      if (existsSync(yarnLock)) rmSync(yarnLock)
     }
   },
   postInit: async ({ cfg, packageManager }) => {
@@ -51,10 +64,6 @@ const cljs: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-
-    Run Tauri and Shadow CLJS in separate terminals:
-
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} start
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
     return await Promise.resolve()

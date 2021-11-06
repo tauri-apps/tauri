@@ -15,6 +15,7 @@ import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
 import { solid } from './recipes/solid'
+import { cljs } from './recipes/cljs'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
@@ -126,7 +127,8 @@ const allRecipes: Recipe[] = [
   ngcli,
   svelte,
   solid,
-  dominator
+  dominator,
+  cljs
 ]
 
 const recipeByShortName = (name: string): Recipe | undefined =>

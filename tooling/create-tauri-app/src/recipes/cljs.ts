@@ -19,42 +19,28 @@ const cljs: Recipe = {
     ...cfg,
     distDir: `../public`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `${packageManager === 'npm' ? 'npm run' : packageManager
-      } start`,
-    beforeBuildCommand: `${packageManager === 'npm' ? 'npm run' : packageManager
-      } build`
+    beforeDevCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } start`,
+    beforeBuildCommand: `${
+      packageManager === 'npm' ? 'npm run' : packageManager
+    } build`
   }),
   preInit: async ({ cwd, cfg, packageManager }) => {
     // create-cljs-app creates the folder for you
     if (packageManager === 'yarn') {
-      await shell(
-        'yarn',
-        [
-          'create',
-          'cljs-app',
-          `${cfg.appName}`
-        ],
-        {
-          cwd
-        }
-      )
+      await shell('yarn', ['create', 'cljs-app', `${cfg.appName}`], {
+        cwd
+      })
       /* `create-cljs-app` has both a `package-lock.json` and a `yarn.lock`
          I think it's a good idea to get rid of conflicting lockfiles. */
       const npmLock = join(cwd, cfg.appName, 'package-lock.json')
       if (existsSync(npmLock)) rmSync(npmLock)
       await shell('yarn', ['install'], { cwd: join(cwd, cfg.appName) })
-
     } else {
-      await shell(
-        'npx',
-        [
-          'create-cljs-app@latest',
-          `${cfg.appName}`,
-        ],
-        {
-          cwd
-        }
-      )
+      await shell('npx', ['create-cljs-app@latest', `${cfg.appName}`], {
+        cwd
+      })
       /* Remove Unnecessary lockfile as above. */
       const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
       if (existsSync(yarnLock)) rmSync(yarnLock)

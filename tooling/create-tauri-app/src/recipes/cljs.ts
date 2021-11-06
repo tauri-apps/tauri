@@ -42,6 +42,7 @@ const cljs: Recipe = {
          I think it's a good idea to get rid of conflicting lockfiles. */
       const npmLock = join(cwd, cfg.appName, 'package-lock.json')
       if (existsSync(npmLock)) rmSync(npmLock)
+      await shell('yarn', ['install'], { cwd: join(cwd, cfg.appName) })
 
     } else {
       await shell(
@@ -57,6 +58,7 @@ const cljs: Recipe = {
       /* Remove Unnecessary lockfile as above. */
       const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
       if (existsSync(yarnLock)) rmSync(yarnLock)
+      await shell('npm', ['install'], { cwd: join(cwd, cfg.appName) })
     }
   },
   postInit: async ({ cfg, packageManager }) => {

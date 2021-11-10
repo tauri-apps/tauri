@@ -54,7 +54,7 @@
     "eslint": "8.2.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
-    "eslint-plugin-import": "2.25.2",
+    "eslint-plugin-import": "2.25.3",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "5.1.1",
     "eslint-plugin-security": "1.4.0",

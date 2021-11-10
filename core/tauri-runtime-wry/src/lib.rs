@@ -177,6 +177,7 @@ struct DispatcherMainThreadContext {
 }
 
 // the main thread context is only used on the main thread
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for DispatcherMainThreadContext {}
 
 impl fmt::Debug for Context {
@@ -889,11 +890,13 @@ impl From<FileDropEventWrapper> for FileDropEvent {
 #[cfg(target_os = "macos")]
 pub struct NSWindow(*mut std::ffi::c_void);
 #[cfg(target_os = "macos")]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for NSWindow {}
 
 #[cfg(windows)]
 pub struct Hwnd(HWND);
 #[cfg(windows)]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Hwnd {}
 
 #[cfg(any(
@@ -911,6 +914,7 @@ pub struct GtkWindow(gtk::ApplicationWindow);
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
 #[derive(Debug, Clone)]

@@ -3745,7 +3745,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.12.2"
-source = "git+https://github.com/wravery/wry?branch=update-webview2#28e4b3f84b247522ebc6b3eb92e853b20169c30b"
+source = "git+https://github.com/tauri-apps/wry?rev=27cf3735f717ffcc409e79031356ea0c99cadf8a#27cf3735f717ffcc409e79031356ea0c99cadf8a"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.3",

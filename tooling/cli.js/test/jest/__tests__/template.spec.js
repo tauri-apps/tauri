@@ -9,9 +9,6 @@ const currentDirName = dirname(fileURLToPath(import.meta.url))
 
 describe('[CLI] cli.js template', () => {
   it('init a project and builds it', async () => {
-    // The default is 20 minutes (1200000 milliseconds), but it's not always enough. This makes it 30 minutes.
-    jest.setTimeout(1800000)
-
     const cwd = process.cwd()
     const fixturePath = resolve(currentDirName, '../fixtures/empty')
     const tauriFixturePath = resolve(fixturePath, 'src-tauri')

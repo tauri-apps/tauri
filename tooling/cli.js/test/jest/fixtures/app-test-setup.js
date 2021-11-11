@@ -9,7 +9,8 @@ const mockFixtureDir = path.resolve(currentDirName, '../fixtures')
 export const fixtureDir = mockFixtureDir
 
 export const initJest = (mockFixture) => {
-  jest.setTimeout(1200000)
+  // 30 minute timeout: 20 minutes wasn't always enough for compilation in GitHub Actions.
+  jest.setTimeout(1800000)
 
   const mockAppDir = path.join(mockFixtureDir, mockFixture)
   process.env.__TAURI_TEST_APP_DIR = mockAppDir

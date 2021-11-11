@@ -52,7 +52,6 @@ heck = "0.3"
 dialoguer = "0.9"
 
 [target."cfg(windows)".dependencies]
-winapi = { version = "0.3", features = [ "winbase", "winuser", "consoleapi", "processenv", "wincon" ] }
 encode_unicode = "0.3"
 
 [target."cfg(target_os = \"linux\")".build-dependencies]

@@ -8,7 +8,7 @@ pub(crate) mod tray;
 use crate::{
   command::{CommandArg, CommandItem},
   hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
-  manager::{CustomProtocol, WindowManager},
+  manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -166,6 +166,19 @@ impl PathResolver {
   /// Returns the path to the suggested log directory.
   pub fn log_dir(&self) -> Option<PathBuf> {
     crate::api::path::log_dir(&self.config)
+  }
+}
+
+/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+#[derive(Debug, Clone)]
+pub struct AssetResolver<R: Runtime> {
+  manager: WindowManager<R>,
+}
+
+impl<R: Runtime> AssetResolver<R> {
+  /// Gets the app asset associated with the given path.
+  pub fn get(&self, path: String) -> Option<Asset> {
+    self.manager.get_asset(path).ok()
   }
 }
 
@@ -399,6 +412,13 @@ macro_rules! shared_app_impl {
       /// Gets the app's package information.
       pub fn package_info(&self) -> &PackageInfo {
         self.manager.package_info()
+      }
+
+      /// The application's asset resolver.
+      pub fn asset_resolver(&self) -> AssetResolver<R> {
+        AssetResolver {
+          manager: self.manager.clone(),
+        }
       }
     }
   };

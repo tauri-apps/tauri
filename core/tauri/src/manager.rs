@@ -95,6 +95,14 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
   }
 }
 
+/// A resolved asset.
+pub struct Asset {
+  /// The asset bytes.
+  pub bytes: Vec<u8>,
+  /// The asset's mime type.
+  pub mime_type: String,
+}
+
 /// Uses a custom URI scheme handler to resolve file requests
 pub struct CustomProtocol<R: Runtime> {
   /// Handler for protocol
@@ -371,15 +379,71 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
+  pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
+    let assets = &self.inner.assets;
+    if path.ends_with('/') {
+      path.pop();
+    }
+    path = percent_encoding::percent_decode(path.as_bytes())
+      .decode_utf8_lossy()
+      .to_string();
+    let path = if path.is_empty() {
+      // if the url is `tauri://localhost`, we should load `index.html`
+      "index.html".to_string()
+    } else {
+      // skip leading `/`
+      path.chars().skip(1).collect::<String>()
+    };
+    let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
+    let is_html = path.ends_with(".html");
+
+    let asset_response = assets
+      .get(&path.as_str().into())
+      .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
+      .or_else(|| {
+        #[cfg(debug_assertions)]
+        eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+        assets.get(&"index.html".into())
+      })
+      .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
+      .map(Cow::into_owned);
+
+    match asset_response {
+      Ok(asset) => {
+        let final_data = match is_javascript || is_html {
+          true => String::from_utf8_lossy(&asset)
+            .into_owned()
+            .replacen(
+              "__TAURI__INVOKE_KEY_TOKEN__",
+              &self.generate_invoke_key().to_string(),
+              1,
+            )
+            .as_bytes()
+            .to_vec(),
+          false => asset,
+        };
+        let mime_type = MimeType::parse(&final_data, &path);
+        Ok(Asset {
+          bytes: final_data,
+          mime_type,
+        })
+      }
+      Err(e) => {
+        #[cfg(debug_assertions)]
+        eprintln!("{:?}", e); // TODO log::error!
+        Err(Box::new(e))
+      }
+    }
+  }
+
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
-    let assets = self.inner.assets.clone();
     let manager = self.clone();
     Box::new(move |request| {
-      let mut path = request
+      let path = request
         .uri()
         .split(&['?', '#'][..])
         // ignore query string
@@ -387,61 +451,10 @@ impl<R: Runtime> WindowManager<R> {
         .unwrap()
         .to_string()
         .replace("tauri://localhost", "");
-      if path.ends_with('/') {
-        path.pop();
-      }
-      path = percent_encoding::percent_decode(path.as_bytes())
-        .decode_utf8_lossy()
-        .to_string();
-      let path = if path.is_empty() {
-        // if the url is `tauri://localhost`, we should load `index.html`
-        "index.html".to_string()
-      } else {
-        // skip leading `/`
-        path.chars().skip(1).collect::<String>()
-      };
-      let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
-      let is_html = path.ends_with(".html");
-
-      let asset_response = assets
-        .get(&path.as_str().into())
-        .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
-        .or_else(|| {
-          #[cfg(debug_assertions)]
-          eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
-          assets.get(&"index.html".into())
-        })
-        .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
-        .map(Cow::into_owned);
-
-      match asset_response {
-        Ok(asset) => {
-          let final_data = match is_javascript || is_html {
-            true => String::from_utf8_lossy(&asset)
-              .into_owned()
-              .replacen(
-                "__TAURI__INVOKE_KEY_TOKEN__",
-                &manager.generate_invoke_key().to_string(),
-                1,
-              )
-              .as_bytes()
-              .to_vec(),
-            false => asset,
-          };
-
-          let mime_type = MimeType::parse(&final_data, &path);
-          Ok(
-            HttpResponseBuilder::new()
-              .mimetype(&mime_type)
-              .body(final_data)?,
-          )
-        }
-        Err(e) => {
-          #[cfg(debug_assertions)]
-          eprintln!("{:?}", e); // TODO log::error!
-          Err(Box::new(e))
-        }
-      }
+      let asset = manager.get_asset(path)?;
+      HttpResponseBuilder::new()
+        .mimetype(&asset.mime_type)
+        .body(asset.bytes)
     })
   }
 

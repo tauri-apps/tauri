@@ -35,6 +35,17 @@ static RUNTIME: OnceCell<Runtime> = OnceCell::new();
 #[derive(Debug)]
 pub struct JoinHandle<T>(TokioJoinHandle<T>);
 
+impl<T> JoinHandle<T> {
+  /// Abort the task associated with the handle.
+  ///
+  /// Awaiting a cancelled task might complete as usual if the task was
+  /// already completed at the time it was cancelled, but most likely it
+  /// will fail with a cancelled `JoinError`.
+  pub fn abort(&self) {
+    self.0.abort();
+  }
+}
+
 impl<T> Future for JoinHandle<T> {
   type Output = crate::Result<T>;
   fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -107,5 +118,18 @@ mod tests {
   fn handle_block_on() {
     let handle = handle();
     assert_eq!(handle.block_on(async { 0 }), 0);
+  }
+
+  #[tokio::test]
+  async fn handle_abort() {
+    let handle = handle();
+    let join = handle.spawn(async { 5 });
+    join.abort();
+    if let crate::Error::JoinError(raw_box) = join.await.unwrap_err() {
+      let raw_error = raw_box.downcast::<tokio::task::JoinError>().unwrap();
+      assert!(raw_error.is_cancelled());
+    } else {
+      panic!("Abort did not result in the expected `JoinError`");
+    }
   }
 }

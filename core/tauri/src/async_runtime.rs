@@ -40,7 +40,7 @@ impl<T> JoinHandle<T> {
   ///
   /// Awaiting a cancelled task might complete as usual if the task was
   /// already completed at the time it was cancelled, but most likely it
-  /// will fail with a [cancelled] `JoinError`.
+  /// will fail with a cancelled `JoinError`.
   pub fn abort(&self) {
     self.0.abort();
   }
@@ -129,7 +129,7 @@ mod tests {
       let raw_error = raw_box.downcast::<tokio::task::JoinError>().unwrap();
       assert!(raw_error.is_cancelled());
     } else {
-      panic!("Should never goes here!");
+      panic!("Abort did not result in the expected `JoinError`");
     }
   }
 }

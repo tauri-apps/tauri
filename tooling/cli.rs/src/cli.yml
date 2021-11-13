@@ -124,7 +124,6 @@ subcommands:
               long: force
               about: Overwrite private key even if it exists on the specified path
               requires: generate
-              
   - info:
       about: Shows information about Tauri dependencies
   - init:
@@ -171,35 +170,37 @@ subcommands:
               long: dev-path
               about: Url of your dev server
               takes_value: true
+  - plugin:
+      about: Manage Tauri plugins.
       subcommands:
-        - plugin:
-            about: Initializes a Tauri plugin project.
-            args:
-                - name:
-                    short: n
-                    long: name
-                    about: Name of your Tauri plugin
-                    takes_value: true
-                    required: true
-                - directory:
-                    short: d
-                    long: directory
-                    about: Set target directory for init
-                    takes_value: true
-                - tauri-path:
-                    short: t
-                    long: tauri-path
-                    about: Path of the Tauri project to use (relative to the cwd)
-                    takes_value: true
-                - api:
-                    short: a
-                    long: api
-                    about: Initializes a Tauri plugin with TypeScript API.
-                - author:
-                    long: author
-                    about: Author name.
-                    takes_value: true
-                - tauri:
-                    long: tauri
-                    about: Initializes a Tauri core plugin (internal usage).
-                    setting: Hidden
+          - init:
+              about: Initializes a Tauri plugin project.
+              args:
+                  - name:
+                      short: n
+                      long: name
+                      about: Name of your Tauri plugin
+                      takes_value: true
+                      required: true
+                  - directory:
+                      short: d
+                      long: directory
+                      about: Set target directory for init
+                      takes_value: true
+                  - tauri-path:
+                      short: t
+                      long: tauri-path
+                      about: Path of the Tauri project to use (relative to the cwd)
+                      takes_value: true
+                  - api:
+                      short: a
+                      long: api
+                      about: Initializes a Tauri plugin with TypeScript API.
+                  - author:
+                      long: author
+                      about: Author name.
+                      takes_value: true
+                  - tauri:
+                      long: tauri
+                      about: Initializes a Tauri core plugin (internal usage).
+                      setting: Hidden

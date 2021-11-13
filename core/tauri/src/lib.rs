@@ -86,11 +86,14 @@ pub use {
   self::window::menu::MenuEvent,
 };
 pub use {
-  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
+  self::app::{
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver,
+  },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
     PageLoadPayload, SetupHook,
   },
+  self::manager::Asset,
   self::runtime::{
     webview::{WebviewAttributes, WindowBuilder},
     window::{

@@ -126,7 +126,7 @@ subcommands:
               requires: generate
               
   - info:
-      about: Shows information about Tauri dependencies
+      about: Shows information about Tauri dependencies and project configuration.
   - init:
       about: Initializes a Tauri project.
       args:

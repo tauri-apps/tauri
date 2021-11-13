@@ -35,7 +35,7 @@ fn kill_before_dev_process() {
     let _ = Command::new("powershell")
       .arg("-NoProfile")
       .arg("-Command")
-      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
       .status();
     #[cfg(not(windows))]
     let _ = Command::new("pkill")
@@ -154,6 +154,10 @@ impl Dev {
           .spawn()
           .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
         BEFORE_DEV.set(Mutex::new(child)).unwrap();
+
+        let _ = ctrlc::set_handler(move || {
+          kill_before_dev_process();
+        });
       }
     }
 

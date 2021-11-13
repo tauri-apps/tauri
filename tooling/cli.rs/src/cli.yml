@@ -125,7 +125,7 @@ subcommands:
               about: Overwrite private key even if it exists on the specified path
               requires: generate
   - info:
-      about: Shows information about Tauri dependencies
+      about: Shows information about Tauri dependencies and project configuration.
   - init:
       about: Initializes a Tauri project.
       args:

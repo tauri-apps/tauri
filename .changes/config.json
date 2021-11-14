@@ -269,7 +269,7 @@
       "path": "./tooling/cli.rs",
       "manager": "rust",
       "dependencies": ["tauri-bundler"],
-      "postversion": "node ../../.scripts/covector/generate-cli-doc.js && cargo check"
+      "postversion": "node ../../.scripts/covector/generate-cli-doc.js && node ../../.scripts/covector/generate-config-doc.js && cargo check"
     },
     "create-tauri-app": {
       "path": "./tooling/create-tauri-app",

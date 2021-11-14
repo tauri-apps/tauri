@@ -29,11 +29,11 @@
     "plugins": {
       "description": "The plugins config.",
       "default": {},
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
-      }
+      "allOf": [
+        {
+          "$ref": "#/definitions/PluginConfig"
+        }
+      ]
     },
     "tauri": {
       "description": "The Tauri configuration.",
@@ -953,6 +953,11 @@
         }
       },
       "additionalProperties": false
+    },
+    "PluginConfig": {
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
+      "type": "object",
+      "additionalProperties": true
     },
     "SecurityConfig": {
       "type": "object",

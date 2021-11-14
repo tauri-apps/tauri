@@ -841,8 +841,6 @@ fn default_dist_dir() -> AppUrl {
   AppUrl::Url("../dist".to_string())
 }
 
-type JsonObject = HashMap<String, JsonValue>;
-
 /// The tauri.conf.json mapper.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
@@ -859,8 +857,12 @@ pub struct Config {
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
-  pub plugins: HashMap<String, JsonObject>,
+  pub plugins: PluginConfig,
 }
+
+/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
 fn default_build() -> BuildConfig {
   BuildConfig {

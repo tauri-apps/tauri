@@ -20,12 +20,17 @@ pub use codegen::context::CodegenContext;
 #[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: PathBuf,
+  /// The path to the sdk location. This can be a absolute or relative path. If not supplied
+  /// this defaults to whatever `winres` crate determines is the best. See the
+  /// [winres documentation](https://docs.rs/winres/*/winres/struct.WindowsResource.html#method.set_toolkit_path)
+  sdk_dir: Option<PathBuf>,
 }
 
 impl Default for WindowsAttributes {
   fn default() -> Self {
     Self {
       window_icon_path: PathBuf::from("icons/icon.ico"),
+      sdk_dir: None
     }
   }
 }
@@ -40,6 +45,13 @@ impl WindowsAttributes {
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self.window_icon_path = window_icon_path.as_ref().into();
+    self
+  }
+
+  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a vaild UTF-8
+  /// path. Defaults to whatever the `winres` crate determines is best.
+  pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
+    self.sdk_dir = Some(sdk_dir.as_ref().into());
     self
   }
 }
@@ -112,6 +124,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if attributes.windows_attributes.window_icon_path.exists() {
       let mut res = WindowsResource::new();
+      if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
+        if let Some(sdk_dir_str) = sdk_dir.to_str() {
+          res.set_toolkit_path(sdk_dir_str);
+        } else {
+          return Err(anyhow!("sdk_dir path is not valid; only UTF-8 characters are allowed"));
+        }
+      }
       if let Some(version) = &config.package.version {
         res.set("FileVersion", version);
         res.set("ProductVersion", version);

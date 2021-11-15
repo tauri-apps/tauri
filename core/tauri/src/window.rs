@@ -224,7 +224,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     match command.as_str() {
       "__initialized" => {

@@ -104,7 +104,7 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (window.rpc) {
+      if (window.__TAURI_INVOKE__) {
         window.__TAURI_INVOKE__(
           cmd,
           _objectSpread({

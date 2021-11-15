@@ -240,15 +240,18 @@ impl<R: Runtime> WindowManager<R> {
     let mut webview_attributes = pending.webview_attributes;
     webview_attributes = webview_attributes
       .initialization_script(&self.inner.invoke_initialization_script)
-      .initialization_script(&self.initialization_script(&plugin_init, is_init_global))
       .initialization_script(&format!(
         r#"
+          if (!window.__TAURI__) {{
+            window.__TAURI__ = {{}}
+          }}
           window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
           window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
         "#,
         window_labels_array = serde_json::to_string(pending_labels)?,
         current_window_label = serde_json::to_string(&label)?,
-      ));
+      ))
+      .initialization_script(&self.initialization_script(&plugin_init, is_init_global));
 
     #[cfg(dev)]
     {

@@ -95,6 +95,9 @@ pub enum Error {
   /// Failed to sign application.
   #[error("failed to sign app: {0}")]
   Sign(String),
+  /// time error.
+  #[error("`{0}`")]
+  TimeError(#[from] time::error::Error),
 }
 
 /// Convenient type alias of Result type.

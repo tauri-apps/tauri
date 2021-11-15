@@ -93,7 +93,7 @@ fn main() {
 
 ## Official Tauri Plugins
 
-- [Stronghold](https://github.com/tauri-apps/tauri-plugin-stronghold)
+- [Stronghold](https://github.com/tauri-apps/tauri-plugin-stronghold): Local Storage on native webview is not encrypted. Stronghold offers secure encrypted database service.
 - [Authenticator](https://github.com/tauri-apps/tauri-plugin-authenticator)
 - [Logging](https://github.com/tauri-apps/tauri-plugin-log)
 - [SQL](https://github.com/tauri-apps/tauri-plugin-sql)

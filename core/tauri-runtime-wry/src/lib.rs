@@ -27,9 +27,10 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use webview2_com::{
-  FocusChangedEventHandler,
-  Windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken},
+  FocusChangedEventHandler, Windows::Win32::System::WinRT::EventRegistrationToken,
 };
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -1676,7 +1677,7 @@ impl Runtime for Wry {
           let proxy = self.event_loop.create_proxy();
           let mut token = EventRegistrationToken::default();
           unsafe {
-            controller.add_GotFocus(
+            controller.GotFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,
@@ -1690,7 +1691,7 @@ impl Runtime for Wry {
           .unwrap();
           let proxy = self.event_loop.create_proxy();
           unsafe {
-            controller.add_LostFocus(
+            controller.LostFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,

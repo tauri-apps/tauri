@@ -12,6 +12,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
+  hooks::InvokeResponder,
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
@@ -32,7 +33,10 @@ use serde::Serialize;
 
 use tauri_macros::default_runtime;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  hash::{Hash, Hasher},
+  sync::Arc,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -199,6 +203,10 @@ impl<R: Runtime> Window<R> {
       webview_attributes,
       label,
     ))
+  }
+
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.manager.invoke_responder()
   }
 
   /// The current window's dispatcher.

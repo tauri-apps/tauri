@@ -13,9 +13,7 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    rpc: {
-      notify: (command: string, args?: { [key: string]: unknown }) => void
-    }
+    __TAURI_INVOKE__: (command: string, args?: { [key: string]: unknown }) => void
   }
 }
 
@@ -82,7 +80,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.rpc.notify(cmd, {
+    window.__TAURI_INVOKE__(cmd, {
       __invokeKey: __TAURI_INVOKE_KEY__,
       callback,
       error,

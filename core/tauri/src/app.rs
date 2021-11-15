@@ -7,7 +7,9 @@ pub(crate) mod tray;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
+  hooks::{
+    window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
+  },
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
@@ -19,7 +21,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::assets::Assets,
   utils::config::{Config, WindowUrl},
-  Context, Invoke, InvokeError, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, InvokeResponse, Manager, StateManager, Window,
 };
 
 use tauri_macros::default_runtime;
@@ -582,6 +584,12 @@ pub struct Builder<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
+  /// The JS message responder.
+  invoke_responder: Arc<InvokeResponder<R>>,
+
+  /// The script that initializes the `window.__TAURI_INVOKE__` function.
+  invoke_initialization_script: String,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -624,6 +632,9 @@ impl<R: Runtime> Builder<R> {
     Self {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| ()),
+      invoke_responder: Arc::new(window_invoke_responder),
+      invoke_initialization_script:
+        "Object.defineProperty(window, '__TAURI_INVOKE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -645,6 +656,21 @@ impl<R: Runtime> Builder<R> {
     F: Fn(Invoke<R>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
+    self
+  }
+
+  /// Defines the JS message responder callback.
+  pub fn invoke_responder<F>(mut self, responder: F) -> Self
+  where
+    F: Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static,
+  {
+    self.invoke_responder = Arc::new(responder);
+    self
+  }
+
+  /// Sets the script that initializes the invoke system. It must define the `window.__TAURI_INVOKE__` function.
+  pub fn invoke_initialization_script(mut self, script: String) -> Self {
+    self.invoke_initialization_script = script;
     self
   }
 
@@ -905,6 +931,7 @@ impl<R: Runtime> Builder<R> {
       self.state,
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
+      (self.invoke_responder, self.invoke_initialization_script),
     );
 
     // set up all the windows defined in the config

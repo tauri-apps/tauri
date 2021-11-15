@@ -265,7 +265,7 @@ fn main() -> Result<()> {
   env::set_current_dir(&utils::bench_root_path())?;
 
   let mut new_data = utils::BenchResult {
-    created_at: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+    created_at: format!("{}", time::OffsetDateTime::now_utc()),
     sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])
       .0
       .trim()

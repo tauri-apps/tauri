@@ -96,6 +96,7 @@ pub enum Error {
   #[error("failed to sign app: {0}")]
   Sign(String),
   /// time error.
+  #[cfg(target_os = "macos")]
   #[error("`{0}`")]
   TimeError(#[from] time::error::Error),
 }

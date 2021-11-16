@@ -37,7 +37,7 @@ $ sudo apt update && sudo apt install libwebkit2gtk-4.0-dev \
 <TabItem value="arch">
 
 ```sh
-$ sudo pacman -Syy && sudo pacman -S --needed \
+$ sudo pacman -Syu && sudo pacman -S --needed \
     webkit2gtk \
     base-devel \
     curl \

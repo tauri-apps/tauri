@@ -2,65 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function () {
+;
+(function () {
   function uid() {
     const length = new Int8Array(1)
     window.crypto.getRandomValues(length)
     const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
     window.crypto.getRandomValues(array)
     return array.join('')
-  }
-
-  function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object)
-    if (Object.getOwnPropertySymbols) {
-      var symbols = Object.getOwnPropertySymbols(object)
-      if (enumerableOnly)
-        symbols = symbols.filter(function (sym) {
-          return Object.getOwnPropertyDescriptor(object, sym).enumerable
-        })
-      keys.push.apply(keys, symbols)
-    }
-    return keys
-  }
-
-  function _objectSpread(target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i] != null ? arguments[i] : {}
-      if (i % 2) {
-        ownKeys(source, true).forEach(function (key) {
-          _defineProperty(target, key, source[key])
-        })
-      } else if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(
-          target,
-          Object.getOwnPropertyDescriptors(source)
-        )
-      } else {
-        ownKeys(source).forEach(function (key) {
-          Object.defineProperty(
-            target,
-            key,
-            Object.getOwnPropertyDescriptor(source, key)
-          )
-        })
-      }
-    }
-    return target
-  }
-
-  function _defineProperty(obj, key, value) {
-    if (key in obj) {
-      Object.defineProperty(obj, key, {
-        value: value,
-        enumerable: true,
-        configurable: true,
-        writable: true
-      })
-    } else {
-      obj[key] = value
-    }
-    return obj
   }
 
   if (!window.__TAURI__) {
@@ -103,30 +52,24 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (window.rpc) {
-        window.rpc.notify(
-          cmd,
-          _objectSpread(
-            {
-              callback: callback,
-              error: error,
-              __invokeKey: key || __TAURI_INVOKE_KEY__
-            },
-            args
-          )
+      if (window.__TAURI_POST_MESSAGE__) {
+        window.__TAURI_POST_MESSAGE__(
+          cmd, {
+            ...args,
+            callback: callback,
+            error: error,
+            __invokeKey: key || __TAURI_INVOKE_KEY__
+          }
         )
       } else {
         window.addEventListener('DOMContentLoaded', function () {
-          window.rpc.notify(
-            cmd,
-            _objectSpread(
-              {
-                callback: callback,
-                error: error,
-                __invokeKey: key || __TAURI_INVOKE_KEY__
-              },
-              args
-            )
+          window.__TAURI_POST_MESSAGE__(
+            cmd, {
+              ...args,
+              callback: callback,
+              error: error,
+              __invokeKey: key || __TAURI_INVOKE_KEY__
+            }
           )
         })
       }
@@ -147,8 +90,7 @@
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE__(
-                'tauri',
-                {
+                'tauri', {
                   __tauriModule: 'Shell',
                   message: {
                     cmd: 'open',
@@ -188,8 +130,7 @@
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__(
-        'tauri',
-        {
+        'tauri', {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',
@@ -206,8 +147,7 @@
   })
 
   window.__TAURI_INVOKE__(
-    'tauri',
-    {
+    'tauri', {
       __tauriModule: 'Event',
       message: {
         cmd: 'listen',
@@ -233,8 +173,7 @@
       return Promise.resolve(window.Notification.permission === 'granted')
     }
     return window.__TAURI_INVOKE__(
-      'tauri',
-      {
+      'tauri', {
         __tauriModule: 'Notification',
         message: {
           cmd: 'isNotificationPermissionGranted'
@@ -253,8 +192,7 @@
   function requestPermission() {
     return window
       .__TAURI_INVOKE__(
-        'tauri',
-        {
+        'tauri', {
           __tauriModule: 'Notification',
           message: {
             cmd: 'requestNotificationPermission'
@@ -276,17 +214,13 @@
     isPermissionGranted().then(function (permission) {
       if (permission) {
         return window.__TAURI_INVOKE__(
-          'tauri',
-          {
+          'tauri', {
             __tauriModule: 'Notification',
             message: {
               cmd: 'notification',
-              options:
-                typeof options === 'string'
-                  ? {
-                      title: options
-                    }
-                  : options
+              options: typeof options === 'string' ? {
+                title: options
+              } : options
             }
           },
           _KEY_VALUE_
@@ -329,8 +263,7 @@
 
   window.alert = function (message) {
     window.__TAURI_INVOKE__(
-      'tauri',
-      {
+      'tauri', {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'messageDialog',
@@ -343,8 +276,7 @@
 
   window.confirm = function (message) {
     return window.__TAURI_INVOKE__(
-      'tauri',
-      {
+      'tauri', {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'confirmDialog',
@@ -359,8 +291,7 @@
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
       return window.__TAURI_INVOKE__(
-        'tauri',
-        {
+        'tauri', {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',

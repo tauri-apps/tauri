@@ -12,6 +12,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
+  hooks::InvokeResponder,
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
@@ -32,7 +33,10 @@ use serde::Serialize;
 
 use tauri_macros::default_runtime;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  hash::{Hash, Hasher},
+  sync::Arc,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -201,6 +205,10 @@ impl<R: Runtime> Window<R> {
     ))
   }
 
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.manager.invoke_responder()
+  }
+
   /// The current window's dispatcher.
   pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
@@ -216,7 +224,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     match command.as_str() {
       "__initialized" => {

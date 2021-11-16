@@ -506,7 +506,7 @@ impl<R: Runtime> WindowManager<R> {
       }})()
       {core_script}
       {event_initialization_script}
-      if (window.rpc) {{
+      if (window.__TAURI_INVOKE__) {{
         window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{

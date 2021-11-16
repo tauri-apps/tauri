@@ -587,7 +587,7 @@ pub struct Builder<R: Runtime> {
   /// The JS message responder.
   invoke_responder: Arc<InvokeResponder<R>>,
 
-  /// The script that initializes the `window.__TAURI_INVOKE__` function.
+  /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
 
   /// The setup hook.
@@ -634,7 +634,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| ()),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_INVOKE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -668,7 +668,7 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Sets the script that initializes the invoke system. It must define the `window.__TAURI_INVOKE__` function.
+  /// Sets the script that initializes the invoke system. It must define the `window.__TAURI_POST_MESSAGE__` function.
   pub fn invoke_initialization_script(mut self, script: String) -> Self {
     self.invoke_initialization_script = script;
     self

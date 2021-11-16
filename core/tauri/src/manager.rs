@@ -493,9 +493,11 @@ impl<R: Runtime> WindowManager<R> {
       crate::async_runtime::block_on(async move {
         let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
-          FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", Some(paths)),
-          FileDropEvent::Dropped(paths) => window.emit("tauri://file-drop", Some(paths)),
-          FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", Some(())),
+          FileDropEvent::Hovered(paths) => {
+            window.emit_and_trigger("tauri://file-drop-hover", paths)
+          }
+          FileDropEvent::Dropped(paths) => window.emit_and_trigger("tauri://file-drop", paths),
+          FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
           _ => unimplemented!(),
         };
       });
@@ -796,13 +798,13 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, Some(size))?,
-    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, Some(position))?,
+    WindowEvent::Resized(size) => window.emit_and_trigger(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit_and_trigger(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested => {
-      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, Some(()))?;
+      window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit(WINDOW_DESTROYED_EVENT, Some(()))?;
+      window.emit_and_trigger(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -811,24 +813,24 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit(
+    WindowEvent::Focused(focused) => window.emit_and_trigger(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
         WINDOW_BLUR_EVENT
       },
-      Some(()),
+      (),
     )?,
     WindowEvent::ScaleFactorChanged {
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit(
+    } => window.emit_and_trigger(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
-      Some(ScaleFactorChanged {
+      ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
-      }),
+      },
     )?,
     _ => unimplemented!(),
   }
@@ -843,5 +845,5 @@ struct ScaleFactorChanged {
 }
 
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit(MENU_EVENT, Some(event.menu_item_id.clone()))
+  window.emit_and_trigger(MENU_EVENT, event.menu_item_id.clone())
 }

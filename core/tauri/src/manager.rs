@@ -509,7 +509,7 @@ impl<R: Runtime> WindowManager<R> {
       r#"
       {core_script}
       {event_initialization_script}
-      if (window.__TAURI_INVOKE__) {{
+      if (document.readyState === 'complete') {{
         window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{

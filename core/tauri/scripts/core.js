@@ -52,7 +52,7 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (window.__TAURI_POST_MESSAGE__) {
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
         window.__TAURI_POST_MESSAGE__(
           cmd, {
             ...args,

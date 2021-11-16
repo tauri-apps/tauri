@@ -30,7 +30,7 @@ impl Default for WindowsAttributes {
   fn default() -> Self {
     Self {
       window_icon_path: PathBuf::from("icons/icon.ico"),
-      sdk_dir: None
+      sdk_dir: None,
     }
   }
 }
@@ -128,7 +128,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
           res.set_toolkit_path(sdk_dir_str);
         } else {
-          return Err(anyhow!("sdk_dir path is not valid; only UTF-8 characters are allowed"));
+          return Err(anyhow!(
+            "sdk_dir path is not valid; only UTF-8 characters are allowed"
+          ));
         }
       }
       if let Some(version) = &config.package.version {

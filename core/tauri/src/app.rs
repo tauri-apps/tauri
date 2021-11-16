@@ -659,18 +659,18 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Defines the JS message responder callback.
-  pub fn invoke_responder<F>(mut self, responder: F) -> Self
+  /// Defines a custom JS message system.
+  ///
+  /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
+  ///
+  /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
+  /// That function must take the `command: string` and `args: object` types and send a message to the backend.
+  pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
     F: Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static,
   {
+    self.invoke_initialization_script = initialization_script;
     self.invoke_responder = Arc::new(responder);
-    self
-  }
-
-  /// Sets the script that initializes the invoke system. It must define the `window.__TAURI_POST_MESSAGE__` function.
-  pub fn invoke_initialization_script(mut self, script: String) -> Self {
-    self.invoke_initialization_script = script;
     self
   }
 

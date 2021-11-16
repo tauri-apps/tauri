@@ -238,8 +238,19 @@ impl<R: Runtime> WindowManager<R> {
       .initialization_script();
 
     let mut webview_attributes = pending.webview_attributes;
+    webview_attributes =
+      webview_attributes.initialization_script(&self.inner.invoke_initialization_script);
+    if is_init_global {
+      webview_attributes = webview_attributes.initialization_script(&format!(
+        "(function () {{
+        const __TAURI_INVOKE_KEY__ = {key};
+        {bundle_script}
+        }})()",
+        key = self.generate_invoke_key(),
+        bundle_script = include_str!("../scripts/bundle.js"),
+      ));
+    }
     webview_attributes = webview_attributes
-      .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
         r#"
           if (!window.__TAURI__) {{
@@ -251,7 +262,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(pending_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&plugin_init, is_init_global));
+      .initialization_script(&self.initialization_script(&plugin_init));
 
     #[cfg(dev)]
     {
@@ -492,18 +503,10 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
-  fn initialization_script(
-    &self,
-    plugin_initialization_script: &str,
-    with_global_tauri: bool,
-  ) -> String {
+  fn initialization_script(&self, plugin_initialization_script: &str) -> String {
     let key = self.generate_invoke_key();
     format!(
       r#"
-      (function () {{
-        const __TAURI_INVOKE_KEY__ = {key};
-        {bundle_script}
-      }})()
       {core_script}
       {event_initialization_script}
       if (window.__TAURI_INVOKE__) {{
@@ -517,11 +520,6 @@ impl<R: Runtime> WindowManager<R> {
     "#,
       key = key,
       core_script = include_str!("../scripts/core.js").replace("_KEY_VALUE_", &key.to_string()),
-      bundle_script = if with_global_tauri {
-        include_str!("../scripts/bundle.js")
-      } else {
-        ""
-      },
       event_initialization_script = self.event_initialization_script(),
       plugin_initialization_script = plugin_initialization_script
     )

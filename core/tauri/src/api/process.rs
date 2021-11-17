@@ -84,14 +84,7 @@ pub fn current_binary(env: &Env) -> Option<PathBuf> {
     return Some(PathBuf::from(app_image_path));
   }
 
-  // see https://doc.rust-lang.org/std/env/fn.current_exe.html#security for
-  // an example of what to be careful of when using `current_exe` output.
-  std::env::current_exe()
-    .ok()
-    // we canonicalize the path we received from `current_exe` to resolve any
-    // soft links. it avoids the usual issue of needing the file to exist at
-    // the passed path because a valid `current_exe` result should always exist
-    .and_then(|path| path.canonicalize().ok())
+  tauri_utils::platform::current_exe().ok()
 }
 
 /// Restarts the process.

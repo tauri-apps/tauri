@@ -10,6 +10,8 @@ use crate::{
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
+use tauri_utils::platform::current_exe;
+
 use std::{
   collections::HashMap,
   env,
@@ -255,7 +257,7 @@ impl<'a> UpdateBuilder<'a> {
     } else {
       // we expect it to fail if we can't find the executable path
       // without this path we can't continue the update process.
-      env::current_exe()?
+      current_exe()?
     };
 
     // Did the target is provided by the config?
@@ -434,7 +436,7 @@ impl Update {
       .to_string();
 
     // get the current app name
-    let bin_name = std::env::current_exe()
+    let bin_name = current_exe()
       .ok()
       .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
       .and_then(|s| s.into_string().ok())
@@ -585,7 +587,7 @@ fn copy_files_and_run(
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       if with_elevated_task {
-        if let Some(bin_name) = std::env::current_exe()
+        if let Some(bin_name) = current_exe()
           .ok()
           .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
           .and_then(|s| s.into_string().ok())

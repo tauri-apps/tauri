@@ -64,6 +64,7 @@ impl Default for Env {
         // validate that we're actually running on an AppImage
         // an AppImage is mounted to `/tmp/.mount_${appPrefix}${hash}`
         // see https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501
+        // note that it is safe to use `std::env::current_exe` here since we just loaded an AppImage.
         if !std::env::current_exe()
           .map(|p| p.to_string_lossy().into_owned().starts_with("/tmp/.mount_"))
           .unwrap_or(true)

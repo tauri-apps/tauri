@@ -8,6 +8,18 @@ use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use crate::{Env, PackageInfo};
 
+/// Gets the path to the current executable, resolving symbolic links for security reasons.
+///
+/// See https://doc.rust-lang.org/std/env/fn.current_exe.html#security for
+/// an example of what to be careful of when using `current_exe` output.
+///
+/// We canonicalize the path we received from `current_exe` to resolve any
+/// soft links. it avoids the usual issue of needing the file to exist at
+/// the passed path because a valid `current_exe` result should always exist.
+pub fn current_exe() -> std::io::Result<PathBuf> {
+  std::env::current_exe().and_then(|path| path.canonicalize())
+}
+
 /// Try to determine the current target triple.
 ///
 /// Returns a target triple (e.g. `x86_64-unknown-linux-gnu` or `i686-pc-windows-msvc`) or an
@@ -75,7 +87,7 @@ pub fn target_triple() -> crate::Result<String> {
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
 #[allow(unused_variables)]
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
-  let exe = std::env::current_exe()?;
+  let exe = current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
 

@@ -5,7 +5,7 @@
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, OnPageLoad, PageLoadPayload},
+  hooks::{InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
     http::{
@@ -80,6 +80,10 @@ pub struct InnerWindowManager<R: Runtime> {
   menu_event_listeners: Arc<Vec<GlobalMenuEventListener<R>>>,
   /// Window event listeners to all windows.
   window_event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
+  /// Responder for invoke calls.
+  invoke_responder: Arc<InvokeResponder<R>>,
+  /// The script that initializes the invoke system.
+  invoke_initialization_script: String,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -141,6 +145,7 @@ impl<R: Runtime> WindowManager<R> {
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
+    (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
   ) -> Self {
     Self {
       inner: Arc::new(InnerWindowManager {
@@ -158,6 +163,8 @@ impl<R: Runtime> WindowManager<R> {
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
         window_event_listeners: Arc::new(window_event_listeners),
+        invoke_responder,
+        invoke_initialization_script,
       }),
       invoke_keys: Default::default(),
     }
@@ -171,6 +178,11 @@ impl<R: Runtime> WindowManager<R> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
+  }
+
+  /// The invoke responder.
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.inner.invoke_responder.clone()
   }
 
   /// Get the base path to serve data from.
@@ -226,16 +238,31 @@ impl<R: Runtime> WindowManager<R> {
       .initialization_script();
 
     let mut webview_attributes = pending.webview_attributes;
+    webview_attributes =
+      webview_attributes.initialization_script(&self.inner.invoke_initialization_script);
+    if is_init_global {
+      webview_attributes = webview_attributes.initialization_script(&format!(
+        "(function () {{
+        const __TAURI_INVOKE_KEY__ = {key};
+        {bundle_script}
+        }})()",
+        key = self.generate_invoke_key(),
+        bundle_script = include_str!("../scripts/bundle.js"),
+      ));
+    }
     webview_attributes = webview_attributes
-      .initialization_script(&self.initialization_script(&plugin_init, is_init_global))
       .initialization_script(&format!(
         r#"
+          if (!window.__TAURI__) {{
+            window.__TAURI__ = {{}}
+          }}
           window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
           window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
         "#,
         window_labels_array = serde_json::to_string(pending_labels)?,
         current_window_label = serde_json::to_string(&label)?,
-      ));
+      ))
+      .initialization_script(&self.initialization_script(&plugin_init));
 
     #[cfg(dev)]
     {
@@ -466,9 +493,11 @@ impl<R: Runtime> WindowManager<R> {
       crate::async_runtime::block_on(async move {
         let window = Window::new(manager.clone(), window, app_handle);
         let _ = match event {
-          FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", Some(paths)),
-          FileDropEvent::Dropped(paths) => window.emit("tauri://file-drop", Some(paths)),
-          FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", Some(())),
+          FileDropEvent::Hovered(paths) => {
+            window.emit_and_trigger("tauri://file-drop-hover", paths)
+          }
+          FileDropEvent::Dropped(paths) => window.emit_and_trigger("tauri://file-drop", paths),
+          FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
           _ => unimplemented!(),
         };
       });
@@ -476,21 +505,13 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
-  fn initialization_script(
-    &self,
-    plugin_initialization_script: &str,
-    with_global_tauri: bool,
-  ) -> String {
+  fn initialization_script(&self, plugin_initialization_script: &str) -> String {
     let key = self.generate_invoke_key();
     format!(
       r#"
-      (function () {{
-        const __TAURI_INVOKE_KEY__ = {key};
-        {bundle_script}
-      }})()
       {core_script}
       {event_initialization_script}
-      if (window.rpc) {{
+      if (document.readyState === 'complete') {{
         window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
       }} else {{
         window.addEventListener('DOMContentLoaded', function () {{
@@ -501,11 +522,6 @@ impl<R: Runtime> WindowManager<R> {
     "#,
       key = key,
       core_script = include_str!("../scripts/core.js").replace("_KEY_VALUE_", &key.to_string()),
-      bundle_script = if with_global_tauri {
-        include_str!("../scripts/bundle.js")
-      } else {
-        ""
-      },
       event_initialization_script = self.event_initialization_script(),
       plugin_initialization_script = plugin_initialization_script
     )
@@ -547,6 +563,7 @@ mod test {
       StateManager::new(),
       Default::default(),
       Default::default(),
+      (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
     );
 
     #[cfg(custom_protocol)]
@@ -781,13 +798,13 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, Some(size))?,
-    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, Some(position))?,
+    WindowEvent::Resized(size) => window.emit_and_trigger(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit_and_trigger(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested => {
-      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, Some(()))?;
+      window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit(WINDOW_DESTROYED_EVENT, Some(()))?;
+      window.emit_and_trigger(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -796,24 +813,24 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit(
+    WindowEvent::Focused(focused) => window.emit_and_trigger(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
         WINDOW_BLUR_EVENT
       },
-      Some(()),
+      (),
     )?,
     WindowEvent::ScaleFactorChanged {
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit(
+    } => window.emit_and_trigger(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
-      Some(ScaleFactorChanged {
+      ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
-      }),
+      },
     )?,
     _ => unimplemented!(),
   }
@@ -828,5 +845,5 @@ struct ScaleFactorChanged {
 }
 
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit(MENU_EVENT, Some(event.menu_item_id.clone()))
+  window.emit_and_trigger(MENU_EVENT, event.menu_item_id.clone())
 }

@@ -90,12 +90,12 @@ pub use {
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver,
   },
   self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
-    PageLoadPayload, SetupHook,
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponder,
+    InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
   },
   self::manager::Asset,
   self::runtime::{
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{InvokePayload, WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,

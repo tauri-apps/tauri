@@ -12,6 +12,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
+  hooks::InvokeResponder,
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
@@ -32,7 +33,10 @@ use serde::Serialize;
 
 use tauri_macros::default_runtime;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  hash::{Hash, Hasher},
+  sync::Arc,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -201,6 +205,10 @@ impl<R: Runtime> Window<R> {
     ))
   }
 
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.manager.invoke_responder()
+  }
+
   /// The current window's dispatcher.
   pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
@@ -216,7 +224,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     match command.as_str() {
       "__initialized" => {
@@ -258,7 +266,15 @@ impl<R: Runtime> Window<R> {
     &self.window.label
   }
 
-  /// Emits an event to the current window.
+  /// Emits an event to both the JavaScript and the Rust listeners.
+  pub fn emit_and_trigger<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.trigger(event, Some(serde_json::to_string(&payload)?));
+    self.emit(event, payload)
+  }
+
+  /// Emits an event to the JavaScript listeners on the current window.
+  ///
+  /// The event is only delivered to listeners that used the `appWindow.listen` method on the @tauri-apps/api `window` module.
   pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.eval(&format!(
       "window['{}']({{event: {}, payload: {}}})",
@@ -266,16 +282,21 @@ impl<R: Runtime> Window<R> {
       serde_json::to_string(event)?,
       serde_json::to_value(payload)?,
     ))?;
-
     Ok(())
   }
 
-  /// Emits an event on all windows except this one.
+  /// Emits an event to the JavaScript listeners on all windows except this one.
+  ///
+  /// The event is only delivered to listeners that used the `appWindow.listen` function from the `@tauri-apps/api `window` module.
   pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.manager.emit_filter(event, payload, |w| w != self)
   }
 
   /// Listen to an event on this window.
+  ///
+  /// This listener only receives events that are triggered using the
+  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
+  /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -289,7 +310,7 @@ impl<R: Runtime> Window<R> {
     self.manager.unlisten(handler_id)
   }
 
-  /// Listen to a an event on this window a single time.
+  /// Listen to an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -298,7 +319,9 @@ impl<R: Runtime> Window<R> {
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event on this window.
+  /// Triggers an event to the Rust listeners on this window.
+  ///
+  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)

@@ -11,7 +11,7 @@ import Link from '@docusaurus/Link'
   You must have completed all the steps required for setting up the development environment on your machine. If you haven't done this yet, please see the <a href="/docs/getting-started/intro#setting-up-your-environment"> setup page for your operating system</a>.
 </Alert>
 
-### 1. Install Tauri CLI Package as a Dev Dependency:
+### 1.1. Install Tauri CLI Package as a Dev Dependency:
 
 ```bash
 cd project-folder
@@ -41,7 +41,7 @@ If you decide to use Tauri as a local package with npm (not yarn), you will have
 }
 ```
 
-### 1. Install Tauri API Package as a Dependency (optional):
+### 2.1. Install Tauri API Package as a Dependency (optional):
 
 The `@tauri-apps/api` package is recommended for projects using ES modules or modern build tools such as Webpack or Vite. It is the most secure way to access the Tauri APIs.
 
@@ -51,7 +51,7 @@ yarn add @tauri-apps/api
 npm install @tauri-apps/api
 ```
 
-### 2. Initialize Tauri in Your App
+### 2.2. Initialize Tauri in Your App
 
 <Command name="init" />
 
@@ -86,7 +86,7 @@ This command will place a new folder in your current working directory, `src-tau
         └── main.rs
 ```
 
-### 3. Check `tauri info` to Make Sure Everything Is Set up Properly:
+### 2.3. Check `tauri info` to Make Sure Everything Is Set up Properly:
 
 <Command name="info" />
 

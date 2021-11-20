@@ -11,7 +11,7 @@ mod info;
 mod init;
 mod interface;
 mod plugin;
-mod sign;
+mod signer;
 
 use clap::{crate_version, load_yaml, App, AppSettings};
 use serde::Deserialize;
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
     dev::command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {
     build::command(matches)?;
-  } else if let Some(matches) = matches.subcommand_matches("sign") {
+  } else if let Some(matches) = matches.subcommand_matches("signer") {
     sign::command(matches)?;
   } else if let Some(_) = matches.subcommand_matches("info") {
     info::command()?;

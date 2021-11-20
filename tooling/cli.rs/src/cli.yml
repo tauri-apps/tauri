@@ -81,7 +81,7 @@ subcommands:
             multiple_values: true
             short: f
             takes_value: true
-  - sign:
+  - signer:
       about: "Tauri updates signer."
       subcommands:
         - sign:

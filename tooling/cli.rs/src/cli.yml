@@ -1,206 +1,219 @@
+---
+about: "The Tauri command line interface."
+author: "Tauri Programme within The Commons Conservancy."
+bin_name: "cargo tauri"
 name: cargo-tauri
-bin_name: cargo tauri
-author: Tauri Programme within The Commons Conservancy.
-about: The Tauri command line interface.
 subcommands:
   - dev:
-      about: Tauri dev.
+      about: "Tauri dev."
+      args:
+        - runner:
+            about: "binary to use to run the application"
+            long: runner
+            short: r
+            takes_value: true
+        - config:
+            about: "config JSON to merge with tauri.conf.json"
+            long: config
+            short: c
+            takes_value: true
+        - exit-on-panic:
+            about: "Exit on panic"
+            long: exit-on-panic
+            short: e
+        - target:
+            about: "target triple to build against"
+            long: target
+            multiple_values: true
+            short: t
+            takes_value: true
+        - features:
+            about: "list of cargo features to activate"
+            long: features
+            multiple_values: true
+            short: f
+            takes_value: true
+        - args:
+            about: "Args passed to the binary"
+            index: 1
+            multiple_values: true
+            takes_value: true
+        - release:
+            about: "Run the code in release mode"
+            long: release
       setting: TrailingVarArg
-      args:
-          - runner:
-              short: r
-              long: runner
-              about: binary to use to run the application
-              takes_value: true
-          - config:
-              short: c
-              long: config
-              about: config JSON to merge with tauri.conf.json
-              takes_value: true
-          - exit-on-panic:
-              short: e
-              long: exit-on-panic
-              about: Exit on panic
-          - target:
-              short: t
-              long: target
-              about: target triple to build against
-              takes_value: true
-              multiple_values: true
-          - features:
-              short: f
-              long: features
-              about: list of cargo features to activate
-              takes_value: true
-              multiple_values: true
-          - args:
-              about: Args passed to the binary
-              index: 1
-              takes_value: true
-              multiple_values: true
-          - release:
-              long: release
-              about: Run the code in release mode
   - build:
-      about: Tauri build.
+      about: "Tauri build."
       args:
-          - runner:
-              short: r
-              long: runner
-              about: binary to use to build the application
-              takes_value: true
-          - debug:
-              short: d
-              long: debug
-              about: Builds with the debug flag
-          - verbose:
-              short: v
-              long: verbose
-              about: Enables verbose logging
-          - bundle:
-              short: b
-              long: bundle
-              about: list of bundles to package
-              takes_value: true
-              multiple_values: true
-          - config:
-              short: c
-              long: config
-              about: config JSON to merge with tauri.conf.json
-              takes_value: true
-          - target:
-              short: t
-              long: target
-              about: target triple to build against
-              takes_value: true
-              multiple_values: true
-          - features:
-              short: f
-              long: features
-              about: list of cargo features to activate
-              takes_value: true
-              multiple_values: true
+        - runner:
+            about: "binary to use to build the application"
+            long: runner
+            short: r
+            takes_value: true
+        - debug:
+            about: "Builds with the debug flag"
+            long: debug
+            short: d
+        - verbose:
+            about: "Enables verbose logging"
+            long: verbose
+            short: v
+        - bundle:
+            about: "list of bundles to package"
+            long: bundle
+            multiple_values: true
+            short: b
+            takes_value: true
+        - config:
+            about: "config JSON to merge with tauri.conf.json"
+            long: config
+            short: c
+            takes_value: true
+        - target:
+            about: "target triple to build against"
+            long: target
+            multiple_values: true
+            short: t
+            takes_value: true
+        - features:
+            about: "list of cargo features to activate"
+            long: features
+            multiple_values: true
+            short: f
+            takes_value: true
   - sign:
-      about: Tauri updates signer.
-      args:
-          - generate:
-              short: g
-              long: generate
-              about: Generate keypair to sign files
-          - sign-file:
-              long: sign-file
-              about: Sign the specified file
-              takes_value: true
-          - private-key-path:
-              short: f
-              long: private-key-path
-              about: Load the private key from a file
-              takes_value: true
-              conflicts_with: private-key
-          - private-key:
-              short: k
-              long: private-key
-              about: Load the private key from a string
-              takes_value: true
-              conflicts_with: private-key-path
-              requires: sign-file
-          - write-keys:
-              short: w
-              long: write-keys
-              about: Write private key to a file
-              takes_value: true
-              requires: generate
-          - password:
-              short: p
-              long: password
-              about: Set private key password when signing
-              takes_value: true
-              conflicts_with: no-password
-          - no-password:
-              long: no-password
-              about: Set empty password for your private key
-              conflicts_with: password
-          - force:
-              long: force
-              about: Overwrite private key even if it exists on the specified path
-              requires: generate
-  - info:
-      about: Shows information about Tauri dependencies and project configuration.
-  - init:
-      about: Initializes a Tauri project.
-      args:
-          - ci:
-              long: ci
-              about: Skip prompting for values
-          - force:
-              short: f
-              long: force
-              about: Force init to overwrite the src-tauri folder
-          - log:
-              short: l
-              long: log
-              about: Enables logging
-          - directory:
-              short: d
-              long: directory
-              about: Set target directory for init
-              takes_value: true
-          - tauri-path:
-              short: t
-              long: tauri-path
-              about: Path of the Tauri project to use (relative to the cwd)
-              takes_value: true
-          - app-name:
-              short: A
-              long: app-name
-              about: Name of your Tauri application
-              takes_value: true
-          - window-title:
-              short: W
-              long: window-title
-              about: Window title of your Tauri application
-              takes_value: true
-          - dist-dir:
-              short: D
-              long: dist-dir
-              about: Web assets location, relative to <project-dir>/src-tauri
-              takes_value: true
-          - dev-path:
-              short: P
-              long: dev-path
-              about: Url of your dev server
-              takes_value: true
-  - plugin:
-      about: Manage Tauri plugins.
+      about: "Tauri updates signer."
       subcommands:
-          - init:
-              about: Initializes a Tauri plugin project.
-              args:
-                  - name:
-                      short: n
-                      long: name
-                      about: Name of your Tauri plugin
-                      takes_value: true
-                      required: true
-                  - directory:
-                      short: d
-                      long: directory
-                      about: Set target directory for init
-                      takes_value: true
-                  - tauri-path:
-                      short: t
-                      long: tauri-path
-                      about: Path of the Tauri project to use (relative to the cwd)
-                      takes_value: true
-                  - api:
-                      short: a
-                      long: api
-                      about: Initializes a Tauri plugin with TypeScript API.
-                  - author:
-                      long: author
-                      about: Author name.
-                      takes_value: true
-                  - tauri:
-                      long: tauri
-                      about: Initializes a Tauri core plugin (internal usage).
-                      setting: Hidden
+        - sign:
+            about: "Sign a file"
+            args:
+              - private-key-path:
+                  about: "Load the private key from a file"
+                  conflicts_with: private-key
+                  long: private-key-path
+                  short: f
+                  takes_value: true
+              - private-key:
+                  about: "Load the private key from a string"
+                  conflicts_with: private-key-path
+                  long: private-key
+                  requires: sign-file
+                  short: k
+                  takes_value: true
+              - sign-file:
+                  about: "Sign the specified file"
+                  long: sign-file
+                  takes_value: true
+              - password:
+                  about: "Set private key password when signing"
+                  conflicts_with: no-password
+                  long: password
+                  short: p
+                  takes_value: true
+              - no-password:
+                  about: "Set empty password for your private key"
+                  conflicts_with: password
+                  long: no-password
+        - generate:
+            about: "Generate keypair to sign files"
+            args:
+              - password:
+                  about: "Set private key password when signing"
+                  conflicts_with: no-password
+                  long: password
+                  short: p
+                  takes_value: true
+              - no-password:
+                  about: "Set empty password for your private key"
+                  conflicts_with: password
+                  long: no-password
+              - write-keys:
+                  about: "Write private key to a file"
+                  long: write-keys
+                  requires: generate
+                  short: w
+                  takes_value: true
+              - force:
+                  about: "Overwrite private key even if it exists on the specified path"
+                  long: force
+                  requires: generate
+  - info:
+      about: "Shows information about Tauri dependencies and project configuration."
+  - init:
+      about: "Initializes a Tauri project."
+      args:
+        - ci:
+            about: "Skip prompting for values"
+            long: ci
+        - force:
+            about: "Force init to overwrite the src-tauri folder"
+            long: force
+            short: f
+        - log:
+            about: "Enables logging"
+            long: log
+            short: l
+        - directory:
+            about: "Set target directory for init"
+            long: directory
+            short: d
+            takes_value: true
+        - tauri-path:
+            about: "Path of the Tauri project to use (relative to the cwd)"
+            long: tauri-path
+            short: t
+            takes_value: true
+        - app-name:
+            about: "Name of your Tauri application"
+            long: app-name
+            short: A
+            takes_value: true
+        - window-title:
+            about: "Window title of your Tauri application"
+            long: window-title
+            short: W
+            takes_value: true
+        - dist-dir:
+            about: "Web assets location, relative to <project-dir>/src-tauri"
+            long: dist-dir
+            short: D
+            takes_value: true
+        - dev-path:
+            about: "Url of your dev server"
+            long: dev-path
+            short: P
+            takes_value: true
+  - plugin:
+      about: "Manage Tauri plugins."
+      subcommands:
+        - init:
+            about: "Initializes a Tauri plugin project."
+            args:
+              - name:
+                  about: "Name of your Tauri plugin"
+                  long: name
+                  required: true
+                  short: "n"
+                  takes_value: true
+              - directory:
+                  about: "Set target directory for init"
+                  long: directory
+                  short: d
+                  takes_value: true
+              - tauri-path:
+                  about: "Path of the Tauri project to use (relative to the cwd)"
+                  long: tauri-path
+                  short: t
+                  takes_value: true
+              - api:
+                  about: "Initializes a Tauri plugin with TypeScript API."
+                  long: api
+                  short: a
+              - author:
+                  about: "Author name."
+                  long: author
+                  takes_value: true
+              - tauri:
+                  about: "Initializes a Tauri core plugin (internal usage)."
+                  long: tauri
+                  setting: Hidden

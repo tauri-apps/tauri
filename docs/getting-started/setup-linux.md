@@ -18,6 +18,7 @@ values={[
 {label: 'Debian', value: 'debian'},
 {label: 'Arch', value: 'arch'},
 {label: 'Fedora', value: 'fedora'},
+{label: 'Alpine', value: 'alpine'},
 ]}>
 <TabItem value="debian">
 
@@ -65,6 +66,15 @@ $ sudo dnf check-update && sudo dnf install webkit2gtk3-devel.x86_64 \
     && sudo dnf group install "C Development Tools and Libraries"
 ```
 
+</TabItem>
+<TabItem value="alpine">
+  
+```sh
+$ apk add --no-cache \
+  openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl \
+  libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
+```
+  
 </TabItem>
 </Tabs>
 

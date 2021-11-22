@@ -57,6 +57,14 @@ macro_rules! value_or_prompt {
   }};
 }
 
+fn get_config(config: &str) -> Result<String> {
+  if config.starts_with("{") {
+    Ok(config.into())
+  } else {
+    std::fs::read_to_string(&config).map_err(Into::into)
+  }
+}
+
 fn plugin_command(matches: &ArgMatches) -> Result<()> {
   if let Some(matches) = matches.subcommand_matches("init") {
     let api = matches.is_present("api");
@@ -199,7 +207,7 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     dev_runner = dev_runner.target(target.to_string());
   }
   if let Some(config) = config {
-    dev_runner = dev_runner.config(config.to_string());
+    dev_runner = dev_runner.config(get_config(config)?);
   }
 
   dev_runner.run()
@@ -234,7 +242,7 @@ fn build_command(matches: &ArgMatches) -> Result<()> {
     build_runner = build_runner.bundles(bundles);
   }
   if let Some(config) = config {
-    build_runner = build_runner.config(config.to_string());
+    build_runner = build_runner.config(get_config(config)?);
   }
 
   build_runner.run()

@@ -38,7 +38,7 @@ mod hooks;
 mod manager;
 pub mod plugin;
 pub mod window;
-use tauri_runtime as runtime;
+pub use tauri_runtime as runtime;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]

@@ -293,7 +293,7 @@
 //! To generate your keys you need to use the Tauri cli.
 //!
 //! ```bash
-//! tauri sign -g -w ~/.tauri/myapp.key
+//! tauri signer sign -g -w ~/.tauri/myapp.key
 //! ```
 //!
 //! You have multiple options available
@@ -301,7 +301,7 @@
 //! Tauri updates signer.
 //!
 //! USAGE:
-//!     tauri sign [FLAGS] [OPTIONS]
+//!     tauri signer sign [FLAGS] [OPTIONS]
 //!
 //! FLAGS:
 //!         --force          Overwrite private key even if it exists on the specified path

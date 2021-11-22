@@ -58,7 +58,7 @@ macro_rules! value_or_prompt {
 }
 
 fn get_config(config: &str) -> Result<String> {
-  if config.starts_with("{") {
+  if config.starts_with('{') {
     Ok(config.into())
   } else {
     std::fs::read_to_string(&config).map_err(Into::into)

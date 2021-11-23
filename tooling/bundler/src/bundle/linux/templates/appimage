@@ -12,10 +12,10 @@ cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 
 cd "{{app_name}}.AppDir"
 
-# Copy WebKit files
-find /usr/lib* -name WebKitNetworkProcess -exec cp --parents '{}' "." \;
-find /usr/lib* -name WebKitWebProcess -exec cp --parents '{}' "." \;
-find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec cp --parents '{}' "." \;
+# Copy WebKit files. We need to pipe errors to dev/null, so that the find
+find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name WebKitWebProcess -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name libwebkit2gtkinjectedbundle -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
 
 wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
 chmod +x AppRun

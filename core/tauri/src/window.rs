@@ -102,18 +102,18 @@ pub struct Window<R: Runtime> {
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
   #[cfg(windows)]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::windows::WindowsHandle::empty();
+    let mut handle = raw_window_handle::Win32Handle::empty();
     handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
-    raw_window_handle::RawWindowHandle::Windows(handle)
+    raw_window_handle::RawWindowHandle::Win32(handle)
   }
 
   #[cfg(target_os = "macos")]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::macos::MacOSHandle::empty();
+    let mut handle = raw_window_handle::AppKitHandle::empty();
     handle.ns_window = self
       .ns_window()
       .expect("failed to get window's `ns_window`");
-    raw_window_handle::RawWindowHandle::MacOS(handle)
+    raw_window_handle::RawWindowHandle::AppKit(handle)
   }
 }
 

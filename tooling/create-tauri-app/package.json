@@ -50,7 +50,7 @@
     "@typescript-eslint/eslint-plugin": "5.4.0",
     "@typescript-eslint/parser": "5.4.0",
     "effection": "2.0.1",
-    "eslint": "8.2.0",
+    "eslint": "8.3.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
     "eslint-plugin-import": "2.25.3",
@@ -59,7 +59,7 @@
     "eslint-plugin-promise": "5.1.1",
     "eslint-plugin-security": "1.4.0",
     "prettier": "2.4.1",
-    "rollup": "2.60.0",
+    "rollup": "2.60.1",
     "temp-dir": "2.0.0",
     "tslib": "2.3.1",
     "typescript": "4.5.2"

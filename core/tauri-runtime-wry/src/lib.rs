@@ -378,6 +378,7 @@ impl From<NativeImage> for NativeImageWrapper {
 #[derive(Debug, Clone)]
 pub struct GlobalShortcutWrapper(GlobalShortcut);
 
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GlobalShortcutWrapper {}
 
 /// Wrapper around [`WryShortcutManager`].
@@ -698,6 +699,7 @@ pub struct WindowBuilderWrapper {
 }
 
 // safe since `menu_items` are read only here
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for WindowBuilderWrapper {}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}

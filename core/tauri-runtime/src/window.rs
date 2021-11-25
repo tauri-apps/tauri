@@ -16,6 +16,7 @@ use tauri_utils::config::WindowConfig;
 use std::{
   collections::HashMap,
   hash::{Hash, Hasher},
+  sync::{Arc, Mutex},
 };
 
 type UriSchemeProtocol =
@@ -97,7 +98,7 @@ pub struct PendingWindow<R: Runtime> {
   pub url: String,
 
   /// Maps runtime id to a string menu id.
-  pub menu_ids: HashMap<MenuHash, MenuId>,
+  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 }
 
 impl<R: Runtime> PendingWindow<R> {
@@ -119,7 +120,7 @@ impl<R: Runtime> PendingWindow<R> {
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
-      menu_ids,
+      menu_ids: Arc::new(Mutex::new(menu_ids)),
     }
   }
 
@@ -142,14 +143,14 @@ impl<R: Runtime> PendingWindow<R> {
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
-      menu_ids,
+      menu_ids: Arc::new(Mutex::new(menu_ids)),
     }
   }
 
   pub fn set_menu(mut self, menu: Menu) -> Self {
     let mut menu_ids = HashMap::new();
     get_menu_ids(&mut menu_ids, &menu);
-    self.menu_ids = menu_ids;
+    *self.menu_ids.lock().unwrap() = menu_ids;
     self.window_builder = self.window_builder.menu(menu);
     self
   }
@@ -179,7 +180,7 @@ pub struct DetachedWindow<R: Runtime> {
   pub dispatcher: R::Dispatcher,
 
   /// Maps runtime id to a string menu id.
-  pub menu_ids: HashMap<MenuHash, MenuId>,
+  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 }
 
 impl<R: Runtime> Clone for DetachedWindow<R> {

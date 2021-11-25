@@ -65,7 +65,7 @@ use serde::Serialize;
 use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
-pub use runtime::{http, menu::CustomMenuItem};
+pub use runtime::http;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -82,7 +82,7 @@ pub use {
 };
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem, Submenu},
+  self::runtime::menu::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
   self::window::menu::MenuEvent,
 };
 pub use {

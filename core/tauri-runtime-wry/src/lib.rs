@@ -2636,7 +2636,7 @@ fn create_webview(
 fn create_rpc_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
@@ -2659,7 +2659,7 @@ fn create_rpc_handler(
 fn create_file_drop_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {

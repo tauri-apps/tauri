@@ -342,7 +342,12 @@ impl<R: Runtime> Window<R> {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
       f(MenuEvent {
-        menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+        menu_item_id: menu_ids
+          .lock()
+          .unwrap()
+          .get(&event.menu_item_id)
+          .unwrap()
+          .clone(),
       })
     })
   }

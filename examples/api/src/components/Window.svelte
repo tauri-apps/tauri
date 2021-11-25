@@ -115,10 +115,10 @@
   $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop);
   $: windowMap[selectedWindow].setFullscreen(fullscreen);
 
-  $: windowMap[selectedWindow].setSize(new LogicalSize(width, height));
+  $: windowMap[selectedWindow].setSize(new PhysicalSize(width, height));
   $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
   $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
-  $: windowMap[selectedWindow].setPosition(new LogicalPosition(x, y));
+  $: windowMap[selectedWindow].setPosition(new PhysicalPosition(x, y));
   $: windowMap[selectedWindow].scaleFactor().then(factor => scaleFactor = factor);
   $: addWindowEventListeners(windowMap[selectedWindow]);
 </script>

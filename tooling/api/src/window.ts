@@ -285,7 +285,7 @@ class WebviewWindowHandle {
    * @param event Event name.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: string): Promise<void> {
+  async emit(event: string, payload?: unknown): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {

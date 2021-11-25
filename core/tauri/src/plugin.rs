@@ -14,7 +14,7 @@ use tauri_macros::default_runtime;
 use std::{collections::HashMap, fmt};
 
 /// The result type of Tauri plugin module.
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send>>;
+pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// The plugin interface.
 pub trait Plugin<R: Runtime>: Send {

@@ -10,9 +10,12 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt, fs::read_to_string, path::PathBuf};
 
-use serde::Deserialize;
+use serde::{
+  de::{Deserializer, Error as DeError, Visitor},
+  Deserialize,
+};
 use serde_json::Value as JsonValue;
 use url::Url;
 
@@ -479,6 +482,58 @@ impl Default for BuildConfig {
   }
 }
 
+/// The package's version, used on the application bundle.
+/// It is a semver version number or a path to a `package.json` file contaning the `version` field.
+#[derive(Debug, PartialEq)]
+pub struct PackageVersion(pub String);
+
+impl fmt::Display for PackageVersion {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", &self.0)
+  }
+}
+
+impl<'d> serde::Deserialize<'d> for PackageVersion {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
+    struct PackageVersionVisitor;
+
+    impl<'d> Visitor<'d> for PackageVersionVisitor {
+      type Value = PackageVersion;
+
+      fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+          formatter,
+          "a semver string or a path to a package.json file"
+        )
+      }
+
+      fn visit_str<E: DeError>(self, value: &str) -> Result<PackageVersion, E> {
+        let path = PathBuf::from(value);
+        if path.exists() {
+          let json_str = read_to_string(&path)
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+          let package_json: serde_json::Value = serde_json::from_str(&json_str)
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+          if let Some(obj) = package_json.as_object() {
+            let version = obj
+              .get("version")
+              .ok_or_else(|| DeError::custom("JSON must contain a `version` field"))?
+              .as_str()
+              .ok_or_else(|| DeError::custom("`version` must be a string"))?;
+            Ok(PackageVersion(version.into()))
+          } else {
+            Err(DeError::custom("value is not a path to a JSON object"))
+          }
+        } else {
+          Ok(PackageVersion(value.into()))
+        }
+      }
+    }
+
+    deserializer.deserialize_string(PackageVersionVisitor {})
+  }
+}
+
 /// The package configuration.
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -486,7 +541,7 @@ pub struct PackageConfig {
   /// App name.
   pub product_name: Option<String>,
   /// App version.
-  pub version: Option<String>,
+  pub version: Option<PackageVersion>,
 }
 
 /// The config type mapped to `tauri.conf.json`.
@@ -932,10 +987,17 @@ mod build {
     }
   }
 
+  impl ToTokens for PackageVersion {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let version = str_lit(&self.0);
+      tokens.append_all(quote! { ::tauri::utils::config::PackageVersion(#version) })
+    }
+  }
+
   impl ToTokens for PackageConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let product_name = opt_str_lit(self.product_name.as_ref());
-      let version = opt_str_lit(self.version.as_ref());
+      let version = opt_lit(self.version.as_ref());
 
       literal_struct!(tokens, PackageConfig, product_name, version);
     }

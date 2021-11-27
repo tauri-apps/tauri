@@ -42,10 +42,7 @@ async fn menu_toggle(window: tauri::Window) {
   window.menu_handle().toggle().unwrap();
 }
 
-#[tokio::main]
-async fn main() {
-  //fn main() {
-  tauri::async_runtime::set(tokio::runtime::Handle::current());
+fn main() {
   let tray_menu1 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))

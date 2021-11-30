@@ -46,7 +46,7 @@ export const cra: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  extraNpmDevDependencies: [],
+  extraNpmDevDependencies: ['cross-env'],
   extraNpmDependencies: [],
   extraQuestions: ({ ci }) => {
     return [

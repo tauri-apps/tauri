@@ -370,7 +370,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     })
 
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
-    updatePackageJson(appDirectory, appName)
+    updatePackageJson(appDirectory, appName, recipe.shortName)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)

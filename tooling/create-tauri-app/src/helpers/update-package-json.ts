@@ -7,10 +7,14 @@ import { join } from 'path'
 
 interface Package {
   name?: string
-  scripts?: {}
+  scripts?: Record<string, string>
 }
 
-export function updatePackageJson(appDirectory: string, appName: string): void {
+export function updatePackageJson(
+  appDirectory: string,
+  appName: string,
+  recipeShortName: string
+): void {
   const pkgPath = join(appDirectory, 'package.json')
   const pkgString = readFileSync(pkgPath, 'utf8')
   const pkg = JSON.parse(pkgString) as Package
@@ -19,6 +23,9 @@ export function updatePackageJson(appDirectory: string, appName: string): void {
     name: appName,
     scripts: {
       ...pkg.scripts,
+      start: `${recipeShortName === 'cra' ? 'cross-env BROWSER=none ' : ''}${
+        pkg.scripts?.start as string
+      }`,
       tauri: 'tauri'
     }
   }

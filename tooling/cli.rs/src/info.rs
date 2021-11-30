@@ -328,6 +328,32 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
   Ok(versions)
 }
 
+fn get_active_rust_toolchain() -> crate::Result<Option<String>> {
+  let mut cmd;
+  #[cfg(target_os = "windows")]
+  {
+    cmd = Command::new("cmd");
+    cmd.arg("/c").arg("rustup");
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    cmd = Command::new("rustup")
+  }
+
+  let output = cmd.args(["show", "active-toolchain"]).output()?;
+  let toolchain = if output.status.success() {
+    Some(
+      String::from_utf8_lossy(&output.stdout)
+        .replace("\n", "")
+        .replace("\r", ""),
+    )
+  } else {
+    None
+  };
+  Ok(toolchain)
+}
+
 struct InfoBlock {
   section: bool,
   key: &'static str,
@@ -514,6 +540,15 @@ impl Info {
 
     InfoBlock::new("Rust environment").section().display();
     VersionBlock::new(
+      "  rustup",
+      get_version("rustup", &[]).unwrap_or_default().map(|v| {
+        let mut s = v.split(' ');
+        s.next();
+        s.next().unwrap().to_string()
+      }),
+    )
+    .display();
+    VersionBlock::new(
       "  rustc",
       get_version("rustc", &[]).unwrap_or_default().map(|v| {
         let mut s = v.split(' ');
@@ -529,6 +564,11 @@ impl Info {
         s.next();
         s.next().unwrap().to_string()
       }),
+    )
+    .display();
+    VersionBlock::new(
+      "  toolchain",
+      get_active_rust_toolchain().unwrap_or_default(),
     )
     .display();
 

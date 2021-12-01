@@ -458,6 +458,12 @@ macro_rules! shared_app_impl {
       pub fn asset_protocol_scope(&self) -> FsScope {
         self.state::<Scopes>().inner().asset_protocol.clone()
       }
+
+      /// Gets the scope for the shell execute APIs.
+      #[cfg(shell_execute)]
+      pub fn shell_scope(&self) -> FsScope {
+        self.state::<Scopes>().inner().shell.clone()
+      }
     }
   };
 }
@@ -1027,6 +1033,13 @@ impl<R: Runtime> Builder<R> {
       ),
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
+      #[cfg(shell_execute)]
+      shell: FsScope::for_fs_api(
+        &app.manager.config(),
+        app.package_info(),
+        &env,
+        &app.config().tauri.allowlist.shell.scope,
+      ),
     });
     app.manage(env);
 

@@ -103,6 +103,9 @@
             "all": false,
             "execute": false,
             "open": false,
+            "scope": [
+              "$APP/**"
+            ],
             "sidecar": false
           },
           "window": {
@@ -339,6 +342,9 @@
             "all": false,
             "execute": false,
             "open": false,
+            "scope": [
+              "$APP/**"
+            ],
             "sidecar": false
           },
           "allOf": [
@@ -1013,7 +1019,7 @@
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem API scope definition. It is a list of glob patterns that restrict the filesystem API access from the webview. Each pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview. Each pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
       "type": "array",
       "items": {
         "type": "string"
@@ -1034,9 +1040,6 @@
     "HttpAllowlistConfig": {
       "description": "Allowlist for the HTTP APIs.",
       "type": "object",
-      "required": [
-        "scope"
-      ],
       "properties": {
         "all": {
           "description": "Use this flag to enable all HTTP API features.",
@@ -1050,6 +1053,7 @@
         },
         "scope": {
           "description": "The access scope for the HTTP APIs.",
+          "default": [],
           "allOf": [
             {
               "$ref": "#/definitions/HttpAllowlistScope"
@@ -1277,6 +1281,17 @@
           "default": false,
           "type": "boolean"
         },
+        "scope": {
+          "description": "Access scope for the binary execution APIs. Sidecars are automatically enabled.",
+          "default": [
+            "$APP/**"
+          ],
+          "allOf": [
+            {
+              "$ref": "#/definitions/FsAllowlistScope"
+            }
+          ]
+        },
         "sidecar": {
           "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program, an executable that is shipped with the application. For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.",
           "default": false,
@@ -1372,6 +1387,9 @@
               "all": false,
               "execute": false,
               "open": false,
+              "scope": [
+                "$APP/**"
+              ],
               "sidecar": false
             },
             "window": {

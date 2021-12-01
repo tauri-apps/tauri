@@ -90,6 +90,12 @@ pub enum Error {
   /// URL not allowed by the scope.
   #[error("url not allowed on the configured scope: {0}")]
   UrlNotAllowed(url::Url),
+  /// Sidecar not allowed by the configuration.
+  #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
+  SidecarNotAllowed(PathBuf),
+  /// Program not allowed by the scope.
+  #[error("program not allowed on the configured shell scope: {0}")]
+  ProgramNotAllowed(PathBuf),
 }
 
 impl From<serde_json::Error> for Error {

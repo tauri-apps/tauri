@@ -575,8 +575,8 @@ macro_rules! check_feature {
   };
 }
 
-/// Filesystem API scope definition.
-/// It is a list of glob patterns that restrict the filesystem API access from the webview.
+/// Filesystem scope definition.
+/// It is a list of glob patterns that restrict the API access from the webview.
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
@@ -830,6 +830,10 @@ impl Allowlist for WindowAllowlistConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ShellAllowlistConfig {
+  /// Access scope for the binary execution APIs.
+  /// Sidecars are automatically enabled.
+  #[serde(default)]
+  pub scope: FsAllowlistScope,
   /// Use this flag to enable all shell API features.
   #[serde(default)]
   pub all: bool,
@@ -849,6 +853,7 @@ pub struct ShellAllowlistConfig {
 impl Allowlist for ShellAllowlistConfig {
   fn all_features() -> Vec<&'static str> {
     let allowlist = Self {
+      scope: Default::default(),
       all: false,
       execute: true,
       sidecar: true,
@@ -939,6 +944,7 @@ pub struct HttpAllowlistScope(pub Vec<Url>);
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HttpAllowlistConfig {
   /// The access scope for the HTTP APIs.
+  #[serde(default)]
   pub scope: HttpAllowlistScope,
   /// Use this flag to enable all HTTP API features.
   #[serde(default)]
@@ -1955,7 +1961,7 @@ mod build {
       let long_description = quote!(None);
       let deb = quote!(Default::default());
       let macos = quote!(Default::default());
-      let external_bin = quote!(None);
+      let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
 
       literal_struct!(
@@ -2078,6 +2084,13 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
       tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
+    }
+  }
+
+  impl ToTokens for ShellAllowlistConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scope = &self.scope;
+      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistConfig { scope: #scope, ..Default::default() } })
     }
   }
 

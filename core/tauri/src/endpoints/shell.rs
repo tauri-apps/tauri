@@ -4,6 +4,8 @@
 
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
+#[cfg(shell_execute)]
+use crate::{Manager, Scopes};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
@@ -54,7 +56,7 @@ pub enum Cmd {
   /// The execute script API.
   #[serde(rename_all = "camelCase")]
   Execute {
-    program: String,
+    program: PathBuf,
     args: Vec<String>,
     on_event_fn: CallbackFn,
     #[serde(default)]
@@ -77,7 +79,7 @@ impl Cmd {
   #[allow(unused_variables)]
   fn execute<R: Runtime>(
     context: InvokeContext<R>,
-    program: String,
+    program: PathBuf,
     args: Vec<String>,
     on_event_fn: CallbackFn,
     options: CommandOptions,
@@ -88,14 +90,38 @@ impl Cmd {
         "shell > sidecar".to_string(),
       ));
       #[cfg(shell_sidecar)]
-      crate::api::process::Command::new_sidecar(program)?
+      {
+        let program_as_string = program.display().to_string();
+        let program_no_ext_as_string = program.with_extension("").display().to_string();
+        let is_configured = context
+          .config
+          .tauri
+          .bundle
+          .external_bin
+          .as_ref()
+          .map(|bins| {
+            bins
+              .iter()
+              .any(|b| b == &program_as_string || b == program_no_ext_as_string)
+          })
+          .unwrap_or_default();
+        if is_configured {
+          crate::api::process::Command::new_sidecar(program_as_string)?
+        } else {
+          return Err(crate::Error::SidecarNotAllowed(program));
+        }
+      }
     } else {
       #[cfg(not(shell_execute))]
       return Err(crate::Error::ApiNotAllowlisted(
         "shell > execute".to_string(),
       ));
       #[cfg(shell_execute)]
-      crate::api::process::Command::new(program)
+      if context.window.state::<Scopes>().shell.is_allowed(&program) {
+        crate::api::process::Command::new(program.display().to_string())
+      } else {
+        return Err(crate::Error::ProgramNotAllowed(program));
+      }
     };
     #[cfg(any(shell_execute, shell_sidecar))]
     {
@@ -195,6 +221,7 @@ impl Cmd {
 mod tests {
   use super::{Buffer, ChildId, CommandOptions};
   use crate::api::ipc::CallbackFn;
+  use std::path::PathBuf;
 
   use quickcheck::{Arbitrary, Gen};
 
@@ -217,7 +244,7 @@ mod tests {
   #[tauri_macros::module_command_test(shell_execute, "shell > execute")]
   #[quickcheck_macros::quickcheck]
   fn execute(
-    _program: String,
+    _program: PathBuf,
     _args: Vec<String>,
     _on_event_fn: CallbackFn,
     _options: CommandOptions,

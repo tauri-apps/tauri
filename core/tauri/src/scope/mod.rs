@@ -4,11 +4,9 @@
 
 mod fs;
 mod http;
-mod shell;
 
 pub use self::http::Scope as HttpScope;
 pub use fs::Scope as FsScope;
-pub use shell::Scope as ShellScope;
 
 pub(crate) struct Scopes {
   pub fs: FsScope,
@@ -16,4 +14,6 @@ pub(crate) struct Scopes {
   pub asset_protocol: FsScope,
   #[cfg(http_request)]
   pub http: HttpScope,
+  #[cfg(shell_execute)]
+  pub shell: FsScope,
 }

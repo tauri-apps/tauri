@@ -10,8 +10,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",
-    "hotkeys-js": "^3.8.5",
-    "sirv-cli": "1.0.11"
+    "hotkeys-js": "^3.8.5"
   },
   "devDependencies": {
     "svelte": "3.35.0",

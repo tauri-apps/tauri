@@ -32,7 +32,7 @@
     "test": "node ./test/spawn.test.mjs"
   },
   "dependencies": {
-    "chalk": "4.1.2",
+    "chalk": "5.0.0",
     "execa": "^6.0.0",
     "inquirer": "^8.0.0",
     "minimist": "^1.2.5",

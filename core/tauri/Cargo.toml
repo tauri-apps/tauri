@@ -67,10 +67,10 @@ attohttpc = { version = "0.18", features = [ "json", "form" ] }
 open = { version = "2.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.5.1", features = [ "parent" ] }
-raw-window-handle = "0.3.3"
+rfd = { version = "0.6.1", features = [ "parent" ] }
+raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
-os_info = { version = "3.0.7", optional = true }
+os_info = { version = "3.0.8", optional = true }
 futures-lite = "1.12"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

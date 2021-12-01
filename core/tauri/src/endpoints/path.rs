@@ -77,12 +77,12 @@ pub fn resolve_path_handler(
 
 #[cfg(path_all)]
 fn resolve(paths: Vec<String>) -> crate::Result<String> {
-  // Start with current directory path because users might pass empty or vec!["."]
-  // then start adding paths from the vector one by one using path.push()
-  // so if an absolute path is encountered in the iteration, we use it as the current full path
+  // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
+  // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
+  //
   // examples:
-  // 1. vec!["."] or vec![] will be equal to std::env::current_dir()
-  // 2. vec!["/foo/bar", "/tmp/file", "baz"] will be equal to PathBuf::from("/tmp/file/baz")
+  // 1. `vec!["."]` or `vec![]` will be equal to `std::env::current_dir()`
+  // 2. `vec!["/foo/bar", "/tmp/file", "baz"]` will be equal to `PathBuf::from("/tmp/file/baz")`
   let mut path = std::env::current_dir()?;
   for p in paths {
     path.push(p);
@@ -91,23 +91,19 @@ fn resolve(paths: Vec<String>) -> crate::Result<String> {
 }
 
 #[cfg(path_all)]
-fn join(paths: Vec<String>) -> crate::Result<String> {
+fn join(mut paths: Vec<String>) -> crate::Result<String> {
   let path = PathBuf::from(
     paths
-      .iter()
+      .iter_mut()
       .map(|p| {
-        // Add MAIN_SEPARATOR if this is not the first element in the vector
-        // and if it doesn't already have a spearator.
+        // Add a `MAIN_SEPARATOR` if it doesn't already have one.
         // Doing this to ensure that the vector elements are separated in
         // the resulting string so path.components() can work correctly when called
-        //  in normalize_path_no_absolute() later
-        if !p.starts_with('/') && !p.starts_with('\\') && p != &paths[0] {
-          let mut tmp = String::from(MAIN_SEPARATOR);
-          tmp.push_str(p);
-          tmp
-        } else {
-          p.to_string()
+        // in `normalize_path_no_absolute()` later on.
+        if !p.ends_with('/') && !p.ends_with('\\') {
+          p.push(MAIN_SEPARATOR);
         }
+        p.to_string()
       })
       .collect::<String>(),
   );
@@ -123,22 +119,23 @@ fn normalize(path: String) -> crate::Result<String> {
   let mut p = normalize_path_no_absolute(Path::new(&path))
     .to_string_lossy()
     .to_string();
-  Ok(if p.is_empty() {
-    // Nodejs will return ".." if we used normalize("..")
-    // and will return "." if we used normalize("") or normalize(".")
-    if path == ".." {
-      path
-    } else {
+
+  Ok(
+    // Node.js behavior is to return `".."` for `normalize("..")`
+    // and `"."` for `normalize("")` or `normalize(".")`
+    if p.is_empty() && path == ".." {
+      "..".into()
+    } else if p.is_empty() && path == "." {
       ".".into()
-    }
-  } else {
-    // If the path passed to this function contains a trailing separator,
-    // we make sure to perserve it. That's how NodeJS works
-    if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\')) {
-      p.push(MAIN_SEPARATOR);
-    }
-    p
-  })
+    } else {
+      // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
+      if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\'))
+      {
+        p.push(MAIN_SEPARATOR);
+      }
+      p
+    },
+  )
 }
 
 #[cfg(path_all)]
@@ -181,7 +178,7 @@ fn basename(path: String, ext: Option<String>) -> crate::Result<String> {
   }
 }
 
-/// Resolve ".." and "." if there is any , this snippet is taken from cargo's paths util
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
 #[cfg(path_all)]
 fn normalize_path(path: &Path) -> PathBuf {
@@ -211,8 +208,8 @@ fn normalize_path(path: &Path) -> PathBuf {
   ret
 }
 
-/// Resolve ".." and "." if there is any , this snippet is taken from cargo's paths util but
-/// slightly modified to not resolve absolute paths
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util but
+/// slightly modified to not resolve absolute paths.
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
 #[cfg(path_all)]
 fn normalize_path_no_absolute(path: &Path) -> PathBuf {
@@ -240,8 +237,8 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
         // to a string and do simple string concatenation with the current component then convert it
         // back to a PathBuf
         let mut p = ret.to_string_lossy().to_string();
-        // Don't add the separator if the resolved path is empty,
-        // otherwise we are gonna have unwanted leading separator
+        // Only add a separator if it doesn't have one already or if current normalized path is empty,
+        // this ensures it won't have an unwanted leading separator
         if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }

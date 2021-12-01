@@ -107,6 +107,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
+
   #[tokio::test]
   async fn handle_spawn() {
     let handle = handle();
@@ -123,7 +124,11 @@ mod tests {
   #[tokio::test]
   async fn handle_abort() {
     let handle = handle();
-    let join = handle.spawn(async { 5 });
+    let join = handle.spawn(async {
+      // Here we sleep 1 second to ensure this task to be uncompleted when abort() invoked.
+      tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+      5
+    });
     join.abort();
     if let crate::Error::JoinError(raw_box) = join.await.unwrap_err() {
       let raw_error = raw_box.downcast::<tokio::task::JoinError>().unwrap();

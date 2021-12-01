@@ -125,13 +125,11 @@ impl<'a> Extract<'a> {
           // Here we require the file name must be a valid UTF-8.
           let file_name = String::from_utf8(file.name_raw().to_vec())?;
           let out_path = into_dir.join(&file_name);
-          if file_name.ends_with('/') || file_name.ends_with('\\') {
+          if file.is_dir() {
             fs::create_dir_all(&out_path)?;
           } else {
             if let Some(out_path_parent) = out_path.parent() {
-              if !out_path_parent.exists() {
-                fs::create_dir_all(&out_path_parent)?;
-              }
+              fs::create_dir_all(&out_path_parent)?;
             }
             let mut out_file = fs::File::create(&out_path)?;
             io::copy(&mut file, &mut out_file)?;

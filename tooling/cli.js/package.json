@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@tauri-apps/toml": "2.2.4",
-    "chalk": "4.1.2",
+    "chalk": "5.0.0",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.0.0",

@@ -203,7 +203,11 @@ class Client {
           // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
-          if (response.ok) {
+          // @ts-expect-error
+          if (response.ok && (response.data as string) === '') {
+            // @ts-expect-error
+            response.data = {}
+          } else {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
               try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`

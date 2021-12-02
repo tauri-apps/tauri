@@ -137,7 +137,7 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Builds the plugin.
+  /// Builds the [generic plugin](GenericPlugin).
   pub fn build(self) -> GenericPlugin<R> {
     GenericPlugin {
       name: self.name,

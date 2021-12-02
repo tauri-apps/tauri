@@ -14,10 +14,11 @@ Plugins allow you to hook into the Tauri application lifecycle and introduce new
 
 Plugins are reusable extensions to the Tauri API that solve common problems. They are also a very convenient way to structure your own code base!
 
-If you intend to share you plugin with others, we provide a ready-made template! With the tauri-cli installed just run:
+If you intend to share your plugin with others, we provide a ready-made template! With the tauri-cli installed just run:
+Write
 
 ```sh
-tauri init plugin --name awesome
+tauri plugin init --name awesome
 ```
 
 ### API package
@@ -31,14 +32,14 @@ invoke('plugin:awesome|do_something')
 ```
 where `awesome` will be replaced by your plugin name.
 
-This isn't very convenient however, so it's common for plugins to prive a so called *API package*, a JavaScript package that provides convenient access to your commands.
+This isn't very convenient however, so it's common for plugins to provide a so called *API package*, a JavaScript package that provides convenient access to your commands.
 
 > An example of this is the [tauri-plugin-store](https://github.com/tauri-apps/tauri-plugin-store), that provides a convenient class structure to accessing a store.
 
 You can scaffold a plugin with attached API package like this:
 
 ```sh
-tauri init plugin --name awesome --api
+tauri plugin init --name awesome --api
 ```
 
 ## Writing a Plugin

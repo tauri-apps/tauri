@@ -57,7 +57,7 @@ type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
 type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &Event) + Send + Sync;
 
-/// Builds a tauri plugin
+/// Builds a [generic tauri plugin](GenericPlugin)
 pub struct Builder<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,

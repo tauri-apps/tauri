@@ -62,7 +62,7 @@ pub struct Builder<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
-  initialization_script: Option<String>,
+  js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -74,7 +74,7 @@ impl<R: Runtime> Builder<R> {
     Self {
       name,
       setup: Box::new(|_| Ok(())),
-      initialization_script: None,
+      js_init_script: None,
       invoke_handler: Box::new(|_| ()),
       on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
@@ -96,8 +96,8 @@ impl<R: Runtime> Builder<R> {
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
-  pub fn initialization_script(mut self, initialization_script: String) -> Self {
-    self.initialization_script = Some(initialization_script);
+  pub fn js_init_script(mut self, js_init_script: String) -> Self {
+    self.js_init_script = Some(js_init_script);
     self
   }
 
@@ -143,7 +143,7 @@ impl<R: Runtime> Builder<R> {
       name: self.name,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
-      initialization_script: self.initialization_script,
+      js_init_script: self.js_init_script,
       on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
@@ -156,7 +156,7 @@ pub struct GenericPlugin<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
-  initialization_script: Option<String>,
+  js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
@@ -172,7 +172,7 @@ impl<R: Runtime> Plugin<R> for GenericPlugin<R> {
   }
 
   fn initialization_script(&self) -> Option<String> {
-    self.initialization_script.clone()
+    self.js_init_script.clone()
   }
 
   fn created(&mut self, window: Window<R>) {

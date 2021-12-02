@@ -63,7 +63,9 @@
     picomatch "^2.2.2"
 
 "@tauri-apps/api@../../tooling/api/dist":
-  version "1.0.0-beta.7"
+  version "1.0.0-beta.8"
+  dependencies:
+    type-fest "2.5.2"
 
 "@types/estree@*":
   version "0.0.46"
@@ -627,6 +629,11 @@ totalist@^1.0.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/totalist/-/totalist-1.1.0.tgz#a4d65a3e546517701e3e5c37a47a70ac97fe56df"
   integrity sha512-gduQwd1rOdDMGxFG1gEvhV88Oirdo2p+KjoYFU7k2g+i7n6AFFbDQ5kMPUsW0pNbfQsB/cwXvT1i4Bue0s9g5g==
+
+type-fest@2.5.2:
+  version "2.5.2"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.5.2.tgz#d6a5247b8019716b300d9023fa7b1b02016dd864"
+  integrity sha512-WMbytmAs5PUTqwGJRE+WoRrD2S0bYFtHX8k4Y/1l18CG5kqA3keJud9pPQ/r30FE9n8XRFCXF9BbccHIZzRYJw==
 
 wrappy@1:
   version "1.0.2"

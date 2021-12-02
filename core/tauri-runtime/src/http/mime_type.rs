@@ -22,7 +22,7 @@ pub enum MimeType {
 }
 
 impl std::fmt::Display for MimeType {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mime = match self {
       MimeType::Css => "text/css",
       MimeType::Csv => "text/csv",

@@ -59,7 +59,6 @@ const ngcli: Recipe = {
     ]
   },
   preInit: async ({ cwd, cfg, answers, packageManager }) => {
-    // Angular CLI creates the folder for you
     await shell(
       'npx',
       [
@@ -100,9 +99,7 @@ const ngcli: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '--' : ''
-    }dev
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
 
     return await Promise.resolve()

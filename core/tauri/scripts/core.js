@@ -2,14 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// polyfills
-if (!String.prototype.startsWith) {
-  String.prototype.startsWith = function (searchString, position) {
-    position = position || 0
-    return this.substr(position, searchString.length) === searchString
-  }
-}
-
 ;
 (function () {
   function uid() {
@@ -18,58 +10,6 @@ if (!String.prototype.startsWith) {
     const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
     window.crypto.getRandomValues(array)
     return array.join('')
-  }
-
-  function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object)
-    if (Object.getOwnPropertySymbols) {
-      var symbols = Object.getOwnPropertySymbols(object)
-      if (enumerableOnly)
-        symbols = symbols.filter(function (sym) {
-          return Object.getOwnPropertyDescriptor(object, sym).enumerable
-        })
-      keys.push.apply(keys, symbols)
-    }
-    return keys
-  }
-
-  function _objectSpread(target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i] != null ? arguments[i] : {}
-      if (i % 2) {
-        ownKeys(source, true).forEach(function (key) {
-          _defineProperty(target, key, source[key])
-        })
-      } else if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(
-          target,
-          Object.getOwnPropertyDescriptors(source)
-        )
-      } else {
-        ownKeys(source).forEach(function (key) {
-          Object.defineProperty(
-            target,
-            key,
-            Object.getOwnPropertyDescriptor(source, key)
-          )
-        })
-      }
-    }
-    return target
-  }
-
-  function _defineProperty(obj, key, value) {
-    if (key in obj) {
-      Object.defineProperty(obj, key, {
-        value: value,
-        enumerable: true,
-        configurable: true,
-        writable: true
-      })
-    } else {
-      obj[key] = value
-    }
-    return obj
   }
 
   if (!window.__TAURI__) {
@@ -112,28 +52,24 @@ if (!String.prototype.startsWith) {
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (window.rpc) {
-        window.rpc.notify(
-          cmd,
-          _objectSpread({
-              callback: callback,
-              error: error,
-              __invokeKey: key || __TAURI_INVOKE_KEY__
-            },
-            args
-          )
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        window.__TAURI_POST_MESSAGE__(
+          cmd, {
+            ...args,
+            callback: callback,
+            error: error,
+            __invokeKey: key || __TAURI_INVOKE_KEY__
+          }
         )
       } else {
         window.addEventListener('DOMContentLoaded', function () {
-          window.rpc.notify(
-            cmd,
-            _objectSpread({
-                callback: callback,
-                error: error,
-                __invokeKey: key || __TAURI_INVOKE_KEY__
-              },
-              args
-            )
+          window.__TAURI_POST_MESSAGE__(
+            cmd, {
+              ...args,
+              callback: callback,
+              error: error,
+              __invokeKey: key || __TAURI_INVOKE_KEY__
+            }
           )
         })
       }
@@ -147,9 +83,7 @@ if (!String.prototype.startsWith) {
       function (e) {
         var target = e.target
         while (target != null) {
-          if (
-            target.matches ? target.matches('a') : target.msMatchesSelector('a')
-          ) {
+          if (target.matches('a')) {
             if (
               target.href &&
               target.href.startsWith('http') &&
@@ -256,7 +190,8 @@ if (!String.prototype.startsWith) {
   }
 
   function requestPermission() {
-    return window.__TAURI_INVOKE__(
+    return window
+      .__TAURI_INVOKE__(
         'tauri', {
           __tauriModule: 'Notification',
           message: {
@@ -344,7 +279,7 @@ if (!String.prototype.startsWith) {
       'tauri', {
         __tauriModule: 'Dialog',
         message: {
-          cmd: 'askDialog',
+          cmd: 'confirmDialog',
           message: message
         }
       },

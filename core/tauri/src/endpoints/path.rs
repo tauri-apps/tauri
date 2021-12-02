@@ -6,7 +6,7 @@ use super::InvokeResponse;
 use crate::{api::path::BaseDirectory, Config, PackageInfo};
 use serde::Deserialize;
 #[cfg(path_all)]
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
 use std::sync::Arc;
 /// The API descriptor.
 #[derive(Deserialize)]
@@ -77,48 +77,71 @@ pub fn resolve_path_handler(
 
 #[cfg(path_all)]
 fn resolve(paths: Vec<String>) -> crate::Result<String> {
-  // start with the current directory
-  let mut resolved_path = PathBuf::new().join(".");
-
-  for path in paths {
-    let path_buf = PathBuf::from(path);
-
-    // if we encounter an absolute path, we use it as the starting path for next iteration
-    if path_buf.is_absolute() {
-      resolved_path = path_buf;
-    } else {
-      resolved_path = resolved_path.join(&path_buf);
-    }
+  // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
+  // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
+  //
+  // examples:
+  // 1. `vec!["."]` or `vec![]` will be equal to `std::env::current_dir()`
+  // 2. `vec!["/foo/bar", "/tmp/file", "baz"]` will be equal to `PathBuf::from("/tmp/file/baz")`
+  let mut path = std::env::current_dir()?;
+  for p in paths {
+    path.push(p);
   }
+  Ok(normalize_path(&path).to_string_lossy().to_string())
+}
 
-  normalize(resolved_path.to_string_lossy().to_string())
+#[cfg(path_all)]
+fn join(mut paths: Vec<String>) -> crate::Result<String> {
+  let path = PathBuf::from(
+    paths
+      .iter_mut()
+      .map(|p| {
+        // Add a `MAIN_SEPARATOR` if it doesn't already have one.
+        // Doing this to ensure that the vector elements are separated in
+        // the resulting string so path.components() can work correctly when called
+        // in `normalize_path_no_absolute()` later on.
+        if !p.ends_with('/') && !p.ends_with('\\') {
+          p.push(MAIN_SEPARATOR);
+        }
+        p.to_string()
+      })
+      .collect::<String>(),
+  );
+
+  let p = normalize_path_no_absolute(&path)
+    .to_string_lossy()
+    .to_string();
+  Ok(if p.is_empty() { ".".into() } else { p })
 }
 
 #[cfg(path_all)]
 fn normalize(path: String) -> crate::Result<String> {
-  let path = std::fs::canonicalize(path)?;
-  let path = path.to_string_lossy().to_string();
+  let mut p = normalize_path_no_absolute(Path::new(&path))
+    .to_string_lossy()
+    .to_string();
 
-  // remove `\\\\?\\` on windows, UNC path
-  #[cfg(target_os = "windows")]
-  let path = path.replace("\\\\?\\", "");
-
-  Ok(path)
-}
-
-#[cfg(path_all)]
-fn join(paths: Vec<String>) -> crate::Result<String> {
-  let mut joined_path = PathBuf::new();
-  for path in paths {
-    joined_path = joined_path.join(path);
-  }
-  normalize(joined_path.to_string_lossy().to_string())
+  Ok(
+    // Node.js behavior is to return `".."` for `normalize("..")`
+    // and `"."` for `normalize("")` or `normalize(".")`
+    if p.is_empty() && path == ".." {
+      "..".into()
+    } else if p.is_empty() && path == "." {
+      ".".into()
+    } else {
+      // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
+      if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\'))
+      {
+        p.push(MAIN_SEPARATOR);
+      }
+      p
+    },
+  )
 }
 
 #[cfg(path_all)]
 fn dirname(path: String) -> crate::Result<String> {
   match Path::new(&path).parent() {
-    Some(path) => Ok(path.to_string_lossy().to_string()),
+    Some(p) => Ok(p.to_string_lossy().to_string()),
     None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
       "Couldn't get the parent directory".into(),
     ))),
@@ -131,7 +154,7 @@ fn extname(path: String) -> crate::Result<String> {
     .extension()
     .and_then(std::ffi::OsStr::to_str)
   {
-    Some(path) => Ok(path.to_string()),
+    Some(p) => Ok(p.to_string()),
     None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
       "Couldn't get the extension of the file".into(),
     ))),
@@ -144,13 +167,87 @@ fn basename(path: String, ext: Option<String>) -> crate::Result<String> {
     .file_name()
     .and_then(std::ffi::OsStr::to_str)
   {
-    Some(path) => Ok(if let Some(ext) = ext {
-      path.replace(ext.as_str(), "")
+    Some(p) => Ok(if let Some(ext) = ext {
+      p.replace(ext.as_str(), "")
     } else {
-      path.to_string()
+      p.to_string()
     }),
     None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
       "Couldn't get the basename".into(),
     ))),
   }
+}
+
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util
+/// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
+#[cfg(path_all)]
+fn normalize_path(path: &Path) -> PathBuf {
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        ret.push(c);
+      }
+    }
+  }
+  ret
+}
+
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util but
+/// slightly modified to not resolve absolute paths.
+/// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
+#[cfg(path_all)]
+fn normalize_path_no_absolute(path: &Path) -> PathBuf {
+  let mut components = path.components().peekable();
+  let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
+    components.next();
+    PathBuf::from(c.as_os_str())
+  } else {
+    PathBuf::new()
+  };
+
+  for component in components {
+    match component {
+      Component::Prefix(..) => unreachable!(),
+      Component::RootDir => {
+        ret.push(component.as_os_str());
+      }
+      Component::CurDir => {}
+      Component::ParentDir => {
+        ret.pop();
+      }
+      Component::Normal(c) => {
+        // Using PathBuf::push here will replace the whole path if an absolute path is encountered
+        // which is not the intended behavior, so instead of that, convert the current resolved path
+        // to a string and do simple string concatenation with the current component then convert it
+        // back to a PathBuf
+        let mut p = ret.to_string_lossy().to_string();
+        // Only add a separator if it doesn't have one already or if current normalized path is empty,
+        // this ensures it won't have an unwanted leading separator
+        if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
+          p.push(MAIN_SEPARATOR);
+        }
+        if let Some(c) = c.to_str() {
+          p.push_str(c);
+        }
+        ret = PathBuf::from(p);
+      }
+    }
+  }
+  ret
 }

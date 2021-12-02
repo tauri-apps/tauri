@@ -47,6 +47,12 @@ impl TrayHandle for SystemTrayHandle {
       .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))
       .map_err(|_| Error::FailedToSendMessage)
   }
+  fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(TrayMessage::UpdateMenu(menu)))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
   fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     self
       .proxy

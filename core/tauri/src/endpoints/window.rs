@@ -90,7 +90,7 @@ pub enum WindowManagerCmd {
 #[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   CreateWebview {
-    options: WindowConfig,
+    options: Box<WindowConfig>,
   },
   Manage {
     label: Option<String>,
@@ -123,17 +123,16 @@ impl Cmd {
         window
           .create_window(label.clone(), url, |_, webview_attributes| {
             (
-              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(options),
+              <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
               webview_attributes,
             )
           })?
           .emit_others("tauri://window-created", Some(WindowCreatedEvent { label }))?;
       }
       Self::Manage { label, cmd } => {
-        let window = if let Some(l) = label {
-          window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?
-        } else {
-          window
+        let window = match label {
+          Some(l) if !l.is_empty() => window.get_window(&l).ok_or(crate::Error::WebviewNotFound)?,
+          _ => window,
         };
         match cmd {
           // Getters

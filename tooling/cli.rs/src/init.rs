@@ -2,28 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::BTreeMap,
-  env::current_dir,
-  fs::{create_dir_all, remove_dir_all, File},
-  io::Write,
-  path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
 
-use crate::helpers::Logger;
+use crate::{
+  helpers::{resolve_tauri_path, template, Logger},
+  VersionMetadata,
+};
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
-use serde::Deserialize;
 
-const TEMPLATE_DIR: Dir = include_dir!("templates");
-
-#[derive(Deserialize)]
-struct VersionMetadata {
-  tauri: String,
-  #[serde(rename = "tauri-build")]
-  tauri_build: String,
-}
+const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 
 pub struct Init {
   force: bool,
@@ -95,14 +84,14 @@ impl Init {
     let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
     if template_target_path.exists() && !self.force {
       logger.warn(format!(
-        "Tauri dir ({:?}) not empty. Run `init --force template` to overwrite.",
+        "Tauri dir ({:?}) not empty. Run `init --force` to overwrite.",
         template_target_path
       ));
     } else {
       let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = self.tauri_path {
         (
           format!(
-            "{{  path = {:?} }}",
+            r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
@@ -112,7 +101,10 @@ impl Init {
         )
       } else {
         (
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+          format!(
+            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
+            metadata.tauri
+          ),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
         )
       };
@@ -144,50 +136,10 @@ impl Init {
         to_json(self.window_title.unwrap_or_else(|| "Tauri".to_string())),
       );
 
-      render_template(&handlebars, &data, &TEMPLATE_DIR, &self.directory)
+      template::render(&handlebars, &data, &TEMPLATE_DIR, &self.directory)
         .with_context(|| "failed to render Tauri template")?;
     }
 
     Ok(())
-  }
-}
-
-fn render_template<P: AsRef<Path>>(
-  handlebars: &Handlebars,
-  data: &BTreeMap<&str, serde_json::Value>,
-  dir: &Dir,
-  out_dir: P,
-) -> crate::Result<()> {
-  create_dir_all(out_dir.as_ref().join(dir.path()))?;
-  for file in dir.files() {
-    let mut file_path = file.path().to_path_buf();
-    // cargo for some reason ignores the /templates folder packaging when it has a Cargo.toml file inside
-    // so we rename the extension to `.crate-manifest`
-    if let Some(extension) = file_path.extension() {
-      if extension == "crate-manifest" {
-        file_path.set_extension("toml");
-      }
-    }
-    let mut output_file = File::create(out_dir.as_ref().join(file_path))?;
-    if let Some(utf8) = file.contents_utf8() {
-      handlebars
-        .render_template_to_write(utf8, &data, &mut output_file)
-        .expect("Failed to render template");
-    } else {
-      output_file.write_all(file.contents())?;
-    }
-  }
-  for dir in dir.dirs() {
-    render_template(handlebars, data, dir, out_dir.as_ref())?;
-  }
-  Ok(())
-}
-
-fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf {
-  let path = path.as_ref();
-  if path.is_absolute() {
-    path.join(crate_name)
-  } else {
-    PathBuf::from("..").join(path).join(crate_name)
   }
 }

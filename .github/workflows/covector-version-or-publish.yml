@@ -22,10 +22,30 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
           node-version: 14
           registry-url: "https://registry.npmjs.org"
+          cache: yarn
+          cache-dependency-path: tooling/*/yarn.lock
+      
+      - name: Cache CLI cargo target
+        uses: actions/cache@v2
+        with:
+          path: tooling/cli.rs/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ubuntu-latest-stable-cargo-cli-
+
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./tooling/cli.rs/Cargo.toml
+
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
       - name: git config
@@ -103,7 +123,10 @@ jobs:
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
-        run: mv docs/sidebar.json ../tauri-docs/sidebars/core.json && cp -r docs ../tauri-docs/docs/en
+        run: |
+          mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json
+          cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs/en
+          mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/en/about/architecture.md
 
       # Indexing
       - name: meilisearch indexation
@@ -125,7 +148,7 @@ jobs:
 
       - uses: iamsauravsharma/create-dotenv@v1.1.0
         with:
-          directory: './tauri-search-bot'
+          directory: "./tauri-search-bot"
         env:
           ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
           ENV_KEY_PREFIX: \!

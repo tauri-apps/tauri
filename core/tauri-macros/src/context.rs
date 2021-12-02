@@ -18,7 +18,7 @@ pub(crate) struct ContextItems {
 }
 
 impl Parse for ContextItems {
-  fn parse(input: &ParseBuffer) -> syn::parse::Result<Self> {
+  fn parse(input: &ParseBuffer<'_>) -> syn::parse::Result<Self> {
     let config_file = if input.is_empty() {
       std::env::var("CARGO_MANIFEST_DIR").map(|m| PathBuf::from(m).join("tauri.conf.json"))
     } else {

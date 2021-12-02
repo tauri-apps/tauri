@@ -46,7 +46,7 @@ export const cra: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  extraNpmDevDependencies: [],
+  extraNpmDevDependencies: ['cross-env'],
   extraNpmDependencies: [],
   extraQuestions: ({ ci }) => {
     return [
@@ -110,7 +110,7 @@ export const cra: Recipe = {
           recursive: true,
           force: true
         })
-      await shell('pnpm', ['install'], { cwd })
+      await shell('pnpm', ['install'], { cwd: join(cwd, cfg.appName) })
     }
 
     await afterCra(cwd, cfg.appName, template === 'cra.ts')
@@ -120,9 +120,7 @@ export const cra: Recipe = {
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri ${
-      packageManager === 'npm' ? '--' : ''
-    }dev
+    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
     `)
     return await Promise.resolve()
   }

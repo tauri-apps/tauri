@@ -29,11 +29,11 @@
     "plugins": {
       "description": "The plugins config.",
       "default": {},
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
-      }
+      "allOf": [
+        {
+          "$ref": "#/definitions/PluginConfig"
+        }
+      ]
     },
     "tauri": {
       "description": "The Tauri configuration.",
@@ -261,14 +261,14 @@
       "type": "object",
       "properties": {
         "beforeBuildCommand": {
-          "description": "a shell command to run before `tauri build` kicks in",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"
           ]
         },
         "beforeDevCommand": {
-          "description": "a shell command to run before `tauri dev` kicks in",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"
@@ -284,7 +284,7 @@
           ]
         },
         "distDir": {
-          "description": "the path to the app's dist dir. This path must contain your index.html file.",
+          "description": "The path to the app's dist dir. This path must contain your index.html file.",
           "default": "../dist",
           "allOf": [
             {
@@ -293,7 +293,7 @@
           ]
         },
         "features": {
-          "description": "features passed to `cargo` commands",
+          "description": "Features passed to `cargo` commands.",
           "type": [
             "array",
             "null"
@@ -953,6 +953,11 @@
         }
       },
       "additionalProperties": false
+    },
+    "PluginConfig": {
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
+      "type": "object",
+      "additionalProperties": true
     },
     "SecurityConfig": {
       "type": "object",

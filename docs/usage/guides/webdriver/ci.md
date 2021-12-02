@@ -69,7 +69,7 @@ jobs:
 
       # install the latest stable node version at the time of writing
       - name: Node v16
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: 16.x
 

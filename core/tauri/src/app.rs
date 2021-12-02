@@ -7,8 +7,10 @@ pub(crate) mod tray;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
-  manager::{CustomProtocol, WindowManager},
+  hooks::{
+    window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
+  },
+  manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -19,7 +21,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::assets::Assets,
   utils::config::{Config, WindowUrl},
-  Context, Invoke, InvokeError, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, InvokeResponse, Manager, StateManager, Window,
 };
 
 use tauri_macros::default_runtime;
@@ -28,12 +30,11 @@ use tauri_utils::PackageInfo;
 use std::{
   collections::HashMap,
   path::PathBuf,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, Weak},
 };
 
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
-#[cfg(all(windows, feature = "system-tray"))]
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
@@ -163,6 +164,24 @@ impl PathResolver {
   pub fn app_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_dir(&self.config)
   }
+
+  /// Returns the path to the suggested log directory.
+  pub fn log_dir(&self) -> Option<PathBuf> {
+    crate::api::path::log_dir(&self.config)
+  }
+}
+
+/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+#[derive(Debug, Clone)]
+pub struct AssetResolver<R: Runtime> {
+  manager: WindowManager<R>,
+}
+
+impl<R: Runtime> AssetResolver<R> {
+  /// Gets the app asset associated with the given path.
+  pub fn get(&self, path: String) -> Option<Asset> {
+    self.manager.get_asset(path).ok()
+  }
 }
 
 /// A handle to the currently running application.
@@ -187,7 +206,7 @@ impl AppHandle<crate::Wry> {
   >(
     &self,
     f: F,
-  ) -> crate::Result<Arc<tauri_runtime_wry::Window>> {
+  ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
@@ -225,6 +244,14 @@ impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
 }
 
 impl<R: Runtime> AppHandle<R> {
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .run_on_main_thread(f)
+      .map_err(Into::into)
+  }
+
   /// Removes the system tray.
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
@@ -388,6 +415,13 @@ macro_rules! shared_app_impl {
       pub fn package_info(&self) -> &PackageInfo {
         self.manager.package_info()
       }
+
+      /// The application's asset resolver.
+      pub fn asset_resolver(&self) -> AssetResolver<R> {
+        AssetResolver {
+          manager: self.manager.clone(),
+        }
+      }
     }
   };
 }
@@ -425,35 +459,31 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
-  pub fn run<F: Fn(&AppHandle<R>, Event) + 'static>(mut self, callback: F) {
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   app.run(|_app_handle, event| match event {
+  ///     tauri::Event::ExitRequested { api, .. } => {
+  ///       api.prevent_exit();
+  ///     }
+  ///     _ => {}
+  ///   });
+  /// }
+  /// ```
+  pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        callback(&app_handle, Event::Exit);
+        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&mut callback));
       }
       _ => {
-        on_event_loop_event(&event, &manager);
-        callback(
-          &app_handle,
-          match event {
-            RunEvent::Exit => Event::Exit,
-            RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
-              window_label,
-              api: ExitRequestApi(tx),
-            },
-            RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
-              label,
-              api: CloseRequestApi(signal_tx),
-            },
-            RunEvent::WindowClose(label) => Event::WindowClosed(label),
-            RunEvent::Ready => Event::Ready,
-            RunEvent::Resumed => Event::Resumed,
-            RunEvent::MainEventsCleared => Event::MainEventsCleared,
-            _ => unimplemented!(),
-          },
-        );
+        on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
       }
     });
   }
@@ -481,11 +511,15 @@ impl<R: Runtime> App<R> {
   #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
-    self
-      .runtime
-      .as_mut()
-      .unwrap()
-      .run_iteration(move |event| on_event_loop_event(&event, &manager))
+    let app_handle = self.handle();
+    self.runtime.as_mut().unwrap().run_iteration(move |event| {
+      on_event_loop_event(
+        &app_handle,
+        event,
+        &manager,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
+      )
+    })
   }
 }
 
@@ -550,6 +584,12 @@ pub struct Builder<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
+  /// The JS message responder.
+  invoke_responder: Arc<InvokeResponder<R>>,
+
+  /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
+  invoke_initialization_script: String,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -592,6 +632,9 @@ impl<R: Runtime> Builder<R> {
     Self {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| ()),
+      invoke_responder: Arc::new(window_invoke_responder),
+      invoke_initialization_script:
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -613,6 +656,21 @@ impl<R: Runtime> Builder<R> {
     F: Fn(Invoke<R>) + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
+    self
+  }
+
+  /// Defines a custom JS message system.
+  ///
+  /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
+  ///
+  /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
+  /// That function must take the `command: string` and `args: object` types and send a message to the backend.
+  pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
+  where
+    F: Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static,
+  {
+    self.invoke_initialization_script = initialization_script;
+    self.invoke_responder = Arc::new(responder);
     self
   }
 
@@ -720,10 +778,11 @@ impl<R: Runtime> Builder<R> {
     T: Send + Sync + 'static,
   {
     let type_name = std::any::type_name::<T>();
-    if !self.state.set(state) {
-      panic!("state for type '{}' is already being managed", type_name);
-    }
-
+    assert!(
+      self.state.set(state),
+      "state for type '{}' is already being managed",
+      type_name
+    );
     self
   }
 
@@ -872,6 +931,7 @@ impl<R: Runtime> Builder<R> {
       self.state,
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
+      (self.invoke_responder, self.invoke_initialization_script),
     );
 
     // set up all the windows defined in the config
@@ -913,29 +973,6 @@ impl<R: Runtime> Builder<R> {
         tray_handle: None,
       },
     };
-
-    app.manager.initialize_plugins(&app.handle())?;
-
-    let pending_labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
-    for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(app.handle(), detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(_window);
-      }
-    }
 
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {
@@ -1027,6 +1064,29 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
+    app.manager.initialize_plugins(&app.handle())?;
+
+    let pending_labels = self
+      .pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    #[cfg(feature = "updater")]
+    let mut main_window = None;
+
+    for pending in self.pending_windows {
+      let pending = app
+        .manager
+        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
+      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
+      let _window = app.manager.attach_window(app.handle(), detached);
+      #[cfg(feature = "updater")]
+      if main_window.is_none() {
+        main_window = Some(_window);
+      }
+    }
+
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
     #[cfg(feature = "updater")]
@@ -1042,9 +1102,42 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-fn on_event_loop_event<R: Runtime>(event: &RunEvent, manager: &WindowManager<R>) {
-  if let RunEvent::WindowClose(label) = event {
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
+  app_handle: &AppHandle<R>,
+  event: RunEvent,
+  manager: &WindowManager<R>,
+  callback: Option<&mut F>,
+) {
+  if let RunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
+  }
+
+  let event = match event {
+    RunEvent::Exit => Event::Exit,
+    RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+      window_label,
+      api: ExitRequestApi(tx),
+    },
+    RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+      label,
+      api: CloseRequestApi(signal_tx),
+    },
+    RunEvent::WindowClose(label) => Event::WindowClosed(label),
+    RunEvent::Ready => Event::Ready,
+    RunEvent::Resumed => Event::Resumed,
+    RunEvent::MainEventsCleared => Event::MainEventsCleared,
+    _ => unimplemented!(),
+  };
+
+  manager
+    .inner
+    .plugins
+    .lock()
+    .expect("poisoned plugin store")
+    .on_event(app_handle, &event);
+
+  if let Some(c) = callback {
+    c(app_handle, event);
   }
 }
 

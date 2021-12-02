@@ -815,14 +815,18 @@ pub struct BuildConfig {
   /// The path or URL to use on development.
   #[serde(default = "default_dev_path")]
   pub dev_path: AppUrl,
-  /// the path to the app's dist dir. This path must contain your index.html file.
+  /// The path to the app's dist dir. This path must contain your index.html file.
   #[serde(default = "default_dist_dir")]
   pub dist_dir: AppUrl,
-  /// a shell command to run before `tauri dev` kicks in
+  /// A shell command to run before `tauri dev` kicks in.
+  ///
+  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_dev_command: Option<String>,
-  /// a shell command to run before `tauri build` kicks in
+  /// A shell command to run before `tauri build` kicks in.
+  ///
+  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_build_command: Option<String>,
-  /// features passed to `cargo` commands
+  /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default)]
@@ -836,8 +840,6 @@ fn default_dev_path() -> AppUrl {
 fn default_dist_dir() -> AppUrl {
   AppUrl::Url("../dist".to_string())
 }
-
-type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
 #[skip_serializing_none]
@@ -855,8 +857,12 @@ pub struct Config {
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
-  pub plugins: HashMap<String, JsonObject>,
+  pub plugins: PluginConfig,
 }
+
+/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
 fn default_build() -> BuildConfig {
   BuildConfig {

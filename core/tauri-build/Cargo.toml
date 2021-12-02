@@ -7,7 +7,8 @@ license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
 description = "build time code to pair with https://crates.io/crates/tauri"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -17,8 +18,7 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 
 [dependencies]
 anyhow = "1"
-proc-macro2 = "1"
-quote = "1"
+quote = { version = "1", optional = true }
 tauri-codegen = { version = "1.0.0-beta.4", path = "../tauri-codegen", optional = true }
 
 [target."cfg(windows)".dependencies]
@@ -27,4 +27,4 @@ serde_json = "1.0"
 tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils", features = [ "build" ] }
 
 [features]
-codegen = [ "tauri-codegen" ]
+codegen = [ "tauri-codegen", "quote" ]

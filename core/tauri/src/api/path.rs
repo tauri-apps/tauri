@@ -62,6 +62,10 @@ pub enum BaseDirectory {
   App,
   /// The current working directory.
   Current,
+  /// The Log directory.
+  /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macOS
+  /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
+  Log,
 }
 
 /// Resolves the path with the optional base directory.
@@ -110,6 +114,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Resource => resource_dir(package_info),
       BaseDirectory::App => app_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
+      BaseDirectory::Log => log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       // use the same path resolution mechanism as the bundler's resource injection algorithm
@@ -229,4 +234,20 @@ pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
 /// Returns the path to the suggested directory for your app config files.
 pub fn app_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested log directory.
+pub fn log_dir(config: &Config) -> Option<PathBuf> {
+  #[cfg(target_os = "macos")]
+  let path = dirs_next::home_dir().map(|dir| {
+    dir
+      .join("Library/Logs")
+      .join(&config.tauri.bundle.identifier)
+  });
+
+  #[cfg(not(target_os = "macos"))]
+  let path =
+    dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
+
+  path
 }

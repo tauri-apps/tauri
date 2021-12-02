@@ -14,6 +14,8 @@ import { vite } from './recipes/vite'
 import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
+import { solid } from './recipes/solid'
+import { cljs } from './recipes/cljs'
 import { install, checkPackageManager } from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
@@ -124,7 +126,9 @@ const allRecipes: Recipe[] = [
   vuecli,
   ngcli,
   svelte,
-  dominator
+  solid,
+  dominator,
+  cljs
 ]
 
 const recipeByShortName = (name: string): Recipe | undefined =>
@@ -366,7 +370,7 @@ const runInit = async (argv: Argv): Promise<void> => {
     })
 
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
-    updatePackageJson(appDirectory, appName)
+    updatePackageJson(appDirectory, appName, recipe.shortName)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
     const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)

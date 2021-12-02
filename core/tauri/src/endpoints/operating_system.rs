@@ -21,20 +21,32 @@ impl Cmd {
   pub fn run(self) -> crate::Result<InvokeResponse> {
     #[cfg(os_all)]
     return match self {
-      Self::Platform => Ok(std::env::consts::OS.into()),
+      Self::Platform => Ok(os_platform().into()),
       Self::Version => Ok(os_info::get().version().to_string().into()),
-      Self::Type => {
-        #[cfg(target_os = "linux")]
-        return Ok("Linux".into());
-        #[cfg(target_os = "windows")]
-        return Ok("Windows_NT".into());
-        #[cfg(target_os = "macos")]
-        return Ok("Darwing".into());
-      }
+      Self::Type => Ok(os_type().into()),
       Self::Arch => Ok(std::env::consts::ARCH.into()),
       Self::Tempdir => Ok(std::env::temp_dir().into()),
     };
     #[cfg(not(os_all))]
     Err(crate::Error::ApiNotAllowlisted("os".into()))
   }
+}
+
+#[cfg(os_all)]
+fn os_type() -> String {
+  #[cfg(target_os = "linux")]
+  return "Linux".into();
+  #[cfg(target_os = "windows")]
+  return "Windows_NT".into();
+  #[cfg(target_os = "macos")]
+  return "Darwin".into();
+}
+#[cfg(os_all)]
+fn os_platform() -> String {
+  match std::env::consts::OS {
+    "windows" => "win32",
+    "macos" => "darwin",
+    _ => std::env::consts::OS,
+  }
+  .into()
 }

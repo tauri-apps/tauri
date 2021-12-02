@@ -7,7 +7,7 @@ use super::{
   status::StatusCode,
   version::Version,
 };
-use std::{convert::TryFrom, fmt};
+use std::fmt;
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 

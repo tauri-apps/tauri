@@ -27,8 +27,8 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
   The target directory <em>must</em> contain an index.html file.
 </div>`},
 {property: "devPath", type: "string", description: `Can be a path to a folder (either absolute or relative to tauri.conf.json) or a URL (like a live reload server).`},
-{property: "beforeDevCommand", optional: true, type: "string", description: `A command to run before starting Tauri in dev mode.`},
-{property: "beforeBuildCommand", optional: true, type: "string", description: `A command to run before starting Tauri in build mode.`},
+{property: "beforeDevCommand", optional: true, type: "string", description: `A command to run before starting Tauri in dev mode. The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.`},
+{property: "beforeBuildCommand", optional: true, type: "string", description: `A command to run before starting Tauri's build pipeline. The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.`},
 {property: "withGlobalTauri", optional: true, type: "boolean", description: "Enables the API injection to the window.__TAURI__ object. Useful if you're using Vanilla JS instead of importing the API using Rollup or Webpack. Reduces the command security since any external code can access it, so be careful with XSS attacks."}
 ]}/>
 
@@ -45,8 +45,8 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
 ## `package`
 
 <Properties anchorRoot="package" rows={[
-  { property: "productName", optional: true, type: "string", description: `Application name. The binary name is converted to snake-case on Linux.` },
-  { property: "version", optional: true, type: "string", description: `Application version.` }
+  { property: "productName", optional: true, type: "string", description: `Application name. Defaults to the package name specified in Cargo.toml. The binary name is converted to snake-case on Linux.` },
+  { property: "version", optional: true, type: "string", description: `Application version. Defaults to the version specified in Cargo.toml.` }
 ]}/>
 
 ## `tauri`

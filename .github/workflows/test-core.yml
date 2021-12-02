@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - dev
+      - next
   pull_request:
     paths:
       - '.github/workflows/test-core.yml'
@@ -135,7 +136,7 @@ jobs:
         with:
           path: tooling/cli.rs/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
@@ -157,6 +158,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+          cache: yarn
+          cache-dependency-path: tooling/cli.js/yarn.lock
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -198,11 +210,22 @@ jobs:
         with:
           path: tooling/cli.rs/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
             ${{ matrix.platform }}-stable-cargo-cli-
+
+      - name: Cache template cargo target
+        uses: actions/cache@v2
+        with:
+          path: tooling/cli.js/test/jest/fixtures/empty/src-tauri/target
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}
+            ${{ matrix.platform }}-stable-template-
 
       - name: test
         timeout-minutes: 30

@@ -46,7 +46,7 @@ tauri init plugin --name awesome --api
 Using the `tauri::plugin::Builder` you can define plugins similar to how you define your app:
 
 ```rust
-use tauri::plugin::{Builder, TauriPlugin};
+use tauri::plugin::{Builder, GenericPlugin};
 
 // the plugin custom command handlers if you choose to extend the API.
 #[tauri::command]
@@ -58,7 +58,7 @@ fn initialize() {}
 // this will be accessible with `invoke('plugin:awesome|do_something')`.
 fn do_something() {}
 
-pub fn init() -> TauriPlugin {
+pub fn init() -> GenericPlugin {
   Builder::new("awesome")
     .invoke_handler(tauri::generate_handler![initialize, do_something])
     .build()
@@ -70,7 +70,7 @@ Plugins can setup and maintain state, just like your app can:
 ```rust
   use tauri::{
     AppHandle, Runtime, State
-    plugin::{Builder, TauriPlugin}
+    plugin::{Builder, GenericPlugin}
   };
 
   #[derive(Default)]

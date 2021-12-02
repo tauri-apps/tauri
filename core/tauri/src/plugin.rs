@@ -138,8 +138,8 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Builds the plugin.
-  pub fn build(self) -> TauriPlugin<R> {
-    TauriPlugin {
+  pub fn build(self) -> GenericPlugin<R> {
+    GenericPlugin {
       name: self.name,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
@@ -152,7 +152,7 @@ impl<R: Runtime> Builder<R> {
 }
 
 /// Plugin struct that is returned by the [`PluginBuilder`]. Should only be constructed through the builder.
-pub struct TauriPlugin<R: Runtime> {
+pub struct GenericPlugin<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
@@ -162,7 +162,7 @@ pub struct TauriPlugin<R: Runtime> {
   on_event: Box<OnEvent<R>>,
 }
 
-impl<R: Runtime> Plugin<R> for TauriPlugin<R> {
+impl<R: Runtime> Plugin<R> for GenericPlugin<R> {
   fn name(&self) -> &'static str {
     self.name
   }

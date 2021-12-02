@@ -7,7 +7,8 @@ import { join } from 'path'
 import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
-import { rmSync, existsSync } from 'fs'
+import { unlinkSync, existsSync } from 'fs'
+import { emptyDir } from '../helpers/empty-dir'
 
 const afterCra = async (
   cwd: string,
@@ -103,13 +104,9 @@ export const cra: Recipe = {
       const npmLock = join(cwd, cfg.appName, 'package-lock.json')
       const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
       const nodeModules = join(cwd, cfg.appName, 'node_modules')
-      if (existsSync(npmLock)) rmSync(npmLock)
-      if (existsSync(yarnLock)) rmSync(yarnLock)
-      if (existsSync(nodeModules))
-        rmSync(nodeModules, {
-          recursive: true,
-          force: true
-        })
+      if (existsSync(npmLock)) unlinkSync(npmLock)
+      if (existsSync(yarnLock)) unlinkSync(yarnLock)
+      emptyDir(nodeModules)
       await shell('pnpm', ['install'], { cwd: join(cwd, cfg.appName) })
     }
 

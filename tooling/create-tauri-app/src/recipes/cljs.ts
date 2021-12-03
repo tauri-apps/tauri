@@ -5,7 +5,8 @@
 import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
-import { rmSync, existsSync } from 'fs'
+import { unlinkSync, existsSync } from 'fs'
+import { emptyDir } from '../helpers/empty-dir'
 
 const cljs: Recipe = {
   descriptiveName: {
@@ -38,12 +39,8 @@ const cljs: Recipe = {
 
       // `create-cljs-app` has both a `package-lock.json` and a `yarn.lock`
       // so it is better to remove conflicting lock files and install fresh node_modules
-      if (existsSync(npmLock)) rmSync(npmLock)
-      if (existsSync(nodeModules))
-        rmSync(nodeModules, {
-          recursive: true,
-          force: true
-        })
+      if (existsSync(npmLock)) unlinkSync(npmLock)
+      emptyDir(nodeModules)
 
       await shell('yarn', ['install'], { cwd: join(cwd, cfg.appName) })
     } else {
@@ -52,14 +49,10 @@ const cljs: Recipe = {
       })
 
       // Remove Unnecessary lockfile as above.
-      if (existsSync(yarnLock)) rmSync(yarnLock)
+      if (existsSync(yarnLock)) unlinkSync(yarnLock)
       // also remove package-lock.json if current package manager is pnpm
-      if (packageManager === 'pnpm' && existsSync(npmLock)) rmSync(npmLock)
-      if (existsSync(nodeModules))
-        rmSync(nodeModules, {
-          recursive: true,
-          force: true
-        })
+      if (packageManager === 'pnpm' && existsSync(npmLock)) unlinkSync(npmLock)
+      emptyDir(nodeModules)
 
       await shell(packageManager, ['install'], { cwd: join(cwd, cfg.appName) })
     }

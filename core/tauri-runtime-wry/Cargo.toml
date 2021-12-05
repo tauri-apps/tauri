@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "27cf3735f717ffcc409e79031356ea0c99cadf8a", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "27cf3735f717ffcc409e79031356ea0c99cadf8a", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }

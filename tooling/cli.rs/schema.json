@@ -262,17 +262,11 @@
       "properties": {
         "beforeBuildCommand": {
           "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "beforeDevCommand": {
           "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "devPath": {
           "description": "The path or URL to use on development.",
@@ -294,20 +288,14 @@
         },
         "features": {
           "description": "Features passed to `cargo` commands.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "runner": {
           "description": "The binary used to build and run the application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "withGlobalTauri": {
           "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
@@ -327,17 +315,11 @@
         },
         "category": {
           "description": "The application kind.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "copyright": {
           "description": "A copyright string associated with your application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "deb": {
           "description": "Configuration for the Debian bundle.",
@@ -353,37 +335,25 @@
         },
         "externalBin": {
           "description": "A list of—either absolute or relative—paths to binaries to embed with your application.\n\nNote that Tauri will look for system-specific binaries following the pattern \"binary-name{-target-triple}{.system-extension}\".\n\nE.g. for the external binary \"my-binary\", Tauri looks for:\n\n- \"my-binary-x86_64-pc-windows-msvc.exe\" for Windows - \"my-binary-x86_64-apple-darwin\" for macOS - \"my-binary-x86_64-unknown-linux-gnu\" for Linux\n\nso don't forget to provide binaries for all targeted platforms.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "icon": {
           "description": "The app's icons",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "identifier": {
           "description": "The app's identifier",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "longDescription": {
           "description": "A longer, multi-line description of the application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "macOS": {
           "description": "Configuration for the macOS bundles.",
@@ -398,20 +368,14 @@
         },
         "resources": {
           "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "shortDescription": {
           "description": "A short description of your application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "targets": {
           "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
@@ -457,197 +421,129 @@
     "CliArg": {
       "description": "A CLI argument definition",
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "properties": {
         "conflictsWith": {
           "description": "Sets a conflicting argument by name i.e. when using this argument, the following argument can't be present and vice versa.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "conflictsWithAll": {
           "description": "The same as conflictsWith but allows specifying multiple two-way conflicts per argument.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "description": {
           "description": "The argument description which will be shown on the help information. Typically, this is a short (one line) description of the arg.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "index": {
           "description": "The positional argument index, starting at 1.\n\nThe index refers to position according to other positional argument. It does not define position in the argument list as a whole. When utilized with multiple=true, only the last positional argument may be defined as multiple (i.e. the one with the highest index).",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint64",
           "minimum": 0.0
         },
         "longDescription": {
           "description": "The argument long description which will be shown on the help information. Typically this a more detailed (multi-line) message that describes the argument.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "maxValues": {
           "description": "Specifies the maximum number of values are for this argument. For example, if you had a -f <file> argument where you wanted up to 3 'files', you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint64",
           "minimum": 0.0
         },
         "minValues": {
           "description": "Specifies the minimum number of values for this argument. For example, if you had a -f <file> argument where you wanted at least 2 'files', you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint64",
           "minimum": 0.0
         },
         "multiple": {
           "description": "Specifies that the argument may appear more than once.\n\n- For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences. - For options there is a distinct difference in multiple occurrences vs multiple values. For example, --opt val1 val2 is one occurrence, but two values. Whereas --opt val1 --opt val2 is two occurrences.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "multipleOccurrences": {
           "description": "specifies that the argument may appear more than once.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "name": {
           "description": "The unique argument name",
           "type": "string"
         },
         "numberOfValues": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint64",
           "minimum": 0.0
         },
         "possibleValues": {
           "description": "Specifies a list of possible values for this argument. At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requireEquals": {
           "description": "Requires that options use the --option=val syntax i.e. an equals between the option and associated value.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "required": {
           "description": "Sets whether or not the argument is required by default.\n\n- Required by default means it is required, when no other conflicting rules have been evaluated - Conflicting rules take precedence over being required.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "requiredIfEq": {
           "description": "Allows specifying that an argument is required conditionally with the signature [arg, value] the requirement will only become valid if the `arg`'s value equals `${value}`.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiredUnlessPresent": {
           "description": "Sets an arg that override this arg's required setting i.e. this arg will be required unless this other argument is present.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "requiredUnlessPresentAll": {
           "description": "Sets args that override this arg's required setting i.e. this arg will be required unless all these other arguments are present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiredUnlessPresentAny": {
           "description": "Sets args that override this arg's required setting i.e. this arg will be required unless at least one of these other arguments are present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requires": {
           "description": "Tets an argument by name that is required when this one is present i.e. when using this argument, the following argument must be present.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "requiresAll": {
           "description": "Sts multiple arguments by names that are required when this one is present i.e. when using this argument, the following arguments must be present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiresIf": {
           "description": "Allows a conditional requirement with the signature [arg, value] the requirement will only become valid if `arg`'s value equals `${value}`.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "short": {
           "description": "The short version of the argument, without the preceding -.\n\nNOTE: Any leading - characters will be stripped, and only the first non - character will be used as the short version.",
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1,
           "minLength": 1
         },
         "takesValue": {
           "description": "Specifies that the argument takes a value at run time.\n\nNOTE: values for arguments may be specified in any of the following methods - Using a space such as -o value or --option value - Using an equals and no space such as -o=value or --option=value - Use a short and no space such as -ovalue",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         }
       },
       "additionalProperties": false
@@ -658,48 +554,30 @@
       "properties": {
         "afterHelp": {
           "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed after the auto-generated help information this is often used to describe how to use the arguments, or caveats to be noted.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "args": {
           "description": "list of args for the command",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "$ref": "#/definitions/CliArg"
           }
         },
         "beforeHelp": {
           "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed before the auto-generated help information. this is often used for header information",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "description": {
           "description": "command description which will be shown on the help information",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "longDescription": {
           "description": "command long description which will be shown on the help information",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "subcommands": {
           "description": "list of subcommands of this command.\n\nsubcommands are effectively sub-apps, because they can contain their own arguments, subcommands, usage, etc. they also function just like the app command, in that they get their own auto generated help and usage",
-          "type": [
-            "object",
-            "null"
-          ],
+          "type": ["object", "null"],
           "additionalProperties": {
             "$ref": "#/definitions/CliConfig"
           }
@@ -712,10 +590,7 @@
       "properties": {
         "depends": {
           "description": "The list of deb dependencies your application relies on.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
@@ -850,48 +725,30 @@
       "properties": {
         "entitlements": {
           "description": "Path to the entitlements file.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "exceptionDomain": {
           "description": "Allows your application to communicate with the outside world. It should be a lowercase, without port and protocol domain name.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "frameworks": {
           "description": "A list of strings indicating any macOS X frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "license": {
           "description": "The path to the license file to add to the DMG bundle.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "signingIdentity": {
           "description": "Identity to use for code signing.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "useBootstrapper": {
           "description": "Enable the boostrapper script.",
@@ -928,17 +785,11 @@
       "properties": {
         "productName": {
           "description": "Application name. Automatically converted to kebab-case on Linux.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "version": {
           "description": "Application version.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -964,10 +815,7 @@
       "properties": {
         "csp": {
           "description": "The Content Security Policy that will be injected on all HTML files.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -995,9 +843,7 @@
     },
     "SystemTrayConfig": {
       "type": "object",
-      "required": [
-        "iconPath"
-      ],
+      "required": ["iconPath"],
       "properties": {
         "iconAsTemplate": {
           "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
@@ -1160,27 +1006,18 @@
         "dialog": {
           "description": "Display built-in dialog or use event system if disabled.",
           "default": true,
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "endpoints": {
           "description": "The updater endpoints.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "pubkey": {
           "description": "Optional pubkey.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -1237,33 +1074,21 @@
         },
         "height": {
           "description": "The window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "label": {
           "description": "The window identifier.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "maxHeight": {
           "description": "The max window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "maxWidth": {
           "description": "The max window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "maximized": {
@@ -1273,18 +1098,12 @@
         },
         "minHeight": {
           "description": "The min window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "minWidth": {
           "description": "The min window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "resizable": {
@@ -1299,10 +1118,7 @@
         },
         "title": {
           "description": "The window title.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "transparent": {
           "description": "Whether the window is transparent or not.",
@@ -1311,10 +1127,7 @@
         },
         "url": {
           "description": "The window webview URL.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "visible": {
           "description": "Whether the window is visible or not.",
@@ -1323,26 +1136,17 @@
         },
         "width": {
           "description": "The window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "x": {
           "description": "The horizontal position of the window's top left corner",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "y": {
           "description": "The vertical position of the window's top left corner",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         }
       },
@@ -1353,24 +1157,15 @@
       "properties": {
         "certificateThumbprint": {
           "description": "Specifies the SHA1 hash of the signing certificate.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "digestAlgorithm": {
           "description": "Specifies the file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "timestampUrl": {
           "description": "Server to use during timestamping.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "wix": {
           "description": "Configuration for the MSI generated with WiX.",
@@ -1391,10 +1186,7 @@
       "properties": {
         "bannerPath": {
           "description": "Path to a bitmap file to use as the installation user interface banner. This bitmap will appear at the top of all but the first page of the installer.\n\nThe required dimensions are 493px × 58px.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "componentGroupRefs": {
           "description": "The ComponentGroup element ids you want to reference from the fragments.",
@@ -1414,10 +1206,7 @@
         },
         "dialogImagePath": {
           "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs. The required dimensions are 493px × 312px.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "enableElevatedUpdateTask": {
           "default": false,
@@ -1454,10 +1243,7 @@
         },
         "license": {
           "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "mergeRefs": {
           "description": "The Merge element ids you want to reference from the fragments.",
@@ -1474,10 +1260,7 @@
         },
         "template": {
           "description": "A custom .wxs template to use.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false

@@ -59,7 +59,7 @@ $ sudo dnf check-update && sudo dnf install webkit2gtk3-devel.x86_64 \
     openssl-devel \
     curl \
     wget \
-    libappindicator-gtk3 \ #
+    libappindicator-gtk3 \
     patchelf \
     librsvg2-devel \
     && sudo dnf group install "C Development Tools and Libraries"

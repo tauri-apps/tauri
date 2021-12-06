@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */ /** */
-
 import 'regenerator-runtime/runtime'
 import * as app from './app'
 import * as cli from './cli'
@@ -21,6 +19,8 @@ import * as tauri from './tauri'
 import * as updater from './updater'
 import * as window from './window'
 import * as os from './os'
+
+/** @ignore */
 const invoke = tauri.invoke
 
 export {

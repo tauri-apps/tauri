@@ -322,7 +322,7 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then((id) => new Client(id))
 }
 
-/** @ignore */
+/** @internal */
 let defaultClient: Client | null = null
 
 /**

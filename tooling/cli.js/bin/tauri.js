@@ -5,6 +5,7 @@
 
 import chalk from 'chalk'
 import updateNotifier from 'update-notifier'
+import { existsSync, readFileSync } from 'fs'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const pkg = require('../package.json')
@@ -74,10 +75,21 @@ ${chalk.yellow('Options')}
     if (process.argv && process.env.NODE_ENV !== 'test') {
       process.argv.splice(0, 3)
     }
+    let cwd = null
+    if (existsSync('package.json')) {
+      const packageJson = JSON.parse(readFileSync('package.json').toString())
+      if ('tauri' in packageJson) {
+        const { tauri: tauriConfig } = packageJson
+        if (tauriConfig.appPath) {
+          cwd = tauriConfig.appPath
+        }
+      }
+    }
     ;(
       await runOnRustCli(
         command,
-        (process.argv || []).filter((v) => v !== '--no-update-notifier')
+        (process.argv || []).filter((v) => v !== '--no-update-notifier'),
+        { cwd }
       )
     ).promise
       .then(() => {

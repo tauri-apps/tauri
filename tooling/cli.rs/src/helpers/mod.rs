@@ -54,7 +54,7 @@ pub fn command_env(debug: bool) -> HashMap<String, String> {
   #[cfg(target_os = "windows")]
   map.insert("PLATFORM_TYPE".into(), "Windows_NT".into());
   #[cfg(target_os = "macos")]
-  map.insert("PLATFORM_TYPE".into(), "Darwing".into());
+  map.insert("PLATFORM_TYPE".into(), "Darwin".into());
 
   if debug {
     map.insert("TAURI_DEBUG".into(), "true".to_string());

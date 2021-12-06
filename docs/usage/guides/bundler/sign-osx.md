@@ -33,7 +33,7 @@ The secrets I used are as follows
 |     :---:      |        :---:            |
 |APPLE_CERTIFICATE| Base64 encoded version of your .p12 certificate. You can find a guide [here](https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions#reference)|
 |APPLE_CERTIFICATE_PASSWORD|Certificate password used on creation of certificate|
-|APPLE_SIGNING_IDENTITY|"Developer ID Application: Your Company, Inc (XXXXXXXXX)" shown in your keychain. you can also use `security find-identity -v -p codesigning` on OSX to find this identity |
+|APPLE_IDENTITY_ID|"Developer ID Application: Your Company, Inc (XXXXXXXXX)" shown in your keychain. you can also use `security find-identity -v -p codesigning` on OSX to find this identity |
 |APPLE_ID|this is the email used to request the certificate|
 APPLE_PASSWORD|This is an app-specific password, that must also be created by the same account used to request the certificate. Guide [here](https://support.apple.com/en-ca/HT204397)| 
 

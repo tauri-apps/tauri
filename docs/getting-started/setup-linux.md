@@ -37,7 +37,8 @@ $ sudo apt update && sudo apt install libwebkit2gtk-4.0-dev \
 <TabItem value="arch">
 
 ```sh
-$ sudo pacman -Syy && sudo pacman -S --needed webkit2gtk \
+$ sudo pacman -Syu && sudo pacman -S --needed \
+    webkit2gtk \
     base-devel \
     curl \
     wget \
@@ -58,7 +59,7 @@ $ sudo dnf check-update && sudo dnf install webkit2gtk3-devel.x86_64 \
     openssl-devel \
     curl \
     wget \
-    libappindicator-gtk3 \ #
+    libappindicator-gtk3 \
     patchelf \
     librsvg2-devel \
     && sudo dnf group install "C Development Tools and Libraries"

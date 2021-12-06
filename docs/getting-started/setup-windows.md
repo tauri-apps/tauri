@@ -15,7 +15,7 @@ For those using the Windows Subsystem for Linux (WSL) please refer to our [Linux
 
 ## 1. System Dependencies&nbsp;<Icon title="alert" color="danger"/>
 
-You'll need to install Microsoft Visual Studio C++ build tools. <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/" target="_blank">Download the installer here</a>, and then run it. When it asks you what packages you would like to install, select C++ Build Tools.
+You'll need to install Microsoft Visual Studio C++ build tools. <a href="https://visualstudio.microsoft.com/visual-cpp-build-tools/" target="_blank">Download the installer here</a>, and then run it. When it asks you what packages you would like to install, select C++ Build Tools and make sure the Windows SDK is selected.
 
 <Alert title="Note">
 This is a big download (over 1GB) and takes the most time, so go grab a coffee.

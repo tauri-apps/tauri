@@ -461,13 +461,13 @@ pub(crate) fn listener<R: Runtime>(
             let body = updater.body.clone().unwrap_or_else(|| String::from(""));
 
             // Emit `tauri://update-available`
-            let _ = window.emit(
+            let _ = window.emit_and_trigger(
               EVENT_UPDATE_AVAILABLE,
-              Some(UpdateManifest {
+              UpdateManifest {
                 body,
                 date: updater.date.clone(),
                 version: updater.version.clone(),
-              }),
+              },
             );
 
             // Listen for `tauri://update-install`
@@ -510,12 +510,12 @@ pub(crate) fn listener<R: Runtime>(
 
 // Send a status update via `tauri://update-status` event.
 fn send_status_update<R: Runtime>(window: Window<R>, status: &str, error: Option<String>) {
-  let _ = window.emit(
+  let _ = window.emit_and_trigger(
     EVENT_STATUS_UPDATE,
-    Some(StatusEvent {
+    StatusEvent {
       error,
       status: String::from(status),
-    }),
+    },
   );
 }
 

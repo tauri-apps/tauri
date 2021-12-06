@@ -13,7 +13,7 @@ Configure the `systemTray` object on `tauri.conf.json`:
   "tauri": {
     "systemTray": {
       "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
+      "iconAsTemplate": true
     }
   }
 }

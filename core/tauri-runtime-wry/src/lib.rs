@@ -27,11 +27,12 @@ use tauri_runtime::window::MenuEvent;
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use webview2_com::{
-  FocusChangedEventHandler,
-  Windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken},
+  FocusChangedEventHandler, Windows::Win32::System::WinRT::EventRegistrationToken,
 };
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -179,6 +180,7 @@ struct DispatcherMainThreadContext {
 }
 
 // the main thread context is only used on the main thread
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for DispatcherMainThreadContext {}
 
 impl fmt::Debug for Context {
@@ -378,6 +380,7 @@ impl From<NativeImage> for NativeImageWrapper {
 #[derive(Debug, Clone)]
 pub struct GlobalShortcutWrapper(GlobalShortcut);
 
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GlobalShortcutWrapper {}
 
 /// Wrapper around [`WryShortcutManager`].
@@ -698,6 +701,7 @@ pub struct WindowBuilderWrapper {
 }
 
 // safe since `menu_items` are read only here
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for WindowBuilderWrapper {}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}
@@ -891,11 +895,13 @@ impl From<FileDropEventWrapper> for FileDropEvent {
 #[cfg(target_os = "macos")]
 pub struct NSWindow(*mut std::ffi::c_void);
 #[cfg(target_os = "macos")]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for NSWindow {}
 
 #[cfg(windows)]
 pub struct Hwnd(HWND);
 #[cfg(windows)]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for Hwnd {}
 
 #[cfg(any(
@@ -913,6 +919,7 @@ pub struct GtkWindow(gtk::ApplicationWindow);
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
 #[cfg(target_os = "macos")]
@@ -1690,7 +1697,7 @@ impl Runtime for Wry {
           let proxy = self.event_loop.create_proxy();
           let mut token = EventRegistrationToken::default();
           unsafe {
-            controller.add_GotFocus(
+            controller.GotFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,
@@ -1704,7 +1711,7 @@ impl Runtime for Wry {
           .unwrap();
           let proxy = self.event_loop.create_proxy();
           unsafe {
-            controller.add_LostFocus(
+            controller.LostFocus(
               FocusChangedEventHandler::create(Box::new(move |_, _| {
                 let _ = proxy.send_event(Message::Webview(
                   id,
@@ -2653,7 +2660,7 @@ fn create_webview(
 fn create_rpc_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
@@ -2676,7 +2683,7 @@ fn create_rpc_handler(
 fn create_file_drop_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {

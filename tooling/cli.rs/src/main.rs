@@ -57,41 +57,53 @@ macro_rules! value_or_prompt {
   }};
 }
 
+fn get_config(config: &str) -> Result<String> {
+  if config.starts_with('{') {
+    Ok(config.into())
+  } else {
+    std::fs::read_to_string(&config).map_err(Into::into)
+  }
+}
+
 fn plugin_command(matches: &ArgMatches) -> Result<()> {
-  let api = matches.is_present("api");
-  let plugin_name = matches.value_of("name").expect("name is required");
-  let directory = matches.value_of("directory");
-  let tauri_path = matches.value_of("tauri-path");
-  let tauri = matches.is_present("tauri");
-  let author = matches
-    .value_of("author")
-    .map(|p| p.to_string())
-    .unwrap_or_else(|| {
-      if tauri {
-        "Tauri Programme within The Commons Conservancy".into()
-      } else {
-        "You".into()
-      }
-    });
+  if let Some(matches) = matches.subcommand_matches("init") {
+    let api = matches.is_present("api");
+    let plugin_name = matches.value_of("name").expect("name is required");
+    let directory = matches.value_of("directory");
+    let tauri_path = matches.value_of("tauri-path");
+    let tauri = matches.is_present("tauri");
+    let author = matches
+      .value_of("author")
+      .map(|p| p.to_string())
+      .unwrap_or_else(|| {
+        if tauri {
+          "Tauri Programme within The Commons Conservancy".into()
+        } else {
+          "You".into()
+        }
+      });
 
-  let mut plugin_runner = plugin::Plugin::new()
-    .plugin_name(plugin_name.to_string())
-    .author(author);
+    let mut plugin_runner = plugin::Plugin::new()
+      .plugin_name(plugin_name.to_string())
+      .author(author);
 
-  if api {
-    plugin_runner = plugin_runner.api();
-  }
-  if tauri {
-    plugin_runner = plugin_runner.tauri();
-  }
-  if let Some(directory) = directory {
-    plugin_runner = plugin_runner.directory(directory);
-  }
-  if let Some(tauri_path) = tauri_path {
-    plugin_runner = plugin_runner.tauri_path(tauri_path);
-  }
+    if api {
+      plugin_runner = plugin_runner.api();
+    }
+    if tauri {
+      plugin_runner = plugin_runner.tauri();
+    }
+    if let Some(directory) = directory {
+      plugin_runner = plugin_runner.directory(directory);
+    }
+    if let Some(tauri_path) = tauri_path {
+      plugin_runner = plugin_runner.tauri_path(tauri_path);
+    }
 
-  plugin_runner.run()
+    plugin_runner.run()
+  } else {
+    Ok(())
+  }
 }
 
 fn init_command(matches: &ArgMatches) -> Result<()> {
@@ -195,7 +207,7 @@ fn dev_command(matches: &ArgMatches) -> Result<()> {
     dev_runner = dev_runner.target(target.to_string());
   }
   if let Some(config) = config {
-    dev_runner = dev_runner.config(config.to_string());
+    dev_runner = dev_runner.config(get_config(config)?);
   }
 
   dev_runner.run()
@@ -230,7 +242,7 @@ fn build_command(matches: &ArgMatches) -> Result<()> {
     build_runner = build_runner.bundles(bundles);
   }
   if let Some(config) = config {
-    build_runner = build_runner.config(config.to_string());
+    build_runner = build_runner.config(get_config(config)?);
   }
 
   build_runner.run()
@@ -308,11 +320,9 @@ fn main() -> Result<()> {
   let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {
-    if let Some(matches) = matches.subcommand_matches("plugin") {
-      plugin_command(matches)?;
-    } else {
-      init_command(matches)?;
-    }
+    init_command(matches)?;
+  } else if let Some(matches) = matches.subcommand_matches("plugin") {
+    plugin_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("dev") {
     dev_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {

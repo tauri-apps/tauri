@@ -925,6 +925,7 @@ unsafe impl Send for GtkWindow {}
 #[cfg(target_os = "macos")]
 #[derive(Debug, Clone)]
 pub enum ApplicationMessage {
+  Show,
   Hide,
 }
 
@@ -1565,6 +1566,14 @@ impl RuntimeHandle for WryHandle {
   }
 
   #[cfg(target_os = "macos")]
+  fn show(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Show),
+    )
+  }
+
+  #[cfg(target_os = "macos")]
   fn hide(&self) -> tauri_runtime::Result<()> {
     send_user_message(
       &self.context,
@@ -1939,6 +1948,9 @@ fn handle_user_message(
     Message::Task(task) => task(),
     #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
+      ApplicationMessage::Show => {
+        event_loop.show_application();
+      }
       ApplicationMessage::Hide => {
         event_loop.hide_application();
       }

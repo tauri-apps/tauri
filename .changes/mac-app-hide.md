@@ -4,4 +4,4 @@
 "tauri": minor
 ---
 
-Add `AppHandle::hide()` for hiding the entire application on macOS
+Add `AppHandle::show()` `AppHandle::hide()` for hiding/showing the entire application on macOS.

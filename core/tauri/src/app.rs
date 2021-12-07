@@ -289,6 +289,12 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  pub fn show(&self) -> crate::Result<()> {
+    self.runtime_handle.show().map_err(Into::into)
+  }
+
   /// Hides the application.
   #[cfg(target_os = "macos")]
   pub fn hide(&self) -> crate::Result<()> {

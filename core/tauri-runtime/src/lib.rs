@@ -262,6 +262,10 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()>;
 
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> crate::Result<()>;
+
   /// Hides the application.
   #[cfg(target_os = "macos")]
   fn hide(&self) -> crate::Result<()>;

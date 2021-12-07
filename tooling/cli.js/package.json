@@ -53,6 +53,7 @@
     "chalk": "4.1.2",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
+    "find-up": "^6.2.0",
     "fs-extra": "10.0.0",
     "glob": "7.2.0",
     "global-agent": "3.0.0",

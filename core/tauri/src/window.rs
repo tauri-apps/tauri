@@ -359,7 +359,7 @@ impl<R: Runtime> Window<R> {
       .lock()
       .unwrap()
       .entry(event)
-      .or_insert(Default::default())
+      .or_insert_with(Default::default)
       .insert(id);
   }
 

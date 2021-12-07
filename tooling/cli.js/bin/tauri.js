@@ -87,7 +87,7 @@ ${chalk.yellow('Options')}
           cwd = resolvePath(dirname(pkgJsonPath), tauriConfig.appPath)
           console.log(cwd)
           if (!existsSync(cwd)) {
-            console.error(`Configured appPath '${cwd}' does not exist.`)
+            console.error(`Configured appPath in package.json '${cwd}' does not exist.`)
             process.exit(1)
           }
         }

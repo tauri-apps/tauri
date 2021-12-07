@@ -407,6 +407,9 @@ pub fn build_wix_app_installer(
     )?;
   }
 
+  // ensure that `target/{release, debug}/wix` folder exists
+  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
+
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();

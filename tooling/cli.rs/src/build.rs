@@ -13,50 +13,40 @@ use crate::helpers::{
 };
 use crate::Result;
 use anyhow::Context;
-use clap::ArgMatches;
+use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::KebabCase;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
-pub struct BuildOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Tauri build")]
+pub struct Options {
+  /// Binary to use to build the application
+  #[clap(short, long)]
   runner: Option<String>,
+  /// Builds with the debug flag
+  #[clap(short, long)]
   debug: bool,
+  /// Enables verbose logging
+  #[clap(short, long)]
   verbose: bool,
+  /// Target triple to build against
+  #[clap(short, long)]
   target: Option<String>,
+  /// List of cargo features to activate
+  #[clap(short, long)]
   features: Option<Vec<String>>,
+  /// List of bundles to package
+  #[clap(short, long)]
   bundles: Option<Vec<String>>,
+  /// JSON string or path to JSON file to merge with tauri.conf.json
+  #[clap(short, long)]
   config: Option<String>,
 }
 
-impl From<&ArgMatches> for BuildOptions {
-  fn from(matches: &ArgMatches) -> Self {
-    let runner = matches.value_of("runner");
-    let target = matches.value_of("target");
-    let features = matches
-      .values_of("features")
-      .map(|a| a.into_iter().map(|v| v.to_string()).collect());
-
-    let debug = matches.is_present("debug");
-    let verbose = matches.is_present("verbose");
-    let bundles = matches.values_of_lossy("bundle");
-    let config = matches.value_of("config");
-
-    Self {
-      runner: runner.map(ToString::to_string),
-      debug,
-      verbose,
-      target: target.map(ToString::to_string),
-      features,
-      bundles,
-      config: config.map(ToString::to_string),
-    }
-  }
-}
-
-pub fn command(matches: &ArgMatches) -> Result<()> {
+pub fn command(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:build");
-  let options = BuildOptions::from(matches);
   let config = get_config(options.config.as_deref())?;
 
   let tauri_path = tauri_dir();

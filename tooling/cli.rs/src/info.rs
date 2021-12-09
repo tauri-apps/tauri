@@ -8,6 +8,7 @@ use crate::helpers::{
   framework::infer_from_package_json as infer_framework,
 };
 use crate::Result;
+use clap::Parser;
 use serde::Deserialize;
 
 use std::{
@@ -77,8 +78,9 @@ enum PackageManager {
   Yarn,
 }
 
-#[derive(Default)]
-pub struct Info;
+#[derive(Debug, Parser)]
+#[clap(about = "Shows information about Tauri dependencies and project configuration")]
+pub struct Options;
 
 fn crate_latest_version(name: &str) -> Option<String> {
   let url = format!("https://docs.rs/crate/{}/", name);
@@ -445,7 +447,7 @@ impl VersionBlock {
   }
 }
 
-pub fn command() -> Result<()> {
+pub fn command(_options: Options) -> Result<()> {
   let os_info = os_info::get();
   InfoBlock {
     section: true,

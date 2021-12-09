@@ -3,16 +3,29 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
-use clap::ArgMatches;
+use clap::{AppSettings, Parser, Subcommand};
 
 mod generate;
 mod sign;
 
-pub fn command(matches: &ArgMatches) -> Result<()> {
-  if let Some(matches) = matches.subcommand_matches("generate") {
-    generate::command(matches)?;
-  } else if let Some(matches) = matches.subcommand_matches("sign") {
-    sign::command(matches)?;
+#[derive(Parser)]
+#[clap(author, version, about = "Tauri updater signer")]
+#[clap(setting(AppSettings::SubcommandRequiredElseHelp))]
+pub struct Cli {
+  #[clap(subcommand)]
+  command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+  Sign(sign::Options),
+  Generate(generate::Options),
+}
+
+pub fn command(cli: Cli) -> Result<()> {
+  match cli.command {
+    Commands::Sign(options) => sign::command(options)?,
+    Commands::Generate(options) => generate::command(options)?,
   }
   Ok(())
 }

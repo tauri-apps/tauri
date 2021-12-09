@@ -20,7 +20,7 @@ use std::{
 
 use crate::Result;
 use anyhow::Context;
-use clap::ArgMatches;
+use clap::Parser;
 use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
@@ -28,13 +28,36 @@ use serde::Deserialize;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 
-pub struct InitOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Initializes a Tauri project")]
+pub struct Options {
+  /// Skip prompting for values
+  #[clap(long)]
+  ci: bool,
+  /// Force init to overwrite the src-tauri folder
+  #[clap(short, long)]
   force: bool,
-  directory: PathBuf,
+  /// Enables logging
+  #[clap(short, long)]
+  log: bool,
+  /// Set target directory for init
+  #[clap(short, long)]
+  #[clap(default_value_t = current_dir().expect("failed to read cwd").display().to_string())]
+  directory: String,
+  /// Path of the Tauri project to use (relative to the cwd)
+  #[clap(short, long)]
   tauri_path: Option<PathBuf>,
+  /// Name of your Tauri application
+  #[clap(short = 'A', long)]
   app_name: Option<String>,
+  /// Window title of your Tauri application
+  #[clap(short = 'W', long)]
   window_title: Option<String>,
+  /// Web assets location, relative to <project-dir>/src-tauri
+  #[clap(short = 'D', long)]
   dist_dir: Option<String>,
+  /// Url of your dev server
+  #[clap(short = 'P', long)]
   dev_path: Option<String>,
 }
 
@@ -50,23 +73,10 @@ struct InitDefaults {
   framework: Option<Framework>,
 }
 
-impl TryFrom<&ArgMatches> for InitOptions {
-  type Error = anyhow::Error;
-  fn try_from(matches: &ArgMatches) -> Result<Self> {
-    let force = matches.is_present("force");
-    let directory = matches.value_of("directory");
-    let tauri_path = matches.value_of("tauri-path");
-    let app_name = matches.value_of("app-name");
-    let window_title = matches.value_of("window-title");
-    let dist_dir = matches.value_of("dist-dir");
-    let dev_path = matches.value_of("dev-path");
-    let ci = matches.is_present("ci") || std::env::var("CI").is_ok();
-
-    let base_directory = directory
-      .map(PathBuf::from)
-      .unwrap_or(current_dir().expect("failed to read cwd"));
-
-    let package_json_path = base_directory.join("package.json");
+impl Options {
+  fn load(mut self) -> Result<Self> {
+    self.ci = self.ci || std::env::var("CI").is_ok();
+    let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
       let package_json_text = read_to_string(package_json_path)?;
@@ -80,43 +90,40 @@ impl TryFrom<&ArgMatches> for InitOptions {
       Default::default()
     };
 
-    Ok(Self {
-            force,
-            directory: base_directory,
-            tauri_path: tauri_path.map(PathBuf::from),
-            app_name: app_name.map(ToString::to_string)
-                .or(Some(request_input(
-                    "What is your app name?",
-                    init_defaults.app_name.clone(),
-                    ci)?)
-                ),
-            window_title: window_title.map(ToString::to_string)
-                .or(Some(request_input(
-                    "What should the window title be?",
-                    init_defaults.app_name.clone(),
-                    ci)?)
-                ),
-            dist_dir: dist_dir.map(ToString::to_string)
+    self.app_name = self.app_name.or(Some(request_input(
+      "What is your app name?",
+      init_defaults.app_name.clone(),
+      self.ci,
+    )?));
+
+    self.window_title = self.window_title.or(Some(request_input(
+      "What should the window title be?",
+      init_defaults.app_name.clone(),
+      self.ci,
+    )?));
+
+    self.dist_dir = self.dist_dir
                 .or(Some(request_input(
                     r#"Whe re are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
                     init_defaults.framework.as_ref().map(|f| f.dist_dir()),
-                    ci)?)
-                ),
-            dev_path: dev_path.map(ToString::to_string)
-                .or(Some(request_input(
-                    "What is the url of your dev server?",
-                    init_defaults.framework.map(|f| f.dev_path()),
-                    ci)?)
-                ),
-        })
+                    self.ci)?)
+                );
+
+    self.dev_path = self.dev_path.or(Some(request_input(
+      "What is the url of your dev server?",
+      init_defaults.framework.map(|f| f.dev_path()),
+      self.ci,
+    )?));
+
+    Ok(self)
   }
 }
 
-pub fn command(matches: &ArgMatches) -> Result<()> {
+pub fn command(mut options: Options) -> Result<()> {
+  options = options.load()?;
   let logger = Logger::new("tauri:init");
-  let options = InitOptions::try_from(matches)?;
 
-  let template_target_path = options.directory.join("src-tauri");
+  let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
 
   if template_target_path.exists() && !options.force {

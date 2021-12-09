@@ -9,40 +9,31 @@ use crate::{
   Result,
 };
 use anyhow::Context;
-use clap::ArgMatches;
+use clap::Parser;
 
-pub struct SignOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Sign a file")]
+pub struct Options {
+  /// Load the private key from a file
+  #[clap(short = 'k', long, conflicts_with("private_key_path"))]
   private_key: Option<String>,
+  /// Load the private key from a string
+  #[clap(short = 'f', long, conflicts_with("private_key"))]
+  private_key_path: Option<PathBuf>,
+  /// Set private key password when signing
+  #[clap(short, long)]
   password: Option<String>,
+  /// Sign the specified file
+  #[clap(short, long)]
   file: Option<PathBuf>,
 }
 
-impl From<&ArgMatches> for SignOptions {
-  fn from(matches: &ArgMatches) -> Self {
-    let private_key = matches.value_of("private-key");
-    let private_key_path = matches.value_of("private-key-path");
-    let file = matches.value_of("sign-file");
-    let password = matches.value_of("password");
-    let no_password = matches.is_present("no-password");
-
-    Self {
-      password: if no_password {
-        Some("".to_owned())
-      } else {
-        password.map(ToString::to_string)
-      },
-      private_key: if let Some(private_key) = private_key_path {
-        Some(read_key_from_file(Path::new(private_key)).expect("Unable to extract private key"))
-      } else {
-        private_key.map(ToString::to_string)
-      },
-      file: file.map(Into::into),
-    }
-  }
-}
-
-pub fn command(matches: &ArgMatches) -> Result<()> {
-  let options = SignOptions::from(matches);
+pub fn command(mut options: Options) -> Result<()> {
+  options.private_key = if let Some(private_key) = options.private_key_path {
+    Some(read_key_from_file(Path::new(&private_key)).expect("Unable to extract private key"))
+  } else {
+    options.private_key
+  };
   if options.private_key.is_none() {
     return Err(anyhow::anyhow!(
       "Key generation aborted: Unable to find the private key".to_string(),
@@ -50,9 +41,7 @@ pub fn command(matches: &ArgMatches) -> Result<()> {
   }
 
   if options.password.is_none() {
-    return Err(anyhow::anyhow!(
-              "Please use --no-password to set empty password or add --password <password> if your private key have a password.".to_string(),
-            ));
+    println!("Signing without password.");
   }
 
   let (manifest_dir, signature) = sign_file(

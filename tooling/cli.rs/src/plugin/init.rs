@@ -8,7 +8,7 @@ use crate::{
   VersionMetadata,
 };
 use anyhow::Context;
-use clap::ArgMatches;
+use clap::{ArgSettings, Parser};
 use handlebars::{to_json, Handlebars};
 use heck::{KebabCase, SnakeCase};
 use include_dir::{include_dir, Dir};
@@ -17,50 +17,47 @@ use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::Pat
 const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
 const API_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/with-api");
 
-pub struct InitOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Initializes a Tauri plugin project")]
+pub struct Options {
+  /// Name of your Tauri plugin
+  #[clap(short = 'n', long = "name")]
   plugin_name: String,
+  /// Initializes a Tauri plugin with TypeScript API
+  #[clap(short, long)]
   api: bool,
+  /// Initializes a Tauri core plugin (internal usage)
+  #[clap(short, long, hide(true))]
+  #[clap(setting(ArgSettings::Hidden))]
   tauri: bool,
-  directory: PathBuf,
+  /// Set target directory for init
+  #[clap(short, long)]
+  #[clap(default_value_t = current_dir().expect("failed to read cwd").display().to_string())]
+  directory: String,
+  /// Path of the Tauri project to use (relative to the cwd)
+  #[clap(short, long)]
   tauri_path: Option<PathBuf>,
-  author: String,
+  /// Author name
+  #[clap(short, long)]
+  author: Option<String>,
 }
 
-impl From<&ArgMatches> for InitOptions {
-  fn from(matches: &ArgMatches) -> Self {
-    let api = matches.is_present("api");
-    let plugin_name = matches.value_of("name").expect("name is required");
-    let directory = matches.value_of("directory");
-    let tauri_path = matches.value_of("tauri-path");
-    let tauri = matches.is_present("tauri");
-    let author = matches
-      .value_of("author")
-      .map(|p| p.to_string())
-      .unwrap_or_else(|| {
-        if tauri {
-          "Tauri Programme within The Commons Conservancy".into()
-        } else {
-          "You".into()
-        }
+impl Options {
+  fn load(&mut self) {
+    if self.author.is_none() {
+      self.author.replace(if self.tauri {
+        "Tauri Programme within The Commons Conservancy".into()
+      } else {
+        "You".into()
       });
-
-    Self {
-      plugin_name: plugin_name.to_string(),
-      author,
-      api,
-      tauri,
-      directory: directory
-        .map(Into::into)
-        .unwrap_or(current_dir().expect("failed to read cwd")),
-      tauri_path: tauri_path.map(Into::into),
     }
   }
 }
 
-pub fn command(matches: &ArgMatches) -> Result<()> {
+pub fn command(mut options: Options) -> Result<()> {
+  options.load();
   let logger = Logger::new("tauri:init:plugin");
-  let options = InitOptions::from(matches);
-  let template_target_path = options.directory.join(&format!(
+  let template_target_path = PathBuf::from(options.directory).join(&format!(
     "tauri-plugin-{}",
     options.plugin_name.to_kebab_case()
   ));

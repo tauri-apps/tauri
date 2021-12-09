@@ -12,7 +12,7 @@ use crate::{
   },
   Result,
 };
-use clap::ArgMatches;
+use clap::{AppSettings, Parser};
 
 use anyhow::Context;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -32,46 +32,34 @@ use std::{
 
 static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
 
-pub struct DevOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Tauri dev")]
+#[clap(setting(AppSettings::TrailingVarArg))]
+pub struct Options {
+  /// Binary to use to run the application
+  #[clap(short, long)]
   runner: Option<String>,
+  /// Target triple to build against
+  #[clap(short, long)]
   target: Option<String>,
+  /// List of cargo features to activate
+  #[clap(short, long)]
   features: Option<Vec<String>>,
+  /// Exit on panic
+  #[clap(short, long)]
   exit_on_panic: bool,
+  /// JSON string or path to JSON file to merge with tauri.conf.json
+  #[clap(short, long)]
   config: Option<String>,
-  args: Vec<String>,
+  /// Run the code in release mode
+  #[clap(short, long)]
   release_mode: bool,
+  /// Args passed to the binary
+  args: Vec<String>,
 }
 
-impl From<&ArgMatches> for DevOptions {
-  fn from(matches: &ArgMatches) -> Self {
-    let runner = matches.value_of("runner");
-    let target = matches.value_of("target");
-    let features = matches
-      .values_of("features")
-      .map(|a| a.into_iter().map(|v| v.to_string()).collect());
-    let exit_on_panic = matches.is_present("exit-on-panic");
-    let config = matches.value_of("config");
-    let args: Vec<String> = matches
-      .values_of("args")
-      .map(|a| a.into_iter().map(|v| v.to_string()).collect())
-      .unwrap_or_default();
-    let release_mode = matches.is_present("release");
-
-    Self {
-      exit_on_panic,
-      args,
-      features,
-      release_mode,
-      runner: runner.map(ToString::to_string),
-      target: target.map(ToString::to_string),
-      config: config.map(ToString::to_string),
-    }
-  }
-}
-
-pub fn command(matches: &ArgMatches) -> Result<()> {
+pub fn command(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
-  let options = DevOptions::from(matches);
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
@@ -241,7 +229,7 @@ fn kill_before_dev_process() {
 }
 
 fn start_app(
-  options: &DevOptions,
+  options: &Options,
   runner: &str,
   features: &[String],
   child_wait_rx: Arc<Mutex<Receiver<()>>>,

@@ -6,39 +6,30 @@ use crate::{
   helpers::updater_signature::{generate_key, save_keypair},
   Result,
 };
-use clap::ArgMatches;
+use clap::Parser;
 use std::path::PathBuf;
 
-pub struct GenerateOptions {
+#[derive(Debug, Parser)]
+#[clap(about = "Generate keypair to sign files")]
+pub struct Options {
+  /// Set private key password when signing
+  #[clap(short, long)]
   password: Option<String>,
-  output_path: Option<PathBuf>,
+  /// Write private key to a file
+  #[clap(short, long)]
+  write_keys: Option<PathBuf>,
+  /// Overwrite private key even if it exists on the specified path
+  #[clap(short, long)]
   force: bool,
 }
 
-impl From<&ArgMatches> for GenerateOptions {
-  fn from(matches: &ArgMatches) -> Self {
-    let password = matches.value_of("password");
-    let no_password = matches.is_present("no-password");
-    let write_keys = matches.value_of("write-keys");
-    let force = matches.is_present("force");
-
-    Self {
-      password: if no_password {
-        Some("".to_owned())
-      } else {
-        password.map(ToString::to_string)
-      },
-      output_path: write_keys.map(Into::into),
-      force,
-    }
+pub fn command(options: Options) -> Result<()> {
+  if options.password.is_none() {
+    println!("Generating new private key without password.")
   }
-}
-
-pub fn command(matches: &ArgMatches) -> Result<()> {
-  let options = GenerateOptions::from(matches);
   let keypair = generate_key(options.password).expect("Failed to generate key");
 
-  if let Some(output_path) = options.output_path {
+  if let Some(output_path) = options.write_keys {
     let (secret_path, public_path) =
       save_keypair(options.force, output_path, &keypair.sk, &keypair.pk)
         .expect("Unable to write keypair");

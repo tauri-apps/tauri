@@ -119,7 +119,7 @@ impl EmbeddedAssets {
     Ok(Self(
       paths
         .iter()
-        .map(|path| {
+        .flat_map(|path| {
           let is_file = path.is_file();
           WalkDir::new(&path)
             .follow_links(true)
@@ -149,7 +149,6 @@ impl EmbeddedAssets {
             })
             .collect::<Result<Vec<Asset>, _>>()
         })
-        .flatten()
         .flatten()
         .collect::<_>(),
     ))

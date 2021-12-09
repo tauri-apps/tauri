@@ -9,6 +9,7 @@
 
 fn main() {
   use std::{
+    cmp::min,
     io::{Read, Seek, SeekFrom},
     path::PathBuf,
     process::{Command, Stdio},
@@ -74,7 +75,7 @@ fn main() {
           if range.length > file_size / 3 {
             // max size sent (400ko / request)
             // as it's local file system we can afford to read more often
-            real_length = 1024 * 400;
+            real_length = min(file_size - range.start, 1024 * 400);
           }
 
           // last byte we are reading, the length of the range include the last byte

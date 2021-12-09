@@ -100,6 +100,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #root::PackageInfo {
       name: #package_name,
       version: #package_version,
+      authors: env!("CARGO_PKG_AUTHORS"),
+      description: env!("CARGO_PKG_DESCRIPTION"),
     }
   );
 

@@ -1183,6 +1183,12 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   *
+   * Disabling it is required to use drag and drop on the frontend on Windows.
+   */
+  fileDropEnabled?: boolean
 }
 
 /**

@@ -431,7 +431,7 @@ pub fn build_wix_app_installer(
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
  "#,
-          license_contents.replace("\n", "\\par ")
+          license_contents.replace('\n', "\\par ")
         );
         let rtf_output_path = settings
           .project_out_directory()

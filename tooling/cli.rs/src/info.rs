@@ -276,7 +276,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
   let version = if output.status.success() {
-    Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+    Some(String::from_utf8_lossy(&output.stdout).replace('\n', ""))
   } else {
     // check 32bit installation
     let output = Command::new("powershell")
@@ -284,7 +284,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
     if output.status.success() {
-      Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
+      Some(String::from_utf8_lossy(&output.stdout).replace('\n', ""))
     } else {
       None
     }
@@ -348,8 +348,8 @@ fn get_active_rust_toolchain() -> crate::Result<Option<String>> {
   let toolchain = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace("\n", "")
-        .replace("\r", ""),
+        .replace('\n', "")
+        .replace('\r', ""),
     )
   } else {
     None

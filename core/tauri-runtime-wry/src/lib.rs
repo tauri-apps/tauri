@@ -378,6 +378,7 @@ impl From<NativeImage> for NativeImageWrapper {
 #[derive(Debug, Clone)]
 pub struct GlobalShortcutWrapper(GlobalShortcut);
 
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GlobalShortcutWrapper {}
 
 /// Wrapper around [`WryShortcutManager`].
@@ -698,6 +699,7 @@ pub struct WindowBuilderWrapper {
 }
 
 // safe since `menu_items` are read only here
+#[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for WindowBuilderWrapper {}
 
 impl WindowBuilderBase for WindowBuilderWrapper {}
@@ -2474,8 +2476,8 @@ fn on_window_close<'a>(
 fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
-    let x = (screen_size.width - window_size.width) / 2;
-    let y = (screen_size.height - window_size.height) / 2;
+    let x = (screen_size.width as i32 - window_size.width as i32) / 2;
+    let y = (screen_size.height as i32 - window_size.height as i32) / 2;
     window.set_outer_position(WryPhysicalPosition::new(x, y));
     Ok(())
   } else {
@@ -2634,7 +2636,7 @@ fn create_webview(
 fn create_rpc_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
@@ -2657,7 +2659,7 @@ fn create_rpc_handler(
 fn create_file_drop_handler(
   context: Context,
   label: String,
-  menu_ids: HashMap<MenuHash, MenuId>,
+  menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {

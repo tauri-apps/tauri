@@ -73,8 +73,8 @@ impl FromStr for AppCategory {
         .1
         .to_string();
     }
-    input = input.replace(" ", "");
-    input = input.replace("-", "");
+    input = input.replace(' ', "");
+    input = input.replace('-', "");
 
     // Find best match:
     let mut best_confidence = 0.0;

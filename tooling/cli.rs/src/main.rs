@@ -39,7 +39,7 @@ fn main() -> Result<()> {
   } else if let Some(matches) = matches.subcommand_matches("build") {
     build::command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("signer") {
-    sign::command(matches)?;
+    signer::command(matches)?;
   } else if let Some(_) = matches.subcommand_matches("info") {
     info::command()?;
   } else if let Some(matches) = matches.subcommand_matches("init") {

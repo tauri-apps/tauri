@@ -312,7 +312,7 @@ impl Command {
   /// Stdin, stdout and stderr are ignored.
   pub fn status(self) -> crate::api::Result<ExitStatus> {
     let (mut rx, _child) = self.spawn()?;
-    let code = crate::async_runtime::block_on(async move {
+    let code = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       #[allow(clippy::collapsible_match)]
       while let Some(event) = rx.recv().await {
@@ -330,7 +330,7 @@ impl Command {
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
-    let output = crate::async_runtime::block_on(async move {
+    let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       let mut stdout = String::new();
       let mut stderr = String::new();

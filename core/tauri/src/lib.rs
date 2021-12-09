@@ -38,7 +38,7 @@ mod hooks;
 mod manager;
 pub mod plugin;
 pub mod window;
-use tauri_runtime as runtime;
+pub use tauri_runtime as runtime;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
@@ -155,7 +155,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
-  pub(crate) package_info: crate::PackageInfo,
+  pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
 }
 
@@ -221,13 +221,13 @@ impl<A: Assets> Context<A> {
 
   /// Package information.
   #[inline(always)]
-  pub fn package_info(&self) -> &crate::PackageInfo {
+  pub fn package_info(&self) -> &PackageInfo {
     &self.package_info
   }
 
   /// A mutable reference to the package information.
   #[inline(always)]
-  pub fn package_info_mut(&mut self) -> &mut crate::PackageInfo {
+  pub fn package_info_mut(&mut self) -> &mut PackageInfo {
     &mut self.package_info
   }
 
@@ -238,7 +238,7 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
-    package_info: crate::PackageInfo,
+    package_info: PackageInfo,
     info_plist: (),
   ) -> Self {
     Self {

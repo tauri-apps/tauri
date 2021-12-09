@@ -14,6 +14,8 @@ use crate::helpers::{
 use crate::Result;
 use anyhow::Context;
 use clap::ArgMatches;
+#[cfg(target_os = "linux")]
+use heck::KebabCase;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 

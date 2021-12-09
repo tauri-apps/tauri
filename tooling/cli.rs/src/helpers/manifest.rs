@@ -110,7 +110,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
         let mut def = InlineTable::default();
         def.get_or_insert(
           "version",
-          version.to_string().replace("\"", "").replace(" ", ""),
+          version.to_string().replace('\"', "").replace(' ', ""),
         );
         def.get_or_insert("features", Value::Array(toml_array(&features)));
         *tauri = Value::InlineTable(def);

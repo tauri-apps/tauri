@@ -77,7 +77,6 @@ pub fn command(matches: &ArgMatches) -> Result<()> {
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
   let merge_config = options.config.clone();
   let config = get_config(merge_config.as_deref())?;
-  let mut process: Arc<SharedChild>;
 
   let (settings, out_dir) = {
     let config_guard = config.lock().unwrap();
@@ -173,7 +172,7 @@ pub fn command(matches: &ArgMatches) -> Result<()> {
   let (child_wait_tx, child_wait_rx) = channel();
   let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-  process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone());
+  let mut process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone());
 
   let (tx, rx) = channel();
 

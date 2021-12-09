@@ -330,6 +330,8 @@ fn run_light(
   let mut args: Vec<String> = vec![
     "-ext".to_string(),
     "WixUIExtension".to_string(),
+    "-ext".to_string(),
+    "WixUtilExtension".to_string(),
     "-o".to_string(),
     output_path.display().to_string(),
   ];
@@ -406,6 +408,9 @@ pub fn build_wix_app_installer(
       },
     )?;
   }
+
+  // ensure that `target/{release, debug}/wix` folder exists
+  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 

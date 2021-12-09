@@ -47,7 +47,7 @@ attohttpc = "0.18"
 uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"
-sha2 = "0.9"
+sha2 = "0.10"
 hex = "0.4"
 
 [target."cfg(target_os = \"macos\")".dependencies]

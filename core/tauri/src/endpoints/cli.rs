@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::utils::config::CliConfig;
+use crate::{utils::config::CliConfig, PackageInfo};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -16,12 +16,16 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run(self, cli_config: &CliConfig) -> crate::Result<InvokeResponse> {
+  pub fn run(
+    self,
+    cli_config: &CliConfig,
+    package_info: &PackageInfo,
+  ) -> crate::Result<InvokeResponse> {
     match self {
       #[allow(unused_variables)]
       Self::CliMatches => {
         #[cfg(cli)]
-        return crate::api::cli::get_matches(cli_config)
+        return crate::api::cli::get_matches(cli_config, package_info)
           .map_err(Into::into)
           .map(Into::into);
         #[cfg(not(cli))]

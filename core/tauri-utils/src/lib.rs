@@ -17,6 +17,10 @@ pub struct PackageInfo {
   pub name: String,
   /// App version
   pub version: String,
+  /// The crate authors.
+  pub authors: &'static str,
+  /// The crate description.
+  pub description: &'static str,
 }
 
 impl PackageInfo {

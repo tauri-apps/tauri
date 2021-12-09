@@ -303,6 +303,17 @@ impl<R: Runtime> WindowManager<R> {
       registered_scheme_protocols.push("tauri".into());
     }
     if !registered_scheme_protocols.contains(&"asset".into()) {
+      let window_url = Url::parse(&pending.url).unwrap();
+      let window_origin = format!(
+        "{}://{}{}",
+        window_url.scheme(),
+        window_url.host().unwrap(),
+        if let Some(port) = window_url.port() {
+          format!(":{}", port)
+        } else {
+          "".into()
+        }
+      );
       pending.register_uri_scheme_protocol("asset", move |request| {
         #[cfg(target_os = "windows")]
         let path = request.uri().replace("asset://localhost/", "");
@@ -313,12 +324,15 @@ impl<R: Runtime> WindowManager<R> {
           .to_string();
         let path_for_data = path.clone();
 
+        let mut response =
+          HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
+
         // handle 206 (partial range) http request
-        if let Some(range) = request.headers().get("range") {
+        if let Some(range) = request.headers().get("range").cloned() {
           let mut status_code = 200;
           let path_for_data = path_for_data.clone();
-          let mut response = HttpResponseBuilder::new();
-          let (response, status_code, data) = crate::async_runtime::block_on(async move {
+          let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
+            let mut headers = HashMap::new();
             let mut buf = Vec::new();
             let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
             // Get the file size
@@ -345,21 +359,24 @@ impl<R: Runtime> WindowManager<R> {
               // partial content
               status_code = 206;
 
-              response = response
-                .header("Connection", "Keep-Alive")
-                .header("Accept-Ranges", "bytes")
-                .header("Content-Length", real_length)
-                .header(
-                  "Content-Range",
-                  format!("bytes {}-{}/{}", range.start, last_byte, file_size),
-                );
+              headers.insert("Connection", "Keep-Alive".into());
+              headers.insert("Accept-Ranges", "bytes".into());
+              headers.insert("Content-Length", real_length.to_string());
+              headers.insert(
+                "Content-Range",
+                format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+              );
 
               file.seek(SeekFrom::Start(range.start)).await.unwrap();
               file.take(real_length).read_to_end(&mut buf).await.unwrap();
             }
 
-            (response, status_code, buf)
+            (headers, status_code, buf)
           });
+
+          for (k, v) in headers {
+            response = response.header(k, v);
+          }
 
           if !data.is_empty() {
             let mime_type = MimeType::parse(&data, &path);
@@ -367,10 +384,14 @@ impl<R: Runtime> WindowManager<R> {
           }
         }
 
-        let data =
-          crate::async_runtime::block_on(async move { tokio::fs::read(path_for_data).await })?;
-        let mime_type = MimeType::parse(&data, &path);
-        HttpResponseBuilder::new().mimetype(&mime_type).body(data)
+        if let Ok(data) =
+          crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_for_data).await })
+        {
+          let mime_type = MimeType::parse(&data, &path);
+          response.mimetype(&mime_type).body(data)
+        } else {
+          response.status(404).body(Vec::new())
+        }
       });
     }
 
@@ -488,19 +509,13 @@ impl<R: Runtime> WindowManager<R> {
   fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
     let manager = self.clone();
     Box::new(move |event, window| {
-      let manager = manager.clone();
-      let app_handle = app_handle.clone();
-      crate::async_runtime::block_on(async move {
-        let window = Window::new(manager.clone(), window, app_handle);
-        let _ = match event {
-          FileDropEvent::Hovered(paths) => {
-            window.emit_and_trigger("tauri://file-drop-hover", paths)
-          }
-          FileDropEvent::Dropped(paths) => window.emit_and_trigger("tauri://file-drop", paths),
-          FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
-          _ => unimplemented!(),
-        };
-      });
+      let window = Window::new(manager.clone(), window, app_handle.clone());
+      let _ = match event {
+        FileDropEvent::Hovered(paths) => window.emit_and_trigger("tauri://file-drop-hover", paths),
+        FileDropEvent::Dropped(paths) => window.emit_and_trigger("tauri://file-drop", paths),
+        FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
+        _ => unimplemented!(),
+      };
       true
     })
   }
@@ -636,6 +651,8 @@ impl<R: Runtime> WindowManager<R> {
       _ => unimplemented!(),
     };
 
+    pending.url = url;
+
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(pending, &label, pending_labels, app_handle.clone())?;
@@ -645,8 +662,6 @@ impl<R: Runtime> WindowManager<R> {
     if pending.webview_attributes.file_drop_handler_enabled {
       pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
     }
-
-    pending.url = url;
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

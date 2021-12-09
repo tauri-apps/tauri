@@ -815,7 +815,13 @@ fn on_window_event<R: Runtime>(
   match event {
     WindowEvent::Resized(size) => window.emit_and_trigger(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit_and_trigger(WINDOW_MOVED_EVENT, position)?,
-    WindowEvent::CloseRequested => {
+    WindowEvent::CloseRequested {
+      label: _,
+      signal_tx,
+    } => {
+      if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
+        signal_tx.send(true).unwrap();
+      }
       window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {

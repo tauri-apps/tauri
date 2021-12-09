@@ -88,7 +88,7 @@ pub use wry::application::platform::macos::{
 use std::{
   collections::{
     hash_map::Entry::{Occupied, Vacant},
-    HashMap,
+    HashMap, HashSet,
   },
   fmt,
   fs::read,
@@ -555,7 +555,6 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
       WryWindowEvent::Moved(position) => {
         WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
       }
-      WryWindowEvent::CloseRequested => WindowEvent::CloseRequested,
       WryWindowEvent::Destroyed => WindowEvent::Destroyed,
       WryWindowEvent::ScaleFactorChanged {
         scale_factor,
@@ -1213,6 +1212,7 @@ impl Dispatch for WryDispatcher {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
+    let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.context.clone();
 
     send_user_message(
@@ -1234,6 +1234,7 @@ impl Dispatch for WryDispatcher {
       label,
       dispatcher,
       menu_ids,
+      js_event_listeners,
     })
   }
 
@@ -1521,6 +1522,7 @@ impl RuntimeHandle for WryHandle {
     let (tx, rx) = channel();
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
+    let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.context.clone();
     send_user_message(
       &self.context,
@@ -1541,6 +1543,7 @@ impl RuntimeHandle for WryHandle {
       label,
       dispatcher,
       menu_ids,
+      js_event_listeners,
     })
   }
 
@@ -1649,6 +1652,7 @@ impl Runtime for Wry {
   fn create_window(&self, pending: PendingWindow<Self>) -> Result<DetachedWindow<Self>> {
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
+    let js_event_listeners = pending.js_event_listeners.clone();
     let proxy = self.event_loop.create_proxy();
     let webview = create_webview(
       &self.event_loop,
@@ -1738,6 +1742,7 @@ impl Runtime for Wry {
       label,
       dispatcher,
       menu_ids,
+      js_event_listeners,
     })
   }
 
@@ -2356,6 +2361,20 @@ fn handle_event_loop(
           if let Some(w) = windows_guard.get(&window_id) {
             let label = w.label.clone();
             drop(windows_guard);
+            for handler in window_event_listeners
+              .lock()
+              .unwrap()
+              .get(&window_id)
+              .unwrap()
+              .lock()
+              .unwrap()
+              .values()
+            {
+              handler(&WindowEvent::CloseRequested {
+                label: label.clone(),
+                signal_tx: tx.clone(),
+              });
+            }
             callback(RunEvent::CloseRequested {
               label,
               signal_tx: tx,
@@ -2534,6 +2553,7 @@ fn create_webview(
     label,
     url,
     menu_ids,
+    js_event_listeners,
     ..
   } = pending;
 
@@ -2573,6 +2593,7 @@ fn create_webview(
       context.clone(),
       label.clone(),
       menu_ids.clone(),
+      js_event_listeners.clone(),
       handler,
     ));
   }
@@ -2581,6 +2602,7 @@ fn create_webview(
       context,
       label.clone(),
       menu_ids,
+      js_event_listeners,
       handler,
     ));
   }
@@ -2637,6 +2659,7 @@ fn create_rpc_handler(
   context: Context,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+  js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
   handler: WebviewRpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
   Box::new(move |window, request| {
@@ -2648,6 +2671,7 @@ fn create_rpc_handler(
         },
         label: label.clone(),
         menu_ids: menu_ids.clone(),
+        js_event_listeners: js_event_listeners.clone(),
       },
       RpcRequestWrapper(request).into(),
     );
@@ -2660,6 +2684,7 @@ fn create_file_drop_handler(
   context: Context,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+  js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {
@@ -2672,6 +2697,7 @@ fn create_file_drop_handler(
         },
         label: label.clone(),
         menu_ids: menu_ids.clone(),
+        js_event_listeners: js_event_listeners.clone(),
       },
     )
   })

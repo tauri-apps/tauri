@@ -91,15 +91,15 @@
     });
   }
 
-  function addWindowEventListeners(window) {
+  async function addWindowEventListeners(window) {
     if (resizeEventUnlisten) {
       resizeEventUnlisten();
     }
     if(moveEventUnlisten) {
       moveEventUnlisten();
     }
-    moveEventUnlisten = window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = window.listen('tauri://resize', handleWindowResize);
+    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove);
+    resizeEventUnlisten = await window.listen('tauri://resize', handleWindowResize);
   }
 
   async function requestUserAttention_() {

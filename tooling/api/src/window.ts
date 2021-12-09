@@ -50,9 +50,7 @@
  *
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
- *
- * #### 'tauri://destroyed'
- * Emitted after the window is closed.
+ * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.

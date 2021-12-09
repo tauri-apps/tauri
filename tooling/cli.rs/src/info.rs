@@ -133,7 +133,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("show").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -153,7 +153,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("info").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -257,8 +257,8 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
   let version = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace("\n", "")
-        .replace("\r", ""),
+        .replace('\n', "")
+        .replace('\r', ""),
     )
   } else {
     None

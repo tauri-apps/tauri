@@ -203,7 +203,10 @@ class Client {
           // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
-          if (response.ok) {
+          if (response.ok && (response.data as unknown as string) === '') {
+            // @ts-expect-error
+            response.data = {}
+          } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
               try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`
@@ -322,7 +325,7 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then((id) => new Client(id))
 }
 
-/** @ignore */
+/** @internal */
 let defaultClient: Client | null = null
 
 /**

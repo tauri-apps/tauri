@@ -80,6 +80,8 @@ pub enum BaseDirectory {
 ///   &PackageInfo {
 ///     name: "app".into(),
 ///     version: "1.0.0".into(),
+///     authors: "tauri",
+///     description: "a tauri test",
 ///   },
 ///   "path/to/something",
 ///   Some(BaseDirectory::Config)

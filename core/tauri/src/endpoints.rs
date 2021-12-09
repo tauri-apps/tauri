@@ -120,7 +120,7 @@ impl Module {
         if let Some(cli_config) = config.tauri.cli.clone() {
           resolver.respond_async(async move {
             cmd
-              .run(&cli_config)
+              .run(&cli_config, &package_info)
               .and_then(|r| r.json)
               .map_err(InvokeError::from)
           })

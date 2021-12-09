@@ -133,7 +133,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("show").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -153,7 +153,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("info").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -257,8 +257,8 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
   let version = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace("\n", "")
-        .replace("\r", ""),
+        .replace('\n', "")
+        .replace('\r', ""),
     )
   } else {
     None
@@ -326,6 +326,32 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
     None
   };
   Ok(versions)
+}
+
+fn get_active_rust_toolchain() -> crate::Result<Option<String>> {
+  let mut cmd;
+  #[cfg(target_os = "windows")]
+  {
+    cmd = Command::new("cmd");
+    cmd.arg("/c").arg("rustup");
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    cmd = Command::new("rustup")
+  }
+
+  let output = cmd.args(["show", "active-toolchain"]).output()?;
+  let toolchain = if output.status.success() {
+    Some(
+      String::from_utf8_lossy(&output.stdout)
+        .replace("\n", "")
+        .replace("\r", ""),
+    )
+  } else {
+    None
+  };
+  Ok(toolchain)
 }
 
 struct InfoBlock {
@@ -514,6 +540,15 @@ impl Info {
 
     InfoBlock::new("Rust environment").section().display();
     VersionBlock::new(
+      "  rustup",
+      get_version("rustup", &[]).unwrap_or_default().map(|v| {
+        let mut s = v.split(' ');
+        s.next();
+        s.next().unwrap().to_string()
+      }),
+    )
+    .display();
+    VersionBlock::new(
       "  rustc",
       get_version("rustc", &[]).unwrap_or_default().map(|v| {
         let mut s = v.split(' ');
@@ -529,6 +564,11 @@ impl Info {
         s.next();
         s.next().unwrap().to_string()
       }),
+    )
+    .display();
+    VersionBlock::new(
+      "  toolchain",
+      get_active_rust_toolchain().unwrap_or_default(),
     )
     .display();
 

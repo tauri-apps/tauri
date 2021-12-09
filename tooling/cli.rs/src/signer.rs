@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::Result;
 use clap::{AppSettings, Parser, Subcommand};
 
-use crate::Result;
-
-mod init;
+mod generate;
+mod sign;
 
 #[derive(Parser)]
-#[clap(author, version, about = "Manage Tauri plugins")]
+#[clap(author, version, about = "Tauri updater signer")]
 #[clap(setting(AppSettings::SubcommandRequiredElseHelp))]
 pub struct Cli {
   #[clap(subcommand)]
@@ -18,13 +18,14 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Init(init::Options),
+  Sign(sign::Options),
+  Generate(generate::Options),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Init(options) => init::command(options)?,
+    Commands::Sign(options) => sign::command(options)?,
+    Commands::Generate(options) => generate::command(options)?,
   }
-
   Ok(())
 }

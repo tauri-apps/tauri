@@ -56,7 +56,7 @@ pub fn command(options: Options) -> Result<()> {
   } else {
     None
   };
-  let config = get_config(merge_config)?;
+  let config = get_config(merge_config.as_deref())?;
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;

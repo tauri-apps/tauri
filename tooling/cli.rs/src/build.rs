@@ -75,7 +75,7 @@ pub fn command(options: Options) -> Result<()> {
           .arg("/C")
           .arg(before_build)
           .current_dir(app_dir())
-          .envs(command_env(self.debug)),
+          .envs(command_env(options.debug)),
       )
       .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
@@ -175,7 +175,7 @@ pub fn command(options: Options) -> Result<()> {
     // move merge modules to the out dir so the bundler can load it
     #[cfg(windows)]
     {
-      let arch = if let Some(t) = &self.target {
+      let arch = if let Some(t) = &options.target {
         if t.starts_with("x86_64") {
           "x86_64"
         } else if t.starts_with('i') {

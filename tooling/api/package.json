@@ -49,8 +49,8 @@
     "@rollup/plugin-node-resolve": "13.0.6",
     "@rollup/plugin-sucrase": "4.0.1",
     "@rollup/plugin-typescript": "8.3.0",
-    "@typescript-eslint/eslint-plugin": "5.4.0",
-    "@typescript-eslint/parser": "5.4.0",
+    "@typescript-eslint/eslint-plugin": "5.5.0",
+    "@typescript-eslint/parser": "5.5.0",
     "eslint": "8.3.0",
     "eslint-config-prettier": "8.3.0",
     "eslint-config-standard-with-typescript": "21.0.1",
@@ -59,17 +59,17 @@
     "eslint-plugin-promise": "5.1.1",
     "eslint-plugin-security": "1.4.0",
     "lockfile-lint": "4.6.2",
-    "prettier": "2.4.1",
+    "prettier": "2.5.0",
     "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",
-    "rollup": "2.60.1",
+    "rollup": "2.60.2",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.3.1",
-    "typedoc": "0.22.9",
+    "typedoc": "0.22.10",
     "typedoc-plugin-markdown": "3.11.7",
     "typescript": "4.5.2"
   },
   "dependencies": {
-    "type-fest": "2.6.0"
+    "type-fest": "2.7.0"
   }
 }

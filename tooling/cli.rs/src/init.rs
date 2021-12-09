@@ -90,30 +90,29 @@ impl Options {
       Default::default()
     };
 
-    self.app_name = self.app_name.or(Some(request_input(
+    self.app_name = self.app_name.or(request_input(
       "What is your app name?",
       init_defaults.app_name.clone(),
       self.ci,
-    )?));
+    )?);
 
-    self.window_title = self.window_title.or(Some(request_input(
+    self.window_title = self.window_title.or(request_input(
       "What should the window title be?",
       init_defaults.app_name.clone(),
       self.ci,
-    )?));
+    )?);
 
     self.dist_dir = self.dist_dir
-                .or(Some(request_input(
+                .or(request_input(
                     r#"Whe re are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
                     init_defaults.framework.as_ref().map(|f| f.dist_dir()),
-                    self.ci)?)
-                );
+                    self.ci)?);
 
-    self.dev_path = self.dev_path.or(Some(request_input(
+    self.dev_path = self.dev_path.or(request_input(
       "What is the url of your dev server?",
       init_defaults.framework.map(|f| f.dev_path()),
       self.ci,
-    )?));
+    )?);
 
     Ok(self)
   }
@@ -187,21 +186,21 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn request_input<T>(prompt: &str, default: Option<T>, skip: bool) -> Result<T>
+fn request_input<T>(prompt: &str, default: Option<T>, skip: bool) -> Result<Option<T>>
 where
   T: Clone + FromStr + Display,
   T::Err: Display + std::fmt::Debug,
 {
   if skip {
-    default.ok_or(anyhow::Error::msg("missing input"))
+    Ok(default)
   } else {
     let mut builder = Input::new();
     builder.with_prompt(prompt);
 
-    if default.is_some() {
-      builder.default(default.unwrap());
+    if let Some(v) = default {
+      builder.default(v);
     }
 
-    builder.interact_text().map_err(Into::into)
+    builder.interact_text().map(Some).map_err(Into::into)
   }
 }

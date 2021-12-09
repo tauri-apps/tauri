@@ -24,7 +24,7 @@ use crate::{
   Context, Invoke, StateManager, Window,
 };
 
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::api::path::{resolve_path, BaseDirectory};
 
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
@@ -665,7 +665,7 @@ impl<R: Runtime> WindowManager<R> {
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
       let local_app_data = resolve_path(
         &self.inner.config,

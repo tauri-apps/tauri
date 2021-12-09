@@ -330,6 +330,8 @@ fn run_light(
   let mut args: Vec<String> = vec![
     "-ext".to_string(),
     "WixUIExtension".to_string(),
+    "-ext".to_string(),
+    "WixUtilExtension".to_string(),
     "-o".to_string(),
     output_path.display().to_string(),
   ];

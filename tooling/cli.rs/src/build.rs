@@ -19,7 +19,7 @@ use heck::KebabCase;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
-pub struct BuildOption {
+pub struct BuildOptions {
   runner: Option<String>,
   debug: bool,
   verbose: bool,
@@ -29,7 +29,7 @@ pub struct BuildOption {
   config: Option<String>,
 }
 
-impl From<&ArgMatches> for BuildOption {
+impl From<&ArgMatches> for BuildOptions {
   fn from(matches: &ArgMatches) -> Self {
     let runner = matches.value_of("runner");
     let target = matches.value_of("target");
@@ -56,7 +56,7 @@ impl From<&ArgMatches> for BuildOption {
 
 pub fn command(matches: &ArgMatches) -> Result<()> {
   let logger = Logger::new("tauri:build");
-  let options = BuildOption::from(matches);
+  let options = BuildOptions::from(matches);
   let config = get_config(options.config.as_deref())?;
 
   let tauri_path = tauri_dir();

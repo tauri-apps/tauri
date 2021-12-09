@@ -3753,7 +3753,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.12.2"
-source = "git+https://github.com/tauri-apps/wry?rev=27cf3735f717ffcc409e79031356ea0c99cadf8a#27cf3735f717ffcc409e79031356ea0c99cadf8a"
+source = "git+https://github.com/tauri-apps/wry?rev=11557f15cf759fcf3008598b684c009f03a8c645#11557f15cf759fcf3008598b684c009f03a8c645"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.3",

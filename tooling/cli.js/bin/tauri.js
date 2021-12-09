@@ -5,6 +5,9 @@
 
 import chalk from 'chalk'
 import updateNotifier from 'update-notifier'
+import { findUpSync } from 'find-up'
+import { existsSync, readFileSync } from 'fs'
+import { resolve as resolvePath, dirname } from 'path'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const pkg = require('../package.json')
@@ -74,10 +77,29 @@ ${chalk.yellow('Options')}
     if (process.argv && process.env.NODE_ENV !== 'test') {
       process.argv.splice(0, 3)
     }
+    let cwd = null
+    const pkgJsonPath = findUpSync('package.json')
+    if (pkgJsonPath) {
+      const packageJson = JSON.parse(readFileSync(pkgJsonPath).toString())
+      if ('tauri' in packageJson) {
+        const { tauri: tauriConfig } = packageJson
+        if (tauriConfig.appPath) {
+          cwd = resolvePath(dirname(pkgJsonPath), tauriConfig.appPath)
+          console.log(cwd)
+          if (!existsSync(cwd)) {
+            console.error(
+              `Configured appPath in package.json '${cwd}' does not exist.`
+            )
+            process.exit(1)
+          }
+        }
+      }
+    }
     ;(
       await runOnRustCli(
         command,
-        (process.argv || []).filter((v) => v !== '--no-update-notifier')
+        (process.argv || []).filter((v) => v !== '--no-update-notifier'),
+        { cwd }
       )
     ).promise
       .then(() => {

@@ -5,7 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   command_env,
-  config::{get as get_config, AppUrl},
+  config::{get as get_config, AppUrl, WindowUrl},
   execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
@@ -90,8 +90,7 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  if let AppUrl::Url(url) = &config_.build.dist_dir {
-    let web_asset_path = PathBuf::from(url);
+  if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
           "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",

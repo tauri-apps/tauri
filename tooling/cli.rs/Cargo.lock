@@ -1679,6 +1679,7 @@ dependencies = [
  "schemars_derive",
  "serde",
  "serde_json",
+ "url",
 ]
 
 [[package]]
@@ -2007,6 +2008,7 @@ dependencies = [
  "toml_edit",
  "unicode-width",
  "ureq",
+ "url",
  "valico",
  "zeroize",
 ]
@@ -2231,6 +2233,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
+ "serde",
 ]
 
 [[package]]

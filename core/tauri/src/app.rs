@@ -1069,9 +1069,7 @@ impl<R: Runtime> Builder<R> {
               }
             };
             let listener = listener.clone();
-            crate::async_runtime::spawn(async move {
-              listener.lock().unwrap()(&app_handle, event);
-            });
+            listener.lock().unwrap()(&app_handle, event);
           });
       }
     }

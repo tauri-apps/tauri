@@ -330,6 +330,8 @@ fn run_light(
   let mut args: Vec<String> = vec![
     "-ext".to_string(),
     "WixUIExtension".to_string(),
+    "-ext".to_string(),
+    "WixUtilExtension".to_string(),
     "-o".to_string(),
     output_path.display().to_string(),
   ];
@@ -407,6 +409,9 @@ pub fn build_wix_app_installer(
     )?;
   }
 
+  // ensure that `target/{release, debug}/wix` folder exists
+  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
+
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
@@ -426,7 +431,7 @@ pub fn build_wix_app_installer(
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
  "#,
-          license_contents.replace("\n", "\\par ")
+          license_contents.replace('\n', "\\par ")
         );
         let rtf_output_path = settings
           .project_out_directory()

@@ -352,6 +352,44 @@ impl<R: Runtime> Window<R> {
     })
   }
 
+  pub(crate) fn register_js_listener(&self, event: String, id: u64) {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .entry(event)
+      .or_insert_with(Default::default)
+      .insert(id);
+  }
+
+  pub(crate) fn unregister_js_listener(&self, id: u64) {
+    let mut empty = None;
+    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    for (event, ids) in js_listeners.iter_mut() {
+      if ids.contains(&id) {
+        ids.remove(&id);
+        if ids.is_empty() {
+          empty.replace(event.clone());
+        }
+        break;
+      }
+    }
+
+    if let Some(event) = empty {
+      js_listeners.remove(&event);
+    }
+  }
+
+  pub(crate) fn has_js_listener(&self, event: &str) -> bool {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .contains_key(event)
+  }
+
   // Getters
 
   /// Gets a handle to the window menu.

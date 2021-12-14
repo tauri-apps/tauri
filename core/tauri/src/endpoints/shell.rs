@@ -102,7 +102,7 @@ impl Cmd {
           .map(|bins| {
             bins
               .iter()
-              .any(|b| b == &program_as_string || b == program_no_ext_as_string)
+              .any(|b| b == &program_as_string || b == &program_no_ext_as_string)
           })
           .unwrap_or_default();
         if is_configured {

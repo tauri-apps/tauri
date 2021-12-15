@@ -24,7 +24,7 @@ proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.3"
+heck = "0.4"
 
 [features]
 build = [ "proc-macro2", "quote" ]

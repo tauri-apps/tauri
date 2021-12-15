@@ -29,7 +29,7 @@ impl PackageInfo {
   pub fn package_name(&self) -> String {
     #[cfg(target_os = "linux")]
     {
-      use heck::KebabCase;
+      use heck::ToKebabCase;
       self.name.clone().to_kebab_case()
     }
     #[cfg(not(target_os = "linux"))]

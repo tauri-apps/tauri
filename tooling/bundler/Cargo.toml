@@ -55,7 +55,7 @@ chrono = "0.4"
 dirs-next = "2.0"
 
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.3"
+heck = "0.4"
 
 [lib]
 name = "tauri_bundler"

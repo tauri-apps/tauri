@@ -12,7 +12,7 @@ use std::{
 
 use anyhow::Context;
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest, Logger};

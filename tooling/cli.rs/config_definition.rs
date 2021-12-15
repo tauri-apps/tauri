@@ -5,7 +5,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

@@ -15,7 +15,7 @@ use crate::Result;
 use anyhow::Context;
 use clap::Parser;
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 

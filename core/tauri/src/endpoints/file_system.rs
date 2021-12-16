@@ -23,6 +23,7 @@ use std::{
   sync::Arc,
 };
 
+#[derive(Clone, Debug)]
 pub struct SafePathBuf(std::path::PathBuf);
 
 impl AsRef<Path> for SafePathBuf {
@@ -332,9 +333,7 @@ fn resolve_path<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
-  use std::path::SafePathBuf;
-
-  use super::{BaseDirectory, DirOperationOptions, FileOperationOptions};
+  use super::{BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf};
   use quickcheck::{Arbitrary, Gen};
 
   impl Arbitrary for BaseDirectory {
@@ -361,6 +360,12 @@ mod tests {
         recursive: bool::arbitrary(g),
         dir: Option::arbitrary(g),
       }
+    }
+  }
+
+  impl Arbitrary for SafePathBuf {
+    fn arbitrary(g: &mut Gen) -> Self {
+      SafePathBuf(std::path::PathBuf::arbitrary(g))
     }
   }
 

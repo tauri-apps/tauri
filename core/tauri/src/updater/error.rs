@@ -38,6 +38,9 @@ pub enum Error {
   /// Error building updater.
   #[error("Unable to prepare the updater: {0}")]
   Builder(String),
+  /// Error building updater.
+  #[error("Unable to extract the new version: {0}")]
+  Extract(String),
   /// Updater is not supported for current operating system or platform.
   #[error("Unsuported operating system or platform")]
   UnsupportedPlatform,

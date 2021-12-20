@@ -12,6 +12,7 @@ use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
 use tauri_utils::Env;
+use tauri_utils::platform::current_exe;
 
 use std::{
   collections::HashMap,
@@ -32,8 +33,6 @@ use std::{
   fs::read_dir,
   process::{exit, Command},
 };
-#[cfg(target_os = "windows")]
-use tauri_utils::platform::current_exe;
 
 #[derive(Debug)]
 pub struct RemoteRelease {
@@ -250,8 +249,8 @@ impl<'a> UpdateBuilder<'a> {
     // set current version if not set
     let current_version = self.current_version;
 
-    // If no executable path provided, we use current_exe from rust
-    let executable_path = self.executable_path.unwrap_or(env::current_exe()?);
+    // If no executable path provided, we use current_exe from tauri_utils
+    let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
     // Did the target is provided by the config?
     // Should be: linux, darwin, win32 or win64
@@ -1128,7 +1127,7 @@ mod test {
     // Build a tmpdir so we can test our extraction inside
     // We dont want to overwrite our current executable or the directory
     // Otherwise tests are failing...
-    let executable_path = env::current_exe().expect("Can't extract executable path");
+    let executable_path = current_exe().expect("Can't extract executable path");
     let parent_path = executable_path
       .parent()
       .expect("Can't find the parent path");

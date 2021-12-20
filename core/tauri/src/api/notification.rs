@@ -74,7 +74,7 @@ impl Notification {
     }
     #[cfg(windows)]
     {
-      let exe = std::env::current_exe()?;
+      let exe = tauri_utils::platform::current_exe()?;
       let exe_dir = exe.parent().expect("failed to get exe directory");
       let curr_dir = exe_dir.display().to_string();
       // set the notification's System.AppUserModel.ID only when running the installed app

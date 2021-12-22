@@ -56,7 +56,7 @@
     "eslint-config-standard-with-typescript": "21.0.1",
     "eslint-plugin-import": "2.25.3",
     "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-promise": "5.2.0",
+    "eslint-plugin-promise": "6.0.0",
     "eslint-plugin-security": "1.4.0",
     "lockfile-lint": "4.6.2",
     "prettier": "2.5.1",

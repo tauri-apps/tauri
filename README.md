@@ -33,14 +33,14 @@ To learn more about the details of how all of these pieces fit together, please 
 ## Get Started
 If you are interested in making a tauri-app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
 
-#### Platforms
+### Platforms
 - [x] Windows 7,8,10
 - [x] Linux
 - [x] macOS
 - [ ] iOS (in progress)
 - [ ] android (soon)
 
-#### App Bundles
+### App Bundles
 - [x] App Icons
 - [x] Build on MacOS (.app, .dmg)
 - [x] Build on Linux (.deb, AppImage)
@@ -77,7 +77,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | -------------------------- | ------ | -------------------- |
 | Installer Size Linux       | 3.1 MB | 52.1 MB              |
 | Memory Consumption Linux   | 180 MB | 462 MB               |
-| Launch Time Linux          | 0.39s  | 0.80s                 |
+| Launch Time Linux          | 0.39s  | 0.80s                |
 | Interface Service Provider | WRY    | Chromium             |
 | Backend Binding            | Rust   | Node.js (ECMAScript) |
 | Underlying Engine          | Rust   | V8 (C/C++)           |
@@ -85,8 +85,7 @@ If you are interested in making a tauri-app, please visit the [documentation web
 | Multithreading             | Yes    | Yes                  |
 | Bytecode Delivery          | Yes    | No                   |
 | Multiple Windows           | Yes    | Yes                  |
-| Auto Updater               | Yes    | Yes (1)              |
-| Cross Platform             | Yes    | Yes                  |
+| Auto Updater               | Yes    | Yes<sup>1</sup>      |
 | Custom App Icon            | Yes    | Yes                  |
 | Windows Binary             | Yes    | Yes                  |
 | MacOS Binary               | Yes    | Yes                  |
@@ -104,16 +103,16 @@ If you are interested in making a tauri-app, please visit the [documentation web
 Tauri is a system composed of a number of moving pieces:
 
 ### Infrastructure
-- git for code management
-- github for project management
-- github actions for CI and CD
-- discord for discussions
-- netlify-hosted documentation website
-- digital ocean meilisearch instance
+- Git for code management
+- GitHub for project management
+- GitHub actions for CI and CD
+- Discord for discussions
+- Netlify-hosted documentation website
+- DigitalOcean meilisearch instance
 
 ### Major Runtimes
-- node.js for running the CLI (deno and pure rust are on the roadmap)
-- cargo for testing, running the dev service, building binaries and as the runtime harness for the webview
+- Node.js for running the CLI (deno and pure rust are on the roadmap)
+- Cargo for testing, running the dev service, building binaries and as the runtime harness for the webview
 
 ### Major Languages
 - Rust for the CLI
@@ -124,8 +123,12 @@ Tauri is a system composed of a number of moving pieces:
 ### Operating systems
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.
 
-### Contribution Flow
-Before you start working on something, it is best to check if there is an existing issue first. Also it is a good idea to stop by the Discord guild and confirm with the team if it makes sense or if someone is already working on it. If you want to read more about this, please see [this page](https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md).
+### Contributing
+Before you start working on something, it's best to check if there is an existing issue first. It's also is a good idea to stop by the Discord server and confirm with the team if it makes sense or if someone is already working on it.
+
+Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) before making a pull request.
+
+Thank you to everyone contributing to Tauri!
 
 ### Documentation
 Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation of Rust code and at JSDoc in typescript / javascript code. We autocollect these and publish them using Docusaurus v2 and netlify. Here is the hosting repository for the documentation site: https://github.com/tauri-apps/tauri-docs
@@ -142,12 +145,6 @@ We recommend you read this article to understand better how we run our pipelines
 
 ## Organization
 Tauri aims to be a sustainable collective based on principles that guide [sustainable free and open software communities](https://sfosc.org). To this end it has become a Programme within the [Commons Conservancy](https://commonsconservancy.org/), and you can contribute financially via [Open Collective](https://opencollective.com/tauri).
-
-## Contributing
-Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md)
-before making a pull request.
-
-Thank you to all the people who already contributed to Tauri!
 
 ## Semver
 **tauri** is following [Semantic Versioning 2.0](https://semver.org/).

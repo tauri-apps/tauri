@@ -326,11 +326,23 @@ pub enum SystemTrayMenuItem {
   /// A custom item.
   Custom(CustomMenuItem),
 
-  /// An entry with submenu.
+  /// An item with a submenu.
   Submenu(SystemTraySubmenu),
 
   /// A separator.
   Separator,
+}
+
+impl From<CustomMenuItem> for SystemTrayMenuItem {
+  fn from(item: CustomMenuItem) -> Self {
+    Self::Custom(item)
+  }
+}
+
+impl From<SystemTraySubmenu> for SystemTrayMenuItem {
+  fn from(submenu: SystemTraySubmenu) -> Self {
+    Self::Submenu(submenu)
+  }
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
@@ -342,7 +354,7 @@ pub enum MenuItem {
   /// A custom item.
   Custom(CustomMenuItem),
 
-  /// An item with submenu.
+  /// An item with a submenu.
   Submenu(Submenu),
 
   /// Shows a standard "About" item
@@ -517,3 +529,14 @@ impl MenuItem {
   }
 }
 
+impl From<CustomMenuItem> for MenuItem {
+  fn from(item: CustomMenuItem) -> Self {
+    Self::Custom(item)
+  }
+}
+
+impl From<Submenu> for MenuItem {
+  fn from(submenu: Submenu) -> Self {
+    Self::Submenu(submenu)
+  }
+}

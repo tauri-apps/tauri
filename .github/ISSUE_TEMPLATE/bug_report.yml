@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         ## First of all
-        1. Please search for [open issues](https://www.github.com/tauri-apps/tauri/issues) about this problem first.
+        1. Please search for [existing issues](https://www.github.com/tauri-apps/tauri/issues) about this problem first.
         2. Make sure `rustc` and all relevant packages are up to date.
         3. Make sure it's not an issue with something else you are using.
         4. Remember to follow our community guidelines and be friendly.

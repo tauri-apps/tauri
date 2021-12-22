@@ -17,7 +17,7 @@ body:
     attributes:
       label: "Describe the solution you'd like"
       description: A clear description of what change you would like
-      placeholder: "I'm always frustrated when..."
+      placeholder: "I would like to..."
     validations:
       required: true
 

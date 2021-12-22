@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 pub use tauri_runtime::{
-  menu::{
-    Menu, MenuEntry, MenuItem, MenuUpdate, Submenu, SystemTrayMenu, SystemTrayMenuEntry,
-    SystemTrayMenuItem, TrayHandle,
-  },
+  menu::{Menu, MenuItem, MenuUpdate, Submenu, SystemTrayMenu, SystemTrayMenuItem, TrayHandle},
   Icon, SystemTrayEvent,
 };
 pub use wry::application::{
@@ -86,7 +83,7 @@ pub fn to_wry_context_menu(
   let mut tray_menu = WryContextMenu::new();
   for item in menu.items {
     match item {
-      SystemTrayMenuEntry::CustomItem(c) => {
+      SystemTrayMenuItem::Custom(c) => {
         #[allow(unused_mut)]
         let mut item = tray_menu.add_item(crate::MenuItemAttributesWrapper::from(&c).0);
         #[cfg(target_os = "macos")]
@@ -95,15 +92,15 @@ pub fn to_wry_context_menu(
         }
         custom_menu_items.insert(c.id, item);
       }
-      SystemTrayMenuEntry::NativeItem(i) => {
-        tray_menu.add_native_item(crate::MenuItemWrapper::from(i).0);
-      }
-      SystemTrayMenuEntry::Submenu(submenu) => {
+      SystemTrayMenuItem::Submenu(submenu) => {
         tray_menu.add_submenu(
           &submenu.title,
           submenu.enabled,
           to_wry_context_menu(custom_menu_items, submenu.inner),
         );
+      }
+      i => {
+        tray_menu.add_native_item(crate::MenuItemWrapper::from(i).0);
       }
     }
   }

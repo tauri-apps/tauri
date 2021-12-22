@@ -6,7 +6,7 @@
 
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
-  menu::{Menu, MenuEntry, MenuHash, MenuId},
+  menu::{Menu, MenuHash, MenuId, MenuItem},
   webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
   Dispatch, Runtime, WindowBuilder,
 };
@@ -66,10 +66,10 @@ pub struct MenuEvent {
 fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
   for item in &menu.items {
     match item {
-      MenuEntry::CustomItem(c) => {
+      MenuItem::Custom(c) => {
         map.insert(c.id, c.id_str.clone());
       }
-      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      MenuItem::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
     }
   }

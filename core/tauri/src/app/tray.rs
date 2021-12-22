@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 pub use crate::runtime::{
-  menu::{
-    MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
-  },
+  menu::{MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuItem, TrayHandle},
   window::dpi::{PhysicalPosition, PhysicalSize},
   Icon, Runtime, SystemTray,
 };
@@ -17,10 +15,10 @@ use std::{collections::HashMap, sync::Arc};
 pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTrayMenu) {
   for item in &menu.items {
     match item {
-      SystemTrayMenuEntry::CustomItem(c) => {
+      SystemTrayMenuItem::Custom(c) => {
         map.insert(c.id, c.id_str.clone());
       }
-      SystemTrayMenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      SystemTrayMenuItem::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
     }
   }

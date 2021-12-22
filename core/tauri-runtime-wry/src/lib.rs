@@ -9,7 +9,7 @@ use tauri_runtime::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
     ResponseParts as HttpResponseParts,
   },
-  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
+  menu::{CustomMenuItem, Menu, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
   webview::{
     FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
@@ -2492,7 +2492,7 @@ fn to_wry_menu(
   let mut wry_menu = MenuBar::new();
   for item in menu.items {
     match item {
-      MenuEntry::CustomItem(c) => {
+      MenuItem::Custom(c) => {
         let mut attributes = MenuItemAttributesWrapper::from(&c).0;
         attributes = attributes.with_id(WryMenuId(c.id));
         #[allow(unused_mut)]
@@ -2503,15 +2503,15 @@ fn to_wry_menu(
         }
         custom_menu_items.insert(c.id, item);
       }
-      MenuEntry::NativeItem(i) => {
-        wry_menu.add_native_item(MenuItemWrapper::from(i).0);
-      }
-      MenuEntry::Submenu(submenu) => {
+      MenuItem::Submenu(submenu) => {
         wry_menu.add_submenu(
           &submenu.title,
           submenu.enabled,
           to_wry_menu(custom_menu_items, submenu.inner),
         );
+      }
+      i => {
+        wry_menu.add_native_item(MenuItemWrapper::from(i).0);
       }
     }
   }

@@ -8,7 +8,7 @@ Please make sure to read the Pull Request Guidelines: https://github.com/tauri-a
 <!-- Check at least one. If you are introducing a new binding, you must reference an issue where this binding has been proposed, discussed and approved by the maintainers. -->
 
 - [ ] Bugfix
-- [x] Feature
+- [ ] Feature
 - [ ] Docs
 - [ ] New Binding Issue #___
 - [ ] Code style update
@@ -25,8 +25,6 @@ Please make sure to read the Pull Request Guidelines: https://github.com/tauri-a
 ### Checklist
 - [ ] When resolving issues, they are referenced in the PR's title (e.g `fix #___, #___`)
 - [ ] A change file is added if any packages will require a version bump due to this PR per [the instructions in the readme](https://github.com/tauri-apps/tauri/blob/dev/.changes/readme.md).
-
-If adding a **new feature**, the PR's description includes:
-- [ ] If necessary, I have added a convincing reason for adding this feature
+- [ ] I have added a convincing reason for adding this feature, if necessary
 
 ### Other information

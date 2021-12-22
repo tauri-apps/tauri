@@ -186,6 +186,25 @@ impl Menu {
     Default::default()
   }
 
+  /// Creates a new window menu with the given menu items.
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// Menu::new([
+  ///   MenuItem::SelectAll,
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo,
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   MenuItem::new_submenu("View", []),
+  /// ]);
+  /// ```
+  pub fn with_items<I: IntoIterator<Item = MenuItem>>(items: I) -> Self {
+    Self {
+      items: items.into_iter().collect(),
+    }
+  }
+
   /// Adds the custom menu item to the menu.
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuItem::Custom(item));
@@ -298,6 +317,25 @@ impl SystemTrayMenu {
   /// Creates a new system tray menu.
   pub fn new() -> Self {
     Default::default()
+  }
+
+  /// Creates a new system tray menu with the given menu items.
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// Menu::new([
+  ///   MenuItem::SelectAll.into(),
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo,
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   Submenu::new("View", Menu::new([])).into(),
+  /// ]);
+  /// ```
+  pub fn with_items<I: IntoIterator<Item = SystemTrayMenuItem>>(items: I) -> Self {
+    Self {
+      items: items.into_iter().collect(),
+    }
   }
 
   /// Adds the custom menu item to the system tray menu.
@@ -514,7 +552,7 @@ impl MenuItem {
   ///   [
   ///     MenuItem::SelectAll,
   ///     #[cfg(target_os = "macos")]
-  ///     MenuItem::Redo.into(),
+  ///     MenuItem::Redo,
   ///     CustomMenuItem::new("toggle", "Toggle visibility").into(),
   ///     MenuItem::new_submenu("View", []),
   ///   ]
@@ -525,7 +563,7 @@ impl MenuItem {
     S: Into<String>,
     I: IntoIterator<Item = MenuItem>,
   {
-    Self::Submenu(Submenu::new(title, Menu::new(items)))
+    Self::Submenu(Submenu::new(title, Menu::with_items(items)))
   }
 }
 

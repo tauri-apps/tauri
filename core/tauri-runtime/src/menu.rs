@@ -483,3 +483,37 @@ pub enum MenuItem {
   ///
   Separator,
 }
+
+impl MenuItem {
+  /// Shorthand for creating a new `MenuItem::Submenu` that contains a submenu.
+  ///
+  /// The following are equivalent:
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, Submenu};
+  /// MenuItem::new_submenu("File", [MenuItem::Undo]);
+  /// MenuItem::Submenu(Submenu::new("File", Menu::new([MenuItem::Undo])));
+  /// ```
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// MenuItem::new_submenu(
+  ///   "File",
+  ///   [
+  ///     MenuItem::SelectAll,
+  ///     #[cfg(target_os = "macos")]
+  ///     MenuItem::Redo.into(),
+  ///     CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///     MenuItem::new_submenu("View", []),
+  ///   ]
+  /// );
+  /// ```
+  pub fn new_submenu<S, I>(title: S, items: I) -> Self
+  where
+    S: Into<String>,
+    I: IntoIterator<Item = MenuItem>,
+  {
+    Self::Submenu(Submenu::new(title, Menu::new(items)))
+  }
+}
+

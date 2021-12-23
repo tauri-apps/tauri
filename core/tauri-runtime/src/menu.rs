@@ -371,6 +371,41 @@ pub enum SystemTrayMenuItem {
   Separator,
 }
 
+impl SystemTrayMenuItem {
+  /// Shorthand for creating a new `SystemTrayMenuItem::Submenu` that contains a submenu.
+  ///
+  /// The following are equivalent:
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, SystemTrayMenuItem, Submenu};
+  /// SystemTrayMenuItem::new_submenu("File", [MenuItem::Separator]);
+  /// SystemTrayMenuItem::Submenu(Submenu::new("File", Menu::new([SystemTrayMenuItem::Separator])));
+  /// ```
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, SystemTrayMenuItem, CustomMenuItem, Submenu};
+  /// SystemTrayMenuItem::new_submenu(
+  ///   "File",
+  ///   [
+  ///     CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///     #[cfg(target_os = "macos")]
+  ///     MenuItem::Separator,
+  ///     MenuItem::new_submenu("View", []),
+  ///   ]
+  /// );
+  /// ```
+  pub fn new_submenu<S, I>(title: S, items: I) -> Self
+  where
+    S: Into<String>,
+    I: IntoIterator<Item = SystemTrayMenuItem>,
+  {
+    Self::Submenu(SystemTraySubmenu::new(
+      title,
+      SystemTrayMenu::with_items(items),
+    ))
+  }
+}
+
 impl From<CustomMenuItem> for SystemTrayMenuItem {
   fn from(item: CustomMenuItem) -> Self {
     Self::Custom(item)

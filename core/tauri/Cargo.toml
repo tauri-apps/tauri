@@ -147,6 +147,10 @@ name = "helloworld"
 path = "../../examples/helloworld/src-tauri/src/main.rs"
 
 [[example]]
+name = "api"
+path = "../../examples/api/src-tauri/src/main.rs"
+
+[[example]]
 name = "multiwindow"
 path = "../../examples/multiwindow/src-tauri/src/main.rs"
 

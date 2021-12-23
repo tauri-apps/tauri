@@ -40,7 +40,7 @@ let tray = SystemTray::new();
 
 ### Configuring a system tray context menu
 
-Optionally you can add a context menu that is visible when the tray icon is right clicked. Import the `SystemTrayMenu`, `SystemTrayMenuItem` and `CustomMenuItem` types:
+Optionally you can add a context menu to the tray icon. On Windows/Linux, the menu is shown when the tray icon is right clicked, and on macOS when it's left clicked. Import the `SystemTrayMenu`, `SystemTrayMenuItem` and `CustomMenuItem` types:
 
 ```rust
 use tauri::{CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem};
@@ -49,13 +49,15 @@ use tauri::{CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem};
 Create the `SystemTrayMenu`:
 
 ```rust
-// here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
-let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-let hide = CustomMenuItem::new("hide".to_string(), "Hide");
-let tray_menu = SystemTrayMenu::new()
-  .add_item(quit)
-  .add_native_item(SystemTrayMenuItem::Separator)
-  .add_item(hide);
+// here `"quit"` defines the menu item id, and `"Quit"` is the label.
+let quit = CustomMenuItem::new("quit", "Quit");
+let hide = CustomMenuItem::new("hide", "Hide");
+let tray_menu = SystemTrayMenu::with_items([
+  // `quit.into()` is an alternative to `SystemTrayMenuItem::Custom(quit)`
+  quit.into(),
+  SystemTrayMenuItem::Separator,
+  hide.into(),
+])
 ```
 
 Add the tray menu to the `SystemTray` instance:
@@ -72,9 +74,8 @@ The created `SystemTray` instance can be set using the `system_tray` API on the 
 use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
 
 fn main() {
-  let tray_menu = SystemTrayMenu::new(); // insert the menu items here
-  let system_tray = SystemTray::new()
-    .with_menu(tray_menu);
+  let tray_menu = SystemTrayMenu::with_items([/* menu items here */]);
+  let system_tray = SystemTray::new().with_menu(tray_menu);
   tauri::Builder::default()
     .system_tray(system_tray)
     .run(tauri::generate_context!())
@@ -93,7 +94,7 @@ use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
 use tauri::Manager;
 
 fn main() {
-  let tray_menu = SystemTrayMenu::new(); // insert the menu items here
+  let tray_menu = SystemTrayMenu::with_items([/* menu items here */]);
   tauri::Builder::default()
     .system_tray(SystemTray::new().with_menu(tray_menu))
     .on_system_tray_event(|app, event| match event {
@@ -148,7 +149,7 @@ use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
 use tauri::Manager;
 
 fn main() {
-  let tray_menu = SystemTrayMenu::new(); // insert the menu items here
+  let tray_menu = SystemTrayMenu::with_items([/* menu items here */]);
   tauri::Builder::default()
     .system_tray(SystemTray::new().with_menu(tray_menu))
     .on_system_tray_event(|app, event| match event {

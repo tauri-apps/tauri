@@ -15,16 +15,32 @@ use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 ```
 
 Create a `Menu` instance:
-
 ```rust
-// here `"quit".to_string()` defines the menu item id, and the second parameter is the menu item label.
-let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-let close = CustomMenuItem::new("close".to_string(), "Close");
-let submenu = Submenu::new("File", Menu::new().add_item(quit).add_item(close));
-let menu = Menu::new()
-  .add_native_item(MenuItem::Copy)
-  .add_item(CustomMenuItem::new("hide", "Hide"))
-  .add_submenu(submenu);
+// here `"quit"` defines the menu item id, and `"Quit"` is the label.
+let quit = CustomMenuItem::new("quit", "Quit");
+let close = CustomMenuItem::new("close", "Close");
+let menu = Menu::with_items([
+  MenuItem::Copy,
+  MenuItem::Custom(CustomMenuItem::new("hide", "Hide")),
+  MenuItem::Submenu(Submenu::new("File", Menu::with_items([
+    MenuItem::Custom(quit),
+    MenuItem::Custom(close),
+  ])))
+])
+```
+
+The above is a bit much, so you can create the `Menu` more conveniently like this:
+```rust
+let menu = Menu::with_items([
+  MenuItem::Copy,
+  // `.into()` converts into `MenuItem`
+  CustomMenuItem::new("hide", "Hide").into(),
+  // `new_submenu()` returns `MenuItem`
+  MenuItem::new_submenu("File", [
+    quit.into(),
+    close.into(),
+  ]),
+])
 ```
 
 ### Adding the menu to all windows

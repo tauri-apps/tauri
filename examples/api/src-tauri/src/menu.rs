@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
+use tauri::{CustomMenuItem, Menu, MenuItem};
 
 pub fn get_menu() -> Menu {
   #[allow(unused_mut)]
@@ -17,22 +17,20 @@ pub fn get_menu() -> Menu {
   }
 
   // create a submenu
-  let my_sub_menu = Menu::new().add_item(disable_item);
+  let my_app_menu = [
+    MenuItem::Copy,
+    MenuItem::new_submenu("Sub menu", [disable_item.into()]),
+  ];
 
-  let my_app_menu = Menu::new()
-    .add_native_item(MenuItem::Copy)
-    .add_submenu(Submenu::new("Sub menu", my_sub_menu));
-
-  let test_menu = Menu::new()
-    .add_item(CustomMenuItem::new(
-      "selected/disabled",
-      "Selected and disabled",
-    ))
-    .add_native_item(MenuItem::Separator)
-    .add_item(test_item);
+  let test_menu = [
+    CustomMenuItem::new("selected/disabled", "Selected and disabled").into(),
+    MenuItem::Separator,
+    test_item.into(),
+  ];
 
   // add all our childs to the menu (order is how they'll appear)
-  Menu::new()
-    .add_submenu(Submenu::new("My app", my_app_menu))
-    .add_submenu(Submenu::new("Other menu", test_menu))
+  Menu::with_items([
+    MenuItem::new_submenu("My app", my_app_menu),
+    MenuItem::new_submenu("Other menu", test_menu),
+  ])
 }

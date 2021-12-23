@@ -74,6 +74,27 @@ impl SystemTray {
     self.menu.replace(menu);
     self
   }
+
+  /// Create a new system tray with the given menu items
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// SystemTray::with_menu_items([
+  ///   MenuItem::SelectAll,
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo,
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   MenuItem::new_submenu("View", []),
+  /// ]);
+  /// ```
+  pub fn with_menu_items<I>(mut self, items: I) -> Self
+  where
+    I: IntoIterator<Item = menu::SystemTrayMenuItem>,
+  {
+    self.menu.replace(menu::SystemTrayMenu::with_items(items));
+    self
+  }
 }
 
 /// Type of user attention requested on a window.

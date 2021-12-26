@@ -81,6 +81,7 @@ target
 /Cargo.lock
 /tooling/bench/tests/Cargo.lock
 /yarn.lock
+**/pnpm-lock.yaml
 
 /tooling/cli.js/test/jest/tmp
 

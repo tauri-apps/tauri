@@ -12,17 +12,20 @@ Configure the `systemTray` object on `tauri.conf.json`:
 {
   "tauri": {
     "systemTray": {
-      "iconPath": "icons/icon.png",
+      "iconPath": "icons/tray.png",
       "iconAsTemplate": true
     }
   }
 }
 ```
 
-The `iconPath` is pointed to a PNG file on macOS and Linux, and a `.ico` file must exist for Windows support.
+The `iconAsTemplate` is a boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS (not used in other OS's).
 
-The `iconAsTemplate` is a boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
+#### OS Variations in Icon File
 
+Unlike macOS, both Windows and Linux require an `.ico` file instead of a `.png` file. You can accomodate this by configuring the OS specific configuration files (e.g., `tauri.linux.config.json`, etc.) and pointing to a different `iconPath` but in order to keep configuration compact you can also just point to a PNG file in the main `tauri.config.json` file (as seen above) and as long as you have an `.ico` file of the same name, it will adapt to the OS being built for.
+
+> Note: if you're using the **Tauri CLI**'s [_icon_](https://tauri.studio/en/docs/api/cli#icon) command you'll already have the images you need. The generated `icons/icon.ico` has all image sizes you'll need for Windows (typically 16x16px) and Linux (varies). For macOS the ideal size is 32x32px and you'll find that at `icons/32x32.png`. Because these names don't match, however, you'll want to copy them both to a neutral name like `icons/tray.[ico|png]`.
 
 ### Creating a system tray
 

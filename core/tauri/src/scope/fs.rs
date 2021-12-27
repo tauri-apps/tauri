@@ -16,6 +16,7 @@ use crate::api::path::parse as parse_path;
 #[derive(Clone)]
 pub struct Scope {
   allow_patterns: Vec<Pattern>,
+  is_fs_path: bool,
 }
 
 impl fmt::Debug for Scope {
@@ -29,17 +30,19 @@ impl fmt::Debug for Scope {
           .map(|p| p.as_str())
           .collect::<Vec<&str>>(),
       )
+      .field("is_fs_path", &self.is_fs_path)
       .finish()
   }
 }
 
 impl Scope {
-  /// Creates a new scope from the allowlist's `fs` scope configuration.
+  /// Creates a new scope from a `FsAllowlistScope` configuration.
   pub fn for_fs_api(
     config: &Config,
     package_info: &PackageInfo,
     env: &Env,
     scope: &FsAllowlistScope,
+    is_fs_path: bool,
   ) -> Self {
     let mut allow_patterns = Vec::new();
     for path in &scope.0 {
@@ -53,13 +56,16 @@ impl Scope {
         }
       }
     }
-    Self { allow_patterns }
+    Self {
+      allow_patterns,
+      is_fs_path,
+    }
   }
 
   /// Determines if the given path is allowed on this scope.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
     let path = path.as_ref();
-    let path = if !path.exists() {
+    let path = if !path.exists() || !self.is_fs_path {
       crate::Result::Ok(path.to_path_buf())
     } else {
       std::fs::canonicalize(path).map_err(Into::into)

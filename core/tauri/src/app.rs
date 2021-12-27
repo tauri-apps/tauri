@@ -1023,6 +1023,7 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
+        true,
       ),
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
@@ -1030,6 +1031,7 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
+        true,
       ),
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
@@ -1039,6 +1041,7 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.shell.scope,
+        false,
       ),
     });
     app.manage(env);

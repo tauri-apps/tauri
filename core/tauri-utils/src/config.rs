@@ -2099,8 +2099,9 @@ mod build {
       let fs = &self.fs;
       let protocol = &self.protocol;
       let http = &self.http;
+      let shell = &self.shell;
       tokens.append_all(
-        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, ..Default::default() } },
+        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, http: #http, shell: #shell, ..Default::default() } },
       )
     }
   }

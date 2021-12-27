@@ -71,6 +71,9 @@
       "fs": {
         "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
       },
+      "shell": {
+        "scope": ["sh", "cmd"]
+      },
       "protocol": {
         "asset": true,
         "assetScope": ["$RESOURCE/**"]

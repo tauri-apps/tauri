@@ -186,6 +186,25 @@ impl Menu {
     Default::default()
   }
 
+  /// Creates a new window menu with the given items.
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// Menu::with_items([
+  ///   MenuItem::SelectAll.into(),
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo.into(),
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   Submenu::new("View", Menu::new()).into(),
+  /// ]);
+  /// ```
+  pub fn with_items<I: IntoIterator<Item = MenuEntry>>(items: I) -> Self {
+    Self {
+      items: items.into_iter().collect(),
+    }
+  }
+
   /// Adds the custom menu item to the menu.
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuEntry::CustomItem(item));
@@ -347,6 +366,24 @@ pub enum MenuEntry {
   NativeItem(MenuItem),
   /// An entry with submenu.
   Submenu(Submenu),
+}
+
+impl From<CustomMenuItem> for MenuEntry {
+  fn from(item: CustomMenuItem) -> Self {
+    Self::CustomItem(item)
+  }
+}
+
+impl From<MenuItem> for MenuEntry {
+  fn from(item: MenuItem) -> Self {
+    Self::NativeItem(item)
+  }
+}
+
+impl From<Submenu> for MenuEntry {
+  fn from(submenu: Submenu) -> Self {
+    Self::Submenu(submenu)
+  }
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only

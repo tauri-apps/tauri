@@ -49,7 +49,7 @@ async function appDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_MUSIC_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_MUSIC_DIR`.
  * - **macOS:** Resolves to `$HOME/Music`.
  * - **Windows:** Resolves to `{FOLDERID_Music}`.
  *
@@ -137,7 +137,7 @@ async function dataDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_DESKTOP_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
  * - **macOS:** Resolves to `$HOME/Library/Desktop`.
  * - **Windows:** Resolves to `{FOLDERID_Desktop}`.
 
@@ -159,7 +159,7 @@ async function desktopDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_DOCUMENTS_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOCUMENTS_DIR`.
  * - **macOS:** Resolves to `$HOME/Documents`.
  * - **Windows:** Resolves to `{FOLDERID_Documents}`.
  *
@@ -181,7 +181,7 @@ async function documentDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux**: Resolves to `$XDG_DOWNLOAD_DIR`.
+ * - **Linux**: Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOWNLOAD_DIR`.
  * - **macOS**: Resolves to `$HOME/Downloads`.
  * - **Windows**: Resolves to `{FOLDERID_Downloads}`.
  *
@@ -291,7 +291,7 @@ async function localDataDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_PICTURES_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PICTURES_DIR`.
  * - **macOS:** Resolves to `$HOME/Pictures`.
  * - **Windows:** Resolves to `{FOLDERID_Pictures}`.
  *
@@ -313,7 +313,7 @@ async function pictureDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_PUBLICSHARE_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PUBLICSHARE_DIR`.
  * - **macOS:** Resolves to `$HOME/Public`.
  * - **Windows:** Resolves to `{FOLDERID_Public}`.
  *
@@ -373,7 +373,7 @@ async function runtimeDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_TEMPLATES_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_TEMPLATES_DIR`.
  * - **macOS:** Not supported.
  * - **Windows:** Resolves to `{FOLDERID_Templates}`.
  *
@@ -395,7 +395,7 @@ async function templateDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `$XDG_VIDEOS_DIR`.
+ * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_VIDEOS_DIR`.
  * - **macOS:** Resolves to `$HOME/Movies`.
  * - **Windows:** Resolves to `{FOLDERID_Videos}`.
  *

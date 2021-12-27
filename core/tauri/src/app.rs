@@ -677,7 +677,7 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self

@@ -271,25 +271,38 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
 #[cfg(windows)]
 fn webview2_version() -> crate::Result<Option<String>> {
+  // check 64bit machine-wide installation
   let output = Command::new("powershell")
       .args(&["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
-  let version = if output.status.success() {
-    Some(String::from_utf8_lossy(&output.stdout).replace('\n', ""))
-  } else {
-    // check 32bit installation
-    let output = Command::new("powershell")
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+  // check 32bit machine-wide installation
+  let output = Command::new("powershell")
         .args(&["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
-    if output.status.success() {
-      Some(String::from_utf8_lossy(&output.stdout).replace('\n', ""))
-    } else {
-      None
-    }
-  };
-  Ok(version)
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+  // check user-wide installation
+  let output = Command::new("powershell")
+      .args(&["-NoProfile", "-Command"])
+      .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+      .output()?;
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+
+  Ok(None)
 }
 
 #[cfg(windows)]

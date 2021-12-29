@@ -2279,8 +2279,10 @@ fn handle_event_loop(
       let event = MenuEvent {
         menu_item_id: menu_id.0,
       };
-      let listeners = menu_event_listeners.lock().unwrap();
-      let window_menu_event_listeners = listeners.get(&window_id).cloned().unwrap_or_default();
+      let window_menu_event_listeners = {
+        let listeners = menu_event_listeners.lock().unwrap();
+        listeners.get(&window_id).cloned().unwrap_or_default()
+      };
       for handler in window_menu_event_listeners.lock().unwrap().values() {
         handler(&event);
       }

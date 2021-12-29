@@ -26,11 +26,12 @@ use tauri_runtime::window::MenuEvent;
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
-use webview2_com::{
-  FocusChangedEventHandler, Windows::Win32::System::WinRT::EventRegistrationToken,
-};
+use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
-use windows::Win32::Foundation::HWND;
+use windows::Win32::{
+    Foundation::HWND,
+    System::WinRT::EventRegistrationToken,
+};
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -1970,7 +1971,7 @@ fn handle_user_message(
           #[cfg(target_os = "macos")]
           WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
           #[cfg(windows)]
-          WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
+          WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as _)).unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",

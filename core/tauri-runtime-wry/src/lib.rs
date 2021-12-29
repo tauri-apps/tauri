@@ -28,10 +28,7 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
-use windows::Win32::{
-    Foundation::HWND,
-    System::WinRT::EventRegistrationToken,
-};
+use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]

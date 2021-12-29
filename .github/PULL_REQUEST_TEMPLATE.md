@@ -4,13 +4,13 @@ Update "[ ]" to "[x]" to check a box
 Please make sure to read the Pull Request Guidelines: https://github.com/tauri-apps/tauri/blob/dev/.github/CONTRIBUTING.md#pull-request-guidelines
 -->
 
-### What kind of change does this PR introduce?**
+### What kind of change does this PR introduce?
 <!-- Check at least one. If you are introducing a new binding, you must reference an issue where this binding has been proposed, discussed and approved by the maintainers. -->
 
 - [ ] Bugfix
 - [ ] Feature
 - [ ] Docs
-- [ ] New Binding Issue #___
+- [ ] New Binding issue #___
 - [ ] Code style update
 - [ ] Refactor
 - [ ] Build-related changes

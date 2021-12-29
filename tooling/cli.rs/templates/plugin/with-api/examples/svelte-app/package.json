@@ -14,7 +14,7 @@
     "@rollup/plugin-typescript": "8.3.0",
     "@tauri-apps/cli": "1.0.0-beta.10",
     "@tsconfig/svelte": "3.0.0",
-    "rollup": "2.61.1",
+    "rollup": "2.62.0",
     "rollup-plugin-css-only": "3.1.0",
     "rollup-plugin-livereload": "2.0.5",
     "rollup-plugin-svelte": "7.1.0",

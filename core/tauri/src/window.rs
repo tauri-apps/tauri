@@ -713,3 +713,12 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn window_is_send_sync() {
+    crate::test::assert_send::<super::Window>();
+    crate::test::assert_sync::<super::Window>();
+  }
+}

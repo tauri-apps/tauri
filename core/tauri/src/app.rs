@@ -1147,3 +1147,21 @@ impl Default for Builder<crate::Wry> {
     Self::new()
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn is_send_sync() {
+    crate::test::assert_send::<super::AppHandle>();
+    crate::test::assert_sync::<super::AppHandle>();
+
+    #[cfg(feature = "wry")]
+    {
+      crate::test::assert_send::<super::AssetResolver<crate::Wry>>();
+      crate::test::assert_sync::<super::AssetResolver<crate::Wry>>();
+    }
+
+    crate::test::assert_send::<super::PathResolver>();
+    crate::test::assert_sync::<super::PathResolver>();
+  }
+}

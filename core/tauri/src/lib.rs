@@ -392,6 +392,9 @@ pub(crate) mod sealed {
 mod test {
   use proptest::prelude::*;
 
+  pub fn assert_send<T: Send>() {}
+  pub fn assert_sync<T: Sync>() {}
+
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]
     #[test]

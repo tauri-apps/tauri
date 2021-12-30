@@ -25,6 +25,12 @@ let menu = Menu::new()
   .add_native_item(MenuItem::Copy)
   .add_item(CustomMenuItem::new("hide", "Hide"))
   .add_submenu(submenu);
+// alternatively, using the `with_items` constructor, useful if you end up using conditional compilation
+let menu = Menu::with_items([
+  MenuItem::Copy.into(),
+  CustomMenuItem::new("hide", "Hide").into(),
+  submenu.into(),
+])
 ```
 
 ### Adding the menu to all windows

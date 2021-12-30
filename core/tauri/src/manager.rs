@@ -304,16 +304,21 @@ impl<R: Runtime> WindowManager<R> {
     }
     if !registered_scheme_protocols.contains(&"asset".into()) {
       let window_url = Url::parse(&pending.url).unwrap();
-      let window_origin = format!(
-        "{}://{}{}",
-        window_url.scheme(),
-        window_url.host().unwrap(),
-        if let Some(port) = window_url.port() {
-          format!(":{}", port)
+      let window_origin =
+        if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+          format!("https://{}.localhost", window_url.scheme())
         } else {
-          "".into()
-        }
-      );
+          format!(
+            "{}://{}{}",
+            window_url.scheme(),
+            window_url.host().unwrap(),
+            if let Some(port) = window_url.port() {
+              format!(":{}", port)
+            } else {
+              "".into()
+            }
+          )
+        };
       pending.register_uri_scheme_protocol("asset", move |request| {
         #[cfg(target_os = "windows")]
         let path = request.uri().replace("asset://localhost/", "");

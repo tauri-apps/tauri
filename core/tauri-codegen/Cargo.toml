@@ -21,6 +21,10 @@ serde_json = "1"
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-zstd = "0.9"
+zstd = { version = "0.9", optional = true }
 kuchiki = "0.8"
 regex = "1"
+
+[features]
+default = [ "compression" ]
+compression = [ "zstd", "tauri-utils/compression" ]

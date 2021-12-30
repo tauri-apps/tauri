@@ -155,6 +155,7 @@ impl EmbeddedAssets {
   }
 
   /// Use highest compression level for release, the fastest one for everything else
+  #[cfg(feature = "compression")]
   fn compression_level() -> i32 {
     let levels = zstd::compression_level_range();
     if cfg!(debug_assertions) {
@@ -259,11 +260,25 @@ impl EmbeddedAssets {
 
     // only compress and write to the file if it doesn't already exist.
     if !out_path.exists() {
-      let out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-        path: out_path.clone(),
-        error,
-      })?;
+      #[allow(unused_mut)]
+      let mut out_file =
+        File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+          path: out_path.clone(),
+          error,
+        })?;
 
+      #[cfg(not(feature = "compression"))]
+      {
+        use std::io::Write;
+        out_file
+          .write_all(&input)
+          .map_err(|error| EmbeddedAssetsError::AssetWrite {
+            path: path.to_owned(),
+            error,
+          })?;
+      }
+
+      #[cfg(feature = "compression")]
       // entirely write input to the output file path with compression
       zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
         EmbeddedAssetsError::AssetWrite {

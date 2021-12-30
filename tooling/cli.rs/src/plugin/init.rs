@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Context;
 use clap::{ArgSettings, Parser};
 use handlebars::{to_json, Handlebars};
-use heck::{KebabCase, SnakeCase};
+use heck::{ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
 

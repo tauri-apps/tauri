@@ -512,7 +512,7 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd.0 as *mut _)
+      .map(|hwnd| hwnd as *mut _)
       .map_err(Into::into)
   }
 
@@ -711,5 +711,14 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn window_is_send_sync() {
+    crate::test::assert_send::<super::Window>();
+    crate::test::assert_sync::<super::Window>();
   }
 }

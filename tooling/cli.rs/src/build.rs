@@ -5,7 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   command_env,
-  config::{get as get_config, AppUrl},
+  config::{get as get_config, AppUrl, WindowUrl},
   execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
@@ -15,7 +15,7 @@ use crate::Result;
 use anyhow::Context;
 use clap::Parser;
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
@@ -90,8 +90,7 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  if let AppUrl::Url(url) = &config_.build.dist_dir {
-    let web_asset_path = PathBuf::from(url);
+  if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
     if !web_asset_path.exists() {
       return Err(anyhow::anyhow!(
           "Unable to find your web assets, did you forget to build your web app? Your distDir is set to \"{:?}\".",
@@ -175,22 +174,17 @@ pub fn command(options: Options) -> Result<()> {
     // move merge modules to the out dir so the bundler can load it
     #[cfg(windows)]
     {
-      let arch = if let Some(t) = &options.target {
-        if t.starts_with("x86_64") {
-          "x86_64"
-        } else if t.starts_with('i') {
-          "x86"
-        } else if t.starts_with("arm") {
-          "arm"
-        } else if t.starts_with("aarch64") {
-          "aarch64"
-        } else {
-          panic!("Unexpected target triple {}", t)
-        }
-      } else if cfg!(target_arch = "x86") {
-        "x86"
-      } else {
+      let target = options.target.clone().unwrap_or_else(|| std::env::consts::ARCH.into());
+      let arch = if target.starts_with("x86_64") {
         "x86_64"
+      } else if target.starts_with('i') || target.starts_with("x86") {
+        "x86"
+      } else if target.starts_with("arm") {
+        "arm"
+      } else if target.starts_with("aarch64") {
+        "aarch64"
+      } else {
+        panic!("Unexpected target architecture {}", target.split("_").next().unwrap())
       };
       let (filename, vcruntime_msm) = if arch == "x86" {
         let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));

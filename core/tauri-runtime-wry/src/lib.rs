@@ -28,10 +28,7 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
-use windows::Win32::{
-    Foundation::HWND,
-    System::WinRT::EventRegistrationToken,
-};
+use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -390,6 +387,9 @@ pub struct GlobalShortcutManagerHandle {
   listeners: GlobalShortcutListeners,
 }
 
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for GlobalShortcutManagerHandle {}
+
 impl fmt::Debug for GlobalShortcutManagerHandle {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("GlobalShortcutManagerHandle")
@@ -462,6 +462,9 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
 pub struct ClipboardManagerWrapper {
   context: Context,
 }
+
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for ClipboardManagerWrapper {}
 
 impl ClipboardManager for ClipboardManagerWrapper {
   fn read_text(&self) -> Result<Option<String>> {
@@ -1056,6 +1059,9 @@ pub struct WryDispatcher {
   context: Context,
 }
 
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WryDispatcher {}
+
 impl Dispatch for WryDispatcher {
   type Runtime = Wry;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1488,6 +1494,9 @@ pub struct Wry {
 pub struct WryHandle {
   context: Context,
 }
+
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WryHandle {}
 
 impl WryHandle {
   /// Creates a new tao window using a callback, and returns its window id.

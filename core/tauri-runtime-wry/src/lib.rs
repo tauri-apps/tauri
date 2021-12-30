@@ -175,7 +175,7 @@ struct DispatcherMainThreadContext {
   tray_context: TrayContext,
 }
 
-// the main thread context is only used on the main thread
+// SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for DispatcherMainThreadContext {}
 
@@ -376,6 +376,7 @@ impl From<NativeImage> for NativeImageWrapper {
 #[derive(Debug, Clone)]
 pub struct GlobalShortcutWrapper(GlobalShortcut);
 
+// SAFETY: usage outside of main thread is guarded, we use the event loop on such cases.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GlobalShortcutWrapper {}
 
@@ -387,6 +388,7 @@ pub struct GlobalShortcutManagerHandle {
   listeners: GlobalShortcutListeners,
 }
 
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for GlobalShortcutManagerHandle {}
 
@@ -463,6 +465,7 @@ pub struct ClipboardManagerWrapper {
   context: Context,
 }
 
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for ClipboardManagerWrapper {}
 
@@ -701,7 +704,7 @@ pub struct WindowBuilderWrapper {
   menu: Option<Menu>,
 }
 
-// safe since `menu_items` are read only here
+// SAFETY: this type is `Send` since `menu_items` are read only here
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for WindowBuilderWrapper {}
 
@@ -1059,6 +1062,7 @@ pub struct WryDispatcher {
   context: Context,
 }
 
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for WryDispatcher {}
 
@@ -1495,6 +1499,7 @@ pub struct WryHandle {
   context: Context,
 }
 
+// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Sync for WryHandle {}
 

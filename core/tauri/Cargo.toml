@@ -19,7 +19,8 @@ exclude = [
 readme = "README.md"
 
 [package.metadata.docs.rs]
-all-features = true
+default-features = false
+features = ["wry", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
@@ -95,7 +96,8 @@ tokio = { version = "1.15", features = [ "full" ] }
 mockito = "0.30"
 
 [features]
-default = [ "wry" ]
+default = [ "wry", "compression" ]
+compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 dox = [ "tauri-runtime-wry/dox" ]
 wry = [ "tauri-runtime-wry" ]
 cli = [ "clap" ]

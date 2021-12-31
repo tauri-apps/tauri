@@ -93,20 +93,25 @@ fn crate_latest_version(name: &str) -> Option<String> {
   }
 }
 
-fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
+fn cross_command(bin: &str) -> Command {
   let mut cmd;
+  #[cfg(target_os = "windows")]
+  {
+    cmd = Command::new("cmd");
+    cmd.arg("/c").arg(bin);
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    cmd = Command::new(bin)
+  }
+  cmd
+}
+
+fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
   match pm {
     PackageManager::Yarn => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("yarn");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("yarn")
-      }
+      let mut cmd = cross_command("yarn");
 
       let output = cmd
         .arg("info")
@@ -122,16 +127,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       }
     }
     PackageManager::Npm => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("npm");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("npm")
-      }
+      let mut cmd = cross_command("npm");
 
       let output = cmd.arg("show").arg(name).arg("version").output()?;
       if output.status.success() {
@@ -142,16 +138,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       }
     }
     PackageManager::Pnpm => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("pnpm");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("pnpm")
-      }
+      let mut cmd = cross_command("pnpm");
 
       let output = cmd.arg("info").arg(name).arg("version").output()?;
       if output.status.success() {
@@ -169,65 +156,25 @@ fn npm_package_version<P: AsRef<Path>>(
   name: &str,
   app_dir: P,
 ) -> crate::Result<Option<String>> {
-  let mut cmd;
   let output = match pm {
-    PackageManager::Yarn => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("yarn");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("yarn")
-      }
-
-      cmd
-        .args(&["list", "--pattern"])
-        .arg(name)
-        .args(&["--depth", "0"])
-        .current_dir(app_dir)
-        .output()?
-    }
-    PackageManager::Npm => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("npm");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("npm")
-      }
-
-      cmd
-        .arg("list")
-        .arg(name)
-        .args(&["version", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?
-    }
-    PackageManager::Pnpm => {
-      #[cfg(target_os = "windows")]
-      {
-        cmd = Command::new("cmd");
-        cmd.arg("/c").arg("pnpm");
-      }
-
-      #[cfg(not(target_os = "windows"))]
-      {
-        cmd = Command::new("pnpm")
-      }
-
-      cmd
-        .arg("list")
-        .arg(name)
-        .args(&["--parseable", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?
-    }
+    PackageManager::Yarn => cross_command("yarn")
+      .args(&["list", "--pattern"])
+      .arg(name)
+      .args(&["--depth", "0"])
+      .current_dir(app_dir)
+      .output()?,
+    PackageManager::Npm => cross_command("npm")
+      .arg("list")
+      .arg(name)
+      .args(&["version", "--depth", "0"])
+      .current_dir(app_dir)
+      .output()?,
+    PackageManager::Pnpm => cross_command("pnpm")
+      .arg("list")
+      .arg(name)
+      .args(&["--parseable", "--depth", "0"])
+      .current_dir(app_dir)
+      .output()?,
   };
   if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -244,19 +191,10 @@ fn npm_package_version<P: AsRef<Path>>(
 }
 
 fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
-  let mut cmd;
-  #[cfg(target_os = "windows")]
-  {
-    cmd = Command::new("cmd");
-    cmd.arg("/c").arg(command);
-  }
-
-  #[cfg(not(target_os = "windows"))]
-  {
-    cmd = Command::new(command)
-  }
-
-  let output = cmd.args(args).arg("--version").output()?;
+  let output = cross_command(command)
+    .args(args)
+    .arg("--version")
+    .output()?;
   let version = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
@@ -306,63 +244,66 @@ fn webview2_version() -> crate::Result<Option<String>> {
 }
 
 #[cfg(windows)]
-fn run_vs_setup_instance() -> std::io::Result<std::process::Output> {
-  Command::new("powershell")
-    .args(&["-NoProfile", "-Command"])
-    .arg("Get-VSSetupInstance")
-    .output()
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct VsInstanceInfo {
+  display_name: String,
 }
 
 #[cfg(windows)]
+const VSWHERE: &[u8] = include_bytes!("../vswhere.exe");
+
+#[cfg(windows)]
 fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
-  let mut output = run_vs_setup_instance();
-  if output.is_err() {
-    Command::new("powershell")
-      .args(&["-NoProfile", "-Command"])
-      .arg("Install-Module VSSetup -Scope CurrentUser")
-      .output()?;
-    output = run_vs_setup_instance();
+  let mut vswhere = std::env::temp_dir();
+  vswhere.push("vswhere.exe");
+
+  if !vswhere.exists() {
+    if let Ok(mut file) = std::fs::File::create(vswhere.clone()) {
+      use std::io::Write;
+      let _ = file.write_all(VSWHERE);
+    }
   }
-  let output = output?;
-  let versions = if output.status.success() {
+  let output = cross_command(vswhere.to_str().unwrap())
+    .args(&[
+      "-prerelease",
+      "-products",
+      "*",
+      "-requiresAny",
+      "-requires",
+      "Microsoft.VisualStudio.Workload.NativeDesktop",
+      "-requires",
+      "Microsoft.VisualStudio.Workload.VCTools",
+      "-format",
+      "json",
+    ])
+    .output()?;
+  Ok(if output.status.success() {
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let mut versions = Vec::new();
-
-    let regex = regex::Regex::new(r"Visual Studio Build Tools (?P<version>\d+)").unwrap();
-    for caps in regex.captures_iter(&stdout) {
-      versions.push(caps["version"].to_string());
-    }
-
-    if versions.is_empty() {
-      None
-    } else {
-      Some(versions)
-    }
+    let instances: Vec<VsInstanceInfo> = serde_json::from_str(&stdout)?;
+    Some(
+      instances
+        .iter()
+        .map(|i| i.display_name.clone())
+        .collect::<Vec<String>>(),
+    )
   } else {
     None
-  };
-  Ok(versions)
+  })
 }
 
-fn get_active_rust_toolchain() -> crate::Result<Option<String>> {
-  let mut cmd;
-  #[cfg(target_os = "windows")]
-  {
-    cmd = Command::new("cmd");
-    cmd.arg("/c").arg("rustup");
-  }
-
-  #[cfg(not(target_os = "windows"))]
-  {
-    cmd = Command::new("rustup")
-  }
-
-  let output = cmd.args(["show", "active-toolchain"]).output()?;
+fn active_rust_toolchain() -> crate::Result<Option<String>> {
+  let output = cross_command("rustup")
+    .args(["show", "active-toolchain"])
+    .output()?;
   let toolchain = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
         .replace('\n', "")
-        .replace('\r', ""),
+        .replace('\r', "")
+        .split("(")
+        .collect::<Vec<&str>>()[0]
+        .into(),
     )
   } else {
     None
@@ -477,26 +418,31 @@ pub fn command(_options: Options) -> Result<()> {
 
   #[cfg(windows)]
   VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
+
   #[cfg(windows)]
-  VersionBlock::new(
-    "Visual Studio Build Tools",
-    build_tools_version()
-      .map(|r| {
-        let required_string = "(>= 2019 required)";
-        let multiple_string =
-          "(multiple versions might conflict; keep only 2019 if build errors occur)";
-        r.map(|v| match v.len() {
-          1 if v[0].as_str() < "2019" => format!("{} {}", v[0], required_string),
-          1 if v[0].as_str() >= "2019" => v[0].clone(),
-          _ if v.contains(&"2019".into()) => {
-            format!("{} {}", v.join(", "), multiple_string)
-          }
-          _ => format!("{} {} {}", v.join(", "), required_string, multiple_string),
-        })
-      })
-      .unwrap_or_default(),
-  )
-  .display();
+  {
+    let build_tools = build_tools_version()
+      .unwrap_or_default()
+      .unwrap_or_default();
+
+    InfoBlock {
+      section: false,
+      key: if build_tools.len() > 0 {
+        "Visual Studio Build Tools:"
+      } else {
+        "Visual Studio Build Tools - Not installed"
+      },
+      value: None,
+      suffix: None,
+    }
+    .display();
+
+    if build_tools.len() > 0 {
+      for i in build_tools {
+        VersionBlock::new("  ", i).display();
+      }
+    }
+  }
 
   let hook = panic::take_hook();
   panic::set_hook(Box::new(|_info| {
@@ -599,11 +545,7 @@ pub fn command(_options: Options) -> Result<()> {
     }),
   )
   .display();
-  VersionBlock::new(
-    "  toolchain",
-    get_active_rust_toolchain().unwrap_or_default(),
-  )
-  .display();
+  VersionBlock::new("  toolchain", active_rust_toolchain().unwrap_or_default()).display();
 
   if let Some(app_dir) = app_dir {
     InfoBlock::new("App directory structure")

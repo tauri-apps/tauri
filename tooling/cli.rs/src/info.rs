@@ -301,7 +301,7 @@ fn active_rust_toolchain() -> crate::Result<Option<String>> {
       String::from_utf8_lossy(&output.stdout)
         .replace('\n', "")
         .replace('\r', "")
-        .split("(")
+        .split('(')
         .collect::<Vec<&str>>()[0]
         .into(),
     )
@@ -427,7 +427,7 @@ pub fn command(_options: Options) -> Result<()> {
 
     InfoBlock {
       section: false,
-      key: if build_tools.len() > 0 {
+      key: if !build_tools.is_empty() {
         "Visual Studio Build Tools:"
       } else {
         "Visual Studio Build Tools - Not installed"
@@ -437,7 +437,7 @@ pub fn command(_options: Options) -> Result<()> {
     }
     .display();
 
-    if build_tools.len() > 0 {
+    if !build_tools.is_empty() {
       for i in build_tools {
         VersionBlock::new("  ", i).display();
       }

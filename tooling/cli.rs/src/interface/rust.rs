@@ -347,7 +347,7 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
           if let Some(workspace_settings) = cargo_settings.workspace {
             if let Some(members) = workspace_settings.members {
               if members.iter().any(|member| {
-                glob::glob(&dir.join(member).to_string_lossy().into_owned())
+                glob::glob(&dir.join(member).to_string_lossy())
                   .unwrap()
                   .any(|p| p.unwrap() == project_path)
               }) {

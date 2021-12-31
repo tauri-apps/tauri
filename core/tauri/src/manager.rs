@@ -43,7 +43,7 @@ use std::{
 };
 use tauri_macros::default_runtime;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
-use url::Url;
+use url::{Position, Url};
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -320,10 +320,12 @@ impl<R: Runtime> WindowManager<R> {
           )
         };
       pending.register_uri_scheme_protocol("asset", move |request| {
+        let parsed_path = Url::parse(&request.uri())?;
+        let filtered_path = &parsed_path[..Position::AfterPath];
         #[cfg(target_os = "windows")]
-        let path = request.uri().replace("asset://localhost/", "");
+        let path = filtered_path.replace("asset://localhost/", "");
         #[cfg(not(target_os = "windows"))]
-        let path = request.uri().replace("asset://", "");
+        let path = filtered_path.replace("asset://", "");
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -499,7 +501,7 @@ impl<R: Runtime> WindowManager<R> {
       let path = request
         .uri()
         .split(&['?', '#'][..])
-        // ignore query string
+        // ignore query string and fragment
         .next()
         .unwrap()
         .to_string()

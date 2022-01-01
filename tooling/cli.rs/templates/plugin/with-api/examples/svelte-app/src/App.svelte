@@ -4,7 +4,7 @@
 	let response = ''
 
 	function updateResponse(returnValue) {
-		response += (typeof returnValue === 'string' ? returnValue : JSON.stringify(returnValue)) + '<br>'
+		response += `[${new Date().toLocaleTimeString()}]` + (typeof returnValue === 'string' ? returnValue : JSON.stringify(returnValue)) + '<br>'
 	}
 
 	function _execute() {
@@ -14,4 +14,5 @@
 
 <div>
 	<button on:click="{_execute}">Execute</button>
+	<div>{@html response}</div>
 </div>

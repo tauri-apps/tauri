@@ -26,7 +26,7 @@ use super::super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use heck::KebabCase;
+use heck::ToKebabCase;
 use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use std::process::{Command, Stdio};

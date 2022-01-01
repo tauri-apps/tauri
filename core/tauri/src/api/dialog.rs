@@ -32,48 +32,6 @@ macro_rules! run_dialog {
   }};
 }
 
-/// Window parent definition.
-#[cfg(any(windows, target_os = "macos"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
-pub struct WindowParent {
-  #[cfg(windows)]
-  hwnd: *mut std::ffi::c_void,
-  #[cfg(target_os = "macos")]
-  ns_window: *mut std::ffi::c_void,
-}
-
-#[cfg(any(windows, target_os = "macos"))]
-unsafe impl raw_window_handle::HasRawWindowHandle for WindowParent {
-  #[cfg(windows)]
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::windows::WindowsHandle::empty();
-    handle.hwnd = self.hwnd;
-    raw_window_handle::RawWindowHandle::Windows(handle)
-  }
-
-  #[cfg(target_os = "macos")]
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::macos::MacOSHandle::empty();
-    handle.ns_window = self.ns_window;
-    raw_window_handle::RawWindowHandle::MacOS(handle)
-  }
-}
-
-#[cfg(any(windows, target_os = "macos"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
-#[doc(hidden)]
-pub fn window_parent<R: Runtime>(window: &Window<R>) -> crate::Result<WindowParent> {
-  #[cfg(windows)]
-  let w = WindowParent {
-    hwnd: window.hwnd()?,
-  };
-  #[cfg(target_os = "macos")]
-  let w = WindowParent {
-    ns_window: window.ns_window()?,
-  };
-  Ok(w)
-}
-
 /// The file dialog builder.
 ///
 /// Constructs file picker dialogs that can select single/multiple files or directories.
@@ -141,25 +99,24 @@ pub fn ask<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   message: impl AsRef<str>,
   f: F,
 ) {
-  let title = title.as_ref().to_string();
-  let message = message.as_ref().to_string();
-  #[allow(unused_mut)]
-  let mut builder = rfd::MessageDialog::new()
-    .set_title(&title)
-    .set_description(&message)
-    .set_buttons(rfd::MessageButtons::YesNo)
-    .set_level(rfd::MessageLevel::Info);
+  run_message_dialog(parent_window, title, message, rfd::MessageButtons::YesNo, f)
+}
 
-  #[cfg(any(windows, target_os = "macos"))]
-  {
-    if let Some(window) = parent_window {
-      if let Ok(parent) = window_parent(window) {
-        builder = builder.set_parent(&parent);
-      }
-    }
-  }
-
-  run_dialog!(builder.show(), f)
+/// Displays a dialog with a message and an optional title with an "ok" and a "cancel" button.
+#[allow(unused_variables)]
+pub fn confirm<R: Runtime, F: FnOnce(bool) + Send + 'static>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+  f: F,
+) {
+  run_message_dialog(
+    parent_window,
+    title,
+    message,
+    rfd::MessageButtons::OkCancel,
+    f,
+  )
 }
 
 /// Displays a message dialog.
@@ -169,25 +126,38 @@ pub fn message<R: Runtime>(
   title: impl AsRef<str>,
   message: impl AsRef<str>,
 ) {
+  run_message_dialog(
+    parent_window,
+    title,
+    message,
+    rfd::MessageButtons::Ok,
+    |_| {},
+  )
+}
+
+#[allow(unused_variables)]
+fn run_message_dialog<R: Runtime, F: FnOnce(bool) + Send + 'static>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+  buttons: rfd::MessageButtons,
+  f: F,
+) {
   let title = title.as_ref().to_string();
   let message = message.as_ref().to_string();
-  let cb = |_| {};
-
   #[allow(unused_mut)]
   let mut builder = rfd::MessageDialog::new()
     .set_title(&title)
     .set_description(&message)
-    .set_buttons(rfd::MessageButtons::Ok)
+    .set_buttons(buttons)
     .set_level(rfd::MessageLevel::Info);
 
   #[cfg(any(windows, target_os = "macos"))]
   {
     if let Some(window) = parent_window {
-      if let Ok(parent) = window_parent(window) {
-        builder = builder.set_parent(&parent);
-      }
+      builder = builder.set_parent(window);
     }
   }
 
-  run_dialog!(builder.show(), cb)
+  run_dialog!(builder.show(), f)
 }

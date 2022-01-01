@@ -54,7 +54,8 @@ export enum BaseDirectory {
   Video,
   Resource,
   App,
-  Current
+  Current,
+  Log
 }
 
 interface FsOptions {

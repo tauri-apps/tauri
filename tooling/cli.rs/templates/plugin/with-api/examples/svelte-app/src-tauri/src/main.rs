@@ -3,7 +3,6 @@
   windows_subsystem = "windows"
 )]
 
-
 fn main() {
   tauri::Builder::default()
     .plugin(tauri_plugin_{{ plugin_name_snake_case }}::YourPlugin::default())

@@ -148,6 +148,7 @@ pub enum MenuUpdate {
 
 pub trait TrayHandle: fmt::Debug {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
+  fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
@@ -183,6 +184,25 @@ impl Menu {
   /// Creates a new window menu.
   pub fn new() -> Self {
     Default::default()
+  }
+
+  /// Creates a new window menu with the given items.
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// Menu::with_items([
+  ///   MenuItem::SelectAll.into(),
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo.into(),
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   Submenu::new("View", Menu::new()).into(),
+  /// ]);
+  /// ```
+  pub fn with_items<I: IntoIterator<Item = MenuEntry>>(items: I) -> Self {
+    Self {
+      items: items.into_iter().collect(),
+    }
   }
 
   /// Adds the custom menu item to the menu.
@@ -346,6 +366,24 @@ pub enum MenuEntry {
   NativeItem(MenuItem),
   /// An entry with submenu.
   Submenu(Submenu),
+}
+
+impl From<CustomMenuItem> for MenuEntry {
+  fn from(item: CustomMenuItem) -> Self {
+    Self::CustomItem(item)
+  }
+}
+
+impl From<MenuItem> for MenuEntry {
+  fn from(item: MenuItem) -> Self {
+    Self::NativeItem(item)
+  }
+}
+
+impl From<Submenu> for MenuEntry {
+  fn from(submenu: Submenu) -> Self {
+    Self::Submenu(submenu)
+  }
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only

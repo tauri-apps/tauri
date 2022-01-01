@@ -12,7 +12,7 @@ use std::{
 
 use anyhow::Context;
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use serde::Deserialize;
 
 use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest, Logger};
@@ -358,12 +358,12 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
         }
         Err(e) => {
           logger.warn(format!(
-            "Found `{}`, which may define a parent workspace, but \
-          failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
-          \n    {:#}",
-            dir.display(),
-            e
-          ));
+              "Found `{}`, which may define a parent workspace, but \
+            failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
+            \n    {:#}",
+              dir.display(),
+              e
+            ));
         }
       }
     }

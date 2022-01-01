@@ -5,12 +5,24 @@
       "version": true,
       "publish": true,
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -"
+    },
+    "javascript": {
+      "version": true,
+      "publish": true,
+      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version"
     }
   },
   "packages": {
     "tauri-plugin-{{ plugin_name }}": {
       "path": ".",
       "manager": "rust"
+    },
+    "tauri-plugin-{{ plugin_name }}-api": {
+      "path": ".",
+      "manager": "javascript",
+      "dependencies": [
+        "tauri-plugin-{{ plugin_name }}"
+      ]
     }
   }
 }

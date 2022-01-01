@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-extern crate minisign;
-
 use base64::{decode, encode};
 use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{
@@ -106,7 +104,6 @@ pub fn sign_file<P>(
   private_key: String,
   password: String,
   bin_path: P,
-  prehashed: bool,
 ) -> crate::Result<(PathBuf, String)>
 where
   P: AsRef<Path>,
@@ -127,13 +124,12 @@ where
     bin_path.as_ref().display()
   );
 
-  let (data_reader, should_be_prehashed) = open_data_file(bin_path)?;
+  let data_reader = open_data_file(bin_path)?;
 
   let signature_box = sign(
     None,
     &sk,
     data_reader,
-    prehashed | should_be_prehashed,
     Some(trusted_comment.as_str()),
     Some("signature from tauri secret key"),
   )?;
@@ -166,10 +162,11 @@ where
       private_key_string = read_key_from_file(pk_dir)?;
     }
     // sign our file
-    return sign_file(private_key_string, password_string, path_to_sign, false);
+    sign_file(private_key_string, password_string, path_to_sign)
+  } else {
+    // reject if we don't have the private key
+    Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
   }
-  // reject if we don't have the private key
-  Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
 }
 
 fn unix_timestamp() -> u64 {
@@ -180,7 +177,7 @@ fn unix_timestamp() -> u64 {
   since_the_epoch.as_secs()
 }
 
-fn open_data_file<P>(data_path: P) -> crate::Result<(BufReader<File>, bool)>
+fn open_data_file<P>(data_path: P) -> crate::Result<BufReader<File>>
 where
   P: AsRef<Path>,
 {
@@ -189,9 +186,5 @@ where
     .read(true)
     .open(data_path)
     .map_err(|e| minisign::PError::new(minisign::ErrorKind::Io, e))?;
-  let should_be_hashed = match file.metadata() {
-    Ok(metadata) => metadata.len() > (1u64 << 30),
-    Err(_) => true,
-  };
-  Ok((BufReader::new(file), should_be_hashed))
+  Ok(BufReader::new(file))
 }

@@ -41,8 +41,9 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
   }
 }
 
-pub fn command_env() -> HashMap<String, String> {
+pub fn command_env(debug: bool) -> HashMap<String, String> {
   let mut map = HashMap::new();
+
   map.insert("PLATFORM".into(), std::env::consts::OS.into());
   map.insert("ARCH".into(), std::env::consts::ARCH.into());
   map.insert("FAMILY".into(), std::env::consts::FAMILY.into());
@@ -53,7 +54,11 @@ pub fn command_env() -> HashMap<String, String> {
   #[cfg(target_os = "windows")]
   map.insert("PLATFORM_TYPE".into(), "Windows_NT".into());
   #[cfg(target_os = "macos")]
-  map.insert("PLATFORM_TYPE".into(), "Darwing".into());
+  map.insert("PLATFORM_TYPE".into(), "Darwin".into());
+
+  if debug {
+    map.insert("TAURI_DEBUG".into(), "true".to_string());
+  }
 
   map
 }

@@ -128,7 +128,7 @@ async function manageDependencies(
   if (installedDeps.length || updatedDeps.length) {
     writeFileSync(
       appResolve.tauri('Cargo.toml'),
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument
       toml.stringify(manifest as any)
     )
   }

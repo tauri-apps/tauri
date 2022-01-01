@@ -153,11 +153,7 @@ pub struct Output {
 #[cfg(not(windows))]
 fn relative_command_path(command: String) -> crate::Result<String> {
   match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!(
-      "{}/{}",
-      exe_dir.to_string_lossy().to_string(),
-      command
-    )),
+    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.to_string_lossy(), command)),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }
@@ -316,7 +312,7 @@ impl Command {
   /// Stdin, stdout and stderr are ignored.
   pub fn status(self) -> crate::api::Result<ExitStatus> {
     let (mut rx, _child) = self.spawn()?;
-    let code = crate::async_runtime::block_on(async move {
+    let code = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       #[allow(clippy::collapsible_match)]
       while let Some(event) = rx.recv().await {
@@ -334,7 +330,7 @@ impl Command {
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
-    let output = crate::async_runtime::block_on(async move {
+    let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       let mut stdout = String::new();
       let mut stderr = String::new();

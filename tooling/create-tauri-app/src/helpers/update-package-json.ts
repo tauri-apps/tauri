@@ -7,7 +7,7 @@ import { join } from 'path'
 
 interface PackageJSON {
   name?: string
-  scripts?: {}
+  scripts?: Record<string, string>
 }
 
 export function updatePackageJson(

@@ -13,9 +13,10 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    rpc: {
-      notify: (command: string, args?: { [key: string]: unknown }) => void
-    }
+    __TAURI_POST_MESSAGE__: (
+      command: string,
+      args?: { [key: string]: unknown }
+    ) => void
   }
 }
 
@@ -73,7 +74,7 @@ interface InvokeArgs {
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
-    const callback = transformCallback((e) => {
+    const callback = transformCallback((e: T) => {
       resolve(e)
       Reflect.deleteProperty(window, error)
     }, true)
@@ -82,7 +83,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.rpc.notify(cmd, {
+    window.__TAURI_POST_MESSAGE__(cmd, {
       __invokeKey: __TAURI_INVOKE_KEY__,
       callback,
       error,
@@ -95,7 +96,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * Convert a device file path to an URL that can be loaded by the webview.
  * Note that `asset:` must be allowed on the `csp` value configured on `tauri.conf.json`.
  *
- * @param  filePath the file path. On Windows, the drive name must be omitted, i.e. using `/Users/user/file.png` instead of `C:/Users/user/file.png`.
+ * @param  filePath the file path.
  *
  * @return the URL that can be used as source on the webview
  */

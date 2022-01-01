@@ -12,6 +12,7 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
+  hooks::InvokeResponder,
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
@@ -32,7 +33,10 @@ use serde::Serialize;
 
 use tauri_macros::default_runtime;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  hash::{Hash, Hasher},
+  sync::Arc,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -91,6 +95,26 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
+unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
+  #[cfg(windows)]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::Win32Handle::empty();
+    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
+    raw_window_handle::RawWindowHandle::Win32(handle)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::AppKitHandle::empty();
+    handle.ns_window = self
+      .ns_window()
+      .expect("failed to get window's `ns_window`");
+    raw_window_handle::RawWindowHandle::AppKit(handle)
+  }
 }
 
 impl<R: Runtime> Clone for Window<R> {
@@ -181,13 +205,17 @@ impl<R: Runtime> Window<R> {
     ))
   }
 
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.manager.invoke_responder()
+  }
+
   /// The current window's dispatcher.
   pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self
       .window
       .dispatcher
@@ -196,7 +224,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
     match command.as_str() {
       "__initialized" => {
@@ -238,7 +266,15 @@ impl<R: Runtime> Window<R> {
     &self.window.label
   }
 
-  /// Emits an event to the current window.
+  /// Emits an event to both the JavaScript and the Rust listeners.
+  pub fn emit_and_trigger<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.trigger(event, Some(serde_json::to_string(&payload)?));
+    self.emit(event, payload)
+  }
+
+  /// Emits an event to the JavaScript listeners on the current window.
+  ///
+  /// The event is only delivered to listeners that used the `appWindow.listen` method on the @tauri-apps/api `window` module.
   pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.eval(&format!(
       "window['{}']({{event: {}, payload: {}}})",
@@ -246,16 +282,21 @@ impl<R: Runtime> Window<R> {
       serde_json::to_string(event)?,
       serde_json::to_value(payload)?,
     ))?;
-
     Ok(())
   }
 
-  /// Emits an event on all windows except this one.
+  /// Emits an event to the JavaScript listeners on all windows except this one.
+  ///
+  /// The event is only delivered to listeners that used the `appWindow.listen` function from the `@tauri-apps/api `window` module.
   pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self.manager.emit_filter(event, payload, |w| w != self)
   }
 
   /// Listen to an event on this window.
+  ///
+  /// This listener only receives events that are triggered using the
+  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
+  /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -269,7 +310,7 @@ impl<R: Runtime> Window<R> {
     self.manager.unlisten(handler_id)
   }
 
-  /// Listen to a an event on this window a single time.
+  /// Listen to an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -278,7 +319,9 @@ impl<R: Runtime> Window<R> {
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event on this window.
+  /// Triggers an event to the Rust listeners on this window.
+  ///
+  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
@@ -296,12 +339,55 @@ impl<R: Runtime> Window<R> {
 
   /// Registers a menu event listener.
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
-    let menu_ids = self.manager.menu_ids();
+    let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
       f(MenuEvent {
-        menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+        menu_item_id: menu_ids
+          .lock()
+          .unwrap()
+          .get(&event.menu_item_id)
+          .unwrap()
+          .clone(),
       })
     })
+  }
+
+  pub(crate) fn register_js_listener(&self, event: String, id: u64) {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .entry(event)
+      .or_insert_with(Default::default)
+      .insert(id);
+  }
+
+  pub(crate) fn unregister_js_listener(&self, id: u64) {
+    let mut empty = None;
+    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    for (event, ids) in js_listeners.iter_mut() {
+      if ids.contains(&id) {
+        ids.remove(&id);
+        if ids.is_empty() {
+          empty.replace(event.clone());
+        }
+        break;
+      }
+    }
+
+    if let Some(event) = empty {
+      js_listeners.remove(&event);
+    }
+  }
+
+  pub(crate) fn has_js_listener(&self, event: &str) -> bool {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .contains_key(event)
   }
 
   // Getters
@@ -309,7 +395,7 @@ impl<R: Runtime> Window<R> {
   /// Gets a handle to the window menu.
   pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
-      ids: self.manager.menu_ids(),
+      ids: self.window.menu_ids.clone(),
       dispatcher: self.dispatcher(),
     }
   }
@@ -426,7 +512,7 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd.0 as *mut _)
+      .map(|hwnd| hwnd as *mut _)
       .map_err(Into::into)
   }
 
@@ -625,5 +711,14 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn window_is_send_sync() {
+    crate::test::assert_send::<super::Window>();
+    crate::test::assert_sync::<super::Window>();
   }
 }

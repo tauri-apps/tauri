@@ -85,7 +85,7 @@ async function execute(
   })
 }
 
-class EventEmitter<E> {
+class EventEmitter<E extends string> {
   /** @ignore  */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   private eventListeners: {
@@ -123,7 +123,7 @@ class EventEmitter<E> {
    * @return The `this` instance for chained calls.
    */
   on(event: E, handler: (arg: any) => void): EventEmitter<E> {
-    this.addEventListener(event as any, handler)
+    this.addEventListener(event, handler)
     return this
   }
 }
@@ -294,10 +294,10 @@ class Command extends EventEmitter<'close' | 'error'> {
       this.on('error', reject)
       const stdout: string[] = []
       const stderr: string[] = []
-      this.stdout.on('data', (line) => {
+      this.stdout.on('data', (line: string) => {
         stdout.push(line)
       })
-      this.stderr.on('data', (line) => {
+      this.stderr.on('data', (line: string) => {
         stderr.push(line)
       })
       this.on('close', (payload: TerminatedPayload) => {

@@ -48,11 +48,13 @@ A positional argument is identified by its position in the list of arguments. Wi
   "args": [
     {
       "name": "source",
-      "index": 1
+      "index": 1,
+      "takesValue": true
     },
     {
       "name": "destination",
-      "index": 2
+      "index": 2,
+      "takesValue": true
     }
   ]
 }

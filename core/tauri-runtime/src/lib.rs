@@ -11,7 +11,7 @@ use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
 
 #[cfg(windows)]
-use webview2_com_sys::Windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::HWND;
 
 pub mod http;
 /// Create window and system tray menus.
@@ -254,6 +254,9 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
     &self,
     pending: PendingWindow<Self::Runtime>,
   ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
 
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]

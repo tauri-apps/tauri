@@ -39,7 +39,7 @@ fn detect_archive_type(path: &path::Path) -> ArchiveFormat {
     Some(extension) if extension == std::ffi::OsStr::new("tar") => ArchiveFormat::Tar(None),
     Some(extension) if extension == std::ffi::OsStr::new("gz") => match path
       .file_stem()
-      .map(|e| path::Path::new(e))
+      .map(path::Path::new)
       .and_then(|f| f.extension())
     {
       Some(extension) if extension == std::ffi::OsStr::new("tar") => {
@@ -119,9 +119,29 @@ impl<'a> Extract<'a> {
         let mut archive = zip::ZipArchive::new(source)?;
         for i in 0..archive.len() {
           let mut file = archive.by_index(i)?;
-          let path = into_dir.join(file.name());
-          let mut output = fs::File::create(path)?;
-          io::copy(&mut file, &mut output)?;
+          // Decode the file name from raw bytes instead of using file.name() directly.
+          // file.name() uses String::from_utf8_lossy() which may return messy characters
+          // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
+          // Here we require the file name must be a valid UTF-8.
+          let file_name = String::from_utf8(file.name_raw().to_vec())?;
+          let out_path = into_dir.join(&file_name);
+          if file.is_dir() {
+            fs::create_dir_all(&out_path)?;
+          } else {
+            if let Some(out_path_parent) = out_path.parent() {
+              fs::create_dir_all(&out_path_parent)?;
+            }
+            let mut out_file = fs::File::create(&out_path)?;
+            io::copy(&mut file, &mut out_file)?;
+          }
+          // Get and Set permissions
+          #[cfg(unix)]
+          {
+            use std::os::unix::fs::PermissionsExt;
+            if let Some(mode) = file.unix_mode() {
+              fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
+            }
+          }
         }
       }
     };

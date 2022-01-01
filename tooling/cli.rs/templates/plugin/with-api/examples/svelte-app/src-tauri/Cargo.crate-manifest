@@ -2,14 +2,15 @@
 name = "app"
 version = "0.1.0"
 description = "A Tauri App"
-authors = [ "You" ]
+authors = [ "{{ author }}" ]
 repository = ""
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = {{{  tauri_dep  }}}
+tauri = {{{  tauri_example_dep  }}}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
 
 [build-dependencies]

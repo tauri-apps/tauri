@@ -7,7 +7,7 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "devPath": "",
+        "devPath": "http://localhost:8080/",
         "distDir": "../dist",
         "withGlobalTauri": false
       },
@@ -29,11 +29,11 @@
     "plugins": {
       "description": "The plugins config.",
       "default": {},
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": true
-      }
+      "allOf": [
+        {
+          "$ref": "#/definitions/PluginConfig"
+        }
+      ]
     },
     "tauri": {
       "description": "The Tauri configuration.",
@@ -245,7 +245,11 @@
       "anyOf": [
         {
           "description": "The app's external URL, or the path to the directory containing the app assets.",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowUrl"
+            }
+          ]
         },
         {
           "description": "An array of files to embed on the app.",
@@ -261,14 +265,14 @@
       "type": "object",
       "properties": {
         "beforeBuildCommand": {
-          "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri build` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"
           ]
         },
         "beforeDevCommand": {
-          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.",
+          "description": "A shell command to run before `tauri dev` kicks in.\n\nThe PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
           "type": [
             "string",
             "null"
@@ -276,7 +280,7 @@
         },
         "devPath": {
           "description": "The path or URL to use on development.",
-          "default": "",
+          "default": "http://localhost:8080/",
           "allOf": [
             {
               "$ref": "#/definitions/AppUrl"
@@ -954,6 +958,11 @@
       },
       "additionalProperties": false
     },
+    "PluginConfig": {
+      "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
+      "type": "object",
+      "additionalProperties": true
+    },
     "SecurityConfig": {
       "type": "object",
       "properties": {
@@ -1342,6 +1351,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "WindowUrl": {
+      "description": "The window webview URL options.",
+      "anyOf": [
+        {
+          "description": "An external URL.",
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "description": "An app URL.",
+          "type": "string"
+        }
+      ]
     },
     "WindowsConfig": {
       "type": "object",

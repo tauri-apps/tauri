@@ -6,6 +6,7 @@
 
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
+  menu::{Menu, MenuEntry, MenuHash, MenuId},
   webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
   Dispatch, Runtime, WindowBuilder,
 };
@@ -13,8 +14,9 @@ use serde::Serialize;
 use tauri_utils::config::WindowConfig;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
+  sync::{mpsc::Sender, Arc, Mutex},
 };
 
 type UriSchemeProtocol =
@@ -32,7 +34,12 @@ pub enum WindowEvent {
   /// The position of the window has changed. Contains the window's new position.
   Moved(dpi::PhysicalPosition<i32>),
   /// The window has been requested to close.
-  CloseRequested,
+  CloseRequested {
+    /// The window label.
+    label: String,
+    /// A signal sender. If a `true` value is emitted, the window won't be closed.
+    signal_tx: Sender<bool>,
+  },
   /// The window has been destroyed.
   Destroyed,
   /// The window gained or lost focus.
@@ -61,6 +68,18 @@ pub struct MenuEvent {
   pub menu_item_id: u16,
 }
 
+fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
+  for item in &menu.items {
+    match item {
+      MenuEntry::CustomItem(c) => {
+        map.insert(c.id, c.id_str.clone());
+      }
+      MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
+      _ => {}
+    }
+  }
+}
+
 /// A webview window that has yet to be built.
 pub struct PendingWindow<R: Runtime> {
   /// The label that the window will be named.
@@ -82,6 +101,12 @@ pub struct PendingWindow<R: Runtime> {
 
   /// The resolved URL to load on the webview.
   pub url: String,
+
+  /// Maps runtime id to a string menu id.
+  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+
+  /// A HashMap mapping JS event names with listener ids associated.
+  pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
 }
 
 impl<R: Runtime> PendingWindow<R> {
@@ -91,6 +116,10 @@ impl<R: Runtime> PendingWindow<R> {
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> Self {
+    let mut menu_ids = HashMap::new();
+    if let Some(menu) = window_builder.get_menu() {
+      get_menu_ids(&mut menu_ids, menu);
+    }
     Self {
       window_builder,
       webview_attributes,
@@ -99,6 +128,8 @@ impl<R: Runtime> PendingWindow<R> {
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
+      menu_ids: Arc::new(Mutex::new(menu_ids)),
+      js_event_listeners: Default::default(),
     }
   }
 
@@ -108,15 +139,30 @@ impl<R: Runtime> PendingWindow<R> {
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> Self {
+    let window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config);
+    let mut menu_ids = HashMap::new();
+    if let Some(menu) = window_builder.get_menu() {
+      get_menu_ids(&mut menu_ids, menu);
+    }
     Self {
-      window_builder: <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config),
+      window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
       label: label.into(),
       rpc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
+      menu_ids: Arc::new(Mutex::new(menu_ids)),
+      js_event_listeners: Default::default(),
     }
+  }
+
+  pub fn set_menu(mut self, menu: Menu) -> Self {
+    let mut menu_ids = HashMap::new();
+    get_menu_ids(&mut menu_ids, &menu);
+    *self.menu_ids.lock().unwrap() = menu_ids;
+    self.window_builder = self.window_builder.menu(menu);
+    self
   }
 
   pub fn register_uri_scheme_protocol<
@@ -142,6 +188,12 @@ pub struct DetachedWindow<R: Runtime> {
 
   /// The [`Dispatch`](crate::Dispatch) associated with the window.
   pub dispatcher: R::Dispatcher,
+
+  /// Maps runtime id to a string menu id.
+  pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+
+  /// A HashMap mapping JS event names with listener ids associated.
+  pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
 }
 
 impl<R: Runtime> Clone for DetachedWindow<R> {
@@ -149,6 +201,8 @@ impl<R: Runtime> Clone for DetachedWindow<R> {
     Self {
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
+      menu_ids: self.menu_ids.clone(),
+      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }

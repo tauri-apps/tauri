@@ -91,15 +91,15 @@
     });
   }
 
-  function addWindowEventListeners(window) {
+  async function addWindowEventListeners(window) {
     if (resizeEventUnlisten) {
       resizeEventUnlisten();
     }
     if(moveEventUnlisten) {
       moveEventUnlisten();
     }
-    moveEventUnlisten = window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = window.listen('tauri://resize', handleWindowResize);
+    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove);
+    resizeEventUnlisten = await window.listen('tauri://resize', handleWindowResize);
   }
 
   async function requestUserAttention_() {
@@ -115,10 +115,10 @@
   $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop);
   $: windowMap[selectedWindow].setFullscreen(fullscreen);
 
-  $: windowMap[selectedWindow].setSize(new LogicalSize(width, height));
+  $: windowMap[selectedWindow].setSize(new PhysicalSize(width, height));
   $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
   $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
-  $: windowMap[selectedWindow].setPosition(new LogicalPosition(x, y));
+  $: windowMap[selectedWindow].setPosition(new PhysicalPosition(x, y));
   $: windowMap[selectedWindow].scaleFactor().then(factor => scaleFactor = factor);
   $: addWindowEventListeners(windowMap[selectedWindow]);
 </script>

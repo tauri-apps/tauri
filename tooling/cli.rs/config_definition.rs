@@ -5,11 +5,12 @@
 #![allow(clippy::field_reassign_with_default)]
 
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
+use url::Url;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -786,12 +787,38 @@ fn default_dialog() -> Option<bool> {
   Some(true)
 }
 
+/// The window webview URL options.
+#[derive(PartialEq, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum WindowUrl {
+  /// An external URL.
+  External(Url),
+  /// An app URL.
+  App(PathBuf),
+}
+
+impl Default for WindowUrl {
+  fn default() -> Self {
+    Self::App("index.html".into())
+  }
+}
+
+impl std::fmt::Display for WindowUrl {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::External(url) => write!(f, "{}", url),
+      Self::App(path) => write!(f, "{}", path.display()),
+    }
+  }
+}
+
 /// The `dev_path` and `dist_dir` options.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
-  Url(String),
+  Url(WindowUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -820,11 +847,11 @@ pub struct BuildConfig {
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.
+  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_dev_command: Option<String>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The PLATFORM, ARCH, FAMILY and PLATFORM_TYPE environment variables are set if you perform conditional compilation.
+  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_build_command: Option<String>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,
@@ -834,14 +861,14 @@ pub struct BuildConfig {
 }
 
 fn default_dev_path() -> AppUrl {
-  AppUrl::Url("".to_string())
+  AppUrl::Url(WindowUrl::External(
+    Url::parse("http://localhost:8080").unwrap(),
+  ))
 }
 
 fn default_dist_dir() -> AppUrl {
-  AppUrl::Url("../dist".to_string())
+  AppUrl::Url(WindowUrl::App(PathBuf::from("../dist")))
 }
-
-type JsonObject = HashMap<String, JsonValue>;
 
 /// The tauri.conf.json mapper.
 #[skip_serializing_none]
@@ -859,8 +886,12 @@ pub struct Config {
   pub build: BuildConfig,
   /// The plugins config.
   #[serde(default)]
-  pub plugins: HashMap<String, JsonObject>,
+  pub plugins: PluginConfig,
 }
+
+/// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize, JsonSchema)]
+pub struct PluginConfig(pub HashMap<String, JsonValue>);
 
 fn default_build() -> BuildConfig {
   BuildConfig {

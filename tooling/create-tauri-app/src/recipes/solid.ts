@@ -44,10 +44,11 @@ const solid: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  preInit: async ({ cwd, cfg, answers }) => {
+  preInit: async ({ cwd, cfg, answers, ci }) => {
     await shell(
       'npx',
       [
+        ci ? '--yes' : '',
         'degit',
         `solidjs/templates/${(answers?.template as string) ?? 'js'}`,
         cfg.appName
@@ -58,6 +59,7 @@ const solid: Recipe = {
   postInit: async ({ cfg, packageManager }) => {
     console.log(`
     Your installation completed.
+
     $ cd ${cfg.appName}
     $ ${packageManager} install
     $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev

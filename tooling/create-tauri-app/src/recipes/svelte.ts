@@ -51,7 +51,6 @@ const svelte: Recipe = {
       }
     )
 
-    // Add Typescript
     if (typescript) {
       await shell('node', ['scripts/setupTypeScript.js'], {
         cwd: join(cwd, cfg.appName)

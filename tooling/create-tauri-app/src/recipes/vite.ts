@@ -9,7 +9,7 @@ import { Recipe } from '../types/recipe'
 
 const vite: Recipe = {
   descriptiveName: {
-    name: 'create-vite (vue, react, svelte ...) (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
+    name: 'create-vite (vanilla, vue, react, svelte, preact, lit) (https://vitejs.dev/guide/#scaffolding-your-first-vite-project)',
     value: 'create-vite'
   },
   shortName: 'vite',
@@ -54,45 +54,64 @@ const vite: Recipe = {
   },
   preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
     const template = (answers?.template as string) ?? 'vue'
-    if (packageManager === 'npm') {
-      await shell(
-        'npx',
-        [
-          ci ? '--yes' : '',
-          'create-vite@latest',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
-        {
-          cwd
-        }
-      )
-    } else {
-      await shell(
-        packageManager,
-        [
-          ci ? (packageManager === 'yarn' ? '--non-interactive' : '') : '',
-          'create',
-          'vite',
-          `${cfg.appName}`,
-          '--template',
-          `${template}`
-        ],
-        {
-          cwd
-        }
-      )
+
+    switch (packageManager) {
+      case 'yarn':
+        await shell(
+          'yarn',
+          [
+            ci ? '--non-interactive' : '',
+            'create',
+            'vite',
+            `${cfg.appName}`,
+            '--template',
+            `${template}`
+          ],
+          {
+            cwd
+          }
+        )
+        break
+
+      case 'npm':
+        await shell(
+          'npx',
+          [
+            ci ? '--yes' : '',
+            'create-vite@latest',
+            `${cfg.appName}`,
+            '--template',
+            `${template}`
+          ],
+          {
+            cwd
+          }
+        )
+        break
+
+      case 'pnpm':
+        await shell(
+          'pnpm',
+          ['create', 'vite', `${cfg.appName}`, '--template', `${template}`],
+          {
+            cwd
+          }
+        )
+        break
     }
   },
   postInit: async ({ cwd, packageManager, cfg }) => {
     // we don't have a consistent way to rebuild and
     // esbuild has hit all the bugs and struggles to install on the postinstall
     await shell('node', ['./node_modules/esbuild/install.js'], { cwd })
-    if (packageManager === 'npm') {
-      await shell('npm', ['run', 'build'], { cwd })
-    } else {
-      await shell(packageManager, ['build'], { cwd })
+    switch (packageManager) {
+      case 'pnpm':
+      case 'yarn':
+        await shell(packageManager, ['build'], { cwd })
+        break
+      case 'npm':
+        await shell('npm', ['run', 'build'], { cwd })
+        break
     }
 
     console.log(`

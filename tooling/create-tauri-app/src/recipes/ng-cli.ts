@@ -11,14 +11,19 @@ const addAdditionalPackage = async (
 ): Promise<void> => {
   const ngCommand = ['ng', 'add', packageName, '--skip-confirmation']
 
-  if (packageManager === 'npm') {
-    await shell('npm', ['run', ...ngCommand], {
-      cwd: join(cwd, appName)
-    })
-  } else {
-    await shell(packageManager, ngCommand, {
-      cwd: join(cwd, appName)
-    })
+  switch (packageManager) {
+    case 'pnpm':
+    case 'yarn':
+      await shell(packageManager, ngCommand, {
+        cwd: join(cwd, appName)
+      })
+      break
+
+    case 'npm':
+      await shell('npm', ['run', ...ngCommand], {
+        cwd: join(cwd, appName)
+      })
+      break
   }
 }
 

@@ -16,11 +16,16 @@ import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
 import { solid } from './recipes/solid'
 import { cljs } from './recipes/cljs'
-import { install, checkPackageManager } from './dependency-manager'
+import {
+  install,
+  checkPackageManager,
+  PackageManager
+} from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
+import { pkgManagerFromUserAgent } from './helpers/package-manager'
 
 const allRecipes: Recipe[] = [
   vanillajs,
@@ -60,7 +65,7 @@ interface Argv {
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
   program
     .description(
-      'Bootstrap a new tauri app from a "recipe" or pre-built template.'
+      'Bootstrap a new tauri app from a "recipe" or a pre-built template.'
     )
     .addOption(
       createOption(
@@ -234,17 +239,10 @@ You may find the requirements here: ${cyan(setupLink)}
     throw new Error('Could not find the recipe specified.')
   }
 
-  const packageManager =
-    argv.manager === 'yarn' || argv.manager === 'npm' || argv.manager === 'pnpm'
-      ? argv.manager
-      : // @ts-expect-error
-      // this little fun snippet pulled from vite determines the package manager the script was run from
-      /yarn/.test(process?.env?.npm_execpath)
-      ? 'yarn'
-      : // @ts-expect-error
-      /pnpm/.test(process?.env?.npm_execpath)
-      ? 'pnpm'
-      : 'npm'
+  const pkgManagerInfo = pkgManagerFromUserAgent(
+    process.env.npm_config_user_agent
+  )
+  const packageManager = (pkgManagerInfo?.name ?? 'npm') as PackageManager
 
   const buildConfig = {
     distDir: argv.distDir,
@@ -297,7 +295,7 @@ You may find the requirements here: ${cyan(setupLink)}
 
   // note that our app directory is reliant on the appName and
   // generally there are issues if the path has spaces (see Windows)
-  // future TODO prevent app names with spaces or escape here?
+  // TODO: prevent app names with spaces or escape here?
   const appDirectory = join(directory, cfg.appName)
 
   // this throws an error if we can't run the package manager they requested
@@ -364,8 +362,8 @@ You may find the requirements here: ${cyan(setupLink)}
     const binary = !argv.binary
       ? packageManager
       : resolve(appDirectory, argv.binary)
-    // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
-    // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/
+    // "pnpm" is mostly interchangable with "yarn" but due to this bug https://github.com/pnpm/pnpm/issues/2764
+    // we need to pass "--" to pnpm or arguments won't be parsed correctly so we treat "pnpm" here like "npm"
     const runTauriArgs =
       packageManager === 'yarn' || argv.binary
         ? ['tauri', 'init']

@@ -27,34 +27,54 @@ const cljs: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  preInit: async ({ cwd, cfg, packageManager }) => {
+  preInit: async ({ cwd, cfg, packageManager, ci }) => {
     const npmLock = join(cwd, cfg.appName, 'package-lock.json')
     const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
     const nodeModules = join(cwd, cfg.appName, 'node_modules')
 
-    if (packageManager === 'yarn') {
-      await shell('yarn', ['create', 'cljs-app', `${cfg.appName}`], {
-        cwd
-      })
+    switch (packageManager) {
+      case 'yarn':
+        await shell('yarn', ['create', 'cljs-app', `${cfg.appName}`], {
+          cwd
+        })
 
-      // `create-cljs-app` has both a `package-lock.json` and a `yarn.lock`
-      // so it is better to remove conflicting lock files and install fresh node_modules
-      if (existsSync(npmLock)) unlinkSync(npmLock)
-      emptyDir(nodeModules)
+        // `create-cljs-app` has both a `package-lock.json` and a `yarn.lock`
+        // so it is better to remove conflicting lock files and install fresh node_modules
+        if (existsSync(npmLock)) unlinkSync(npmLock)
+        emptyDir(nodeModules)
 
-      await shell('yarn', ['install'], { cwd: join(cwd, cfg.appName) })
-    } else {
-      await shell('npx', ['create-cljs-app@latest', `${cfg.appName}`], {
-        cwd
-      })
+        await shell('yarn', ['install'], { cwd: join(cwd, cfg.appName) })
+        break
 
-      // Remove Unnecessary lockfile as above.
-      if (existsSync(yarnLock)) unlinkSync(yarnLock)
-      // also remove package-lock.json if current package manager is pnpm
-      if (packageManager === 'pnpm' && existsSync(npmLock)) unlinkSync(npmLock)
-      emptyDir(nodeModules)
+      case 'npm':
+        await shell(
+          'npx',
+          [ci ? '--yes' : '', 'create-cljs-app@latest', `${cfg.appName}`],
+          {
+            cwd
+          }
+        )
 
-      await shell(packageManager, ['install'], { cwd: join(cwd, cfg.appName) })
+        if (existsSync(yarnLock)) unlinkSync(yarnLock)
+        emptyDir(nodeModules)
+
+        await shell('npm', ['install'], { cwd: join(cwd, cfg.appName) })
+        break
+
+      case 'pnpm':
+        await shell(
+          'npx',
+          [ci ? '--yes' : '', 'create-cljs-app@latest', `${cfg.appName}`],
+          {
+            cwd
+          }
+        )
+
+        if (existsSync(npmLock)) unlinkSync(npmLock)
+        emptyDir(nodeModules)
+
+        await shell('pnpm', ['install'], { cwd: join(cwd, cfg.appName) })
+        break
     }
   },
   postInit: async ({ cfg, packageManager }) => {

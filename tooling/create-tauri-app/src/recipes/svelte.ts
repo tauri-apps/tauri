@@ -37,17 +37,20 @@ const svelte: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  preInit: async ({ cwd, cfg, answers }) => {
+  preInit: async ({ cwd, cfg, answers, ci }) => {
     let typescript = false
     if (answers) {
       typescript = !!answers.typescript
     }
 
-    await shell('npx', ['degit', 'sveltejs/template', `${cfg.appName}`], {
-      cwd
-    })
+    await shell(
+      'npx',
+      [ci ? '--yes' : '', 'degit', 'sveltejs/template', `${cfg.appName}`],
+      {
+        cwd
+      }
+    )
 
-    // Add Typescript
     if (typescript) {
       await shell('node', ['scripts/setupTypeScript.js'], {
         cwd: join(cwd, cfg.appName)

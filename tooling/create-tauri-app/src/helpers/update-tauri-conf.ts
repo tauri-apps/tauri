@@ -4,26 +4,25 @@
 
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { TauriBuildConfig } from '../types/config'
+
+interface TauriConfJSON {
+  build?: {
+    beforeDevCommand?: string
+    beforeBuildCommand?: string
+    distDir?: string
+    devPath?: string
+    withGlobalTauri?: boolean
+  }
+}
 
 export function updateTauriConf(
-  appDirectory: string,
-  cfg: TauriBuildConfig
+  f: (tauriConf: TauriConfJSON) => TauriConfJSON,
+  cwd: string = process.cwd()
 ): void {
-  const tauriConfPath = join(appDirectory, 'src-tauri', 'tauri.conf.json')
-  const tauriConfString = readFileSync(tauriConfPath, 'utf8')
-  const tauriConf = JSON.parse(tauriConfString) as {
-    build: TauriBuildConfig
-  }
-
-  const outputPkg: { build: TauriBuildConfig } = {
-    ...tauriConf,
-    build: {
-      ...tauriConf.build,
-      beforeBuildCommand: cfg.beforeBuildCommand,
-      beforeDevCommand: cfg.beforeDevCommand
-    }
-  }
-
-  writeFileSync(tauriConfPath, JSON.stringify(outputPkg, undefined, 2))
+  const tauriConfPath = join(cwd, 'src-tauri', 'tauri.conf.json')
+  const tauriConf = JSON.parse(
+    readFileSync(tauriConfPath, 'utf8')
+  ) as TauriConfJSON
+  const output = f(tauriConf)
+  writeFileSync(tauriConfPath, JSON.stringify(output, undefined, 2))
 }

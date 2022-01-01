@@ -579,6 +579,15 @@ impl<R: Runtime> App<R> {
 }
 
 /// Builds a Tauri application.
+///
+/// # Example
+/// ```rust,ignore
+/// fn main() {
+///   tauri::Builder::default()
+///    .run(tauri::generate_context!())
+///    .expect("error while running tauri application");
+/// }
+/// ```
 #[allow(clippy::type_complexity)]
 pub struct Builder<R: Runtime> {
   /// The JS message handler.
@@ -651,6 +660,15 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Defines the JS message handler callback.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .invoke_handler(tauri::generate_handler![
+  ///     command_1,
+  ///     command_2,
+  ///   ]);
+  /// ```
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
     F: Fn(Invoke<R>) + Send + Sync + 'static,
@@ -675,6 +693,16 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Defines the setup hook.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let main_window = app.get_window("main").unwrap();
+  ///     dialog::message(Some(&main_window), "Hello", "Welcome back!");
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn setup<F>(mut self, setup: F) -> Self
   where
     F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
@@ -787,6 +815,19 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Creates a new webview window.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .create_window("main", tauri::WindowUrl::default(), |win, webview| {
+  ///     let win = win
+  ///       .title("My Main Window")
+  ///       .resizable(true)
+  ///       .inner_size(800.0, 550.0)
+  ///       .min_inner_size(400.0, 200.0);
+  ///     return (win, webview);
+  ///   });
+  /// ```
   pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(
@@ -818,12 +859,56 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Sets the menu to use on all windows.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// use tuari::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// tauri::Builder::default()
+  ///   .menu(Menu::with_items([
+  ///     MenuEntry::Submenu(Submenu::new(
+  ///       "File",
+  ///       Menu::with_items([
+  ///         MenuItem::CloseWindow.into(),
+  ///         #[cfg(target_os = "macos")]
+  ///         CustomMenuItem::new("hello", "Hello").into(),
+  ///       ]),
+  ///     )),
+  ///   ]));
+  /// ```
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
     self
   }
 
   /// Registers a menu event handler for all windows.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api};
+  /// tauri::Builder::default()
+  ///   .menu(Menu::with_items([
+  ///     MenuEntry::Submenu(Submenu::new(
+  ///       "File",
+  ///       Menu::with_items([
+  ///         CustomMenuItem::new("New", "New").into(),
+  ///         CustomMenuItem::new("Learn More", "Learn More").into(),
+  ///       ]),
+  ///     )),
+  ///   ]))
+  ///   .on_menu_event(|event| {
+  ///     match event.menu_item_id() {
+  ///       "Learn More" => {
+  ///         // open in browser (requires shell open API to be enabled)
+  ///         api::shell::open("https://github.com/tauri-apps/tauri".to_string(), None).unwrap();
+  ///       }
+  ///       id => {
+  ///         // emit others to frontend
+  ///         event.window().emit("menu", id).unwrap();
+  ///       }
+  ///     }
+  ///   });
+  /// ```
   pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -833,6 +918,20 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Registers a window event handler for all windows.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .on_window_event(|event| match event.event() {
+  ///     tauri::WindowEvent::Focused(focused) => {
+  ///       // hide window whenever it loses focus
+  ///       if !focused {
+  ///         event.window().hide().unwrap();
+  ///       }
+  ///     }
+  ///     _ => {}
+  ///   });
+  /// ```
   pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -842,6 +941,20 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Registers a system tray event handler.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// tauri::Builder::default()
+  ///   .on_system_tray_event(|app, event| match event {
+  ///     // show window with id "main" when the tray is left clicked
+  ///     tauri::SystemTrayEvent::LeftClick { .. } => {
+  ///       let window = app.get_window("main").unwrap();
+  ///       window.show().unwrap();
+  ///       window.set_focus().unwrap();
+  ///     }
+  ///     _ => {}
+  ///   })
+  /// ```
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   pub fn on_system_tray_event<

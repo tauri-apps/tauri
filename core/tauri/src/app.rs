@@ -862,7 +862,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// # Example
   /// ```rust,ignore
-  /// use tuari::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
   ///
   /// tauri::Builder::default()
   ///   .menu(Menu::with_items([

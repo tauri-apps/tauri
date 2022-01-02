@@ -795,6 +795,7 @@ impl<'a> Iterator for ResourcePaths<'a> {
           return Some(Ok(path));
         } else if let Some(current_path) = &self.current_pattern {
           if !self.current_pattern_is_valid {
+            self.glob_iter = None;
             return Some(Err(crate::Error::GenericError(format!(
               "Path matching '{}' not found",
               current_path

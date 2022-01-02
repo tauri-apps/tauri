@@ -663,10 +663,14 @@ impl<R: Runtime> Builder<R> {
   ///
   /// # Example
   /// ```rust,ignore
+  /// #[tauri::command]
+  /// fn command_1() -> String {
+  ///   return "hello world".to_string();
+  /// }
   /// tauri::Builder::default()
   ///   .invoke_handler(tauri::generate_handler![
   ///     command_1,
-  ///     command_2,
+  ///     // etc...
   ///   ]);
   /// ```
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self

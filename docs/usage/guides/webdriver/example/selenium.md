@@ -148,7 +148,7 @@ before(async function() {
   );
 
   const capabilities = new Capabilities();
-  capabilities.set("tauri:options", { application });
+  capabilities.set("tauri:options", { application, args: ["app", "cli", "args"] });
   capabilities.setBrowserName("wry");
 
   // start the webdriver client

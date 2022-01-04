@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;
-(function () {
+;(function () {
   function uid() {
     const length = new Int8Array(1)
     window.crypto.getRandomValues(length)
@@ -52,25 +51,24 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        window.__TAURI_POST_MESSAGE__(
-          cmd, {
+      if (
+        document.readyState === 'complete' ||
+        document.readyState === 'interactive'
+      ) {
+        window.__TAURI_POST_MESSAGE__(cmd, {
+          ...args,
+          callback: callback,
+          error: error,
+          __invokeKey: key || __TAURI_INVOKE_KEY__
+        })
+      } else {
+        window.addEventListener('DOMContentLoaded', function () {
+          window.__TAURI_POST_MESSAGE__(cmd, {
             ...args,
             callback: callback,
             error: error,
             __invokeKey: key || __TAURI_INVOKE_KEY__
-          }
-        )
-      } else {
-        window.addEventListener('DOMContentLoaded', function () {
-          window.__TAURI_POST_MESSAGE__(
-            cmd, {
-              ...args,
-              callback: callback,
-              error: error,
-              __invokeKey: key || __TAURI_INVOKE_KEY__
-            }
-          )
+          })
         })
       }
     })
@@ -90,7 +88,8 @@
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE__(
-                'tauri', {
+                'tauri',
+                {
                   __tauriModule: 'Shell',
                   message: {
                     cmd: 'open',
@@ -130,7 +129,8 @@
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__(
-        'tauri', {
+        'tauri',
+        {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',
@@ -147,7 +147,8 @@
   })
 
   window.__TAURI_INVOKE__(
-    'tauri', {
+    'tauri',
+    {
       __tauriModule: 'Event',
       message: {
         cmd: 'listen',
@@ -173,7 +174,8 @@
       return Promise.resolve(window.Notification.permission === 'granted')
     }
     return window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Notification',
         message: {
           cmd: 'isNotificationPermissionGranted'
@@ -192,7 +194,8 @@
   function requestPermission() {
     return window
       .__TAURI_INVOKE__(
-        'tauri', {
+        'tauri',
+        {
           __tauriModule: 'Notification',
           message: {
             cmd: 'requestNotificationPermission'
@@ -214,13 +217,17 @@
     isPermissionGranted().then(function (permission) {
       if (permission) {
         return window.__TAURI_INVOKE__(
-          'tauri', {
+          'tauri',
+          {
             __tauriModule: 'Notification',
             message: {
               cmd: 'notification',
-              options: typeof options === 'string' ? {
-                title: options
-              } : options
+              options:
+                typeof options === 'string'
+                  ? {
+                      title: options
+                    }
+                  : options
             }
           },
           _KEY_VALUE_
@@ -263,7 +270,8 @@
 
   window.alert = function (message) {
     window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'messageDialog',
@@ -276,7 +284,8 @@
 
   window.confirm = function (message) {
     return window.__TAURI_INVOKE__(
-      'tauri', {
+      'tauri',
+      {
         __tauriModule: 'Dialog',
         message: {
           cmd: 'confirmDialog',
@@ -291,7 +300,8 @@
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
       return window.__TAURI_INVOKE__(
-        'tauri', {
+        'tauri',
+        {
           __tauriModule: 'Window',
           message: {
             cmd: 'manage',

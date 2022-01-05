@@ -39,9 +39,9 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use once_cell::sync::Lazy;
-
-static EGUI_ID: Lazy<Mutex<Option<WindowId>>> = Lazy::new(|| Mutex::new(None));
+#[cfg(feature = "egui")]
+static EGUI_ID: once_cell::sync::Lazy<Mutex<Option<WindowId>>> =
+  once_cell::sync::Lazy::new(|| Mutex::new(None));
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -103,10 +103,13 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use glutin::platform::ContextTraitExt;
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use gtk::prelude::*;
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use std::{
   cell::RefCell,
@@ -1053,6 +1056,7 @@ pub enum Message {
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
+  #[cfg(feature = "egui")]
   CreateGLWindow(
     String,
     Box<dyn epi::App + Send>,
@@ -1468,6 +1472,7 @@ impl fmt::Debug for TrayContext {
 enum WindowHandle {
   Webview(WebView),
   Window(Arc<Window>),
+  #[cfg(feature = "egui")]
   #[cfg(not(target_os = "linux"))]
   GLWindow(
     glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>,
@@ -1475,6 +1480,7 @@ enum WindowHandle {
     egui_glow::Painter,
     egui_tao::epi::EpiIntegration,
   ),
+  #[cfg(feature = "egui")]
   #[cfg(target_os = "linux")]
   GLWindow(
     Rc<glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>>,
@@ -1496,6 +1502,7 @@ impl WindowHandle {
     match self {
       Self::Webview(w) => w.window(),
       Self::Window(w) => w,
+      #[cfg(feature = "egui")]
       Self::GLWindow(w, ..) => w.window(),
     }
   }
@@ -1504,6 +1511,7 @@ impl WindowHandle {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
       WindowHandle::Webview(w) => w.inner_size(),
+      #[cfg(feature = "egui")]
       WindowHandle::GLWindow(w, ..) => w.window().inner_size(),
     }
   }
@@ -1553,6 +1561,7 @@ impl WryHandle {
     rx.recv().unwrap()
   }
 
+  #[cfg(feature = "egui")]
   /// Creates a new egui window.
   pub fn create_egui_window(
     &self,
@@ -1889,8 +1898,9 @@ impl Runtime for Wry {
     let global_shortcut_manager = self.global_shortcut_manager.clone();
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
     let clipboard_manager = self.clipboard_manager.clone();
-
     let mut iteration = RunIteration::default();
+
+    #[cfg(feature = "egui")]
     let mut is_focused = true;
 
     self
@@ -1900,6 +1910,8 @@ impl Runtime for Wry {
         if let Event::MainEventsCleared = &event {
           *control_flow = ControlFlow::Exit;
         }
+
+        #[cfg(feature = "egui")]
         handle_gl_loop(
           &event,
           event_loop,
@@ -1951,8 +1963,11 @@ impl Runtime for Wry {
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
     let clipboard_manager = self.clipboard_manager.clone();
 
+    #[cfg(feature = "egui")]
     let mut is_focused = true;
+
     self.event_loop.run(move |event, event_loop, control_flow| {
+      #[cfg(feature = "egui")]
       handle_gl_loop(
         &event,
         event_loop,
@@ -2241,6 +2256,7 @@ fn handle_user_message(
         sender.send(Err(Error::CreateWindow)).unwrap();
       }
     }
+    #[cfg(feature = "egui")]
     Message::CreateGLWindow(label, app, native_options, proxy) => {
       let mut egui_id = EGUI_ID.lock().unwrap();
       if let Some(id) = *egui_id {
@@ -2719,6 +2735,7 @@ fn handle_event_loop(
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "egui")]
 #[cfg(not(target_os = "linux"))]
 fn handle_gl_loop(
   event: &Event<'_, Message>,
@@ -2843,6 +2860,7 @@ fn handle_gl_loop(
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 fn handle_gl_loop(
   event: &Event<'_, Message>,
@@ -2930,25 +2948,28 @@ fn on_window_close<'a>(
   menu_event_listeners: MenuEventListeners,
 ) {
   if let Some(webview) = windows.remove(&window_id) {
-    // Destrooy GL context if its a GLWindow
-    let mut egui_id = EGUI_ID.lock().unwrap();
-    if let Some(id) = *egui_id {
-      if id == window_id {
-        #[cfg(not(target_os = "linux"))]
-        if let WindowHandle::GLWindow(gl_window, gl, mut painter, mut integration, ..) =
-          webview.inner
-        {
-          integration.on_exit(gl_window.window());
-          painter.destroy(&gl);
-          *egui_id = None;
-        }
-        #[cfg(target_os = "linux")]
-        if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
-          let mut integration = integration.borrow_mut();
-          let mut painter = painter.borrow_mut();
-          integration.on_exit(gl_window.window());
-          painter.destroy(&gl);
-          *egui_id = None;
+    #[cfg(feature = "egui")]
+    {
+      // Destrooy GL context if its a GLWindow
+      let mut egui_id = EGUI_ID.lock().unwrap();
+      if let Some(id) = *egui_id {
+        if id == window_id {
+          #[cfg(not(target_os = "linux"))]
+          if let WindowHandle::GLWindow(gl_window, gl, mut painter, mut integration, ..) =
+            webview.inner
+          {
+            integration.on_exit(gl_window.window());
+            painter.destroy(&gl);
+            *egui_id = None;
+          }
+          #[cfg(target_os = "linux")]
+          if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
+            let mut integration = integration.borrow_mut();
+            let mut painter = painter.borrow_mut();
+            integration.on_exit(gl_window.window());
+            painter.destroy(&gl);
+            *egui_id = None;
+          }
         }
       }
     }

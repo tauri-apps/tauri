@@ -15,6 +15,8 @@
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
+//! - **egui**: Enables method to create a native egui window. This can be used for creating native
+//! OpenGL contexts or [egui](https://github.com/emilk/egui) widgets.
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]

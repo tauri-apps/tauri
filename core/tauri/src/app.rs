@@ -210,6 +210,22 @@ impl AppHandle<crate::Wry> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
+  /// Create a new egui window. For simplicity, tauri only allows one egui window for now. Calling
+  /// this again will close previous egui window. If you want multiple GL Window, please consider
+  /// creating egui's window widget.
+  #[cfg(feature = "egui")]
+  pub fn create_egui_window(
+    &self,
+    label: String,
+    app: Box<dyn epi::App + Send>,
+    native_options: epi::NativeOptions,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .create_egui_window(label, app, native_options)
+      .map_err(Into::into)
+  }
+
   /// Sends a window message to the event loop.
   pub fn send_tao_window_event(
     &self,

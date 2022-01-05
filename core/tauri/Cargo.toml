@@ -73,6 +73,7 @@ raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
 os_info = { version = "3.0.9", optional = true }
 futures-lite = "1.12"
+epi = { git = "https://github.com/wusyong/egui", branch = "tao" }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.14", features = [ "v3_20" ] }
@@ -139,6 +140,7 @@ http-request = [ ]
 notification-all = [ "notify-rust" ]
 global-shortcut-all = [ ]
 os-all = [ "os_info" ]
+egui = [ ]
 
 [[example]]
 name = "commands"

@@ -20,6 +20,14 @@ tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 infer = "0.4"
 
+####### egui
+epi = { git = "https://github.com/wusyong/egui", branch = "tao" }
+egui-tao = { git = "https://github.com/wusyong/egui", branch = "tao", features = ["epi"] }
+egui_glow = { git = "https://github.com/wusyong/egui", branch = "tao" }
+tao-glutin = { git = "https://github.com/wusyong/glutin", branch = "tao", version = "0.1.0"}
+glow = "0.11"
+once_cell = "1.8"
+
 [target."cfg(windows)".dependencies]
 ico = "0.1"
 webview2-com = "0.9.0"

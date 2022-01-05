@@ -11,7 +11,7 @@
 )]
 
 #[no_mangle]
-pub extern fn lib_test1() {
+pub extern fn run_tauri() {
   tauri::Builder::default()
     .run(tauri::generate_context!(
       "./tauri.conf.json"

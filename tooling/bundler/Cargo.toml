@@ -37,7 +37,7 @@ tar = "0.4"
 termcolor = "1.1.2"
 toml = "0.5.8"
 walkdir = "2"
-handlebars = { version = "4.1" }
+handlebars = { version = "4.2" }
 zip = { version = "0.5" }
 tempfile = "3.2.0"
 regex = "1"

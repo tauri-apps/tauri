@@ -213,6 +213,7 @@ impl AppHandle<crate::Wry> {
   /// Create a new egui window. For simplicity, tauri only allows one egui window for now. Calling
   /// this again will close previous egui window. If you want multiple GL Window, please consider
   /// creating egui's window widget.
+  #[cfg(feature = "egui")]
   pub fn create_egui_window(
     &self,
     label: String,

@@ -140,6 +140,7 @@ http-request = [ ]
 notification-all = [ "notify-rust" ]
 global-shortcut-all = [ ]
 os-all = [ "os_info" ]
+egui = [ ]
 
 [[example]]
 name = "commands"

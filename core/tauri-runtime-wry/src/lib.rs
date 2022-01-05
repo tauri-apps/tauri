@@ -110,7 +110,6 @@ use gtk::prelude::*;
 #[cfg(target_os = "linux")]
 use std::{
   cell::RefCell,
-  ops::DerefMut,
   rc::Rc,
   sync::atomic::{AtomicU8, Ordering},
 };
@@ -2253,7 +2252,7 @@ fn handle_user_message(
           #[cfg(target_os = "linux")]
           let mut painter = painter.borrow_mut();
           integration.on_exit(gl_window.window());
-          painter.destroy(&gl);
+          painter.destroy(gl);
         }
         *egui_id = None;
         let _ = proxy.send_event(Message::Window(id, WindowMessage::Close));
@@ -2294,7 +2293,7 @@ fn handle_user_message(
         }
       }
 
-      let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(proxy, window_id.clone()));
+      let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(proxy, window_id));
 
       let painter = egui_glow::Painter::new(&gl, None, "")
         .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
@@ -2341,14 +2340,14 @@ fn handle_user_message(
         let i = integration.clone();
         let p = painter.clone();
         let r = render_flow.clone();
-        let gl_window_ = Rc::downgrade(&gl_window.clone());
+        let gl_window_ = Rc::downgrade(&gl_window);
         let gl_ = gl.clone();
         area.connect_render(move |_, _| {
           if let Some(gl_window) = gl_window_.upgrade() {
             let mut integration = i.borrow_mut();
             let mut painter = p.borrow_mut();
             let (needs_repaint, mut tex_allocation_data, shapes) =
-              integration.update(gl_window_.window());
+              integration.update(gl_window.window());
             let clipped_meshes = integration.egui_ctx.tessellate(shapes);
 
             for (id, image) in tex_allocation_data.creations {
@@ -2894,7 +2893,7 @@ fn handle_gl_loop(
                 gl_window.resize(*physical_size);
               }
 
-              integration.on_event(&event);
+              integration.on_event(event);
               if integration.should_quit() {
                 should_quit = true;
                 *control_flow = glutin::event_loop::ControlFlow::Wait;

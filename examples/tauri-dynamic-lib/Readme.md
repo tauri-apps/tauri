@@ -1,9 +1,9 @@
 # Readme
 
-This is an example of running tauri within a dynamic shared library.
+This is an example of compiling tauri as a dynamic shared library and running it from another app.
 
   * src-tauri is an example of a library containing code to launch a tauri webview window.
-  * src-app1 is a small example of calling the function within the library.
+  * src-app1 is a small example of calling tauri from a dynamic shared library through FFI.
 
 Note that bundling of resources via tauri.conf.json may not work in some cases due to the nature of the build.
 So you have to be aware of copying any files needed to the correct paths for html / js etc.

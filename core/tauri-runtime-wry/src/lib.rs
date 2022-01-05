@@ -40,7 +40,8 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
 #[cfg(feature = "egui")]
-static EGUI_ID: once_cell::sync::Lazy<Mutex<Option<WindowId>>> = once_cell::sync::Lazy::new(|| Mutex::new(None));
+static EGUI_ID: once_cell::sync::Lazy<Mutex<Option<WindowId>>> =
+  once_cell::sync::Lazy::new(|| Mutex::new(None));
 
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
@@ -102,10 +103,13 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use glutin::platform::ContextTraitExt;
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use gtk::prelude::*;
+#[cfg(feature = "egui")]
 #[cfg(target_os = "linux")]
 use std::{
   cell::RefCell,
@@ -2943,31 +2947,31 @@ fn on_window_close<'a>(
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
 ) {
+  if let Some(webview) = windows.remove(&window_id) {
     #[cfg(feature = "egui")]
     {
-      if let Some(webview) = windows.remove(&window_id) {
-        // Destrooy GL context if its a GLWindow
-        let mut egui_id = EGUI_ID.lock().unwrap();
-        if let Some(id) = *egui_id {
-          if id == window_id {
-            #[cfg(not(target_os = "linux"))]
-            if let WindowHandle::GLWindow(gl_window, gl, mut painter, mut integration, ..) =
-              webview.inner
-            {
-              integration.on_exit(gl_window.window());
-              painter.destroy(&gl);
-              *egui_id = None;
-            }
-            #[cfg(target_os = "linux")]
-            if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
-              let mut integration = integration.borrow_mut();
-              let mut painter = painter.borrow_mut();
-              integration.on_exit(gl_window.window());
-              painter.destroy(&gl);
-              *egui_id = None;
-            }
+      // Destrooy GL context if its a GLWindow
+      let mut egui_id = EGUI_ID.lock().unwrap();
+      if let Some(id) = *egui_id {
+        if id == window_id {
+          #[cfg(not(target_os = "linux"))]
+          if let WindowHandle::GLWindow(gl_window, gl, mut painter, mut integration, ..) =
+            webview.inner
+          {
+            integration.on_exit(gl_window.window());
+            painter.destroy(&gl);
+            *egui_id = None;
+          }
+          #[cfg(target_os = "linux")]
+          if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
+            let mut integration = integration.borrow_mut();
+            let mut painter = painter.borrow_mut();
+            integration.on_exit(gl_window.window());
+            painter.destroy(&gl);
+            *egui_id = None;
           }
         }
+      }
     }
 
     let is_empty = windows.is_empty();

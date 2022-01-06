@@ -2875,8 +2875,6 @@ fn handle_gl_loop(
     windows,
     window_event_listeners,
     menu_event_listeners,
-    #[cfg(feature = "system-tray")]
-    tray_context,
     ..
   } = context;
   let egui_id = EGUI_ID.lock().unwrap();

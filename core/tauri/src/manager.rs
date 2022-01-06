@@ -320,7 +320,7 @@ impl<R: Runtime> WindowManager<R> {
           )
         };
       pending.register_uri_scheme_protocol("asset", move |request| {
-        let parsed_path = Url::parse(&request.uri())?;
+        let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
         #[cfg(target_os = "windows")]
         let path = filtered_path.replace("asset://localhost/", "");

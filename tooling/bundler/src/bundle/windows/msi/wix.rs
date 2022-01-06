@@ -18,7 +18,7 @@ use zip::ZipArchive;
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{create_dir_all, remove_dir_all, read_to_string, rename, write, File},
+  fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
   process::{Command, Stdio},
@@ -444,7 +444,12 @@ pub fn build_wix_app_installer(
     }
   }
 
-  let configured_languages = settings.windows().wix.as_ref().map(|w| w.language.clone()).unwrap_or_default();
+  let configured_languages = settings
+    .windows()
+    .wix
+    .as_ref()
+    .map(|w| w.language.clone())
+    .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
@@ -621,7 +626,8 @@ pub fn build_wix_app_installer(
   let fallback_locale_str = include_str!("./fallback-locale.wxl");
   let fallback_locale_path = output_path.join("fallback-locale.wxl");
   {
-    let mut fileout = File::create(&fallback_locale_path).expect("Failed to create fallback locale file");
+    let mut fileout =
+      File::create(&fallback_locale_path).expect("Failed to create fallback locale file");
     fileout.write_all(fallback_locale_str.as_bytes())?;
   }
 
@@ -639,16 +645,19 @@ pub fn build_wix_app_installer(
     });
 
     let locale_strings = include_str!("./default-locale-strings.xml")
-        .replace("__language__", &language_metadata.lang_id.to_string())
-        .replace("__codepage__", &language_metadata.ascii_code.to_string());
+      .replace("__language__", &language_metadata.lang_id.to_string())
+      .replace("__codepage__", &language_metadata.ascii_code.to_string());
 
     let locale_contents = match language_config.locale_path {
-      Some(p) => read_to_string(p)?.replace("</WixLocalization>", &format!("{}</WixLocalization>", locale_strings)),
+      Some(p) => read_to_string(p)?.replace(
+        "</WixLocalization>",
+        &format!("{}</WixLocalization>", locale_strings),
+      ),
       None => format!(
         r#"<WixLocalization Culture="{culture}" xmlns="http://schemas.microsoft.com/wix/2006/localization">{strings}</WixLocalization>"#,
         culture = language.to_lowercase(),
         strings = locale_strings,
-      )
+      ),
     };
     let locale_path = output_path.join("locale.wxl");
     {
@@ -657,7 +666,14 @@ pub fn build_wix_app_installer(
     }
 
     let arguments = vec![
-      format!("-cultures:{}", if language == "en-US" { language.to_lowercase() } else { format!("{};en-US", language.to_lowercase()) }),
+      format!(
+        "-cultures:{}",
+        if language == "en-US" {
+          language.to_lowercase()
+        } else {
+          format!("{};en-US", language.to_lowercase())
+        }
+      ),
       "-loc".into(),
       locale_path.display().to_string(),
       "-loc".into(),

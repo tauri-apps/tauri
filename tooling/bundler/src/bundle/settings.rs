@@ -174,11 +174,28 @@ pub struct MacOsSettings {
   pub info_plist_path: Option<PathBuf>,
 }
 
+/// Configuration for a target language for the WiX build.
+#[derive(Debug, Clone, Default)]
+pub struct WixLanguageConfig {
+  /// The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.
+  pub locale_path: Option<PathBuf>,
+}
+
+/// The languages to build using WiX.
+#[derive(Debug, Clone)]
+pub struct WixLanguage(pub Vec<(String, WixLanguageConfig)>);
+
+impl Default for WixLanguage {
+  fn default() -> Self {
+    Self(vec![("en-US".into(), Default::default())])
+  }
+}
+
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
-  /// The app language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
-  pub language: String,
+  /// The app languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  pub language: WixLanguage,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,

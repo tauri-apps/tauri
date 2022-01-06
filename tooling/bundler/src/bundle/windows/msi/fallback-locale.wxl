@@ -1,0 +1,6 @@
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <String Id="LaunchApp">Launch [ProductName]</String>
+    <String Id="DowngradeErrorMessage">A newer version of [ProductName] is already installed.</String>
+    <String Id="PathEnvVarFeature">Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location.</String>
+    <String Id="InstallAppFeature">Installs [ProductName].</String>
+</WixLocalization>

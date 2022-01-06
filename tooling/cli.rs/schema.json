@@ -1466,9 +1466,13 @@
           }
         },
         "language": {
-          "description": "The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
+          "description": "The installer languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
           "default": "en-US",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/WixLanguage"
+            }
+          ]
         },
         "license": {
           "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
@@ -1492,6 +1496,43 @@
         },
         "template": {
           "description": "A custom .wxs template to use.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "WixLanguage": {
+      "description": "The languages to build using WiX.",
+      "anyOf": [
+        {
+          "description": "A single language to build, without configuration.",
+          "type": "string"
+        },
+        {
+          "description": "A list of languages to build, without configuration.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A map of languages and its configuration.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/WixLanguageConfig"
+          }
+        }
+      ]
+    },
+    "WixLanguageConfig": {
+      "description": "Configuration for a target language for the WiX build.",
+      "type": "object",
+      "properties": {
+        "localePath": {
+          "description": "The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.",
           "type": [
             "string",
             "null"

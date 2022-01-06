@@ -11,10 +11,35 @@ use serde_json::Value as JsonValue;
 mod config_definition;
 pub use config_definition::*;
 
+impl From<WixLanguageConfig> for tauri_bundler::WixLanguageConfig {
+  fn from(config: WixLanguageConfig) -> tauri_bundler::WixLanguageConfig {
+    tauri_bundler::WixLanguageConfig {
+      locale_path: config.locale_path.map(Into::into),
+    }
+  }
+}
+
+impl From<WixLanguage> for tauri_bundler::WixLanguage {
+  fn from(language: WixLanguage) -> tauri_bundler::WixLanguage {
+    let languages = match language {
+      WixLanguage::One(lang) => vec![(lang, Default::default())],
+      WixLanguage::List(languages) => languages
+        .into_iter()
+        .map(|lang| (lang, Default::default()))
+        .collect(),
+      WixLanguage::Localized(languages) => languages
+        .into_iter()
+        .map(|(lang, config)| (lang, config.into()))
+        .collect(),
+    };
+    tauri_bundler::WixLanguage(languages)
+  }
+}
+
 impl From<WixConfig> for tauri_bundler::WixSettings {
   fn from(config: WixConfig) -> tauri_bundler::WixSettings {
     tauri_bundler::WixSettings {
-      language: config.language,
+      language: config.language.into(),
       template: config.template,
       fragment_paths: config.fragment_paths,
       component_group_refs: config.component_group_refs,

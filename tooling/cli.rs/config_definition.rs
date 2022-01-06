@@ -69,16 +69,38 @@ pub struct MacConfig {
   pub entitlements: Option<String>,
 }
 
-fn default_language() -> String {
-  "en-US".into()
+/// Configuration for a target language for the WiX build.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WixLanguageConfig {
+  /// The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.
+  pub locale_path: Option<String>,
+}
+
+/// The languages to build using WiX.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum WixLanguage {
+  /// A single language to build, without configuration.
+  One(String),
+  /// A list of languages to build, without configuration.
+  List(Vec<String>),
+  /// A map of languages and its configuration.
+  Localized(HashMap<String, WixLanguageConfig>),
+}
+
+impl Default for WixLanguage {
+  fn default() -> Self {
+    Self::One("en-US".into())
+  }
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
-  /// The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
-  #[serde(default = "default_language")]
-  pub language: String,
+  /// The installer languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  #[serde(default)]
+  pub language: WixLanguage,
   /// A custom .wxs template to use.
   pub template: Option<PathBuf>,
   /// A list of paths to .wxs files with WiX fragments to use.

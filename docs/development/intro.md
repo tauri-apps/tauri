@@ -10,17 +10,10 @@ Here you will find guides and techniques to start a new project or add to your o
 
 ## Tauri Development Workflow
 
-- [Integrate with Tauri](/docs/usage/development/integration)
-- [Development Cycle](/docs/usage/development/development)
-- [Debugging](/docs/usage/development/debugging)
-- [App Publishing](/docs/usage/development/publishing)
-- [Updating Packages](/docs/usage/development/updating)
-
-## Guides
-
-- [How to embed custom binaries](/docs/usage/guides/bundler/sidecar)
-- [How to customize app icons](/docs/usage/guides/visual/icons)
-
-## Others
-- [Understanding Tauri Patterns](/docs/usage/patterns/about-patterns)
-- 
+- [Integrate With Tauri](/docs/development/integration)
+- [Development Cycle](/docs/development/development)
+- [Debugging](/docs/development/debugging)
+- [CI/CD](/docs/development/ci-cd)
+- [Cross-Platform Compilation](/docs/development/cross-platform)
+- [App Publishing](/docs/development/publishing)
+- [Updating Packages](/docs/development/updating)

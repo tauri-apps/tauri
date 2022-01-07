@@ -87,4 +87,4 @@ This configuration enables the default `NuGet` registry.
 
 ## Continue
 
-Now that you have set up the Windows-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/usage/development/integration).
+Now that you have set up the Windows-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/development/integration).

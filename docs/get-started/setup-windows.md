@@ -70,21 +70,6 @@ Finally, you will need to install WebView2. The best way to do this is to downlo
 If you have problems of any kind after following these instructions, we recommend that you reboot your computer before developing a Tauri project to ensure that everything works as expected.
 </Alert>
 
-## 5. Setup NuGet
-
-The WebView2 crate build pipeline requires `NuGet` to have a `PackageSource` to install the `Microsoft.Web.WebView2` package. If you never used `NuGet` before, you need to create a file named `NuGet.Config` on `%APPDATA%/NuGet` folder, with the following contents:
-
-```
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
-  </packageSources>
-</configuration>
-```
-
-This configuration enables the default `NuGet` registry.
-
 ## Continue
 
 Now that you have set up the Windows-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/development/integration).

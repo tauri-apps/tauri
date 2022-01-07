@@ -17,6 +17,8 @@
       "development/integration",
       "development/development",
       "development/debugging",
+      "usage/ci-cd/ci-cd",
+      "usage/ci-cd/cross-platform",
       "development/publishing",
       "development/updating"
     ]
@@ -88,14 +90,6 @@
               "usage/guides/webdriver/ci"
             ]
           }
-        ]
-      },
-      {
-        "label": "CI/CD",
-        "type": "category",
-        "items": [
-          "usage/ci-cd/workflow",
-          "usage/ci-cd/cross-platform"
         ]
       },
       "usage/contributor-guide"

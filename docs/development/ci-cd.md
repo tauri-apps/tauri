@@ -1,6 +1,6 @@
 ---
-id: workflow
-title: Workflow
+id: ci-cd
+title: CI/CD
 ---
 
 ## Continuous Integration

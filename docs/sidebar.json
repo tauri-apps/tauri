@@ -29,6 +29,20 @@
     "items": [
       "usage/guides/migration",
       {
+        "label": "Patterns",
+        "type": "category",
+        "items": [
+          "guides/patterns/about-patterns",
+          "guides/patterns/hermit",
+          "guides/patterns/bridge",
+          "guides/patterns/cloudish",
+          "guides/patterns/cloudbridge",
+          "guides/patterns/lockdown",
+          "guides/patterns/multiwin",
+          "guides/patterns/glui"
+        ]
+      },
+      {
         "label": "Bundler",
         "type": "category",
         "items": [
@@ -78,20 +92,6 @@
     "label": "Usage",
     "type": "category",
     "items": [
-      {
-        "label": "Patterns",
-        "type": "category",
-        "items": [
-          "usage/patterns/about-patterns",
-          "usage/patterns/hermit",
-          "usage/patterns/bridge",
-          "usage/patterns/cloudish",
-          "usage/patterns/cloudbridge",
-          "usage/patterns/lockdown",
-          "usage/patterns/multiwin",
-          "usage/patterns/glui"
-        ]
-      },
       "usage/contributor-guide"
     ]
   },

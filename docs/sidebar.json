@@ -17,8 +17,8 @@
       "development/integration",
       "development/development",
       "development/debugging",
-      "development/ci-cd/ci-cd",
-      "development/ci-cd/cross-platform",
+      "development/ci-cd",
+      "development/cross-platform",
       "development/publishing",
       "development/updating"
     ]

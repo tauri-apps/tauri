@@ -128,6 +128,7 @@ interface IResponse<T> {
   url: string
   status: number
   headers: Record<string, string>
+  rawHeaders: Record<string, string[]>
   data: T
 }
 
@@ -141,6 +142,8 @@ class Response<T> {
   ok: boolean
   /** The response headers. */
   headers: Record<string, string>
+  /** The response raw headers. */
+  rawHeaders: Record<string, string[]>
   /** The response data. */
   data: T
 
@@ -150,6 +153,7 @@ class Response<T> {
     this.status = response.status
     this.ok = this.status >= 200 && this.status < 300
     this.headers = response.headers
+    this.rawHeaders = response.rawHeaders
     this.data = response.data
   }
 }

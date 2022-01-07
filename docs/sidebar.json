@@ -13,6 +13,7 @@
     "label": "Development",
     "type": "category",
     "items": [
+      "development/intro",
       "development/integration",
       "development/development",
       "development/debugging",
@@ -24,7 +25,6 @@
     "label": "Usage",
     "type": "category",
     "items": [
-      "usage/intro",
       {
         "label": "Patterns",
         "type": "category",

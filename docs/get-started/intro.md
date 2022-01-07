@@ -39,9 +39,9 @@ Before creating an app, you'll have to install and configure some developer tool
 Follow the platform-specific guides to get started:
 
 <OSList content={{
-    linux: { title: 'Linux Setup', link: '/docs/getting-started/setup-linux'},
-    macos: { title: 'macOS Setup', link: '/docs/getting-started/setup-macos'},
-    windows: { title: 'Windows Setup', link: '/docs/getting-started/setup-windows'}
+    linux: { title: 'Linux Setup', link: '/docs/get-started/setup-linux'},
+    macos: { title: 'macOS Setup', link: '/docs/get-started/setup-macos'},
+    windows: { title: 'Windows Setup', link: '/docs/get-started/setup-windows'}
 }} />
 
 After that, you'll be ready to [add Tauri to your project!](/docs/development/integration)

@@ -85,14 +85,8 @@
           },
           "guides/webdriver/ci"
         ]
-      }
-    ]
-  },
-  {
-    "label": "Usage",
-    "type": "category",
-    "items": [
-      "usage/contributor-guide"
+      },
+      "guides/contributor-guide"
     ]
   },
   {

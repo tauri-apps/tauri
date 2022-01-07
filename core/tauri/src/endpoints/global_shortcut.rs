@@ -37,7 +37,7 @@ fn register_shortcut<R: Runtime>(
 ) -> crate::Result<()> {
   let accelerator = shortcut.clone();
   manager.register(&shortcut, move || {
-    let callback_string = crate::api::rpc::format_callback(handler.to_string(), &accelerator)
+    let callback_string = crate::api::rpc::format_callback(&handler, &accelerator)
       .expect("unable to serialize shortcut string to json");
     let _ = window.eval(callback_string.as_str());
   })?;

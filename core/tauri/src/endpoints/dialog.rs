@@ -150,9 +150,6 @@ pub fn open<R: Runtime>(
     dialog_builder = dialog_builder.set_parent(window);
   }
   if let Some(default_path) = options.default_path {
-    if !default_path.exists() {
-      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
-    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {

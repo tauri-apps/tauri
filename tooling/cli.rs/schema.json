@@ -7,7 +7,7 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "devPath": "",
+        "devPath": "http://localhost:8080/",
         "distDir": "../dist",
         "withGlobalTauri": false
       },
@@ -245,7 +245,11 @@
       "anyOf": [
         {
           "description": "The app's external URL, or the path to the directory containing the app assets.",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowUrl"
+            }
+          ]
         },
         {
           "description": "An array of files to embed on the app.",
@@ -276,7 +280,7 @@
         },
         "devPath": {
           "description": "The path or URL to use on development.",
-          "default": "",
+          "default": "http://localhost:8080/",
           "allOf": [
             {
               "$ref": "#/definitions/AppUrl"
@@ -326,7 +330,7 @@
           "type": "boolean"
         },
         "category": {
-          "description": "The application kind.",
+          "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
           "type": [
             "string",
             "null"
@@ -1347,6 +1351,20 @@
         }
       },
       "additionalProperties": false
+    },
+    "WindowUrl": {
+      "description": "The window webview URL options.",
+      "anyOf": [
+        {
+          "description": "An external URL.",
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "description": "An app URL.",
+          "type": "string"
+        }
+      ]
     },
     "WindowsConfig": {
       "type": "object",

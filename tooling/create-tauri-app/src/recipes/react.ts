@@ -7,7 +7,9 @@ import { join } from 'path'
 import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
-import { rmSync, existsSync } from 'fs'
+import { unlinkSync, existsSync } from 'fs'
+import { emptyDir } from '../helpers/empty-dir'
+import { updatePackageJson } from '../helpers/update-package-json'
 
 const afterCra = async (
   cwd: string,
@@ -24,6 +26,15 @@ const afterCra = async (
     await scaffe.generate(templateDir, join(cwd, appName), {
       overwrite: true
     })
+    updatePackageJson((pkg) => {
+      return {
+        ...pkg,
+        scripts: {
+          ...pkg.scripts,
+          start: `${'cross-env BROWSER=none '}${pkg.scripts?.start as string}`
+        }
+      }
+    }, join(cwd, appName))
   } catch (err) {
     console.log(err)
   }
@@ -46,7 +57,7 @@ export const cra: Recipe = {
       packageManager === 'npm' ? 'npm run' : packageManager
     } build`
   }),
-  extraNpmDevDependencies: [],
+  extraNpmDevDependencies: ['cross-env'],
   extraNpmDependencies: [],
   extraQuestions: ({ ci }) => {
     return [
@@ -64,53 +75,52 @@ export const cra: Recipe = {
       }
     ]
   },
-  preInit: async ({ cwd, cfg, packageManager, answers }) => {
-    let template = 'cra.js'
-    if (answers) {
-      template = answers.template ? (answers.template as string) : 'vue'
-    }
-    // CRA creates the folder for you
-    if (packageManager === 'yarn') {
-      await shell(
-        'yarn',
-        [
-          'create',
-          'react-app',
-          ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
-          `${cfg.appName}`
-        ],
-        {
-          cwd
-        }
-      )
-    } else {
-      await shell(
-        'npx',
-        [
-          'create-react-app@latest',
-          ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
-          `${cfg.appName}`,
-          '--use-npm'
-        ],
-        {
-          cwd
-        }
-      )
-    }
+  preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
+    const template = (answers?.template as string) ?? 'cra.js'
+    switch (packageManager) {
+      case 'yarn':
+        await shell(
+          'yarn',
+          [
+            ci ? '--non-interactive' : '',
+            'create',
+            'react-app',
+            ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
+            `${cfg.appName}`
+          ],
+          {
+            cwd
+          }
+        )
+        break
+      case 'npm':
+      case 'pnpm':
+        await shell(
+          'npx',
+          [
+            ci ? '--yes' : '',
+            'create-react-app@latest',
+            ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
+            `${cfg.appName}`,
+            '--use-npm'
+          ],
+          {
+            cwd
+          }
+        )
 
-    // create-react-app doesn't support pnpm, so we remove `node_modules` and any lock files then install them again using pnpm
-    if (packageManager === 'pnpm') {
-      const npmLock = join(cwd, cfg.appName, 'package-lock.json')
-      const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
-      const nodeModules = join(cwd, cfg.appName, 'node_modules')
-      if (existsSync(npmLock)) rmSync(npmLock)
-      if (existsSync(yarnLock)) rmSync(yarnLock)
-      if (existsSync(nodeModules))
-        rmSync(nodeModules, {
-          recursive: true,
-          force: true
-        })
-      await shell('pnpm', ['install'], { cwd })
+        // create-react-app doesn't support pnpm, so we remove `node_modules` and any lock files then install them again using pnpm
+        if (packageManager === 'pnpm') {
+          const npmLock = join(cwd, cfg.appName, 'package-lock.json')
+          const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
+          const nodeModules = join(cwd, cfg.appName, 'node_modules')
+          if (existsSync(npmLock)) unlinkSync(npmLock)
+          if (existsSync(yarnLock)) unlinkSync(yarnLock)
+          emptyDir(nodeModules)
+          await shell('pnpm', ['install'], { cwd: join(cwd, cfg.appName) })
+        }
+
+        break
     }
 
     await afterCra(cwd, cfg.appName, template === 'cra.ts')

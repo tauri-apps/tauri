@@ -5,11 +5,12 @@
 #![allow(clippy::field_reassign_with_default)]
 
 #[cfg(target_os = "linux")]
-use heck::KebabCase;
+use heck::ToKebabCase;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
+use url::Url;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -177,6 +178,9 @@ pub struct BundleConfig {
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
+  ///
+  /// Should be one of the following:
+  /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
   /// A short description of your application.
   pub short_description: Option<String>,
@@ -786,12 +790,38 @@ fn default_dialog() -> Option<bool> {
   Some(true)
 }
 
+/// The window webview URL options.
+#[derive(PartialEq, Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum WindowUrl {
+  /// An external URL.
+  External(Url),
+  /// An app URL.
+  App(PathBuf),
+}
+
+impl Default for WindowUrl {
+  fn default() -> Self {
+    Self::App("index.html".into())
+  }
+}
+
+impl std::fmt::Display for WindowUrl {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::External(url) => write!(f, "{}", url),
+      Self::App(path) => write!(f, "{}", path.display()),
+    }
+  }
+}
+
 /// The `dev_path` and `dist_dir` options.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
-  Url(String),
+  Url(WindowUrl),
   /// An array of files to embed on the app.
   Files(Vec<PathBuf>),
 }
@@ -834,11 +864,13 @@ pub struct BuildConfig {
 }
 
 fn default_dev_path() -> AppUrl {
-  AppUrl::Url("".to_string())
+  AppUrl::Url(WindowUrl::External(
+    Url::parse("http://localhost:8080").unwrap(),
+  ))
 }
 
 fn default_dist_dir() -> AppUrl {
-  AppUrl::Url("../dist".to_string())
+  AppUrl::Url(WindowUrl::App(PathBuf::from("../dist")))
 }
 
 /// The tauri.conf.json mapper.

@@ -22,6 +22,8 @@ const TAURI_OPTIONS: &str = "tauri:options";
 #[derive(Debug, Deserialize)]
 struct TauriOptions {
   application: PathBuf,
+  #[serde(default)]
+  args: Vec<String>,
 }
 
 impl TauriOptions {
@@ -30,7 +32,7 @@ impl TauriOptions {
     let mut map = Map::new();
     map.insert(
       "webkitgtk:browserOptions".into(),
-      json!({"binary": self.application}),
+      json!({"binary": self.application, "args": self.args}),
     );
     map
   }
@@ -40,7 +42,10 @@ impl TauriOptions {
     let mut map = Map::new();
     map.insert("ms:edgeChromium".into(), json!(true));
     map.insert("browserName".into(), json!("webview2"));
-    map.insert("ms:edgeOptions".into(), json!({"binary": self.application}));
+    map.insert(
+      "ms:edgeOptions".into(),
+      json!({"binary": self.application, "args": self.args}),
+    );
     map
   }
 }

@@ -1,19 +1,21 @@
 const fs = require('fs')
 const path = require('path')
-const schema = JSON.parse(fs.readFileSync('tooling/cli.rs/schema.json').toString())
+const schema = JSON.parse(
+  fs.readFileSync('tooling/cli.rs/schema.json').toString()
+)
 const templatePath = path.join(__dirname, '../../docs/.templates/config.md')
 const targetPath = path.join(__dirname, '../../docs/api/config.md')
 const template = fs.readFileSync(templatePath, 'utf8')
 
 function formatDescription(description) {
-  return description ?
-    description
-    .replace(/`/g, '\\`')
-    .replace(/\n/g, ' ')
-    .replace(/  /g, ' ')
-    .replace(/{/g, '\\{')
-    .replace(/}/g, '\\}') :
-    ''
+  return description
+    ? description
+        .replace(/`/g, '\\`')
+        .replace(/\n/g, ' ')
+        .replace(/  /g, ' ')
+        .replace(/{/g, '\\{')
+        .replace(/}/g, '\\}')
+    : ''
 }
 
 function generatePropertiesEl(schema, anchorRoot, definition, tab) {
@@ -36,10 +38,15 @@ function generatePropertiesEl(schema, anchorRoot, definition, tab) {
         } else {
           const typeName = property.items.$ref.replace('#/definitions/', '')
           const propDefinition = schema.definitions[typeName]
-          const propertyEl = generatePropertiesEl(schema, `${anchorRoot}.${propertyName}`, propDefinition, `${tab}  `)
+          const propertyEl = generatePropertiesEl(
+            schema,
+            `${anchorRoot}.${propertyName}`,
+            propDefinition,
+            `${tab}  `
+          )
           rows.push({
             property: propertyName,
-            optional: ('default' in property) || property.type.includes('null'),
+            optional: 'default' in property || property.type.includes('null'),
             type: `${typeName}[]`,
             description: property.description,
             child: `<Array type="${typeName}">\n${tab}${propertyEl}\n${previousTabLevel}</Array>`
@@ -61,10 +68,16 @@ function generatePropertiesEl(schema, anchorRoot, definition, tab) {
     } else if ('anyOf' in property) {
       const subType = property.anyOf[0].$ref.replace('#/definitions/', '')
       const propDefinition = schema.definitions[subType]
-      const propertyEl = generatePropertiesEl(schema, `${anchorRoot}.${propertyName}`, propDefinition, `${tab}  `)
+      const propertyEl = generatePropertiesEl(
+        schema,
+        `${anchorRoot}.${propertyName}`,
+        propDefinition,
+        `${tab}  `
+      )
       rows.push({
         property: propertyName,
-        optional: property.anyOf.length > 1 && property.anyOf[1].type === 'null',
+        optional:
+          property.anyOf.length > 1 && property.anyOf[1].type === 'null',
         type: subType,
         description: property.description,
         child: propertyEl
@@ -72,7 +85,14 @@ function generatePropertiesEl(schema, anchorRoot, definition, tab) {
     } else if ('allOf' in property) {
       const subType = property.allOf[0].$ref.replace('#/definitions/', '')
       const propDefinition = schema.definitions[subType]
-      const propertyEl = propDefinition.properties ? generatePropertiesEl(schema, `${anchorRoot}.${propertyName}`, propDefinition, `${tab}  `) : undefined
+      const propertyEl = propDefinition.properties
+        ? generatePropertiesEl(
+            schema,
+            `${anchorRoot}.${propertyName}`,
+            propDefinition,
+            `${tab}  `
+          )
+        : undefined
       rows.push({
         property: propertyName,
         optional: 'default' in property,
@@ -85,8 +105,13 @@ function generatePropertiesEl(schema, anchorRoot, definition, tab) {
 
   if (rows.length > 0) {
     const serializedRows = rows
-      .map(row => {
-        const fields = [`property: "${row.property}"`, `optional: ${row.optional}`, `type: "${row.type}"`, `description: \`${formatDescription(row.description)}\``]
+      .map((row) => {
+        const fields = [
+          `property: "${row.property}"`,
+          `optional: ${row.optional}`,
+          `type: "${row.type}"`,
+          `description: \`${formatDescription(row.description)}\``
+        ]
         if (row.child) {
           fields.push(`child: ${row.child}`)
         }
@@ -107,8 +132,16 @@ for (const propertyName in schema.properties) {
   const property = schema.properties[propertyName]
   const definitionName = property.allOf[0].$ref.replace('#/definitions/', '')
   const definition = schema.definitions[definitionName]
-  let contents = `## \`${propertyName}\`\n\n${generatePropertiesEl(schema, propertyName, definition, '  ')}`
+  let contents = `## \`${propertyName}\`\n\n${generatePropertiesEl(
+    schema,
+    propertyName,
+    definition,
+    '  '
+  )}`
   output.push(contents)
 }
 
-fs.writeFileSync(targetPath, template.replace('{properties}', output.join('\n\n')))
+fs.writeFileSync(
+  targetPath,
+  template.replace('{properties}', output.join('\n\n'))
+)

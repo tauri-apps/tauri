@@ -7,6 +7,8 @@ use crate::helpers::{
   config::get as get_config,
   framework::infer_from_package_json as infer_framework,
 };
+use crate::Result;
+use clap::Parser;
 use serde::Deserialize;
 
 use std::{
@@ -76,8 +78,9 @@ enum PackageManager {
   Yarn,
 }
 
-#[derive(Default)]
-pub struct Info;
+#[derive(Debug, Parser)]
+#[clap(about = "Shows information about Tauri dependencies and project configuration")]
+pub struct Options;
 
 fn crate_latest_version(name: &str) -> Option<String> {
   let url = format!("https://docs.rs/crate/{}/", name);
@@ -133,7 +136,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("show").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -153,7 +156,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd.arg("info").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace("\n", "")))
+        Ok(Some(stdout.replace('\n', "")))
       } else {
         Ok(None)
       }
@@ -257,8 +260,8 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
   let version = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace("\n", "")
-        .replace("\r", ""),
+        .replace('\n', "")
+        .replace('\r', ""),
     )
   } else {
     None
@@ -268,25 +271,38 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
 #[cfg(windows)]
 fn webview2_version() -> crate::Result<Option<String>> {
+  // check 64bit machine-wide installation
   let output = Command::new("powershell")
-    .args(&["-NoProfile", "-Command"])
-    .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
-    .output()?;
-  let version = if output.status.success() {
-    Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
-  } else {
-    // check 32bit installation
-    let output = Command::new("powershell")
       .args(&["-NoProfile", "-Command"])
-      .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+      .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
-    if output.status.success() {
-      Some(String::from_utf8_lossy(&output.stdout).replace("\n", ""))
-    } else {
-      None
-    }
-  };
-  Ok(version)
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+  // check 32bit machine-wide installation
+  let output = Command::new("powershell")
+        .args(&["-NoProfile", "-Command"])
+        .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+        .output()?;
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+  // check user-wide installation
+  let output = Command::new("powershell")
+      .args(&["-NoProfile", "-Command"])
+      .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
+      .output()?;
+  if output.status.success() {
+    return Ok(Some(
+      String::from_utf8_lossy(&output.stdout).replace('\n', ""),
+    ));
+  }
+
+  Ok(None)
 }
 
 #[cfg(windows)]
@@ -326,6 +342,32 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
     None
   };
   Ok(versions)
+}
+
+fn get_active_rust_toolchain() -> crate::Result<Option<String>> {
+  let mut cmd;
+  #[cfg(target_os = "windows")]
+  {
+    cmd = Command::new("cmd");
+    cmd.arg("/c").arg("rustup");
+  }
+
+  #[cfg(not(target_os = "windows"))]
+  {
+    cmd = Command::new("rustup")
+  }
+
+  let output = cmd.args(["show", "active-toolchain"]).output()?;
+  let toolchain = if output.status.success() {
+    Some(
+      String::from_utf8_lossy(&output.stdout)
+        .replace('\n', "")
+        .replace('\r', ""),
+    )
+  } else {
+    None
+  };
+  Ok(toolchain)
 }
 
 struct InfoBlock {
@@ -418,283 +460,315 @@ impl VersionBlock {
   }
 }
 
-impl Info {
-  pub fn new() -> Self {
-    Default::default()
+pub fn command(_options: Options) -> Result<()> {
+  let os_info = os_info::get();
+  InfoBlock {
+    section: true,
+    key: "Operating System",
+    value: Some(format!(
+      "{}, version {} {:?}",
+      os_info.os_type(),
+      os_info.version(),
+      os_info.bitness()
+    )),
+    suffix: None,
+  }
+  .display();
+
+  #[cfg(windows)]
+  VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
+  #[cfg(windows)]
+  VersionBlock::new(
+    "Visual Studio Build Tools",
+    build_tools_version()
+      .map(|r| {
+        let required_string = "(>= 2019 required)";
+        let multiple_string =
+          "(multiple versions might conflict; keep only 2019 if build errors occur)";
+        r.map(|v| match v.len() {
+          1 if v[0].as_str() < "2019" => format!("{} {}", v[0], required_string),
+          1 if v[0].as_str() >= "2019" => v[0].clone(),
+          _ if v.contains(&"2019".into()) => {
+            format!("{} {}", v.join(", "), multiple_string)
+          }
+          _ => format!("{} {} {}", v.join(", "), required_string, multiple_string),
+        })
+      })
+      .unwrap_or_default(),
+  )
+  .display();
+
+  let hook = panic::take_hook();
+  panic::set_hook(Box::new(|_info| {
+    // do nothing
+  }));
+  let app_dir = panic::catch_unwind(app_dir).map(Some).unwrap_or_default();
+  panic::set_hook(hook);
+
+  let mut package_manager = PackageManager::Npm;
+  if let Some(app_dir) = &app_dir {
+    let file_names = read_dir(app_dir)
+      .unwrap()
+      .filter(|e| {
+        e.as_ref()
+          .unwrap()
+          .metadata()
+          .unwrap()
+          .file_type()
+          .is_file()
+      })
+      .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+      .collect::<Vec<String>>();
+    package_manager = get_package_manager(&file_names)?;
   }
 
-  pub fn run(self) -> crate::Result<()> {
-    let os_info = os_info::get();
-    InfoBlock {
-      section: true,
-      key: "Operating System",
-      value: Some(format!(
-        "{}, version {} {:?}",
-        os_info.os_type(),
-        os_info.version(),
-        os_info.bitness()
-      )),
-      suffix: None,
-    }
-    .display();
-
-    #[cfg(windows)]
-    VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
-    #[cfg(windows)]
+  if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
+    InfoBlock::new("Node.js environment").section().display();
+    let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
     VersionBlock::new(
-      "Visual Studio Build Tools",
-      build_tools_version()
-        .map(|r| {
-          let required_string = "(>= 2019 required)";
-          let multiple_string =
-            "(multiple versions might conflict; keep only 2019 if build errors occur)";
-          r.map(|v| match v.len() {
-            1 if v[0].as_str() < "2019" => format!("{} {}", v[0], required_string),
-            1 if v[0].as_str() >= "2019" => v[0].clone(),
-            _ if v.contains(&"2019".into()) => format!("{} {}", v.join(", "), multiple_string),
-            _ => format!("{} {} {}", v.join(", "), required_string, multiple_string),
-          })
-        })
-        .unwrap_or_default(),
+      "  Node.js",
+      node_version.chars().skip(1).collect::<String>(),
     )
+    .target_version(metadata.js_cli.node.replace(">= ", ""))
     .display();
 
-    let hook = panic::take_hook();
-    panic::set_hook(Box::new(|_info| {
-      // do nothing
-    }));
-    let app_dir = panic::catch_unwind(app_dir).map(Some).unwrap_or_default();
-    panic::set_hook(hook);
-
-    let mut package_manager = PackageManager::Npm;
-    if let Some(app_dir) = &app_dir {
-      let file_names = read_dir(app_dir)
-        .unwrap()
-        .filter(|e| {
-          e.as_ref()
-            .unwrap()
-            .metadata()
-            .unwrap()
-            .file_type()
-            .is_file()
-        })
-        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .collect::<Vec<String>>();
-      package_manager = get_package_manager(&file_names)?;
-    }
-
-    if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
-      InfoBlock::new("Node.js environment").section().display();
-      let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
-      VersionBlock::new(
-        "  Node.js",
-        node_version.chars().skip(1).collect::<String>(),
-      )
-      .target_version(metadata.js_cli.node.replace(">= ", ""))
+    VersionBlock::new("  @tauri-apps/cli", metadata.js_cli.version)
+      .target_version(npm_latest_version(&package_manager, "@tauri-apps/cli").unwrap_or_default())
       .display();
-
-      VersionBlock::new("  @tauri-apps/cli", metadata.js_cli.version)
-        .target_version(npm_latest_version(&package_manager, "@tauri-apps/cli").unwrap_or_default())
-        .display();
-      if let Some(app_dir) = &app_dir {
-        VersionBlock::new(
-          "  @tauri-apps/api",
-          npm_package_version(&package_manager, "@tauri-apps/api", app_dir).unwrap_or_default(),
-        )
-        .target_version(npm_latest_version(&package_manager, "@tauri-apps/api").unwrap_or_default())
-        .display();
-      }
-
-      InfoBlock::new("Global packages").section().display();
-
-      VersionBlock::new("  npm", get_version("npm", &[]).unwrap_or_default()).display();
-      VersionBlock::new("  pnpm", get_version("pnpm", &[]).unwrap_or_default()).display();
-      VersionBlock::new("  yarn", get_version("yarn", &[]).unwrap_or_default()).display();
+    if let Some(app_dir) = &app_dir {
+      VersionBlock::new(
+        "  @tauri-apps/api",
+        npm_package_version(&package_manager, "@tauri-apps/api", app_dir).unwrap_or_default(),
+      )
+      .target_version(npm_latest_version(&package_manager, "@tauri-apps/api").unwrap_or_default())
+      .display();
     }
 
-    InfoBlock::new("Rust environment").section().display();
-    VersionBlock::new(
-      "  rustc",
-      get_version("rustc", &[]).unwrap_or_default().map(|v| {
-        let mut s = v.split(' ');
-        s.next();
-        s.next().unwrap().to_string()
-      }),
-    )
-    .display();
-    VersionBlock::new(
-      "  cargo",
-      get_version("cargo", &[]).unwrap_or_default().map(|v| {
-        let mut s = v.split(' ');
-        s.next();
-        s.next().unwrap().to_string()
-      }),
-    )
-    .display();
+    InfoBlock::new("Global packages").section().display();
 
-    if let Some(app_dir) = app_dir {
-      InfoBlock::new("App directory structure")
-        .section()
-        .display();
-      for entry in read_dir(app_dir)? {
-        let entry = entry?;
-        if entry.path().is_dir() {
-          println!("/{}", entry.path().file_name().unwrap().to_string_lossy());
-        }
-      }
-
-      InfoBlock::new("App").section().display();
-      let tauri_dir = tauri_dir();
-      let manifest: Option<CargoManifest> =
-        if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
-          toml::from_str(&manifest_contents).ok()
-        } else {
-          None
-        };
-      let lock: Option<CargoLock> =
-        if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
-          toml::from_str(&lock_contents).ok()
-        } else {
-          None
-        };
-      let tauri_lock_packages: Vec<CargoLockPackage> = lock
-        .as_ref()
-        .map(|lock| {
-          lock
-            .package
-            .iter()
-            .filter(|p| p.name == "tauri")
-            .cloned()
-            .collect()
-        })
-        .unwrap_or_default();
-      let (tauri_version_string, found_tauri_versions) =
-        match (&manifest, &lock, tauri_lock_packages.len()) {
-          (Some(_manifest), Some(_lock), 1) => {
-            let tauri_lock_package = tauri_lock_packages.first().unwrap();
-            (
-              tauri_lock_package.version.clone(),
-              vec![tauri_lock_package.version.clone()],
-            )
-          }
-          (None, Some(_lock), 1) => {
-            let tauri_lock_package = tauri_lock_packages.first().unwrap();
-            (
-              format!("{} (no manifest)", tauri_lock_package.version),
-              vec![tauri_lock_package.version.clone()],
-            )
-          }
-          _ => {
-            let mut found_tauri_versions = Vec::new();
-            let manifest_version = match manifest.and_then(|m| m.dependencies.get("tauri").cloned())
-            {
-              Some(tauri) => match tauri {
-                CargoManifestDependency::Version(v) => {
-                  found_tauri_versions.push(v.clone());
-                  v
-                }
-                CargoManifestDependency::Package(p) => {
-                  if let Some(v) = p.version {
-                    found_tauri_versions.push(v.clone());
-                    v
-                  } else if let Some(p) = p.path {
-                    let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                    let v = match read_to_string(&manifest_path)
-                      .map_err(|_| ())
-                      .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
-                    {
-                      Ok(manifest) => manifest.package.version,
-                      Err(_) => "unknown version".to_string(),
-                    };
-                    format!("path:{:?} [{}]", p, v)
-                  } else {
-                    "unknown manifest".to_string()
-                  }
-                }
-              },
-              None => "no manifest".to_string(),
-            };
-
-            let lock_version = match (lock, tauri_lock_packages.is_empty()) {
-              (Some(_lock), true) => tauri_lock_packages
-                .iter()
-                .map(|p| p.version.clone())
-                .collect::<Vec<String>>()
-                .join(", "),
-              (Some(_lock), false) => "unknown lockfile".to_string(),
-              _ => "no lockfile".to_string(),
-            };
-
-            (
-              format!("{} ({})", manifest_version, lock_version),
-              found_tauri_versions,
-            )
-          }
-        };
-
-      let tauri_version = found_tauri_versions
-        .into_iter()
-        .map(|v| semver::Version::parse(&v).unwrap())
-        .max();
-      let suffix = match (tauri_version, crate_latest_version("tauri")) {
-        (Some(version), Some(target_version)) => {
-          let target_version = semver::Version::parse(&target_version).unwrap();
-          if version < target_version {
-            Some(format!(" (outdated, latest: {})", target_version))
-          } else {
-            None
-          }
-        }
-        _ => None,
-      };
-      InfoBlock::new("  tauri.rs")
-        .value(tauri_version_string)
-        .suffix(suffix)
-        .display();
-
-      if let Ok(config) = get_config(None) {
-        let config_guard = config.lock().unwrap();
-        let config = config_guard.as_ref().unwrap();
-        InfoBlock::new("  build-type")
-          .value(if config.tauri.bundle.active {
-            "bundle".to_string()
-          } else {
-            "build".to_string()
-          })
-          .display();
-        InfoBlock::new("  CSP")
-          .value(if let Some(security) = &config.tauri.security {
-            security.csp.clone().unwrap_or_else(|| "unset".to_string())
-          } else {
-            "unset".to_string()
-          })
-          .display();
-        InfoBlock::new("  distDir")
-          .value(config.build.dist_dir.to_string())
-          .display();
-        InfoBlock::new("  devPath")
-          .value(config.build.dev_path.to_string())
-          .display();
-      }
-      if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
-        let (framework, bundler) = infer_framework(&package_json);
-        if let Some(framework) = framework {
-          InfoBlock::new("  framework")
-            .value(framework.to_string())
-            .display();
-        }
-        if let Some(bundler) = bundler {
-          InfoBlock::new("  bundler")
-            .value(bundler.to_string())
-            .display();
-        }
-      } else {
-        println!("package.json not found");
-      }
-    }
-
-    Ok(())
+    VersionBlock::new("  npm", get_version("npm", &[]).unwrap_or_default()).display();
+    VersionBlock::new("  pnpm", get_version("pnpm", &[]).unwrap_or_default()).display();
+    VersionBlock::new("  yarn", get_version("yarn", &[]).unwrap_or_default()).display();
   }
+
+  InfoBlock::new("Rust environment").section().display();
+  VersionBlock::new(
+    "  rustc",
+    get_version("rustc", &[]).unwrap_or_default().map(|v| {
+      let mut s = v.split(' ');
+      s.next();
+      s.next().unwrap().to_string()
+    }),
+  )
+  .display();
+  VersionBlock::new(
+    "  cargo",
+    get_version("cargo", &[]).unwrap_or_default().map(|v| {
+      let mut s = v.split(' ');
+      s.next();
+      s.next().unwrap().to_string()
+    }),
+  )
+  .display();
+
+  InfoBlock::new("Rust environment").section().display();
+  VersionBlock::new(
+    "  rustup",
+    get_version("rustup", &[]).unwrap_or_default().map(|v| {
+      let mut s = v.split(' ');
+      s.next();
+      s.next().unwrap().to_string()
+    }),
+  )
+  .display();
+  VersionBlock::new(
+    "  rustc",
+    get_version("rustc", &[]).unwrap_or_default().map(|v| {
+      let mut s = v.split(' ');
+      s.next();
+      s.next().unwrap().to_string()
+    }),
+  )
+  .display();
+  VersionBlock::new(
+    "  cargo",
+    get_version("cargo", &[]).unwrap_or_default().map(|v| {
+      let mut s = v.split(' ');
+      s.next();
+      s.next().unwrap().to_string()
+    }),
+  )
+  .display();
+  VersionBlock::new(
+    "  toolchain",
+    get_active_rust_toolchain().unwrap_or_default(),
+  )
+  .display();
+
+  if let Some(app_dir) = app_dir {
+    InfoBlock::new("App directory structure")
+      .section()
+      .display();
+    for entry in read_dir(app_dir)? {
+      let entry = entry?;
+      if entry.path().is_dir() {
+        println!("/{}", entry.path().file_name().unwrap().to_string_lossy());
+      }
+    }
+  }
+
+  InfoBlock::new("App").section().display();
+  let tauri_dir = tauri_dir();
+  let manifest: Option<CargoManifest> =
+    if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
+      toml::from_str(&manifest_contents).ok()
+    } else {
+      None
+    };
+  let lock: Option<CargoLock> =
+    if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
+      toml::from_str(&lock_contents).ok()
+    } else {
+      None
+    };
+  let tauri_lock_packages: Vec<CargoLockPackage> = lock
+    .as_ref()
+    .map(|lock| {
+      lock
+        .package
+        .iter()
+        .filter(|p| p.name == "tauri")
+        .cloned()
+        .collect()
+    })
+    .unwrap_or_default();
+  let (tauri_version_string, found_tauri_versions) =
+    match (&manifest, &lock, tauri_lock_packages.len()) {
+      (Some(_manifest), Some(_lock), 1) => {
+        let tauri_lock_package = tauri_lock_packages.first().unwrap();
+        (
+          tauri_lock_package.version.clone(),
+          vec![tauri_lock_package.version.clone()],
+        )
+      }
+      (None, Some(_lock), 1) => {
+        let tauri_lock_package = tauri_lock_packages.first().unwrap();
+        (
+          format!("{} (no manifest)", tauri_lock_package.version),
+          vec![tauri_lock_package.version.clone()],
+        )
+      }
+      _ => {
+        let mut found_tauri_versions = Vec::new();
+        let manifest_version = match manifest.and_then(|m| m.dependencies.get("tauri").cloned()) {
+          Some(tauri) => match tauri {
+            CargoManifestDependency::Version(v) => {
+              found_tauri_versions.push(v.clone());
+              v
+            }
+            CargoManifestDependency::Package(p) => {
+              if let Some(v) = p.version {
+                found_tauri_versions.push(v.clone());
+                v
+              } else if let Some(p) = p.path {
+                let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
+                let v = match read_to_string(&manifest_path)
+                  .map_err(|_| ())
+                  .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
+                {
+                  Ok(manifest) => manifest.package.version,
+                  Err(_) => "unknown version".to_string(),
+                };
+                format!("path:{:?} [{}]", p, v)
+              } else {
+                "unknown manifest".to_string()
+              }
+            }
+          },
+          None => "no manifest".to_string(),
+        };
+
+        let lock_version = match (lock, tauri_lock_packages.is_empty()) {
+          (Some(_lock), true) => tauri_lock_packages
+            .iter()
+            .map(|p| p.version.clone())
+            .collect::<Vec<String>>()
+            .join(", "),
+          (Some(_lock), false) => "unknown lockfile".to_string(),
+          _ => "no lockfile".to_string(),
+        };
+
+        (
+          format!("{} ({})", manifest_version, lock_version),
+          found_tauri_versions,
+        )
+      }
+    };
+
+  let tauri_version = found_tauri_versions
+    .into_iter()
+    .map(|v| semver::Version::parse(&v).unwrap())
+    .max();
+  let suffix = match (tauri_version, crate_latest_version("tauri")) {
+    (Some(version), Some(target_version)) => {
+      let target_version = semver::Version::parse(&target_version).unwrap();
+      if version < target_version {
+        Some(format!(" (outdated, latest: {})", target_version))
+      } else {
+        None
+      }
+    }
+    _ => None,
+  };
+  InfoBlock::new("  tauri.rs")
+    .value(tauri_version_string)
+    .suffix(suffix)
+    .display();
+
+  if let Ok(config) = get_config(None) {
+    let config_guard = config.lock().unwrap();
+    let config = config_guard.as_ref().unwrap();
+    InfoBlock::new("  build-type")
+      .value(if config.tauri.bundle.active {
+        "bundle".to_string()
+      } else {
+        "build".to_string()
+      })
+      .display();
+    InfoBlock::new("  CSP")
+      .value(if let Some(security) = &config.tauri.security {
+        security.csp.clone().unwrap_or_else(|| "unset".to_string())
+      } else {
+        "unset".to_string()
+      })
+      .display();
+    InfoBlock::new("  distDir")
+      .value(config.build.dist_dir.to_string())
+      .display();
+    InfoBlock::new("  devPath")
+      .value(config.build.dev_path.to_string())
+      .display();
+  }
+
+  if let Some(app_dir) = app_dir {
+    if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
+      let (framework, bundler) = infer_framework(&package_json);
+      if let Some(framework) = framework {
+        InfoBlock::new("  framework")
+          .value(framework.to_string())
+          .display();
+      }
+      if let Some(bundler) = bundler {
+        InfoBlock::new("  bundler")
+          .value(bundler.to_string())
+          .display();
+      }
+    } else {
+      println!("package.json not found");
+    }
+  }
+
+  Ok(())
 }
 
 fn get_package_manager<T: AsRef<str>>(file_names: &[T]) -> crate::Result<PackageManager> {
@@ -731,9 +805,9 @@ fn get_package_manager<T: AsRef<str>>(file_names: &[T]) -> crate::Result<Package
 
   if found.len() > 1 {
     return Err(anyhow::anyhow!(
-      "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
-      found.join(" and ")
-    ));
+        "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
+        found.join(" and ")
+      ));
   }
 
   if use_npm {
@@ -742,72 +816,5 @@ fn get_package_manager<T: AsRef<str>>(file_names: &[T]) -> crate::Result<Package
     Ok(PackageManager::Pnpm)
   } else {
     Ok(PackageManager::Yarn)
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use crate::info::get_package_manager;
-
-  #[test]
-  fn no_package_manager_lock_file() -> crate::Result<()> {
-    let file_names = vec!["package.json"];
-    let pm = get_package_manager(&file_names);
-    match pm {
-      Ok(_) => Ok(()),
-      Err(m) => Err(m),
-    }
-  }
-
-  #[test]
-  fn package_managers_npm_and_yarn() -> crate::Result<()> {
-    let file_names = vec!["package.json", "package-lock.json", "yarn.lock"];
-    let pm = get_package_manager(&file_names);
-    match pm {
-      Ok(_) => panic!("expected error"),
-      Err(m) => assert_eq!(
-        m.to_string().as_str(),
-        "only one package mangager should be used, but found npm and yarn\nplease remove unused package manager lock files"
-      ),
-    }
-    Ok(())
-  }
-
-  #[test]
-  fn package_managers_npm_and_pnpm() -> crate::Result<()> {
-    let file_names = vec!["package.json", "package-lock.json", "pnpm-lock.yaml"];
-    let pm = get_package_manager(&file_names);
-    match pm {
-      Ok(_) => panic!("expected error"),
-      Err(m) => assert_eq!(
-        m.to_string().as_str(),
-        "only one package mangager should be used, but found npm and pnpm\nplease remove unused package manager lock files"
-      ),
-    }
-    Ok(())
-  }
-
-  #[test]
-  fn package_managers_pnpm_and_yarn() -> crate::Result<()> {
-    let file_names = vec!["package.json", "pnpm-lock.yaml", "yarn.lock"];
-    let pm = get_package_manager(&file_names);
-    match pm {
-      Ok(_) => panic!("expected error"),
-      Err(m) => assert_eq!(
-        m.to_string().as_str(),
-        "only one package mangager should be used, but found pnpm and yarn\nplease remove unused package manager lock files"
-      ),
-    }
-    Ok(())
-  }
-
-  #[test]
-  fn package_managers_yarn() -> crate::Result<()> {
-    let file_names = vec!["package.json", "yarn.lock"];
-    let pm = get_package_manager(&file_names);
-    match pm {
-      Ok(_) => Ok(()),
-      Err(m) => Err(m),
-    }
   }
 }

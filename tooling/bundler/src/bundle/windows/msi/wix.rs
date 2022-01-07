@@ -330,6 +330,8 @@ fn run_light(
   let mut args: Vec<String> = vec![
     "-ext".to_string(),
     "WixUIExtension".to_string(),
+    "-ext".to_string(),
+    "WixUtilExtension".to_string(),
     "-o".to_string(),
     output_path.display().to_string(),
   ];
@@ -407,6 +409,9 @@ pub fn build_wix_app_installer(
     )?;
   }
 
+  // ensure that `target/{release, debug}/wix` folder exists
+  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
+
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   let mut data = BTreeMap::new();
@@ -426,7 +431,7 @@ pub fn build_wix_app_installer(
 \pard\sa200\sl276\slmult1\f0\fs22\lang9 {}\par
 }}
  "#,
-          license_contents.replace("\n", "\\par ")
+          license_contents.replace('\n', "\\par ")
         );
         let rtf_output_path = settings
           .project_out_directory()
@@ -460,8 +465,10 @@ pub fn build_wix_app_installer(
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
-  let manufacturer = settings.bundle_identifier().to_string();
-  data.insert("manufacturer", to_json(manufacturer.as_str()));
+  let bundle_id = settings.bundle_identifier();
+  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  data.insert("bundle_id", to_json(bundle_id));
+  data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
     format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),

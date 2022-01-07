@@ -781,7 +781,7 @@ fn default_archive_name_by_os() -> String {
 
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
-  let decoded_string = &decode(base64_string.to_owned())?;
+  let decoded_string = &decode(base64_string)?;
   let result = from_utf8(decoded_string)?.to_string();
   Ok(result)
 }

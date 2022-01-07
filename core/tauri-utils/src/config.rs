@@ -10,9 +10,12 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt, fs::read_to_string, path::PathBuf};
 
-use serde::Deserialize;
+use serde::{
+  de::{Deserializer, Error as DeError, Visitor},
+  Deserialize,
+};
 use serde_json::Value as JsonValue;
 use url::Url;
 
@@ -479,14 +482,66 @@ impl Default for BuildConfig {
   }
 }
 
+#[derive(Debug, PartialEq)]
+struct PackageVersion(String);
+
+impl<'d> serde::Deserialize<'d> for PackageVersion {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
+    struct PackageVersionVisitor;
+
+    impl<'d> Visitor<'d> for PackageVersionVisitor {
+      type Value = PackageVersion;
+
+      fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+          formatter,
+          "a semver string or a path to a package.json file"
+        )
+      }
+
+      fn visit_str<E: DeError>(self, value: &str) -> Result<PackageVersion, E> {
+        let path = PathBuf::from(value);
+        if path.exists() {
+          let json_str = read_to_string(&path)
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+          let package_json: serde_json::Value = serde_json::from_str(&json_str)
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+          if let Some(obj) = package_json.as_object() {
+            let version = obj
+              .get("version")
+              .ok_or_else(|| DeError::custom("JSON must contain a `version` field"))?
+              .as_str()
+              .ok_or_else(|| DeError::custom("`version` must be a string"))?;
+            Ok(PackageVersion(version.into()))
+          } else {
+            Err(DeError::custom("value is not a path to a JSON object"))
+          }
+        } else {
+          Ok(PackageVersion(value.into()))
+        }
+      }
+    }
+
+    deserializer.deserialize_string(PackageVersionVisitor {})
+  }
+}
+
 /// The package configuration.
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageConfig {
   /// App name.
   pub product_name: Option<String>,
-  /// App version.
+  /// App version. It is a semver version number or a path to a `package.json` file contaning the `version` field.
+  #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
+}
+
+fn version_deserializer<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  Option::<PackageVersion>::deserialize(deserializer).map(|v| v.map(|v| v.0))
 }
 
 /// The config type mapped to `tauri.conf.json`.

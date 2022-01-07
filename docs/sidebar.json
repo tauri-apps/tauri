@@ -10,21 +10,21 @@
     ]
   },
   {
+    "label": "Development",
+    "type": "category",
+    "items": [
+      "development/integration",
+      "development/development",
+      "development/debugging",
+      "development/publishing",
+      "development/updating"
+    ]
+  },
+  {
     "label": "Usage",
     "type": "category",
     "items": [
       "usage/intro",
-      {
-        "label": "Development",
-        "type": "category",
-        "items": [
-          "usage/development/integration",
-          "usage/development/development",
-          "usage/development/debugging",
-          "usage/development/publishing",
-          "usage/development/updating"
-        ]
-      },
       {
         "label": "Patterns",
         "type": "category",

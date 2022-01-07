@@ -46,7 +46,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl'
 
 ## Description
 
-The Lockdown recipe is a minimal usage of the [Bridge pattern](/docs/usage/patterns/bridge), which only allows interaction between Rust and the Window via expiring JS Promise Closures that are injected into the Window by Rust and nulled as part of the callback.
+The Lockdown recipe is a minimal usage of the [Bridge pattern](/docs/guides/patterns/bridge), which only allows interaction between Rust and the Window via expiring JS Promise Closures that are injected into the Window by Rust and nulled as part of the callback.
 
 ## Diagram
 

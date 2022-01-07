@@ -84,7 +84,7 @@ This plugin allows you to very quickly install tauri in a vue-cli project.
 ## [tauri-vscode](https://github.com/tauri-apps/tauri-vscode)
 This project enhances the VS Code interface with several nice-to-have features.
 
-# Tauri Plugins [documentation](https://tauri.studio/en/docs/usage/guides/plugin)
+# Tauri Plugins [documentation](https://tauri.studio/en/docs/guides/plugin)
 
 Generally speaking, plugins are authored by third parties (even though there may be official, supported plugins). A plugin generally does 3 things:
 1. It provides rust code to do "something".

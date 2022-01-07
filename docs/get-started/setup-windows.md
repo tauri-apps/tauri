@@ -72,4 +72,4 @@ If you have problems of any kind after following these instructions, we recommen
 
 ## Continue
 
-Now that you have set up the Windows-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/usage/development/integration).
+Now that you have set up the Windows-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/development/integration).

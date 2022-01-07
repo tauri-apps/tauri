@@ -158,7 +158,7 @@ This information can be very helpful when triaging problems.
 ### Patterns
 
 We've also defined prebuilt configurations called "Patterns". They may help you to customize Tauri to fit your needs.
-[See more about patterns](/docs/usage/patterns/about-patterns).
+[See more about patterns](/docs/guides/patterns/about-patterns).
 
 ## Vue CLI Plugin Tauri
 

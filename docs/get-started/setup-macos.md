@@ -76,4 +76,4 @@ You may need to restart your terminal if the command does not work.
 
 ## Continue
 
-Now that you have set up the macOS-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/usage/development/integration).
+Now that you have set up the macOS-specific dependencies for Tauri, learn how to [add Tauri to your project](/docs/development/integration).

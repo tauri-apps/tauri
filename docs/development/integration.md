@@ -7,7 +7,7 @@ import Command from '@theme/Command'
 import Link from '@docusaurus/Link'
 
 <Alert title="Please note" type="warning" icon="alert">
-  You must have completed all the steps required for setting up the development environment on your machine. If you haven't done this yet, please see the <a href="/docs/getting-started/intro#setting-up-your-environment"> setup page for your operating system</a>.
+  You must have completed all the steps required for setting up the development environment on your machine. If you haven't done this yet, please see the <a href="/docs/get-started/intro#setting-up-your-environment"> setup page for your operating system</a>.
 </Alert>
 
 There are two ways to integrate with Tauri depends on your need:

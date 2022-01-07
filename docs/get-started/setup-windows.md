@@ -8,7 +8,7 @@ import { Intro } from '@theme/SetupDocs'
 
 <Alert title="Note">
 
-For those using the Windows Subsystem for Linux (WSL) please refer to our [Linux specific instructions](/docs/getting-started/setup-linux) instead.
+For those using the Windows Subsystem for Linux (WSL) please refer to our [Linux specific instructions](/docs/get-started/setup-linux) instead.
 </Alert>
 
 <Intro />
@@ -45,7 +45,7 @@ This will install the most recent version of Node.js with npm.
 
 You may want to use an alternative to npm:
 
-- <a href="https://yarnpkg.com/getting-started" target="_blank">Yarn</a>, is preferred by Tauri's team
+- <a href="https://yarnpkg.com/get-started" target="_blank">Yarn</a>, is preferred by Tauri's team
 - <a href="https://pnpm.js.org/en/installation" target="_blank">pnpm</a>
 
 ## 3. Rustc and Cargo Package Manager&nbsp;<Icon title="control-skip-forward" color="warning"/>
@@ -61,7 +61,7 @@ Download and install the proper variant for your computer's architecture.
 ## 4. Install WebView2
 
 <Alert title="Note">
-WebView2 is pre-installed in Windows 11. 
+WebView2 is pre-installed in Windows 11.
 </Alert>
 
 Finally, you will need to install WebView2. The best way to do this is to download and run the Evergreen Bootstrapper from [this page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).

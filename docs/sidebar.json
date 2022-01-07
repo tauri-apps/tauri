@@ -27,7 +27,6 @@
     "label": "Guides",
     "type": "category",
     "items": [
-      "guides/migration",
       {
         "label": "Patterns",
         "type": "category",
@@ -58,17 +57,11 @@
       "guides/events",
       "guides/plugin",
       "guides/updater",
-      {
-        "label": "Visual",
-        "type": "category",
-        "items": [
-          "guides/visual/icons",
-          "guides/visual/splashscreen",
-          "guides/visual/window-customization",
-          "guides/visual/menu",
-          "guides/visual/system-tray"
-        ]
-      },
+      "guides/icons",
+      "guides/splashscreen",
+      "guides/window-customization",
+      "guides/menu",
+      "guides/system-tray",
       {
         "label": "WebDriver Testing",
         "type": "category",
@@ -86,6 +79,7 @@
           "guides/webdriver/ci"
         ]
       },
+      "guides/migration",
       "guides/contributor-guide"
     ]
   },

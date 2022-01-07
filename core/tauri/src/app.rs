@@ -210,6 +210,22 @@ impl AppHandle<crate::Wry> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
 
+  /// Create a new egui window. For simplicity, tauri only allows one egui window for now. Calling
+  /// this again will close previous egui window. If you want multiple GL Window, please consider
+  /// creating egui's window widget.
+  #[cfg(feature = "egui")]
+  pub fn create_egui_window(
+    &self,
+    label: String,
+    app: Box<dyn epi::App + Send>,
+    native_options: epi::NativeOptions,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .create_egui_window(label, app, native_options)
+      .map_err(Into::into)
+  }
+
   /// Sends a window message to the event loop.
   pub fn send_tao_window_event(
     &self,
@@ -677,7 +693,7 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -1057,9 +1073,7 @@ impl<R: Runtime> Builder<R> {
               }
             };
             let listener = listener.clone();
-            crate::async_runtime::spawn(async move {
-              listener.lock().unwrap()(&app_handle, event);
-            });
+            listener.lock().unwrap()(&app_handle, event);
           });
       }
     }
@@ -1147,5 +1161,23 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn is_send_sync() {
+    crate::test::assert_send::<super::AppHandle>();
+    crate::test::assert_sync::<super::AppHandle>();
+
+    #[cfg(feature = "wry")]
+    {
+      crate::test::assert_send::<super::AssetResolver<crate::Wry>>();
+      crate::test::assert_sync::<super::AssetResolver<crate::Wry>>();
+    }
+
+    crate::test::assert_send::<super::PathResolver>();
+    crate::test::assert_sync::<super::PathResolver>();
   }
 }

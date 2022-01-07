@@ -31,7 +31,6 @@ type EventName = LiteralUnion<
   | 'tauri://resize'
   | 'tauri://move'
   | 'tauri://close-requested'
-  | 'tauri://destroyed'
   | 'tauri://focus'
   | 'tauri://blur'
   | 'tauri://scale-change'

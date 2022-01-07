@@ -17,6 +17,10 @@ pub struct PackageInfo {
   pub name: String,
   /// App version
   pub version: String,
+  /// The crate authors.
+  pub authors: &'static str,
+  /// The crate description.
+  pub description: &'static str,
 }
 
 impl PackageInfo {
@@ -25,7 +29,7 @@ impl PackageInfo {
   pub fn package_name(&self) -> String {
     #[cfg(target_os = "linux")]
     {
-      use heck::KebabCase;
+      use heck::ToKebabCase;
       self.name.clone().to_kebab_case()
     }
     #[cfg(not(target_os = "linux"))]

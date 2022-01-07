@@ -1,101 +1,86 @@
 [
   {
-    "label": "Getting started",
+    "label": "Get started",
     "type": "category",
     "items": [
-      "getting-started/intro",
-      "getting-started/setup-linux",
-      "getting-started/setup-macos",
-      "getting-started/setup-windows"
+      "get-started/intro",
+      "get-started/setup-linux",
+      "get-started/setup-macos",
+      "get-started/setup-windows"
     ]
   },
   {
-    "label": "Usage",
+    "label": "Development",
     "type": "category",
     "items": [
-      "usage/intro",
-      {
-        "label": "Development",
-        "type": "category",
-        "items": [
-          "usage/development/integration",
-          "usage/development/development",
-          "usage/development/debugging",
-          "usage/development/publishing",
-          "usage/development/updating"
-        ]
-      },
+      "development/intro",
+      "development/integration",
+      "development/development",
+      "development/debugging",
+      "development/ci-cd",
+      "development/cross-platform",
+      "development/publishing",
+      "development/updating"
+    ]
+  },
+  {
+    "label": "Guides",
+    "type": "category",
+    "items": [
       {
         "label": "Patterns",
         "type": "category",
         "items": [
-          "usage/patterns/about-patterns",
-          "usage/patterns/hermit",
-          "usage/patterns/bridge",
-          "usage/patterns/cloudish",
-          "usage/patterns/cloudbridge",
-          "usage/patterns/lockdown",
-          "usage/patterns/multiwin",
-          "usage/patterns/glui"
+          "guides/patterns/about-patterns",
+          "guides/patterns/hermit",
+          "guides/patterns/bridge",
+          "guides/patterns/cloudish",
+          "guides/patterns/cloudbridge",
+          "guides/patterns/lockdown",
+          "guides/patterns/multiwin",
+          "guides/patterns/glui"
         ]
       },
       {
-        "label": "Guides",
+        "label": "Bundler",
         "type": "category",
         "items": [
-          "usage/guides/migration",
-          {
-            "label": "Bundler",
-            "type": "category",
-            "items": [
-              "usage/guides/bundler/introduction",
-              "usage/guides/bundler/anti-bloat",
-              "usage/guides/bundler/sidecar",
-              "usage/guides/bundler/debian",
-              "usage/guides/bundler/sign-osx"
-            ]
-          },
-          "usage/guides/cli",
-          "usage/guides/command",
-          "usage/guides/events",
-          "usage/guides/plugin",
-          "usage/guides/updater",
-          {
-            "label": "Visual",
-            "type": "category",
-            "items": [
-              "usage/guides/visual/icons",
-              "usage/guides/visual/splashscreen",
-              "usage/guides/visual/window-customization",
-              "usage/guides/visual/menu",
-              "usage/guides/visual/system-tray"
-            ]
-          },
-          {
-            "label": "WebDriver Testing",
-            "type": "category",
-            "items": [
-              "usage/guides/webdriver/introduction",
-              {
-                "label": "Example Application",
-                "type": "category",
-                "items": [
-                  "usage/guides/webdriver/example/setup",
-                  "usage/guides/webdriver/example/webdriverio",
-                  "usage/guides/webdriver/example/selenium"
-                ]
-              },
-              "usage/guides/webdriver/ci"
-            ]
-          }
+          "guides/bundler/introduction",
+          "guides/bundler/anti-bloat",
+          "guides/bundler/sidecar",
+          "guides/bundler/debian",
+          "guides/bundler/sign-osx"
         ]
       },
+      "guides/cli",
+      "guides/command",
+      "guides/events",
+      "guides/plugin",
+      "guides/updater",
+      "guides/icons",
+      "guides/splashscreen",
+      "guides/window-customization",
+      "guides/menu",
+      "guides/system-tray",
       {
-        "label": "CI/CD",
+        "label": "WebDriver Testing",
         "type": "category",
-        "items": ["usage/ci-cd/workflow", "usage/ci-cd/cross-platform"]
+        "items": [
+          "guides/webdriver/introduction",
+          {
+            "label": "Example Application",
+            "type": "category",
+            "items": [
+              "guides/webdriver/example/setup",
+              "guides/webdriver/example/webdriverio",
+              "guides/webdriver/example/selenium"
+            ]
+          },
+          "guides/webdriver/ci"
+        ]
       },
-      "usage/contributor-guide"
+      "guides/migration",
+      "guides/contributor-guide"
     ]
   },
   {

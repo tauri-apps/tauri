@@ -351,10 +351,21 @@ impl Response {
     let url = self.2;
 
     let mut headers = HashMap::new();
+    let mut raw_headers = HashMap::new();
     for (name, value) in self.1.headers() {
       headers.insert(
         name.as_str().to_string(),
         String::from_utf8(value.as_bytes().to_vec())?,
+      );
+      raw_headers.insert(
+        name.as_str().to_string(),
+        self
+          .1
+          .headers()
+          .get_all(name)
+          .into_iter()
+          .map(|v| String::from_utf8(v.as_bytes().to_vec()).map_err(Into::into))
+          .collect::<crate::api::Result<Vec<String>>>()?,
       );
     }
     let status = self.1.status().as_u16();
@@ -377,6 +388,7 @@ impl Response {
       url,
       status,
       headers,
+      raw_headers,
       data,
     })
   }
@@ -403,6 +415,8 @@ pub struct ResponseData {
   pub status: u16,
   /// Response headers.
   pub headers: HashMap<String, String>,
+  /// Response raw headers.
+  pub raw_headers: HashMap<String, Vec<String>>,
   /// Response data.
   pub data: Value,
 }

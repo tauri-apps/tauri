@@ -16,16 +16,16 @@
       <source src="stream://example/test_video.mp4" type="video/mp4" />
     </video>
     <script>
-      (function () {
-        if (navigator.userAgent.includes("Windows")) {
-          const video = document.getElementById("video_source");
-          const sources = video.getElementsByTagName("source");
+      ;(function () {
+        if (navigator.userAgent.includes('Windows')) {
+          const video = document.getElementById('video_source')
+          const sources = video.getElementsByTagName('source')
           // on windows the custom protocl should be the host
           // followed by the complete path
-          sources[0].src = "https://stream.example/test_video.mp4";
-          video.load();
+          sources[0].src = 'https://stream.example/test_video.mp4'
+          video.load()
         }
-      })();
+      })()
     </script>
   </body>
 </html>

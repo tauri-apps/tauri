@@ -142,9 +142,9 @@
   <div id="response" style="white-space: pre-line">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
-      <a class="nv" on:click={()=> {
+      <span class="nv" on:click={()=> {
         responses.update(() => []);
-        }}>clear</a>
+        }}>clear</span>
     </p>
     {@html response}
   </div>

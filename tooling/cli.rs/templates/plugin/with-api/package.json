@@ -12,11 +12,11 @@
     "pretest": "yarn build"
   },
   "devDependencies": {
-    "@rollup/plugin-node-resolve": "13.0.6",
+    "@rollup/plugin-node-resolve": "13.1.2",
     "@rollup/plugin-typescript": "8.3.0",
-    "rollup": "2.60.1",
+    "rollup": "2.63.0",
     "rollup-plugin-terser": "7.0.2",
-    "typescript": "4.5.2"
+    "typescript": "4.5.4"
   },
   "dependencies": {
     "@tauri-apps/api": "1.0.0-beta.8",

@@ -94,6 +94,7 @@ impl EmbeddedAssets {
 }
 
 impl Assets for EmbeddedAssets {
+  #[cfg(feature = "compression")]
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
       .0
@@ -102,5 +103,14 @@ impl Assets for EmbeddedAssets {
       .map(zstd::decode_all)
       .and_then(Result::ok)
       .map(Cow::Owned)
+  }
+
+  #[cfg(not(feature = "compression"))]
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+    self
+      .0
+      .get(key.as_ref())
+      .copied()
+      .map(|a| Cow::Owned(a.to_vec()))
   }
 }

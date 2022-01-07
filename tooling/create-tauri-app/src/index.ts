@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import minimist from 'minimist'
 import inquirer from 'inquirer'
+import { program, createOption } from 'commander'
 import { bold, cyan, green, reset, yellow } from 'chalk'
 import { platform } from 'os'
 import { resolve, join, relative } from 'path'
@@ -15,108 +15,17 @@ import { dominator } from './recipes/dominator'
 import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
 import { solid } from './recipes/solid'
-import { install, checkPackageManager } from './dependency-manager'
+import { cljs } from './recipes/cljs'
+import {
+  install,
+  checkPackageManager,
+  PackageManager
+} from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
-
-interface Argv {
-  h: boolean
-  help: boolean
-  v: string
-  version: string
-  ci: boolean
-  dev: boolean
-  b: string
-  binary: string
-  f: string
-  force: string
-  l: boolean
-  log: boolean
-  m: string
-  manager: string
-  d: string
-  directory: string
-  t: string
-  tauriPath: string
-  A: string
-  appName: string
-  W: string
-  windowTitle: string
-  D: string
-  distDir: string
-  P: string
-  devPath: string
-  r: string
-  recipe: string
-}
-
-const printUsage = (): void => {
-  console.log(`
-  Description
-    Starts a new tauri app from a "recipe" or pre-built template.
-  Usage
-    $ yarn create tauri-app <app-name> # npm create-tauri-app <app-name>
-  Options
-    --help, -h           Displays this message
-    -v, --version        Displays the Tauri CLI version
-    --ci                 Skip prompts
-    --force, -f          Force init to overwrite [conf|template|all]
-    --log, -l            Logging [boolean]
-    --manager, -m        Set package manager to use [npm|yarn|pnpm]
-    --directory, -d      Set target directory for init
-    --app-name, -A       Name of your Tauri application
-    --window-title, -W   Window title of your Tauri application
-    --dist-dir, -D       Web assets location, relative to <project-dir>/src-tauri
-    --dev-path, -P       Url of your dev server
-    --recipe, -r         Add UI framework recipe. None by default.
-                         Supported recipes: [${recipeShortNames.join('|')}]
-    `)
-}
-
-export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
-  const argv = minimist(cliArgs, {
-    alias: {
-      h: 'help',
-      v: 'version',
-      f: 'force',
-      l: 'log',
-      m: 'manager',
-      d: 'directory',
-      t: 'tauri-path',
-      A: 'app-name',
-      W: 'window-title',
-      D: 'dist-dir',
-      P: 'dev-path',
-      r: 'recipe'
-    },
-    boolean: ['h', 'l', 'ci', 'dev']
-  }) as unknown as Argv
-
-  if (argv.help) {
-    printUsage()
-    return 0
-  }
-
-  if (argv.v) {
-    /* eslint-disable @typescript-eslint/no-var-requires */
-    /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-    console.log(require('../package.json').version)
-    return false // do this for node consumers and tests
-    /* eslint-enable @typescript-eslint/no-var-requires */
-    /* eslint-enable @typescript-eslint/no-unsafe-member-access */
-  }
-
-  return await runInit(argv)
-}
-
-interface Responses {
-  appName: string
-  tauri: { window: { title: string } }
-  recipeName: string
-  installApi: boolean
-}
+import { pkgManagerFromUserAgent } from './helpers/package-manager'
 
 const allRecipes: Recipe[] = [
   vanillajs,
@@ -126,18 +35,97 @@ const allRecipes: Recipe[] = [
   ngcli,
   svelte,
   solid,
-  dominator
+  dominator,
+  cljs
 ]
-
+const recipeShortNames = allRecipes.map((r) => r.shortName)
+const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
 const recipeByShortName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.shortName === name)
-
 const recipeByDescriptiveName = (name: string): Recipe | undefined =>
   allRecipes.find((r) => r.descriptiveName.value === name)
 
-const recipeShortNames = allRecipes.map((r) => r.shortName)
+interface Argv {
+  help: boolean
+  version: string
+  ci: boolean
+  dev: boolean
+  binary: string
+  force: string
+  log: boolean
+  manager: string
+  directory: string
+  appName: string
+  windowTitle: string
+  distDir: string
+  devPath: string
+  recipe: string
+}
 
-const recipeDescriptiveNames = allRecipes.map((r) => r.descriptiveName)
+export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
+  program
+    .description(
+      'Bootstrap a new tauri app from a "recipe" or a pre-built template.'
+    )
+    .addOption(
+      createOption(
+        '-r, --recipe <recipe>',
+        'Specify UI framework recipe'
+      ).choices(recipeShortNames)
+    )
+    .option('    --ci', 'Skip prompts')
+    .option('    --dev', 'Use local development packages')
+    .addOption(
+      createOption('-f, --force [option]', 'Force init to overwrite')
+        .choices(['conf', 'template', 'all'])
+        .default('all')
+    )
+    .option('-d, --directory <path>', 'Set target directory for init')
+    .option('-A, --app-name <name>', 'Name of your Tauri application')
+    .option(
+      '-W, --window-title <title>',
+      'Title of your Tauri application window'
+    )
+    .option(
+      '-D, --dist-dir <path>',
+      'Web assets location, relative to "<project-dir>/src-tauri/tauri.conf.json"'
+    )
+    .option('-p, --dev-path <path>', 'Url of your dev server')
+    .addOption(
+      createOption(
+        '-m, --manager <package-manager>',
+        'Set package manager to use'
+      ).choices(['npm', 'yarn', 'pnpm'])
+    )
+    .addOption(
+      createOption('-b, --binary <path>', 'Use a prebuilt Tauri CLI binary')
+    )
+    .option('-l, --log', 'Add log messages')
+    .version(
+      // eslint-disable-next-line
+      require('../package.json').version,
+      '-v, --version',
+      'Displays create-tauri-app version'
+    )
+    .helpOption('-h, --help', 'Displays this message')
+    .showHelpAfterError('For more information try --help')
+    .configureHelp({
+      optionTerm: (option) => cyan(option.flags),
+      commandUsage: (command) => cyan(command.name()) + ' [options]',
+      commandDescription: (command) => yellow(command.description())
+    })
+    .parse(process.argv)
+
+  const argv = program.opts()
+  return await runInit(argv as Argv)
+}
+
+interface Responses {
+  appName: string
+  tauri: { window: { title: string } }
+  recipeName: string
+  installApi: boolean
+}
 
 const keypress = async (skip: boolean): Promise<void> => {
   if (skip) return
@@ -157,18 +145,6 @@ const keypress = async (skip: boolean): Promise<void> => {
 }
 
 const runInit = async (argv: Argv): Promise<void> => {
-  console.log(
-    `We hope to help you create something special with ${bold(
-      yellow('Tauri')
-    )}!`
-  )
-  console.log(
-    'You will have a choice of one of the UI frameworks supported by the greater web tech community.'
-  )
-  console.log(
-    `This should get you started. See our docs at https://tauri.studio/`
-  )
-
   const setupLink =
     platform() === 'win32'
       ? 'https://tauri.studio/en/docs/getting-started/setup-windows/'
@@ -176,17 +152,24 @@ const runInit = async (argv: Argv): Promise<void> => {
       ? 'https://tauri.studio/en/docs/getting-started/setup-macos/'
       : 'https://tauri.studio/en/docs/getting-started/setup-linux/'
 
+  // prettier-ignore
   console.log(
-    `If you haven't already, please take a moment to setup your system.`
+    `
+We hope to help you create something special with ${bold(yellow('Tauri'))}!
+You will have a choice of one of the UI frameworks supported by the greater web tech community.
+This tool should get you quickly started. See our docs at ${cyan('https://tauri.studio/')}
+
+If you haven't already, please take a moment to setup your system.
+You may find the requirements here: ${cyan(setupLink)}
+    `
   )
-  console.log(`You may find the requirements here: ${setupLink}`)
 
   await keypress(argv.ci)
 
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
-    recipeName: 'vanillajs',
+    recipeName: 'Vanilla.js',
     installApi: true
   }
 
@@ -198,14 +181,14 @@ const runInit = async (argv: Argv): Promise<void> => {
         name: 'appName',
         message: 'What is your app name?',
         default: defaults.appName,
-        when: !argv.ci && !argv.A
+        when: !argv.ci && !argv.appName
       },
       {
         type: 'input',
         name: 'tauri.window.title',
         message: 'What should the window title be?',
         default: defaults.tauri.window.title,
-        when: !argv.ci && !argv.W
+        when: !argv.ci && !argv.windowTitle
       },
       {
         type: 'list',
@@ -213,7 +196,7 @@ const runInit = async (argv: Argv): Promise<void> => {
         message: 'What UI recipe would you like to add?',
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
-        when: !argv.ci && !argv.r
+        when: !argv.ci && !argv.recipe
       },
       {
         type: 'confirm',
@@ -245,8 +228,8 @@ const runInit = async (argv: Argv): Promise<void> => {
   } = { ...defaults, ...answers }
 
   let recipe: Recipe | undefined
-  if (argv.r) {
-    recipe = recipeByShortName(argv.r)
+  if (argv.recipe) {
+    recipe = recipeByShortName(argv.recipe)
   } else if (recipeName !== undefined) {
     recipe = recipeByDescriptiveName(recipeName)
   }
@@ -256,26 +239,19 @@ const runInit = async (argv: Argv): Promise<void> => {
     throw new Error('Could not find the recipe specified.')
   }
 
-  const packageManager =
-    argv.m === 'yarn' || argv.m === 'npm' || argv.m === 'pnpm'
-      ? argv.m
-      : // @ts-expect-error
-      // this little fun snippet pulled from vite determines the package manager the script was run from
-      /yarn/.test(process?.env?.npm_execpath)
-      ? 'yarn'
-      : // @ts-expect-error
-      /pnpm/.test(process?.env?.npm_execpath)
-      ? 'pnpm'
-      : 'npm'
+  const pkgManagerInfo = pkgManagerFromUserAgent(
+    process.env.npm_config_user_agent
+  )
+  const packageManager = (pkgManagerInfo?.name ?? 'npm') as PackageManager
 
   const buildConfig = {
-    distDir: argv.D,
-    devPath: argv.P,
-    appName: argv.A || appName,
-    windowTitle: argv.W || title
+    distDir: argv.distDir,
+    devPath: argv.devPath,
+    appName: argv.appName || appName,
+    windowTitle: argv.windowTitle || title
   }
 
-  const directory = argv.d || process.cwd()
+  const directory = argv.directory || process.cwd()
 
   // prompt additional recipe questions
   let recipeAnswers
@@ -309,7 +285,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       packageManager,
       ci: argv.ci,
       cwd: directory,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
   const cfg = {
@@ -319,7 +295,7 @@ const runInit = async (argv: Argv): Promise<void> => {
 
   // note that our app directory is reliant on the appName and
   // generally there are issues if the path has spaces (see Windows)
-  // future TODO prevent app names with spaces or escape here?
+  // TODO: prevent app names with spaces or escape here?
   const appDirectory = join(directory, cfg.appName)
 
   // this throws an error if we can't run the package manager they requested
@@ -332,7 +308,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cfg,
       packageManager,
       ci: argv.ci,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
 
@@ -352,13 +328,16 @@ const runInit = async (argv: Argv): Promise<void> => {
   const tauriCLIVersion = !argv.dev
     ? 'latest'
     : `file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+  const apiVersion = !argv.dev
+    ? 'latest'
+    : `file:${relative(appDirectory, join(__dirname, '../../api/dist'))}`
 
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
     await install({
       appDir: appDirectory,
-      dependencies: [installApi ? '@tauri-apps/api@latest' : ''].concat(
+      dependencies: [installApi ? `@tauri-apps/api@${apiVersion}` : ''].concat(
         recipe.extraNpmDependencies
       ),
       devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
@@ -368,14 +347,25 @@ const runInit = async (argv: Argv): Promise<void> => {
     })
 
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
-    updatePackageJson(appDirectory, appName)
+    updatePackageJson((pkg) => {
+      return {
+        ...pkg,
+        name: appName,
+        scripts: {
+          ...pkg.scripts,
+          tauri: 'tauri'
+        }
+      }
+    }, appDirectory)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
-    const binary = !argv.b ? packageManager : resolve(appDirectory, argv.b)
-    // pnpm is equivalent to yarn and can run srcipts without using "run" but due to this bug https://github.com/pnpm/pnpm/issues/2764
-    // we need to pass "--" to pnpm or arguments won't be parsed correctly so for this command only we are gonna treat pnpm as npm equivalent/
+    const binary = !argv.binary
+      ? packageManager
+      : resolve(appDirectory, argv.binary)
+    // "pnpm" is mostly interchangable with "yarn" but due to this bug https://github.com/pnpm/pnpm/issues/2764
+    // we need to pass "--" to pnpm or arguments won't be parsed correctly so we treat "pnpm" here like "npm"
     const runTauriArgs =
-      packageManager === 'yarn' || argv.b
+      packageManager === 'yarn' || argv.binary
         ? ['tauri', 'init']
         : ['run', 'tauri', '--', 'init']
 
@@ -384,7 +374,16 @@ const runInit = async (argv: Argv): Promise<void> => {
     })
 
     logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
-    updateTauriConf(appDirectory, cfg)
+    updateTauriConf((tauriConf) => {
+      return {
+        ...tauriConf,
+        build: {
+          ...tauriConf.build,
+          beforeDevCommand: cfg.beforeDevCommand,
+          beforeBuildCommand: cfg.beforeBuildCommand
+        }
+      }
+    }, appDirectory)
   }
 
   if (recipe.postInit) {
@@ -394,7 +393,7 @@ const runInit = async (argv: Argv): Promise<void> => {
       cfg,
       packageManager,
       ci: argv.ci,
-      answers: recipeAnswers
+      answers: recipeAnswers ?? {}
     })
   }
 }

@@ -465,8 +465,10 @@ pub fn build_wix_app_installer(
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
-  let manufacturer = settings.bundle_identifier().to_string();
-  data.insert("manufacturer", to_json(manufacturer.as_str()));
+  let bundle_id = settings.bundle_identifier();
+  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  data.insert("bundle_id", to_json(bundle_id));
+  data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
     format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),

@@ -1,12 +1,12 @@
 [
   {
-    "label": "Getting started",
+    "label": "Get started",
     "type": "category",
     "items": [
-      "getting-started/intro",
-      "getting-started/setup-linux",
-      "getting-started/setup-macos",
-      "getting-started/setup-windows"
+      "get-started/intro",
+      "get-started/setup-linux",
+      "get-started/setup-macos",
+      "get-started/setup-windows"
     ]
   },
   {
@@ -93,7 +93,10 @@
       {
         "label": "CI/CD",
         "type": "category",
-        "items": ["usage/ci-cd/workflow", "usage/ci-cd/cross-platform"]
+        "items": [
+          "usage/ci-cd/workflow",
+          "usage/ci-cd/cross-platform"
+        ]
       },
       "usage/contributor-guide"
     ]

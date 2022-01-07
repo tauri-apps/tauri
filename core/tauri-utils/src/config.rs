@@ -482,16 +482,8 @@ impl Default for BuildConfig {
   }
 }
 
-/// The package's version, used on the application bundle.
-/// It is a semver version number or a path to a `package.json` file contaning the `version` field.
 #[derive(Debug, PartialEq)]
-pub struct PackageVersion(pub String);
-
-impl fmt::Display for PackageVersion {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "{}", &self.0)
-  }
-}
+struct PackageVersion(String);
 
 impl<'d> serde::Deserialize<'d> for PackageVersion {
   fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<PackageVersion, D::Error> {
@@ -540,8 +532,16 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 pub struct PackageConfig {
   /// App name.
   pub product_name: Option<String>,
-  /// App version.
-  pub version: Option<PackageVersion>,
+  /// App version. It is a semver version number or a path to a `package.json` file contaning the `version` field.
+  #[serde(deserialize_with = "version_deserializer", default)]
+  pub version: Option<String>,
+}
+
+fn version_deserializer<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  Option::<PackageVersion>::deserialize(deserializer).map(|v| v.map(|v| v.0))
 }
 
 /// The config type mapped to `tauri.conf.json`.
@@ -987,17 +987,10 @@ mod build {
     }
   }
 
-  impl ToTokens for PackageVersion {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let version = str_lit(&self.0);
-      tokens.append_all(quote! { ::tauri::utils::config::PackageVersion(#version) })
-    }
-  }
-
   impl ToTokens for PackageConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let product_name = opt_str_lit(self.product_name.as_ref());
-      let version = opt_lit(self.version.as_ref());
+      let version = opt_str_lit(self.version.as_ref());
 
       literal_struct!(tokens, PackageConfig, product_name, version);
     }

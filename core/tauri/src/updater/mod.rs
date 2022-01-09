@@ -381,6 +381,10 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
   window: Window<R>,
 ) {
   if let Some(endpoints) = updater_config.endpoints.clone() {
+    let endpoints = endpoints
+      .iter()
+      .map(|e| e.to_string())
+      .collect::<Vec<String>>();
     let env = window.state::<Env>().inner().clone();
     // check updates
     match self::core::builder(env)
@@ -440,7 +444,9 @@ pub(crate) fn listener<R: Runtime>(
       .endpoints
       .as_ref()
       .expect("Something wrong with endpoints")
-      .clone();
+      .iter()
+      .map(|e| e.to_string())
+      .collect::<Vec<String>>();
 
     let pubkey = updater_config.pubkey.clone();
 

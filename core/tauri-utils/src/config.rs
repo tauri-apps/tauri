@@ -1359,6 +1359,38 @@ impl TauriConfig {
   }
 }
 
+/// A URL to an updater server.
+///
+/// The URL must use the `https` scheme on production.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct UpdaterEndpoint(pub Url);
+
+impl std::fmt::Display for UpdaterEndpoint {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+impl<'de> Deserialize<'de> for UpdaterEndpoint {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let url = Url::deserialize(deserializer)?;
+    #[cfg(all(not(debug_assertions), not(feature = "schema")))]
+    {
+      if url.scheme() != "https" {
+        return Err(serde::de::Error::custom(
+          "The configured updater endpoint must use the `https` protocol.",
+        ));
+      }
+    }
+    Ok(Self(url))
+  }
+}
+
 /// The Updater configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -1371,8 +1403,8 @@ pub struct UpdaterConfig {
   /// Display built-in dialog or use event system if disabled.
   #[serde(default = "default_dialog")]
   pub dialog: bool,
-  /// The updater endpoints.
-  pub endpoints: Option<Vec<String>>,
+  /// The updater endpoints. TLS is enforced on production.
+  pub endpoints: Option<Vec<UpdaterEndpoint>>,
   /// Signature public key.
   pub pubkey: String,
 }
@@ -2029,7 +2061,18 @@ mod build {
       let active = self.active;
       let dialog = self.dialog;
       let pubkey = str_lit(&self.pubkey);
-      let endpoints = opt_vec_str_lit(self.endpoints.as_ref());
+      let endpoints = opt_lit(
+        self
+          .endpoints
+          .as_ref()
+          .map(|list| {
+            vec_lit(list, |url| {
+              let url = url.0.as_str();
+              quote! { ::tauri::utils::config::UpdaterEndpoint(#url.parse().unwrap()) }
+            })
+          })
+          .as_ref(),
+      );
 
       literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
     }

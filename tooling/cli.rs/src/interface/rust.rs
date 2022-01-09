@@ -496,7 +496,9 @@ fn tauri_config_to_bundle_settings(
       // unwrap_or as we have a default value but used to prevent any failing
       dialog: updater_config.dialog,
       pubkey: updater_config.pubkey,
-      endpoints: updater_config.endpoints,
+      endpoints: updater_config
+        .endpoints
+        .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
     }),
     ..Default::default()
   })

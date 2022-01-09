@@ -1551,13 +1551,13 @@
           "type": "boolean"
         },
         "endpoints": {
-          "description": "The updater endpoints.",
+          "description": "The updater endpoints. TLS is enforced on production.",
           "type": [
             "array",
             "null"
           ],
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/UpdaterEndpoint"
           }
         },
         "pubkey": {
@@ -1566,6 +1566,11 @@
         }
       },
       "additionalProperties": false
+    },
+    "UpdaterEndpoint": {
+      "description": "A URL to an updater server.\n\nThe URL must use the `https` scheme on production.",
+      "type": "string",
+      "format": "uri"
     },
     "WindowAllowlistConfig": {
       "description": "Allowlist for the window APIs.",

@@ -952,9 +952,6 @@
     "FsAllowlistConfig": {
       "description": "Allowlist for the file system APIs.",
       "type": "object",
-      "required": [
-        "scope"
-      ],
       "properties": {
         "all": {
           "description": "Use this flag to enable all file system API features.",
@@ -1003,6 +1000,9 @@
         },
         "scope": {
           "description": "The access scope for the filesystem APIs.",
+          "default": [
+            "$APP/**"
+          ],
           "allOf": [
             {
               "$ref": "#/definitions/FsAllowlistScope"
@@ -1203,9 +1203,6 @@
     "ProtocolAllowlistConfig": {
       "description": "Allowlist for the custom protocols.",
       "type": "object",
-      "required": [
-        "assetScope"
-      ],
       "properties": {
         "all": {
           "description": "Use this flag to enable all custom protocols.",
@@ -1219,6 +1216,9 @@
         },
         "assetScope": {
           "description": "The access scope for the asset protocol.",
+          "default": [
+            "$APP/**"
+          ],
           "allOf": [
             {
               "$ref": "#/definitions/FsAllowlistScope"

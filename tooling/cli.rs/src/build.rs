@@ -140,28 +140,29 @@ pub fn command(options: Options) -> Result<()> {
   let out_dir = app_settings
     .get_out_dir(options.target.clone(), options.debug)
     .with_context(|| "failed to get project out directory")?;
+
+  let bin_name = app_settings
+    .cargo_package_settings()
+    .name
+    .clone()
+    .expect("Cargo manifest must have the `package.name` field");
+  #[cfg(windows)]
+  let bin_path = out_dir.join(format!("{}.exe", bin_name));
+  #[cfg(not(windows))]
+  let bin_path = out_dir.join(&bin_name);
+
+  #[cfg(unix)]
+  if !options.debug {
+    strip(&bin_path, &logger)?;
+  }
+
   if let Some(product_name) = config_.package.product_name.clone() {
-    let bin_name = app_settings
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
     #[cfg(windows)]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(format!("{}.exe", bin_name)),
-        out_dir.join(format!("{}.exe", product_name)),
-      )
-    };
+    let product_path = out_dir.join(format!("{}.exe", product_name));
     #[cfg(target_os = "macos")]
-    let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+    let product_path = out_dir.join(product_name);
     #[cfg(target_os = "linux")]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(bin_name),
-        out_dir.join(product_name.to_kebab_case()),
-      )
-    };
+    let product_path = out_dir.join(product_name.to_kebab_case());
     rename(&bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
@@ -306,5 +307,36 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   for path in output_paths {
     println!("        {}", path.display());
   }
+  Ok(())
+}
+
+// TODO: drop this when https://github.com/rust-lang/rust/issues/72110 is stabilized
+#[cfg(unix)]
+fn strip(path: &std::path::Path, logger: &Logger) -> crate::Result<()> {
+  use humansize::{file_size_opts, FileSize};
+
+  let filesize_before = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  // Strip the binary
+  Command::new("strip")
+    .arg(&path)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .status()
+    .with_context(|| "failed to execute strip")?;
+
+  let filesize_after = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  logger.log(format!(
+    "Binary stripped, size reduced by {}",
+    (filesize_before - filesize_after)
+      .file_size(file_size_opts::CONVENTIONAL)
+      .unwrap(),
+  ));
+
   Ok(())
 }

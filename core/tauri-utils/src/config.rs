@@ -592,6 +592,7 @@ impl Default for FsAllowlistScope {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FsAllowlistConfig {
   /// The access scope for the filesystem APIs.
+  #[serde(default)]
   pub scope: FsAllowlistScope,
   /// Use this flag to enable all file system API features.
   #[serde(default)]
@@ -1080,6 +1081,7 @@ impl Allowlist for PathAllowlistConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ProtocolAllowlistConfig {
   /// The access scope for the asset protocol.
+  #[serde(default)]
   pub asset_scope: FsAllowlistScope,
   /// Use this flag to enable all custom protocols.
   #[serde(default)]

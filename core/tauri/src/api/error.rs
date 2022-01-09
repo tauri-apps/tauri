@@ -25,7 +25,7 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
-  #[cfg(all(feature = "http", not(feature = "reqwest-client")))]
+  #[cfg(all(feature = "http-api", not(feature = "reqwest-client")))]
   #[error("Network Error: {0}")]
   Network(#[from] attohttpc::Error),
   /// The network error.

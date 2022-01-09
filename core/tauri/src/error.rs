@@ -42,7 +42,7 @@ pub enum Error {
   #[error("{0}")]
   Io(#[from] std::io::Error),
   /// Failed to decode base64.
-  #[cfg(any(fs_write_binary_file, feature = "updater"))]
+  #[cfg(feature = "updater")]
   #[error("Failed to decode base64 string: {0}")]
   Base64Decode(#[from] base64::DecodeError),
   /// Failed to load window icon.

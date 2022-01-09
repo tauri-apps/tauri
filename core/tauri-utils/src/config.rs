@@ -602,18 +602,12 @@ pub struct FsAllowlistConfig {
   /// Use this flag to enable all file system API features.
   #[serde(default)]
   pub all: bool,
-  /// Read text file from local filesystem.
+  /// Read file from local filesystem.
   #[serde(default)]
-  pub read_text_file: bool,
-  /// Read binary file from local filesystem.
-  #[serde(default)]
-  pub read_binary_file: bool,
-  /// Write text file to local filesystem.
+  pub read_file: bool,
+  /// Write file to local filesystem.
   #[serde(default)]
   pub write_file: bool,
-  /// Write binary file to local filesystem.
-  #[serde(default)]
-  pub write_binary_file: bool,
   /// Read directory from local filesystem.
   #[serde(default)]
   pub read_dir: bool,
@@ -639,10 +633,8 @@ impl Allowlist for FsAllowlistConfig {
     let allowlist = Self {
       scope: Default::default(),
       all: false,
-      read_text_file: true,
-      read_binary_file: true,
+      read_file: true,
       write_file: true,
-      write_binary_file: true,
       read_dir: true,
       copy_file: true,
       create_dir: true,
@@ -660,10 +652,8 @@ impl Allowlist for FsAllowlistConfig {
       vec!["fs-all"]
     } else {
       let mut features = Vec::new();
-      check_feature!(self, features, read_text_file, "fs-read-text-file");
-      check_feature!(self, features, read_binary_file, "fs-read-binary-file");
+      check_feature!(self, features, read_file, "fs-read-file");
       check_feature!(self, features, write_file, "fs-write-file");
-      check_feature!(self, features, write_binary_file, "fs-write-binary-file");
       check_feature!(self, features, read_dir, "fs-read-dir");
       check_feature!(self, features, copy_file, "fs-copy-file");
       check_feature!(self, features, create_dir, "fs-create-dir");

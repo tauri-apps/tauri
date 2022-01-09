@@ -60,16 +60,14 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
-            "readBinaryFile": false,
             "readDir": false,
-            "readTextFile": false,
+            "readFile": false,
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
             "scope": [
               "$APP/**"
             ],
-            "writeBinaryFile": false,
             "writeFile": false
           },
           "globalShortcut": {
@@ -234,16 +232,14 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
-            "readBinaryFile": false,
             "readDir": false,
-            "readTextFile": false,
+            "readFile": false,
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
             "scope": [
               "$APP/**"
             ],
-            "writeBinaryFile": false,
             "writeFile": false
           },
           "allOf": [
@@ -972,18 +968,13 @@
           "default": false,
           "type": "boolean"
         },
-        "readBinaryFile": {
-          "description": "Read binary file from local filesystem.",
-          "default": false,
-          "type": "boolean"
-        },
         "readDir": {
           "description": "Read directory from local filesystem.",
           "default": false,
           "type": "boolean"
         },
-        "readTextFile": {
-          "description": "Read text file from local filesystem.",
+        "readFile": {
+          "description": "Read file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
@@ -1013,13 +1004,8 @@
             }
           ]
         },
-        "writeBinaryFile": {
-          "description": "Write binary file to local filesystem.",
-          "default": false,
-          "type": "boolean"
-        },
         "writeFile": {
-          "description": "Write text file to local filesystem.",
+          "description": "Write file to local filesystem.",
           "default": false,
           "type": "boolean"
         }
@@ -1256,14 +1242,14 @@
       "type": "object",
       "properties": {
         "csp": {
-          "description": "The Content Security Policy that will be injected on all HTML files on the built application. If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
+          "description": "The Content Security Policy that will be injected on all HTML files on the built application. If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
           "type": [
             "string",
             "null"
           ]
         },
         "devCsp": {
-          "description": "The Content Security Policy that will be injected on all HTML files on development.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
+          "description": "The Content Security Policy that will be injected on all HTML files on development.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
           "type": [
             "string",
             "null"
@@ -1292,7 +1278,7 @@
           "type": "boolean"
         },
         "sidecar": {
-          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program, an executable that is shipped with the application. For more information see https://tauri.studio/en/docs/usage/guides/bundler/sidecar.",
+          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program, an executable that is shipped with the application. For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.",
           "default": false,
           "type": "boolean"
         }
@@ -1343,16 +1329,14 @@
               "all": false,
               "copyFile": false,
               "createDir": false,
-              "readBinaryFile": false,
               "readDir": false,
-              "readTextFile": false,
+              "readFile": false,
               "removeDir": false,
               "removeFile": false,
               "renameFile": false,
               "scope": [
                 "$APP/**"
               ],
-              "writeBinaryFile": false,
               "writeFile": false
             },
             "globalShortcut": {
@@ -1960,7 +1944,7 @@
           }
         },
         "language": {
-          "description": "The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.",
+          "description": "The installer language. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.",
           "default": "en-US",
           "type": "string"
         },

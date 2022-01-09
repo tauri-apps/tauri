@@ -14,10 +14,8 @@
  *     "allowlist": {
  *       "fs": {
  *         "all": true, // enable all FS APIs
- *         "readTextFile": true,
- *         "readBinaryFile": true,
+ *         "readFile": true,
  *         "writeFile": true,
- *         "writeBinaryFile": true,
  *         "readDir": true,
  *         "copyFile": true,
  *         "createDir": true,
@@ -67,14 +65,20 @@ interface FsDirOptions {
   recursive?: boolean
 }
 
+/** Options object used to write a UTF-8 string to a file. */
 interface FsTextFileOption {
+  /** Path to the file to write. */
   path: string
+  /** The UTF-8 string to write to the file. */
   contents: string
 }
 
+/** Options object used to write a binary data to a file. */
 interface FsBinaryFileOption {
+  /** Path to the file to write. */
   path: string
-  contents: ArrayBuffer
+  /** The byte array contents. */
+  contents: Iterable<number> | ArrayLike<number>
 }
 
 interface FileEntry {
@@ -89,7 +93,7 @@ interface FileEntry {
 }
 
 /**
- * Reads a file as UTF-8 encoded string.
+ * Reads a file as an UTF-8 encoded string.
  *
  * @param filePath Path to the file.
  * @param options Configuration object.
@@ -99,14 +103,14 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return invokeTauriCommand<string>({
+  return invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readTextFile',
+      cmd: 'readFile',
       path: filePath,
       options
     }
-  })
+  }).then((data) => new TextDecoder().decode(new Uint8Array(data)))
 }
 
 /**
@@ -123,7 +127,7 @@ async function readBinaryFile(
   return invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readBinaryFile',
+      cmd: 'readFile',
       path: filePath,
       options
     }
@@ -131,7 +135,7 @@ async function readBinaryFile(
 }
 
 /**
- * Writes a text file.
+ * Writes a UTF-8 text file.
  *
  * @param file File configuration object.
  * @param options Configuration object.
@@ -153,50 +157,14 @@ async function writeFile(
     message: {
       cmd: 'writeFile',
       path: file.path,
-      contents: file.contents,
+      contents: Array.from(new TextEncoder().encode(file.contents)),
       options
     }
   })
 }
 
-/** @ignore */
-const CHUNK_SIZE = 65536
-
 /**
- * Convert an Uint8Array to ascii string.
- *
- * @ignore
- * @param arr
- * @returns An ASCII string.
- */
-function uint8ArrayToString(arr: Uint8Array): string {
-  if (arr.length < CHUNK_SIZE) {
-    return String.fromCharCode.apply(null, Array.from(arr))
-  }
-
-  let result = ''
-  const arrLen = arr.length
-  for (let i = 0; i < arrLen; i++) {
-    const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-    result += String.fromCharCode.apply(null, Array.from(chunk))
-  }
-  return result
-}
-
-/**
- * Convert an ArrayBuffer to base64 encoded string.
- *
- * @ignore
- * @param buffer
- * @returns A base64 encoded string.
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const str = uint8ArrayToString(new Uint8Array(buffer))
-  return btoa(str)
-}
-
-/**
- * Writes a binary file.
+ * Writes a byte array content to a file.
  *
  * @param file Write configuration object.
  * @param options Configuration object.
@@ -216,9 +184,9 @@ async function writeBinaryFile(
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'writeBinaryFile',
+      cmd: 'writeFile',
       path: file.path,
-      contents: arrayBufferToBase64(file.contents),
+      contents: Array.from(file.contents),
       options
     }
   })

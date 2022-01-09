@@ -140,24 +140,20 @@ dialog-save = ["dialog"]
 fs-all = [
   "fs-copy-file",
   "fs-create-dir",
-  "fs-read-binary-file",
+  "fs-read-file",
   "fs-read-dir",
-  "fs-read-text-file",
   "fs-remove-dir",
   "fs-remove-file",
   "fs-rename-file",
-  "fs-write-binary-file",
   "fs-write-file"
 ]
 fs-copy-file = []
 fs-create-dir = []
-fs-read-binary-file = []
+fs-read-file = []
 fs-read-dir = []
-fs-read-text-file = []
 fs-remove-dir = []
 fs-remove-file = []
 fs-rename-file = []
-fs-write-binary-file = ["base64"]
 fs-write-file = []
 global-shortcut-all = []
 http-all = ["http-request"]

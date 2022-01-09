@@ -44,25 +44,14 @@ pub struct FileOperationOptions {
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The read text file API.
-  ReadTextFile {
-    path: PathBuf,
-    options: Option<FileOperationOptions>,
-  },
-  /// The read binary file API.
-  ReadBinaryFile {
+  ReadFile {
     path: PathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The write file API.
   WriteFile {
     path: PathBuf,
-    contents: String,
-    options: Option<FileOperationOptions>,
-  },
-  /// The write binary file API.
-  WriteBinaryFile {
-    path: PathBuf,
-    contents: String,
+    contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   },
   /// The read dir API.
@@ -101,24 +90,8 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(fs_read_text_file, "fs > readTextFile")]
-  fn read_text_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: PathBuf,
-    options: Option<FileOperationOptions>,
-  ) -> crate::Result<String> {
-    file::read_string(resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?)
-    .map_err(crate::Error::FailedToExecuteApi)
-  }
-
-  #[module_command_handler(fs_read_binary_file, "fs > readBinaryFile")]
-  fn read_binary_file<R: Runtime>(
+  #[module_command_handler(fs_read_file, "fs > readFile")]
+  fn read_file<R: Runtime>(
     context: InvokeContext<R>,
     path: PathBuf,
     options: Option<FileOperationOptions>,
@@ -137,7 +110,7 @@ impl Cmd {
   fn write_file<R: Runtime>(
     context: InvokeContext<R>,
     path: PathBuf,
-    contents: String,
+    contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   ) -> crate::Result<()> {
     File::create(resolve_path(
@@ -147,32 +120,8 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?)
-    .map_err(crate::Error::Io)
-    .and_then(|mut f| f.write_all(contents.as_bytes()).map_err(|err| err.into()))?;
-    Ok(())
-  }
-
-  #[module_command_handler(fs_write_binary_file, "fs > writeBinaryFile")]
-  fn write_binary_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: PathBuf,
-    contents: String,
-    options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
-    base64::decode(contents)
-      .map_err(crate::Error::Base64Decode)
-      .and_then(|c| {
-        File::create(resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          path,
-          options.and_then(|o| o.dir),
-        )?)
-        .map_err(Into::into)
-        .and_then(|mut f| f.write_all(&c).map_err(|err| err.into()))
-      })?;
-    Ok(())
+    .map_err(Into::into)
+    .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
   }
 
   #[module_command_handler(fs_read_dir, "fs > readDir")]
@@ -385,32 +334,17 @@ mod tests {
     }
   }
 
-  #[tauri_macros::module_command_test(fs_read_text_file, "fs > readTextFile")]
+  #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
-  fn read_text_file(path: PathBuf, options: Option<FileOperationOptions>) {
+  fn read_file(path: PathBuf, options: Option<FileOperationOptions>) {
     let res = super::Cmd::read_text_file(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
-  }
-
-  #[tauri_macros::module_command_test(fs_read_binary_file, "fs > readBinaryFile")]
-  #[quickcheck_macros::quickcheck]
-  fn read_binary_file(path: PathBuf, options: Option<FileOperationOptions>) {
-    let res = super::Cmd::read_binary_file(crate::test::mock_invoke_context(), path, options);
     assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
   }
 
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
-  fn write_file(path: PathBuf, contents: String, options: Option<FileOperationOptions>) {
+  fn write_file(path: PathBuf, contents: Vec<u8>, options: Option<FileOperationOptions>) {
     let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, contents, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
-  }
-
-  #[tauri_macros::module_command_test(fs_read_binary_file, "fs > writeBinaryFile")]
-  #[quickcheck_macros::quickcheck]
-  fn write_binary_file(path: PathBuf, contents: String, options: Option<FileOperationOptions>) {
-    let res =
-      super::Cmd::write_binary_file(crate::test::mock_invoke_context(), path, contents, options);
     assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
   }
 

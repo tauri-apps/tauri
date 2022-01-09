@@ -657,7 +657,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| ()),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (command, args) => window.ipc.notify(JSON.stringify({{ ...args, command }})) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),

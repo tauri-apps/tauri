@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "3284f8d442978269f7654edbdfc9bc51022eaa40", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
+wry = { git = "https://github.com/tauri-sec/wry", branch = "next", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -45,3 +45,4 @@ gtk = { version = "0.14", features = [ "v3_20" ] }
 dox = [ "wry/dox" ]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]
 egui = ["epi", "egui-tao", "egui_glow", "tao-glutin", "glow", "once_cell"]
+macos-private-api = [ "wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api" ]

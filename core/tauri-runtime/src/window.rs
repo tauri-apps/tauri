@@ -7,7 +7,7 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
+  webview::{FileDropHandler, WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, WindowBuilder,
 };
 use serde::Serialize;
@@ -93,8 +93,8 @@ pub struct PendingWindow<R: Runtime> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
-  /// How to handle RPC calls on the webview window.
-  pub rpc_handler: Option<WebviewRpcHandler<R>>,
+  /// How to handle IPC calls on the webview window.
+  pub ipc_handler: Option<WebviewIpcHandler<R>>,
 
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<R>>,
@@ -125,7 +125,7 @@ impl<R: Runtime> PendingWindow<R> {
       webview_attributes,
       uri_scheme_protocols: Default::default(),
       label: label.into(),
-      rpc_handler: None,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),
@@ -149,7 +149,7 @@ impl<R: Runtime> PendingWindow<R> {
       webview_attributes,
       uri_scheme_protocols: Default::default(),
       label: label.into(),
-      rpc_handler: None,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),

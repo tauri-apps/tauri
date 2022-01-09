@@ -1171,7 +1171,11 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially hidden or focused. */
   focus?: boolean
-  /** Whether the window is transparent or not. */
+  /**
+   * Whether the window is transparent or not.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean

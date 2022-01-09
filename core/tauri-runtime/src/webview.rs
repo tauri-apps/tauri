@@ -120,6 +120,11 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+  )]
   fn transparent(self, transparent: bool) -> Self;
 
   /// Whether the window should have borders and bars.
@@ -160,15 +165,6 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn get_menu(&self) -> Option<&Menu>;
 }
 
-/// Rpc request.
-#[derive(Debug)]
-pub struct RpcRequest {
-  /// RPC command.
-  pub command: String,
-  /// Params.
-  pub params: Option<JsonValue>,
-}
-
 /// The file drop event payload.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -181,8 +177,8 @@ pub enum FileDropEvent {
   Cancelled,
 }
 
-/// Rpc handler.
-pub type WebviewRpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, RpcRequest) + Send>;
+/// IPC handler.
+pub type WebviewIpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, String) + Send>;
 
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
@@ -190,6 +186,7 @@ pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bo
 
 #[derive(Debug, Deserialize)]
 pub struct InvokePayload {
+  pub command: String,
   #[serde(rename = "__tauriModule")]
   pub tauri_module: Option<String>,
   pub callback: String,

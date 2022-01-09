@@ -12,7 +12,7 @@ use crate::{
       HttpRange, MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewRpcHandler, WindowBuilder},
+    webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewIpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
@@ -463,23 +463,13 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_rpc_handler(&self, app_handle: AppHandle<R>) -> WebviewRpcHandler<R> {
+  fn prepare_ipc_handler(&self, app_handle: AppHandle<R>) -> WebviewIpcHandler<R> {
     let manager = self.clone();
     Box::new(move |window, request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
-      let command = request.command.clone();
-
-      let arg = request
-        .params
-        .unwrap()
-        .as_array_mut()
-        .unwrap()
-        .first_mut()
-        .unwrap_or(&mut JsonValue::Null)
-        .take();
-      match serde_json::from_value::<InvokePayload>(arg) {
+      match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
-          let _ = window.on_message(command, message);
+          let _ = window.on_message(message);
         }
         Err(e) => {
           let error: crate::Error = e.into();
@@ -784,7 +774,7 @@ impl<R: Runtime> WindowManager<R> {
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(pending, &label, pending_labels, app_handle.clone())?;
-      pending.rpc_handler = Some(self.prepare_rpc_handler(app_handle.clone()));
+      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
     }
 
     if pending.webview_attributes.file_drop_handler_enabled {

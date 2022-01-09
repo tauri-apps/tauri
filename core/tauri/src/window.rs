@@ -224,9 +224,9 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
-    match command.as_str() {
+    match payload.command.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
         manager.run_on_page_load(self, payload);
@@ -235,7 +235,7 @@ impl<R: Runtime> Window<R> {
         let message = InvokeMessage::new(
           self.clone(),
           manager.state(),
-          command.to_string(),
+          payload.command.to_string(),
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
@@ -244,7 +244,7 @@ impl<R: Runtime> Window<R> {
           if let Some(module) = &payload.tauri_module {
             let module = module.to_string();
             crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
-          } else if command.starts_with("plugin:") {
+          } else if payload.command.starts_with("plugin:") {
             manager.extend_api(invoke);
           } else {
             manager.run_invoke_handler(invoke);

@@ -10,6 +10,7 @@
     "version": "../package.json"
   },
   "tauri": {
+    "macOSPrivateApi": true,
     "cli": {
       "description": "Tauri API example",
       "args": [

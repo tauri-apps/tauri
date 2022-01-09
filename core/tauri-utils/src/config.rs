@@ -448,6 +448,9 @@ pub struct WindowConfig {
   #[serde(default = "default_focus")]
   pub focus: bool,
   /// Whether the window is transparent or not.
+  ///
+  /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+  /// WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
   #[serde(default)]
   pub transparent: bool,
   /// Whether the window is maximized or not.
@@ -900,6 +903,9 @@ pub struct TauriConfig {
   pub updater: UpdaterConfig,
   /// Configuration for app system tray.
   pub system_tray: Option<SystemTrayConfig>,
+  /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
+  #[serde(rename = "macOSPrivateApi", default)]
+  pub macos_private_api: bool,
 }
 
 impl Default for TauriConfig {
@@ -912,6 +918,7 @@ impl Default for TauriConfig {
       security: SecurityConfig::default(),
       updater: UpdaterConfig::default(),
       system_tray: None,
+      macos_private_api: false,
     }
   }
 }
@@ -929,6 +936,9 @@ impl TauriConfig {
     }
     if self.system_tray.is_some() {
       features.push("system-tray");
+    }
+    if self.macos_private_api {
+      features.push("macos-private-api");
     }
     features.sort_unstable();
     features
@@ -1615,6 +1625,7 @@ mod build {
       let security = &self.security;
       let system_tray = opt_lit(self.system_tray.as_ref());
       let allowlist = quote!(Default::default());
+      let macos_private_api = self.macos_private_api;
 
       literal_struct!(
         tokens,
@@ -1625,7 +1636,8 @@ mod build {
         updater,
         security,
         system_tray,
-        allowlist
+        allowlist,
+        macos_private_api
       );
     }
   }
@@ -1741,6 +1753,7 @@ mod test {
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,
+      macos_private_api: false,
     };
 
     // create a build config

@@ -11,9 +11,7 @@ use tauri_runtime::{
   },
   menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
-  webview::{
-    FileDropEvent, FileDropHandler, RpcRequest, WebviewRpcHandler, WindowBuilder, WindowBuilderBase,
-  },
+  webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, PendingWindow, WindowEvent,
@@ -68,10 +66,7 @@ use wry::{
     Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
     ResponseParts as WryResponseParts,
   },
-  webview::{
-    FileDropEvent as WryFileDropEvent, RpcRequest as WryRpcRequest, RpcResponse, WebContext,
-    WebView, WebViewBuilder,
-  },
+  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
 };
 
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
@@ -738,12 +733,16 @@ impl WindowBuilder for WindowBuilderWrapper {
       .inner_size(config.width, config.height)
       .visible(config.visible)
       .resizable(config.resizable)
+      .fullscreen(config.fullscreen)
       .decorations(config.decorations)
       .maximized(config.maximized)
-      .fullscreen(config.fullscreen)
-      .transparent(config.transparent)
       .always_on_top(config.always_on_top)
       .skip_taskbar(config.skip_taskbar);
+
+    #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+    {
+      window = window.transparent(config.transparent);
+    }
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
@@ -835,6 +834,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   fn transparent(mut self, transparent: bool) -> Self {
     self.inner = self.inner.with_transparent(transparent);
     self
@@ -886,17 +886,6 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn get_menu(&self) -> Option<&Menu> {
     self.menu.as_ref()
-  }
-}
-
-pub struct RpcRequestWrapper(WryRpcRequest);
-
-impl From<RpcRequestWrapper> for RpcRequest {
-  fn from(request: RpcRequestWrapper) -> Self {
-    Self {
-      command: request.0.method,
-      params: request.0.params,
-    }
   }
 }
 
@@ -3066,7 +3055,7 @@ fn create_webview(
     webview_attributes,
     uri_scheme_protocols,
     mut window_builder,
-    rpc_handler,
+    ipc_handler,
     file_drop_handler,
     label,
     url,
@@ -3106,8 +3095,8 @@ fn create_webview(
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent);
-  if let Some(handler) = rpc_handler {
-    webview_builder = webview_builder.with_rpc_handler(create_rpc_handler(
+  if let Some(handler) = ipc_handler {
+    webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context.clone(),
       label.clone(),
       menu_ids.clone(),
@@ -3172,14 +3161,14 @@ fn create_webview(
   })
 }
 
-/// Create a wry rpc handler from a tauri rpc handler.
-fn create_rpc_handler(
+/// Create a wry ipc handler from a tauri ipc handler.
+fn create_ipc_handler(
   context: Context,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
-  handler: WebviewRpcHandler<Wry>,
-) -> Box<dyn Fn(&Window, WryRpcRequest) -> Option<RpcResponse> + 'static> {
+  handler: WebviewIpcHandler<Wry>,
+) -> Box<dyn Fn(&Window, String) + 'static> {
   Box::new(move |window, request| {
     handler(
       DetachedWindow {
@@ -3191,9 +3180,8 @@ fn create_rpc_handler(
         menu_ids: menu_ids.clone(),
         js_event_listeners: js_event_listeners.clone(),
       },
-      RpcRequestWrapper(request).into(),
+      request,
     );
-    None
   })
 }
 

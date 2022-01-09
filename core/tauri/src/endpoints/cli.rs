@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
-use crate::{utils::config::CliConfig, PackageInfo};
+use super::{InvokeContext, InvokeResponse};
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The get CLI matches API.
@@ -15,24 +16,14 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[allow(unused_variables)]
-  pub fn run(
-    self,
-    cli_config: &CliConfig,
-    package_info: &PackageInfo,
-  ) -> crate::Result<InvokeResponse> {
-    match self {
-      #[allow(unused_variables)]
-      Self::CliMatches => {
-        #[cfg(cli)]
-        return crate::api::cli::get_matches(cli_config, package_info)
-          .map_err(Into::into)
-          .map(Into::into);
-        #[cfg(not(cli))]
-          Err(crate::Error::ApiNotEnabled(
-            "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".to_string(),
-          ))
-      }
+  #[module_command_handler(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)")]
+  fn cli_matches<R: Runtime>(context: InvokeContext<R>) -> crate::Result<InvokeResponse> {
+    if let Some(cli) = &context.config.tauri.cli {
+      crate::api::cli::get_matches(cli, context.package_info)
+        .map(Into::into)
+        .map_err(Into::into)
+    } else {
+      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()))
     }
   }
 }

@@ -33,6 +33,8 @@ fn main() {
     window_set_title: { any(window_all, feature = "window-set-title") },
     window_maximize: { any(window_all, feature = "window-maximize") },
     window_unmaximize: { any(window_all, feature = "window-unmaximize") },
+    window_minimize: { any(window_all, feature = "window-minimize") },
+    window_unminimize: { any(window_all, feature = "window-unminimize") },
     window_show: { any(window_all, feature = "window-show") },
     window_hide: { any(window_all, feature = "window-hide") },
     window_close: { any(window_all, feature = "window-close") },

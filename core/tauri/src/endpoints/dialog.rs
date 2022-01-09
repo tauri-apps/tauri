@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
+use super::{InvokeContext, InvokeResponse};
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
-use crate::{runtime::Runtime, Window};
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 use std::path::PathBuf;
 #[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
@@ -49,7 +50,7 @@ pub struct SaveDialogOptions {
 }
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 #[allow(clippy::enum_variant_names)]
 pub enum Cmd {
@@ -75,64 +76,101 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[module_command_handler(dialog_open, "dialog > open")]
   #[allow(unused_variables)]
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      #[cfg(dialog_open)]
-      Self::OpenDialog { options } => open(&window, options),
-      #[cfg(not(dialog_open))]
-      Self::OpenDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > open".to_string())),
-
-      #[cfg(dialog_save)]
-      Self::SaveDialog { options } => save(window, options),
-      #[cfg(not(dialog_save))]
-      Self::SaveDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string())),
-
-      #[cfg(dialog_message)]
-      Self::MessageDialog { message } => {
-        let exe = std::env::current_exe()?;
-        crate::api::dialog::message(
-          Some(&window),
-          &window.app_handle.package_info().name,
-          message,
-        );
-        Ok(().into())
-      }
-      #[cfg(not(dialog_message))]
-      Self::MessageDialog { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "dialog > message".to_string(),
-      )),
-
-      #[cfg(dialog_ask)]
-      Self::AskDialog { title, message } => {
-        let (tx, rx) = channel();
-        crate::api::dialog::ask(
-          Some(&window),
-          title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
-          message,
-          move |m| tx.send(m).unwrap(),
-        );
-        Ok(rx.recv().unwrap().into())
-      }
-      #[cfg(not(dialog_ask))]
-      Self::AskDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > ask".to_string())),
-
-      #[cfg(dialog_confirm)]
-      Self::ConfirmDialog { title, message } => {
-        let (tx, rx) = channel();
-        crate::api::dialog::confirm(
-          Some(&window),
-          title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
-          message,
-          move |m| tx.send(m).unwrap(),
-        );
-        Ok(rx.recv().unwrap().into())
-      }
-      #[cfg(not(dialog_confirm))]
-      Self::ConfirmDialog { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "dialog > confirm".to_string(),
-      )),
+  fn open_dialog<R: Runtime>(
+    context: InvokeContext<R>,
+    options: OpenDialogOptions,
+  ) -> crate::Result<InvokeResponse> {
+    let mut dialog_builder = FileDialogBuilder::new();
+    #[cfg(any(windows, target_os = "macos"))]
+    {
+      dialog_builder = dialog_builder.set_parent(&context.window);
     }
+    if let Some(default_path) = options.default_path {
+      dialog_builder = set_default_path(dialog_builder, default_path);
+    }
+    for filter in options.filters {
+      let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+      dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+    }
+
+    let (tx, rx) = channel();
+
+    if options.directory {
+      dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
+    } else if options.multiple {
+      dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
+    } else {
+      dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
+    }
+
+    Ok(rx.recv().unwrap())
+  }
+
+  #[module_command_handler(dialog_save, "dialog > save")]
+  #[allow(unused_variables)]
+  fn save_dialog<R: Runtime>(
+    context: InvokeContext<R>,
+    options: SaveDialogOptions,
+  ) -> crate::Result<Option<PathBuf>> {
+    let mut dialog_builder = FileDialogBuilder::new();
+    #[cfg(any(windows, target_os = "macos"))]
+    {
+      dialog_builder = dialog_builder.set_parent(&context.window);
+    }
+    if let Some(default_path) = options.default_path {
+      dialog_builder = set_default_path(dialog_builder, default_path);
+    }
+    for filter in options.filters {
+      let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
+      dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+    }
+    let (tx, rx) = channel();
+    dialog_builder.save_file(move |p| tx.send(p).unwrap());
+    Ok(rx.recv().unwrap())
+  }
+
+  #[module_command_handler(dialog_message, "dialog > message")]
+  fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> crate::Result<()> {
+    crate::api::dialog::message(
+      Some(&context.window),
+      &context.window.app_handle.package_info().name,
+      message,
+    );
+    Ok(())
+  }
+
+  #[module_command_handler(dialog_ask, "dialog > ask")]
+  fn ask_dialog<R: Runtime>(
+    context: InvokeContext<R>,
+    title: Option<String>,
+    message: String,
+  ) -> crate::Result<bool> {
+    let (tx, rx) = channel();
+    crate::api::dialog::ask(
+      Some(&context.window),
+      title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
+      message,
+      move |m| tx.send(m).unwrap(),
+    );
+    Ok(rx.recv().unwrap())
+  }
+
+  #[module_command_handler(dialog_confirm, "dialog > confirm")]
+  fn confirm_dialog<R: Runtime>(
+    context: InvokeContext<R>,
+    title: Option<String>,
+    message: String,
+  ) -> crate::Result<bool> {
+    let (tx, rx) = channel();
+    crate::api::dialog::confirm(
+      Some(&context.window),
+      title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
+      message,
+      move |m| tx.send(m).unwrap(),
+    );
+    Ok(rx.recv().unwrap())
   }
 }
 
@@ -152,61 +190,4 @@ fn set_default_path(
   } else {
     dialog_builder.set_directory(default_path)
   }
-}
-
-/// Shows an open dialog.
-#[cfg(dialog_open)]
-#[allow(unused_variables)]
-pub fn open<R: Runtime>(
-  window: &Window<R>,
-  options: OpenDialogOptions,
-) -> crate::Result<InvokeResponse> {
-  let mut dialog_builder = FileDialogBuilder::new();
-  #[cfg(any(windows, target_os = "macos"))]
-  {
-    dialog_builder = dialog_builder.set_parent(window);
-  }
-  if let Some(default_path) = options.default_path {
-    dialog_builder = set_default_path(dialog_builder, default_path);
-  }
-  for filter in options.filters {
-    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
-    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
-  }
-
-  let (tx, rx) = channel();
-
-  if options.directory {
-    dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
-  } else if options.multiple {
-    dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
-  } else {
-    dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
-  }
-
-  Ok(rx.recv().unwrap())
-}
-
-/// Shows a save dialog.
-#[cfg(dialog_save)]
-#[allow(unused_variables)]
-pub fn save<R: Runtime>(
-  window: Window<R>,
-  options: SaveDialogOptions,
-) -> crate::Result<InvokeResponse> {
-  let mut dialog_builder = FileDialogBuilder::new();
-  #[cfg(any(windows, target_os = "macos"))]
-  {
-    dialog_builder = dialog_builder.set_parent(&window);
-  }
-  if let Some(default_path) = options.default_path {
-    dialog_builder = set_default_path(dialog_builder, default_path);
-  }
-  for filter in options.filters {
-    let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
-    dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
-  }
-  let (tx, rx) = channel();
-  dialog_builder.save_file(move |p| tx.send(p).unwrap());
-  Ok(rx.recv().unwrap().into())
 }

@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
-use crate::{Runtime, Window};
+use super::InvokeContext;
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 #[cfg(global_shortcut_all)]
 use crate::runtime::GlobalShortcutManager;
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Register a global shortcut.
@@ -28,9 +29,71 @@ pub enum Cmd {
   IsRegistered { shortcut: String },
 }
 
+impl Cmd {
+  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  fn register<R: Runtime>(
+    context: InvokeContext<R>,
+    shortcut: String,
+    handler: String,
+  ) -> crate::Result<()> {
+    let mut manager = context.window.app_handle.global_shortcut_manager();
+    register_shortcut(context.window, &mut manager, shortcut, handler)?;
+    Ok(())
+  }
+
+  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  fn register_all<R: Runtime>(
+    context: InvokeContext<R>,
+    shortcuts: Vec<String>,
+    handler: String,
+  ) -> crate::Result<()> {
+    let mut manager = context.window.app_handle.global_shortcut_manager();
+    for shortcut in shortcuts {
+      register_shortcut(
+        context.window.clone(),
+        &mut manager,
+        shortcut,
+        handler.clone(),
+      )?;
+    }
+    Ok(())
+  }
+
+  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  fn unregister<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> crate::Result<()> {
+    context
+      .window
+      .app_handle
+      .global_shortcut_manager()
+      .unregister(&shortcut)?;
+    Ok(())
+  }
+
+  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  fn unregister_all<R: Runtime>(context: InvokeContext<R>) -> crate::Result<()> {
+    context
+      .window
+      .app_handle
+      .global_shortcut_manager()
+      .unregister_all()?;
+    Ok(())
+  }
+
+  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  fn is_registered<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> crate::Result<bool> {
+    Ok(
+      context
+        .window
+        .app_handle
+        .global_shortcut_manager()
+        .is_registered(&shortcut)?,
+    )
+  }
+}
+
 #[cfg(global_shortcut_all)]
 fn register_shortcut<R: Runtime>(
-  window: Window<R>,
+  window: crate::Window<R>,
   manager: &mut R::GlobalShortcutManager,
   shortcut: String,
   handler: String,
@@ -42,54 +105,4 @@ fn register_shortcut<R: Runtime>(
     let _ = window.eval(callback_string.as_str());
   })?;
   Ok(())
-}
-
-#[cfg(not(global_shortcut_all))]
-impl Cmd {
-  pub fn run<R: Runtime>(self, _window: Window<R>) -> crate::Result<InvokeResponse> {
-    Err(crate::Error::ApiNotAllowlisted(
-      "globalShortcut > all".to_string(),
-    ))
-  }
-}
-
-#[cfg(global_shortcut_all)]
-impl Cmd {
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::Register { shortcut, handler } => {
-        let mut manager = window.app_handle.global_shortcut_manager();
-        register_shortcut(window, &mut manager, shortcut, handler)?;
-        Ok(().into())
-      }
-      Self::RegisterAll { shortcuts, handler } => {
-        let mut manager = window.app_handle.global_shortcut_manager();
-        for shortcut in shortcuts {
-          register_shortcut(window.clone(), &mut manager, shortcut, handler.clone())?;
-        }
-        Ok(().into())
-      }
-      Self::Unregister { shortcut } => {
-        window
-          .app_handle
-          .global_shortcut_manager()
-          .unregister(&shortcut)?;
-        Ok(().into())
-      }
-      Self::UnregisterAll => {
-        window
-          .app_handle
-          .global_shortcut_manager()
-          .unregister_all()?;
-        Ok(().into())
-      }
-      Self::IsRegistered { shortcut } => Ok(
-        window
-          .app_handle
-          .global_shortcut_manager()
-          .is_registered(&shortcut)?
-          .into(),
-      ),
-    }
-  }
 }

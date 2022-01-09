@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
-
-use crate::api::http::{ClientBuilder, HttpRequestBuilder};
+use super::InvokeContext;
+use crate::api::http::{ClientBuilder, HttpRequestBuilder, ResponseData};
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 #[cfg(http_request)]
 use std::{
@@ -25,7 +26,8 @@ fn clients() -> &'static ClientStore {
 }
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
+#[cmd(async)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Create a new HTTP client.
@@ -40,56 +42,41 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub async fn run(self) -> crate::Result<InvokeResponse> {
-    match self {
-      #[cfg(http_request)]
-      Self::CreateClient { options } => {
-        let client = options.unwrap_or_default().build()?;
-        let mut store = clients().lock().unwrap();
-        let id = rand::random::<ClientId>();
-        store.insert(id, client);
-        Ok(InvokeResponse::from(id))
-      }
-      #[cfg(not(http_request))]
-      Self::CreateClient { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "http > request".to_string(),
-      )),
-
-      #[cfg(http_request)]
-      Self::DropClient { client } => {
-        let mut store = clients().lock().unwrap();
-        store.remove(&client);
-        Ok(().into())
-      }
-      #[cfg(not(http_request))]
-      Self::DropClient { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "http > request".to_string(),
-      )),
-
-      #[cfg(http_request)]
-      Self::HttpRequest { client, options } => {
-        return make_request(client, *options).await.map(Into::into);
-      }
-      #[cfg(not(http_request))]
-      Self::HttpRequest { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "http > request".to_string(),
-      )),
-    }
+  #[module_command_handler(http_request, "http > request")]
+  async fn create_client<R: Runtime>(
+    _context: InvokeContext<R>,
+    options: Option<ClientBuilder>,
+  ) -> crate::Result<ClientId> {
+    let client = options.unwrap_or_default().build()?;
+    let mut store = clients().lock().unwrap();
+    let id = rand::random::<ClientId>();
+    store.insert(id, client);
+    Ok(id)
   }
-}
 
-/// Makes an HTTP request and resolves the response to the webview
-#[cfg(http_request)]
-pub async fn make_request(
-  client_id: ClientId,
-  options: HttpRequestBuilder,
-) -> crate::Result<crate::api::http::ResponseData> {
-  let client = clients()
-    .lock()
-    .unwrap()
-    .get(&client_id)
-    .ok_or(crate::Error::HttpClientNotInitialized)?
-    .clone();
-  let response = client.send(options).await?;
-  Ok(response.read().await?)
+  #[module_command_handler(http_request, "http > request")]
+  async fn drop_client<R: Runtime>(
+    _context: InvokeContext<R>,
+    client: ClientId,
+  ) -> crate::Result<()> {
+    let mut store = clients().lock().unwrap();
+    store.remove(&client);
+    Ok(())
+  }
+
+  #[module_command_handler(http_request, "http > request")]
+  async fn http_request<R: Runtime>(
+    _context: InvokeContext<R>,
+    client_id: ClientId,
+    options: Box<HttpRequestBuilder>,
+  ) -> crate::Result<ResponseData> {
+    let client = clients()
+      .lock()
+      .unwrap()
+      .get(&client_id)
+      .ok_or(crate::Error::HttpClientNotInitialized)?
+      .clone();
+    let response = client.send(*options).await?;
+    Ok(response.read().await?)
+  }
 }

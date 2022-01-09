@@ -57,7 +57,11 @@
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(windowMap[selectedWindow].setIcon);
+    }).then(path => {
+      if (path) {
+        windowMap[selectedWindow].setIcon(path)
+      }
+    });
   }
 
   function createWindow() {

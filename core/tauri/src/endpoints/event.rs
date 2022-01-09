@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, runtime::Runtime, sealed::ManagerBase, Manager, Window};
+use super::InvokeContext;
+use crate::{sealed::ManagerBase, Manager, Runtime, Window};
 use serde::Deserialize;
+use tauri_macros::CommandModule;
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Listen to an event.
@@ -25,35 +27,42 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::Listen { event, handler } => {
-        let event_id = rand::random();
-        window.eval(&listen_js(&window, event.clone(), event_id, handler))?;
-        window.register_js_listener(event, event_id);
-        Ok(event_id.into())
-      }
-      Self::Unlisten { event_id } => {
-        window.eval(&unlisten_js(&window, event_id))?;
-        window.unregister_js_listener(event_id);
-        Ok(().into())
-      }
-      Self::Emit {
-        event,
-        window_label,
-        payload,
-      } => {
-        // dispatch the event to Rust listeners
-        window.trigger(&event, payload.clone());
+  fn listen<R: Runtime>(
+    context: InvokeContext<R>,
+    event: String,
+    handler: String,
+  ) -> crate::Result<u64> {
+    let event_id = rand::random();
+    context
+      .window
+      .eval(&listen_js(&context.window, event.clone(), event_id, handler))?;
+    context.window.register_js_listener(event, event_id);
+    Ok(event_id)
+  }
 
-        if let Some(target) = window_label {
-          window.emit_to(&target, &event, payload)?;
-        } else {
-          window.emit_all(&event, payload)?;
-        }
-        Ok(().into())
-      }
+  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> crate::Result<()> {
+    context
+      .window
+      .eval(&unlisten_js(&context.window, event_id))?;
+    context.window.unregister_js_listener(event_id);
+    Ok(())
+  }
+
+  fn emit<R: Runtime>(
+    context: InvokeContext<R>,
+    event: String,
+    window_label: Option<String>,
+    payload: Option<String>,
+  ) -> crate::Result<()> {
+    // dispatch the event to Rust listeners
+    context.window.trigger(&event, payload.clone());
+
+    if let Some(target) = window_label {
+      context.window.emit_to(&target, &event, payload)?;
+    } else {
+      context.window.emit_all(&event, payload)?;
     }
+    Ok(())
   }
 }
 

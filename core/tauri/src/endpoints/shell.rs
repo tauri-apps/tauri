@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, runtime::Runtime, Window};
+use super::InvokeContext;
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 #[cfg(shell_execute)]
 use std::sync::{Arc, Mutex};
@@ -46,7 +48,7 @@ pub struct CommandOptions {
 }
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
@@ -73,107 +75,100 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::Execute {
-        program,
-        args,
-        on_event_fn,
-        options,
-      } => {
-        let mut command = if options.sidecar {
-          #[cfg(not(shell_sidecar))]
-          return Err(crate::Error::ApiNotAllowlisted(
-            "shell > sidecar".to_string(),
-          ));
-          #[cfg(shell_sidecar)]
-          crate::api::process::Command::new_sidecar(program)?
-        } else {
-          #[cfg(not(shell_execute))]
-          return Err(crate::Error::ApiNotAllowlisted(
-            "shell > execute".to_string(),
-          ));
-          #[cfg(shell_execute)]
-          crate::api::process::Command::new(program)
-        };
-        #[cfg(any(shell_execute, shell_sidecar))]
-        {
-          command = command.args(args);
-          if let Some(cwd) = options.cwd {
-            command = command.current_dir(cwd);
-          }
-          if let Some(env) = options.env {
-            command = command.envs(env);
-          } else {
-            command = command.env_clear();
-          }
-          let (mut rx, child) = command.spawn()?;
-
-          let pid = child.pid();
-          command_childs().lock().unwrap().insert(pid, child);
-
-          crate::async_runtime::spawn(async move {
-            while let Some(event) = rx.recv().await {
-              if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
-                command_childs().lock().unwrap().remove(&pid);
-              }
-              let js = crate::api::ipc::format_callback(on_event_fn.clone(), &event)
-                .expect("unable to serialize CommandEvent");
-
-              let _ = window.eval(js.as_str());
-            }
-          });
-
-          Ok(pid.into())
-        }
+  fn execute<R: Runtime>(
+    context: InvokeContext<R>,
+    program: String,
+    args: Vec<String>,
+    on_event_fn: String,
+    options: CommandOptions,
+  ) -> crate::Result<ChildId> {
+    let mut command = if options.sidecar {
+      #[cfg(not(shell_sidecar))]
+      return Err(crate::Error::ApiNotAllowlisted(
+        "shell > sidecar".to_string(),
+      ));
+      #[cfg(shell_sidecar)]
+      crate::api::process::Command::new_sidecar(program)?
+    } else {
+      #[cfg(not(shell_execute))]
+      return Err(crate::Error::ApiNotAllowlisted(
+        "shell > execute".to_string(),
+      ));
+      #[cfg(shell_execute)]
+      crate::api::process::Command::new(program)
+    };
+    #[cfg(any(shell_execute, shell_sidecar))]
+    {
+      command = command.args(args);
+      if let Some(cwd) = options.cwd {
+        command = command.current_dir(cwd);
       }
-      Self::KillChild { pid } => {
-        #[cfg(shell_execute)]
-        {
-          if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
-            child.kill()?;
-          }
-          Ok(().into())
-        }
-        #[cfg(not(shell_execute))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "shell > execute".to_string(),
-        ))
+      if let Some(env) = options.env {
+        command = command.envs(env);
+      } else {
+        command = command.env_clear();
       }
-      Self::StdinWrite { pid, buffer } => {
-        #[cfg(shell_execute)]
-        {
-          if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
-            match buffer {
-              Buffer::Text(t) => child.write(t.as_bytes())?,
-              Buffer::Raw(r) => child.write(&r)?,
-            }
-          }
-          Ok(().into())
-        }
-        #[cfg(not(shell_execute))]
-        Err(crate::Error::ApiNotAllowlisted(
-          "shell > execute".to_string(),
-        ))
-      }
-      Self::Open { path, with } => {
-        #[cfg(shell_open)]
-        match crate::api::shell::open(
-          path,
-          if let Some(w) = with {
-            use std::str::FromStr;
-            Some(crate::api::shell::Program::from_str(&w)?)
-          } else {
-            None
-          },
-        ) {
-          Ok(_) => Ok(().into()),
-          Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
-        }
+      let (mut rx, child) = command.spawn()?;
 
-        #[cfg(not(shell_open))]
-        Err(crate::Error::ApiNotAllowlisted("shell > open".to_string()))
+      let pid = child.pid();
+      command_childs().lock().unwrap().insert(pid, child);
+
+      crate::async_runtime::spawn(async move {
+        while let Some(event) = rx.recv().await {
+          if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
+            command_childs().lock().unwrap().remove(&pid);
+          }
+          let js = crate::api::ipc::format_callback(on_event_fn.clone(), &event)
+            .expect("unable to serialize CommandEvent");
+
+          let _ = context.window.eval(js.as_str());
+        }
+      });
+
+      Ok(pid)
+    }
+  }
+
+  #[module_command_handler(shell_execute, "shell > execute")]
+  fn stdin_write<R: Runtime>(
+    _context: InvokeContext<R>,
+    pid: ChildId,
+    buffer: Buffer,
+  ) -> crate::Result<()> {
+    if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
+      match buffer {
+        Buffer::Text(t) => child.write(t.as_bytes())?,
+        Buffer::Raw(r) => child.write(&r)?,
       }
+    }
+    Ok(())
+  }
+
+  #[module_command_handler(shell_execute, "shell > execute")]
+  fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> crate::Result<()> {
+    if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
+      child.kill()?;
+    }
+    Ok(())
+  }
+
+  #[module_command_handler(shell_open, "shell > open")]
+  fn open<R: Runtime>(
+    _context: InvokeContext<R>,
+    path: String,
+    with: Option<String>,
+  ) -> crate::Result<()> {
+    match crate::api::shell::open(
+      path,
+      if let Some(w) = with {
+        use std::str::FromStr;
+        Some(crate::api::shell::Program::from_str(&w)?)
+      } else {
+        None
+      },
+    ) {
+      Ok(_) => Ok(()),
+      Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
     }
   }
 }

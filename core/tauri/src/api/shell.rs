@@ -36,6 +36,7 @@ impl FromStr for Program {
   type Err = super::Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
+    #[allow(clippy::match_str_case_mismatch)]
     let p = match s.to_lowercase().as_str() {
       "open" => Self::Open,
       "start" => Self::Start,

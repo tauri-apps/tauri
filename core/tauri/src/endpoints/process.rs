@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
+use super::InvokeContext;
 #[cfg(process_relaunch)]
 use crate::Manager;
-use crate::{Runtime, Window};
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Relaunch application
@@ -20,30 +21,17 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[allow(unused_variables)]
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      #[cfg(process_relaunch)]
-      Self::Relaunch => Ok({
-        crate::api::process::restart(&window.state());
-        ().into()
-      }),
-      #[cfg(not(process_relaunch))]
-      Self::Relaunch => Err(crate::Error::ApiNotAllowlisted(
-        "process > relaunch".to_string(),
-      )),
+  #[module_command_handler(process_relaunch, "process > relaunch")]
+  fn relaunch<R: Runtime>(context: InvokeContext<R>) -> crate::Result<()> {
+    crate::api::process::restart(&context.window.state());
+    Ok(())
+  }
 
-      #[cfg(process_exit)]
-      Self::Exit { exit_code } => {
-        // would be great if we can have a handler inside tauri
-        // who close all window and emit an event that user can catch
-        // if they want to process something before closing the app
-        std::process::exit(exit_code);
-      }
-      #[cfg(not(process_exit))]
-      Self::Exit { .. } => Err(crate::Error::ApiNotAllowlisted(
-        "process > exit".to_string(),
-      )),
-    }
+  #[module_command_handler(process_exit, "process > exit")]
+  fn exit<R: Runtime>(_context: InvokeContext<R>, exit_code: i32) -> crate::Result<()> {
+    // would be great if we can have a handler inside tauri
+    // who close all window and emit an event that user can catch
+    // if they want to process something before closing the app
+    std::process::exit(exit_code);
   }
 }

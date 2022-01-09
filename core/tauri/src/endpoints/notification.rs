@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
+use super::InvokeContext;
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 #[cfg(notification_all)]
 use crate::{api::notification::Notification, Env, Manager};
-use crate::{Config, PackageInfo, Runtime, Window};
-
-use std::sync::Arc;
 
 // `Granted` response from `request_permission`. Matches the Web API return value.
 #[cfg(notification_all)]
@@ -29,7 +28,7 @@ pub struct NotificationOptions {
 }
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The show notification API.
@@ -41,101 +40,93 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[allow(unused_variables)]
-  pub fn run<R: Runtime>(
-    self,
-    window: Window<R>,
-    config: Arc<Config>,
-    package_info: &PackageInfo,
-  ) -> crate::Result<InvokeResponse> {
-    match self {
-      #[cfg(notification_all)]
-      Self::Notification { options } => send(options, &config).map(Into::into),
-      #[cfg(not(notification_all))]
-      Self::Notification { .. } => Err(crate::Error::ApiNotAllowlisted("notification".to_string())),
-      Self::IsNotificationPermissionGranted => {
-        #[cfg(notification_all)]
-        return is_permission_granted(&window, &config, package_info).map(Into::into);
-        #[cfg(not(notification_all))]
-        Ok(false.into())
-      }
-      Self::RequestNotificationPermission => {
-        #[cfg(notification_all)]
-        return request_permission(&window, &config, package_info).map(Into::into);
-        #[cfg(not(notification_all))]
-        Ok(PERMISSION_DENIED.into())
-      }
+  #[module_command_handler(notification_all, "notification > all")]
+  fn notification<R: Runtime>(
+    context: InvokeContext<R>,
+    options: NotificationOptions,
+  ) -> crate::Result<()> {
+    let mut notification =
+      Notification::new(context.config.tauri.bundle.identifier.clone()).title(options.title);
+    if let Some(body) = options.body {
+      notification = notification.body(body);
+    }
+    if let Some(icon) = options.icon {
+      notification = notification.icon(icon);
+    }
+    notification.show()?;
+    Ok(())
+  }
+
+  #[cfg(notification_all)]
+  fn request_notification_permission<R: Runtime>(
+    context: InvokeContext<R>,
+  ) -> crate::Result<&'static str> {
+    let mut settings = crate::settings::read_settings(
+      &context.config,
+      &context.package_info,
+      context.window.state::<Env>().inner(),
+    );
+    if let Some(allow_notification) = settings.allow_notification {
+      return Ok(if allow_notification {
+        PERMISSION_GRANTED
+      } else {
+        PERMISSION_DENIED
+      });
+    }
+    let (tx, rx) = std::sync::mpsc::channel();
+    crate::api::dialog::ask(
+      Some(&context.window),
+      "Permissions",
+      "This app wants to show notifications. Do you allow?",
+      move |answer| {
+        tx.send(answer).unwrap();
+      },
+    );
+
+    let answer = rx.recv().unwrap();
+
+    settings.allow_notification = Some(answer);
+    crate::settings::write_settings(
+      &context.config,
+      &context.package_info,
+      context.window.state::<Env>().inner(),
+      settings,
+    )?;
+
+    if answer {
+      Ok(PERMISSION_GRANTED)
+    } else {
+      Ok(PERMISSION_DENIED)
     }
   }
-}
 
-#[cfg(notification_all)]
-pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<InvokeResponse> {
-  let mut notification =
-    Notification::new(config.tauri.bundle.identifier.clone()).title(options.title);
-  if let Some(body) = options.body {
-    notification = notification.body(body);
+  #[cfg(not(notification_all))]
+  fn request_notification_permission<R: Runtime>(
+    _context: InvokeContext<R>,
+  ) -> crate::Result<&'static str> {
+    Ok(PERMISSION_DENIED)
   }
-  if let Some(icon) = options.icon {
-    notification = notification.icon(icon);
-  }
-  notification.show()?;
-  Ok(().into())
-}
 
-#[cfg(notification_all)]
-pub fn is_permission_granted<R: Runtime>(
-  window: &Window<R>,
-  config: &Config,
-  package_info: &PackageInfo,
-) -> crate::Result<InvokeResponse> {
-  let settings =
-    crate::settings::read_settings(config, package_info, window.state::<Env>().inner());
-  if let Some(allow_notification) = settings.allow_notification {
-    Ok(allow_notification.into())
-  } else {
-    Ok(().into())
-  }
-}
-
-#[cfg(notification_all)]
-pub fn request_permission<R: Runtime>(
-  window: &Window<R>,
-  config: &Config,
-  package_info: &PackageInfo,
-) -> crate::Result<String> {
-  let mut settings =
-    crate::settings::read_settings(config, package_info, window.state::<Env>().inner());
-  if let Some(allow_notification) = settings.allow_notification {
-    return Ok(if allow_notification {
-      PERMISSION_GRANTED.to_string()
+  #[cfg(notification_all)]
+  fn is_notification_permission_granted<R: Runtime>(
+    context: InvokeContext<R>,
+  ) -> crate::Result<Option<bool>> {
+    let settings = crate::settings::read_settings(
+      &context.config,
+      &context.package_info,
+      context.window.state::<Env>().inner(),
+    );
+    if let Some(allow_notification) = settings.allow_notification {
+      Ok(Some(allow_notification))
     } else {
-      PERMISSION_DENIED.to_string()
-    });
+      Ok(None)
+    }
   }
-  let (tx, rx) = std::sync::mpsc::channel();
-  crate::api::dialog::ask(
-    Some(window),
-    "Permissions",
-    "This app wants to show notifications. Do you allow?",
-    move |answer| {
-      tx.send(answer).unwrap();
-    },
-  );
 
-  let answer = rx.recv().unwrap();
-
-  settings.allow_notification = Some(answer);
-  crate::settings::write_settings(
-    config,
-    package_info,
-    window.state::<Env>().inner(),
-    settings,
-  )?;
-
-  if answer {
-    Ok(PERMISSION_GRANTED.to_string())
-  } else {
-    Ok(PERMISSION_DENIED.to_string())
+  #[cfg(not(notification_all))]
+  fn is_notification_permission_granted<R: Runtime>(
+    _context: InvokeContext<R>,
+  ) -> crate::Result<Option<bool>> {
+    Ok(Some(false))
   }
 }

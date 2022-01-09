@@ -3129,6 +3129,7 @@ dependencies = [
 name = "tauri-macros"
 version = "1.0.0-beta.5"
 dependencies = [
+ "heck",
  "proc-macro2",
  "quote",
  "syn",

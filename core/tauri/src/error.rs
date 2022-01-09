@@ -71,9 +71,6 @@ pub enum Error {
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
-  /// `default_path` provided to dialog API doesn't exist.
-  #[error("failed to setup dialog: provided default path `{0}` doesn't exist")]
-  DialogDefaultPathNotExists(PathBuf),
   /// Encountered an error creating the app system tray,
   #[error("error encountered during tray setup: {0}")]
   SystemTray(Box<dyn std::error::Error + Send>),

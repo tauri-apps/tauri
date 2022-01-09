@@ -4,6 +4,8 @@
 
 //! Types and functions related to child processes management.
 
+use crate::Env;
+
 use std::{
   env,
   path::PathBuf,
@@ -16,12 +18,13 @@ mod command;
 pub use command::*;
 
 /// Gets the current binary.
-pub fn current_binary() -> Option<PathBuf> {
+#[allow(unused_variables)]
+pub fn current_binary(env: &Env) -> Option<PathBuf> {
   let mut current_binary = None;
 
   // if we are running with an APP Image, we should return the app image path
   #[cfg(target_os = "linux")]
-  if let Some(app_image_path) = env::var_os("APPIMAGE") {
+  if let Some(app_image_path) = &env.appimage {
     current_binary = Some(PathBuf::from(app_image_path));
   }
 
@@ -37,8 +40,8 @@ pub fn current_binary() -> Option<PathBuf> {
 }
 
 /// Restarts the process.
-pub fn restart() {
-  if let Some(path) = current_binary() {
+pub fn restart(env: &Env) {
+  if let Some(path) = current_binary(env) {
     StdCommand::new(path)
       .spawn()
       .expect("application failed to start");

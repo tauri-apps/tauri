@@ -4,12 +4,9 @@
 
 //! Platform helper functions.
 
-use std::{
-  env,
-  path::{PathBuf, MAIN_SEPARATOR},
-};
+use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use crate::PackageInfo;
+use crate::{Env, PackageInfo};
 
 /// Try to determine the current target triple.
 ///
@@ -76,7 +73,7 @@ pub fn target_triple() -> crate::Result<String> {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-pub fn resource_dir(package_info: &PackageInfo) -> crate::Result<PathBuf> {
+pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   let exe = std::env::current_exe()?;
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
@@ -93,10 +90,11 @@ pub fn resource_dir(package_info: &PackageInfo) -> crate::Result<PathBuf> {
     if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
       Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
-    } else if let Ok(appdir) = env::var("APPDIR") {
+    } else if let Some(appdir) = &env.appdir {
+      let appdir: &std::path::Path = appdir.as_ref();
       Ok(PathBuf::from(format!(
         "{}/usr/lib/{}",
-        appdir,
+        appdir.display(),
         package_info.package_name()
       )))
     } else {

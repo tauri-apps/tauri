@@ -6,7 +6,7 @@ use super::InvokeResponse;
 use serde::Deserialize;
 
 #[cfg(notification_all)]
-use crate::api::notification::Notification;
+use crate::{api::notification::Notification, Env, Manager};
 use crate::{Config, PackageInfo, Runtime, Window};
 
 use std::sync::Arc;
@@ -55,7 +55,7 @@ impl Cmd {
       Self::Notification { .. } => Err(crate::Error::ApiNotAllowlisted("notification".to_string())),
       Self::IsNotificationPermissionGranted => {
         #[cfg(notification_all)]
-        return is_permission_granted(&config, package_info).map(Into::into);
+        return is_permission_granted(&window, &config, package_info).map(Into::into);
         #[cfg(not(notification_all))]
         Ok(false.into())
       }
@@ -84,11 +84,13 @@ pub fn send(options: NotificationOptions, config: &Config) -> crate::Result<Invo
 }
 
 #[cfg(notification_all)]
-pub fn is_permission_granted(
+pub fn is_permission_granted<R: Runtime>(
+  window: &Window<R>,
   config: &Config,
   package_info: &PackageInfo,
 ) -> crate::Result<InvokeResponse> {
-  let settings = crate::settings::read_settings(config, package_info);
+  let settings =
+    crate::settings::read_settings(config, package_info, window.state::<Env>().inner());
   if let Some(allow_notification) = settings.allow_notification {
     Ok(allow_notification.into())
   } else {
@@ -102,7 +104,8 @@ pub fn request_permission<R: Runtime>(
   config: &Config,
   package_info: &PackageInfo,
 ) -> crate::Result<String> {
-  let mut settings = crate::settings::read_settings(config, package_info);
+  let mut settings =
+    crate::settings::read_settings(config, package_info, window.state::<Env>().inner());
   if let Some(allow_notification) = settings.allow_notification {
     return Ok(if allow_notification {
       PERMISSION_GRANTED.to_string()
@@ -123,7 +126,12 @@ pub fn request_permission<R: Runtime>(
   let answer = rx.recv().unwrap();
 
   settings.allow_notification = Some(answer);
-  crate::settings::write_settings(config, package_info, settings)?;
+  crate::settings::write_settings(
+    config,
+    package_info,
+    window.state::<Env>().inner(),
+    settings,
+  )?;
 
   if answer {
     Ok(PERMISSION_GRANTED.to_string())

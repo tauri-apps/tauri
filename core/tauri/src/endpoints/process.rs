@@ -5,7 +5,7 @@
 use std::process::exit;
 
 use super::InvokeResponse;
-use crate::api::process::restart;
+use crate::{api::process::restart, Manager, Runtime, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -20,10 +20,10 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
+  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
       Self::Relaunch => Ok({
-        restart();
+        restart(&window.state());
         ().into()
       }),
       Self::Exit { exit_code } => {

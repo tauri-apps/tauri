@@ -75,17 +75,21 @@ impl Module {
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      Self::Process(cmd) => resolver
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
+      Self::Process(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(window)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
       Self::Fs(cmd) => resolver.respond_async(async move {
         cmd
-          .run(config, &package_info)
+          .run(window, config, &package_info)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Path(cmd) => resolver.respond_async(async move {
         cmd
-          .run(config, &package_info)
+          .run(window, config, &package_info)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),

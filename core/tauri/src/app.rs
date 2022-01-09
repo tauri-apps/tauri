@@ -19,8 +19,8 @@ use crate::{
     Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::assets::Assets,
   utils::config::{Config, WindowUrl},
+  utils::{assets::Assets, Env},
   Context, Invoke, InvokeError, InvokeResponse, Manager, StateManager, Window,
 };
 
@@ -150,6 +150,7 @@ impl<R: Runtime> GlobalWindowEvent<R> {
 /// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
 #[derive(Debug, Clone)]
 pub struct PathResolver {
+  env: Env,
   config: Arc<Config>,
   package_info: PackageInfo,
 }
@@ -157,7 +158,7 @@ pub struct PathResolver {
 impl PathResolver {
   /// Returns the path to the resource directory of this app.
   pub fn resource_dir(&self) -> Option<PathBuf> {
-    crate::api::path::resource_dir(&self.package_info)
+    crate::api::path::resource_dir(&self.package_info, &self.env)
   }
 
   /// Returns the path to the suggested directory for your app config files.
@@ -407,6 +408,7 @@ macro_rules! shared_app_impl {
       /// The path resolver for the application.
       pub fn path_resolver(&self) -> PathResolver {
         PathResolver {
+          env: self.state::<Env>().inner().clone(),
           config: self.manager.config(),
           package_info: self.manager.package_info().clone(),
         }
@@ -430,6 +432,11 @@ macro_rules! shared_app_impl {
       /// Gets the app's package information.
       pub fn package_info(&self) -> &PackageInfo {
         self.manager.package_info()
+      }
+
+      /// Gets the managed [`Env`].
+      pub fn env(&self) -> Env {
+        self.state::<Env>().inner().clone()
       }
 
       /// The application's asset resolver.
@@ -989,6 +996,8 @@ impl<R: Runtime> Builder<R> {
         tray_handle: None,
       },
     };
+
+    app.manage(Env::default());
 
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {

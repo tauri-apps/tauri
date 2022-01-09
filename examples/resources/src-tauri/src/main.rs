@@ -9,7 +9,7 @@
 
 #[cfg(not(any(feature = "api-all", feature = "shell-all", feature = "shell-execute")))]
 fn main() {
-  eprintln!("Not supported without `api-all`, `shell-all` or `shell-execute`")
+  eprintln!("Not supported without `api-all`, `shell-all` and `shell-execute`")
 }
 
 #[cfg(any(feature = "api-all", feature = "shell-all", feature = "shell-execute"))]
@@ -25,6 +25,7 @@ fn main() {
   let script_path = resolve_path(
     context.config(),
     context.package_info(),
+    &Default::default(),
     "assets/index.js",
     Some(BaseDirectory::Resource),
   )

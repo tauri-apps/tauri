@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
-use crate::api::{file::Extract, version};
+use crate::{
+  api::{file::Extract, version},
+  Env,
+};
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
@@ -171,6 +174,8 @@ impl RemoteRelease {
 
 #[derive(Debug)]
 pub struct UpdateBuilder<'a> {
+  /// Environment information.
+  pub env: Env,
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
@@ -181,21 +186,16 @@ pub struct UpdateBuilder<'a> {
   pub executable_path: Option<PathBuf>,
 }
 
-impl<'a> Default for UpdateBuilder<'a> {
-  fn default() -> Self {
+// Create new updater instance and return an Update
+impl<'a> UpdateBuilder<'a> {
+  pub fn new(env: Env) -> Self {
     UpdateBuilder {
+      env,
       urls: Vec::new(),
       target: None,
       executable_path: None,
       current_version: env!("CARGO_PKG_VERSION"),
     }
-  }
-}
-
-// Create new updater instance and return an Update
-impl<'a> UpdateBuilder<'a> {
-  pub fn new() -> Self {
-    UpdateBuilder::default()
   }
 
   #[allow(dead_code)]
@@ -267,7 +267,7 @@ impl<'a> UpdateBuilder<'a> {
     };
 
     // Get the extract_path from the provided executable_path
-    let extract_path = extract_path_from_executable(&executable_path);
+    let extract_path = extract_path_from_executable(&self.env, &executable_path);
 
     // Set SSL certs for linux if they aren't available.
     // We do not require to recheck in the download_and_install as we use
@@ -357,6 +357,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // create our new updater
     Ok(Update {
+      env: self.env,
       target,
       extract_path,
       should_update,
@@ -372,12 +373,14 @@ impl<'a> UpdateBuilder<'a> {
   }
 }
 
-pub fn builder<'a>() -> UpdateBuilder<'a> {
-  UpdateBuilder::new()
+pub fn builder<'a>(env: Env) -> UpdateBuilder<'a> {
+  UpdateBuilder::new(env)
 }
 
 #[derive(Debug, Clone)]
 pub struct Update {
+  /// Environment information.
+  pub env: Env,
   /// Update description
   pub body: Option<String>,
   /// Should we update or not
@@ -418,7 +421,7 @@ impl Update {
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
     #[cfg(target_os = "linux")]
-    if env::var_os("APPIMAGE").is_none() {
+    if self.env.appimage.is_none() {
       return Err(Error::UnsupportedPlatform);
     }
 
@@ -718,7 +721,7 @@ pub fn get_updater_target() -> Option<String> {
 }
 
 /// Get the extract_path from the provided executable_path
-pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
+pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBuf {
   // Return the path of the current executable by default
   // Example C:\Program Files\My App\
   let extract_path = executable_path
@@ -748,7 +751,7 @@ pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
   // We should use APPIMAGE exposed env variable
   // This is where our APPIMAGE should sit and should be replaced
   #[cfg(target_os = "linux")]
-  if let Some(app_image_path) = env::var_os("APPIMAGE") {
+  if let Some(app_image_path) = &env.appimage {
     return PathBuf::from(app_image_path);
   }
 
@@ -905,9 +908,10 @@ mod test {
   #[cfg(target_os = "macos")]
   #[test]
   fn test_app_name_in_path() {
-    let executable = extract_path_from_executable(Path::new(
-      "/Applications/updater-example.app/Contents/MacOS/updater-example",
-    ));
+    let executable = extract_path_from_executable(
+      &crate::Env::default(),
+      Path::new("/Applications/updater-example.app/Contents/MacOS/updater-example"),
+    );
     let app_name = macos_app_name_in_path(&executable);
     assert!(executable.ends_with("updater-example.app"));
     assert_eq!(app_name, "updater-example.app".to_string());
@@ -921,7 +925,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -940,7 +944,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -959,7 +963,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .target("win64")
       .url(mockito::server_url())
@@ -985,7 +989,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("10.0.0")
       .url(mockito::server_url())
       .build());
@@ -1008,7 +1012,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1035,7 +1039,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("1.0.0")
       .url(format!(
         "{}/win64/{{{{current_version}}}}",
@@ -1061,7 +1065,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("10.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1083,7 +1087,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
       .current_version("0.0.1")
@@ -1103,7 +1107,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
@@ -1122,7 +1126,7 @@ mod test {
       .with_body(generate_sample_bad_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
@@ -1186,7 +1190,7 @@ mod test {
     let tmp_dir_path = tmp_dir_unwrap.path();
 
     // configure the updater
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it

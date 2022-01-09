@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{api::path::BaseDirectory, Config, PackageInfo};
+use crate::{api::path::BaseDirectory, Config, PackageInfo, Runtime, Window};
+#[cfg(path_all)]
+use crate::{Env, Manager};
 use serde::Deserialize;
 #[cfg(path_all)]
 use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
@@ -42,16 +44,22 @@ pub enum Cmd {
 
 impl Cmd {
   #[allow(unused_variables)]
-  pub fn run(
+  pub fn run<R: Runtime>(
     self,
+    window: Window<R>,
     config: Arc<Config>,
     package_info: &PackageInfo,
   ) -> crate::Result<InvokeResponse> {
     #[cfg(path_all)]
     return match self {
-      Cmd::ResolvePath { directory, path } => {
-        resolve_path_handler(&config, package_info, path, directory).map(Into::into)
-      }
+      Cmd::ResolvePath { directory, path } => resolve_path_handler(
+        &config,
+        package_info,
+        window.state::<Env>().inner(),
+        path,
+        directory,
+      )
+      .map(Into::into),
       Cmd::Resolve { paths } => resolve(paths).map(Into::into),
       Cmd::Normalize { path } => normalize(path).map(Into::into),
       Cmd::Join { paths } => join(paths).map(Into::into),
@@ -69,10 +77,11 @@ impl Cmd {
 pub fn resolve_path_handler(
   config: &Config,
   package_info: &PackageInfo,
+  env: &Env,
   path: String,
   directory: Option<BaseDirectory>,
 ) -> crate::Result<PathBuf> {
-  crate::api::path::resolve_path(config, package_info, path, directory).map_err(Into::into)
+  crate::api::path::resolve_path(config, package_info, env, path, directory).map_err(Into::into)
 }
 
 #[cfg(path_all)]

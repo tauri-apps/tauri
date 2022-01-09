@@ -37,6 +37,28 @@ impl PackageInfo {
   }
 }
 
+/// Information about environment variables.
+#[derive(Debug, Clone)]
+pub struct Env {
+  /// The APPIMAGE environment variable.
+  #[cfg(target_os = "linux")]
+  pub appimage: Option<std::ffi::OsString>,
+  /// The APPDIR environment variable.
+  #[cfg(target_os = "linux")]
+  pub appdir: Option<std::ffi::OsString>,
+}
+
+impl Default for Env {
+  fn default() -> Self {
+    Self {
+      #[cfg(target_os = "linux")]
+      appimage: std::env::var_os("APPIMAGE"),
+      #[cfg(target_os = "linux")]
+      appdir: std::env::var_os("APPDIR"),
+    }
+  }
+}
+
 /// The result type of `tauri-utils`.
 pub type Result<T> = std::result::Result<T, Error>;
 

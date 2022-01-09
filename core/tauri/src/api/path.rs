@@ -9,7 +9,7 @@ use std::{
   path::{Component, Path, PathBuf},
 };
 
-use crate::{Config, PackageInfo};
+use crate::{Config, Env, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -83,6 +83,7 @@ pub enum BaseDirectory {
 ///     authors: "tauri",
 ///     description: "a tauri test",
 ///   },
+///   &Default::default(),
 ///   "path/to/something",
 ///   Some(BaseDirectory::Config)
 ///  ).expect("failed to resolve path");
@@ -91,6 +92,7 @@ pub enum BaseDirectory {
 pub fn resolve_path<P: AsRef<Path>>(
   config: &Config,
   package_info: &PackageInfo,
+  env: &Env,
   path: P,
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
@@ -113,7 +115,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Runtime => runtime_dir(),
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
-      BaseDirectory::Resource => resource_dir(package_info),
+      BaseDirectory::Resource => resource_dir(package_info, env),
       BaseDirectory::App => app_dir(config),
       BaseDirectory::Current => Some(env::current_dir()?),
       BaseDirectory::Log => log_dir(config),
@@ -229,8 +231,8 @@ pub fn video_dir() -> Option<PathBuf> {
 }
 
 /// Returns the path to the resource directory of this app.
-pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
-  crate::utils::platform::resource_dir(package_info).ok()
+pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
+  crate::utils::platform::resource_dir(package_info, env).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.

@@ -108,7 +108,7 @@ pub use {
   self::utils::{
     assets::Assets,
     config::{Config, WindowUrl},
-    PackageInfo,
+    Env, PackageInfo,
   },
   self::window::{Monitor, Window},
 };

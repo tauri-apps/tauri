@@ -48,6 +48,7 @@ pub struct Env {
   pub appdir: Option<std::ffi::OsString>,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
     Self {

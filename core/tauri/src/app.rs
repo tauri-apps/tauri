@@ -18,10 +18,11 @@ use crate::{
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
   },
+  scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
-  Context, Invoke, InvokeError, InvokeResponse, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
 use tauri_macros::default_runtime;
@@ -444,6 +445,17 @@ macro_rules! shared_app_impl {
         AssetResolver {
           manager: self.manager.clone(),
         }
+      }
+
+      /// Gets the scope for the filesystem APIs.
+      pub fn fs_scope(&self) -> FsScope {
+        self.state::<Scopes>().inner().fs.clone()
+      }
+
+      /// Gets the scope for the asset protocol.
+      #[cfg(protocol_asset)]
+      pub fn asset_protocol_scope(&self) -> FsScope {
+        self.state::<Scopes>().inner().asset_protocol.clone()
       }
     }
   };
@@ -997,7 +1009,23 @@ impl<R: Runtime> Builder<R> {
       },
     };
 
-    app.manage(Env::default());
+    let env = Env::default();
+    app.manage(Scopes {
+      fs: FsScope::for_fs_api(
+        &app.manager.config(),
+        app.package_info(),
+        &env,
+        &app.config().tauri.allowlist.fs.scope,
+      ),
+      #[cfg(protocol_asset)]
+      asset_protocol: FsScope::for_fs_api(
+        &app.manager.config(),
+        app.package_info(),
+        &env,
+        &app.config().tauri.allowlist.protocol.asset_scope,
+      ),
+    });
+    app.manage(env);
 
     #[cfg(feature = "system-tray")]
     if let Some(system_tray) = self.system_tray {

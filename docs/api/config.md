@@ -202,6 +202,7 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
       { property: "all", type: "boolean", description: `Use this flag to enable all API features.` },
       {
         property: "fs", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.fs" rows={[
+          { property: "scope", type: "string[]", description: `A list of glob patterns describing the paths the FS API is allowed to access. Each pattern can start with a variable that resolves to a system base directory. The variables are: \`$AUDIO\`, \`$CACHE\`, \`$CONFIG\`, \`$DATA\`, \`$LOCALDATA\`, \`$DESKTOP\`, \`$DOCUMENT\`, \`$DOWNLOAD\`, \`$EXE\`, \`$FONT\`, \`$HOME\`, \`$PICTURE\`, \`$PUBLIC\`, \`$RUNTIME\`, \`$TEMPLATE\`, \`$VIDEO\`, \`$RESOURCE\`, \`$APP\`, \`$CWD\`.` },
           { property: "all", type: "boolean", description: `Use this flag to enable all file system API features.` },
           { property: "readTextFile", optional: true, type: "boolean", description: `Read text file from local filesystem.` },
           { property: "readBinaryFile", optional: true, type: "boolean", description: `Read binary file from local filesystem.` },
@@ -259,6 +260,13 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
       {
         property: "path", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.path" rows={[
           { property: "all", type: "boolean", description: `Use this flag to enable all path API features.` },
+        ]}/>
+      },
+      {
+        property: "protocol", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.protocol" rows={[
+          { property: "assetScope", type: "string[]", description: `A list of glob patterns describing the paths the asset protocol is allowed to access. Each pattern can start with a variable that resolves to a system base directory. The variables are: \`$AUDIO\`, \`$CACHE\`, \`$CONFIG\`, \`$DATA\`, \`$LOCALDATA\`, \`$DESKTOP\`, \`$DOCUMENT\`, \`$DOWNLOAD\`, \`$EXE\`, \`$FONT\`, \`$HOME\`, \`$PICTURE\`, \`$PUBLIC\`, \`$RUNTIME\`, \`$TEMPLATE\`, \`$VIDEO\`, \`$RESOURCE\`, \`$APP\`, \`$CWD\`.` },
+          { property: "all", type: "boolean", description: `Use this flag to enable all custom protocols.` },
+          { property: "asset", optional: true, type: "boolean", description: `Enables the `asset` custom protocol, used to access files with streaming support.` },
         ]}/>
       },
     ]} />

@@ -42,6 +42,7 @@ mod manager;
 pub mod plugin;
 pub mod window;
 pub use tauri_runtime as runtime;
+mod scope;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
@@ -112,6 +113,7 @@ pub use {
     Env, PackageInfo,
   },
   self::window::{Monitor, Window},
+  scope::*,
 };
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.

@@ -68,6 +68,96 @@ pub enum BaseDirectory {
   Log,
 }
 
+impl BaseDirectory {
+  /// Gets the variable that represents this [`BaseDirectory`] for string paths.
+  pub fn variable(self) -> &'static str {
+    match self {
+      Self::Audio => "$AUDIO",
+      Self::Cache => "$CACHE",
+      Self::Config => "$CONFIG",
+      Self::Data => "$DATA",
+      Self::LocalData => "$LOCALDATA",
+      Self::Desktop => "$DESKTOP",
+      Self::Document => "$DOCUMENT",
+      Self::Download => "$DOWNLOAD",
+      Self::Executable => "$EXE",
+      Self::Font => "$FONT",
+      Self::Home => "$HOME",
+      Self::Picture => "$PICTURE",
+      Self::Public => "$PUBLIC",
+      Self::Runtime => "$RUNTIME",
+      Self::Template => "$TEMPLATE",
+      Self::Video => "$VIDEO",
+      Self::Resource => "$RESOURCE",
+      Self::App => "$APP",
+      Self::Current => "$CWD",
+      Self::Log => "$LOG",
+    }
+  }
+
+  /// Gets the [`BaseDirectory`] associated with the given variable, or [`None`] if the variable doesn't match any.
+  pub fn from_variable(variable: &str) -> Option<Self> {
+    let res = match variable {
+      "$AUDIO" => Self::Audio,
+      "$CACHE" => Self::Cache,
+      "$CONFIG" => Self::Config,
+      "$DATA" => Self::Data,
+      "$LOCALDATA" => Self::LocalData,
+      "$DESKTOP" => Self::Desktop,
+      "$DOCUMENT" => Self::Document,
+      "$DOWNLOAD" => Self::Download,
+      "$EXE" => Self::Executable,
+      "$FONT" => Self::Font,
+      "$HOME" => Self::Home,
+      "$PICTURE" => Self::Picture,
+      "$PUBLIC" => Self::Public,
+      "$RUNTIME" => Self::Runtime,
+      "$TEMPLATE" => Self::Template,
+      "$VIDEO" => Self::Video,
+      "$RESOURCE" => Self::Resource,
+      "$APP" => Self::App,
+      "$CWD" => Self::Current,
+      "$LOG" => Self::Log,
+      _ => return None,
+    };
+    Some(res)
+  }
+}
+
+/// Parse the given path, resolving a [`BaseDirectory`] variable if the path starts with one.
+pub fn parse<P: AsRef<Path>>(
+  config: &Config,
+  package_info: &PackageInfo,
+  env: &Env,
+  path: P,
+) -> crate::api::Result<PathBuf> {
+  let mut p = PathBuf::new();
+  let mut components = path.as_ref().components();
+  if let Some(Component::Normal(str)) = components.next() {
+    if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy().into_owned())
+    {
+      p.push(resolve_path(
+        config,
+        package_info,
+        env,
+        "",
+        Some(base_directory),
+      )?);
+    } else {
+      p.push(str);
+    }
+  }
+
+  for component in components {
+    if let Component::ParentDir = component {
+      continue;
+    }
+    p.push(component);
+  }
+
+  Ok(p)
+}
+
 /// Resolves the path with the optional base directory.
 ///
 /// # Example

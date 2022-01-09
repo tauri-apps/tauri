@@ -56,5 +56,9 @@ fn main() {
 
     // path
     path_all: { any(api_all, feature = "path-all") },
+
+    // protocol
+    protocol_all: { any(api_all, feature = "protocol-all") },
+    protocol_asset: { any(protocol_all, feature = "protocol-asset") },
   }
 }

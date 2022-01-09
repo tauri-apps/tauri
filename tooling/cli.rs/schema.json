@@ -58,6 +58,9 @@
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
+            "scope": [
+              "$APP/**"
+            ],
             "writeBinaryFile": false,
             "writeFile": false
           },
@@ -76,6 +79,13 @@
           },
           "path": {
             "all": false
+          },
+          "protocol": {
+            "all": false,
+            "asset": false,
+            "assetScope": [
+              "$APP/**"
+            ]
           },
           "shell": {
             "all": false,
@@ -175,6 +185,9 @@
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
+            "scope": [
+              "$APP/**"
+            ],
             "writeBinaryFile": false,
             "writeFile": false
           },
@@ -237,6 +250,21 @@
           "allOf": [
             {
               "$ref": "#/definitions/PathAllowlistConfig"
+            }
+          ]
+        },
+        "protocol": {
+          "description": "Custom protocol allowlist.",
+          "default": {
+            "all": false,
+            "asset": false,
+            "assetScope": [
+              "$APP/**"
+            ]
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProtocolAllowlistConfig"
             }
           ]
         },
@@ -797,6 +825,9 @@
     "FsAllowlistConfig": {
       "description": "Allowlist for the file system APIs.",
       "type": "object",
+      "required": [
+        "scope"
+      ],
       "properties": {
         "all": {
           "description": "Use this flag to enable all file system API features.",
@@ -843,6 +874,14 @@
           "default": false,
           "type": "boolean"
         },
+        "scope": {
+          "description": "The access scope for the filesystem APIs.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FsAllowlistScope"
+            }
+          ]
+        },
         "writeBinaryFile": {
           "description": "Write binary file to local filesystem.",
           "default": false,
@@ -855,6 +894,13 @@
         }
       },
       "additionalProperties": false
+    },
+    "FsAllowlistScope": {
+      "description": "Filesystem API scope definition. It is a list of glob patterns that restrict the filesystem API access from the webview. Each pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "GlobalShortcutAllowlistConfig": {
       "description": "Allowlist for the global shortcut APIs.",
@@ -1005,6 +1051,34 @@
       "type": "object",
       "additionalProperties": true
     },
+    "ProtocolAllowlistConfig": {
+      "description": "Allowlist for the custom protocols.",
+      "type": "object",
+      "required": [
+        "assetScope"
+      ],
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all custom protocols.",
+          "default": false,
+          "type": "boolean"
+        },
+        "asset": {
+          "description": "Enables the asset protocol.",
+          "default": false,
+          "type": "boolean"
+        },
+        "assetScope": {
+          "description": "The access scope for the asset protocol.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FsAllowlistScope"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "SecurityConfig": {
       "description": "Security configuration.",
       "type": "object",
@@ -1090,6 +1164,9 @@
               "removeDir": false,
               "removeFile": false,
               "renameFile": false,
+              "scope": [
+                "$APP/**"
+              ],
               "writeBinaryFile": false,
               "writeFile": false
             },
@@ -1108,6 +1185,13 @@
             },
             "path": {
               "all": false
+            },
+            "protocol": {
+              "all": false,
+              "asset": false,
+              "assetScope": [
+                "$APP/**"
+              ]
             },
             "shell": {
               "all": false,

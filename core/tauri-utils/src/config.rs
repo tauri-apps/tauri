@@ -556,8 +556,10 @@ pub struct SecurityConfig {
 
 /// Defines an allowlist type.
 pub trait Allowlist {
+  /// Returns all features associated with the allowlist struct.
+  fn all_features() -> Vec<&'static str>;
   /// Returns the tauri features enabled on this allowlist.
-  fn to_features(&self) -> Vec<&str>;
+  fn to_features(&self) -> Vec<&'static str>;
 }
 
 macro_rules! check_feature {
@@ -568,11 +570,29 @@ macro_rules! check_feature {
   };
 }
 
+/// Filesystem API scope definition.
+/// It is a list of glob patterns that restrict the filesystem API access from the webview.
+/// Each pattern can start with a variable that resolves to a system base directory.
+/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
+/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct FsAllowlistScope(pub Vec<PathBuf>);
+
+impl Default for FsAllowlistScope {
+  fn default() -> Self {
+    Self(vec!["$APP/**".into()])
+  }
+}
+
 /// Allowlist for the file system APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FsAllowlistConfig {
+  /// The access scope for the filesystem APIs.
+  pub scope: FsAllowlistScope,
   /// Use this flag to enable all file system API features.
   #[serde(default)]
   pub all: bool,
@@ -609,7 +629,27 @@ pub struct FsAllowlistConfig {
 }
 
 impl Allowlist for FsAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      scope: Default::default(),
+      all: false,
+      read_text_file: true,
+      read_binary_file: true,
+      write_file: true,
+      write_binary_file: true,
+      read_dir: true,
+      copy_file: true,
+      create_dir: true,
+      remove_dir: true,
+      remove_file: true,
+      rename_file: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("fs-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["fs-all"]
     } else {
@@ -643,7 +683,17 @@ pub struct WindowAllowlistConfig {
 }
 
 impl Allowlist for WindowAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      create: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("window-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["window-all"]
     } else {
@@ -671,7 +721,18 @@ pub struct ShellAllowlistConfig {
 }
 
 impl Allowlist for ShellAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      execute: true,
+      open: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("shell-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["shell-all"]
     } else {
@@ -700,7 +761,18 @@ pub struct DialogAllowlistConfig {
 }
 
 impl Allowlist for DialogAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      open: true,
+      save: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("dialog-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["dialog-all"]
     } else {
@@ -726,7 +798,17 @@ pub struct HttpAllowlistConfig {
 }
 
 impl Allowlist for HttpAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      request: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("http-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["http-all"]
     } else {
@@ -748,7 +830,14 @@ pub struct NotificationAllowlistConfig {
 }
 
 impl Allowlist for NotificationAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self { all: false };
+    let mut features = allowlist.to_features();
+    features.push("notification-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["notification-all"]
     } else {
@@ -768,7 +857,14 @@ pub struct GlobalShortcutAllowlistConfig {
 }
 
 impl Allowlist for GlobalShortcutAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self { all: false };
+    let mut features = allowlist.to_features();
+    features.push("global-shortcut-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["global-shortcut-all"]
     } else {
@@ -788,7 +884,14 @@ pub struct OsAllowlistConfig {
 }
 
 impl Allowlist for OsAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self { all: false };
+    let mut features = allowlist.to_features();
+    features.push("os-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["os-all"]
     } else {
@@ -808,11 +911,56 @@ pub struct PathAllowlistConfig {
 }
 
 impl Allowlist for PathAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self { all: false };
+    let mut features = allowlist.to_features();
+    features.push("path-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["path-all"]
     } else {
       vec![]
+    }
+  }
+}
+
+/// Allowlist for the custom protocols.
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProtocolAllowlistConfig {
+  /// The access scope for the asset protocol.
+  pub asset_scope: FsAllowlistScope,
+  /// Use this flag to enable all custom protocols.
+  #[serde(default)]
+  pub all: bool,
+  /// Enables the asset protocol.
+  #[serde(default)]
+  pub asset: bool,
+}
+
+impl Allowlist for ProtocolAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      asset_scope: Default::default(),
+      all: false,
+      asset: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("protocol-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["protocol-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, asset, "protocol-asset");
+      features
     }
   }
 }
@@ -852,10 +1000,28 @@ pub struct AllowlistConfig {
   /// Path API allowlist.
   #[serde(default)]
   pub path: PathAllowlistConfig,
+  /// Custom protocol allowlist.
+  #[serde(default)]
+  pub protocol: ProtocolAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn all_features() -> Vec<&'static str> {
+    let mut features = Vec::new();
+    features.extend(FsAllowlistConfig::all_features());
+    features.extend(WindowAllowlistConfig::all_features());
+    features.extend(ShellAllowlistConfig::all_features());
+    features.extend(DialogAllowlistConfig::all_features());
+    features.extend(HttpAllowlistConfig::all_features());
+    features.extend(NotificationAllowlistConfig::all_features());
+    features.extend(GlobalShortcutAllowlistConfig::all_features());
+    features.extend(OsAllowlistConfig::all_features());
+    features.extend(PathAllowlistConfig::all_features());
+    features.extend(ProtocolAllowlistConfig::all_features());
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
     if self.all {
       vec!["api-all"]
     } else {
@@ -869,6 +1035,7 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.global_shortcut.to_features());
       features.extend(self.os.to_features());
       features.extend(self.path.to_features());
+      features.extend(self.protocol.to_features());
       features
     }
   }
@@ -1616,6 +1783,37 @@ mod build {
     }
   }
 
+  impl ToTokens for FsAllowlistScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allowed_paths = vec_lit(&self.0, path_buf_lit);
+      tokens.append_all(quote! { ::tauri::utils::config::FsAllowlistScope(#allowed_paths) })
+    }
+  }
+
+  impl ToTokens for FsAllowlistConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scope = &self.scope;
+      tokens.append_all(quote! { ::tauri::utils::config::FsAllowlistConfig { scope: #scope, ..Default::default() } })
+    }
+  }
+
+  impl ToTokens for ProtocolAllowlistConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let asset_scope = &self.asset_scope;
+      tokens.append_all(quote! { ::tauri::utils::config::ProtocolAllowlistConfig { asset_scope: #asset_scope, ..Default::default() } })
+    }
+  }
+
+  impl ToTokens for AllowlistConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let fs = &self.fs;
+      let protocol = &self.protocol;
+      tokens.append_all(
+        quote! { ::tauri::utils::config::AllowlistConfig { fs: #fs, protocol: #protocol, ..Default::default() } },
+      )
+    }
+  }
+
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let windows = vec_lit(&self.windows, identity);
@@ -1624,7 +1822,7 @@ mod build {
       let updater = &self.updater;
       let security = &self.security;
       let system_tray = opt_lit(self.system_tray.as_ref());
-      let allowlist = quote!(Default::default());
+      let allowlist = &self.allowlist;
       let macos_private_api = self.macos_private_api;
 
       literal_struct!(

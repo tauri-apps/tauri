@@ -84,6 +84,9 @@ pub enum Error {
   /// Task join error.
   #[error(transparent)]
   JoinError(Box<dyn std::error::Error + Send>),
+  /// Path not allowed by the scope.
+  #[error("path not allowed on the configured scope: {0}")]
+  PathNotAllowed(PathBuf),
 }
 
 impl From<serde_json::Error> for Error {

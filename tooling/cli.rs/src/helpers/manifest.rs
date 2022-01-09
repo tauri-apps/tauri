@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{
-  app_paths::tauri_dir,
-  config::{all_allowlist_features, ConfigHandle},
-};
+use super::{app_paths::tauri_dir, config::ConfigHandle};
 
 use anyhow::Context;
+use tauri_utils::config::Allowlist;
 use toml_edit::{Array, Document, InlineTable, Item, Table, Value};
 
 use std::{
@@ -64,7 +62,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
 
   let mut features = HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
 
-  let mut cli_managed_features = all_allowlist_features();
+  let mut cli_managed_features = super::config::AllowlistConfig::all_features();
   cli_managed_features.extend(vec!["cli", "updater", "system-tray"]);
 
   if let Some(tauri) = tauri_item.as_table_mut() {

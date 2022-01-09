@@ -721,6 +721,7 @@ pub fn get_updater_target() -> Option<String> {
 }
 
 /// Get the extract_path from the provided executable_path
+#[allow(unused_variables)]
 pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBuf {
   // Return the path of the current executable by default
   // Example C:\Program Files\My App\

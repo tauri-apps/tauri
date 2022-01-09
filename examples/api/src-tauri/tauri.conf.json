@@ -67,7 +67,14 @@
       ]
     },
     "allowlist": {
-      "all": true
+      "all": true,
+      "fs": {
+        "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": ["$RESOURCE/**"]
+      }
     },
     "windows": [
       {
@@ -76,7 +83,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' asset: customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
+      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com"
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

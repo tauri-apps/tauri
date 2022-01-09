@@ -9,7 +9,7 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     http::{
-      HttpRange, MimeType, Request as HttpRequest, Response as HttpResponse,
+      MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewIpcHandler, WindowBuilder},
@@ -34,21 +34,27 @@ use crate::{runtime::menu::Menu, MenuEvent};
 use regex::{Captures, Regex};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+#[cfg(protocol_asset)]
+use std::io::SeekFrom;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
   fmt,
   fs::create_dir_all,
-  io::SeekFrom,
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
+#[cfg(protocol_asset)]
+use tauri_runtime::http::HttpRange;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
   html::{CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
+#[cfg(protocol_asset)]
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
-use url::{Position, Url};
+#[cfg(protocol_asset)]
+use url::Position;
+use url::Url;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -360,7 +366,10 @@ impl<R: Runtime> WindowManager<R> {
       pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol());
       registered_scheme_protocols.push("tauri".into());
     }
+
+    #[cfg(protocol_asset)]
     if !registered_scheme_protocols.contains(&"asset".into()) {
+      let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       let window_url = Url::parse(&pending.url).unwrap();
       let window_origin =
         if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
@@ -387,6 +396,13 @@ impl<R: Runtime> WindowManager<R> {
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
+
+        if !asset_scope.is_allowed(&path) {
+          return HttpResponseBuilder::new()
+            .status(403)
+            .body(Vec::with_capacity(0));
+        }
+
         let path_for_data = path.clone();
 
         let mut response =

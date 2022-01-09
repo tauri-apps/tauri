@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeContext;
-use crate::Runtime;
+use crate::{api::ipc::CallbackFn, Runtime};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
@@ -56,7 +56,7 @@ pub enum Cmd {
   Execute {
     program: String,
     args: Vec<String>,
-    on_event_fn: String,
+    on_event_fn: CallbackFn,
     #[serde(default)]
     options: CommandOptions,
   },
@@ -79,7 +79,7 @@ impl Cmd {
     context: InvokeContext<R>,
     program: String,
     args: Vec<String>,
-    on_event_fn: String,
+    on_event_fn: CallbackFn,
     options: CommandOptions,
   ) -> crate::Result<ChildId> {
     let mut command = if options.sidecar {
@@ -118,7 +118,7 @@ impl Cmd {
           if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
             command_childs().lock().unwrap().remove(&pid);
           }
-          let js = crate::api::ipc::format_callback(on_event_fn.clone(), &event)
+          let js = crate::api::ipc::format_callback(on_event_fn, &event)
             .expect("unable to serialize CommandEvent");
 
           let _ = context.window.eval(js.as_str());

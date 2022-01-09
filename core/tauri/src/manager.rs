@@ -4,15 +4,15 @@
 
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
-  event::{Event, EventHandler, Listeners},
-  hooks::{InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload},
+  event::{is_event_name_valid, Event, EventHandler, Listeners},
+  hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
     http::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{FileDropEvent, FileDropHandler, InvokePayload, WebviewIpcHandler, WindowBuilder},
+    webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
     Icon, Runtime,
   },
@@ -902,6 +902,7 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    assert!(is_event_name_valid(event));
     self
       .windows_lock()
       .values()
@@ -926,6 +927,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
+    assert!(is_event_name_valid(event));
     self.inner.listeners.trigger(event, window, data)
   }
 
@@ -935,14 +937,17 @@ impl<R: Runtime> WindowManager<R> {
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
+    assert!(is_event_name_valid(&event));
     self.inner.listeners.listen(event, window, handler)
   }
+
   pub fn once<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
+    assert!(is_event_name_valid(&event));
     self.inner.listeners.once(event, window, handler)
   }
 

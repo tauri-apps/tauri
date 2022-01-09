@@ -4,11 +4,7 @@
 
 ;(function () {
   function uid() {
-    const length = new Int8Array(1)
-    window.crypto.getRandomValues(length)
-    const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
-    window.crypto.getRandomValues(array)
-    return array.join('')
+    return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
 
   if (!window.__TAURI__) {

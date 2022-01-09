@@ -241,7 +241,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -262,7 +262,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -280,7 +280,7 @@ class WebviewWindowHandle {
   /**
    * Emits an event to the backend, tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
   async emit(event: string, payload?: unknown): Promise<void> {

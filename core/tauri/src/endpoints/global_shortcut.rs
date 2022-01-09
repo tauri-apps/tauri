@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeContext;
-use crate::Runtime;
+use crate::{api::ipc::CallbackFn, Runtime};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
@@ -15,11 +15,14 @@ use crate::runtime::GlobalShortcutManager;
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Register a global shortcut.
-  Register { shortcut: String, handler: String },
+  Register {
+    shortcut: String,
+    handler: CallbackFn,
+  },
   /// Register a list of global shortcuts.
   RegisterAll {
     shortcuts: Vec<String>,
-    handler: String,
+    handler: CallbackFn,
   },
   /// Unregister a global shortcut.
   Unregister { shortcut: String },
@@ -34,7 +37,7 @@ impl Cmd {
   fn register<R: Runtime>(
     context: InvokeContext<R>,
     shortcut: String,
-    handler: String,
+    handler: CallbackFn,
   ) -> crate::Result<()> {
     let mut manager = context.window.app_handle.global_shortcut_manager();
     register_shortcut(context.window, &mut manager, shortcut, handler)?;
@@ -45,16 +48,11 @@ impl Cmd {
   fn register_all<R: Runtime>(
     context: InvokeContext<R>,
     shortcuts: Vec<String>,
-    handler: String,
+    handler: CallbackFn,
   ) -> crate::Result<()> {
     let mut manager = context.window.app_handle.global_shortcut_manager();
     for shortcut in shortcuts {
-      register_shortcut(
-        context.window.clone(),
-        &mut manager,
-        shortcut,
-        handler.clone(),
-      )?;
+      register_shortcut(context.window.clone(), &mut manager, shortcut, handler)?;
     }
     Ok(())
   }
@@ -96,11 +94,11 @@ fn register_shortcut<R: Runtime>(
   window: crate::Window<R>,
   manager: &mut R::GlobalShortcutManager,
   shortcut: String,
-  handler: String,
+  handler: CallbackFn,
 ) -> crate::Result<()> {
   let accelerator = shortcut.clone();
   manager.register(&shortcut, move || {
-    let callback_string = crate::api::ipc::format_callback(&handler, &accelerator)
+    let callback_string = crate::api::ipc::format_callback(handler, &accelerator)
       .expect("unable to serialize shortcut string to json");
     let _ = window.eval(callback_string.as_str());
   })?;

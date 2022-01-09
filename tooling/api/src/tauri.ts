@@ -25,12 +25,8 @@ declare global {
 declare let __TAURI_INVOKE_KEY__: number
 
 /** @ignore */
-function uid(): string {
-  const length = new Int8Array(1)
-  window.crypto.getRandomValues(length)
-  const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
-  window.crypto.getRandomValues(array)
-  return array.join('')
+function uid(): number {
+  return window.crypto.getRandomValues(new Uint32Array(1))[0]
 }
 
 /**
@@ -42,7 +38,7 @@ function uid(): string {
 function transformCallback(
   callback?: (response: any) => void,
   once = false
-): string {
+): number {
   const identifier = uid()
 
   Object.defineProperty(window, identifier, {

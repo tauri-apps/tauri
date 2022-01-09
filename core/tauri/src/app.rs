@@ -6,6 +6,7 @@
 pub(crate) mod tray;
 
 use crate::{
+  api::ipc::CallbackFn,
   command::{CommandArg, CommandItem},
   hooks::{
     window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
@@ -702,7 +703,7 @@ impl<R: Runtime> Builder<R> {
   /// That function must take the `command: string` and `args: object` types and send a message to the backend.
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
-    F: Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static,
+    F: Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
     self.invoke_initialization_script = initialization_script;
     self.invoke_responder = Arc::new(responder);

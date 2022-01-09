@@ -6,8 +6,12 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
+
+/// The `Callback` type is the return value of the `transformCallback` JavaScript function.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
+pub struct CallbackFn(pub usize);
 
 /// The information about this is quite limited. On Chrome/Edge and Firefox, [the maximum string size is approximately 1 GB](https://stackoverflow.com/a/34958490).
 ///
@@ -70,8 +74,8 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// ```
 /// use tauri::api::ipc::format_callback;
 /// // callback with a string argument
-/// let cb = format_callback("callback-function-name", &"the string response").unwrap();
-/// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
+/// let cb = format_callback(12345, &"the string response").unwrap();
+/// assert!(cb.contains(r#"window["12345"]("the string response")"#));
 /// ```
 ///
 /// - With types implement [`serde::Serialize`]:
@@ -86,14 +90,14 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// }
 ///
 /// let cb = format_callback(
-///   "callback-function-name",
+///   6789,
 ///   &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()
 /// }).expect("failed to serialize");
 ///
-/// assert!(cb.contains(r#"window["callback-function-name"](JSON.parse('{"value":"XXXXXXXXX"#));
+/// assert!(cb.contains(r#"window["6789"](JSON.parse('{"value":"XXXXXXXXX"#));
 /// ```
-pub fn format_callback<T: Serialize, S: AsRef<str>>(
-  function_name: S,
+pub fn format_callback<T: Serialize>(
+  function_name: CallbackFn,
   arg: &T,
 ) -> crate::api::Result<String> {
   macro_rules! format_callback {
@@ -106,7 +110,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
             console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
           }}
         "#,
-        fn = function_name.as_ref(),
+        fn = function_name.0,
         arg = $arg
       )
     }
@@ -169,8 +173,8 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
 // TODO: better example to explain
 pub fn format_callback_result<T: Serialize, E: Serialize>(
   result: Result<T, E>,
-  success_callback: impl AsRef<str>,
-  error_callback: impl AsRef<str>,
+  success_callback: CallbackFn,
+  error_callback: CallbackFn,
 ) -> crate::api::Result<String> {
   match result {
     Ok(res) => format_callback(success_callback, &res),
@@ -181,7 +185,14 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
 #[cfg(test)]
 mod test {
   use crate::api::ipc::*;
+  use quickcheck::{Arbitrary, Gen};
   use quickcheck_macros::quickcheck;
+
+  impl Arbitrary for CallbackFn {
+    fn arbitrary(g: &mut Gen) -> CallbackFn {
+      CallbackFn(usize::arbitrary(g))
+    }
+  }
 
   #[test]
   fn test_escape_json_parse() {
@@ -205,30 +216,25 @@ mod test {
 
   // check abritrary strings in the format callback function
   #[quickcheck]
-  fn qc_formating(f: String, a: String) -> bool {
-    // can not accept empty strings
-    if !f.is_empty() && !a.is_empty() {
-      // call format callback
-      let fc = format_callback(f.clone(), &a).unwrap();
-      fc.contains(&format!(
-        r#"window["{}"](JSON.parse('{}'))"#,
-        f,
-        serde_json::Value::String(a.clone()),
-      )) || fc.contains(&format!(
-        r#"window["{}"]({})"#,
-        f,
-        serde_json::Value::String(a),
-      ))
-    } else {
-      true
-    }
+  fn qc_formating(f: CallbackFn, a: String) -> bool {
+    // call format callback
+    let fc = format_callback(f, &a).unwrap();
+    fc.contains(&format!(
+      r#"window["{}"](JSON.parse('{}'))"#,
+      f.0,
+      serde_json::Value::String(a.clone()),
+    )) || fc.contains(&format!(
+      r#"window["{}"]({})"#,
+      f.0,
+      serde_json::Value::String(a),
+    ))
   }
 
   // check arbitrary strings in format_callback_result
   #[quickcheck]
-  fn qc_format_res(result: Result<String, String>, c: String, ec: String) -> bool {
-    let resp = format_callback_result(result.clone(), c.clone(), ec.clone())
-      .expect("failed to format callback result");
+  fn qc_format_res(result: Result<String, String>, c: CallbackFn, ec: CallbackFn) -> bool {
+    let resp =
+      format_callback_result(result.clone(), c, ec).expect("failed to format callback result");
     let (function, value) = match result {
       Ok(v) => (c, v),
       Err(e) => (ec, e),
@@ -236,7 +242,7 @@ mod test {
 
     resp.contains(&format!(
       r#"window["{}"]({})"#,
-      function,
+      function.0,
       serde_json::Value::String(value),
     ))
   }

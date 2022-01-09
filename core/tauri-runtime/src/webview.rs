@@ -4,12 +4,8 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{window::DetachedWindow, Icon};
+use crate::{menu::Menu, window::DetachedWindow, Icon};
 
-use crate::menu::Menu;
-
-use serde::Deserialize;
-use serde_json::Value as JsonValue;
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
 #[cfg(windows)]
@@ -184,16 +180,3 @@ pub type WebviewIpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, String) + Send>;
 /// File drop handler callback
 /// Return `true` in the callback to block the OS' default behavior of handling a file drop.
 pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bool + Send>;
-
-#[derive(Debug, Deserialize)]
-pub struct InvokePayload {
-  pub command: String,
-  #[serde(rename = "__tauriModule")]
-  pub tauri_module: Option<String>,
-  pub callback: String,
-  pub error: String,
-  #[serde(rename = "__invokeKey")]
-  pub key: u32,
-  #[serde(flatten)]
-  pub inner: JsonValue,
-}

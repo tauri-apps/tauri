@@ -43,8 +43,16 @@
       "default": {
         "allowlist": {
           "all": false,
+          "clipboard": {
+            "all": false,
+            "readText": false,
+            "writeText": false
+          },
           "dialog": {
             "all": false,
+            "ask": false,
+            "confirm": false,
+            "message": false,
             "open": false,
             "save": false
           },
@@ -80,6 +88,11 @@
           "path": {
             "all": false
           },
+          "process": {
+            "all": false,
+            "exit": false,
+            "relaunch": false
+          },
           "protocol": {
             "all": false,
             "asset": false,
@@ -94,7 +107,30 @@
           },
           "window": {
             "all": false,
-            "create": false
+            "center": false,
+            "close": false,
+            "create": false,
+            "hide": false,
+            "maximize": false,
+            "minimize": false,
+            "print": false,
+            "requestUserAttention": false,
+            "setAlwaysOnTop": false,
+            "setDecorations": false,
+            "setFocus": false,
+            "setFullscreen": false,
+            "setIcon": false,
+            "setMaxSize": false,
+            "setMinSize": false,
+            "setPosition": false,
+            "setResizable": false,
+            "setSize": false,
+            "setSkipTaskbar": false,
+            "setTitle": false,
+            "show": false,
+            "startDragging": false,
+            "unmaximize": false,
+            "unminimize": false
           }
         },
         "bundle": {
@@ -160,10 +196,26 @@
           "default": false,
           "type": "boolean"
         },
+        "clipboard": {
+          "description": "Clipboard APIs allowlist.",
+          "default": {
+            "all": false,
+            "readText": false,
+            "writeText": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/ClipboardAllowlistConfig"
+            }
+          ]
+        },
         "dialog": {
           "description": "Dialog API allowlist.",
           "default": {
             "all": false,
+            "ask": false,
+            "confirm": false,
+            "message": false,
             "open": false,
             "save": false
           },
@@ -253,6 +305,19 @@
             }
           ]
         },
+        "process": {
+          "description": "Process API allowlist.",
+          "default": {
+            "all": false,
+            "exit": false,
+            "relaunch": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProcessAllowlistConfig"
+            }
+          ]
+        },
         "protocol": {
           "description": "Custom protocol allowlist.",
           "default": {
@@ -285,7 +350,30 @@
           "description": "Window API allowlist.",
           "default": {
             "all": false,
-            "create": false
+            "center": false,
+            "close": false,
+            "create": false,
+            "hide": false,
+            "maximize": false,
+            "minimize": false,
+            "print": false,
+            "requestUserAttention": false,
+            "setAlwaysOnTop": false,
+            "setDecorations": false,
+            "setFocus": false,
+            "setFullscreen": false,
+            "setIcon": false,
+            "setMaxSize": false,
+            "setMinSize": false,
+            "setPosition": false,
+            "setResizable": false,
+            "setSize": false,
+            "setSkipTaskbar": false,
+            "setTitle": false,
+            "show": false,
+            "startDragging": false,
+            "unmaximize": false,
+            "unminimize": false
           },
           "allOf": [
             {
@@ -770,6 +858,28 @@
       },
       "additionalProperties": false
     },
+    "ClipboardAllowlistConfig": {
+      "description": "Allowlist for the clipboard APIs.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all clipboard APIs.",
+          "default": false,
+          "type": "boolean"
+        },
+        "readText": {
+          "description": "Enables the clipboard's `readText` API.",
+          "default": false,
+          "type": "boolean"
+        },
+        "writeText": {
+          "description": "Enables the clipboard's `writeText` API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "DebConfig": {
       "description": "Configuration for Debian (.deb) bundles.",
       "type": "object",
@@ -809,13 +919,28 @@
           "default": false,
           "type": "boolean"
         },
+        "ask": {
+          "description": "Allows the API to show a dialog window with Yes/No buttons.",
+          "default": false,
+          "type": "boolean"
+        },
+        "confirm": {
+          "description": "Allows the API to show a dialog window with Ok/Cancel buttons.",
+          "default": false,
+          "type": "boolean"
+        },
+        "message": {
+          "description": "Allows the API to show a message dialog window.",
+          "default": false,
+          "type": "boolean"
+        },
         "open": {
-          "description": "Open dialog window to pick files.",
+          "description": "Allows the API to open a dialog window to pick files.",
           "default": false,
           "type": "boolean"
         },
         "save": {
-          "description": "Open dialog window to pick where to save files.",
+          "description": "Allows the API to open a dialog window to pick where to save files.",
           "default": false,
           "type": "boolean"
         }
@@ -1051,6 +1176,28 @@
       "type": "object",
       "additionalProperties": true
     },
+    "ProcessAllowlistConfig": {
+      "description": "Allowlist for the process APIs.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all process APIs.",
+          "default": false,
+          "type": "boolean"
+        },
+        "exit": {
+          "description": "Enables the exit API.",
+          "default": false,
+          "type": "boolean"
+        },
+        "relaunch": {
+          "description": "Enables the relaunch API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "ProtocolAllowlistConfig": {
       "description": "Allowlist for the custom protocols.",
       "type": "object",
@@ -1149,8 +1296,16 @@
           "description": "The allowlist configuration.",
           "default": {
             "all": false,
+            "clipboard": {
+              "all": false,
+              "readText": false,
+              "writeText": false
+            },
             "dialog": {
               "all": false,
+              "ask": false,
+              "confirm": false,
+              "message": false,
               "open": false,
               "save": false
             },
@@ -1186,6 +1341,11 @@
             "path": {
               "all": false
             },
+            "process": {
+              "all": false,
+              "exit": false,
+              "relaunch": false
+            },
             "protocol": {
               "all": false,
               "asset": false,
@@ -1200,7 +1360,30 @@
             },
             "window": {
               "all": false,
-              "create": false
+              "center": false,
+              "close": false,
+              "create": false,
+              "hide": false,
+              "maximize": false,
+              "minimize": false,
+              "print": false,
+              "requestUserAttention": false,
+              "setAlwaysOnTop": false,
+              "setDecorations": false,
+              "setFocus": false,
+              "setFullscreen": false,
+              "setIcon": false,
+              "setMaxSize": false,
+              "setMinSize": false,
+              "setPosition": false,
+              "setResizable": false,
+              "setSize": false,
+              "setSkipTaskbar": false,
+              "setTitle": false,
+              "show": false,
+              "startDragging": false,
+              "unmaximize": false,
+              "unminimize": false
             }
           },
           "allOf": [
@@ -1356,8 +1539,123 @@
           "default": false,
           "type": "boolean"
         },
+        "center": {
+          "description": "Allows centering the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "close": {
+          "description": "Allows closing the window.",
+          "default": false,
+          "type": "boolean"
+        },
         "create": {
           "description": "Allows dynamic window creation.",
+          "default": false,
+          "type": "boolean"
+        },
+        "hide": {
+          "description": "Allows hiding the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "maximize": {
+          "description": "Allows maximizing the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "minimize": {
+          "description": "Allows minimizing the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "print": {
+          "description": "Allows opening the system dialog to print the window content.",
+          "default": false,
+          "type": "boolean"
+        },
+        "requestUserAttention": {
+          "description": "Allows requesting user attention on the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setAlwaysOnTop": {
+          "description": "Allows setting the always_on_top flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setDecorations": {
+          "description": "Allows setting the decorations flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setFocus": {
+          "description": "Allows focusing the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setFullscreen": {
+          "description": "Allows setting the fullscreen flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setIcon": {
+          "description": "Allows changing the window icon.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMaxSize": {
+          "description": "Allows setting the window maximum size.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setMinSize": {
+          "description": "Allows setting the window minimum size.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setPosition": {
+          "description": "Allows changing the position of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setResizable": {
+          "description": "Allows setting the resizable flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setSize": {
+          "description": "Allows setting the window size.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setSkipTaskbar": {
+          "description": "Allows setting the skip_taskbar flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setTitle": {
+          "description": "Allows changing the window title.",
+          "default": false,
+          "type": "boolean"
+        },
+        "show": {
+          "description": "Allows showing the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "startDragging": {
+          "description": "Allows start dragging on the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "unmaximize": {
+          "description": "Allows unmaximizing the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "unminimize": {
+          "description": "Allows unminimizing the window.",
           "default": false,
           "type": "boolean"
         }

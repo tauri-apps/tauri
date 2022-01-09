@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::process::exit;
-
 use super::InvokeResponse;
-use crate::{api::process::restart, Manager, Runtime, Window};
+#[cfg(process_relaunch)]
+use crate::Manager;
+use crate::{Runtime, Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -20,18 +20,30 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[allow(unused_variables)]
   pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
     match self {
+      #[cfg(process_relaunch)]
       Self::Relaunch => Ok({
-        restart(&window.state());
+        crate::api::process::restart(&window.state());
         ().into()
       }),
+      #[cfg(not(process_relaunch))]
+      Self::Relaunch => Err(crate::Error::ApiNotAllowlisted(
+        "process > relaunch".to_string(),
+      )),
+
+      #[cfg(process_exit)]
       Self::Exit { exit_code } => {
         // would be great if we can have a handler inside tauri
         // who close all window and emit an event that user can catch
         // if they want to process something before closing the app
-        exit(exit_code);
+        std::process::exit(exit_code);
       }
+      #[cfg(not(process_exit))]
+      Self::Exit { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "process > exit".to_string(),
+      )),
     }
   }
 }

@@ -680,6 +680,75 @@ pub struct WindowAllowlistConfig {
   /// Allows dynamic window creation.
   #[serde(default)]
   pub create: bool,
+  /// Allows centering the window.
+  #[serde(default)]
+  pub center: bool,
+  /// Allows requesting user attention on the window.
+  #[serde(default)]
+  pub request_user_attention: bool,
+  /// Allows setting the resizable flag of the window.
+  #[serde(default)]
+  pub set_resizable: bool,
+  /// Allows changing the window title.
+  #[serde(default)]
+  pub set_title: bool,
+  /// Allows maximizing the window.
+  #[serde(default)]
+  pub maximize: bool,
+  /// Allows unmaximizing the window.
+  #[serde(default)]
+  pub unmaximize: bool,
+  /// Allows minimizing the window.
+  #[serde(default)]
+  pub minimize: bool,
+  /// Allows unminimizing the window.
+  #[serde(default)]
+  pub unminimize: bool,
+  /// Allows showing the window.
+  #[serde(default)]
+  pub show: bool,
+  /// Allows hiding the window.
+  #[serde(default)]
+  pub hide: bool,
+  /// Allows closing the window.
+  #[serde(default)]
+  pub close: bool,
+  /// Allows setting the decorations flag of the window.
+  #[serde(default)]
+  pub set_decorations: bool,
+  /// Allows setting the always_on_top flag of the window.
+  #[serde(default)]
+  pub set_always_on_top: bool,
+  /// Allows setting the window size.
+  #[serde(default)]
+  pub set_size: bool,
+  /// Allows setting the window minimum size.
+  #[serde(default)]
+  pub set_min_size: bool,
+  /// Allows setting the window maximum size.
+  #[serde(default)]
+  pub set_max_size: bool,
+  /// Allows changing the position of the window.
+  #[serde(default)]
+  pub set_position: bool,
+  /// Allows setting the fullscreen flag of the window.
+  #[serde(default)]
+  pub set_fullscreen: bool,
+  /// Allows focusing the window.
+  #[serde(default)]
+  pub set_focus: bool,
+  /// Allows changing the window icon.
+  #[serde(default)]
+  pub set_icon: bool,
+  /// Allows setting the skip_taskbar flag of the window.
+  #[serde(default)]
+  pub set_skip_taskbar: bool,
+  /// Allows start dragging on the window.
+  #[serde(default)]
+  pub start_dragging: bool,
+  /// Allows opening the system dialog to print the window content.
+  #[serde(default)]
+  pub print: bool,
 }
 
 impl Allowlist for WindowAllowlistConfig {
@@ -687,6 +756,29 @@ impl Allowlist for WindowAllowlistConfig {
     let allowlist = Self {
       all: false,
       create: true,
+      center: true,
+      request_user_attention: true,
+      set_resizable: true,
+      set_title: true,
+      maximize: true,
+      unmaximize: true,
+      minimize: true,
+      unminimize: true,
+      show: true,
+      hide: true,
+      close: true,
+      set_decorations: true,
+      set_always_on_top: true,
+      set_size: true,
+      set_min_size: true,
+      set_max_size: true,
+      set_position: true,
+      set_fullscreen: true,
+      set_focus: true,
+      set_icon: true,
+      set_skip_taskbar: true,
+      start_dragging: true,
+      print: true,
     };
     let mut features = allowlist.to_features();
     features.push("window-all");
@@ -699,6 +791,39 @@ impl Allowlist for WindowAllowlistConfig {
     } else {
       let mut features = Vec::new();
       check_feature!(self, features, create, "window-create");
+      check_feature!(self, features, center, "window-center");
+      check_feature!(
+        self,
+        features,
+        request_user_attention,
+        "window-request-user-attention"
+      );
+      check_feature!(self, features, set_resizable, "window-set-resizable");
+      check_feature!(self, features, set_title, "window-set-title");
+      check_feature!(self, features, maximize, "window-maximize");
+      check_feature!(self, features, unmaximize, "window-unmaximize");
+      check_feature!(self, features, minimize, "window-minimize");
+      check_feature!(self, features, unminimize, "window-unminimize");
+      check_feature!(self, features, show, "window-show");
+      check_feature!(self, features, hide, "window-hide");
+      check_feature!(self, features, close, "window-close");
+      check_feature!(self, features, set_decorations, "window-set-decorations");
+      check_feature!(
+        self,
+        features,
+        set_always_on_top,
+        "window-set-always-on-top"
+      );
+      check_feature!(self, features, set_size, "window-set-size");
+      check_feature!(self, features, set_min_size, "window-set-min-size");
+      check_feature!(self, features, set_max_size, "window-set-max-size");
+      check_feature!(self, features, set_position, "window-set-position");
+      check_feature!(self, features, set_fullscreen, "window-set-fullscreen");
+      check_feature!(self, features, set_focus, "window-set-focus");
+      check_feature!(self, features, set_icon, "window-set-icon");
+      check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
+      check_feature!(self, features, start_dragging, "window-start-dragging");
+      check_feature!(self, features, print, "window-print");
       features
     }
   }
@@ -752,12 +877,21 @@ pub struct DialogAllowlistConfig {
   /// Use this flag to enable all dialog API features.
   #[serde(default)]
   pub all: bool,
-  /// Open dialog window to pick files.
+  /// Allows the API to open a dialog window to pick files.
   #[serde(default)]
   pub open: bool,
-  /// Open dialog window to pick where to save files.
+  /// Allows the API to open a dialog window to pick where to save files.
   #[serde(default)]
   pub save: bool,
+  /// Allows the API to show a message dialog window.
+  #[serde(default)]
+  pub message: bool,
+  /// Allows the API to show a dialog window with Yes/No buttons.
+  #[serde(default)]
+  pub ask: bool,
+  /// Allows the API to show a dialog window with Ok/Cancel buttons.
+  #[serde(default)]
+  pub confirm: bool,
 }
 
 impl Allowlist for DialogAllowlistConfig {
@@ -766,6 +900,9 @@ impl Allowlist for DialogAllowlistConfig {
       all: false,
       open: true,
       save: true,
+      message: true,
+      ask: true,
+      confirm: true,
     };
     let mut features = allowlist.to_features();
     features.push("dialog-all");
@@ -779,6 +916,9 @@ impl Allowlist for DialogAllowlistConfig {
       let mut features = Vec::new();
       check_feature!(self, features, open, "dialog-open");
       check_feature!(self, features, save, "dialog-save");
+      check_feature!(self, features, message, "dialog-message");
+      check_feature!(self, features, ask, "dialog-ask");
+      check_feature!(self, features, confirm, "dialog-confirm");
       features
     }
   }
@@ -965,6 +1105,86 @@ impl Allowlist for ProtocolAllowlistConfig {
   }
 }
 
+/// Allowlist for the process APIs.
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProcessAllowlistConfig {
+  /// Use this flag to enable all process APIs.
+  #[serde(default)]
+  pub all: bool,
+  /// Enables the relaunch API.
+  #[serde(default)]
+  pub relaunch: bool,
+  /// Enables the exit API.
+  #[serde(default)]
+  pub exit: bool,
+}
+
+impl Allowlist for ProcessAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      relaunch: true,
+      exit: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("process-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["process-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, relaunch, "process-relaunch");
+      check_feature!(self, features, exit, "process-exit");
+      features
+    }
+  }
+}
+
+/// Allowlist for the clipboard APIs.
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClipboardAllowlistConfig {
+  /// Use this flag to enable all clipboard APIs.
+  #[serde(default)]
+  pub all: bool,
+  /// Enables the clipboard's `writeText` API.
+  #[serde(default)]
+  pub write_text: bool,
+  /// Enables the clipboard's `readText` API.
+  #[serde(default)]
+  pub read_text: bool,
+}
+
+impl Allowlist for ClipboardAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      write_text: true,
+      read_text: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("clipboard-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["clipboard-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, write_text, "clipboard-write-text");
+      check_feature!(self, features, read_text, "clipboard-read-text");
+      features
+    }
+  }
+}
+
 /// Allowlist configuration.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1003,6 +1223,12 @@ pub struct AllowlistConfig {
   /// Custom protocol allowlist.
   #[serde(default)]
   pub protocol: ProtocolAllowlistConfig,
+  /// Process API allowlist.
+  #[serde(default)]
+  pub process: ProcessAllowlistConfig,
+  /// Clipboard APIs allowlist.
+  #[serde(default)]
+  pub clipboard: ClipboardAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -1018,6 +1244,8 @@ impl Allowlist for AllowlistConfig {
     features.extend(OsAllowlistConfig::all_features());
     features.extend(PathAllowlistConfig::all_features());
     features.extend(ProtocolAllowlistConfig::all_features());
+    features.extend(ProcessAllowlistConfig::all_features());
+    features.extend(ClipboardAllowlistConfig::all_features());
     features
   }
 

@@ -27,6 +27,27 @@ fn main() {
     // window
     window_all: { any(api_all, feature = "window-all") },
     window_create: { any(window_all, feature = "window-create") },
+    window_center: { any(window_all, feature = "window-center") },
+    window_request_user_attention: { any(window_all, feature = "window-request-user-attention") },
+    window_set_resizable: { any(window_all, feature = "window-set-resizable") },
+    window_set_title: { any(window_all, feature = "window-set-title") },
+    window_maximize: { any(window_all, feature = "window-maximize") },
+    window_unmaximize: { any(window_all, feature = "window-unmaximize") },
+    window_show: { any(window_all, feature = "window-show") },
+    window_hide: { any(window_all, feature = "window-hide") },
+    window_close: { any(window_all, feature = "window-close") },
+    window_set_decorations: { any(window_all, feature = "window-set-decorations") },
+    window_set_always_on_top: { any(window_all, feature = "window-set-always-on-top") },
+    window_set_size: { any(window_all, feature = "window-set-size") },
+    window_set_min_size: { any(window_all, feature = "window-set-min-size") },
+    window_set_max_size: { any(window_all, feature = "window-set-max-size") },
+    window_set_position: { any(window_all, feature = "window-set-position") },
+    window_set_fullscreen: { any(window_all, feature = "window-set-fullscreen") },
+    window_set_focus: { any(window_all, feature = "window-set-focus") },
+    window_set_icon: { any(window_all, feature = "window-set-icon") },
+    window_set_skip_taskbar: { any(window_all, feature = "window-set-skip-taskbar") },
+    window_start_dragging: { any(window_all, feature = "window-start-dragging") },
+    window_print: { any(window_all, feature = "window-print") },
 
     // shell
     shell_all: { any(api_all, feature = "shell-all") },
@@ -37,6 +58,9 @@ fn main() {
     dialog_all: { any(api_all, feature = "dialog-all") },
     dialog_open: { any(dialog_all, feature = "dialog-open") },
     dialog_save: { any(dialog_all, feature = "dialog-save") },
+    dialog_message: { any(dialog_all, feature = "dialog-message") },
+    dialog_ask: { any(dialog_all, feature = "dialog-ask") },
+    dialog_confirm: { any(dialog_all, feature = "dialog-confirm") },
 
     // http
     http_all: { any(api_all, feature = "http-all") },
@@ -60,5 +84,15 @@ fn main() {
     // protocol
     protocol_all: { any(api_all, feature = "protocol-all") },
     protocol_asset: { any(protocol_all, feature = "protocol-asset") },
+
+    // process
+    process_all: { any(api_all, feature = "process-all") },
+    process_relaunch: { any(protocol_all, feature = "process-relaunch") },
+    process_exit: { any(protocol_all, feature = "process-exit") },
+
+    // clipboard
+    clipboard_all: { any(api_all, feature = "clipboard-all") },
+    clipboard_write_text: { any(protocol_all, feature = "clipboard-write-text") },
+    clipboard_read_text: { any(protocol_all, feature = "clipboard-read-text") },
   }
 }

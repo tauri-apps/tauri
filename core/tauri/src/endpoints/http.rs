@@ -4,19 +4,22 @@
 
 use super::InvokeResponse;
 
-use crate::api::http::{Client, ClientBuilder, HttpRequestBuilder};
-use once_cell::sync::Lazy;
+use crate::api::http::{ClientBuilder, HttpRequestBuilder};
 use serde::Deserialize;
 
+#[cfg(http_request)]
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
 };
 
 type ClientId = u32;
-type ClientStore = Arc<Mutex<HashMap<ClientId, Client>>>;
+#[cfg(http_request)]
+type ClientStore = Arc<Mutex<HashMap<ClientId, crate::api::http::Client>>>;
 
+#[cfg(http_request)]
 fn clients() -> &'static ClientStore {
+  use once_cell::sync::Lazy;
   static STORE: Lazy<ClientStore> = Lazy::new(Default::default);
   &STORE
 }
@@ -39,6 +42,7 @@ pub enum Cmd {
 impl Cmd {
   pub async fn run(self) -> crate::Result<InvokeResponse> {
     match self {
+      #[cfg(http_request)]
       Self::CreateClient { options } => {
         let client = options.unwrap_or_default().build()?;
         let mut store = clients().lock().unwrap();
@@ -46,11 +50,22 @@ impl Cmd {
         store.insert(id, client);
         Ok(InvokeResponse::from(id))
       }
+      #[cfg(not(http_request))]
+      Self::CreateClient { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "http > request".to_string(),
+      )),
+
+      #[cfg(http_request)]
       Self::DropClient { client } => {
         let mut store = clients().lock().unwrap();
         store.remove(&client);
         Ok(().into())
       }
+      #[cfg(not(http_request))]
+      Self::DropClient { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "http > request".to_string(),
+      )),
+
       #[cfg(http_request)]
       Self::HttpRequest { client, options } => {
         return make_request(client, *options).await.map(Into::into);

@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeResponse;
-use crate::{
-  runtime::{ClipboardManager, Runtime},
-  window::Window,
-};
+#[cfg(any(clipboard_write_text, clipboard_read_text))]
+use crate::runtime::ClipboardManager;
+use crate::{runtime::Runtime, window::Window};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -20,11 +19,28 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  #[allow(unused_variables)]
   pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    let mut clipboard = window.app_handle.clipboard_manager();
     match self {
-      Self::WriteText(text) => Ok(clipboard.write_text(text)?.into()),
-      Self::ReadText => Ok(clipboard.read_text()?.into()),
+      #[cfg(clipboard_write_text)]
+      Self::WriteText(text) => Ok(
+        window
+          .app_handle
+          .clipboard_manager()
+          .write_text(text)?
+          .into(),
+      ),
+      #[cfg(not(clipboard_write_text))]
+      Self::WriteText(_) => Err(crate::Error::ApiNotAllowlisted(
+        "clipboard > readText".to_string(),
+      )),
+
+      #[cfg(clipboard_read_text)]
+      Self::ReadText => Ok(window.app_handle.clipboard_manager().read_text()?.into()),
+      #[cfg(not(clipboard_read_text))]
+      Self::ReadText => Err(crate::Error::ApiNotAllowlisted(
+        "clipboard > writeText".to_string(),
+      )),
     }
   }
 }

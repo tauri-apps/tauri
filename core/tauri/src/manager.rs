@@ -34,8 +34,6 @@ use crate::{runtime::menu::Menu, MenuEvent};
 use regex::{Captures, Regex};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
-#[cfg(protocol_asset)]
-use std::io::SeekFrom;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
@@ -44,16 +42,10 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
-#[cfg(protocol_asset)]
-use tauri_runtime::http::HttpRange;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
   html::{CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
-#[cfg(protocol_asset)]
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
-#[cfg(protocol_asset)]
-use url::Position;
 use url::Url;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -369,6 +361,8 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(protocol_asset)]
     if !registered_scheme_protocols.contains(&"asset".into()) {
+      use tokio::io::{AsyncReadExt, AsyncSeekExt};
+      use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       let window_url = Url::parse(&pending.url).unwrap();
       let window_origin =
@@ -419,7 +413,8 @@ impl<R: Runtime> WindowManager<R> {
             // Get the file size
             let file_size = file.metadata().await.unwrap().len();
             // parse the range
-            let range = HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
+            let range =
+              crate::runtime::http::HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
 
             // FIXME: Support multiple ranges
             // let support only 1 range for now
@@ -448,7 +443,10 @@ impl<R: Runtime> WindowManager<R> {
                 format!("bytes {}-{}/{}", range.start, last_byte, file_size),
               );
 
-              file.seek(SeekFrom::Start(range.start)).await.unwrap();
+              file
+                .seek(std::io::SeekFrom::Start(range.start))
+                .await
+                .unwrap();
               file.take(real_length).read_to_end(&mut buf).await.unwrap();
             }
 

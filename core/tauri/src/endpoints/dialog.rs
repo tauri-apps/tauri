@@ -5,14 +5,12 @@
 use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::api::dialog::FileDialogBuilder;
-use crate::{
-  api::dialog::{ask as ask_dialog, confirm as confirm_dialog, message as message_dialog},
-  runtime::Runtime,
-  Window,
-};
+use crate::{runtime::Runtime, Window};
 use serde::Deserialize;
 
-use std::{path::PathBuf, sync::mpsc::channel};
+use std::path::PathBuf;
+#[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
+use std::sync::mpsc::channel;
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -90,31 +88,50 @@ impl Cmd {
       #[cfg(not(dialog_save))]
       Self::SaveDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > save".to_string())),
 
+      #[cfg(dialog_message)]
       Self::MessageDialog { message } => {
         let exe = std::env::current_exe()?;
-        message_dialog(
+        crate::api::dialog::message(
           Some(&window),
           &window.app_handle.package_info().name,
           message,
         );
         Ok(().into())
       }
+      #[cfg(not(dialog_message))]
+      Self::MessageDialog { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "dialog > message".to_string(),
+      )),
+
+      #[cfg(dialog_ask)]
       Self::AskDialog { title, message } => {
-        let answer = ask(
-          &window,
+        let (tx, rx) = channel();
+        crate::api::dialog::ask(
+          Some(&window),
           title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
           message,
-        )?;
-        Ok(answer)
+          move |m| tx.send(m).unwrap(),
+        );
+        Ok(rx.recv().unwrap().into())
       }
+      #[cfg(not(dialog_ask))]
+      Self::AskDialog { .. } => Err(crate::Error::ApiNotAllowlisted("dialog > ask".to_string())),
+
+      #[cfg(dialog_confirm)]
       Self::ConfirmDialog { title, message } => {
-        let answer = confirm(
-          &window,
+        let (tx, rx) = channel();
+        crate::api::dialog::confirm(
+          Some(&window),
           title.unwrap_or_else(|| window.app_handle.package_info().name.clone()),
           message,
-        )?;
-        Ok(answer)
+          move |m| tx.send(m).unwrap(),
+        );
+        Ok(rx.recv().unwrap().into())
       }
+      #[cfg(not(dialog_confirm))]
+      Self::ConfirmDialog { .. } => Err(crate::Error::ApiNotAllowlisted(
+        "dialog > confirm".to_string(),
+      )),
     }
   }
 }
@@ -191,27 +208,5 @@ pub fn save<R: Runtime>(
   }
   let (tx, rx) = channel();
   dialog_builder.save_file(move |p| tx.send(p).unwrap());
-  Ok(rx.recv().unwrap().into())
-}
-
-/// Shows a dialog with a yes/no question.
-pub fn ask<R: Runtime>(
-  window: &Window<R>,
-  title: String,
-  message: String,
-) -> crate::Result<InvokeResponse> {
-  let (tx, rx) = channel();
-  ask_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
-  Ok(rx.recv().unwrap().into())
-}
-
-/// Shows a dialog with a ok/cancel message.
-pub fn confirm<R: Runtime>(
-  window: &Window<R>,
-  title: String,
-  message: String,
-) -> crate::Result<InvokeResponse> {
-  let (tx, rx) = channel();
-  confirm_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
   Ok(rx.recv().unwrap().into())
 }

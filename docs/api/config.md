@@ -220,6 +220,29 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
         property: "window", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.window" rows={[
           { property: "all", type: "boolean", description: `Use this flag to enable all window API features.` },
           { property: "create", optional: true, type: "boolean", description: `Allows dynamic window creation.` },
+          { property: "center", optional: true, type: "boolean", description: `Allows centering the window.` },
+          { property: "requestUserAttention", optional: true, type: "boolean", description: `Allows requesting user attention on the window.` },
+          { property: "setResizable", optional: true, type: "boolean", description: `Allows setting the resizable flag of the window.` },
+          { property: "setTitle", optional: true, type: "boolean", description: `Allows changing the window title.` },
+          { property: "maximize", optional: true, type: "boolean", description: `Allows maximizing the window.` },
+          { property: "unmaximize", optional: true, type: "boolean", description: `Allows unmaximizing the window.` },
+          { property: "minimize", optional: true, type: "boolean", description: `Allows minimizing the window.` },
+          { property: "unminimize", optional: true, type: "boolean", description: `Allows unminimizing the window.` },
+          { property: "show", optional: true, type: "boolean", description: `Allows showing the window.` },
+          { property: "hide", optional: true, type: "boolean", description: `Allows hiding the window.` },
+          { property: "close", optional: true, type: "boolean", description: `Allows closing the window.` },
+          { property: "setDecorations", optional: true, type: "boolean", description: `Allows setting the decorations flag of the window.` },
+          { property: "setAlwaysOnTop", optional: true, type: "boolean", description: `Allows setting the always_on_top flag of the window.` },
+          { property: "setSize", optional: true, type: "boolean", description: `Allows setting the window size.` },
+          { property: "setMinSize", optional: true, type: "boolean", description: `Allows setting the window minimum size.` },
+          { property: "setMaxSize", optional: true, type: "boolean", description: `Allows setting the window maximum size.` },
+          { property: "setPosition", optional: true, type: "boolean", description: `Allows changing the position of the window.` },
+          { property: "setFullscreen", optional: true, type: "boolean", description: `Allows setting the fullscreen flag of the window.` },
+          { property: "setFocus", optional: true, type: "boolean", description: `Allows focusing the window.` },
+          { property: "setIcon", optional: true, type: "boolean", description: `Allows changing the window icon.` },
+          { property: "setSkipTaskbar", optional: true, type: "boolean", description: `Allows setting the skip_taskbar flag of the window.` },
+          { property: "startDragging", optional: true, type: "boolean", description: `Allows start dragging on the window.` },
+          { property: "print", optional: true, type: "boolean", description: `Allows opening the system dialog to print the window content.` },
         ]}/>
       },
       {
@@ -267,6 +290,20 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
           { property: "assetScope", type: "string[]", description: `A list of glob patterns describing the paths the asset protocol is allowed to access. Each pattern can start with a variable that resolves to a system base directory. The variables are: \`$AUDIO\`, \`$CACHE\`, \`$CONFIG\`, \`$DATA\`, \`$LOCALDATA\`, \`$DESKTOP\`, \`$DOCUMENT\`, \`$DOWNLOAD\`, \`$EXE\`, \`$FONT\`, \`$HOME\`, \`$PICTURE\`, \`$PUBLIC\`, \`$RUNTIME\`, \`$TEMPLATE\`, \`$VIDEO\`, \`$RESOURCE\`, \`$APP\`, \`$CWD\`.` },
           { property: "all", type: "boolean", description: `Use this flag to enable all custom protocols.` },
           { property: "asset", optional: true, type: "boolean", description: `Enables the `asset` custom protocol, used to access files with streaming support.` },
+        ]}/>
+      },
+      {
+        property: "process", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.process" rows={[
+          { property: "all", type: "boolean", description: `Use this flag to enable all process APIs.` },
+          { property: "relaunch", optional: true, type: "boolean", description: `Enables the relaunch API.` },
+          { property: "exit", optional: true, type: "boolean", description: `Enables the exit API.` },
+        ]}/>
+      },
+      {
+        property: "clipboard", optional: true, type: "object", child: <Properties anchorRoot="tauri.allowlist.clipboard" rows={[
+          { property: "all", type: "boolean", description: `Use this flag to enable all clipboard APIs.` },
+          { property: "writeText", optional: true, type: "boolean", description: `Enables the writeText API.` },
+          { property: "readText", optional: true, type: "boolean", description: `Enables the readText API.` },
         ]}/>
       },
     ]} />

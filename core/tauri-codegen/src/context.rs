@@ -26,8 +26,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let mut options = AssetOptions::new();
-  if let Some(csp) = &config.tauri.security.csp {
-    options = options.csp(csp.clone());
+  let csp = if dev {
+    config
+      .tauri
+      .security
+      .dev_csp
+      .clone()
+      .or_else(|| config.tauri.security.csp.clone())
+  } else {
+    config.tauri.security.csp.clone()
+  };
+  if csp.is_some() {
+    options = options.with_csp();
   }
 
   let app_url = if dev {
@@ -54,12 +64,15 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(&assets_path, options)?
+        EmbeddedAssets::new(assets_path, options)?
       }
       _ => unimplemented!(),
     },
-    AppUrl::Files(files) => EmbeddedAssets::load_paths(
-      files.iter().map(|p| config_parent.join(p)).collect(),
+    AppUrl::Files(files) => EmbeddedAssets::new(
+      files
+        .iter()
+        .map(|p| config_parent.join(p))
+        .collect::<Vec<_>>(),
       options,
     )?,
     _ => unimplemented!(),
@@ -121,9 +134,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         Some(
           #root::Icon::File(
             #root::api::path::resolve_path(
-              &#config, &#package_info,
-             #system_tray_icon_file_path,
-             Some(#root::api::path::BaseDirectory::Resource)
+              &#config,
+              &#package_info,
+              &Default::default(),
+              #system_tray_icon_file_path,
+              Some(#root::api::path::BaseDirectory::Resource)
             ).expect("failed to resolve resource dir")
           )
         )

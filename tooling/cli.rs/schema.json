@@ -1009,7 +1009,14 @@
       "type": "object",
       "properties": {
         "csp": {
-          "description": "The Content Security Policy that will be injected on all HTML files.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
+          "description": "The Content Security Policy that will be injected on all HTML files on the built application. If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "devCsp": {
+          "description": "The Content Security Policy that will be injected on all HTML files on development.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.",
           "type": [
             "string",
             "null"

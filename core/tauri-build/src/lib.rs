@@ -131,18 +131,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
     }
-  } else if let Some(tauri) = tauri_item.as_value_mut() {
-    match tauri {
-      Value::InlineTable(table) => {
-        if let Some(Value::Array(f)) = table.get("features") {
-          for feat in f.iter() {
-            if let Value::String(feature) = feat {
-              features.push(feature.value().to_string());
-            }
-          }
+  } else if let Some(Value::InlineTable(table)) = tauri_item.as_value_mut() {
+    if let Some(Value::Array(f)) = table.get("features") {
+      for feat in f.iter() {
+        if let Value::String(feature) = feat {
+          features.push(feature.value().to_string());
         }
       }
-      _ => {}
     }
   }
 

@@ -295,7 +295,11 @@ In addition to the JSON defined on the `tauri.conf.json` file, Tauri reads a pla
   {
     property: "security", type: "object",
     child: <Properties anchorRoot="tauri.security" rows={[
-      { property: "csp", optional: true, type: "string", description: `The Content Security Policy.
+      { property: "csp", optional: true, type: "string", description: `The Content Security Policy used on production. Also used on dev if `devCsp` is not set.
+      <div class="alert alert--warning" role="alert" style="margin-top: 10px;">
+  This is a really important part of the configuration since it helps you ensure your WebView is secured. See more <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP" target="_blank">on Mozilla</a>.
+</div>` },
+      { property: "devCsp", optional: true, type: "string", description: `The Content Security Policy used development.
       <div class="alert alert--warning" role="alert" style="margin-top: 10px;">
   This is a really important part of the configuration since it helps you ensure your WebView is secured. See more <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP" target="_blank">on Mozilla</a>.
 </div>` },

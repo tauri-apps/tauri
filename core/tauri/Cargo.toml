@@ -74,6 +74,7 @@ minisign-verify = { version = "0.2", optional = true }
 os_info = { version = "3.0.9", optional = true }
 futures-lite = "1.12"
 epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
+regex = "1.5"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.14", features = [ "v3_20" ] }
@@ -165,10 +166,6 @@ path = "../../examples/splashscreen/src-tauri/src/main.rs"
 [[example]]
 name = "state"
 path = "../../examples/state/src-tauri/src/main.rs"
-
-[[example]]
-name = "resources"
-path = "../../examples/resources/src-tauri/src/main.rs"
 
 [[example]]
 name = "streaming"

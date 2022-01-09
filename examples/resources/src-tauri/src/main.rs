@@ -7,12 +7,6 @@
   windows_subsystem = "windows"
 )]
 
-#[cfg(not(any(feature = "api-all", feature = "shell-all", feature = "shell-execute")))]
-fn main() {
-  eprintln!("Not supported without `api-all`, `shell-all` and `shell-execute`")
-}
-
-#[cfg(any(feature = "api-all", feature = "shell-all", feature = "shell-execute"))]
 fn main() {
   use tauri::{
     api::{
@@ -21,7 +15,7 @@ fn main() {
     },
     Manager,
   };
-  let context = tauri::generate_context!("../../examples/resources/src-tauri/tauri.conf.json");
+  let context = tauri::generate_context!();
   let script_path = resolve_path(
     context.config(),
     context.package_info(),

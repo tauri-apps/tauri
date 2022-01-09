@@ -538,11 +538,17 @@ fn default_file_drop_enabled() -> bool {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
-  /// The Content Security Policy that will be injected on all HTML files.
+  /// The Content Security Policy that will be injected on all HTML files on the built application.
+  /// If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.
   pub csp: Option<String>,
+  /// The Content Security Policy that will be injected on all HTML files on development.
+  ///
+  /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
+  /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.
+  pub dev_csp: Option<String>,
 }
 
 /// Defines an allowlist type.
@@ -924,7 +930,7 @@ impl TauriConfig {
     if self.system_tray.is_some() {
       features.push("system-tray");
     }
-    features.sort();
+    features.sort_unstable();
     features
   }
 }
@@ -1182,6 +1188,8 @@ mod build {
   use quote::{quote, ToTokens, TokenStreamExt};
 
   use super::*;
+
+  use serde_json::Value as JsonValue;
 
   /// Create a `String` constructor `TokenStream`.
   ///
@@ -1584,8 +1592,9 @@ mod build {
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_str_lit(self.csp.as_ref());
+      let dev_csp = opt_str_lit(self.dev_csp.as_ref());
 
-      literal_struct!(tokens, SecurityConfig, csp);
+      literal_struct!(tokens, SecurityConfig, csp, dev_csp);
     }
   }
 
@@ -1726,7 +1735,10 @@ mod test {
         pubkey: None,
         endpoints: None,
       },
-      security: SecurityConfig { csp: None },
+      security: SecurityConfig {
+        csp: None,
+        dev_csp: None,
+      },
       allowlist: AllowlistConfig::default(),
       system_tray: None,
     };

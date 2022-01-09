@@ -31,6 +31,7 @@ use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 
 use crate::{runtime::menu::Menu, MenuEvent};
 
+use regex::{Captures, Regex};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::{
@@ -42,6 +43,10 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 use tauri_macros::default_runtime;
+use tauri_utils::{
+  assets::{AssetKey, CspHash},
+  html::{CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use url::{Position, Url};
 
@@ -53,6 +58,57 @@ const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const MENU_EVENT: &str = "tauri://menu";
+
+#[derive(Default)]
+/// Spaced and quoted Content-Security-Policy hash values.
+struct CspHashStrings {
+  script: String,
+  style: String,
+}
+
+fn replace_csp_nonce(
+  asset: &mut String,
+  token: &str,
+  csp: &mut String,
+  csp_attr: &str,
+  hashes: String,
+) {
+  let regex = Regex::new(token).unwrap();
+  let mut nonces = Vec::new();
+  *asset = regex
+    .replace_all(asset, |_: &Captures<'_>| {
+      let nonce = rand::random::<usize>();
+      nonces.push(nonce);
+      nonce.to_string()
+    })
+    .to_string();
+
+  if !(nonces.is_empty() && hashes.is_empty()) {
+    let attr = format!(
+      "{} 'self'{}{}",
+      csp_attr,
+      if nonces.is_empty() {
+        "".into()
+      } else {
+        format!(
+          " {}",
+          nonces
+            .into_iter()
+            .map(|n| format!("'nonce-{}'", n))
+            .collect::<Vec<String>>()
+            .join(" ")
+        )
+      },
+      hashes
+    );
+    if csp.contains(csp_attr) {
+      *csp = csp.replace(csp_attr, &attr);
+    } else {
+      csp.push_str("; ");
+      csp.push_str(&attr);
+    }
+  }
+}
 
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
@@ -105,6 +161,8 @@ pub struct Asset {
   pub bytes: Vec<u8>,
   /// The asset's mime type.
   pub mime_type: String,
+  /// The `Content-Security-Policy` header value.
+  pub csp_header: Option<String>,
 }
 
 /// Uses a custom URI scheme handler to resolve file requests
@@ -452,35 +510,96 @@ impl<R: Runtime> WindowManager<R> {
     let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
     let is_html = path.ends_with(".html");
 
+    let mut asset_path = AssetKey::from(path.as_str());
+
     let asset_response = assets
       .get(&path.as_str().into())
-      .or_else(|| assets.get(&format!("{}/index.html", path.as_str()).into()))
+      .or_else(|| {
+        let fallback = format!("{}/index.html", path.as_str()).into();
+        let asset = assets.get(&fallback);
+        asset_path = fallback;
+        asset
+      })
       .or_else(|| {
         #[cfg(debug_assertions)]
         eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
-        assets.get(&"index.html".into())
+        let fallback = AssetKey::from("index.html");
+        let asset = assets.get(&fallback);
+        asset_path = fallback;
+        asset
       })
       .ok_or_else(|| crate::Error::AssetNotFound(path.clone()))
       .map(Cow::into_owned);
 
+    let mut csp_header = None;
+
     match asset_response {
       Ok(asset) => {
-        let final_data = match is_javascript || is_html {
-          true => String::from_utf8_lossy(&asset)
-            .into_owned()
-            .replacen(
-              "__TAURI__INVOKE_KEY_TOKEN__",
-              &self.generate_invoke_key().to_string(),
-              1,
-            )
-            .as_bytes()
-            .to_vec(),
-          false => asset,
+        let final_data = if is_javascript || is_html {
+          let mut asset = String::from_utf8_lossy(&asset).into_owned();
+          asset = asset.replacen(INVOKE_KEY_TOKEN, &self.generate_invoke_key().to_string(), 1);
+
+          if is_html {
+            let csp = if cfg!(feature = "custom-protocol") {
+              self.inner.config.tauri.security.csp.clone()
+            } else {
+              self
+                .inner
+                .config
+                .tauri
+                .security
+                .dev_csp
+                .clone()
+                .or_else(|| self.inner.config.tauri.security.csp.clone())
+            };
+            if let Some(mut csp) = csp {
+              let hash_strings = self.inner.assets.csp_hashes(&asset_path).fold(
+                CspHashStrings::default(),
+                |mut acc, hash| {
+                  match hash {
+                    CspHash::Script(hash) => {
+                      acc.script.push(' ');
+                      acc.script.push_str(hash);
+                    }
+                    csp_hash => {
+                      #[cfg(debug_assertions)]
+                      eprintln!("Unknown CspHash variant encountered: {:?}", csp_hash)
+                    }
+                  }
+
+                  acc
+                },
+              );
+
+              replace_csp_nonce(
+                &mut asset,
+                SCRIPT_NONCE_TOKEN,
+                &mut csp,
+                "script-src",
+                hash_strings.script,
+              );
+              replace_csp_nonce(
+                &mut asset,
+                STYLE_NONCE_TOKEN,
+                &mut csp,
+                "style-src",
+                hash_strings.style,
+              );
+
+              asset = asset.replace(CSP_TOKEN, &csp);
+              csp_header.replace(csp);
+            }
+          }
+
+          asset.as_bytes().to_vec()
+        } else {
+          asset
         };
         let mime_type = MimeType::parse(&final_data, &path);
         Ok(Asset {
-          bytes: final_data,
+          bytes: final_data.to_vec(),
           mime_type,
+          csp_header,
         })
       }
       Err(e) => {
@@ -507,9 +626,11 @@ impl<R: Runtime> WindowManager<R> {
         .to_string()
         .replace("tauri://localhost", "");
       let asset = manager.get_asset(path)?;
-      HttpResponseBuilder::new()
-        .mimetype(&asset.mime_type)
-        .body(asset.bytes)
+      let mut response = HttpResponseBuilder::new().mimetype(&asset.mime_type);
+      if let Some(csp) = asset.csp_header {
+        response = response.header("Content-Security-Policy", csp);
+      }
+      response.body(asset.bytes)
     })
   }
 

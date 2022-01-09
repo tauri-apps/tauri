@@ -75,7 +75,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: asset: customprotocol: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src 'self' asset: customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com"
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

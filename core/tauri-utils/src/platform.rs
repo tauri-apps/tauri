@@ -87,7 +87,7 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
     return Ok(exe_dir.to_path_buf());
   }
 
-  #[allow(unused_mut)]
+  #[allow(unused_mut, unused_assignments)]
   let mut res = Err(crate::Error::UnsupportedPlatform);
 
   #[cfg(target_os = "linux")]

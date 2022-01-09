@@ -104,17 +104,61 @@ pub fn build() {
 /// Non-panicking [`build()`].
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
+  use anyhow::anyhow;
+  use std::fs::read_to_string;
+  use tauri_utils::config::Config;
+  use toml_edit::{Document, Item, Table, Value};
+
+  println!("cargo:rerun-if-changed=tauri.conf.json");
+  println!("cargo:rerun-if-changed=src/Cargo.toml");
+
+  let config: Config = serde_json::from_str(&read_to_string("tauri.conf.json")?)?;
+
+  let mut features = Vec::new();
+  let mut manifest: Document = read_to_string("Cargo.toml")?.parse::<Document>()?;
+  let dependencies = manifest
+    .as_table_mut()
+    .entry("dependencies")
+    .or_insert(Item::Table(Table::new()))
+    .as_table_mut()
+    .expect("manifest dependencies isn't a table");
+  let tauri_item = dependencies.entry("tauri").or_insert(Item::None);
+  if let Some(tauri) = tauri_item.as_table_mut() {
+    if let Item::Value(Value::Array(f)) = tauri.entry("features").or_insert(Item::None) {
+      for feat in f.iter() {
+        if let Value::String(feature) = feat {
+          features.push(feature.value().to_string());
+        }
+      }
+    }
+  } else if let Some(tauri) = tauri_item.as_value_mut() {
+    match tauri {
+      Value::InlineTable(table) => {
+        if let Some(Value::Array(f)) = table.get("features") {
+          for feat in f.iter() {
+            if let Value::String(feature) = feat {
+              features.push(feature.value().to_string());
+            }
+          }
+        }
+      }
+      _ => {}
+    }
+  }
+
+  features.sort();
+  let expected_features = config.tauri.features();
+  if features != expected_features {
+    return Err(anyhow!("
+      The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
+      Please run `tauri dev` or `tauri build` or set it to {:?}.
+    ", expected_features));
+  }
+
   #[cfg(windows)]
   {
-    use anyhow::{anyhow, Context};
-    use std::fs::read_to_string;
-    use tauri_utils::config::Config;
+    use anyhow::Context;
     use winres::WindowsResource;
-
-    let config: Config = serde_json::from_str(
-      &read_to_string("tauri.conf.json").expect("failed to read tauri.conf.json"),
-    )
-    .expect("failed to parse tauri.conf.json");
 
     let icon_path_string = attributes
       .windows_attributes

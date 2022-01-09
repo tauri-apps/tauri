@@ -30,6 +30,7 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.12"
 json-patch = "0.2"
+tauri-utils = { version = "1.0.0-beta.3", path = "../../core/tauri-utils" }
 schemars = { version = "0.8", features = ["url"] }
 toml = "0.5"
 valico = "3.6"
@@ -59,6 +60,7 @@ encode_unicode = "0.3"
 heck = "0.4"
 
 [build-dependencies]
+tauri-utils = { version = "1.0.0-beta.3", features = ["schema"], path = "../../core/tauri-utils" }
 schemars = { version = "0.8", features = ["url"] }
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"

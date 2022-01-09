@@ -22,6 +22,8 @@ kuchiki = "0.8"
 html5ever = "0.25"
 proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
+schemars = { version = "0.8", features = ["url"], optional = true }
+serde_with = "1.10"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
@@ -29,3 +31,4 @@ heck = "0.4"
 [features]
 build = [ "proc-macro2", "quote" ]
 compression = [ "zstd" ]
+schema = ["schemars"]

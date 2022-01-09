@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Config",
-  "description": "The tauri.conf.json mapper.",
+  "description": "The config type mapped to `tauri.conf.json`.",
   "type": "object",
   "properties": {
     "build": {
@@ -19,7 +19,10 @@
     },
     "package": {
       "description": "Package settings.",
-      "default": {},
+      "default": {
+        "productName": null,
+        "version": null
+      },
       "allOf": [
         {
           "$ref": "#/definitions/PackageConfig"
@@ -90,6 +93,8 @@
             "files": {},
             "useBootstrapper": false
           },
+          "icon": [],
+          "identifier": "",
           "macOS": {
             "useBootstrapper": false
           },
@@ -100,10 +105,31 @@
             "wix": null
           }
         },
+        "security": {},
         "updater": {
-          "active": false
+          "active": false,
+          "dialog": true
         },
-        "windows": []
+        "windows": [
+          {
+            "alwaysOnTop": false,
+            "center": false,
+            "decorations": true,
+            "fileDropEnabled": true,
+            "focus": false,
+            "fullscreen": false,
+            "height": 600.0,
+            "label": "main",
+            "maximized": false,
+            "resizable": true,
+            "skipTaskbar": false,
+            "title": "Tauri App",
+            "transparent": false,
+            "url": "index.html",
+            "visible": true,
+            "width": 800.0
+          }
+        ]
       },
       "allOf": [
         {
@@ -115,6 +141,7 @@
   "additionalProperties": false,
   "definitions": {
     "AllowlistConfig": {
+      "description": "Allowlist configuration.",
       "type": "object",
       "properties": {
         "all": {
@@ -322,7 +349,11 @@
       "additionalProperties": false
     },
     "BundleConfig": {
+      "description": "Configuration for tauri-bundler.",
       "type": "object",
+      "required": [
+        "identifier"
+      ],
       "properties": {
         "active": {
           "description": "Whether we should build your app with tauri-bundler or plain `cargo build`",
@@ -330,7 +361,7 @@
           "type": "boolean"
         },
         "category": {
-          "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
+          "description": "The application kind.",
           "type": [
             "string",
             "null"
@@ -367,20 +398,15 @@
         },
         "icon": {
           "description": "The app's icons",
-          "type": [
-            "array",
-            "null"
-          ],
+          "default": [],
+          "type": "array",
           "items": {
             "type": "string"
           }
         },
         "identifier": {
           "description": "The app's identifier",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "longDescription": {
           "description": "A longer, multi-line description of the application.",
@@ -446,20 +472,23 @@
       "additionalProperties": false
     },
     "BundleTarget": {
+      "description": "Targets to bundle.",
       "anyOf": [
         {
+          "description": "A list of bundle targets.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         {
+          "description": "A single bundle target.",
           "type": "string"
         }
       ]
     },
     "CliArg": {
-      "description": "A CLI argument definition",
+      "description": "A CLI argument definition.",
       "type": "object",
       "required": [
         "name"
@@ -495,7 +524,7 @@
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0.0
         },
         "longDescription": {
@@ -511,7 +540,7 @@
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0.0
         },
         "minValues": {
@@ -520,18 +549,18 @@
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0.0
         },
         "multiple": {
-          "description": "Specifies that the argument may appear more than once.\n\n- For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences. - For options there is a distinct difference in multiple occurrences vs multiple values. For example, --opt val1 val2 is one occurrence, but two values. Whereas --opt val1 --opt val2 is two occurrences.",
+          "description": "Specifies that the argument may have an unknown number of multiple values. Without any other settings, this argument may appear only once.\n\nFor example, --opt val1 val2 is allowed, but --opt val1 val2 --opt val3 is not.\n\nNOTE: Setting this requires `takes_value` to be set to true.",
           "type": [
             "boolean",
             "null"
           ]
         },
         "multipleOccurrences": {
-          "description": "specifies that the argument may appear more than once.",
+          "description": "Specifies that the argument may appear more than once. For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences. For options or arguments that take a value, this does not affect how many values they can accept. (i.e. only one at a time is allowed)\n\nFor example, --opt val1 --opt val2 is allowed, but --opt val1 val2 is not.",
           "type": [
             "boolean",
             "null"
@@ -542,11 +571,12 @@
           "type": "string"
         },
         "numberOfValues": {
+          "description": "Specifies how many values are required to satisfy this argument. For example, if you had a `-f <file>` argument where you wanted exactly 3 'files' you would set `number_of_values = 3`, and this argument wouldn't be satisfied unless the user provided 3 and only 3 values.\n\n**NOTE:** Does *not* require `multiple_occurrences = true` to be set. Setting `multiple_occurrences = true` would allow `-f <file> <file> <file> -f <file> <file> <file>` where as *not* setting it would only allow one occurrence of this argument.\n\n**NOTE:** implicitly sets `takes_value = true` and `multiple_values = true`.",
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint64",
+          "format": "uint",
           "minimum": 0.0
         },
         "possibleValues": {
@@ -661,14 +691,14 @@
       "type": "object",
       "properties": {
         "afterHelp": {
-          "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed after the auto-generated help information this is often used to describe how to use the arguments, or caveats to be noted.",
+          "description": "Adds additional help information to be displayed in addition to auto-generated help. This information is displayed after the auto-generated help information. This is often used to describe how to use the arguments, or caveats to be noted.",
           "type": [
             "string",
             "null"
           ]
         },
         "args": {
-          "description": "list of args for the command",
+          "description": "List of arguments for the command",
           "type": [
             "array",
             "null"
@@ -678,28 +708,28 @@
           }
         },
         "beforeHelp": {
-          "description": "adds additional help information to be displayed in addition to auto-generated help this information is displayed before the auto-generated help information. this is often used for header information",
+          "description": "Adds additional help information to be displayed in addition to auto-generated help. This information is displayed before the auto-generated help information. This is often used for header information.",
           "type": [
             "string",
             "null"
           ]
         },
         "description": {
-          "description": "command description which will be shown on the help information",
+          "description": "Command description which will be shown on the help information.",
           "type": [
             "string",
             "null"
           ]
         },
         "longDescription": {
-          "description": "command long description which will be shown on the help information",
+          "description": "Command long description which will be shown on the help information.",
           "type": [
             "string",
             "null"
           ]
         },
         "subcommands": {
-          "description": "list of subcommands of this command.\n\nsubcommands are effectively sub-apps, because they can contain their own arguments, subcommands, usage, etc. they also function just like the app command, in that they get their own auto generated help and usage",
+          "description": "List of subcommands of this command",
           "type": [
             "object",
             "null"
@@ -712,6 +742,7 @@
       "additionalProperties": false
     },
     "DebConfig": {
+      "description": "Configuration for Debian (.deb) bundles.",
       "type": "object",
       "properties": {
         "depends": {
@@ -741,6 +772,7 @@
       "additionalProperties": false
     },
     "DialogAllowlistConfig": {
+      "description": "Allowlist for the dialog APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -762,6 +794,7 @@
       "additionalProperties": false
     },
     "FsAllowlistConfig": {
+      "description": "Allowlist for the file system APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -823,6 +856,7 @@
       "additionalProperties": false
     },
     "GlobalShortcutAllowlistConfig": {
+      "description": "Allowlist for the global shortcut APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -834,6 +868,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistConfig": {
+      "description": "Allowlist for the HTTP APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -850,6 +885,7 @@
       "additionalProperties": false
     },
     "MacConfig": {
+      "description": "Configuration for the macOS bundles.",
       "type": "object",
       "properties": {
         "entitlements": {
@@ -906,6 +942,7 @@
       "additionalProperties": false
     },
     "NotificationAllowlistConfig": {
+      "description": "Allowlist for the notification APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -917,6 +954,7 @@
       "additionalProperties": false
     },
     "OsAllowlistConfig": {
+      "description": "Allowlist for the OS APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -928,17 +966,19 @@
       "additionalProperties": false
     },
     "PackageConfig": {
+      "description": "The package configuration.",
       "type": "object",
       "properties": {
         "productName": {
-          "description": "Application name. Automatically converted to kebab-case on Linux.",
+          "description": "App name.",
           "type": [
             "string",
             "null"
           ]
         },
         "version": {
-          "description": "Application version.",
+          "description": "App version. It is a semver version number or a path to a `package.json` file contaning the `version` field.",
+          "default": null,
           "type": [
             "string",
             "null"
@@ -948,6 +988,7 @@
       "additionalProperties": false
     },
     "PathAllowlistConfig": {
+      "description": "Allowlist for the path APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -964,6 +1005,7 @@
       "additionalProperties": true
     },
     "SecurityConfig": {
+      "description": "Security configuration.",
       "type": "object",
       "properties": {
         "csp": {
@@ -977,6 +1019,7 @@
       "additionalProperties": false
     },
     "ShellAllowlistConfig": {
+      "description": "Allowlist for the shell APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -998,6 +1041,7 @@
       "additionalProperties": false
     },
     "SystemTrayConfig": {
+      "description": "Configuration for application system tray icon.",
       "type": "object",
       "required": [
         "iconPath"
@@ -1081,6 +1125,8 @@
               "files": {},
               "useBootstrapper": false
             },
+            "icon": [],
+            "identifier": "",
             "macOS": {
               "useBootstrapper": false
             },
@@ -1110,12 +1156,10 @@
         },
         "security": {
           "description": "Security configuration.",
-          "anyOf": [
+          "default": {},
+          "allOf": [
             {
               "$ref": "#/definitions/SecurityConfig"
-            },
-            {
-              "type": "null"
             }
           ]
         },
@@ -1144,7 +1188,26 @@
         },
         "windows": {
           "description": "The windows configuration.",
-          "default": [],
+          "default": [
+            {
+              "alwaysOnTop": false,
+              "center": false,
+              "decorations": true,
+              "fileDropEnabled": true,
+              "focus": false,
+              "fullscreen": false,
+              "height": 600.0,
+              "label": "main",
+              "maximized": false,
+              "resizable": true,
+              "skipTaskbar": false,
+              "title": "Tauri App",
+              "transparent": false,
+              "url": "index.html",
+              "visible": true,
+              "width": 800.0
+            }
+          ],
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowConfig"
@@ -1154,6 +1217,7 @@
       "additionalProperties": false
     },
     "UpdaterConfig": {
+      "description": "The Updater configuration object.",
       "type": "object",
       "properties": {
         "active": {
@@ -1164,10 +1228,7 @@
         "dialog": {
           "description": "Display built-in dialog or use event system if disabled.",
           "default": true,
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": "boolean"
         },
         "endpoints": {
           "description": "The updater endpoints.",
@@ -1190,6 +1251,7 @@
       "additionalProperties": false
     },
     "WindowAllowlistConfig": {
+      "description": "Allowlist for the window APIs.",
       "type": "object",
       "properties": {
         "all": {
@@ -1241,18 +1303,14 @@
         },
         "height": {
           "description": "The window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "default": 600.0,
+          "type": "number",
           "format": "double"
         },
         "label": {
           "description": "The window identifier.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "default": "main",
+          "type": "string"
         },
         "maxHeight": {
           "description": "The max window height.",
@@ -1293,7 +1351,7 @@
         },
         "resizable": {
           "description": "Whether the window is resizable or not.",
-          "default": false,
+          "default": true,
           "type": "boolean"
         },
         "skipTaskbar": {
@@ -1303,10 +1361,8 @@
         },
         "title": {
           "description": "The window title.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "default": "Tauri App",
+          "type": "string"
         },
         "transparent": {
           "description": "Whether the window is transparent or not.",
@@ -1315,9 +1371,11 @@
         },
         "url": {
           "description": "The window webview URL.",
-          "type": [
-            "string",
-            "null"
+          "default": "index.html",
+          "allOf": [
+            {
+              "$ref": "#/definitions/WindowUrl"
+            }
           ]
         },
         "visible": {
@@ -1327,10 +1385,8 @@
         },
         "width": {
           "description": "The window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "default": 800.0,
+          "type": "number",
           "format": "double"
         },
         "x": {
@@ -1367,6 +1423,7 @@
       ]
     },
     "WindowsConfig": {
+      "description": "Windows bundler configuration.",
       "type": "object",
       "properties": {
         "certificateThumbprint": {
@@ -1405,6 +1462,7 @@
       "additionalProperties": false
     },
     "WixConfig": {
+      "description": "Configuration for the MSI bundle using WiX.",
       "type": "object",
       "properties": {
         "bannerPath": {
@@ -1438,6 +1496,7 @@
           ]
         },
         "enableElevatedUpdateTask": {
+          "description": "Create an elevated update task within Windows Task Scheduler.",
           "default": false,
           "type": "boolean"
         },

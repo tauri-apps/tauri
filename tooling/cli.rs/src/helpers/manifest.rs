@@ -14,6 +14,7 @@ use std::{
   collections::HashSet,
   fs::File,
   io::{Read, Write},
+  iter::FromIterator,
   path::Path,
 };
 
@@ -61,20 +62,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
   let config_guard = config.lock().unwrap();
   let config = config_guard.as_ref().unwrap();
 
-  let allowlist_features = config.tauri.features();
-  let mut features = HashSet::new();
-  for feature in allowlist_features {
-    features.insert(feature.to_string());
-  }
-  if config.tauri.cli.is_some() {
-    features.insert("cli".to_string());
-  }
-  if config.tauri.updater.active {
-    features.insert("updater".to_string());
-  }
-  if config.tauri.system_tray.is_some() {
-    features.insert("system-tray".to_string());
-  }
+  let mut features = HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
 
   let mut cli_managed_features = all_allowlist_features();
   cli_managed_features.extend(vec!["cli", "updater", "system-tray"]);

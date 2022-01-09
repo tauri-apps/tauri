@@ -15,10 +15,15 @@ use anyhow::Context;
 use heck::ToKebabCase;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest, Logger};
+use crate::helpers::{
+  app_paths::tauri_dir,
+  config::{wix_settings, Config},
+  manifest::Manifest,
+  Logger,
+};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings, WixSettings,
+  UpdaterSettings, WindowsSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -421,8 +426,8 @@ fn tauri_config_to_bundle_settings(
   };
 
   Ok(BundleSettings {
-    identifier: config.identifier,
-    icon: config.icon,
+    identifier: Some(config.identifier),
+    icon: Some(config.icon),
     resources: if resources.is_empty() {
       None
     } else {
@@ -470,7 +475,7 @@ fn tauri_config_to_bundle_settings(
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(|w| {
-        let mut wix = WixSettings::from(w);
+        let mut wix = wix_settings(w);
         wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
@@ -480,7 +485,7 @@ fn tauri_config_to_bundle_settings(
       active: updater_config.active,
       // we set it to true by default we shouldn't have to use
       // unwrap_or as we have a default value but used to prevent any failing
-      dialog: updater_config.dialog.unwrap_or(true),
+      dialog: updater_config.dialog,
       pubkey: updater_config.pubkey,
       endpoints: updater_config.endpoints,
     }),

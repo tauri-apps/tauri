@@ -7,27 +7,23 @@ use json_patch::merge;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
-#[path = "../../config_definition.rs"]
-mod config_definition;
-pub use config_definition::*;
+pub use tauri_utils::config::*;
 
-impl From<WixConfig> for tauri_bundler::WixSettings {
-  fn from(config: WixConfig) -> tauri_bundler::WixSettings {
-    tauri_bundler::WixSettings {
-      language: config.language,
-      template: config.template,
-      fragment_paths: config.fragment_paths,
-      component_group_refs: config.component_group_refs,
-      component_refs: config.component_refs,
-      feature_group_refs: config.feature_group_refs,
-      feature_refs: config.feature_refs,
-      merge_refs: config.merge_refs,
-      skip_webview_install: config.skip_webview_install,
-      license: config.license,
-      enable_elevated_update_task: config.enable_elevated_update_task,
-      banner_path: config.banner_path,
-      dialog_image_path: config.dialog_image_path,
-    }
+pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
+  tauri_bundler::WixSettings {
+    language: config.language,
+    template: config.template,
+    fragment_paths: config.fragment_paths,
+    component_group_refs: config.component_group_refs,
+    component_refs: config.component_refs,
+    feature_group_refs: config.feature_group_refs,
+    feature_refs: config.feature_refs,
+    merge_refs: config.merge_refs,
+    skip_webview_install: config.skip_webview_install,
+    license: config.license,
+    enable_elevated_update_task: config.enable_elevated_update_task,
+    banner_path: config.banner_path,
+    dialog_image_path: config.dialog_image_path,
   }
 }
 

@@ -294,6 +294,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo_toml"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6d613611c914a7db07f28526941ce1e956d2f977b0c5e2014fbfa42230d420f"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "toml",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3089,9 +3100,9 @@ name = "tauri-build"
 version = "1.0.0-beta.4"
 dependencies = [
  "anyhow",
+ "cargo_toml",
  "serde_json",
  "tauri-utils",
- "toml_edit",
  "winres",
 ]
 
@@ -3297,15 +3308,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml_edit"
-version = "0.5.0"
+name = "tracing"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0a0ddb4919e3b49fe9e08e7921d69445bb00ce95a2ea807bb8826cde6610455"
+checksum = "375a639232caf30edfc78e8d89b2d4c375515393e7af7e16f01cd96917fb2105"
 dependencies = [
- "combine",
- "indexmap",
- "itertools",
- "kstring",
+ "cfg-if 1.0.0",
+ "pin-project-lite",
+ "tracing-attributes",
+ "tracing-core",
 ]
 
 [[package]]

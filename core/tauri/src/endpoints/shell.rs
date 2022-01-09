@@ -107,7 +107,7 @@ impl Cmd {
               if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
                 command_childs().lock().unwrap().remove(&pid);
               }
-              let js = crate::api::rpc::format_callback(on_event_fn.clone(), &event)
+              let js = crate::api::ipc::format_callback(on_event_fn.clone(), &event)
                 .expect("unable to serialize CommandEvent");
 
               let _ = window.eval(js.as_str());

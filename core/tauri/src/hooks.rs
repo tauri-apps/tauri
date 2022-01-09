@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::rpc::{format_callback, format_callback_result},
+  api::ipc::{format_callback, format_callback_result},
   app::App,
   runtime::Runtime,
   StateManager, Window,
@@ -228,7 +228,7 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) window: Window<R>,
   /// Application managed state.
   pub(crate) state: Arc<StateManager>,
-  /// The RPC command.
+  /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: JsonValue,

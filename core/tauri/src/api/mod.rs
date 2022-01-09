@@ -10,9 +10,9 @@ pub mod dialog;
 pub mod dir;
 pub mod file;
 pub mod http;
+pub mod ipc;
 pub mod path;
 pub mod process;
-pub mod rpc;
 #[cfg(shell_open)]
 pub mod shell;
 pub mod version;

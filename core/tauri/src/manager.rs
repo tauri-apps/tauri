@@ -467,6 +467,7 @@ impl<R: Runtime> WindowManager<R> {
     let manager = self.clone();
     Box::new(move |window, request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
+
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
           let _ = window.on_message(message);

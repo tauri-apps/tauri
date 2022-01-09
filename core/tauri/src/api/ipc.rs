@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Types and functions related to Remote Procedure Call(RPC).
+//! Types and functions related to Inter Procedure Call(IPC).
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
@@ -68,7 +68,7 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// # Examples
 /// - With string literals:
 /// ```
-/// use tauri::api::rpc::format_callback;
+/// use tauri::api::ipc::format_callback;
 /// // callback with a string argument
 /// let cb = format_callback("callback-function-name", &"the string response").unwrap();
 /// assert!(cb.contains(r#"window["callback-function-name"]("the string response")"#));
@@ -76,7 +76,7 @@ fn escape_json_parse(json: &RawValue) -> String {
 ///
 /// - With types implement [`serde::Serialize`]:
 /// ```
-/// use tauri::api::rpc::format_callback;
+/// use tauri::api::ipc::format_callback;
 /// use serde::Serialize;
 ///
 /// // callback with large JSON argument
@@ -157,7 +157,7 @@ pub fn format_callback<T: Serialize, S: AsRef<str>>(
 ///
 /// # Examples
 /// ```
-/// use tauri::api::rpc::format_callback_result;
+/// use tauri::api::ipc::format_callback_result;
 /// let res: Result<u8, &str> = Ok(5);
 /// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
 /// assert!(cb.contains(r#"window["success_cb"](5)"#));
@@ -180,7 +180,7 @@ pub fn format_callback_result<T: Serialize, E: Serialize>(
 
 #[cfg(test)]
 mod test {
-  use crate::api::rpc::*;
+  use crate::api::ipc::*;
   use quickcheck_macros::quickcheck;
 
   #[test]

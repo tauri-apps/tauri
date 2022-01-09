@@ -341,6 +341,10 @@ type CommandEvent =
 /**
  * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`.
+ *
+ * The `openWith` value must be one of `firefox`, `google chrome`, `chromium` `safari`,
+ * `open`, `start`, `xdg-open`, `gio`, gnome-open`, `kde-open` or `wslview`.
+ *
  * @example
  * ```typescript
  * // opens the given URL on the default browser:

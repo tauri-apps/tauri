@@ -83,6 +83,9 @@ pub enum Error {
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),
+  /// Unknown program name.
+  #[error("unknown program name: {0}")]
+  UnknownProgramName(String),
 }
 
 #[cfg(feature = "cli")]

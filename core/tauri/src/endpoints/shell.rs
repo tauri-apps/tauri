@@ -158,7 +158,15 @@ impl Cmd {
       }
       Self::Open { path, with } => {
         #[cfg(shell_open)]
-        match crate::api::shell::open(path, with) {
+        match crate::api::shell::open(
+          path,
+          if let Some(w) = with {
+            use std::str::FromStr;
+            Some(crate::api::shell::Program::from_str(&w)?)
+          } else {
+            None
+          },
+        ) {
           Ok(_) => Ok(().into()),
           Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
         }

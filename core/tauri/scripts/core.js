@@ -16,14 +16,19 @@
     once
   ) {
     var identifier = uid()
+    var prop = `_${identifier}`
 
-    window[identifier] = function (result) {
-      if (once) {
-        delete window[identifier]
-      }
+    Object.defineProperty(window, prop, {
+      value: (result) => {
+        if (once) {
+          Reflect.deleteProperty(window, prop)
+        }
 
-      return callback && callback(result)
-    }
+        return callback && callback(result)
+      },
+      writable: false,
+      configurable: true
+    })
 
     return identifier
   }

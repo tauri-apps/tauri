@@ -72,15 +72,15 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// # Examples
 /// - With string literals:
 /// ```
-/// use tauri::api::ipc::format_callback;
+/// use tauri::api::ipc::{CallbackFn, format_callback};
 /// // callback with a string argument
-/// let cb = format_callback(12345, &"the string response").unwrap();
-/// assert!(cb.contains(r#"window["12345"]("the string response")"#));
+/// let cb = format_callback(CallbackFn(12345), &"the string response").unwrap();
+/// assert!(cb.contains(r#"window["_12345"]("the string response")"#));
 /// ```
 ///
 /// - With types implement [`serde::Serialize`]:
 /// ```
-/// use tauri::api::ipc::format_callback;
+/// use tauri::api::ipc::{CallbackFn, format_callback};
 /// use serde::Serialize;
 ///
 /// // callback with large JSON argument
@@ -90,11 +90,11 @@ fn escape_json_parse(json: &RawValue) -> String {
 /// }
 ///
 /// let cb = format_callback(
-///   6789,
+///   CallbackFn(6789),
 ///   &MyResponse { value: String::from_utf8(vec![b'X'; 10_240]).unwrap()
 /// }).expect("failed to serialize");
 ///
-/// assert!(cb.contains(r#"window["6789"](JSON.parse('{"value":"XXXXXXXXX"#));
+/// assert!(cb.contains(r#"window["_6789"](JSON.parse('{"value":"XXXXXXXXX"#));
 /// ```
 pub fn format_callback<T: Serialize>(
   function_name: CallbackFn,
@@ -104,8 +104,8 @@ pub fn format_callback<T: Serialize>(
     ( $arg:expr ) => {
       format!(
         r#"
-          if (window["{fn}"]) {{
-            window["{fn}"]({arg})
+          if (window["_{fn}"]) {{
+            window["_{fn}"]({arg})
           }} else {{
             console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
           }}
@@ -161,14 +161,14 @@ pub fn format_callback<T: Serialize>(
 ///
 /// # Examples
 /// ```
-/// use tauri::api::ipc::format_callback_result;
+/// use tauri::api::ipc::{CallbackFn, format_callback_result};
 /// let res: Result<u8, &str> = Ok(5);
-/// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
-/// assert!(cb.contains(r#"window["success_cb"](5)"#));
+/// let cb = format_callback_result(res, CallbackFn(145), CallbackFn(0)).expect("failed to format");
+/// assert!(cb.contains(r#"window["_145"](5)"#));
 ///
 /// let res: Result<&str, &str> = Err("error message here");
-/// let cb = format_callback_result(res, "success_cb", "error_cb").expect("failed to format");
-/// assert!(cb.contains(r#"window["error_cb"]("error message here")"#));
+/// let cb = format_callback_result(res, CallbackFn(2), CallbackFn(1)).expect("failed to format");
+/// assert!(cb.contains(r#"window["_1"]("error message here")"#));
 /// ```
 // TODO: better example to explain
 pub fn format_callback_result<T: Serialize, E: Serialize>(
@@ -220,11 +220,11 @@ mod test {
     // call format callback
     let fc = format_callback(f, &a).unwrap();
     fc.contains(&format!(
-      r#"window["{}"](JSON.parse('{}'))"#,
+      r#"window["_{}"](JSON.parse('{}'))"#,
       f.0,
       serde_json::Value::String(a.clone()),
     )) || fc.contains(&format!(
-      r#"window["{}"]({})"#,
+      r#"window["_{}"]({})"#,
       f.0,
       serde_json::Value::String(a),
     ))
@@ -241,7 +241,7 @@ mod test {
     };
 
     resp.contains(&format!(
-      r#"window["{}"]({})"#,
+      r#"window["_{}"]({})"#,
       function.0,
       serde_json::Value::String(value),
     ))

@@ -40,11 +40,12 @@ function transformCallback(
   once = false
 ): number {
   const identifier = uid()
+  const prop = `_${identifier}`
 
-  Object.defineProperty(window, identifier, {
+  Object.defineProperty(window, prop, {
     value: (result: any) => {
       if (once) {
-        Reflect.deleteProperty(window, identifier)
+        Reflect.deleteProperty(window, prop)
       }
 
       return callback?.(result)

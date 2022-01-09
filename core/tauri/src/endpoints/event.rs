@@ -119,7 +119,7 @@ pub fn listen_js<R: Runtime>(
     }}
     window['{listeners}']['{event}'].push({{
       id: {event_id},
-      handler: window['{handler}']
+      handler: window['_{handler}']
     }});
   ",
     listeners = window.manager().event_listeners_object_name(),

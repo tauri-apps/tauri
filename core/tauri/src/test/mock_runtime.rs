@@ -12,8 +12,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, GlobalShortcutManager, Icon, Result, RunEvent, Runtime,
-  RuntimeHandle, UserAttentionType,
+  ActivationPolicy, ClipboardManager, Dispatch, GlobalShortcutManager, Icon, Result, RunEvent,
+  RunIteration, Runtime, RuntimeHandle, UserAttentionType,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
@@ -554,7 +554,9 @@ impl Runtime for MockRuntime {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {}
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) {}
+  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
+    Default::default()
+  }
 
   fn run<F: FnMut(RunEvent) + 'static>(self, callback: F) {
     loop {

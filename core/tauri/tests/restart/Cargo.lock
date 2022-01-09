@@ -3107,7 +3107,7 @@ checksum = "2c8d5cf83fb08083438c5c46723e6206b2970da57ce314f80b57724439aaacab"
 [[package]]
 name = "wry"
 version = "0.12.2"
-source = "git+ssh://git@github.com/tauri-sec/wry?branch=next#f4005af1e30894bae955eb28b1eec68b6e933ef7"
+source = "git+https://github.com/tauri-sec/wry?branch=next#0f9eb9b1b9288b5be443bced0e8fa58a2479c491"
 dependencies = [
  "cocoa",
  "core-graphics 0.22.3",

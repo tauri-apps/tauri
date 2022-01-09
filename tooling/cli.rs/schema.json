@@ -159,7 +159,8 @@
         "security": {},
         "updater": {
           "active": false,
-          "dialog": true
+          "dialog": true,
+          "pubkey": ""
         },
         "windows": [
           {
@@ -1493,7 +1494,8 @@
           "description": "The updater configuration.",
           "default": {
             "active": false,
-            "dialog": true
+            "dialog": true,
+            "pubkey": ""
           },
           "allOf": [
             {
@@ -1534,6 +1536,9 @@
     "UpdaterConfig": {
       "description": "The Updater configuration object.",
       "type": "object",
+      "required": [
+        "pubkey"
+      ],
       "properties": {
         "active": {
           "description": "Whether the updater is active or not.",
@@ -1556,11 +1561,8 @@
           }
         },
         "pubkey": {
-          "description": "Optional pubkey.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Signature public key.",
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -270,8 +270,8 @@ pub fn command(options: Options) -> Result<()> {
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active and pubkey is available
-    if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
+    // If updater is active
+    if config_.tauri.updater.active {
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
       for elem in bundles
@@ -286,6 +286,7 @@ pub fn command(options: Options) -> Result<()> {
           signed_paths.append(&mut vec![signature_path]);
         }
       }
+
       if !signed_paths.is_empty() {
         print_signed_updater_archive(&signed_paths)?;
       }

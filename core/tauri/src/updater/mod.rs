@@ -528,7 +528,7 @@ async fn prompt_for_install<R: Runtime>(
   updater: &self::core::Update,
   app_name: &str,
   body: &str,
-  pubkey: Option<String>,
+  pubkey: String,
 ) -> crate::Result<()> {
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");

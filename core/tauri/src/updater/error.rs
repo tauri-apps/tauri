@@ -45,8 +45,8 @@ pub enum Error {
   #[error("Unsuported operating system or platform")]
   UnsupportedPlatform,
   /// Public key found in `tauri.conf.json` but no signature announced remotely.
-  #[error("Signature not available but public key provided, skipping update")]
-  PubkeyButNoSignature,
+  #[error("Signature not available, skipping update")]
+  MissingUpdaterSignature,
   /// Triggered when there is NO error and the two versions are equals.
   /// On client side, it's important to catch this error.
   #[error("No updates available")]

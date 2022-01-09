@@ -1373,8 +1373,8 @@ pub struct UpdaterConfig {
   pub dialog: bool,
   /// The updater endpoints.
   pub endpoints: Option<Vec<String>>,
-  /// Optional pubkey.
-  pub pubkey: Option<String>,
+  /// Signature public key.
+  pub pubkey: String,
 }
 
 impl Default for UpdaterConfig {
@@ -1383,7 +1383,7 @@ impl Default for UpdaterConfig {
       active: false,
       dialog: default_dialog(),
       endpoints: None,
-      pubkey: None,
+      pubkey: "".into(),
     }
   }
 }
@@ -2028,7 +2028,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let active = self.active;
       let dialog = self.dialog;
-      let pubkey = opt_str_lit(self.pubkey.as_ref());
+      let pubkey = str_lit(&self.pubkey);
       let endpoints = opt_vec_str_lit(self.endpoints.as_ref());
 
       literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
@@ -2234,7 +2234,7 @@ mod test {
       updater: UpdaterConfig {
         active: false,
         dialog: true,
-        pubkey: None,
+        pubkey: "".into(),
         endpoints: None,
       },
       security: SecurityConfig {

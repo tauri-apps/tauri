@@ -11,8 +11,8 @@ use crate::api::{
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
-use tauri_utils::Env;
 use tauri_utils::platform::current_exe;
+use tauri_utils::Env;
 
 use std::{
   collections::HashMap,
@@ -405,7 +405,7 @@ pub struct Update {
 impl Update {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub async fn download_and_install(&self, pub_key: Option<String>) -> Result {
+  pub async fn download_and_install(&self, pub_key: String) -> Result {
     // download url for selected release
     let url = self.download_url.as_str();
     // extract path
@@ -453,18 +453,15 @@ impl Update {
     // create memory buffer from our archive (Seek + Read)
     let mut archive_buffer = Cursor::new(resp.data);
 
-    // Validate signature ONLY if pubkey is available in tauri.conf.json
-    if let Some(pub_key) = pub_key {
-      // We need an announced signature by the server
-      // if there is no signature, bail out.
-      if let Some(signature) = &self.signature {
-        // we make sure the archive is valid and signed with the private key linked with the publickey
-        verify_signature(&mut archive_buffer, signature, &pub_key)?;
-      } else {
-        // We have a public key inside our source file, but not announced by the server,
-        // we assume this update is NOT valid.
-        return Err(Error::PubkeyButNoSignature);
-      }
+    // We need an announced signature by the server
+    // if there is no signature, bail out.
+    if let Some(signature) = &self.signature {
+      // we make sure the archive is valid and signed with the private key linked with the publickey
+      verify_signature(&mut archive_buffer, signature, &pub_key)?;
+    } else {
+      // We have a public key inside our source file, but not announced by the server,
+      // we assume this update is NOT valid.
+      return Err(Error::MissingUpdaterSignature);
     }
 
     // we copy the files depending of the operating system
@@ -1174,7 +1171,7 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = block!(updater.download_and_install(Some(pubkey)));
+    let install_process = block!(updater.download_and_install(pubkey));
     assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

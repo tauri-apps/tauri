@@ -113,8 +113,8 @@ pub struct UpdaterSettings {
   pub active: bool,
   /// The updater endpoints.
   pub endpoints: Option<Vec<String>>,
-  /// Optional pubkey.
-  pub pubkey: Option<String>,
+  /// Signature public key.
+  pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
 }
@@ -676,14 +676,6 @@ impl Settings {
   pub fn is_update_enabled(&self) -> bool {
     match &self.bundle_settings.updater {
       Some(val) => val.active,
-      None => false,
-    }
-  }
-
-  /// Is pubkey provided?
-  pub fn is_updater_pubkey(&self) -> bool {
-    match &self.bundle_settings.updater {
-      Some(val) => val.pubkey.is_some(),
       None => false,
     }
   }

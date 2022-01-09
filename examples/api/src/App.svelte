@@ -90,25 +90,28 @@
   let selected = views[0];
 
   let responses = writable([]);
-  let response = ''
 
   function select(view) {
     selected = view;
   }
 
   function onMessage(value) {
-    responses.update(r => [`[${new Date().toLocaleTimeString()}]` + ': ' + (typeof value === "string" ? value : JSON.stringify(value)), ...r])
+    responses.update(r => [{ text: `[${new Date().toLocaleTimeString()}]` + ': ' + (typeof value === "string" ? value : JSON.stringify(value)) }, ...r])
+  }
+
+  // this function is renders HTML without sanitizing it so it's insecure
+  // we only use it with our own input data
+  function insecureRenderHtml(html) {
+    responses.update(r => [{ html }, ...r])
+  }
+
+  function clear() {
+    responses.update(() => []);
   }
 
   function onLogoClick() {
     open("https://tauri.studio/");
   }
-
-  onMount(() => {
-    responses.subscribe(r => {
-      response = r.join('\n')
-    })
-  })
 </script>
 
 <main>
@@ -136,16 +139,20 @@
       {/each}
     </div>
     <div class="content">
-      <svelte:component this={selected.component} {onMessage} />
+      <svelte:component this={selected.component} {onMessage} {insecureRenderHtml} />
     </div>
   </div>
   <div id="response" style="white-space: pre-line">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
-      <span class="nv" on:click={()=> {
-        responses.update(() => []);
-        }}>clear</span>
+      <span class="nv" on:click={clear}>clear</span>
     </p>
-    {@html response}
+    {#each $responses as r}
+      {#if r.text}
+      <p>{r.text}</p>
+      {:else}
+      {@html r.html}
+      {/if}
+    {/each}
   </div>
 </main>

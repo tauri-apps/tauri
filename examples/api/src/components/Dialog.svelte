@@ -3,6 +3,7 @@
   import { readBinaryFile } from "@tauri-apps/api/fs";
 
   export let onMessage;
+  export let insecureRenderHtml;
   let defaultPath = null;
   let filter = null;
   let multiple = false;
@@ -51,7 +52,7 @@
                     new Uint8Array(response),
                     function (base64) {
                       var src = "data:image/png;base64," + base64;
-                      onMessage('<img src="' + src + '"></img>');
+                      insecureRenderHtml('<img src="' + src + '"></img>');
                     }
                   );
                 } else {

@@ -6,7 +6,7 @@
 
 use std::str::FromStr;
 
-/// Program to use on the [`open`] call.
+/// Program to use on the [`open()`] call.
 pub enum Program {
   /// Use the `open` program.
   Open,

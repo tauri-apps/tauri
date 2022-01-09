@@ -124,7 +124,7 @@ fn default_language() -> String {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
-  /// The installer language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  /// The installer language. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.
   #[serde(default = "default_language")]
   pub language: String,
   /// A custom .wxs template to use.
@@ -550,12 +550,12 @@ pub struct SecurityConfig {
   /// If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
-  /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   pub csp: Option<String>,
   /// The Content Security Policy that will be injected on all HTML files on development.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
-  /// See https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP.
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   pub dev_csp: Option<String>,
 }
 
@@ -848,7 +848,7 @@ pub struct ShellAllowlistConfig {
   pub execute: bool,
   /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program,
   /// an executable that is shipped with the application.
-  /// For more information see https://tauri.studio/en/docs/usage/guides/bundler/sidecar.
+  /// For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.
   #[serde(default)]
   pub sidecar: bool,
   /// Open URL with the user's default application.

@@ -64,11 +64,11 @@ clap = { version = "=3.0.4", optional = true }
 notify-rust = { version = "4.5", optional = true }
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
-attohttpc = { version = "0.18", features = [ "json", "form" ] }
+attohttpc = { version = "0.18", features = [ "json", "form" ], optional = true }
 open = { version = "2.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.6.3", features = [ "parent" ] }
+rfd = { version = "0.6.3", features = [ "parent" ], optional = true }
 raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
 os_info = { version = "3.0.9", optional = true }
@@ -102,10 +102,18 @@ tokio = { version = "1.15", features = [ "full" ] }
 [features]
 default = [ "wry", "compression" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
-dox = [ "tauri-runtime-wry/dox" ]
-wry = [ "tauri-runtime-wry" ]
-cli = [ "clap" ]
-custom-protocol = [ "tauri-macros/custom-protocol" ]
+wry = ["tauri-runtime-wry"]
+custom-protocol = ["tauri-macros/custom-protocol"]
+updater = ["minisign-verify", "base64", "dialog-ask"]
+http-api = ["attohttpc"]
+reqwest-client = ["reqwest", "bytes"]
+command = ["shared_child", "os_pipe"]
+dialog = ["rfd"]
+notification = ["notify-rust"]
+cli = ["clap"]
+system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
+dox = ["tauri-runtime-wry/dox"]
+macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
 api-all = [
   "clipboard-all",
   "dialog-all",
@@ -120,16 +128,15 @@ api-all = [
   "shell-all",
   "window-all"
 ]
-macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
 clipboard-all = ["clipboard-write-text", "clipboard-read-text"]
 clipboard-read-text = []
 clipboard-write-text = []
 dialog-all = ["dialog-open", "dialog-save", "dialog-message", "dialog-ask"]
-dialog-ask = []
-dialog-confirm = []
-dialog-message = []
-dialog-open = []
-dialog-save = []
+dialog-ask = ["dialog"]
+dialog-confirm = ["dialog"]
+dialog-message = ["dialog"]
+dialog-open = ["dialog"]
+dialog-save = ["dialog"]
 fs-all = [
   "fs-copy-file",
   "fs-create-dir",
@@ -154,8 +161,8 @@ fs-write-binary-file = ["base64"]
 fs-write-file = []
 global-shortcut-all = []
 http-all = ["http-request"]
-http-request = []
-notification-all = ["notify-rust", "dialog-ask"]
+http-request = ["http-api"]
+notification-all = ["notification", "dialog-ask"]
 os-all = ["os_info"]
 path-all = []
 process-all = ["process-relaunch", "process-exit"]
@@ -163,14 +170,10 @@ process-exit = []
 process-relaunch = []
 protocol-all = ["protocol-asset"]
 protocol-asset = []
-reqwest-client = ["reqwest", "bytes"]
-command = ["shared_child", "os_pipe"]
 shell-all = ["shell-execute", "shell-sidecar", "shell-open"]
 shell-execute = ["command"]
 shell-sidecar = ["command"]
 shell-open = ["open"]
-system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
-updater = ["minisign-verify", "base64", "dialog-ask"]
 window-all = [
   "window-create",
   "window-center",

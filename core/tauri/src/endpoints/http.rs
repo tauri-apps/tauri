@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeContext;
-use crate::api::http::{ClientBuilder, HttpRequestBuilder, ResponseData};
 use crate::Runtime;
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
@@ -13,6 +12,15 @@ use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
 };
+
+#[cfg(http_request)]
+use crate::api::http::{ClientBuilder, HttpRequestBuilder, ResponseData};
+#[cfg(not(http_request))]
+type ClientBuilder = ();
+#[cfg(not(http_request))]
+type HttpRequestBuilder = ();
+#[cfg(not(http_request))]
+type ResponseData = ();
 
 type ClientId = u32;
 #[cfg(http_request)]

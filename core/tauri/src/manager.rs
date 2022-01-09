@@ -44,7 +44,10 @@ use std::{
 use tauri_macros::default_runtime;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
-  html::{CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+  html::{
+    inject_csp, parse as parse_html, CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN,
+    STYLE_NONCE_TOKEN,
+  },
 };
 use url::Url;
 
@@ -269,6 +272,21 @@ impl<R: Runtime> WindowManager<R> {
     let key = rand::random();
     self.invoke_keys.lock().unwrap().push(key);
     key
+  }
+
+  fn csp(&self) -> Option<String> {
+    if cfg!(feature = "custom-protocol") {
+      self.inner.config.tauri.security.csp.clone()
+    } else {
+      self
+        .inner
+        .config
+        .tauri
+        .security
+        .dev_csp
+        .clone()
+        .or_else(|| self.inner.config.tauri.security.csp.clone())
+    }
   }
 
   /// Checks whether the invoke key is valid or not.
@@ -545,19 +563,7 @@ impl<R: Runtime> WindowManager<R> {
           asset = asset.replacen(INVOKE_KEY_TOKEN, &self.generate_invoke_key().to_string(), 1);
 
           if is_html {
-            let csp = if cfg!(feature = "custom-protocol") {
-              self.inner.config.tauri.security.csp.clone()
-            } else {
-              self
-                .inner
-                .config
-                .tauri
-                .security
-                .dev_csp
-                .clone()
-                .or_else(|| self.inner.config.tauri.security.csp.clone())
-            };
-            if let Some(mut csp) = csp {
+            if let Some(mut csp) = self.csp() {
               let hash_strings = self.inner.assets.csp_hashes(&asset_path).fold(
                 CspHashStrings::default(),
                 |mut acc, hash| {
@@ -764,7 +770,7 @@ impl<R: Runtime> WindowManager<R> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
-    let (is_local, url) = match &pending.webview_attributes.url {
+    let (is_local, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
         (
@@ -773,18 +779,32 @@ impl<R: Runtime> WindowManager<R> {
           if path.to_str() != Some("index.html") {
             url
               .join(&*path.to_string_lossy())
-              .map_err(crate::Error::InvalidUrl)?
-              .to_string()
+              .map_err(crate::Error::InvalidUrl)
+              // this will never fail
+              .unwrap()
           } else {
-            url.to_string()
+            url.into_owned()
           },
         )
       }
-      WindowUrl::External(url) => (url.scheme() == "tauri", url.to_string()),
+      WindowUrl::External(url) => (url.scheme() == "tauri", url.clone()),
       _ => unimplemented!(),
     };
 
-    pending.url = url;
+    if let Some(csp) = self.csp() {
+      if url.scheme() == "data" {
+        if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
+          let (body, _) = data_url.decode_to_vec().unwrap();
+          let html = String::from_utf8_lossy(&body).into_owned();
+          // naive way to check if it's an html
+          if html.contains('<') && html.contains('>') {
+            let mut document = parse_html(html);
+            inject_csp(&mut document, &csp);
+            url.set_path(&format!("text/html,{}", document.to_string()));
+          }
+        }
+      }
+    }
 
     if is_local {
       let label = pending.label.clone();
@@ -795,6 +815,8 @@ impl<R: Runtime> WindowManager<R> {
     if pending.webview_attributes.file_drop_handler_enabled {
       pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
     }
+
+    pending.url = url.to_string();
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

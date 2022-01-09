@@ -4,7 +4,7 @@
 
 //! The module to process HTML in Tauri.
 
-use html5ever::{interface::QualName, namespace_url, ns, LocalName};
+use html5ever::{interface::QualName, namespace_url, ns, tendril::TendrilSink, LocalName};
 use kuchiki::{Attribute, ExpandedName, NodeRef};
 
 /// The token used on the CSP tag content.
@@ -15,6 +15,11 @@ pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
 pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
 /// The token used for the invoke key.
 pub const INVOKE_KEY_TOKEN: &str = "__TAURI__INVOKE_KEY_TOKEN__";
+
+/// Parses the given HTML string.
+pub fn parse(html: String) -> NodeRef {
+  kuchiki::parse_html().one(html)
+}
 
 fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
   if let Ok(scripts) = document.select(selector) {
@@ -108,18 +113,23 @@ pub fn inject_invoke_key_token(document: &mut NodeRef) {
   }
 }
 
-/// Injects a content security policy token to the HTML.
-pub fn inject_csp_token(document: &mut NodeRef) {
+/// Injects a content security policy to the HTML.
+pub fn inject_csp(document: &mut NodeRef, csp: &str) {
   if let Ok(ref head) = document.select_first("head") {
-    head.as_node().append(create_csp_meta_tag(CSP_TOKEN));
+    head.as_node().append(create_csp_meta_tag(csp));
   } else {
     let head = NodeRef::new_element(
       QualName::new(None, ns!(html), LocalName::from("head")),
       None,
     );
-    head.append(create_csp_meta_tag(CSP_TOKEN));
+    head.append(create_csp_meta_tag(csp));
     document.prepend(head);
   }
+}
+
+/// Injects a content security policy token to the HTML.
+pub fn inject_csp_token(document: &mut NodeRef) {
+  inject_csp(document, CSP_TOKEN)
 }
 
 fn create_csp_meta_tag(csp: &str) -> NodeRef {

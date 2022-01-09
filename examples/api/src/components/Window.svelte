@@ -61,7 +61,7 @@
   }
 
   function createWindow() {
-    const label = Math.random().toString();
+    const label = Math.random().toString().replace('.', '');
     const webview = new WebviewWindow(label);
     windowMap[label] = webview;
     webview.once('tauri://error', function () {

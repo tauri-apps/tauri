@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use kuchiki::traits::*;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use regex::RegexSet;
@@ -15,7 +14,7 @@ use std::{
 };
 use tauri_utils::{
   assets::AssetKey,
-  html::{inject_invoke_key_token, inject_nonce_token},
+  html::{inject_invoke_key_token, inject_nonce_token, parse as parse_html},
 };
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
@@ -253,7 +252,7 @@ impl EmbeddedAssets {
       })?;
 
     if path.extension() == Some(OsStr::new("html")) {
-      let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&input).into_owned());
+      let mut document = parse_html(String::from_utf8_lossy(&input).into_owned());
       if options.csp {
         #[cfg(target_os = "linux")]
         ::tauri_utils::html::inject_csp_token(&mut document);

@@ -84,6 +84,9 @@ pub enum Error {
   /// Path not allowed by the scope.
   #[error("path not allowed on the configured scope: {0}")]
   PathNotAllowed(PathBuf),
+  /// The user did not allow sending notifications.
+  #[error("sending notification was not allowed by the user")]
+  NotificationNotAllowed,
 }
 
 impl From<serde_json::Error> for Error {

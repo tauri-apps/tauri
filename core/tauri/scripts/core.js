@@ -210,26 +210,20 @@
       Object.freeze(options)
     }
 
-    isPermissionGranted().then(function (permission) {
-      if (permission) {
-        return window.__TAURI_INVOKE__(
-          'tauri',
-          {
-            __tauriModule: 'Notification',
-            message: {
-              cmd: 'notification',
-              options:
-                typeof options === 'string'
-                  ? {
-                      title: options
-                    }
-                  : options
-            }
-          },
-          _KEY_VALUE_
-        )
-      }
-    })
+    return window.__TAURI_INVOKE__(
+      'tauri', {
+        __tauriModule: 'Notification',
+        message: {
+          cmd: 'notification',
+          options: typeof options === 'string' ?
+            {
+              title: options
+            } :
+            options
+        }
+      },
+      _KEY_VALUE_
+    )
   }
 
   window.Notification = function (title, options) {

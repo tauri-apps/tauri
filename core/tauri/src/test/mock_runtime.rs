@@ -21,7 +21,7 @@ use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 
 #[cfg(windows)]
-use webview2_com::Windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::HWND;
 
 use std::{
   collections::HashMap,

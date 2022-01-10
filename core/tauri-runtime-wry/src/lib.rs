@@ -1193,12 +1193,12 @@ impl Dispatch for WryDispatcher {
 
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    window_getter!(self, WindowMessage::NSWindow).0
+    window_getter!(self, WindowMessage::NSWindow).map(|w| w.0)
   }
 
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
-    Ok(window_getter!(self, WindowMessage::Hwnd)?.0)
+    window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.

@@ -490,11 +490,7 @@ unsafe impl Sync for ClipboardManagerWrapper {}
 impl ClipboardManager for ClipboardManagerWrapper {
   fn read_text(&self) -> Result<Option<String>> {
     let (tx, rx) = channel();
-    getter!(
-      self,
-      rx,
-      Message::Clipboard(ClipboardMessage::ReadText(tx))
-    )
+    getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
   }
 
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
@@ -1187,12 +1183,12 @@ impl Dispatch for WryDispatcher {
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
-
-      Ok(window_getter!(self, WindowMessage::AvailableMonitors)?
+    Ok(
+      window_getter!(self, WindowMessage::AvailableMonitors)?
         .into_iter()
         .map(|m| MonitorHandleWrapper(m).into())
-        .collect())
-
+        .collect(),
+    )
   }
 
   #[cfg(target_os = "macos")]

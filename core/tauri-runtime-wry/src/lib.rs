@@ -137,7 +137,7 @@ pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
     send_user_message(&$self.context, $message)?;
-    $rx.recv().unwrap()
+    $rx.recv().map_err(|_| Error::FailedToReceiveMessage)
   }};
 }
 
@@ -422,14 +422,14 @@ impl fmt::Debug for GlobalShortcutManagerHandle {
 impl GlobalShortcutManager for GlobalShortcutManagerHandle {
   fn is_registered(&self, accelerator: &str) -> Result<bool> {
     let (tx, rx) = channel();
-    Ok(getter!(
+    getter!(
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::IsRegistered(
         accelerator.parse().expect("invalid accelerator"),
         tx
       ))
-    ))
+    )
   }
 
   fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
@@ -440,7 +440,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::Register(wry_accelerator, tx))
-    )?;
+    )??;
 
     self.listeners.lock().unwrap().insert(id, Box::new(handler));
     self
@@ -458,7 +458,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
-    )?;
+    )??;
     self.listeners.lock().unwrap().clear();
     self.shortcuts.lock().unwrap().clear();
     Ok(())
@@ -471,7 +471,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
         self,
         rx,
         Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
-      )?;
+      )??;
       self.listeners.lock().unwrap().remove(&accelerator_id);
     }
     Ok(())
@@ -490,11 +490,7 @@ unsafe impl Sync for ClipboardManagerWrapper {}
 impl ClipboardManager for ClipboardManagerWrapper {
   fn read_text(&self) -> Result<Option<String>> {
     let (tx, rx) = channel();
-    Ok(getter!(
-      self,
-      rx,
-      Message::Clipboard(ClipboardMessage::ReadText(tx))
-    ))
+    getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
   }
 
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
@@ -503,7 +499,7 @@ impl ClipboardManager for ClipboardManagerWrapper {
       self,
       rx,
       Message::Clipboard(ClipboardMessage::WriteText(text.into(), tx))
-    );
+    )?;
     Ok(())
   }
 }
@@ -1133,62 +1129,62 @@ impl Dispatch for WryDispatcher {
   // Getters
 
   fn scale_factor(&self) -> Result<f64> {
-    Ok(window_getter!(self, WindowMessage::ScaleFactor))
+    window_getter!(self, WindowMessage::ScaleFactor)
   }
 
   fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::InnerPosition)
+    window_getter!(self, WindowMessage::InnerPosition)?
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::OuterPosition)
+    window_getter!(self, WindowMessage::OuterPosition)?
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(window_getter!(self, WindowMessage::InnerSize))
+    window_getter!(self, WindowMessage::InnerSize)
   }
 
   fn outer_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(window_getter!(self, WindowMessage::OuterSize))
+    window_getter!(self, WindowMessage::OuterSize)
   }
 
   fn is_fullscreen(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsFullscreen))
+    window_getter!(self, WindowMessage::IsFullscreen)
   }
 
   fn is_maximized(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsMaximized))
+    window_getter!(self, WindowMessage::IsMaximized)
   }
 
   /// Gets the window’s current decoration state.
   fn is_decorated(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsDecorated))
+    window_getter!(self, WindowMessage::IsDecorated)
   }
 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsResizable))
+    window_getter!(self, WindowMessage::IsResizable)
   }
 
   fn is_visible(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsVisible))
+    window_getter!(self, WindowMessage::IsVisible)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsMenuVisible))
+    window_getter!(self, WindowMessage::IsMenuVisible)
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor).map(|m| MonitorHandleWrapper(m).into()))
+    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor).map(|m| MonitorHandleWrapper(m).into()))
+    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)
+      window_getter!(self, WindowMessage::AvailableMonitors)?
         .into_iter()
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
@@ -1197,12 +1193,12 @@ impl Dispatch for WryDispatcher {
 
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    Ok(window_getter!(self, WindowMessage::NSWindow).0)
+    window_getter!(self, WindowMessage::NSWindow).map(|w| w.0)
   }
 
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
-    Ok(window_getter!(self, WindowMessage::Hwnd).0)
+    window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -1214,13 +1210,13 @@ impl Dispatch for WryDispatcher {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    Ok(window_getter!(self, WindowMessage::GtkWindow).0)
+    window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
   // Setters
 
   fn center(&self) -> Result<()> {
-    window_getter!(self, WindowMessage::Center)
+    window_getter!(self, WindowMessage::Center)?
   }
 
   fn print(&self) -> Result<()> {

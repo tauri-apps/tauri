@@ -458,7 +458,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
-    )?;
+    )??;
     self.listeners.lock().unwrap().clear();
     self.shortcuts.lock().unwrap().clear();
     Ok(())
@@ -471,7 +471,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
         self,
         rx,
         Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
-      )?;
+      )??;
       self.listeners.lock().unwrap().remove(&accelerator_id);
     }
     Ok(())
@@ -1210,7 +1210,7 @@ impl Dispatch for WryDispatcher {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    window_getter!(self, WindowMessage::GtkWindow).0
+    window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
   // Setters

@@ -137,7 +137,7 @@ pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
     send_user_message(&$self.context, $message)?;
-    $rx.recv().map_err(|_| Error::FailedToSendMessage)
+    $rx.recv().map_err(|_| Error::FailedToReceiveMessage)
   }};
 }
 

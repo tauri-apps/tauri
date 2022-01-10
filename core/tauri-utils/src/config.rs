@@ -1454,7 +1454,7 @@ impl<'de> Deserialize<'de> for UpdaterEndpoint {
 
 /// The Updater configuration object.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterConfig {
@@ -1468,6 +1468,38 @@ pub struct UpdaterConfig {
   pub endpoints: Option<Vec<UpdaterEndpoint>>,
   /// Signature public key.
   pub pubkey: String,
+}
+
+impl<'de> Deserialize<'de> for UpdaterConfig {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerUpdaterConfig {
+      #[serde(default)]
+      active: bool,
+      #[serde(default = "default_dialog")]
+      dialog: bool,
+      endpoints: Option<Vec<UpdaterEndpoint>>,
+      pubkey: Option<String>,
+    }
+
+    let config = InnerUpdaterConfig::deserialize(deserializer)?;
+
+    if config.active && config.pubkey.is_none() {
+      return Err(DeError::custom(
+        "The updater `pubkey` configuration is required.",
+      ));
+    }
+
+    Ok(UpdaterConfig {
+      active: config.active,
+      dialog: config.dialog,
+      endpoints: config.endpoints,
+      pubkey: config.pubkey.unwrap_or_else(String::new),
+    })
+  }
 }
 
 impl Default for UpdaterConfig {

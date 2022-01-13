@@ -9,12 +9,10 @@ import Alert from '@theme/Alert'
 
 Code-signing will add a level of authenticity to your application, while it is not required it can often improve the user experience for your users. 
 
-*Note: I will be keeping this CLI friendly, there are ways to do this via GUI if thats your flavor, but that will not be covered in this documentation*
-
 # Prerequisites 
 
-- Windows - you can likely use other platforms, but this tutorial is using Powershell native features (I know, i hate this as much as you do.)
-- Code signing certificate - you can aqquire one of these on services such as Digicert.com, Comodo.com, & Godaddy.com. In this guide I am using Comodo.com
+- Windows - you can likely use other platforms, but this tutorial is using Powershell native features.
+- Code signing certificate - you can aqquire one of these on services such as Digicert.com, Comodo.com, & Godaddy.com. In this guide we are using Comodo.com
 - A working tauri application
 
 

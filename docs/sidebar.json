@@ -49,7 +49,8 @@
           "guides/bundler/anti-bloat",
           "guides/bundler/sidecar",
           "guides/bundler/debian",
-          "guides/bundler/sign-osx"
+          "guides/bundler/sign-macos",
+          "guides/bundler/sign-windows"
         ]
       },
       "guides/cli",

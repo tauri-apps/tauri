@@ -45,18 +45,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
-      # Rust
-      - name: generate rust docs
-        working-directory: ./tauri/core/tauri
-        run: cargo doc --no-deps
-      - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1
-        with:
-          originPath: ./tauri/target/doc/
-          targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
-          linksRoot: ""
-          cratesToProcess: "tauri"
+#       # Rust
+#       - name: generate rust docs
+#         working-directory: ./tauri/core/tauri
+#         run: cargo doc --no-deps
+#       - name: run rustdocusaurus
+#         uses: tauri-apps/rustdocusaurus/github-action@v1
+#         with:
+#           originPath: ./tauri/target/doc/
+#           targetPath: ./tauri-docs/docs/en/api/rust/
+#           sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
+#           linksRoot: ""
+#           cratesToProcess: "tauri"
 
       # TypeScript
       - name: install API deps
@@ -66,14 +66,15 @@ jobs:
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json"
+          sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json.old"
           targetPath: ${{ github.workspace }}/tauri-docs/docs/en/api/js
           docusaurusPath: ./tauri-docs/
 
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
-        run: mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json && cp -r docs/* ${{ github.workspace }}/tauri-docs/docs/en
+#         run: mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json && cp -r docs/* ${{ github.workspace }}/tauri-docs/docs/en
+        run: cp -r docs/* ${{ github.workspace }}/tauri-docs/docs/en
 
       # Indexing
       - name: meilisearch indexation

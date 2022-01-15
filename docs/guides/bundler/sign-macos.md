@@ -1,6 +1,6 @@
 ---
-title: How to code-sign and notorize a OSX .dmg file with GitHub Actions
-sidebar_label: OSX Code-signing with GitHub Actions
+title: macOS - Code signing guide using Github Actions
+sidebar_label: macOS - Code signing
 ---
 
 import Alert from '@theme/Alert'

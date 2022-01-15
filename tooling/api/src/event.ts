@@ -16,7 +16,7 @@ import { LiteralUnion } from 'type-fest'
 
 interface Event<T> {
   /** Event name */
-  event: string
+  event: EventName
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */

@@ -292,13 +292,11 @@ pub fn create_gl_window(
 
 #[cfg(not(target_os = "linux"))]
 fn win_mac_gl_loop(
-  control_flow: &mut ControlFlow,
   glutin_window_context: &mut GlutinWindowContext,
   event: &Event<Message>,
   is_focused: bool,
-  should_quit: &mut bool,
 ) {
-  let mut redraw = || {
+  let redraw = || {
     let gl_window = &glutin_window_context.context;
     let gl = &glutin_window_context.glow_context;
     let mut integration = glutin_window_context.integration.borrow_mut();
@@ -315,6 +313,10 @@ fn win_mac_gl_loop(
 
     let (needs_repaint, mut tex_allocation_data, shapes) = integration.update(gl_window.window());
     let clipped_meshes = integration.egui_ctx.tessellate(shapes);
+
+    if !integration.should_quit() && needs_repaint {
+      gl_window.window().request_redraw();
+    }
 
     for (id, image) in tex_allocation_data.creations {
       painter.set_texture(&gl, id, &image);
@@ -341,18 +343,6 @@ fn win_mac_gl_loop(
 
     for id in tex_allocation_data.destructions.drain(..) {
       painter.free_texture(id);
-    }
-
-    {
-      *control_flow = if integration.should_quit() {
-        *should_quit = true;
-        glutin::event_loop::ControlFlow::Wait
-      } else if needs_repaint {
-        gl_window.window().request_redraw();
-        glutin::event_loop::ControlFlow::Poll
-      } else {
-        glutin::event_loop::ControlFlow::Wait
-      };
     }
 
     integration.maybe_autosave(gl_window.window());
@@ -407,13 +397,7 @@ pub fn handle_gl_loop(
     if let Some(win) = windows_lock.get_mut(&id) {
       if let WindowHandle::GLWindow(glutin_window_context) = &mut win.inner {
         #[cfg(not(target_os = "linux"))]
-        win_mac_gl_loop(
-          control_flow,
-          glutin_window_context,
-          &event,
-          *is_focused,
-          &mut should_quit,
-        );
+        win_mac_gl_loop(glutin_window_context, &event, *is_focused);
         #[cfg(target_os = "linux")]
         linux_gl_loop(control_flow, glutin_window_context, &event);
 
@@ -466,6 +450,9 @@ pub fn handle_gl_loop(
                 *control_flow = glutin::event_loop::ControlFlow::Wait;
               }
               gl_window.window().request_redraw();
+              // prevent deadlock on the `if should quit` below
+              drop(integration);
+              drop(windows_lock);
             }
           }
         }

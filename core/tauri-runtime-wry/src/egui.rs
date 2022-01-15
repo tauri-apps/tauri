@@ -390,8 +390,8 @@ pub fn handle_gl_loop(
     menu_event_listeners,
     ..
   } = context;
-  let egui_id = EGUI_ID.lock().unwrap();
-  if let Some(id) = *egui_id {
+  let egui_id = EGUI_ID.lock().unwrap().clone();
+  if let Some(id) = egui_id {
     let mut windows_lock = windows.lock().unwrap();
     let mut should_quit = false;
     if let Some(win) = windows_lock.get_mut(&id) {

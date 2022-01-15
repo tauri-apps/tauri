@@ -1909,7 +1909,7 @@ impl Runtime for Wry {
 
         #[cfg(feature = "egui")]
         {
-          handle_gl_loop(
+          let prevent_default = handle_gl_loop(
             &event,
             event_loop,
             control_flow,
@@ -1927,12 +1927,7 @@ impl Runtime for Wry {
             &web_context,
             &mut is_focused,
           );
-          // prevent the close requested hook from being triggered twice
-          if let glutin::event::Event::WindowEvent {
-            event: glutin::event::WindowEvent::CloseRequested,
-            ..
-          } = event
-          {
+          if prevent_default {
             return;
           }
         }
@@ -1975,7 +1970,7 @@ impl Runtime for Wry {
     self.event_loop.run(move |event, event_loop, control_flow| {
       #[cfg(feature = "egui")]
       {
-        handle_gl_loop(
+        let prevent_default = handle_gl_loop(
           &event,
           event_loop,
           control_flow,
@@ -1993,12 +1988,7 @@ impl Runtime for Wry {
           &web_context,
           &mut is_focused,
         );
-        // prevent the close requested hook from being triggered twice
-        if let glutin::event::Event::WindowEvent {
-          event: glutin::event::WindowEvent::CloseRequested,
-          ..
-        } = event
-        {
+        if prevent_default {
           return;
         }
       }
@@ -2732,7 +2722,8 @@ fn handle_gl_loop(
   context: EventLoopIterationContext<'_>,
   _web_context: &WebContextStore,
   is_focused: &mut bool,
-) {
+) -> bool {
+  let mut prevent_default = false;
   let EventLoopIterationContext {
     callback,
     windows,
@@ -2846,6 +2837,7 @@ fn handle_gl_loop(
                     gl_window.window().request_redraw();
                   }
                 }
+                prevent_default = true;
               } else {
                 // same as the `marker` above
                 integration.on_event(&event);
@@ -2873,6 +2865,8 @@ fn handle_gl_loop(
       );
     }
   }
+
+  prevent_default
 }
 
 #[allow(dead_code)]
@@ -2885,7 +2879,8 @@ fn handle_gl_loop(
   context: EventLoopIterationContext<'_>,
   _web_context: &WebContextStore,
   is_focused: &mut bool,
-) {
+) -> bool {
+  let mut prevent_default = false;
   let EventLoopIterationContext {
     callback,
     windows,
@@ -2895,13 +2890,12 @@ fn handle_gl_loop(
   } = context;
   let egui_id = EGUI_ID.lock().unwrap();
   if let Some(id) = *egui_id {
-    let mut windows = windows.lock().unwrap();
+    let mut windows_lock = windows.lock().unwrap();
     let mut should_quit = false;
-    if let Some(win) = windows.get_mut(&id) {
+    if let Some(win) = windows_lock.get_mut(&id) {
       if let WindowHandle::GLWindow(gl_window, _gl, _painter, integration, render_flow) =
         &mut win.inner
       {
-        let mut integration = integration.borrow_mut();
         let area = unsafe { gl_window.raw_handle() };
         match event {
           glutin::event::Event::MainEventsCleared => {
@@ -2917,21 +2911,57 @@ fn handle_gl_loop(
             event, window_id, ..
           } => {
             if window_id == &id {
-              if let glutin::event::WindowEvent::Focused(new_focused) = event {
-                *is_focused = *new_focused;
+              match event {
+                glutin::event::WindowEvent::Focused(new_focused) => {
+                  *is_focused = *new_focused;
+                }
+                glutin::event::WindowEvent::Resized(physical_size) => {
+                  gl_window.resize(*physical_size);
+                }
+                _ => (),
               }
 
-              if let glutin::event::WindowEvent::Resized(physical_size) = event {
-                gl_window.resize(*physical_size);
-              }
+              if let glutin::event::WindowEvent::CloseRequested = event {
+                drop(windows_lock);
+                let w = on_close_requested(
+                  callback,
+                  *window_id,
+                  windows.clone(),
+                  control_flow,
+                  window_event_listeners,
+                  menu_event_listeners.clone(),
+                );
+                if let Some(mut win) = w {
+                  if let WindowHandle::GLWindow(
+                    gl_window,
+                    _gl,
+                    _painter,
+                    integration,
+                    _render_flow,
+                  ) = &mut win.inner
+                  {
+                    // marker
+                    let mut integration = integration.borrow_mut();
+                    integration.on_event(&event);
+                    if integration.should_quit() {
+                      should_quit = true;
+                      *control_flow = glutin::event_loop::ControlFlow::Wait;
+                    }
+                    gl_window.window().request_redraw();
+                  }
+                }
+                prevent_default = true;
+              } else {
+                // same as the `marker` above
+                let mut integration = integration.borrow_mut();
 
-              integration.on_event(event);
-              if integration.should_quit() {
-                should_quit = true;
-                *control_flow = glutin::event_loop::ControlFlow::Wait;
+                integration.on_event(&event);
+                if integration.should_quit() {
+                  should_quit = true;
+                  *control_flow = glutin::event_loop::ControlFlow::Wait;
+                }
+                gl_window.window().request_redraw();
               }
-
-              gl_window.window().request_redraw();
             }
           }
           _ => (),
@@ -2944,13 +2974,14 @@ fn handle_gl_loop(
       on_window_close(
         callback,
         id,
-        windows,
+        windows.lock().unwrap(),
         control_flow,
         window_event_listeners,
         menu_event_listeners.clone(),
       );
     }
   }
+  prevent_default
 }
 
 fn on_close_requested<'a>(
@@ -3010,6 +3041,7 @@ fn on_window_close<'a>(
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
 ) -> Option<WindowWrapper> {
+  #[allow(unused_mut)]
   let w = if let Some(mut webview) = windows.remove(&window_id) {
     #[cfg(feature = "egui")]
     {
@@ -3026,7 +3058,9 @@ fn on_window_close<'a>(
             *egui_id = None;
           }
           #[cfg(target_os = "linux")]
-          if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
+          if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) =
+            &mut webview.inner
+          {
             let mut integration = integration.borrow_mut();
             let mut painter = painter.borrow_mut();
             integration.on_exit(gl_window.window());

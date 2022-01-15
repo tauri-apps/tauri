@@ -72,6 +72,7 @@ impl<T> std::borrow::Borrow<T> for MaybeRc<T> {
   }
 }
 
+#[allow(dead_code)]
 pub enum MaybeRcCell<T> {
   Actual(RefCell<T>),
   RcCell(Rc<RefCell<T>>),
@@ -494,12 +495,15 @@ pub fn on_window_close(window_id: &WindowId, webview: &mut WindowWrapper) {
   if let Some(id) = *egui_id {
     if &id == window_id {
       #[cfg(not(target_os = "linux"))]
-      if let WindowHandle::GLWindow(glutin_window_context) = webview.inner {
+      if let WindowHandle::GLWindow(glutin_window_context) = &webview.inner {
         glutin_window_context
           .integration
           .borrow_mut()
-          .on_exit(gl_window.window());
-        glutin_window_context.painter.borrow_mut().destroy(&gl);
+          .on_exit(glutin_window_context.window());
+        glutin_window_context
+          .painter
+          .borrow_mut()
+          .destroy(&glutin_window_context.glow_context);
         *egui_id = None;
       }
       #[cfg(target_os = "linux")]
@@ -509,7 +513,7 @@ pub fn on_window_close(window_id: &WindowId, webview: &mut WindowWrapper) {
         glutin_window_context
           .painter
           .borrow_mut()
-          .destroy(glutin_window_context.glow_context.as_ref());
+          .destroy(&glutin_window_context.glow_context);
         *egui_id = None;
       }
     }

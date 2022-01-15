@@ -15,4 +15,4 @@ The WebView2 crate build pipeline requires `NuGet` to have a `PackageSource` to 
 </configuration>
 ```
 
-This configuration enables the default `NuGet` registry.
+This configuration enables the default `NuGet` registry. After creating the file, you might need to remove the `src-tauri/target` folder and rebuild all crates.

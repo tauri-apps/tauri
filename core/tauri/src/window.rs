@@ -512,7 +512,7 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd as *mut _)
+      .map(|hwnd| hwnd.0 as *mut _)
       .map_err(Into::into)
   }
 

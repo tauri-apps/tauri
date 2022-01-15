@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "3284f8d442978269f7654edbdfc9bc51022eaa40", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "a3829035a3e49e76db77b0db6924e147831124c7", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -29,10 +29,10 @@ once_cell = { version = "1.8", optional = true}
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
-webview2-com = "0.9.0"
+webview2-com = "0.10.0"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.29.0"
+version = "0.30.0"
 features = [
   "Win32_Foundation",
 ]

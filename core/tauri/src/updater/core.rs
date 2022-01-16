@@ -389,6 +389,7 @@ pub struct Update {
   /// Update publish date
   pub date: String,
   /// Target
+  #[allow(dead_code)]
   target: String,
   /// Extract path
   extract_path: PathBuf,
@@ -810,7 +811,7 @@ pub fn verify_signature(
   file_buff.read_to_end(&mut data)?;
 
   // Validate signature or bail out
-  public_key.verify(&data, &signature)?;
+  public_key.verify(&data, &signature, false)?;
   Ok(true)
 }
 

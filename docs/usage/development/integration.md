@@ -1,6 +1,5 @@
 ---
-title: Tauri Integration
-sidebar_label: 'Tauri Integration (1/4)'
+title: Integrate with Tauri
 ---
 
 import Alert from '@theme/Alert'
@@ -11,7 +10,27 @@ import Link from '@docusaurus/Link'
   You must have completed all the steps required for setting up the development environment on your machine. If you haven't done this yet, please see the <a href="/docs/getting-started/intro#setting-up-your-environment"> setup page for your operating system</a>.
 </Alert>
 
-### 1. Install Tauri CLI Package as a Dev Dependency:
+There are two ways to integrate with Tauri depends on your need:
+- [Start a new Tauri project](#1-start-a-new-tauri-project)
+- Or [add Tauri to existing project](#1-add-tauri-to-existing-project)
+
+### 1. Start a New Tauri Project
+
+```bash
+yarn create tauri-app
+#OR
+npx create-tauri-app
+```
+
+Just follow the instructions and choose the web frontend framework you prefer. `create-tauri-app` will create a template project depends on your inputs. You can go straight to [check `tauri info`](#3-check-tauri-info-to-make-sure-everything-is-set-up-properly) after this.
+
+### 1. Add Tauri to Existing Project:
+
+The Tauri CLI tool helps you build your project, so install it at first.
+
+You can install Tauri CLI [using `Node.js`](#install-tauri-cli-package-as-a-dev-dependency) or [using `Rust`](#alternatively-install-tauri-cli-as-a-cargo-subcommand)
+
+#### Install Tauri CLI package as a dev dependency:
 
 ```bash
 cd project-folder
@@ -41,7 +60,17 @@ If you decide to use Tauri as a local package with npm (not yarn), you will have
 }
 ```
 
-### 1. Install Tauri API Package as a Dependency (optional):
+#### Alternatively, install Tauri CLI as a cargo subcommand:
+
+This will install `tauri-cli` as a Cargo subcommand on the cargo binary folder (by default on `$HOME/.cargo/bin`):
+
+```bash
+cargo install tauri-cli --version ^1.0.0-beta
+```
+
+For more installation options, see [`cargo install`](https://doc.rust-lang.org/cargo/commands/cargo-install.html#description)
+
+#### Install Tauri API Package as a Dependency (optional):
 
 The `@tauri-apps/api` package is recommended for projects using ES modules or modern build tools such as Webpack or Vite. It is the most secure way to access the Tauri APIs.
 

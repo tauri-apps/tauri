@@ -2,7 +2,8 @@
 name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]

@@ -1,6 +1,5 @@
 ---
 title: App Publishing
-sidebar_label: 'App Publishing (4/4)'
 ---
 
 import Alert from '@theme/Alert'

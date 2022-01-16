@@ -6,14 +6,15 @@ license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
-edition = "2018"
+edition = "2021"
+rust-version = "1.56"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-thiserror = "1.0.26"
+thiserror = "1.0.30"
 phf = { version = "0.10", features = [ "macros" ] }
 zstd = "0.9"
 url = { version = "2.2", features = [ "serde" ] }
@@ -21,6 +22,9 @@ kuchiki = "0.8"
 html5ever = "0.25"
 proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
+
+[target."cfg(target_os = \"linux\")".dependencies]
+heck = "0.3"
 
 [features]
 build = [ "proc-macro2", "quote" ]

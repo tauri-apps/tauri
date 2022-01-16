@@ -13,7 +13,7 @@ use serde_json::Value as JsonValue;
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
 #[cfg(windows)]
-use winapi::shared::windef::HWND;
+use webview2_com_sys::Windows::Win32::Foundation::HWND;
 
 use std::{fmt, path::PathBuf};
 
@@ -156,8 +156,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
 
-  /// Whether the menu was set or not.
-  fn has_menu(&self) -> bool;
+  /// Gets the window menu.
+  fn get_menu(&self) -> Option<&Menu>;
 }
 
 /// Rpc request.

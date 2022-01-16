@@ -1,5 +1,5 @@
 ---
-title: Updating
+title: Updating Packages
 ---
 import Alert from '@theme/Alert'
 

@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - dev
+      - next
   pull_request:
     paths:
       - '.github/workflows/test-bundler.yml'
@@ -72,7 +73,7 @@ jobs:
         with:
           path: tooling/bundler/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}

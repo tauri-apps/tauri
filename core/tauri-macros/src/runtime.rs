@@ -14,7 +14,7 @@ pub(crate) struct Attributes {
 }
 
 impl Parse for Attributes {
-  fn parse(input: ParseStream) -> syn::Result<Self> {
+  fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
     let default_type = input.parse()?;
     input.parse::<Token![,]>()?;
     Ok(Attributes {

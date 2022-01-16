@@ -1,6 +1,5 @@
 ---
-title: App Debugging
-sidebar_label: 'App Debugging (3/4)'
+title: Debugging
 ---
 
 import Alert from '@theme/Alert'

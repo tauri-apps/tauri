@@ -13,18 +13,19 @@ mod helpers;
 mod info;
 mod init;
 mod interface;
+mod plugin;
 mod sign;
-
-// temporary fork from https://github.com/mitsuhiko/console until 0.14.1+ release
-#[allow(dead_code)]
-mod console;
-// temporary fork from https://github.com/mitsuhiko/dialoguer until 0.8.0+ release
-#[allow(dead_code)]
-mod dialoguer;
 
 use helpers::framework::{infer_from_package_json as infer_framework, Framework};
 
 use std::{env::current_dir, fs::read_to_string, path::PathBuf};
+
+#[derive(Deserialize)]
+pub struct VersionMetadata {
+  tauri: String,
+  #[serde(rename = "tauri-build")]
+  tauri_build: String,
+}
 
 #[derive(Deserialize)]
 struct PackageJson {
@@ -54,6 +55,43 @@ macro_rules! value_or_prompt {
     }
     init_runner
   }};
+}
+
+fn plugin_command(matches: &ArgMatches) -> Result<()> {
+  let api = matches.is_present("api");
+  let plugin_name = matches.value_of("name").expect("name is required");
+  let directory = matches.value_of("directory");
+  let tauri_path = matches.value_of("tauri-path");
+  let tauri = matches.is_present("tauri");
+  let author = matches
+    .value_of("author")
+    .map(|p| p.to_string())
+    .unwrap_or_else(|| {
+      if tauri {
+        "Tauri Programme within The Commons Conservancy".into()
+      } else {
+        "You".into()
+      }
+    });
+
+  let mut plugin_runner = plugin::Plugin::new()
+    .plugin_name(plugin_name.to_string())
+    .author(author);
+
+  if api {
+    plugin_runner = plugin_runner.api();
+  }
+  if tauri {
+    plugin_runner = plugin_runner.tauri();
+  }
+  if let Some(directory) = directory {
+    plugin_runner = plugin_runner.directory(directory);
+  }
+  if let Some(tauri_path) = tauri_path {
+    plugin_runner = plugin_runner.tauri_path(tauri_path);
+  }
+
+  plugin_runner.run()
 }
 
 fn init_command(matches: &ArgMatches) -> Result<()> {
@@ -270,7 +308,11 @@ fn main() -> Result<()> {
   let matches = app.get_matches();
 
   if let Some(matches) = matches.subcommand_matches("init") {
-    init_command(matches)?;
+    if let Some(matches) = matches.subcommand_matches("plugin") {
+      plugin_command(matches)?;
+    } else {
+      init_command(matches)?;
+    }
   } else if let Some(matches) = matches.subcommand_matches("dev") {
     dev_command(matches)?;
   } else if let Some(matches) = matches.subcommand_matches("build") {

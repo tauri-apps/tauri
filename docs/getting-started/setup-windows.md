@@ -57,6 +57,7 @@ Now you will need to install <a href="https://www.rust-lang.org/" target="_blank
 
 Download and install the proper variant for your computer's architecture.
 
+
 ## 4. Install WebView2
 
 <Alert title="Note">
@@ -64,6 +65,10 @@ WebView2 is pre-installed in Windows 11.
 </Alert>
 
 Finally, you will need to install WebView2. The best way to do this is to download and run the Evergreen Bootstrapper from [this page](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
+
+<Alert type="Note">
+If you have problems of any kind after following these instructions, we recommend that you reboot your computer before developing a Tauri project to ensure that everything works as expected.
+</Alert>
 
 ## Continue
 

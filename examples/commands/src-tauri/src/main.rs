@@ -16,7 +16,9 @@ use tauri::{command, State, Window};
 
 #[derive(Debug)]
 pub struct MyState {
+  #[allow(dead_code)]
   value: u64,
+  #[allow(dead_code)]
   label: String,
 }
 
@@ -132,7 +134,7 @@ struct Person<'a> {
 }
 
 #[command]
-fn command_arguments_struct(Person { name, age }: Person) {
+fn command_arguments_struct(Person { name, age }: Person<'_>) {
   println!("received person struct with name: {} | age: {}", name, age)
 }
 
@@ -140,7 +142,7 @@ fn command_arguments_struct(Person { name, age }: Person) {
 struct InlinePerson<'a>(&'a str, u8);
 
 #[command]
-fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson) {
+fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson<'_>) {
   println!("received person tuple with name: {} | age: {}", name, age)
 }
 

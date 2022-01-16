@@ -25,7 +25,7 @@ import zopfli from 'imagemin-zopfli'
 import isPng from 'is-png'
 import path from 'path'
 import * as png2icons from 'png2icons'
-import readChunk from 'read-chunk'
+import { readChunk } from 'read-chunk'
 import sharp from 'sharp'
 import { appDir, tauriDir } from '../helpers/app-paths'
 import logger from '../helpers/logger'
@@ -39,6 +39,8 @@ const { access, ensureDir, ensureFileSync, writeFileSync } = fsExtra.default
 const require = createRequire(import.meta.url)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version } = require('../../package.json')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pngToIco = require('png-to-ico')
 
 const log = logger('app:spawn')
 const warn = logger('app:spawn', chalk.red)
@@ -74,7 +76,7 @@ const checkSrc = async (src: string): Promise<boolean | sharp.Sharp> => {
       warn('[ERROR] Source image for tauricon not found')
       process.exit(1)
     } else {
-      const buffer = await readChunk(src, 0, 8)
+      const buffer = await readChunk(src, { startPosition: 0, length: 8 })
       if (isPng(buffer)) {
         image = sharp(src)
         const meta = await image.metadata()
@@ -264,7 +266,7 @@ const tauricon = {
       try {
         const pngImage = sharpSrc.resize(pvar[1], pvar[1])
         if (pvar[2]) {
-          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-argument
           const rgb = hexToRgb(options.background_color) || {
             r: undefined,
             g: undefined,
@@ -330,7 +332,7 @@ const tauricon = {
   ) {
     let output
     let block = false
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing, @typescript-eslint/no-unsafe-argument
     const rgb = hexToRgb(options.background_color) || {
       r: undefined,
       g: undefined,
@@ -403,7 +405,9 @@ const tauricon = {
           }
           const pvar = [output, size]
           let sharpData = sharp(data)
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           sharpData = sharpData.resize(pvar[1][0], pvar[1][1])
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           await sharpData.toFile(pvar[0])
         }
       }
@@ -445,7 +449,7 @@ const tauricon = {
       await imagemin([pvar[0]], {
         destination: pvar[1],
         plugins: [cmd]
-      }).catch((err) => {
+      }).catch((err: string) => {
         warn(err)
       })
     }
@@ -498,8 +502,16 @@ const tauricon = {
       }
       await this.validate(src, target)
 
-      const sharpSrc = sharp(src)
-      const buf = await sharpSrc.toBuffer()
+      const s = sharp(src)
+      const metadata = await s.metadata()
+      const buf = await s.toBuffer()
+      let icoBuf
+      if (metadata.width !== metadata.height) {
+        const size = Math.min(metadata.width ?? 256, metadata.height ?? 256)
+        icoBuf = await s.resize(size, size).toBuffer()
+      } else {
+        icoBuf = await s.toBuffer()
+      }
 
       const out = png2icons.createICNS(buf, png2icons.BICUBIC, 0)
       if (out === null) {
@@ -508,7 +520,7 @@ const tauricon = {
       ensureFileSync(path.join(target, '/icon.icns'))
       writeFileSync(path.join(target, '/icon.icns'), out)
 
-      const out2 = png2icons.createICO(buf, png2icons.BICUBIC, 0, true)
+      const out2 = await pngToIco(icoBuf)
       if (out2 === null) {
         throw new Error('Failed to create icon.ico')
       }

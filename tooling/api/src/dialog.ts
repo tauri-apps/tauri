@@ -44,7 +44,7 @@ interface DialogFilter {
 /** Options for the open dialog. */
 interface OpenDialogOptions {
   /** The title of the dialog window. */
-  title?: string,
+  title?: string
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /** Initial directory or file path. */
@@ -58,7 +58,7 @@ interface OpenDialogOptions {
 /** Options for the save dialog. */
 interface SaveDialogOptions {
   /** The title of the dialog window. */
-  title?: string,
+  title?: string
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /**

@@ -46,17 +46,18 @@ jobs:
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
       # Rust
-      - name: generate rust docs
-        working-directory: ./tauri/core/tauri
-        run: cargo doc --no-deps
-      - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1
-        with:
-          originPath: ./tauri/target/doc/
-          targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
-          linksRoot: ""
-          cratesToProcess: "tauri"
+#       These docs need a lot of love -- stopping generating them for now since we fallback to docs.rs
+#       - name: generate rust docs
+#         working-directory: ./tauri/core/tauri
+#         run: cargo doc --no-deps
+#       - name: run rustdocusaurus
+#         uses: tauri-apps/rustdocusaurus/github-action@v1
+#         with:
+#           originPath: ./tauri/target/doc/
+#           targetPath: ./tauri-docs/docs/en/api/rust/
+#           sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
+#           linksRoot: ""
+#           cratesToProcess: "tauri"
 
       # TypeScript
       - name: install API deps
@@ -66,17 +67,15 @@ jobs:
         uses: tauri-apps/typedocusaurus@v1
         with:
           originPath: ./tauri/tooling/api/
-          sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json"
-          targetPath: ${{ github.workspace }}/tauri-docs/docs/en/api/js
+          targetPath: ${{ github.workspace }}/tauri-docs/docs/api/js
           docusaurusPath: ./tauri-docs/
 
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
         run: |
-          mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json
-          cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs/en
-          mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/en/about/architecture.md
+          cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs
+          mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/about/architecture.md
 
       # Indexing
       - name: meilisearch indexation

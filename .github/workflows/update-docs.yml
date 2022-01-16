@@ -65,10 +65,6 @@ jobs:
         run: yarn && yarn add typescript@4.2
       - name: run typedocusaurus
         uses: tauri-apps/typedocusaurus@v1
-        with:
-          originPath: ./tauri/tooling/api/
-          targetPath: ${{ github.workspace }}/tauri-docs/docs/api/js
-          docusaurusPath: ./tauri-docs/
 
       # Moving docs for Indexation
       - name: copy docs

@@ -47,6 +47,12 @@ mod state;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
+#[cfg(feature = "egui")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "egui")))]
+pub use egui_ as egui;
+#[cfg(feature = "egui")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "egui")))]
+pub use epi;
 pub use tauri_utils as utils;
 
 #[cfg(feature = "wry")]

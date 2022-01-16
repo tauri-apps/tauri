@@ -1,0 +1,55 @@
+{
+  "build": {
+    "distDir": ["index.html"],
+    "devPath": ["index.html"],
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "com.tauri.egui",
+      "icon": [
+        "../../.icons/32x32.png",
+        "../../.icons/128x128.png",
+        "../../.icons/128x128@2x.png",
+        "../../.icons/icon.icns",
+        "../../.icons/icon.ico"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": [],
+        "useBootstrapper": false
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "useBootstrapper": false,
+        "exceptionDomain": ""
+      }
+    },
+    "allowlist": {
+      "all": true
+    },
+    "windows": [
+      {
+        "title": "egui",
+        "width": 400,
+        "height": 400
+      }
+    ],
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
+    },
+    "updater": {
+      "active": false
+    }
+  }
+}

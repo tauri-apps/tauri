@@ -33,7 +33,7 @@ http-range = "0.1.4"
 infer = "0.4"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.9.0"
+webview2-com = "0.10.0"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.30.0"

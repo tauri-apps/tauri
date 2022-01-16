@@ -8,7 +8,7 @@ Tauri is a polyglot and generic toolkit that is very composable and allows engin
 Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the OS's webview. They do not ship a runtime, since the final binary is compiled from Rust. This makes the reversing of Tauri apps not a trivial task.
 
 ## What Tauri is NOT
-- Tauri is not a lightweight kernel wrapper...instead it directly uses WRY and TAO to do the heavy-lifting in making system calls to the OS.
+- Tauri is not a lightweight kernel wrapper...instead it directly uses [WRY](#wry) and [TAO](#tao) to do the heavy-lifting in making system calls to the OS.
 - Tauri is not a VM or virtualized environment...instead it is an application toolkit that allows making Webview OS applications.
 
 ## Major Components
@@ -84,7 +84,7 @@ This plugin allows you to very quickly install tauri in a vue-cli project.
 ## [tauri-vscode](https://github.com/tauri-apps/tauri-vscode)
 This project enhances the VS Code interface with several nice-to-have features.
 
-# Tauri Plugins [documentation](https://tauri.studio/en/docs/usage/guides/plugin)
+# Tauri Plugins [documentation](https://tauri.studio/en/docs/guides/plugin)
 
 Generally speaking, plugins are authored by third parties (even though there may be official, supported plugins). A plugin generally does 3 things:
 1. It provides rust code to do "something".

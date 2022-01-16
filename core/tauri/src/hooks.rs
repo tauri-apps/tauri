@@ -16,10 +16,14 @@ use tauri_macros::default_runtime;
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
+
+/// A closure that is responsible for respond a JS message.
+pub type InvokeResponder<R> =
+  dyn Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
@@ -140,7 +144,7 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      Self::return_task(self.window, task, self.callback, self.error).await;
+      self.return_task(task).await;
     });
   }
 
@@ -150,42 +154,28 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      Self::return_result(self.window, task.await.into(), self.callback, self.error);
+      self.return_result(task.await.into());
     });
   }
 
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
-    Self::return_result(self.window, value.into(), self.callback, self.error)
-  }
-
-  /// Reply to the invoke promise running the given closure.
-  pub fn respond_closure<T, F>(self, f: F)
-  where
-    T: Serialize,
-    F: FnOnce() -> Result<T, InvokeError>,
-  {
-    Self::return_closure(self.window, f, self.callback, self.error)
+    self.return_result(value.into())
   }
 
   /// Resolve the invoke promise with a value.
   pub fn resolve<T: Serialize>(self, value: T) {
-    Self::return_result(self.window, Ok(value).into(), self.callback, self.error)
+    self.return_result(Ok(value).into())
   }
 
   /// Reject the invoke promise with a value.
   pub fn reject<T: Serialize>(self, value: T) {
-    Self::return_result(
-      self.window,
-      Result::<(), _>::Err(value.into()).into(),
-      self.callback,
-      self.error,
-    )
+    self.return_result(Result::<(), _>::Err(value.into()).into())
   }
 
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, error: InvokeError) {
-    Self::return_result(self.window, error.into(), self.callback, self.error)
+    self.return_result(error.into())
   }
 
   /// Asynchronously executes the given task
@@ -193,46 +183,41 @@ impl<R: Runtime> InvokeResolver<R> {
   ///
   /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-  pub async fn return_task<T, F>(
-    window: Window<R>,
-    task: F,
-    success_callback: String,
-    error_callback: String,
-  ) where
+  pub async fn return_task<T, F>(self, task: F)
+  where
     T: Serialize,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     let result = task.await;
-    Self::return_closure(window, || result, success_callback, error_callback)
+    self.return_closure(|| result)
   }
 
-  pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(
-    window: Window<R>,
-    f: F,
-    success_callback: String,
-    error_callback: String,
+  pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(self, f: F) {
+    self.return_result(f().into())
+  }
+
+  fn return_result(self, response: InvokeResponse) {
+    (self.window.invoke_responder())(self.window, response, self.callback, self.error);
+  }
+}
+
+pub fn window_invoke_responder<R: Runtime>(
+  window: Window<R>,
+  response: InvokeResponse,
+  success_callback: String,
+  error_callback: String,
+) {
+  let callback_string = match format_callback_result(
+    response.into_result(),
+    success_callback,
+    error_callback.clone(),
   ) {
-    Self::return_result(window, f().into(), success_callback, error_callback)
-  }
+    Ok(callback_string) => callback_string,
+    Err(e) => format_callback(error_callback, &e.to_string())
+      .expect("unable to serialize shortcut string to json"),
+  };
 
-  pub(crate) fn return_result(
-    window: Window<R>,
-    response: InvokeResponse,
-    success_callback: String,
-    error_callback: String,
-  ) {
-    let callback_string = match format_callback_result(
-      response.into_result(),
-      success_callback,
-      error_callback.clone(),
-    ) {
-      Ok(callback_string) => callback_string,
-      Err(e) => format_callback(error_callback, &e.to_string())
-        .expect("unable to serialize shortcut string to json"),
-    };
-
-    let _ = window.eval(&callback_string);
-  }
+  let _ = window.eval(&callback_string);
 }
 
 /// An invoke message.

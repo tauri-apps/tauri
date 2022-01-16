@@ -12,6 +12,11 @@ cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 
 cd "{{app_name}}.AppDir"
 
+# Copy WebKit files.
+find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
+
 wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
 chmod +x AppRun
 
@@ -22,7 +27,7 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
 
-wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
 wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
 
 chmod +x linuxdeploy-plugin-gtk.sh

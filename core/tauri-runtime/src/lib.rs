@@ -11,7 +11,7 @@ use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
 
 #[cfg(windows)]
-use webview2_com_sys::Windows::Win32::Foundation::HWND;
+use windows::Win32::Foundation::HWND;
 
 pub mod http;
 /// Create window and system tray menus.
@@ -102,6 +102,9 @@ pub enum Error {
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
+  /// Failed to receive message from webview.
+  #[error("failed to receive message from webview")]
+  FailedToReceiveMessage,
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),

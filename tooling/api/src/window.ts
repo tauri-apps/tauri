@@ -50,9 +50,7 @@
  *
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
- *
- * #### 'tauri://destroyed'
- * Emitted after the window is closed.
+ * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.
@@ -285,7 +283,7 @@ class WebviewWindowHandle {
    * @param event Event name.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: string): Promise<void> {
+  async emit(event: string, payload?: unknown): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
@@ -1185,6 +1183,12 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   *
+   * Disabling it is required to use drag and drop on the frontend on Windows.
+   */
+  fileDropEnabled?: boolean
 }
 
 /**

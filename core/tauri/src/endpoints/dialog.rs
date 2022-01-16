@@ -26,6 +26,8 @@ pub struct DialogFilter {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
+  /// The title of the dialog window.
+  pub title: Option<String>,
   /// The filters of the dialog.
   #[serde(default)]
   pub filters: Vec<DialogFilter>,
@@ -43,6 +45,8 @@ pub struct OpenDialogOptions {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
+  /// The title of the dialog window.
+  pub title: Option<String>,
   /// The filters of the dialog.
   #[serde(default)]
   pub filters: Vec<DialogFilter>,
@@ -150,14 +154,14 @@ pub fn open<R: Runtime>(
     dialog_builder = dialog_builder.set_parent(window);
   }
   if let Some(default_path) = options.default_path {
-    if !default_path.exists() {
-      return Err(crate::Error::DialogDefaultPathNotExists(default_path));
-    }
     dialog_builder = set_default_path(dialog_builder, default_path);
   }
   for filter in options.filters {
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
+  }
+  if let Some(title) = options.title {
+    dialog_builder = dialog_builder.set_title(&title);
   }
 
   let (tx, rx) = channel();
@@ -192,6 +196,10 @@ pub fn save<R: Runtime>(
     let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
     dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
   }
+  if let Some(title) = options.title {
+    dialog_builder = dialog_builder.set_title(&title);
+  }
+
   let (tx, rx) = channel();
   dialog_builder.save_file(move |p| tx.send(p).unwrap());
   Ok(rx.recv().unwrap().into())

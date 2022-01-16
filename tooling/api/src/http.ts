@@ -128,6 +128,7 @@ interface IResponse<T> {
   url: string
   status: number
   headers: Record<string, string>
+  rawHeaders: Record<string, string[]>
   data: T
 }
 
@@ -141,6 +142,8 @@ class Response<T> {
   ok: boolean
   /** The response headers. */
   headers: Record<string, string>
+  /** The response raw headers. */
+  rawHeaders: Record<string, string[]>
   /** The response data. */
   data: T
 
@@ -150,6 +153,7 @@ class Response<T> {
     this.status = response.status
     this.ok = this.status >= 200 && this.status < 300
     this.headers = response.headers
+    this.rawHeaders = response.rawHeaders
     this.data = response.data
   }
 }
@@ -203,7 +207,10 @@ class Client {
           // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
-          if (response.ok) {
+          if (response.ok && (response.data as unknown as string) === '') {
+            // @ts-expect-error
+            response.data = {}
+          } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
               try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`
@@ -322,7 +329,7 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then((id) => new Client(id))
 }
 
-/** @ignore */
+/** @internal */
 let defaultClient: Client | null = null
 
 /**

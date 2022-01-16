@@ -16,7 +16,7 @@ import { LiteralUnion } from 'type-fest'
 
 interface Event<T> {
   /** Event name */
-  event: string
+  event: EventName
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -31,7 +31,6 @@ type EventName = LiteralUnion<
   | 'tauri://resize'
   | 'tauri://move'
   | 'tauri://close-requested'
-  | 'tauri://destroyed'
   | 'tauri://focus'
   | 'tauri://blur'
   | 'tauri://scale-change'
@@ -110,8 +109,8 @@ async function once<T>(
  * @param [payload] Event payload
  * @returns
  */
-async function emit(event: string, payload?: string): Promise<void> {
-  return emitEvent(event, undefined, payload)
+async function emit(event: string, payload?: unknown): Promise<void> {
+  return emitEvent(event, null, payload)
 }
 
 export type { Event, EventName, EventCallback, UnlistenFn }

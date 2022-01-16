@@ -115,7 +115,7 @@
   <div class="flex row noselect just-around" style="margin=1em;" data-tauri-drag-region>
     <img class="logo" src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
-      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/getting-started/intro">
+      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/get-started/intro">
         Documentation
       </a>
       <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">
@@ -142,9 +142,9 @@
   <div id="response" style="white-space: pre-line">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
-      <a class="nv" on:click={()=> {
+      <span class="nv" on:click={()=> {
         responses.update(() => []);
-        }}>clear</a>
+        }}>clear</span>
     </p>
     {@html response}
   </div>

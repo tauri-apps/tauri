@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-/** @ignore */
-
 import { WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 
@@ -17,8 +15,8 @@ import { invokeTauriCommand } from './tauri'
  */
 async function emit(
   event: string,
-  windowLabel: WindowLabel,
-  payload?: string
+  windowLabel: WindowLabel | null,
+  payload?: unknown
 ): Promise<void> {
   await invokeTauriCommand({
     __tauriModule: 'Event',
@@ -26,7 +24,7 @@ async function emit(
       cmd: 'emit',
       event,
       windowLabel,
-      payload
+      payload: typeof payload === 'string' ? payload : JSON.stringify(payload)
     }
   })
 }

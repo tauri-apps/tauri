@@ -15,6 +15,8 @@
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
+//! - **egui**: Enables method to create a native egui window. This can be used for creating native
+//! OpenGL contexts or [egui](https://github.com/emilk/egui) widgets.
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -38,7 +40,7 @@ mod hooks;
 mod manager;
 pub mod plugin;
 pub mod window;
-use tauri_runtime as runtime;
+pub use tauri_runtime as runtime;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
@@ -65,7 +67,7 @@ use serde::Serialize;
 use std::{collections::HashMap, fmt, sync::Arc};
 
 // Export types likely to be used by the application.
-pub use runtime::{http, menu::CustomMenuItem};
+pub use runtime::http;
 
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -82,17 +84,20 @@ pub use {
 };
 pub use {
   self::app::WindowMenuEvent,
-  self::runtime::menu::{Menu, MenuItem, Submenu},
+  self::runtime::menu::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
   self::window::menu::MenuEvent,
 };
 pub use {
-  self::app::{App, AppHandle, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver},
-  self::hooks::{
-    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponse, OnPageLoad,
-    PageLoadPayload, SetupHook,
+  self::app::{
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver,
   },
+  self::hooks::{
+    Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokeResolver, InvokeResponder,
+    InvokeResponse, OnPageLoad, PageLoadPayload, SetupHook,
+  },
+  self::manager::Asset,
   self::runtime::{
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{InvokePayload, WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
@@ -152,7 +157,7 @@ pub struct Context<A: Assets> {
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
-  pub(crate) package_info: crate::PackageInfo,
+  pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
 }
 
@@ -218,13 +223,13 @@ impl<A: Assets> Context<A> {
 
   /// Package information.
   #[inline(always)]
-  pub fn package_info(&self) -> &crate::PackageInfo {
+  pub fn package_info(&self) -> &PackageInfo {
     &self.package_info
   }
 
   /// A mutable reference to the package information.
   #[inline(always)]
-  pub fn package_info_mut(&mut self) -> &mut crate::PackageInfo {
+  pub fn package_info_mut(&mut self) -> &mut PackageInfo {
     &mut self.package_info
   }
 
@@ -235,7 +240,7 @@ impl<A: Assets> Context<A> {
     assets: Arc<A>,
     default_window_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
-    package_info: crate::PackageInfo,
+    package_info: PackageInfo,
     info_plist: (),
   ) -> Self {
     Self {
@@ -388,6 +393,9 @@ pub(crate) mod sealed {
 #[cfg(test)]
 mod test {
   use proptest::prelude::*;
+
+  pub fn assert_send<T: Send>() {}
+  pub fn assert_sync<T: Sync>() {}
 
   proptest! {
     #![proptest_config(ProptestConfig::with_cases(10000))]

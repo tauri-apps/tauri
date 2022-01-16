@@ -71,7 +71,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
           .chars()
           .skip(1)
           .collect::<String>()
-          .replace("/", " > "),
+          .replace('/', " > "),
         error.get_detail().unwrap_or_else(|| error.get_title()),
       );
     }

@@ -7,8 +7,10 @@ pub(crate) mod tray;
 
 use crate::{
   command::{CommandArg, CommandItem},
-  hooks::{InvokeHandler, OnPageLoad, PageLoadPayload, SetupHook},
-  manager::{CustomProtocol, WindowManager},
+  hooks::{
+    window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
+  },
+  manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -19,7 +21,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::assets::Assets,
   utils::config::{Config, WindowUrl},
-  Context, Invoke, InvokeError, Manager, StateManager, Window,
+  Context, Invoke, InvokeError, InvokeResponse, Manager, StateManager, Window,
 };
 
 use tauri_macros::default_runtime;
@@ -169,6 +171,19 @@ impl PathResolver {
   }
 }
 
+/// The asset resolver is a helper to access the [`tauri_utils::assets::Assets`] interface.
+#[derive(Debug, Clone)]
+pub struct AssetResolver<R: Runtime> {
+  manager: WindowManager<R>,
+}
+
+impl<R: Runtime> AssetResolver<R> {
+  /// Gets the app asset associated with the given path.
+  pub fn get(&self, path: String) -> Option<Asset> {
+    self.manager.get_asset(path).ok()
+  }
+}
+
 /// A handle to the currently running application.
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
@@ -193,6 +208,22 @@ impl AppHandle<crate::Wry> {
     f: F,
   ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
+  }
+
+  /// Create a new egui window. For simplicity, tauri only allows one egui window for now. Calling
+  /// this again will close previous egui window. If you want multiple GL Window, please consider
+  /// creating egui's window widget.
+  #[cfg(feature = "egui")]
+  pub fn create_egui_window(
+    &self,
+    label: String,
+    app: Box<dyn epi::App + Send>,
+    native_options: epi::NativeOptions,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .create_egui_window(label, app, native_options)
+      .map_err(Into::into)
   }
 
   /// Sends a window message to the event loop.
@@ -341,7 +372,7 @@ macro_rules! shared_app_impl {
         label: impl Into<String>,
         url: WindowUrl,
         setup: F,
-      ) -> crate::Result<()>
+      ) -> crate::Result<Window<R>>
       where
         F: FnOnce(
           <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -359,8 +390,7 @@ macro_rules! shared_app_impl {
           window_builder,
           webview_attributes,
           label,
-        ))?;
-        Ok(())
+        ))
       }
 
       #[cfg(feature = "system-tray")]
@@ -400,6 +430,13 @@ macro_rules! shared_app_impl {
       pub fn package_info(&self) -> &PackageInfo {
         self.manager.package_info()
       }
+
+      /// The application's asset resolver.
+      pub fn asset_resolver(&self) -> AssetResolver<R> {
+        AssetResolver {
+          manager: self.manager.clone(),
+        }
+      }
     }
   };
 }
@@ -437,6 +474,21 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application.
+  ///
+  /// # Example
+  /// ```rust,ignore
+  /// fn main() {
+  ///   let app = tauri::Builder::default()
+  ///     .build(tauri::generate_context!())
+  ///     .expect("error while building tauri application");
+  ///   app.run(|_app_handle, event| match event {
+  ///     tauri::Event::ExitRequested { api, .. } => {
+  ///       api.prevent_exit();
+  ///     }
+  ///     _ => {}
+  ///   });
+  /// }
+  /// ```
   pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
@@ -547,6 +599,12 @@ pub struct Builder<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
+  /// The JS message responder.
+  invoke_responder: Arc<InvokeResponder<R>>,
+
+  /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
+  invoke_initialization_script: String,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -589,6 +647,9 @@ impl<R: Runtime> Builder<R> {
     Self {
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| ()),
+      invoke_responder: Arc::new(window_invoke_responder),
+      invoke_initialization_script:
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (cmd, args) => window.rpc.notify(cmd, args) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -613,10 +674,25 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Defines a custom JS message system.
+  ///
+  /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
+  ///
+  /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
+  /// That function must take the `command: string` and `args: object` types and send a message to the backend.
+  pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
+  where
+    F: Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static,
+  {
+    self.invoke_initialization_script = initialization_script;
+    self.invoke_responder = Arc::new(responder);
+    self
+  }
+
   /// Defines the setup hook.
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -870,6 +946,7 @@ impl<R: Runtime> Builder<R> {
       self.state,
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
+      (self.invoke_responder, self.invoke_initialization_script),
     );
 
     // set up all the windows defined in the config
@@ -995,9 +1072,7 @@ impl<R: Runtime> Builder<R> {
               }
             };
             let listener = listener.clone();
-            crate::async_runtime::spawn(async move {
-              listener.lock().unwrap()(&app_handle, event);
-            });
+            listener.lock().unwrap()(&app_handle, event);
           });
       }
     }
@@ -1085,5 +1160,23 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
 impl Default for Builder<crate::Wry> {
   fn default() -> Self {
     Self::new()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn is_send_sync() {
+    crate::test::assert_send::<super::AppHandle>();
+    crate::test::assert_sync::<super::AppHandle>();
+
+    #[cfg(feature = "wry")]
+    {
+      crate::test::assert_send::<super::AssetResolver<crate::Wry>>();
+      crate::test::assert_sync::<super::AssetResolver<crate::Wry>>();
+    }
+
+    crate::test::assert_send::<super::PathResolver>();
+    crate::test::assert_sync::<super::PathResolver>();
   }
 }

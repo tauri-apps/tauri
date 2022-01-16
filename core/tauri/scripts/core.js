@@ -11,58 +11,6 @@
     return array.join('')
   }
 
-  function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object)
-    if (Object.getOwnPropertySymbols) {
-      var symbols = Object.getOwnPropertySymbols(object)
-      if (enumerableOnly)
-        symbols = symbols.filter(function (sym) {
-          return Object.getOwnPropertyDescriptor(object, sym).enumerable
-        })
-      keys.push.apply(keys, symbols)
-    }
-    return keys
-  }
-
-  function _objectSpread(target) {
-    for (var i = 1; i < arguments.length; i++) {
-      var source = arguments[i] != null ? arguments[i] : {}
-      if (i % 2) {
-        ownKeys(source, true).forEach(function (key) {
-          _defineProperty(target, key, source[key])
-        })
-      } else if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(
-          target,
-          Object.getOwnPropertyDescriptors(source)
-        )
-      } else {
-        ownKeys(source).forEach(function (key) {
-          Object.defineProperty(
-            target,
-            key,
-            Object.getOwnPropertyDescriptor(source, key)
-          )
-        })
-      }
-    }
-    return target
-  }
-
-  function _defineProperty(obj, key, value) {
-    if (key in obj) {
-      Object.defineProperty(obj, key, {
-        value: value,
-        enumerable: true,
-        configurable: true,
-        writable: true
-      })
-    } else {
-      obj[key] = value
-    }
-    return obj
-  }
-
   if (!window.__TAURI__) {
     window.__TAURI__ = {}
   }
@@ -103,31 +51,24 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (window.rpc) {
-        window.rpc.notify(
-          cmd,
-          _objectSpread(
-            {
-              callback: callback,
-              error: error,
-              __invokeKey: key || __TAURI_INVOKE_KEY__
-            },
-            args
-          )
-        )
+      if (
+        document.readyState === 'complete' ||
+        document.readyState === 'interactive'
+      ) {
+        window.__TAURI_POST_MESSAGE__(cmd, {
+          ...args,
+          callback: callback,
+          error: error,
+          __invokeKey: key || __TAURI_INVOKE_KEY__
+        })
       } else {
         window.addEventListener('DOMContentLoaded', function () {
-          window.rpc.notify(
-            cmd,
-            _objectSpread(
-              {
-                callback: callback,
-                error: error,
-                __invokeKey: key || __TAURI_INVOKE_KEY__
-              },
-              args
-            )
-          )
+          window.__TAURI_POST_MESSAGE__(cmd, {
+            ...args,
+            callback: callback,
+            error: error,
+            __invokeKey: key || __TAURI_INVOKE_KEY__
+          })
         })
       }
     })

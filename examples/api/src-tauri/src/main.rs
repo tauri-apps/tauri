@@ -123,7 +123,8 @@ fn main() {
             };
             item_handle.set_title(new_title).unwrap();
           }
-          "new" => app
+          "new" => {
+            app
             .create_window(
               "new",
               WindowUrl::App("index.html".into()),
@@ -131,7 +132,8 @@ fn main() {
                 (window_builder.title("Tauri"), webview_attributes)
               },
             )
-            .unwrap(),
+            .unwrap();
+          },
           #[cfg(target_os = "macos")]
           "icon_1" => {
             app.tray_handle().set_icon_as_template(true).unwrap();

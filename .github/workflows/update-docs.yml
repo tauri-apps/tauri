@@ -40,10 +40,10 @@ jobs:
         with:
           repository: tauri-apps/tauri-search-bot
           path: tauri-search-bot
-      - name: install webkit2gtk
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+#       - name: install webkit2gtk
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
       # Rust
 #       These docs need a lot of love -- stopping generating them for now since we fallback to docs.rs
@@ -63,7 +63,7 @@ jobs:
       - name: install API deps
         working-directory: ./tauri
         run: |
-          yarn add typedoc typedoc-plugin-markdown
+          yarn add typescript typedoc typedoc-plugin-markdown
           yarn typedoc --plugin typedoc-plugin-markdown --out docs tooling/api/src --tsconfig tooling/api/tsconfig.json --hideInPageTOC true --hideBreadcrumbs true
 
       # Moving docs for Indexation

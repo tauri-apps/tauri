@@ -65,7 +65,7 @@ jobs:
         run: |
           yarn add typescript typedoc typedoc-plugin-markdown
           yarn typedoc --plugin typedoc-plugin-markdown \
-          --out ../../docs src \
+          --out ../../ src \
           --tsconfig tsconfig.json \
           --hideInPageTOC true \
           --hideBreadcrumbs true \

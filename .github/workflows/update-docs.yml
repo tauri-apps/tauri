@@ -70,15 +70,12 @@ jobs:
           --hideInPageTOC true \
           --hideBreadcrumbs true \
           --githubPages false
-          ls ../../docs
 
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
         run: |
-          ls docs
-          ls docs/docs
-          cp -r docs/docs ${{ github.workspace }}/tauri-docs/docs/api/js
+          cp -r docs/. ${{ github.workspace }}/tauri-docs/docs/api/js
           mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/about/architecture.md
 
       # Indexing

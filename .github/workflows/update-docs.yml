@@ -61,10 +61,10 @@ jobs:
 
       # TypeScript
       - name: install API deps
-        working-directory: ./tauri/tooling/api
-        run: yarn && yarn add typescript@4.2
-      - name: run typedocusaurus
-        uses: tauri-apps/typedocusaurus@main
+        working-directory: ./tauri
+        run: |
+          yarn add typedoc typedoc-plugin-markdown
+          yarn typedoc --plugin typedoc-plugin-markdown --out docs tooling/api/src --tsconfig tooling/api/tsconfig.json --hideInPageTOC true --hideBreadcrumbs true
 
       # Moving docs for Indexation
       - name: copy docs

@@ -64,13 +64,18 @@ jobs:
         working-directory: ./tauri/tooling/api
         run: |
           yarn add typescript typedoc typedoc-plugin-markdown
-          yarn typedoc --plugin typedoc-plugin-markdown --out ../../docs src --tsconfig tsconfig.json --hideInPageTOC true --hideBreadcrumbs true --githubPages false
+          yarn typedoc --plugin typedoc-plugin-markdown \
+          --out ../../docs src \
+          --tsconfig tsconfig.json \
+          --hideInPageTOC true \
+          --hideBreadcrumbs true \
+          --githubPages false
 
       # Moving docs for Indexation
       - name: copy docs
         working-directory: ./tauri
         run: |
-          cp -r docs ${{ github.workspace }}/tauri-docs/docs/api/js
+          cp -r docs/ ${{ github.workspace }}/tauri-docs/docs/api/js
           mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/about/architecture.md
 
       # Indexing

@@ -11,6 +11,7 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **http-api**: Enables the [`api::http`] module.
@@ -144,6 +145,7 @@ mod error;
 mod event;
 mod hooks;
 mod manager;
+mod pattern;
 pub mod plugin;
 pub mod window;
 pub use tauri_runtime as runtime;
@@ -255,6 +257,8 @@ macro_rules! tauri_build_context {
   };
 }
 
+pub use pattern::Pattern;
+
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
@@ -267,6 +271,7 @@ pub struct Context<A: Assets> {
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
+  pub(crate) pattern: Pattern,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -276,6 +281,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("default_window_icon", &self.default_window_icon)
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
+      .field("pattern", &self.pattern)
       .finish()
   }
 }
@@ -341,6 +347,12 @@ impl<A: Assets> Context<A> {
     &mut self.package_info
   }
 
+  /// The application pattern.
+  #[inline(always)]
+  pub fn pattern(&self) -> &Pattern {
+    &self.pattern
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   pub fn new(
@@ -350,6 +362,7 @@ impl<A: Assets> Context<A> {
     system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
+    pattern: Pattern,
   ) -> Self {
     Self {
       config,
@@ -358,6 +371,7 @@ impl<A: Assets> Context<A> {
       system_tray_icon,
       package_info,
       _info_plist: info_plist,
+      pattern,
     }
   }
 }
@@ -503,7 +517,7 @@ pub(crate) mod sealed {
 pub mod test;
 
 #[cfg(test)]
-mod tests {
+mod test_utils {
   use proptest::prelude::*;
 
   pub fn assert_send<T: Send>() {}

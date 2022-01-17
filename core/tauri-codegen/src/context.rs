@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::path::{Path, PathBuf};
-use tauri_utils::config::{AppUrl, Config, WindowUrl};
+use sha2::{Digest, Sha256};
+
+use tauri_utils::assets::AssetKey;
+use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef, PatternObject};
+
+use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -14,6 +21,81 @@ pub struct ContextData {
   pub config: Config,
   pub config_parent: PathBuf,
   pub root: TokenStream,
+}
+
+fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
+  #[cfg(target_os = "linux")]
+  ::tauri_utils::html::inject_csp_token(document);
+  inject_nonce_token(document);
+  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+    let mut scripts = Vec::new();
+    for inline_script_el in inline_script_elements {
+      let script = inline_script_el.as_node().text_contents();
+      let mut hasher = Sha256::new();
+      hasher.update(&script);
+      let hash = hasher.finalize();
+      scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+    }
+    csp_hashes
+      .inline_scripts
+      .entry(key.clone().into())
+      .or_default()
+      .append(&mut scripts);
+  }
+}
+
+fn map_core_assets(
+  options: &AssetOptions,
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+  #[allow(unused_variables)]
+  let pattern = PatternObject::from(&options.pattern);
+  let csp = options.csp;
+  move |key, path, input, csp_hashes| {
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+
+      if csp {
+        load_csp(&mut document, key, csp_hashes);
+
+        #[cfg(feature = "isolation")]
+        if let PatternObject::Isolation { .. } = &pattern {
+          // create the csp for the isolation iframe styling now, to make the runtime less complex
+          let mut hasher = Sha256::new();
+          hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
+          let hash = hasher.finalize();
+          csp_hashes
+            .styles
+            .push(format!("'sha256-{}'", base64::encode(&hash)));
+        }
+      }
+
+      *input = document.to_string().as_bytes().to_vec();
+    }
+    Ok(())
+  }
+}
+
+#[cfg(feature = "isolation")]
+fn map_isolation(
+  _options: &AssetOptions,
+  dir: PathBuf,
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+  move |_key, path, input, _csp_hashes| {
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut isolation_html =
+        tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
+
+      // this is appended, so no need to reverse order it
+      tauri_utils::html::inject_codegen_isolation_script(&mut isolation_html);
+
+      // temporary workaround for windows not loading assets
+      tauri_utils::html::inline_isolation(&mut isolation_html, &dir);
+
+      *input = isolation_html.to_string().as_bytes().to_vec()
+    }
+
+    Ok(())
+  }
 }
 
 /// Build a `tauri::Context` for including in application code.
@@ -25,7 +107,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
   } = data;
 
-  let mut options = AssetOptions::new();
+  let mut options = AssetOptions::new(config.tauri.pattern.clone())
+    .freeze_prototype(config.tauri.security.freeze_prototype);
   let csp = if dev {
     config
       .tauri
@@ -64,7 +147,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(assets_path, options)?
+        EmbeddedAssets::new(assets_path, map_core_assets(&options))?
       }
       _ => unimplemented!(),
     },
@@ -73,7 +156,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .iter()
         .map(|p| config_parent.join(p))
         .collect::<Vec<_>>(),
-      options,
+      map_core_assets(&options),
     )?,
     _ => unimplemented!(),
   };
@@ -180,7 +263,31 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(target_os = "macos"))]
   let info_plist = quote!(());
 
-  // double braces are purposeful to force the code into a block expression
+  let pattern = match &options.pattern {
+    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    #[cfg(feature = "isolation")]
+    PatternKind::Isolation { dir } => {
+      let dir = config_parent.join(dir);
+      if !dir.exists() {
+        panic!(
+          "The isolation dir configuration is set to `{:?}` but this path doesn't exist",
+          dir
+        )
+      }
+
+      let key = uuid::Uuid::new_v4().to_string();
+      let assets = EmbeddedAssets::new(dir.clone(), map_isolation(&options, dir))?;
+      let schema = options.isolation_schema;
+
+      quote!(#root::Pattern::Isolation {
+        assets: ::std::sync::Arc::new(#assets),
+        schema: #schema.into(),
+        key: #key.into(),
+        crypto_keys: std::boxed::Box::new(::tauri::utils::pattern::isolation::Keys::new().expect("unable to generate cryptographically secure keys for Tauri \"Isolation\" Pattern")),
+      })
+    }
+  };
+
   Ok(quote!(#root::Context::new(
     #config,
     ::std::sync::Arc::new(#assets),
@@ -188,6 +295,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #system_tray_icon,
     #package_info,
     #info_plist,
+    #pattern
   )))
 }
 

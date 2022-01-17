@@ -10,6 +10,12 @@
     "version": "../package.json"
   },
   "tauri": {
+    "pattern": {
+      "use": "isolation",
+      "options": {
+        "dir": "../isolation-dist/"
+      }
+    },
     "macOSPrivateApi": true,
     "cli": {
       "description": "Tauri API example",

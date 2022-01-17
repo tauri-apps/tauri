@@ -168,6 +168,7 @@ impl<R: Runtime> PendingWindow<R> {
     }
   }
 
+  #[must_use]
   pub fn set_menu(mut self, menu: Menu) -> Self {
     let mut menu_ids = HashMap::new();
     get_menu_ids(&mut menu_ids, &menu);

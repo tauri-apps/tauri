@@ -226,7 +226,7 @@ impl<R: Runtime> Window<R> {
   /// How to handle this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
-    match payload.command.as_str() {
+    match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
         manager.run_on_page_load(self, payload);
@@ -235,25 +235,19 @@ impl<R: Runtime> Window<R> {
         let message = InvokeMessage::new(
           self.clone(),
           manager.state(),
-          payload.command.to_string(),
+          payload.cmd.to_string(),
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+
         let invoke = Invoke { message, resolver };
-        if manager.verify_invoke_key(payload.key) {
-          if let Some(module) = &payload.tauri_module {
-            let module = module.to_string();
-            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
-          } else if payload.command.starts_with("plugin:") {
-            manager.extend_api(invoke);
-          } else {
-            manager.run_invoke_handler(invoke);
-          }
+        if let Some(module) = &payload.tauri_module {
+          let module = module.to_string();
+          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+        } else if payload.cmd.starts_with("plugin:") {
+          manager.extend_api(invoke);
         } else {
-          panic!(
-            r#"The invoke key "{}" is invalid. This means that an external, possible malicious script is trying to access the system interface."#,
-            payload.key
-          );
+          manager.run_invoke_handler(invoke);
         }
       }
     }
@@ -718,7 +712,7 @@ impl<R: Runtime> Window<R> {
 mod tests {
   #[test]
   fn window_is_send_sync() {
-    crate::test::assert_send::<super::Window>();
-    crate::test::assert_sync::<super::Window>();
+    crate::test_utils::assert_send::<super::Window>();
+    crate::test_utils::assert_sync::<super::Window>();
   }
 }

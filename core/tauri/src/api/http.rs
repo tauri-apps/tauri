@@ -29,12 +29,14 @@ impl ClientBuilder {
   }
 
   /// Sets the maximum number of redirections.
+  #[must_use]
   pub fn max_redirections(mut self, max_redirections: usize) -> Self {
     self.max_redirections = Some(max_redirections);
     self
   }
 
   /// Sets the connection timeout.
+  #[must_use]
   pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
     self.connect_timeout = Some(connect_timeout);
     self
@@ -294,30 +296,35 @@ impl HttpRequestBuilder {
   }
 
   /// Sets the request parameters.
+  #[must_use]
   pub fn query(mut self, query: HashMap<String, String>) -> Self {
     self.query = Some(query);
     self
   }
 
   /// Sets the request headers.
+  #[must_use]
   pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
     self.headers = Some(headers);
     self
   }
 
   /// Sets the request body.
+  #[must_use]
   pub fn body(mut self, body: Body) -> Self {
     self.body = Some(body);
     self
   }
 
   /// Sets the general request timeout.
+  #[must_use]
   pub fn timeout(mut self, timeout: u64) -> Self {
     self.timeout = Some(timeout);
     self
   }
 
   /// Sets the type of the response. Interferes with the way we read the response.
+  #[must_use]
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self

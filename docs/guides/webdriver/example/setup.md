@@ -72,7 +72,7 @@ to the Cargo Manifest (`Cargo.toml`) so that Cargo knows to pull in our dependen
 name = "hello-tauri-webdriver"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 
 # Needed to set up some things for Tauri at build time
 [build-dependencies]

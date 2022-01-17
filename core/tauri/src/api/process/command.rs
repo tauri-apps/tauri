@@ -192,6 +192,7 @@ impl Command {
   }
 
   /// Appends arguments to the command.
+  #[must_use]
   pub fn args<I, S>(mut self, args: I) -> Self
   where
     I: IntoIterator<Item = S>,
@@ -204,18 +205,21 @@ impl Command {
   }
 
   /// Clears the entire environment map for the child process.
+  #[must_use]
   pub fn env_clear(mut self) -> Self {
     self.env_clear = true;
     self
   }
 
   /// Adds or updates multiple environment variable mappings.
+  #[must_use]
   pub fn envs(mut self, env: HashMap<String, String>) -> Self {
     self.env = env;
     self
   }
 
   /// Sets the working directory for the child process.
+  #[must_use]
   pub fn current_dir(mut self, current_dir: PathBuf) -> Self {
     self.current_dir.replace(current_dir);
     self

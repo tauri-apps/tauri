@@ -134,8 +134,7 @@ pub fn parse<P: AsRef<Path>>(
   let mut p = PathBuf::new();
   let mut components = path.as_ref().components();
   if let Some(Component::Normal(str)) = components.next() {
-    if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy().into_owned())
-    {
+    if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
       p.push(resolve_path(
         config,
         package_info,

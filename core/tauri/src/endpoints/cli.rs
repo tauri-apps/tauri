@@ -19,7 +19,7 @@ impl Cmd {
   #[module_command_handler(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)")]
   fn cli_matches<R: Runtime>(context: InvokeContext<R>) -> crate::Result<InvokeResponse> {
     if let Some(cli) = &context.config.tauri.cli {
-      crate::api::cli::get_matches(cli, context.package_info)
+      crate::api::cli::get_matches(cli, &context.package_info)
         .map(Into::into)
         .map_err(Into::into)
     } else {

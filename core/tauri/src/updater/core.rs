@@ -11,8 +11,7 @@ use crate::api::{
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
-use tauri_utils::platform::current_exe;
-use tauri_utils::Env;
+use tauri_utils::{platform::current_exe, Env};
 
 use std::{
   collections::HashMap,
@@ -552,7 +551,7 @@ fn copy_files_and_run<R: Read + Seek>(
   let mut extractor = Extract::from_cursor(archive_buffer, ArchiveFormat::Zip);
 
   // extract the msi
-  extractor.extract_into(&tmp_dir);
+  extractor.extract_into(&tmp_dir)?;
 
   let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
@@ -648,7 +647,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
     .tempdir()?;
 
   // create backup of our current app
-  Move::from_source(extract_path).to_dest(&tmp_dir.path())?;
+  Move::from_source(extract_path).to_dest(tmp_dir.path())?;
 
   // extract all the files
   for file in all_files {
@@ -666,7 +665,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
           std::fs::remove_file(file)?;
         }
       }
-      Move::from_source(&tmp_dir.path()).to_dest(extract_path)?;
+      Move::from_source(tmp_dir.path()).to_dest(extract_path)?;
       return Err(Error::Extract(err.to_string()));
     }
 
@@ -776,7 +775,7 @@ where
 mod test {
   use super::*;
   #[cfg(target_os = "macos")]
-  use std::{env, fs::File};
+  use std::fs::File;
 
   macro_rules! block {
     ($e:expr) => {

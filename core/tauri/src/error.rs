@@ -96,6 +96,10 @@ pub enum Error {
   /// Program not allowed by the scope.
   #[error("program not allowed on the configured shell scope: {0}")]
   ProgramNotAllowed(PathBuf),
+  /// An error happened inside the isolation pattern.
+  #[cfg(feature = "isolation")]
+  #[error("isolation pattern error: {0}")]
+  IsolationPattern(#[from] tauri_utils::pattern::isolation::Error),
 }
 
 impl From<serde_json::Error> for Error {

@@ -4,18 +4,14 @@
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
-use regex::RegexSet;
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
-  ffi::OsStr,
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::{
-  assets::AssetKey,
-  html::{inject_invoke_key_token, inject_nonce_token, parse as parse_html},
-};
+use tauri_utils::assets::AssetKey;
+use tauri_utils::config::PatternKind;
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
@@ -143,12 +139,14 @@ impl RawEmbeddedAssets {
 }
 
 /// Holds all hashes that we will apply on the CSP tag/header.
-#[derive(Default)]
-struct CspHashes {
+#[derive(Debug, Default)]
+pub struct CspHashes {
   /// Scripts that are part of the asset collection (JS or MJS files).
-  scripts: Vec<String>,
+  pub(crate) scripts: Vec<String>,
   /// Inline scripts (`<script>code</script>`). Maps a HTML path to a list of hashes.
-  inline_scripts: HashMap<String, Vec<String>>,
+  pub(crate) inline_scripts: HashMap<String, Vec<String>>,
+  /// A list of hashes of the contents of all `style` elements.
+  pub(crate) styles: Vec<String>,
 }
 
 impl CspHashes {
@@ -181,18 +179,36 @@ impl CspHashes {
 /// Options used to embed assets.
 #[derive(Default)]
 pub struct AssetOptions {
-  csp: bool,
+  pub(crate) csp: bool,
+  pub(crate) pattern: PatternKind,
+  pub(crate) freeze_prototype: bool,
+  #[cfg(feature = "isolation")]
+  pub(crate) isolation_schema: String,
 }
 
 impl AssetOptions {
   /// Creates the default asset options.
-  pub fn new() -> Self {
-    Self::default()
+  pub fn new(pattern: PatternKind) -> Self {
+    Self {
+      csp: false,
+      pattern,
+      freeze_prototype: true,
+      #[cfg(feature = "isolation")]
+      isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
+    }
   }
 
   /// Instruct the asset handler to inject the CSP token to HTML files.
+  #[must_use]
   pub fn with_csp(mut self) -> Self {
     self.csp = true;
+    self
+  }
+
+  /// Instruct the asset handler to include a script to freeze the `Object.prototype` on all HTML files.
+  #[must_use]
+  pub fn freeze_prototype(mut self, freeze: bool) -> Self {
+    self.freeze_prototype = freeze;
     self
   }
 }
@@ -203,18 +219,27 @@ impl EmbeddedAssets {
   /// [`Assets`]: tauri_utils::assets::Assets
   pub fn new(
     input: impl Into<EmbeddedAssetsInput>,
-    options: AssetOptions,
+    map: impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
   ) -> Result<Self, EmbeddedAssetsError> {
     // we need to pre-compute all files now, so that we can inject data from all files into a few
-    let RawEmbeddedAssets {
-      paths,
-      mut csp_hashes,
-    } = RawEmbeddedAssets::new(input.into())?;
+    let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into())?;
 
-    let assets = paths
-      .into_iter()
-      .map(|(prefix, entry)| Self::compress_file(&prefix, entry.path(), &options, &mut csp_hashes))
-      .collect::<Result<_, _>>()?;
+    struct CompressState {
+      csp_hashes: CspHashes,
+      assets: HashMap<AssetKey, (PathBuf, PathBuf)>,
+    }
+
+    let CompressState { assets, csp_hashes } = paths.into_iter().try_fold(
+      CompressState {
+        csp_hashes,
+        assets: HashMap::new(),
+      },
+      move |mut state, (prefix, entry)| {
+        let (key, asset) = Self::compress_file(&prefix, entry.path(), &map, &mut state.csp_hashes)?;
+        state.assets.insert(key, asset);
+        Ok(state)
+      },
+    )?;
 
     Ok(Self { assets, csp_hashes })
   }
@@ -234,7 +259,7 @@ impl EmbeddedAssets {
   fn compress_file(
     prefix: &Path,
     path: &Path,
-    options: &AssetOptions,
+    map: &impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
     csp_hashes: &mut CspHashes,
   ) -> Result<Asset, EmbeddedAssetsError> {
     let mut input = std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
@@ -251,75 +276,8 @@ impl EmbeddedAssets {
         path: path.to_owned(),
       })?;
 
-    if path.extension() == Some(OsStr::new("html")) {
-      let mut document = parse_html(String::from_utf8_lossy(&input).into_owned());
-      if options.csp {
-        #[cfg(target_os = "linux")]
-        ::tauri_utils::html::inject_csp_token(&mut document);
-        inject_nonce_token(&mut document);
-        if let Ok(inline_script_elements) = document.select("script:not(empty)") {
-          let mut scripts = Vec::new();
-          for inline_script_el in inline_script_elements {
-            let script = inline_script_el.as_node().text_contents();
-            let mut hasher = Sha256::new();
-            hasher.update(&script);
-            let hash = hasher.finalize();
-            scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
-          }
-          csp_hashes
-            .inline_scripts
-            .insert(key.clone().into(), scripts);
-        }
-      }
-      inject_invoke_key_token(&mut document);
-      input = document.to_string().as_bytes().to_vec();
-    } else {
-      let is_javascript = ["js", "cjs", "mjs"]
-        .iter()
-        .any(|e| path.extension() == Some(OsStr::new(e)));
-      if is_javascript {
-        let js = String::from_utf8_lossy(&input).into_owned();
-        input = if RegexSet::new(&[
-          // import keywords
-          "import\\{",
-          "import \\{",
-          "import\\*",
-          "import \\*",
-          "import (\"|');?$",
-          "import\\(",
-          "import (.|\n)+ from (\"|')([A-Za-z/\\.@-]+)(\"|')",
-          // export keywords
-          "export\\{",
-          "export \\{",
-          "export\\*",
-          "export \\*",
-          "export (default|class|let|const|function|async)",
-        ])
-        .unwrap()
-        .is_match(&js)
-        {
-          format!(
-            r#"
-              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
-              {}
-            "#,
-            js
-          )
-          .as_bytes()
-          .to_vec()
-        } else {
-          format!(
-            r#"(function () {{
-              const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
-              {}
-            }})()"#,
-            js
-          )
-          .as_bytes()
-          .to_vec()
-        };
-      }
-    }
+    // perform any caller-requested input manipulation
+    map(&key, path, &mut input, csp_hashes)?;
 
     // we must canonicalize the base of our paths to allow long paths on windows
     let out_dir = std::env::var("OUT_DIR")
@@ -402,6 +360,11 @@ impl ToTokens for EmbeddedAssets {
     for script_hash in &self.csp_hashes.scripts {
       let hash = script_hash.as_str();
       global_hashes.append_all(quote!(CspHash::Script(#hash),));
+    }
+
+    for style_hash in &self.csp_hashes.styles {
+      let hash = style_hash.as_str();
+      global_hashes.append_all(quote!(CspHash::Style(#hash),));
     }
 
     let mut html_hashes = TokenStream::new();

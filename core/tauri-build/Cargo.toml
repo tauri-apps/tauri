@@ -8,7 +8,7 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
 description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -29,3 +29,4 @@ winres = "0.1"
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]
+isolation = ["tauri-codegen/isolation", "tauri-utils/isolation"]

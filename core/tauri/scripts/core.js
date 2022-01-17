@@ -8,7 +8,9 @@
   }
 
   if (!window.__TAURI__) {
-    window.__TAURI__ = {}
+    Object.defineProperty(window, '__TAURI__', {
+      value: {}
+    })
   }
 
   window.__TAURI__.transformCallback = function transformCallback(
@@ -33,7 +35,20 @@
     return identifier
   }
 
-  window.__TAURI_INVOKE__ = function invoke(cmd, args = {}, key = null) {
+  const ipcQueue = []
+  let isWaitingForIpc = false
+
+  function waitForIpc() {
+    if ('__TAURI_IPC__' in window) {
+      for (const action of ipcQueue) {
+        action()
+      }
+    } else {
+      setTimeout(waitForIpc, 50)
+    }
+  }
+
+  window.__TAURI_INVOKE__ = function invoke(cmd, args = {}) {
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
@@ -52,25 +67,21 @@
         return reject(new Error('Invalid argument type.'))
       }
 
-      if (
-        document.readyState === 'complete' ||
-        document.readyState === 'interactive'
-      ) {
-        window.__TAURI_POST_MESSAGE__(cmd, {
+      const action = () => {
+        window.__TAURI_IPC__({
           ...args,
-          callback: callback,
-          error: error,
-          __invokeKey: key || __TAURI_INVOKE_KEY__
+          callback,
+          error: error
         })
+      }
+      if (window.__TAURI_IPC__) {
+        action()
       } else {
-        window.addEventListener('DOMContentLoaded', function () {
-          window.__TAURI_POST_MESSAGE__(cmd, {
-            ...args,
-            callback: callback,
-            error: error,
-            __invokeKey: key || __TAURI_INVOKE_KEY__
-          })
-        })
+        ipcQueue.push(action)
+        if (!isWaitingForIpc) {
+          waitForIpc()
+          isWaitingForIpc = true
+        }
       }
     })
   }
@@ -88,17 +99,13 @@
               target.href.startsWith('http') &&
               target.target === '_blank'
             ) {
-              window.__TAURI_INVOKE__(
-                'tauri',
-                {
-                  __tauriModule: 'Shell',
-                  message: {
-                    cmd: 'open',
-                    path: target.href
-                  }
-                },
-                _KEY_VALUE_
-              )
+              window.__TAURI_INVOKE__('tauri', {
+                __tauriModule: 'Shell',
+                message: {
+                  cmd: 'open',
+                  path: target.href
+                }
+              })
               e.preventDefault()
             }
             break
@@ -129,43 +136,35 @@
   document.addEventListener('mousedown', (e) => {
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
-      window.__TAURI_INVOKE__(
-        'tauri',
-        {
-          __tauriModule: 'Window',
-          message: {
-            cmd: 'manage',
-            data: {
-              cmd: {
-                type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
-              }
+      window.__TAURI_INVOKE__('tauri', {
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'manage',
+          data: {
+            cmd: {
+              type: e.detail === 2 ? '__toggleMaximize' : 'startDragging'
             }
           }
-        },
-        _KEY_VALUE_
-      )
+        }
+      })
     }
   })
 
-  window.__TAURI_INVOKE__(
-    'tauri',
-    {
-      __tauriModule: 'Event',
-      message: {
-        cmd: 'listen',
-        event: 'tauri://window-created',
-        handler: window.__TAURI__.transformCallback(function (event) {
-          if (event.payload) {
-            var windowLabel = event.payload.label
-            window.__TAURI__.__windows.push({
-              label: windowLabel
-            })
-          }
-        })
-      }
-    },
-    _KEY_VALUE_
-  )
+  window.__TAURI_INVOKE__('tauri', {
+    __tauriModule: 'Event',
+    message: {
+      cmd: 'listen',
+      event: 'tauri://window-created',
+      handler: window.__TAURI__.transformCallback(function (event) {
+        if (event.payload) {
+          var windowLabel = event.payload.label
+          window.__TAURI__.__windows.push({
+            label: windowLabel
+          })
+        }
+      })
+    }
+  })
 
   let permissionSettable = false
   let permissionValue = 'default'
@@ -174,16 +173,12 @@
     if (window.Notification.permission !== 'default') {
       return Promise.resolve(window.Notification.permission === 'granted')
     }
-    return window.__TAURI_INVOKE__(
-      'tauri',
-      {
-        __tauriModule: 'Notification',
-        message: {
-          cmd: 'isNotificationPermissionGranted'
-        }
-      },
-      _KEY_VALUE_
-    )
+    return window.__TAURI_INVOKE__('tauri', {
+      __tauriModule: 'Notification',
+      message: {
+        cmd: 'isNotificationPermissionGranted'
+      }
+    })
   }
 
   function setNotificationPermission(value) {
@@ -194,16 +189,12 @@
 
   function requestPermission() {
     return window
-      .__TAURI_INVOKE__(
-        'tauri',
-        {
-          __tauriModule: 'Notification',
-          message: {
-            cmd: 'requestNotificationPermission'
-          }
-        },
-        _KEY_VALUE_
-      )
+      .__TAURI_INVOKE__('tauri', {
+        __tauriModule: 'Notification',
+        message: {
+          cmd: 'requestNotificationPermission'
+        }
+      })
       .then(function (permission) {
         setNotificationPermission(permission)
         return permission
@@ -215,20 +206,18 @@
       Object.freeze(options)
     }
 
-    return window.__TAURI_INVOKE__(
-      'tauri', {
-        __tauriModule: 'Notification',
-        message: {
-          cmd: 'notification',
-          options: typeof options === 'string' ?
-            {
-              title: options
-            } :
-            options
-        }
-      },
-      _KEY_VALUE_
-    )
+    return window.__TAURI_INVOKE__('tauri', {
+      __tauriModule: 'Notification',
+      message: {
+        cmd: 'notification',
+        options:
+          typeof options === 'string'
+            ? {
+                title: options
+              }
+            : options
+      }
+    })
   }
 
   window.Notification = function (title, options) {
@@ -264,51 +253,39 @@
   })
 
   window.alert = function (message) {
-    window.__TAURI_INVOKE__(
-      'tauri',
-      {
-        __tauriModule: 'Dialog',
-        message: {
-          cmd: 'messageDialog',
-          message: message
-        }
-      },
-      _KEY_VALUE_
-    )
+    window.__TAURI_INVOKE__('tauri', {
+      __tauriModule: 'Dialog',
+      message: {
+        cmd: 'messageDialog',
+        message: message
+      }
+    })
   }
 
   window.confirm = function (message) {
-    return window.__TAURI_INVOKE__(
-      'tauri',
-      {
-        __tauriModule: 'Dialog',
-        message: {
-          cmd: 'confirmDialog',
-          message: message
-        }
-      },
-      _KEY_VALUE_
-    )
+    return window.__TAURI_INVOKE__('tauri', {
+      __tauriModule: 'Dialog',
+      message: {
+        cmd: 'confirmDialog',
+        message: message
+      }
+    })
   }
 
   // window.print works on Linux/Windows; need to use the API on macOS
   if (navigator.userAgent.includes('Mac')) {
     window.print = function () {
-      return window.__TAURI_INVOKE__(
-        'tauri',
-        {
-          __tauriModule: 'Window',
-          message: {
-            cmd: 'manage',
-            data: {
-              cmd: {
-                type: 'print'
-              }
+      return window.__TAURI_INVOKE__('tauri', {
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'manage',
+          data: {
+            cmd: {
+              type: 'print'
             }
           }
-        },
-        _KEY_VALUE_
-      )
+        }
+      })
     }
   }
 })()

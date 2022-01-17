@@ -2,6 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::{
+  borrow::Cow,
+  collections::{HashMap, HashSet},
+  fmt,
+  fs::create_dir_all,
+  sync::{Arc, Mutex, MutexGuard},
+};
+
+use regex::{Captures, Regex};
+use serde::Serialize;
+use serde_json::Value as JsonValue;
+use serialize_to_javascript::{default_template, DefaultTemplate, Template};
+use url::Url;
+
+use tauri_macros::default_runtime;
+#[cfg(feature = "isolation")]
+use tauri_utils::pattern::isolation::RawIsolationPayload;
+use tauri_utils::{
+  assets::{AssetKey, CspHash},
+  html::{inject_csp, parse as parse_html, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+};
+
+#[cfg(target_os = "windows")]
+use crate::api::path::{resolve_path, BaseDirectory};
+use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
+use crate::hooks::IpcJavascript;
+#[cfg(feature = "isolation")]
+use crate::hooks::IsolationJavascript;
+use crate::pattern::{format_real_schema, PatternJavascript};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{is_event_name_valid, Event, EventHandler, Listeners},
@@ -21,35 +50,13 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, Invoke, StateManager, Window,
+  Context, Invoke, Pattern, StateManager, Window,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::api::path::{resolve_path, BaseDirectory};
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
-
 use crate::{runtime::menu::Menu, MenuEvent};
-
-use regex::{Captures, Regex};
-use serde::Serialize;
-use serde_json::Value as JsonValue;
-use std::{
-  borrow::Cow,
-  collections::{HashMap, HashSet},
-  fmt,
-  fs::create_dir_all,
-  sync::{Arc, Mutex, MutexGuard},
-};
-use tauri_macros::default_runtime;
-use tauri_utils::{
-  assets::{AssetKey, CspHash},
-  html::{
-    inject_csp, parse as parse_html, CSP_TOKEN, INVOKE_KEY_TOKEN, SCRIPT_NONCE_TOKEN,
-    STYLE_NONCE_TOKEN,
-  },
-};
-use url::Url;
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
@@ -65,6 +72,71 @@ const MENU_EVENT: &str = "tauri://menu";
 struct CspHashStrings {
   script: String,
   style: String,
+}
+
+/// Sets the CSP value to the asset HTML if needed (on Linux).
+/// Returns the CSP string for access on the response header (on Windows and macOS).
+fn set_csp<R: Runtime>(
+  asset: &mut String,
+  assets: Arc<dyn Assets>,
+  asset_path: &AssetKey,
+  #[allow(unused_variables)] manager: &WindowManager<R>,
+  mut csp: String,
+) -> String {
+  let hash_strings =
+    assets
+      .csp_hashes(asset_path)
+      .fold(CspHashStrings::default(), |mut acc, hash| {
+        match hash {
+          CspHash::Script(hash) => {
+            acc.script.push(' ');
+            acc.script.push_str(hash);
+          }
+          CspHash::Style(hash) => {
+            acc.style.push(' ');
+            acc.style.push_str(hash);
+          }
+          _csp_hash => {
+            #[cfg(debug_assertions)]
+            eprintln!("Unknown CspHash variant encountered: {:?}", _csp_hash)
+          }
+        }
+
+        acc
+      });
+
+  replace_csp_nonce(
+    asset,
+    SCRIPT_NONCE_TOKEN,
+    &mut csp,
+    "script-src",
+    hash_strings.script,
+  );
+
+  replace_csp_nonce(
+    asset,
+    STYLE_NONCE_TOKEN,
+    &mut csp,
+    "style-src",
+    hash_strings.style,
+  );
+
+  #[cfg(feature = "isolation")]
+  if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
+    let default_src = format!("default-src {}", format_real_schema(schema));
+    if csp.contains("default-src") {
+      csp = csp.replace("default-src", &default_src);
+    } else {
+      csp.push_str("; ");
+      csp.push_str(&default_src);
+    }
+  }
+
+  #[cfg(target_os = "linux")]
+  {
+    *asset = asset.replacen(tauri_utils::html::CSP_TOKEN, &csp, 1);
+  }
+  csp
 }
 
 fn replace_csp_nonce(
@@ -141,6 +213,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_responder: Arc<InvokeResponder<R>>,
   /// The script that initializes the invoke system.
   invoke_initialization_script: String,
+  /// Application pattern.
+  pattern: Pattern,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -152,6 +226,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("default_window_icon", &self.default_window_icon)
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
+      .field("pattern", &self.pattern)
       .finish()
   }
 }
@@ -181,14 +256,12 @@ pub struct CustomProtocol<R: Runtime> {
 #[derive(Debug)]
 pub struct WindowManager<R: Runtime> {
   pub inner: Arc<InnerWindowManager<R>>,
-  invoke_keys: Arc<Mutex<Vec<u32>>>,
 }
 
 impl<R: Runtime> Clone for WindowManager<R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
-      invoke_keys: self.invoke_keys.clone(),
     }
   }
 }
@@ -196,7 +269,7 @@ impl<R: Runtime> Clone for WindowManager<R> {
 impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::too_many_arguments)]
   pub(crate) fn with_handlers(
-    context: Context<impl Assets>,
+    #[allow(unused_mut)] mut context: Context<impl Assets>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Box<OnPageLoad<R>>,
@@ -206,6 +279,12 @@ impl<R: Runtime> WindowManager<R> {
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
   ) -> Self {
+    // generate a random isolation key at runtime
+    #[cfg(feature = "isolation")]
+    if let Pattern::Isolation { ref mut key, .. } = &mut context.pattern {
+      *key = uuid::Uuid::new_v4().to_string();
+    }
+
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
@@ -218,6 +297,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         package_info: context.package_info,
+        pattern: context.pattern,
         uri_scheme_protocols,
         menu,
         menu_event_listeners: Arc::new(menu_event_listeners),
@@ -225,8 +305,11 @@ impl<R: Runtime> WindowManager<R> {
         invoke_responder,
         invoke_initialization_script,
       }),
-      invoke_keys: Default::default(),
     }
+  }
+
+  pub(crate) fn pattern(&self) -> &Pattern {
+    &self.inner.pattern
   }
 
   /// Get a locked handle to the windows.
@@ -268,10 +351,18 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  fn generate_invoke_key(&self) -> u32 {
-    let key = rand::random();
-    self.invoke_keys.lock().unwrap().push(key);
-    key
+  /// Get the origin as it will be seen in the webview.
+  fn get_browser_origin(&self) -> Cow<'_, str> {
+    match self.base_path() {
+      AppUrl::Url(WindowUrl::External(url)) => {
+        let mut url = url.to_string();
+        if url.ends_with('/') {
+          url.pop();
+        }
+        Cow::Owned(url)
+      }
+      _ => Cow::Owned(format_real_schema("tauri")),
+    }
   }
 
   fn csp(&self) -> Option<String> {
@@ -289,13 +380,6 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  /// Checks whether the invoke key is valid or not.
-  ///
-  /// An invoke key is valid if it was generated by this manager instance.
-  pub(crate) fn verify_invoke_key(&self, key: u32) -> bool {
-    self.invoke_keys.lock().unwrap().contains(&key)
-  }
-
   fn prepare_pending_window(
     &self,
     mut pending: PendingWindow<R>,
@@ -311,39 +395,48 @@ impl<R: Runtime> WindowManager<R> {
       .expect("poisoned plugin store")
       .initialization_script();
 
-    let mut webview_attributes = pending.webview_attributes;
-    webview_attributes =
-      webview_attributes.initialization_script(&self.inner.invoke_initialization_script);
-    if is_init_global {
-      webview_attributes = webview_attributes.initialization_script(&format!(
-        "(function () {{
-        const __TAURI_INVOKE_KEY__ = {key};
-        {bundle_script}
-        }})()",
-        key = self.generate_invoke_key(),
-        bundle_script = include_str!("../scripts/bundle.js"),
-      ));
+    let pattern_init = PatternJavascript {
+      pattern: self.pattern().into(),
     }
+    .render_default(&Default::default())?;
+
+    let ipc_init = IpcJavascript {
+      isolation_origin: &match self.pattern() {
+        #[cfg(feature = "isolation")]
+        Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
+        _ => "".to_string(),
+      },
+    }
+    .render_default(&Default::default())?;
+
+    let mut webview_attributes = pending.webview_attributes;
+
     webview_attributes = webview_attributes
+      .initialization_script(&self.inner.invoke_initialization_script)
+      .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
       .initialization_script(&format!(
         r#"
           if (!window.__TAURI__) {{
-            window.__TAURI__ = {{}}
+            Object.defineProperty(window, '__TAURI__', {{
+              value: {{}}
+            }})
           }}
           window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
           window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
         "#,
         window_labels_array = serde_json::to_string(pending_labels)?,
         current_window_label = serde_json::to_string(&label)?,
-      ))
-      .initialization_script(&self.initialization_script(&plugin_init));
-
-    #[cfg(dev)]
-    {
-      webview_attributes = webview_attributes.initialization_script(&format!(
-        "window.__TAURI_INVOKE_KEY__ = {}",
-        self.generate_invoke_key()
       ));
+
+    #[cfg(feature = "isolation")]
+    if let Pattern::Isolation { schema, .. } = self.pattern() {
+      webview_attributes = webview_attributes.initialization_script(
+        &IsolationJavascript {
+          isolation_src: &crate::pattern::format_real_schema(schema),
+          style: tauri_utils::pattern::isolation::IFRAME_STYLE,
+        }
+        .render_default(&Default::default())?,
+      );
     }
 
     pending.webview_attributes = webview_attributes;
@@ -492,13 +585,75 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
+    #[cfg(feature = "isolation")]
+    if let Pattern::Isolation {
+      assets,
+      schema,
+      key: _,
+      crypto_keys,
+    } = &self.inner.pattern
+    {
+      let assets = assets.clone();
+      let schema_ = schema.clone();
+      let url_base = format!("{}://localhost", schema_);
+      let aes_gcm_key = *crypto_keys.aes_gcm().raw();
+
+      pending.register_uri_scheme_protocol(schema, move |request| {
+        match request_to_path(request, &url_base).as_str() {
+          "index.html" => match assets.get(&"index.html".into()) {
+            Some(asset) => {
+              let asset = String::from_utf8_lossy(asset.as_ref());
+              let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
+                runtime_aes_gcm_key: &aes_gcm_key,
+              };
+              match template.render(asset.as_ref(), &Default::default()) {
+                Ok(asset) => HttpResponseBuilder::new()
+                  .mimetype("text/html")
+                  .body(asset.as_bytes().to_vec()),
+                Err(_) => HttpResponseBuilder::new()
+                  .status(500)
+                  .mimetype("text/plain")
+                  .body(Vec::new()),
+              }
+            }
+
+            None => HttpResponseBuilder::new()
+              .status(404)
+              .mimetype("text/plain")
+              .body(Vec::new()),
+          },
+          _ => HttpResponseBuilder::new()
+            .status(404)
+            .mimetype("text/plain")
+            .body(Vec::new()),
+        }
+      });
+    }
+
     Ok(pending)
   }
 
   fn prepare_ipc_handler(&self, app_handle: AppHandle<R>) -> WebviewIpcHandler<R> {
     let manager = self.clone();
-    Box::new(move |window, request| {
+    Box::new(move |window, #[allow(unused_mut)] mut request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
+
+      #[cfg(feature = "isolation")]
+      if let Pattern::Isolation { crypto_keys, .. } = manager.pattern() {
+        match RawIsolationPayload::try_from(request.as_str())
+          .and_then(|raw| crypto_keys.decrypt(raw))
+        {
+          Ok(json) => request = json,
+          Err(e) => {
+            let error: crate::Error = e.into();
+            let _ = window.eval(&format!(
+              r#"console.error({})"#,
+              JsonValue::String(error.to_string())
+            ));
+            return;
+          }
+        }
+      }
 
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
@@ -530,7 +685,6 @@ impl<R: Runtime> WindowManager<R> {
       // skip leading `/`
       path.chars().skip(1).collect::<String>()
     };
-    let is_javascript = path.ends_with(".js") || path.ends_with(".cjs") || path.ends_with(".mjs");
     let is_html = path.ends_with(".html");
 
     let mut asset_path = AssetKey::from(path.as_str());
@@ -558,48 +712,16 @@ impl<R: Runtime> WindowManager<R> {
 
     match asset_response {
       Ok(asset) => {
-        let final_data = if is_javascript || is_html {
+        let final_data = if is_html {
           let mut asset = String::from_utf8_lossy(&asset).into_owned();
-          asset = asset.replacen(INVOKE_KEY_TOKEN, &self.generate_invoke_key().to_string(), 1);
-
-          if is_html {
-            if let Some(mut csp) = self.csp() {
-              let hash_strings = self.inner.assets.csp_hashes(&asset_path).fold(
-                CspHashStrings::default(),
-                |mut acc, hash| {
-                  match hash {
-                    CspHash::Script(hash) => {
-                      acc.script.push(' ');
-                      acc.script.push_str(hash);
-                    }
-                    csp_hash => {
-                      #[cfg(debug_assertions)]
-                      eprintln!("Unknown CspHash variant encountered: {:?}", csp_hash)
-                    }
-                  }
-
-                  acc
-                },
-              );
-
-              replace_csp_nonce(
-                &mut asset,
-                SCRIPT_NONCE_TOKEN,
-                &mut csp,
-                "script-src",
-                hash_strings.script,
-              );
-              replace_csp_nonce(
-                &mut asset,
-                STYLE_NONCE_TOKEN,
-                &mut csp,
-                "style-src",
-                hash_strings.style,
-              );
-
-              asset = asset.replace(CSP_TOKEN, &csp);
-              csp_header.replace(csp);
-            }
+          if let Some(csp) = self.csp() {
+            csp_header.replace(set_csp(
+              &mut asset,
+              self.inner.assets.clone(),
+              &asset_path,
+              &self,
+              csp,
+            ));
           }
 
           asset.as_bytes().to_vec()
@@ -659,26 +781,57 @@ impl<R: Runtime> WindowManager<R> {
     })
   }
 
-  fn initialization_script(&self, plugin_initialization_script: &str) -> String {
-    let key = self.generate_invoke_key();
-    format!(
-      r#"
-      {core_script}
-      {event_initialization_script}
-      if (document.readyState === 'complete') {{
-        window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
-      }} else {{
-        window.addEventListener('DOMContentLoaded', function () {{
-          window.__TAURI_INVOKE__("__initialized", {{ url: window.location.href }}, {key})
-        }})
-      }}
-      {plugin_initialization_script}
-    "#,
-      key = key,
-      core_script = include_str!("../scripts/core.js").replace("_KEY_VALUE_", &key.to_string()),
-      event_initialization_script = self.event_initialization_script(),
-      plugin_initialization_script = plugin_initialization_script
-    )
+  fn initialization_script(
+    &self,
+    ipc_script: &str,
+    pattern_script: &str,
+    plugin_initialization_script: &str,
+    with_global_tauri: bool,
+  ) -> crate::Result<String> {
+    #[derive(Template)]
+    #[default_template("../scripts/init.js")]
+    struct InitJavascript<'a> {
+      origin: Cow<'a, str>,
+      #[raw]
+      pattern_script: &'a str,
+      #[raw]
+      ipc_script: &'a str,
+      #[raw]
+      bundle_script: &'a str,
+      #[raw]
+      core_script: &'a str,
+      #[raw]
+      event_initialization_script: &'a str,
+      #[raw]
+      plugin_initialization_script: &'a str,
+      #[raw]
+      freeze_prototype: &'a str,
+    }
+
+    let bundle_script = if with_global_tauri {
+      include_str!("../scripts/bundle.js")
+    } else {
+      ""
+    };
+
+    let freeze_prototype = if self.inner.config.tauri.security.freeze_prototype {
+      include_str!("../scripts/freeze_prototype.js")
+    } else {
+      ""
+    };
+
+    InitJavascript {
+      origin: self.get_browser_origin(),
+      pattern_script,
+      ipc_script,
+      bundle_script,
+      core_script: include_str!("../scripts/core.js"),
+      event_initialization_script: &self.event_initialization_script(),
+      plugin_initialization_script,
+      freeze_prototype,
+    }
+    .render_default(&Default::default())
+    .map_err(Into::into)
   }
 
   fn event_initialization_script(&self) -> String {
@@ -702,8 +855,9 @@ impl<R: Runtime> WindowManager<R> {
 
 #[cfg(test)]
 mod test {
-  use super::WindowManager;
   use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
+
+  use super::WindowManager;
 
   #[test]
   fn check_get_url() {
@@ -1028,4 +1182,32 @@ struct ScaleFactorChanged {
 
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
   window.emit_and_trigger(MENU_EVENT, event.menu_item_id.clone())
+}
+
+#[cfg(feature = "isolation")]
+fn request_to_path(request: &tauri_runtime::http::Request, replace: &str) -> String {
+  let mut path = request
+    .uri()
+    .split(&['?', '#'][..])
+    // ignore query string
+    .next()
+    .unwrap()
+    .to_string()
+    .replace(replace, "");
+
+  if path.ends_with('/') {
+    path.pop();
+  }
+
+  let path = percent_encoding::percent_decode(path.as_bytes())
+    .decode_utf8_lossy()
+    .to_string();
+
+  if path.is_empty() {
+    // if the url has no path, we should load `index.html`
+    "index.html".to_string()
+  } else {
+    // skip leading `/`
+    path.chars().skip(1).collect()
+  }
 }

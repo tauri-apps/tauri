@@ -13,16 +13,12 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_POST_MESSAGE__: (
-      command: string,
-      args?: { [key: string]: unknown }
-    ) => void
+    __TAURI_IPC__: (message: any) => void,
+    ipc: {
+      postMessage: (args: string) => void
+    }
   }
 }
-
-// the `__TAURI_INVOKE_KEY__` variable is injected at runtime by Tauri
-// eslint-disable-next-line @typescript-eslint/naming-convention
-declare let __TAURI_INVOKE_KEY__: number
 
 /** @ignore */
 function uid(): number {
@@ -80,12 +76,14 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.__TAURI_POST_MESSAGE__(cmd, {
-      __invokeKey: __TAURI_INVOKE_KEY__,
-      callback,
-      error,
-      ...args
-    })
+    window.__TAURI_IPC__(
+      {
+        cmd,
+        callback,
+        error,
+        ...args
+      }
+    )
   })
 }
 

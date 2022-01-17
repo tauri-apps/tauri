@@ -3,7 +3,7 @@ authors = ["Tauri Programme within The Commons Conservancy"]
 categories = ["gui", "web-programming"]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [
   "/test",
   "/.scripts",
@@ -77,6 +77,7 @@ epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true
 regex = "1.5"
 glob = "0.3"
 data-url = "0.1"
+serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 glib = "0.14"
@@ -99,10 +100,14 @@ tauri = {path = "."}
 tokio-test = "0.4.2"
 tokio = { version = "1.15", features = [ "full" ] }
 
+[target."cfg(windows)".dev-dependencies]
+webview2-com = "0.7.0"
+
 [features]
 default = [ "wry", "compression" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = ["tauri-runtime-wry"]
+isolation = ["tauri-utils/isolation", "tauri-macros/isolation"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 updater = ["minisign-verify", "base64", "dialog-ask"]
 http-api = ["attohttpc"]
@@ -233,10 +238,12 @@ path = "../../examples/helloworld/src-tauri/src/main.rs"
 [[example]]
 name = "multiwindow"
 path = "../../examples/multiwindow/src-tauri/src/main.rs"
+required-features = [ "window-create" ]
 
 [[example]]
 name = "navigation"
 path = "../../examples/navigation/src-tauri/src/main.rs"
+required-features = [ "window-create" ]
 
 [[example]]
 name = "splashscreen"
@@ -249,3 +256,8 @@ path = "../../examples/state/src-tauri/src/main.rs"
 [[example]]
 name = "streaming"
 path = "../../examples/streaming/src-tauri/src/main.rs"
+
+[[example]]
+name = "isolation"
+path = "../../examples/isolation/src-tauri/src/main.rs"
+required-features = [ "isolation" ]

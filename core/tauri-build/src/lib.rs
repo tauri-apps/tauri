@@ -43,6 +43,7 @@ impl WindowsAttributes {
 
   /// Sets the icon to use on the window. Currently only used on Windows.
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
+  #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
     self.window_icon_path = window_icon_path.as_ref().into();
     self
@@ -50,6 +51,7 @@ impl WindowsAttributes {
 
   /// Sets the sdk dir for windows. Currently only used on Windows. This must be a vaild UTF-8
   /// path. Defaults to whatever the `winres` crate determines is best.
+  #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
     self.sdk_dir = Some(sdk_dir.as_ref().into());
     self
@@ -70,6 +72,7 @@ impl Attributes {
   }
 
   /// Sets the icon to use on the window. Currently only used on Windows.
+  #[must_use]
   pub fn windows_attributes(mut self, windows_attributes: WindowsAttributes) -> Self {
     self.windows_attributes = windows_attributes;
     self

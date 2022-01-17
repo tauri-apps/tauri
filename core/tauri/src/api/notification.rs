@@ -43,18 +43,21 @@ impl Notification {
   }
 
   /// Sets the notification body.
+  #[must_use]
   pub fn body(mut self, body: impl Into<String>) -> Self {
     self.body = Some(body.into());
     self
   }
 
   /// Sets the notification title.
+  #[must_use]
   pub fn title(mut self, title: impl Into<String>) -> Self {
     self.title = Some(title.into());
     self
   }
 
   /// Sets the notification icon.
+  #[must_use]
   pub fn icon(mut self, icon: impl Into<String>) -> Self {
     self.icon = Some(icon.into());
     self

@@ -9,10 +9,10 @@ pub use mock_runtime::*;
 
 use std::{borrow::Cow, sync::Arc};
 
-use crate::Manager;
+use crate::{Manager, Pattern};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
-  config::{CliConfig, Config, TauriConfig},
+  config::{CliConfig, Config, PatternKind, TauriConfig},
 };
 
 pub struct NoopAsset {
@@ -40,6 +40,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     config: Config {
       package: Default::default(),
       tauri: TauriConfig {
+        pattern: PatternKind::Brownfield,
         windows: vec![Default::default()],
         cli: Some(CliConfig {
           description: None,
@@ -65,8 +66,11 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     package_info: crate::PackageInfo {
       name: "test".into(),
       version: "0.1.0".into(),
+      authors: "Tauri".into(),
+      description: "Tauri test".into(),
     },
     _info_plist: (),
+    pattern: Pattern::Brownfield(std::marker::PhantomData),
   }
 }
 

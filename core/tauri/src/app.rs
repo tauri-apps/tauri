@@ -676,7 +676,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| ()),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (command, args) => window.ipc.notify(JSON.stringify({{ ...args, command }})) })".into(),
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -693,6 +693,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Defines the JS message handler callback.
+  #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
     F: Fn(Invoke<R>) + Send + Sync + 'static,
@@ -706,7 +707,7 @@ impl<R: Runtime> Builder<R> {
   /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
   ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
-  /// That function must take the `command: string` and `args: object` types and send a message to the backend.
+  /// That function must take the `message: object` argument and send it to the backend.
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
     F: Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
@@ -717,6 +718,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Defines the setup hook.
+  #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
     F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
@@ -726,6 +728,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Defines the page load hook.
+  #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
     F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
@@ -735,6 +738,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Adds a plugin to the runtime.
+  #[must_use]
   pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
     self.plugins.register(plugin);
     self
@@ -815,6 +819,7 @@ impl<R: Runtime> Builder<R> {
   ///         .expect("error while running tauri application");
   /// }
   /// ```
+  #[must_use]
   pub fn manage<T>(self, state: T) -> Self
   where
     T: Send + Sync + 'static,
@@ -829,6 +834,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Creates a new webview window.
+  #[must_use]
   pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
   where
     F: FnOnce(
@@ -854,18 +860,21 @@ impl<R: Runtime> Builder<R> {
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+  #[must_use]
   pub fn system_tray(mut self, system_tray: tray::SystemTray) -> Self {
     self.system_tray.replace(system_tray);
     self
   }
 
   /// Sets the menu to use on all windows.
+  #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
     self
   }
 
   /// Registers a menu event handler for all windows.
+  #[must_use]
   pub fn on_menu_event<F: Fn(WindowMenuEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -875,6 +884,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Registers a window event handler for all windows.
+  #[must_use]
   pub fn on_window_event<F: Fn(GlobalWindowEvent<R>) + Send + Sync + 'static>(
     mut self,
     handler: F,
@@ -886,6 +896,7 @@ impl<R: Runtime> Builder<R> {
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+  #[must_use]
   pub fn on_system_tray_event<
     F: Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync + 'static,
   >(
@@ -905,6 +916,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// * `uri_scheme` The URI scheme to register, such as `example`.
   /// * `protocol` the protocol associated with the given URI scheme. It's a function that takes an URL such as `example://localhost/asset.css`.
+  #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     H: Fn(&AppHandle<R>, &HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>>
@@ -1245,16 +1257,16 @@ impl Default for Builder<crate::Wry> {
 mod tests {
   #[test]
   fn is_send_sync() {
-    crate::test::assert_send::<super::AppHandle>();
-    crate::test::assert_sync::<super::AppHandle>();
+    crate::test_utils::assert_send::<super::AppHandle>();
+    crate::test_utils::assert_sync::<super::AppHandle>();
 
     #[cfg(feature = "wry")]
     {
-      crate::test::assert_send::<super::AssetResolver<crate::Wry>>();
-      crate::test::assert_sync::<super::AssetResolver<crate::Wry>>();
+      crate::test_utils::assert_send::<super::AssetResolver<crate::Wry>>();
+      crate::test_utils::assert_sync::<super::AssetResolver<crate::Wry>>();
     }
 
-    crate::test::assert_send::<super::PathResolver>();
-    crate::test::assert_sync::<super::PathResolver>();
+    crate::test_utils::assert_send::<super::PathResolver>();
+    crate::test_utils::assert_sync::<super::PathResolver>();
   }
 }

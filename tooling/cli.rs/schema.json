@@ -156,7 +156,12 @@
           }
         },
         "macOSPrivateApi": false,
-        "security": {},
+        "pattern": {
+          "use": "brownfield"
+        },
+        "security": {
+          "freezePrototype": true
+        },
         "updater": {
           "active": false,
           "dialog": true,
@@ -1187,6 +1192,54 @@
       },
       "additionalProperties": false
     },
+    "PatternKind": {
+      "description": "The application pattern.",
+      "oneOf": [
+        {
+          "description": "Brownfield pattern.",
+          "type": "object",
+          "required": [
+            "use"
+          ],
+          "properties": {
+            "use": {
+              "type": "string",
+              "enum": [
+                "brownfield"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Isolation pattern. Recommended for security purposes.",
+          "type": "object",
+          "required": [
+            "options",
+            "use"
+          ],
+          "properties": {
+            "options": {
+              "type": "object",
+              "required": [
+                "dir"
+              ],
+              "properties": {
+                "dir": {
+                  "description": "The dir containing the index.html file that contains the secure isolation application.",
+                  "type": "string"
+                }
+              }
+            },
+            "use": {
+              "type": "string",
+              "enum": [
+                "isolation"
+              ]
+            }
+          }
+        }
+      ]
+    },
     "PluginConfig": {
       "description": "The plugin configs holds a HashMap mapping a plugin name to its configuration object.",
       "type": "object",
@@ -1259,6 +1312,11 @@
             "string",
             "null"
           ]
+        },
+        "freezePrototype": {
+          "description": "Freeze the `Object.prototype` when using the custom protocol.",
+          "default": true,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1470,9 +1528,22 @@
           "default": false,
           "type": "boolean"
         },
+        "pattern": {
+          "description": "The pattern to use.",
+          "default": {
+            "use": "brownfield"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/PatternKind"
+            }
+          ]
+        },
         "security": {
           "description": "Security configuration.",
-          "default": {},
+          "default": {
+            "freezePrototype": true
+          },
           "allOf": [
             {
               "$ref": "#/definitions/SecurityConfig"

@@ -15,6 +15,7 @@ use serde::{
 };
 use tauri_macros::{module_command_handler, CommandModule};
 
+use std::fmt::{Debug, Formatter};
 use std::{
   fs,
   fs::File,
@@ -334,7 +335,20 @@ fn resolve_path<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf};
+
   use quickcheck::{Arbitrary, Gen};
+
+  use std::path::PathBuf;
+
+  impl Arbitrary for super::SafePathBuf {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self(PathBuf::arbitrary(g))
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+      Box::new(self.0.shrink().map(SafePathBuf))
+    }
+  }
 
   impl Arbitrary for BaseDirectory {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -360,12 +374,6 @@ mod tests {
         recursive: bool::arbitrary(g),
         dir: Option::arbitrary(g),
       }
-    }
-  }
-
-  impl Arbitrary for SafePathBuf {
-    fn arbitrary(g: &mut Gen) -> Self {
-      SafePathBuf(std::path::PathBuf::arbitrary(g))
     }
   }
 

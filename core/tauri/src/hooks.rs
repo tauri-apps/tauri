@@ -10,6 +10,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use serialize_to_javascript::{default_template, Template};
 use std::{future::Future, sync::Arc};
 
 use tauri_macros::default_runtime;
@@ -28,6 +29,21 @@ pub type InvokeResponder<R> =
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
 
+// todo: why is this derive broken but the output works manually?
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
+
 /// The payload for the [`OnPageLoad`] hook.
 #[derive(Debug, Clone, Deserialize)]
 pub struct PageLoadPayload {
@@ -45,7 +61,7 @@ impl PageLoadPayload {
 #[derive(Debug, Deserialize)]
 pub struct InvokePayload {
   /// The invoke command.
-  pub command: String,
+  pub cmd: String,
   #[serde(rename = "__tauriModule")]
   #[doc(hidden)]
   pub tauri_module: Option<String>,
@@ -53,9 +69,6 @@ pub struct InvokePayload {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
-  /// The invoke key.
-  #[serde(rename = "__invokeKey")]
-  pub key: u32,
   /// The payload of the message.
   #[serde(flatten)]
   pub inner: JsonValue,

@@ -107,7 +107,7 @@ fn create_symlink(original: &Path, link: PathBuf) -> io::Result<Symlink> {
     Ok(()) => Ok(Symlink::Created(link)),
     Err(e) => match e.raw_os_error() {
       Some(ERROR_PRIVILEGE_NOT_HELD) => Ok(Symlink::Privilege),
-      _ => Err(e.into()),
+      _ => Err(e),
     },
   };
 }

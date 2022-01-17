@@ -36,8 +36,8 @@ pub enum WindowUrl {
   App(PathBuf),
 }
 
-impl std::fmt::Display for WindowUrl {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for WindowUrl {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::External(url) => write!(f, "{}", url),
       Self::App(path) => write!(f, "{}", path.display()),
@@ -542,7 +542,7 @@ fn default_file_drop_enabled() -> bool {
 
 /// Security configuration.
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -557,6 +557,23 @@ pub struct SecurityConfig {
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   pub dev_csp: Option<String>,
+  /// Freeze the `Object.prototype` when using the custom protocol.
+  #[serde(default = "default_freeze_prototype")]
+  pub freeze_prototype: bool,
+}
+
+impl Default for SecurityConfig {
+  fn default() -> Self {
+    Self {
+      csp: None,
+      dev_csp: None,
+      freeze_prototype: default_freeze_prototype(),
+    }
+  }
+}
+
+fn default_freeze_prototype() -> bool {
+  true
 }
 
 /// Defines an allowlist type.
@@ -1292,12 +1309,37 @@ fn default_window_config() -> Vec<WindowConfig> {
   vec![Default::default()]
 }
 
+/// The application pattern.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "use", content = "options")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum PatternKind {
+  /// Brownfield pattern.
+  Brownfield,
+  /// Isolation pattern. Recommended for security purposes.
+  #[cfg(feature = "isolation")]
+  Isolation {
+    /// The dir containing the index.html file that contains the secure isolation application.
+    dir: PathBuf,
+  },
+}
+
+impl Default for PatternKind {
+  fn default() -> Self {
+    Self::Brownfield
+  }
+}
+
 /// The Tauri configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TauriConfig {
+  /// The pattern to use.
+  #[serde(default)]
+  pub pattern: PatternKind,
   /// The windows configuration.
   #[serde(default = "default_window_config")]
   pub windows: Vec<WindowConfig>,
@@ -1325,6 +1367,7 @@ pub struct TauriConfig {
 impl Default for TauriConfig {
   fn default() -> Self {
     Self {
+      pattern: Default::default(),
       windows: default_window_config(),
       cli: None,
       bundle: BundleConfig::default(),
@@ -1338,6 +1381,20 @@ impl Default for TauriConfig {
 }
 
 impl TauriConfig {
+  /// Returns all Cargo features.
+  #[allow(dead_code)]
+  pub fn all_features() -> Vec<&'static str> {
+    let mut features = AllowlistConfig::all_features();
+    features.extend(vec![
+      "cli",
+      "updater",
+      "system-tray",
+      "macos-private-api",
+      "isolation",
+    ]);
+    features
+  }
+
   /// Returns the enabled Cargo features.
   #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
@@ -1353,6 +1410,10 @@ impl TauriConfig {
     }
     if self.macos_private_api {
       features.push("macos-private-api");
+    }
+    #[cfg(feature = "isolation")]
+    if let PatternKind::Isolation { .. } = self.pattern {
+      features.push("isolation");
     }
     features.sort_unstable();
     features
@@ -1964,6 +2025,21 @@ mod build {
     }
   }
 
+  impl ToTokens for PatternKind {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::PatternKind };
+
+      tokens.append_all(match self {
+        Self::Brownfield => quote! { #prefix::Brownfield },
+        #[cfg(feature = "isolation")]
+        Self::Isolation { dir } => {
+          let dir = path_buf_lit(dir);
+          quote! { #prefix::Isolation { dir: #dir } }
+        }
+      })
+    }
+  }
+
   impl ToTokens for WindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let webview_fixed_runtime_path = opt_lit(
@@ -2082,8 +2158,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_str_lit(self.csp.as_ref());
       let dev_csp = opt_str_lit(self.dev_csp.as_ref());
+      let freeze_prototype = self.freeze_prototype;
 
-      literal_struct!(tokens, SecurityConfig, csp, dev_csp);
+      literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype);
     }
   }
 
@@ -2151,6 +2228,7 @@ mod build {
 
   impl ToTokens for TauriConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let pattern = &self.pattern;
       let windows = vec_lit(&self.windows, identity);
       let cli = opt_lit(self.cli.as_ref());
       let bundle = &self.bundle;
@@ -2163,6 +2241,7 @@ mod build {
       literal_struct!(
         tokens,
         TauriConfig,
+        pattern,
         windows,
         cli,
         bundle,
@@ -2234,6 +2313,7 @@ mod test {
 
     // create a tauri config.
     let tauri = TauriConfig {
+      pattern: Default::default(),
       windows: vec![WindowConfig {
         label: "main".to_string(),
         url: WindowUrl::default(),
@@ -2283,6 +2363,7 @@ mod test {
       security: SecurityConfig {
         csp: None,
         dev_csp: None,
+        freeze_prototype: true,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

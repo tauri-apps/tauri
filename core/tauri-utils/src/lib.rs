@@ -10,6 +10,9 @@ pub mod config;
 pub mod html;
 pub mod platform;
 
+/// Application pattern.
+pub mod pattern;
+
 /// `tauri::App` package information.
 #[derive(Debug, Clone)]
 pub struct PackageInfo {
@@ -112,4 +115,7 @@ pub enum Error {
   /// IO error
   #[error("{0}")]
   Io(#[from] std::io::Error),
+  /// Invalid pattern.
+  #[error("invalid pattern `{0}`. Expected either `brownfield` or `isolation`.")]
+  InvalidPattern(String),
 }

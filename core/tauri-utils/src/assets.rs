@@ -81,6 +81,9 @@ impl<P: AsRef<Path>> From<P> for AssetKey {
 pub enum CspHash<'a> {
   /// The `script-src` directive.
   Script(&'a str),
+
+  /// The `style-src` directive.
+  Style(&'a str),
 }
 
 impl CspHash<'_> {
@@ -88,6 +91,7 @@ impl CspHash<'_> {
   pub fn directive(&self) -> &'static str {
     match self {
       Self::Script(_) => "script-src",
+      Self::Style(_) => "style-src",
     }
   }
 
@@ -95,6 +99,7 @@ impl CspHash<'_> {
   pub fn hash(&self) -> &str {
     match self {
       Self::Script(hash) => hash,
+      Self::Style(hash) => hash,
     }
   }
 }

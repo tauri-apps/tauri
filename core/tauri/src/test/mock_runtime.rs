@@ -12,13 +12,16 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  ActivationPolicy, ClipboardManager, Dispatch, GlobalShortcutManager, Icon, Result, RunEvent,
-  RunIteration, Runtime, RuntimeHandle, UserAttentionType,
+  ClipboardManager, Dispatch, GlobalShortcutManager, Icon, Result, RunEvent, Runtime,
+  RuntimeHandle, UserAttentionType,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
+
+#[cfg(windows)]
+use webview2_com::Windows::Win32::Foundation::HWND;
 
 use std::{
   collections::HashMap,
@@ -60,6 +63,7 @@ impl RuntimeHandle for MockRuntimeHandle {
         context: self.context.clone(),
       },
       menu_ids: Default::default(),
+      js_event_listeners: Default::default(),
     })
   }
 
@@ -534,6 +538,7 @@ impl Runtime for MockRuntime {
         context: self.context.clone(),
       },
       menu_ids: Default::default(),
+      js_event_listeners: Default::default(),
     })
   }
 
@@ -551,10 +556,13 @@ impl Runtime for MockRuntime {
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  fn set_activation_policy(&mut self, activation_policy: ActivationPolicy) {}
+  fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
   #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration {
+  fn run_iteration<F: Fn(RunEvent) + 'static>(
+    &mut self,
+    callback: F,
+  ) -> tauri_runtime::RunIteration {
     Default::default()
   }
 

@@ -59,12 +59,11 @@ jobs:
 #           linksRoot: ""
 #           cratesToProcess: "tauri"
 
-      # TypeScript
-      - name: install API deps
-        working-directory: ./tauri
+      - name: TypeScript Docs
+        working-directory: ./tauri/tooling/api
         run: |
           yarn add typescript typedoc typedoc-plugin-markdown
-          yarn typedoc --plugin typedoc-plugin-markdown --out docs tooling/api/src --tsconfig tooling/api/tsconfig.json --hideInPageTOC true --hideBreadcrumbs true
+          yarn typedoc --plugin typedoc-plugin-markdown --out ../../docs src --tsconfig tsconfig.json --hideInPageTOC true --hideBreadcrumbs true
 
       # Moving docs for Indexation
       - name: copy docs

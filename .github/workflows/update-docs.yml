@@ -71,6 +71,9 @@ jobs:
       - name: Copy Architecture doc
         run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/
 
+      - name: Copy Guides docs
+        run: cp -r docs/!(.templates) tauri-docs/docs/en
+
       # Indexing
       - name: meilisearch indexation
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1

@@ -62,3 +62,6 @@ typings/
 debug.log
 package-lock.json
 .vscode/settings.json
+
+# Documentation output
+docs

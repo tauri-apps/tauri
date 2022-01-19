@@ -66,7 +66,7 @@ jobs:
         run: yarn && yarn generate-docs
 
       - name: Copy JS docs
-        run: cp -r tauri/tooling/api/docs/ tauri-docs/docs/api/js/
+        run: cp tauri/tooling/api/docs/* tauri-docs/docs/api/js/
 
       # Indexing
       - name: meilisearch indexation

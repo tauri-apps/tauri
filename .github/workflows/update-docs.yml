@@ -72,10 +72,11 @@ jobs:
         run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/about/
 
       - name: Copy Guides docs
-        run: cp -r docs/!(.templates) tauri-docs/docs/
-
+        run: cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs/
+        
       # Indexing
       - name: meilisearch indexation
+
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
           version: ${{ github.event.inputs.version || github.event.release.tag_name }}

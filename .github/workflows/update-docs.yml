@@ -72,7 +72,7 @@ jobs:
         run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/about/
 
       - name: Copy Guides docs
-        run: rsync -avr --exclude '.templates' docs/ tauri-docs/docs/
+        run: rsync -avr --exclude '.templates' tauri/docs/ tauri-docs/docs/
         
       # Indexing
       - name: meilisearch indexation

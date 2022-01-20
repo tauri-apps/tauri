@@ -69,10 +69,10 @@ jobs:
         run: cp -r tauri/tooling/api/docs/* tauri-docs/docs/api/js/
         
       - name: Copy Architecture doc
-        run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/
+        run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/about/
 
       - name: Copy Guides docs
-        run: cp -r docs/!(.templates) tauri-docs/docs/en
+        run: cp -r docs/!(.templates) tauri-docs/docs/
 
       # Indexing
       - name: meilisearch indexation

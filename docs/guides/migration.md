@@ -53,7 +53,7 @@ Update your `tauri.conf.json` like this:
 - make the `window` definition into an array and call it `windows`
 - remove `inliner`
 
-> for more information about the config see [here](../../api/config.md)
+> for more information about the config see [here](../api/config.md)
 
 ```diff
   {

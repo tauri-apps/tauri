@@ -273,4 +273,4 @@ of configuration and a single command to run it! Even better, we didn't have to 
 [finished example project]: https://github.com/chippers/hello_tauri
 [example Application setup]: setup
 [Mocha]: https://mochajs.org/
-[suggest reading the documentation]: (https://webdriver.io/docs/configurationfile)
+[suggest reading the documentation]: https://webdriver.io/docs/configurationfile

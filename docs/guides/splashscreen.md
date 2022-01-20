@@ -35,7 +35,7 @@ Now, your main window will be hidden and the splashscreen window will show when 
 
 ### Waiting for Webpage
 
-If you are waiting for your web code, you'll want to create a `close_splashscreen` [command](../command.md).
+If you are waiting for your web code, you'll want to create a `close_splashscreen` [command](command.md).
 
 ```rust title=src-tauri/main.rs
 use tauri::Manager;

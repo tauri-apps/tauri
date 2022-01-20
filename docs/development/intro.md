@@ -11,7 +11,7 @@ Here you will find guides and techniques to start a new project or add to your o
 ## Tauri Development Workflow
 
 - [Integrate With Tauri](/docs/development/integration)
-- [Development Cycle](/docs/development/development)
+- [Development Cycle](/docs/development/development-cycle)
 - [Debugging](/docs/development/debugging)
 - [CI/CD](/docs/development/ci-cd)
 - [Cross-Platform Compilation](/docs/development/cross-platform)

@@ -40,46 +40,43 @@ jobs:
         with:
           repository: tauri-apps/tauri-search-bot
           path: tauri-search-bot
-      - name: install webkit2gtk
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
-      # Rust
-      - name: generate rust docs
-        working-directory: ./tauri/core/tauri
-        run: cargo doc --no-deps
-      - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1
-        with:
-          originPath: ./tauri/target/doc/
-          targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
-          linksRoot: ""
-          cratesToProcess: "tauri"
+      # Any Rust documentation is currently disabled while we're falling back to docs.rs
 
-      # TypeScript
-      - name: install API deps
+      # - name: install webkit2gtk
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+
+      # # Rust
+      # - name: generate rust docs
+      #   working-directory: ./tauri/core/tauri
+      #   run: cargo doc --no-deps
+      # - name: run rustdocusaurus
+      #   uses: tauri-apps/rustdocusaurus/github-action@v1
+      #   with:
+      #     originPath: ./tauri/target/doc/
+      #     targetPath: ./tauri-docs/docs/en/api/rust/
+      #     sidebarPath: "${{ github.workspace }}/tauri-docs/sidebars/rustdoc.json"
+      #     linksRoot: ""
+      #     cratesToProcess: "tauri"
+
+      - name: Generate JS docs
         working-directory: ./tauri/tooling/api
-        run: yarn && yarn add typescript@4.2
-      - name: run typedocusaurus
-        uses: tauri-apps/typedocusaurus@v1
-        with:
-          originPath: ./tauri/tooling/api/
-          sidebarFile: "${{ github.workspace }}/tauri-docs/sidebars/typedoc.json"
-          targetPath: ${{ github.workspace }}/tauri-docs/docs/en/api/js
-          docusaurusPath: ./tauri-docs/
+        run: yarn && yarn generate-docs
 
-      # Moving docs for Indexation
-      - name: copy docs
-        working-directory: ./tauri
-        run: |
-          mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json
-          cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs/en
-          mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/en/about/architecture.md
+      - name: Copy JS docs
+        run: cp -r tauri/tooling/api/docs/* tauri-docs/docs/api/js/
+        
+      - name: Copy Architecture doc
+        run: cp -r tauri/ARCHITECTURE.md tauri-docs/docs/about/
 
+      - name: Copy Guides docs
+        run: rsync -avr --exclude '.templates' tauri/docs/ tauri-docs/docs/
+        
       # Indexing
       - name: meilisearch indexation
+
         uses: tauri-apps/docusaurus-meilisearch-indexer@v1
         with:
           version: ${{ github.event.inputs.version || github.event.release.tag_name }}

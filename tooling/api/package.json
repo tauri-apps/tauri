@@ -19,7 +19,7 @@
     "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "generate-docs": "typedoc src --githubPages false --readme none --entryDocument index.md --hideInPageTOC true"
+    "generate-docs": "typedoc src --githubPages false --readme none --entryDocument index.md --hideInPageTOC true --hideBreadcrumbs true"
   },
   "repository": {
     "type": "git",

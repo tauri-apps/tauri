@@ -13,8 +13,7 @@ fn main() {
 
     // fs
     fs_all: { any(api_all, feature = "fs-all") },
-    fs_read_text_file: { any(fs_all, feature = "fs-read-text-file") },
-    fs_read_binary_file: { any(fs_all, feature = "fs-read-binary-file") },
+    fs_read_file: { any(fs_all, feature = "fs-read-file") },
     fs_write_file: { any(fs_all, feature = "fs-write-file") },
     fs_write_binary_file: { any(fs_all, feature = "fs-write-binary-file") },
     fs_read_dir: { any(fs_all, feature = "fs-read-dir") },

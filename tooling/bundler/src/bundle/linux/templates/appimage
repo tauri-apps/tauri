@@ -33,4 +33,9 @@ wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxde
 chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-x86_64.AppImage
 
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+args=()
+if ! [ -x "$(command -v fusermount)" ]; then
+  args+=( '--appimage-extract' )
+fi
+
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage "${args[@]}" --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

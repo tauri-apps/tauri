@@ -34,7 +34,8 @@ chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-x86_64.AppImage
 
 args=()
-if ! [[ $(lsmod | grep fuse) ]]; then
+if ! lsmod | grep -q 'fuse'
+then
   args+=( '--appimage-extract-and-run' )
 fi
 

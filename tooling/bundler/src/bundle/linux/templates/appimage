@@ -34,7 +34,7 @@ chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-x86_64.AppImage
 
 args=()
-if ! [ -x "$(command -v fusermount)" ]; then
+if ! [[ $(lsmod | grep fuse) ]]; then
   args+=( '--appimage-extract' )
 fi
 

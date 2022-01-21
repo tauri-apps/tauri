@@ -35,7 +35,7 @@ chmod +x linuxdeploy-x86_64.AppImage
 
 args=()
 if ! [[ $(lsmod | grep fuse) ]]; then
-  args+=( '--appimage-extract' )
+  args+=( '--appimage-extract-and-run' )
 fi
 
 OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage "${args[@]}" --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

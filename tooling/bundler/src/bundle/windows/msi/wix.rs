@@ -389,7 +389,7 @@ pub fn build_wix_app_installer(
   let app_exe_source = settings.binary_path(main_binary);
   let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
     if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-      common::print_info(&format!("signing {}", file_path.display()));
+      common::print_info(&format!("signing {}", file_path.display()))?;
       sign(
         &file_path,
         &SignParams {

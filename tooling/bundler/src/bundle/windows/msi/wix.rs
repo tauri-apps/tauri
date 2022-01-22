@@ -388,25 +388,28 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
+  let sign_params = SignParams {
+    digest_algorithm: settings
+      .windows()
+      .digest_algorithm
+      .as_ref()
+      .map(|algorithm| algorithm.to_string())
+      .unwrap_or_else(|| "sha256".to_string()),
+    certificate_thumbprint: certificate_thumbprint.to_string(),
+    timestamp_url: settings
+      .windows()
+      .timestamp_url
+      .as_ref()
+      .map(|url| url.to_string()),
+  };
+  let sign = |file_path: &PathBuf| -> crate::Result<()> {
+    sign(&file_path, &sign_params)?;
+    Ok(())
+  };
+
   if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
     common::print_info("signing app")?;
-    sign(
-      &app_exe_source,
-      &SignParams {
-        digest_algorithm: settings
-          .windows()
-          .digest_algorithm
-          .as_ref()
-          .map(|algorithm| algorithm.to_string())
-          .unwrap_or_else(|| "sha256".to_string()),
-        certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: settings
-          .windows()
-          .timestamp_url
-          .as_ref()
-          .map(|url| url.to_string()),
-      },
-    )?;
+    sign(app_exe_source)?;
   }
 
   // ensure that `target/{release, debug}/wix` folder exists
@@ -653,6 +656,9 @@ pub fn build_wix_app_installer(
     settings,
   )?;
   rename(&msi_output_path, &msi_path)?;
+  if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
+    sign(&msi_path)?;
+  }
 
   Ok(msi_path)
 }

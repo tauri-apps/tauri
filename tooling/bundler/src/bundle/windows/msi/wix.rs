@@ -389,7 +389,7 @@ pub fn build_wix_app_installer(
   let app_exe_source = settings.binary_path(main_binary);
   let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
     if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-      common::print_info(format!("signing {}", file_path.display()));
+      common::print_info(&format!("signing {}", file_path.display()));
       sign(
         &file_path,
         &SignParams {
@@ -412,7 +412,7 @@ pub fn build_wix_app_installer(
   };
 
   common::print_info("trying to sign app")?;
-  try_sign(app_exe_source)?;
+  try_sign(&app_exe_source)?;
 
   // ensure that `target/{release, debug}/wix` folder exists
   std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;

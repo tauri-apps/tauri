@@ -37,7 +37,7 @@ enum ResponseType {
   Binary = 3
 }
 
-type Part = 'string' | number[]
+type Part = string | number[]
 
 /** The body object to be used on POST and PUT requests. */
 class Body {

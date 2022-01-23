@@ -387,27 +387,32 @@ pub fn build_wix_app_installer(
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
+  let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
+    if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
+      common::print_info(&format!("signing {}", file_path.display()))?;
+      sign(
+        &file_path,
+        &SignParams {
+          digest_algorithm: settings
+            .windows()
+            .digest_algorithm
+            .as_ref()
+            .map(|algorithm| algorithm.to_string())
+            .unwrap_or_else(|| "sha256".to_string()),
+          certificate_thumbprint: certificate_thumbprint.to_string(),
+          timestamp_url: settings
+            .windows()
+            .timestamp_url
+            .as_ref()
+            .map(|url| url.to_string()),
+        },
+      )?;
+    }
+    Ok(())
+  };
 
-  if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-    common::print_info("signing app")?;
-    sign(
-      &app_exe_source,
-      &SignParams {
-        digest_algorithm: settings
-          .windows()
-          .digest_algorithm
-          .as_ref()
-          .map(|algorithm| algorithm.to_string())
-          .unwrap_or_else(|| "sha256".to_string()),
-        certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: settings
-          .windows()
-          .timestamp_url
-          .as_ref()
-          .map(|url| url.to_string()),
-      },
-    )?;
-  }
+  common::print_info("trying to sign app")?;
+  try_sign(&app_exe_source)?;
 
   // ensure that `target/{release, debug}/wix` folder exists
   std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
@@ -653,6 +658,7 @@ pub fn build_wix_app_installer(
     settings,
   )?;
   rename(&msi_output_path, &msi_path)?;
+  try_sign(&msi_path)?;
 
   Ok(msi_path)
 }

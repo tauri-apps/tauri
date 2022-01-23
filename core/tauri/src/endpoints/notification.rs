@@ -110,7 +110,7 @@ pub fn request_permission<R: Runtime>(
       PERMISSION_DENIED.to_string()
     });
   }
-  let answer = crate::api::dialog::ask(
+  let answer = crate::api::dialog::blocking::ask(
     Some(window),
     "Permissions",
     "This app wants to show notifications. Do you allow?",

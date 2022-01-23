@@ -4,9 +4,11 @@
 
 use super::InvokeResponse;
 #[cfg(any(dialog_open, dialog_save))]
-use crate::api::dialog::FileDialogBuilder;
+use crate::api::dialog::blocking::FileDialogBuilder;
 use crate::{
-  api::dialog::{ask as ask_dialog, confirm as confirm_dialog, message as message_dialog},
+  api::dialog::blocking::{
+    ask as ask_dialog, confirm as confirm_dialog, message as message_dialog,
+  },
   runtime::Runtime,
   Window,
 };

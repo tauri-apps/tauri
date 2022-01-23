@@ -333,7 +333,7 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::{dialog::ask, process::restart},
+  api::{dialog::blocking::ask, process::restart},
   runtime::Runtime,
   utils::config::UpdaterConfig,
   Window,

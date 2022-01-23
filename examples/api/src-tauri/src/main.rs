@@ -16,9 +16,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask_nonblocking, http::ResponseBuilder, CustomMenuItem, Event,
-  GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
+  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -234,7 +233,7 @@ fn main() {
       // use the exposed close api, and prevent the event loop to close
       api.prevent_close();
       // ask the user if he wants to quit
-      ask_nonblocking(
+      ask(
         Some(&window),
         "Tauri API",
         "Are you sure that you want to close this window?",

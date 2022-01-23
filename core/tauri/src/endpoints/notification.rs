@@ -110,17 +110,11 @@ pub fn request_permission<R: Runtime>(
       PERMISSION_DENIED.to_string()
     });
   }
-  let (tx, rx) = std::sync::mpsc::channel();
-  crate::api::dialog::ask(
+  let answer = crate::api::dialog::ask(
     Some(window),
     "Permissions",
     "This app wants to show notifications. Do you allow?",
-    move |answer| {
-      tx.send(answer).unwrap();
-    },
   );
-
-  let answer = rx.recv().unwrap();
 
   settings.allow_notification = Some(answer);
   crate::settings::write_settings(config, package_info, settings)?;

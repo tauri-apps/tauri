@@ -16,8 +16,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
-  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  api::dialog::ask_nonblocking, http::ResponseBuilder, CustomMenuItem, Event,
+  GlobalShortcutManager, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
+  WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -125,15 +126,15 @@ fn main() {
           }
           "new" => {
             app
-            .create_window(
-              "new",
-              WindowUrl::App("index.html".into()),
-              |window_builder, webview_attributes| {
-                (window_builder.title("Tauri"), webview_attributes)
-              },
-            )
-            .unwrap();
-          },
+              .create_window(
+                "new",
+                WindowUrl::App("index.html".into()),
+                |window_builder, webview_attributes| {
+                  (window_builder.title("Tauri"), webview_attributes)
+                },
+              )
+              .unwrap();
+          }
           #[cfg(target_os = "macos")]
           "icon_1" => {
             app.tray_handle().set_icon_as_template(true).unwrap();
@@ -233,7 +234,7 @@ fn main() {
       // use the exposed close api, and prevent the event loop to close
       api.prevent_close();
       // ask the user if he wants to quit
-      ask(
+      ask_nonblocking(
         Some(&window),
         "Tauri API",
         "Are you sure that you want to close this window?",

@@ -6,6 +6,7 @@
 
 #[cfg(any(dialog_open, dialog_save))]
 use std::path::{Path, PathBuf};
+use std::sync::mpsc::sync_channel;
 
 use crate::{Runtime, Window};
 
@@ -29,6 +30,17 @@ macro_rules! run_dialog {
         $h(response);
       });
     });
+  }};
+}
+
+macro_rules! run_dialog_sync {
+  ($e:expr) => {{
+    let (tx, rx) = sync_channel(0);
+    let cb = move |response| {
+      tx.send(response).unwrap();
+    };
+    run_dialog!($e, cb);
+    rx.recv().unwrap()
   }};
 }
 
@@ -76,47 +88,235 @@ impl FileDialogBuilder {
     self
   }
 
-  /// Pick one file.
-  pub fn pick_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+  /// Shows the dialog to select a single file.
+  /// This is not a blocking operation,
+  /// and should be used when running on the main thread to avoid deadlocks with the event loop.
+  ///
+  /// For usage in other contexts such as commands, prefer [`Self::pick_file`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// tauri::Builder::default()
+  ///   .build(tauri::generate_context!())
+  ///   .expect("failed to build tauri app")
+  ///   .run(|_app, _event| {
+  ///     FileDialogBuilder::new().pick_file_nonblocking(|file_path| {
+  ///       // do something with the optional file path here
+  ///       // the file path is `None` if the user closed the dialog
+  ///     })
+  ///   })
+  /// ```
+  pub fn pick_file_nonblocking<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
     run_dialog!(self.0.pick_file(), f)
   }
 
-  /// Pick multiple files.
-  pub fn pick_files<F: FnOnce(Option<Vec<PathBuf>>) + Send + 'static>(self, f: F) {
+  /// Shows the dialog to select multiple files.
+  /// This is not a blocking operation,
+  /// and should be used when running on the main thread to avoid deadlocks with the event loop.
+  ///
+  /// For usage in other contexts such as commands, prefer [`Self::pick_files`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// tauri::Builder::default()
+  ///   .build(tauri::generate_context!())
+  ///   .expect("failed to build tauri app")
+  ///   .run(|_app, _event| {
+  ///     FileDialogBuilder::new().pick_files_nonblocking(|file_paths| {
+  ///       // do something with the optional file paths here
+  ///       // the file paths value is `None` if the user closed the dialog
+  ///     })
+  ///   })
+  /// ```
+  pub fn pick_files_nonblocking<F: FnOnce(Option<Vec<PathBuf>>) + Send + 'static>(self, f: F) {
     run_dialog!(self.0.pick_files(), f)
   }
 
-  /// Pick one folder.
-  pub fn pick_folder<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+  /// Shows the dialog to select a single folder.
+  /// This is not a blocking operation,
+  /// and should be used when running on the main thread to avoid deadlocks with the event loop.
+  ///
+  /// For usage in other contexts such as commands, prefer [`Self::pick_folder`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// tauri::Builder::default()
+  ///   .build(tauri::generate_context!())
+  ///   .expect("failed to build tauri app")
+  ///   .run(|_app, _event| {
+  ///     FileDialogBuilder::new().pick_folder_nonblocking(|folder_path| {
+  ///       // do something with the optional folder path here
+  ///       // the folder path is `None` if the user closed the dialog
+  ///     })
+  ///   })
+  /// ```
+  pub fn pick_folder_nonblocking<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
     run_dialog!(self.0.pick_folder(), f)
   }
 
-  /// Opens save file dialog.
-  pub fn save_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
+  /// Shows the dialog to save a file.
+  /// This is not a blocking operation,
+  /// and should be used when running on the main thread to avoid deadlocks with the event loop.
+  ///
+  /// For usage in other contexts such as commands, prefer [`Self::save_file`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// tauri::Builder::default()
+  ///   .build(tauri::generate_context!())
+  ///   .expect("failed to build tauri app")
+  ///   .run(|_app, _event| {
+  ///     FileDialogBuilder::new().save_file_nonblocking(|file_path| {
+  ///       // do something with the optional file path here
+  ///       // the file path is `None` if the user closed the dialog
+  ///     })
+  ///   })
+  /// ```
+  pub fn save_file_nonblocking<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
     run_dialog!(self.0.save_file(), f)
+  }
+
+  /// Shows the dialog to select a single file.
+  /// This is a blocking operation,
+  /// and should *NOT* be used when running on the main thread context.
+  ///
+  /// For usage on the main thread, see [`Self::pick_file_nonblocking`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// #[tauri::command]
+  /// fn my_command() {
+  ///   let file_path = FileDialogBuilder::new().pick_file();
+  ///   // do something with the optional file path here
+  ///   // the file path is `None` if the user closed the dialog
+  /// }
+  /// ```
+  pub fn pick_file(self) -> Option<PathBuf> {
+    run_dialog_sync!(self.0.pick_file())
+  }
+
+  /// Shows the dialog to select multiple files.
+  /// This is a blocking operation,
+  /// and should *NOT* be used when running on the main thread context.
+  ///
+  /// For usage on the main thread, see [`Self::pick_files_nonblocking`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// #[tauri::command]
+  /// fn my_command() {
+  ///   let file_path = FileDialogBuilder::new().pick_files();
+  ///   // do something with the optional file paths here
+  ///   // the file paths value is `None` if the user closed the dialog
+  /// }
+  /// ```
+  pub fn pick_files(self) -> Option<Vec<PathBuf>> {
+    run_dialog_sync!(self.0.pick_files())
+  }
+
+  /// Shows the dialog to select a single folder.
+  /// This is a blocking operation,
+  /// and should *NOT* be used when running on the main thread context.
+  ///
+  /// For usage on the main thread, see [`Self::pick_folder_nonblocking()`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// #[tauri::command]
+  /// fn my_command() {
+  ///   let folder_path = FileDialogBuilder::new().pick_folder();
+  ///   // do something with the optional folder path here
+  ///   // the folder path is `None` if the user closed the dialog
+  /// }
+  /// ```
+  pub fn pick_folder(self) -> Option<PathBuf> {
+    run_dialog_sync!(self.0.pick_folder())
+  }
+
+  /// Shows the dialog to save a file.
+  /// This is a blocking operation,
+  /// and should *NOT* be used when running on the main thread context.
+  ///
+  /// For usage on the main thread, see [`Self::save_file_nonblocking()`].
+  ///
+  /// # Example
+  ///
+  /// ```rust,ignore
+  /// use tauri::api::dialog::FileDialogBuilder;
+  /// #[tauri::command]
+  /// fn my_command() {
+  ///   let file_path = FileDialogBuilder::new().save_file();
+  ///   // do something with the optional file path here
+  ///   // the file path is `None` if the user closed the dialog
+  /// }
+  /// ```
+  pub fn save_file(self) -> Option<PathBuf> {
+    run_dialog_sync!(self.0.save_file())
   }
 }
 
-/// Displays a dialog with a message and an optional title with a "yes" and a "no" button.
+/// Displays a non-blocking dialog with a message and an optional title with a "yes" and a "no" button.
+///
+/// This is not a blocking operation,
+/// and should be used when running on the main thread to avoid deadlocks with the event loop.
+///
+/// For usage in other contexts such as commands, prefer [`ask()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::ask_nonblocking;
+/// ask_nonblocking(None, "Tauri", "Is Tauri awesome?", |answer| {
+///   // do something with `answer`
+/// });
+/// ```
 #[allow(unused_variables)]
-pub fn ask<R: Runtime, F: FnOnce(bool) + Send + 'static>(
+pub fn ask_nonblocking<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   parent_window: Option<&Window<R>>,
   title: impl AsRef<str>,
   message: impl AsRef<str>,
   f: F,
 ) {
-  run_message_dialog(parent_window, title, message, rfd::MessageButtons::YesNo, f)
+  run_message_dialog_nonblocking(parent_window, title, message, rfd::MessageButtons::YesNo, f)
 }
 
-/// Displays a dialog with a message and an optional title with an "ok" and a "cancel" button.
+/// Displays a non-blocking dialog with a message and an optional title with an "ok" and a "cancel" button.
+///
+/// This is not a blocking operation,
+/// and should be used when running on the main thread to avoid deadlocks with the event loop.
+///
+/// For usage in other contexts such as commands, prefer [`confirm()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::confirm_nonblocking;
+/// confirm_nonblocking(None, "Tauri", "Are you sure?", |answer| {
+///   // do something with `answer`
+/// });
+/// ```
 #[allow(unused_variables)]
-pub fn confirm<R: Runtime, F: FnOnce(bool) + Send + 'static>(
+pub fn confirm_nonblocking<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   parent_window: Option<&Window<R>>,
   title: impl AsRef<str>,
   message: impl AsRef<str>,
   f: F,
 ) {
-  run_message_dialog(
+  run_message_dialog_nonblocking(
     parent_window,
     title,
     message,
@@ -125,14 +325,26 @@ pub fn confirm<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   )
 }
 
-/// Displays a message dialog.
+/// Displays a non-blocking message dialog.
+///
+/// This is not a blocking operation,
+/// and should be used when running on the main thread to avoid deadlocks with the event loop.
+///
+/// For usage in other contexts such as commands, prefer [`message()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::message_nonblocking;
+/// message_nonblocking(None, "Tauri", "Tauri is awesome!");
+/// ```
 #[allow(unused_variables)]
-pub fn message<R: Runtime>(
+pub fn message_nonblocking<R: Runtime>(
   parent_window: Option<&Window<R>>,
   title: impl AsRef<str>,
   message: impl AsRef<str>,
 ) {
-  run_message_dialog(
+  run_message_dialog_nonblocking(
     parent_window,
     title,
     message,
@@ -141,8 +353,90 @@ pub fn message<R: Runtime>(
   )
 }
 
+/// Displays a dialog with a message and an optional title with a "yes" and a "no" button and wait for it to be closed.
+///
+/// This is a blocking operation,
+/// and should *NOT* be used when running on the main thread context.
+///
+/// For usage on the main thread, see [`ask_nonblocking()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::ask;
+/// let answer = ask(None, "Tauri", "Is Tauri awesome?");
+/// // do something with `answer`
+/// ```
 #[allow(unused_variables)]
-fn run_message_dialog<R: Runtime, F: FnOnce(bool) + Send + 'static>(
+pub fn ask<R: Runtime>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+) -> bool {
+  run_message_dialog(parent_window, title, message, rfd::MessageButtons::YesNo)
+}
+
+/// Displays a dialog with a message and an optional title with an "ok" and a "cancel" button and wait for it to be closed.
+///
+/// This is a blocking operation,
+/// and should *NOT* be used when running on the main thread context.
+///
+/// For usage on the main thread, see [`confirm_nonblocking()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::confirm;
+/// let answer = confirm(None, "Tauri", "Are you sure?");
+/// // do something with `answer`
+/// ```
+#[allow(unused_variables)]
+pub fn confirm<R: Runtime>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+) -> bool {
+  run_message_dialog(parent_window, title, message, rfd::MessageButtons::OkCancel)
+}
+
+/// Displays a message dialog and wait for it to be closed.
+///
+/// This is a blocking operation,
+/// and should *NOT* be used when running on the main thread context.
+///
+/// For usage on the main thread, see [`message_nonblocking()`].
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use tauri::api::dialog::message;
+/// message(None, "Tauri", "Tauri is awesome!");
+/// ```
+#[allow(unused_variables)]
+pub fn message<R: Runtime>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+) {
+  let _ = run_message_dialog(parent_window, title, message, rfd::MessageButtons::Ok);
+}
+
+#[allow(unused_variables)]
+fn run_message_dialog<R: Runtime>(
+  parent_window: Option<&Window<R>>,
+  title: impl AsRef<str>,
+  message: impl AsRef<str>,
+  buttons: rfd::MessageButtons,
+) -> bool {
+  let (tx, rx) = sync_channel(1);
+  run_message_dialog_nonblocking(parent_window, title, message, buttons, move |response| {
+    tx.send(response).unwrap();
+  });
+  rx.recv().unwrap()
+}
+
+#[allow(unused_variables)]
+fn run_message_dialog_nonblocking<R: Runtime, F: FnOnce(bool) + Send + 'static>(
   parent_window: Option<&Window<R>>,
   title: impl AsRef<str>,
   message: impl AsRef<str>,

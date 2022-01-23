@@ -12,7 +12,7 @@ use crate::{
 };
 use serde::Deserialize;
 
-use std::{path::PathBuf, sync::mpsc::channel};
+use std::path::PathBuf;
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -164,17 +164,15 @@ pub fn open<R: Runtime>(
     dialog_builder = dialog_builder.set_title(&title);
   }
 
-  let (tx, rx) = channel();
-
-  if options.directory {
-    dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
+  let res = if options.directory {
+    dialog_builder.pick_folder().into()
   } else if options.multiple {
-    dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
+    dialog_builder.pick_files().into()
   } else {
-    dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
-  }
+    dialog_builder.pick_file().into()
+  };
 
-  Ok(rx.recv().unwrap())
+  Ok(res)
 }
 
 /// Shows a save dialog.
@@ -200,9 +198,7 @@ pub fn save<R: Runtime>(
     dialog_builder = dialog_builder.set_title(&title);
   }
 
-  let (tx, rx) = channel();
-  dialog_builder.save_file(move |p| tx.send(p).unwrap());
-  Ok(rx.recv().unwrap().into())
+  Ok(dialog_builder.save_file().into())
 }
 
 /// Shows a dialog with a yes/no question.
@@ -211,9 +207,7 @@ pub fn ask<R: Runtime>(
   title: String,
   message: String,
 ) -> crate::Result<InvokeResponse> {
-  let (tx, rx) = channel();
-  ask_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
-  Ok(rx.recv().unwrap().into())
+  Ok(ask_dialog(Some(window), title, message).into())
 }
 
 /// Shows a dialog with a ok/cancel message.
@@ -222,7 +216,5 @@ pub fn confirm<R: Runtime>(
   title: String,
   message: String,
 ) -> crate::Result<InvokeResponse> {
-  let (tx, rx) = channel();
-  confirm_dialog(Some(window), title, message, move |m| tx.send(m).unwrap());
-  Ok(rx.recv().unwrap().into())
+  Ok(confirm_dialog(Some(window), title, message).into())
 }

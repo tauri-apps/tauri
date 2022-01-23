@@ -96,10 +96,10 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// tauri::Builder::default()
-  ///   .build(tauri::generate_context!())
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("failed to build tauri app")
   ///   .run(|_app, _event| {
   ///     FileDialogBuilder::new().pick_file_nonblocking(|file_path| {
@@ -120,10 +120,10 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// tauri::Builder::default()
-  ///   .build(tauri::generate_context!())
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("failed to build tauri app")
   ///   .run(|_app, _event| {
   ///     FileDialogBuilder::new().pick_files_nonblocking(|file_paths| {
@@ -144,10 +144,10 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// tauri::Builder::default()
-  ///   .build(tauri::generate_context!())
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("failed to build tauri app")
   ///   .run(|_app, _event| {
   ///     FileDialogBuilder::new().pick_folder_nonblocking(|folder_path| {
@@ -168,10 +168,10 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// tauri::Builder::default()
-  ///   .build(tauri::generate_context!())
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("failed to build tauri app")
   ///   .run(|_app, _event| {
   ///     FileDialogBuilder::new().save_file_nonblocking(|file_path| {
@@ -192,7 +192,7 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// #[tauri::command]
   /// fn my_command() {
@@ -213,7 +213,7 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// #[tauri::command]
   /// fn my_command() {
@@ -234,7 +234,7 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// #[tauri::command]
   /// fn my_command() {
@@ -255,7 +255,7 @@ impl FileDialogBuilder {
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::api::dialog::FileDialogBuilder;
   /// #[tauri::command]
   /// fn my_command() {
@@ -280,7 +280,9 @@ impl FileDialogBuilder {
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::ask_nonblocking;
-/// ask_nonblocking(None, "Tauri", "Is Tauri awesome?", |answer| {
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// ask_nonblocking(Some(&window), "Tauri", "Is Tauri awesome?", |answer| {
 ///   // do something with `answer`
 /// });
 /// ```
@@ -305,7 +307,9 @@ pub fn ask_nonblocking<R: Runtime, F: FnOnce(bool) + Send + 'static>(
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::confirm_nonblocking;
-/// confirm_nonblocking(None, "Tauri", "Are you sure?", |answer| {
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// confirm_nonblocking(Some(&window), "Tauri", "Are you sure?", |answer| {
 ///   // do something with `answer`
 /// });
 /// ```
@@ -336,7 +340,9 @@ pub fn confirm_nonblocking<R: Runtime, F: FnOnce(bool) + Send + 'static>(
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::message_nonblocking;
-/// message_nonblocking(None, "Tauri", "Tauri is awesome!");
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// message_nonblocking(Some(&window), "Tauri", "Tauri is awesome!");
 /// ```
 #[allow(unused_variables)]
 pub fn message_nonblocking<R: Runtime>(
@@ -364,7 +370,9 @@ pub fn message_nonblocking<R: Runtime>(
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::ask;
-/// let answer = ask(None, "Tauri", "Is Tauri awesome?");
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// let answer = ask(Some(&window), "Tauri", "Is Tauri awesome?");
 /// // do something with `answer`
 /// ```
 #[allow(unused_variables)]
@@ -387,7 +395,9 @@ pub fn ask<R: Runtime>(
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::confirm;
-/// let answer = confirm(None, "Tauri", "Are you sure?");
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// let answer = confirm(Some(&window), "Tauri", "Are you sure?");
 /// // do something with `answer`
 /// ```
 #[allow(unused_variables)]
@@ -410,7 +420,9 @@ pub fn confirm<R: Runtime>(
 ///
 /// ```rust,no_run
 /// use tauri::api::dialog::message;
-/// message(None, "Tauri", "Tauri is awesome!");
+/// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
+/// # let window = tauri::Manager::get_window(&app, "main").unwrap();
+/// message(Some(&window), "Tauri", "Tauri is awesome!");
 /// ```
 #[allow(unused_variables)]
 pub fn message<R: Runtime>(

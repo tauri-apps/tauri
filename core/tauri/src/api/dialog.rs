@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! Types and functions related to display dialog.
+//! Use native message and file open/save dialogs.
+//!
+//! This module exposes non-blocking APIs on its root, relying on callback closures
+//! to give results back. This is particularly useful when running dialogs from the main thread.
+//! When using on asynchronous contexts such as async commands, the [`blocking`] APIs are recommended.
 
 pub use nonblocking::*;
 
@@ -109,12 +113,10 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// For usage on the main thread, see [`Self::pick_file_nonblocking`].
-    ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tauri::api::dialog::FileDialogBuilder;
+    /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
     /// fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_file();
@@ -130,12 +132,10 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// For usage on the main thread, see [`Self::pick_files_nonblocking`].
-    ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tauri::api::dialog::FileDialogBuilder;
+    /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
     /// fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_files();
@@ -151,12 +151,10 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// For usage on the main thread, see [`Self::pick_folder_nonblocking()`].
-    ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tauri::api::dialog::FileDialogBuilder;
+    /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
     /// fn my_command() {
     ///   let folder_path = FileDialogBuilder::new().pick_folder();
@@ -172,12 +170,10 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// For usage on the main thread, see [`Self::save_file_nonblocking()`].
-    ///
     /// # Example
     ///
     /// ```rust,no_run
-    /// use tauri::api::dialog::FileDialogBuilder;
+    /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
     /// fn my_command() {
     ///   let file_path = FileDialogBuilder::new().save_file();
@@ -195,12 +191,10 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// For usage on the main thread, see [`ask()`].
-  ///
   /// # Example
   ///
   /// ```rust,no_run
-  /// use tauri::api::dialog::ask;
+  /// use tauri::api::dialog::blocking::ask;
   /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// let answer = ask(Some(&window), "Tauri", "Is Tauri awesome?");
@@ -220,12 +214,10 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// For usage on the main thread, see [`confirm()`].
-  ///
   /// # Example
   ///
   /// ```rust,no_run
-  /// use tauri::api::dialog::confirm;
+  /// use tauri::api::dialog::blocking::confirm;
   /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// let answer = confirm(Some(&window), "Tauri", "Are you sure?");
@@ -245,12 +237,10 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// For usage on the main thread, see [`message()`].
-  ///
   /// # Example
   ///
   /// ```rust,no_run
-  /// use tauri::api::dialog::message;
+  /// use tauri::api::dialog::blocking::message;
   /// # let app = tauri::Builder::default().build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json")).unwrap();
   /// # let window = tauri::Manager::get_window(&app, "main").unwrap();
   /// message(Some(&window), "Tauri", "Tauri is awesome!");
@@ -321,8 +311,6 @@ mod nonblocking {
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
     ///
-    /// For usage in other contexts such as commands, prefer [`Self::pick_files`].
-    ///
     /// # Example
     ///
     /// ```rust,no_run
@@ -344,8 +332,6 @@ mod nonblocking {
     /// Shows the dialog to select a single folder.
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
-    ///
-    /// For usage in other contexts such as commands, prefer [`Self::pick_folder`].
     ///
     /// # Example
     ///
@@ -369,8 +355,6 @@ mod nonblocking {
     ///
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
-    ///
-    /// For usage in other contexts such as commands, prefer [`Self::save_file`].
     ///
     /// # Example
     ///
@@ -396,8 +380,6 @@ mod nonblocking {
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
   ///
-  /// For usage in other contexts such as commands, prefer [`ask()`].
-  ///
   /// # Example
   ///
   /// ```rust,no_run
@@ -422,8 +404,6 @@ mod nonblocking {
   ///
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
-  ///
-  /// For usage in other contexts such as commands, prefer [`confirm()`].
   ///
   /// # Example
   ///
@@ -455,8 +435,6 @@ mod nonblocking {
   ///
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
-  ///
-  /// For usage in other contexts such as commands, prefer [`message()`].
   ///
   /// # Example
   ///

@@ -65,6 +65,8 @@ pub struct MacConfig {
   pub use_bootstrapper: bool,
   /// Identity to use for code signing.
   pub signing_identity: Option<String>,
+  /// Provider short name for notarization.
+  pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
 }

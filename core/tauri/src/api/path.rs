@@ -4,10 +4,7 @@
 
 //! Types and functions related to file system path operations.
 
-use std::{
-  env,
-  path::{Component, Path, PathBuf},
-};
+use std::path::{Component, Path, PathBuf};
 
 use crate::{Config, Env, PackageInfo};
 
@@ -60,8 +57,6 @@ pub enum BaseDirectory {
   /// The default App config directory.
   /// Resolves to [`BaseDirectory::Config`].
   App,
-  /// The current working directory.
-  Current,
   /// The Log directory.
   /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macOS
   /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
@@ -90,7 +85,6 @@ impl BaseDirectory {
       Self::Video => "$VIDEO",
       Self::Resource => "$RESOURCE",
       Self::App => "$APP",
-      Self::Current => "$CWD",
       Self::Log => "$LOG",
     }
   }
@@ -116,7 +110,6 @@ impl BaseDirectory {
       "$VIDEO" => Self::Video,
       "$RESOURCE" => Self::Resource,
       "$APP" => Self::App,
-      "$CWD" => Self::Current,
       "$LOG" => Self::Log,
       _ => return None,
     };
@@ -206,7 +199,6 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(package_info, env),
       BaseDirectory::App => app_dir(config),
-      BaseDirectory::Current => Some(env::current_dir()?),
       BaseDirectory::Log => log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {

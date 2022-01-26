@@ -52,7 +52,6 @@ export enum BaseDirectory {
   Video,
   Resource,
   App,
-  Current,
   Log
 }
 

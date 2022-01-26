@@ -6,8 +6,7 @@ use std::{io::Cursor, process::Command};
 
 #[derive(Debug, serde::Deserialize)]
 struct TargetSpec {
-  #[serde(rename = "llvm-target")]
-  llvm_target: String,
+  arch: String
 }
 
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
@@ -28,14 +27,10 @@ pub fn target_triple() -> Result<String, crate::Error> {
     .args(&["-Z", "unstable-options", "--print", "target-spec-json"])
     .env("RUSTC_BOOTSTRAP", "1")
     .output()?;
+
   let arch = if output.status.success() {
     let target_spec: TargetSpec = serde_json::from_reader(Cursor::new(output.stdout))?;
-    target_spec
-      .llvm_target
-      .split('-')
-      .next()
-      .unwrap()
-      .to_string()
+    target_spec.arch
   } else {
     super::common::print_info(&format!(
       "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",

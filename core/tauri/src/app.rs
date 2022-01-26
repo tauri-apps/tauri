@@ -26,6 +26,8 @@ use crate::{
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
+use crate::scope::ShellScope;
+
 use tauri_macros::default_runtime;
 use tauri_utils::PackageInfo;
 
@@ -460,8 +462,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets the scope for the shell execute APIs.
-      #[cfg(shell_execute)]
-      pub fn shell_scope(&self) -> FsScope {
+      pub fn shell_scope(&self) -> ShellScope {
         self.state::<Scopes>().inner().shell.clone()
       }
     }
@@ -708,6 +709,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_POST_MESSAGE__`.
   /// That function must take the `message: object` argument and send it to the backend.
+  #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
     F: Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
@@ -976,6 +978,8 @@ impl<R: Runtime> Builder<R> {
       .map(|t| t.icon_as_template)
       .unwrap_or_default();
 
+    let shell_scope = context.shell_scope.clone();
+
     let manager = WindowManager::with_handlers(
       context,
       self.plugins,
@@ -1035,7 +1039,6 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
-        true,
       ),
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
@@ -1043,18 +1046,10 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
-        true,
       ),
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
-      #[cfg(shell_execute)]
-      shell: FsScope::for_fs_api(
-        &app.manager.config(),
-        app.package_info(),
-        &env,
-        &app.config().tauri.allowlist.shell.scope,
-        false,
-      ),
+      shell: ShellScope::new(shell_scope),
     });
     app.manage(env);
 

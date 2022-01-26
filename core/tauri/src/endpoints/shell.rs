@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeContext;
-use crate::{api::ipc::CallbackFn, Runtime};
+use crate::{api::ipc::CallbackFn, ExecuteArgs, Runtime};
 #[cfg(shell_execute)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
@@ -56,8 +56,8 @@ pub enum Cmd {
   /// The execute script API.
   #[serde(rename_all = "camelCase")]
   Execute {
-    program: PathBuf,
-    args: Vec<String>,
+    program: String,
+    args: ExecuteArgs,
     on_event_fn: CallbackFn,
     #[serde(default)]
     options: CommandOptions,
@@ -79,8 +79,8 @@ impl Cmd {
   #[allow(unused_variables)]
   fn execute<R: Runtime>(
     context: InvokeContext<R>,
-    program: PathBuf,
-    args: Vec<String>,
+    program: String,
+    args: ExecuteArgs,
     on_event_fn: CallbackFn,
     options: CommandOptions,
   ) -> crate::Result<ChildId> {
@@ -91,6 +91,7 @@ impl Cmd {
       ));
       #[cfg(shell_sidecar)]
       {
+        let program = PathBuf::from(program);
         let program_as_string = program.display().to_string();
         let program_no_ext_as_string = program.with_extension("").display().to_string();
         let is_configured = context
@@ -106,7 +107,12 @@ impl Cmd {
           })
           .unwrap_or_default();
         if is_configured {
-          crate::api::process::Command::new_sidecar(program_as_string)?
+          context
+            .window
+            .state::<Scopes>()
+            .shell
+            .prepare(&program.to_string_lossy(), args, true)
+            .map_err(Box::new)?
         } else {
           return Err(crate::Error::SidecarNotAllowed(program));
         }
@@ -117,15 +123,18 @@ impl Cmd {
         "shell > execute".to_string(),
       ));
       #[cfg(shell_execute)]
-      if context.window.state::<Scopes>().shell.is_allowed(&program) {
-        crate::api::process::Command::new(program.display().to_string())
-      } else {
-        return Err(crate::Error::ProgramNotAllowed(program));
+      match context
+        .window
+        .state::<Scopes>()
+        .shell
+        .prepare(&program, args, false)
+      {
+        Ok(cmd) => cmd,
+        Err(_) => return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program))),
       }
     };
     #[cfg(any(shell_execute, shell_sidecar))]
     {
-      command = command.args(args);
       if let Some(cwd) = options.cwd {
         command = command.current_dir(cwd);
       }
@@ -196,33 +205,35 @@ impl Cmd {
     ))
   }
 
+  /// Open a (url) path with a default or specific browser opening program.
+  ///
+  /// See [`crate::api::shell::open`] for how it handles security-related measures.
   #[module_command_handler(shell_open, "shell > open")]
   fn open<R: Runtime>(
-    _context: InvokeContext<R>,
+    context: InvokeContext<R>,
     path: String,
     with: Option<String>,
   ) -> crate::Result<()> {
-    match crate::api::shell::open(
-      path,
-      if let Some(w) = with {
-        use std::str::FromStr;
-        Some(crate::api::shell::Program::from_str(&w)?)
-      } else {
-        None
-      },
-    ) {
-      Ok(_) => Ok(()),
-      Err(err) => Err(crate::Error::FailedToExecuteApi(err)),
-    }
+    use std::str::FromStr;
+
+    with
+      .as_deref()
+      // only allow pre-determined programs to be specified
+      .map(crate::api::shell::Program::from_str)
+      .transpose()
+      .map_err(Into::into)
+      // validate and open path
+      .and_then(|with| {
+        crate::api::shell::open(&context.window.state::<Scopes>().shell, path, with)
+          .map_err(Into::into)
+      })
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::{Buffer, ChildId, CommandOptions};
-  use crate::api::ipc::CallbackFn;
-  use std::path::PathBuf;
-
+  use crate::{api::ipc::CallbackFn, ExecuteArgs};
   use quickcheck::{Arbitrary, Gen};
 
   impl Arbitrary for CommandOptions {
@@ -241,11 +252,17 @@ mod tests {
     }
   }
 
+  impl Arbitrary for ExecuteArgs {
+    fn arbitrary(_: &mut Gen) -> Self {
+      ExecuteArgs::None
+    }
+  }
+
   #[tauri_macros::module_command_test(shell_execute, "shell > execute")]
   #[quickcheck_macros::quickcheck]
   fn execute(
-    _program: PathBuf,
-    _args: Vec<String>,
+    _program: String,
+    _args: ExecuteArgs,
     _on_event_fn: CallbackFn,
     _options: CommandOptions,
   ) {

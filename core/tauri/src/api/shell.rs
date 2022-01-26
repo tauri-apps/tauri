@@ -4,6 +4,7 @@
 
 //! Types and functions related to shell.
 
+use crate::ShellScope;
 use std::str::FromStr;
 
 /// Program to use on the [`open()`] call.
@@ -55,7 +56,7 @@ impl FromStr for Program {
 }
 
 impl Program {
-  fn name(self) -> &'static str {
+  pub(crate) fn name(self) -> &'static str {
     match self {
       Self::Open => "open",
       Self::Start => "start",
@@ -89,13 +90,11 @@ impl Program {
 }
 
 /// Opens path or URL with program specified in `with`, or system default if `None`.
-pub fn open(path: String, with: Option<Program>) -> crate::api::Result<()> {
-  {
-    let exit_status = if let Some(with) = with {
-      open::with(&path, with.name())
-    } else {
-      open::that(&path)
-    };
-    exit_status.map_err(|err| crate::api::Error::Shell(format!("failed to open: {}", err)))
-  }
+///
+/// The path will be matched against the shell open validation regex, defaulting to `^https?://`.
+/// A custom validation regex may be supplied in the config in `tauri > allowlist > scope > open`.
+pub fn open(scope: &ShellScope, path: String, with: Option<Program>) -> crate::api::Result<()> {
+  scope
+    .open(&path, with)
+    .map_err(|err| crate::api::Error::Shell(format!("failed to open: {}", err)))
 }

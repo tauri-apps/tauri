@@ -128,11 +128,17 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
+#[cfg(feature = "shell-execute")]
+#[doc(hidden)]
+pub use clap;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
+#[cfg(feature = "shell-execute")]
+#[doc(hidden)]
+pub use regex;
 pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
@@ -149,7 +155,8 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 pub use tauri_runtime as runtime;
-mod scope;
+/// The allowlist scopes.
+pub mod scope;
 pub mod settings;
 mod state;
 #[cfg(feature = "updater")]
@@ -272,6 +279,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
+  pub(crate) shell_scope: ShellScopeConfig,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -282,6 +290,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern)
+      .field("shell_scope", &self.shell_scope)
       .finish()
   }
 }
@@ -353,8 +362,15 @@ impl<A: Assets> Context<A> {
     &self.pattern
   }
 
+  /// The scoped shell commands, where the `HashMap` key is the name each configuration.
+  #[inline(always)]
+  pub fn allowed_commands(&self) -> &ShellScopeConfig {
+    &self.shell_scope
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
+  #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
     assets: Arc<A>,
@@ -363,6 +379,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
+    shell_scope: ShellScopeConfig,
   ) -> Self {
     Self {
       config,
@@ -372,6 +389,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
+      shell_scope,
     }
   }
 }

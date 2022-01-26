@@ -26,3 +26,4 @@ tauri-codegen = { version = "1.0.0-beta.4", default-features = false, path = "..
 custom-protocol = [ ]
 compression = [ "tauri-codegen/compression" ]
 isolation = ["tauri-codegen/isolation"]
+shell-scope = ["tauri-codegen/shell-scope"]

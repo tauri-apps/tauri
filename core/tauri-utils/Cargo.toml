@@ -31,7 +31,6 @@ ring = { version = "0.16", optional = true, features = ["std"] }
 once_cell = { version = "1.8", optional = true }
 serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
 
-
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
 

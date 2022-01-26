@@ -103,9 +103,7 @@
             "all": false,
             "execute": false,
             "open": false,
-            "scope": [
-              "$APP/**"
-            ],
+            "scope": [],
             "sidecar": false
           },
           "window": {
@@ -348,9 +346,7 @@
             "all": false,
             "execute": false,
             "open": false,
-            "scope": [
-              "$APP/**"
-            ],
+            "scope": [],
             "sidecar": false
           },
           "allOf": [
@@ -1025,7 +1021,7 @@
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview. Each pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
       "type": "array",
       "items": {
         "type": "string"
@@ -1321,6 +1317,85 @@
       },
       "additionalProperties": false
     },
+    "ShellAllowedArg": {
+      "description": "A command argument allowed to be executed by the webview API.",
+      "anyOf": [
+        {
+          "description": "A non-configurable argument that is passed to the command in the order it was specified.",
+          "type": "string"
+        },
+        {
+          "description": "A variable that is set while calling the command from the webview API.",
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "description": "The name of the variable to be passed in.\n\nThis will try to match the key of the passed arguments object from the webview API.",
+              "type": "string"
+            },
+            "validate": {
+              "description": "Optional [regex] validator to require passed values to conform to an expected input.\n\nThis will require the argument value passed to this variable to match the `validate` regex before it will be executed.\n\n[regex]: https://docs.rs/regex/latest/regex/#syntax",
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ShellAllowedArgs": {
+      "description": "A set of command arguments allowed to be executed by the webview API.\n\nA value of `true` will allow any arguments to be passed to the command. `false` will disable all arguments. A list of [`ShellAllowedArg`] will set those arguments as the only valid arguments to be passed to the attached command configuration.",
+      "anyOf": [
+        {
+          "description": "Use a simple boolean to allow all or disable all arguments to this command configuration.",
+          "type": "boolean"
+        },
+        {
+          "description": "A specific set of [`ShellAllowedArg`] that are valid to call for the command configuration.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ShellAllowedArg"
+          }
+        }
+      ]
+    },
+    "ShellAllowedCommand": {
+      "description": "A command allowed to be executed by the webview API.",
+      "type": "object",
+      "required": [
+        "cmd",
+        "name"
+      ],
+      "properties": {
+        "args": {
+          "description": "The allowed arguments for the command execution.",
+          "default": false,
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellAllowedArgs"
+            }
+          ]
+        },
+        "cmd": {
+          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The name for this allowed shell command configuration.\n\nThis name will be used inside of the webview API to call this command along with any specified arguments.",
+          "type": "string"
+        },
+        "sidecar": {
+          "description": "If this command is a sidecar command.",
+          "default": false,
+          "type": "boolean"
+        }
+      }
+    },
     "ShellAllowlistConfig": {
       "description": "Allowlist for the shell APIs.",
       "type": "object",
@@ -1338,26 +1413,48 @@
         "open": {
           "description": "Open URL with the user's default application.",
           "default": false,
-          "type": "boolean"
+          "allOf": [
+            {
+              "$ref": "#/definitions/ShellAllowlistOpen"
+            }
+          ]
         },
         "scope": {
           "description": "Access scope for the binary execution APIs. Sidecars are automatically enabled.",
-          "default": [
-            "$APP/**"
-          ],
+          "default": [],
           "allOf": [
             {
-              "$ref": "#/definitions/FsAllowlistScope"
+              "$ref": "#/definitions/ShellAllowlistScope"
             }
           ]
         },
         "sidecar": {
-          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program, an executable that is shipped with the application. For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.",
+          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command, an executable that is shipped with the application. For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.",
           "default": false,
           "type": "boolean"
         }
       },
       "additionalProperties": false
+    },
+    "ShellAllowlistOpen": {
+      "description": "Defines the `shell > open` api scope.",
+      "anyOf": [
+        {
+          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^https?://`) is used.",
+          "type": "boolean"
+        },
+        {
+          "description": "Enable the shell open API, with a custom regex that the opened path must match against.\n\nIf using a custom regex to support a non-http(s) schema, care should be used to prevent values that allow flag-like strings to pass validation. e.g. `--enable-debugging`, `-i`, `/R`.",
+          "type": "string"
+        }
+      ]
+    },
+    "ShellAllowlistScope": {
+      "description": "Shell scope definition. It is a list of command names and associated CLI arguments that restrict the API access from the webview.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ShellAllowedCommand"
+      }
     },
     "SystemTrayConfig": {
       "description": "Configuration for application system tray icon.",
@@ -1446,9 +1543,7 @@
               "all": false,
               "execute": false,
               "open": false,
-              "scope": [
-                "$APP/**"
-              ],
+              "scope": [],
               "sidecar": false
             },
             "window": {
@@ -1607,9 +1702,6 @@
     "UpdaterConfig": {
       "description": "The Updater configuration object.",
       "type": "object",
-      "required": [
-        "pubkey"
-      ],
       "properties": {
         "active": {
           "description": "Whether the updater is active or not.",
@@ -1633,6 +1725,7 @@
         },
         "pubkey": {
           "description": "Signature public key.",
+          "default": "",
           "type": "string"
         }
       },

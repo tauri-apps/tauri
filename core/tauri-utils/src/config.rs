@@ -594,6 +594,7 @@ macro_rules! check_feature {
 
 /// Filesystem scope definition.
 /// It is a list of glob patterns that restrict the API access from the webview.
+///
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
@@ -842,6 +843,114 @@ impl Allowlist for WindowAllowlistConfig {
   }
 }
 
+/// A command allowed to be executed by the webview API.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ShellAllowedCommand {
+  /// The name for this allowed shell command configuration.
+  ///
+  /// This name will be used inside of the webview API to call this command along with
+  /// any specified arguments.
+  pub name: String,
+
+  /// The command name.
+  /// It can start with a variable that resolves to a system base directory.
+  /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
+  /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.
+  #[serde(rename = "cmd")]
+  pub command: PathBuf,
+
+  /// The allowed arguments for the command execution.
+  #[serde(default)]
+  pub args: ShellAllowedArgs,
+
+  /// If this command is a sidecar command.
+  #[serde(default)]
+  pub sidecar: bool,
+}
+
+/// A set of command arguments allowed to be executed by the webview API.
+///
+/// A value of `true` will allow any arguments to be passed to the command. `false` will disable all
+/// arguments. A list of [`ShellAllowedArg`] will set those arguments as the only valid arguments to
+/// be passed to the attached command configuration.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged, deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ShellAllowedArgs {
+  /// Use a simple boolean to allow all or disable all arguments to this command configuration.
+  Flag(bool),
+
+  /// A specific set of [`ShellAllowedArg`] that are valid to call for the command configuration.
+  List(Vec<ShellAllowedArg>),
+}
+
+impl Default for ShellAllowedArgs {
+  fn default() -> Self {
+    Self::Flag(false)
+  }
+}
+
+/// A command argument allowed to be executed by the webview API.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged, deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ShellAllowedArg {
+  /// A non-configurable argument that is passed to the command in the order it was specified.
+  Fixed(String),
+
+  /// A variable that is set while calling the command from the webview API.
+  ///
+  Var {
+    /// The name of the variable to be passed in.
+    ///
+    /// This will try to match the key of the passed arguments object from the webview API.
+    name: String,
+
+    /// Optional [regex] validator to require passed values to conform to an expected input.
+    ///
+    /// This will require the argument value passed to this variable to match the `validate` regex
+    /// before it will be executed.
+    ///
+    /// [regex]: https://docs.rs/regex/latest/regex/#syntax
+    #[serde(default)]
+    validate: Option<String>,
+  },
+}
+
+/// Shell scope definition.
+/// It is a list of command names and associated CLI arguments that restrict the API access from the webview.
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
+
+/// Defines the `shell > open` api scope.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged, deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ShellAllowlistOpen {
+  /// If the shell open API should be enabled.
+  ///
+  /// If enabled, the default validation regex (`^https?://`) is used.
+  Flag(bool),
+
+  /// Enable the shell open API, with a custom regex that the opened path must match against.
+  ///
+  /// If using a custom regex to support a non-http(s) schema, care should be used to prevent values
+  /// that allow flag-like strings to pass validation. e.g. `--enable-debugging`, `-i`, `/R`.
+  Validate(String),
+}
+
+impl Default for ShellAllowlistOpen {
+  fn default() -> Self {
+    Self::Flag(false)
+  }
+}
+
 /// Allowlist for the shell APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -850,21 +959,21 @@ pub struct ShellAllowlistConfig {
   /// Access scope for the binary execution APIs.
   /// Sidecars are automatically enabled.
   #[serde(default)]
-  pub scope: FsAllowlistScope,
+  pub scope: ShellAllowlistScope,
   /// Use this flag to enable all shell API features.
   #[serde(default)]
   pub all: bool,
   /// Enable binary execution.
   #[serde(default)]
   pub execute: bool,
-  /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar program,
+  /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command,
   /// an executable that is shipped with the application.
   /// For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.
   #[serde(default)]
   pub sidecar: bool,
   /// Open URL with the user's default application.
   #[serde(default)]
-  pub open: bool,
+  pub open: ShellAllowlistOpen,
 }
 
 impl Allowlist for ShellAllowlistConfig {
@@ -874,7 +983,7 @@ impl Allowlist for ShellAllowlistConfig {
       all: false,
       execute: true,
       sidecar: true,
-      open: true,
+      open: ShellAllowlistOpen::Flag(true),
     };
     let mut features = allowlist.to_features();
     features.push("shell-all");
@@ -888,7 +997,11 @@ impl Allowlist for ShellAllowlistConfig {
       let mut features = Vec::new();
       check_feature!(self, features, execute, "shell-execute");
       check_feature!(self, features, sidecar, "shell-sidecar");
-      check_feature!(self, features, open, "shell-open");
+
+      if !matches!(self.open, ShellAllowlistOpen::Flag(false)) {
+        features.push("shell-open")
+      }
+
       features
     }
   }
@@ -1467,6 +1580,7 @@ pub struct UpdaterConfig {
   /// The updater endpoints. TLS is enforced on production.
   pub endpoints: Option<Vec<UpdaterEndpoint>>,
   /// Signature public key.
+  #[serde(default)] // use default just so the schema doesn't flag it as required
   pub pubkey: String,
 }
 
@@ -1497,7 +1611,7 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
       active: config.active,
       dialog: config.dialog,
       endpoints: config.endpoints,
-      pubkey: config.pubkey.unwrap_or_else(String::new),
+      pubkey: config.pubkey.unwrap_or_default(),
     })
   }
 }
@@ -1782,7 +1896,6 @@ mod build {
   /// Create a `PathBuf` constructor `TokenStream`.
   ///
   /// e.g. `"Hello World" -> String::from("Hello World").
-  /// This takes a `&String` to reduce casting all the `&String` -> `&str` manually.
   fn path_buf_lit(s: impl AsRef<Path>) -> TokenStream {
     let s = s.as_ref().to_string_lossy().into_owned();
     quote! { ::std::path::PathBuf::from(#s) }
@@ -2236,6 +2349,67 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let scope = &self.scope;
       tokens.append_all(quote! { ::tauri::utils::config::HttpAllowlistConfig { scope: #scope, ..Default::default() } })
+    }
+  }
+
+  impl ToTokens for ShellAllowedCommand {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let name = str_lit(&self.name);
+      let command = path_buf_lit(&self.command);
+      let args = &self.args;
+      let sidecar = &self.sidecar;
+
+      literal_struct!(tokens, ShellAllowedCommand, name, command, args, sidecar);
+    }
+  }
+
+  impl ToTokens for ShellAllowedArgs {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::ShellAllowedArgs };
+
+      tokens.append_all(match self {
+        Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
+        Self::List(list) => {
+          let list = vec_lit(list, identity);
+          quote!(#prefix::List(#list))
+        }
+      })
+    }
+  }
+
+  impl ToTokens for ShellAllowedArg {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::ShellAllowedArg };
+
+      tokens.append_all(match self {
+        Self::Fixed(fixed) => {
+          let fixed = str_lit(fixed);
+          quote!(#prefix::Fixed(#fixed))
+        }
+        Self::Var { name, validate } => {
+          let name = str_lit(name);
+          let validate = opt_str_lit(validate.as_ref());
+          quote!(#prefix::Var { name: #name, validate: #validate })
+        }
+      })
+    }
+  }
+
+  impl ToTokens for ShellAllowlistOpen {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::ShellAllowlistOpen };
+
+      tokens.append_all(match self {
+        Self::Flag(flag) => quote!(#prefix::Flag(#flag)),
+        Self::Validate(regex) => quote!(#prefix::Validate(#regex)),
+      })
+    }
+  }
+
+  impl ToTokens for ShellAllowlistScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let allowed_commands = vec_lit(&self.0, identity);
+      tokens.append_all(quote! { ::tauri::utils::config::ShellAllowlistScope(#allowed_commands) })
     }
   }
 

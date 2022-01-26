@@ -719,7 +719,7 @@ impl<R: Runtime> WindowManager<R> {
               &mut asset,
               self.inner.assets.clone(),
               &asset_path,
-              &self,
+              self,
               csp,
             ));
           }

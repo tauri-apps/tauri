@@ -93,6 +93,9 @@ pub enum Error {
   /// Sidecar not allowed by the configuration.
   #[error("sidecar not configured under `tauri.conf.json > tauri > bundle > externalBin`: {0}")]
   SidecarNotAllowed(PathBuf),
+  /// Sidecar was not found by the configuration.
+  #[error("sidecar configuration found, but unable to create a path to it: {0}")]
+  SidecarNotFound(#[from] Box<crate::ShellScopeError>),
   /// Program not allowed by the scope.
   #[error("program not allowed on the configured shell scope: {0}")]
   ProgramNotAllowed(PathBuf),

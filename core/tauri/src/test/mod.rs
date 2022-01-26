@@ -7,9 +7,10 @@
 mod mock_runtime;
 pub use mock_runtime::*;
 
+use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
-use crate::{Manager, Pattern};
+use crate::{Manager, Pattern, ShellScopeConfig};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
@@ -66,11 +67,15 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     package_info: crate::PackageInfo {
       name: "test".into(),
       version: "0.1.0".into(),
-      authors: "Tauri".into(),
-      description: "Tauri test".into(),
+      authors: "Tauri",
+      description: "Tauri test",
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
+    shell_scope: ShellScopeConfig {
+      open: None,
+      scopes: HashMap::new(),
+    },
   }
 }
 

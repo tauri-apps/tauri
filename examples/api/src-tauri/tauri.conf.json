@@ -78,7 +78,24 @@
         "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
       },
       "shell": {
-        "scope": ["sh", "cmd"]
+        "scope": [
+          {
+            "cmd": "__test",
+            "args": [
+              "-d --date <DATE> ^\\d{4}-\\d{2}-\\d{2}$",
+              "-i --input [INPUT]",
+              "-f --flag",
+              "-v --verbose ...",
+              "<MAGIC> -"
+            ]
+          },
+          {
+            "cmd": "sh"
+          },
+          {
+            "cmd": "cmd"
+          }
+        ]
       },
       "protocol": {
         "asset": true,

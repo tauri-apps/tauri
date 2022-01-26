@@ -7,11 +7,15 @@ use std::path::{Path, PathBuf};
 
 use proc_macro2::TokenStream;
 use quote::quote;
+use regex::Regex;
 use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef, PatternObject};
+use tauri_utils::config::{AppUrl, Config, PatternKind, ShellAllowlistOpen, WindowUrl};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
+
+#[cfg(feature = "shell-scope")]
+use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
@@ -47,8 +51,8 @@ fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) 
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
-  #[allow(unused_variables)]
-  let pattern = PatternObject::from(&options.pattern);
+  #[cfg(feature = "isolation")]
+  let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
@@ -58,7 +62,7 @@ fn map_core_assets(
         load_csp(&mut document, key, csp_hashes);
 
         #[cfg(feature = "isolation")]
-        if let PatternObject::Isolation { .. } = &pattern {
+        if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
           // create the csp for the isolation iframe styling now, to make the runtime less complex
           let mut hasher = Sha256::new();
           hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
@@ -288,6 +292,35 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
+  #[cfg(feature = "shell-scope")]
+  let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
+
+  #[cfg(not(feature = "shell-scope"))]
+  let shell_scopes = quote!(::std::collections::HashMap::new());
+
+  let shell_scope_open = match &config.tauri.allowlist.shell.open {
+    ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
+    ShellAllowlistOpen::Flag(true) => {
+      quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
+    }
+    ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
+      Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
+      Err(error) => {
+        let error = error.to_string();
+        quote!({
+          compile_error!(#error);
+          ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+        })
+      }
+    },
+    _ => panic!("unknown shell open format, unable to prepare"),
+  };
+
+  let shell_scope_config = quote!(#root::ShellScopeConfig {
+    open: #shell_scope_open,
+    scopes: #shell_scopes
+  });
+
   Ok(quote!(#root::Context::new(
     #config,
     ::std::sync::Arc::new(#assets),
@@ -295,7 +328,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #system_tray_icon,
     #package_info,
     #info_plist,
-    #pattern
+    #pattern,
+    #shell_scope_config
   )))
 }
 
@@ -314,4 +348,82 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .cloned()
     .unwrap_or_else(|| default.to_string());
   config_parent.join(icon_path).display().to_string()
+}
+
+#[cfg(feature = "shell-scope")]
+fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
+  let commands = scope
+    .0
+    .iter()
+    .map(|scope| {
+      let sidecar = &scope.sidecar;
+
+      let name = &scope.name;
+      let name = quote!(#name.into());
+
+      let command = scope.command.to_string_lossy();
+      let command = quote!(::std::path::PathBuf::from(#command));
+
+      let args = match &scope.args {
+        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
+        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
+        ShellAllowedArgs::List(list) => {
+          let list = list.iter().map(|arg| match arg {
+            ShellAllowedArg::Fixed(fixed) => {
+              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
+            }
+            ShellAllowedArg::Var { name, validate } => {
+              let validate = match validate {
+                None => quote!(::std::option::Option::None),
+                Some(regex) => match regex::Regex::new(regex) {
+                  Ok(regex) => {
+                    let regex = regex.as_str();
+                    quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap()))
+                  }
+                  Err(error) => {
+                    let error = error.to_string();
+                    quote!({
+                      compile_error!(#error);
+                      ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+                    })
+                  }
+                },
+              };
+
+              quote!(#root::scope::ShellScopeAllowedArg::Var { name: #name.into(), validate: #validate })
+            }
+            _ => panic!("unknown shell scope arg, unable to prepare"),
+          });
+
+          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
+        }
+        _ => panic!("unknown shell scope command, unable to prepare"),
+      };
+
+      (
+        quote!(#name),
+        quote!(
+          #root::scope::ShellScopeAllowedCommand {
+            command: #command,
+            args: #args,
+            sidecar: #sidecar,
+          }
+        ),
+      )
+    })
+    .collect::<Vec<_>>();
+
+  if commands.is_empty() {
+    quote!(::std::collections::HashMap::new())
+  } else {
+    let insertions = commands
+      .iter()
+      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+
+    quote!({
+      let mut hashmap = ::std::collections::HashMap::new();
+      #(#insertions)*
+      hashmap
+    })
+  }
 }

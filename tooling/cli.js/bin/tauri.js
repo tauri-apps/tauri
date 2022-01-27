@@ -12,7 +12,7 @@ import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 const pkg = require('../package.json')
 
-const cmds = ['icon', 'deps']
+const cmds = ['deps']
 const rustCliCmds = ['dev', 'build', 'init', 'info', 'sign']
 
 const cmd = process.argv[2]

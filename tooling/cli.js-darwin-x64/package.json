@@ -1,0 +1,21 @@
+{
+    "name": "@tauri-apps/cli-darwin-x64",
+    "version": "1.0.0-beta.10",
+    "description": "The darwin x86_64 binary for tauri-cli",
+    "authors": ["Tauri Programme within The Commons Conservancy"],
+    "license": "Apache-2.0 OR MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/tauri-apps/tauri.git"
+    },
+    "preferUnplugged": false,
+    "scripts": {
+        "build": "cd ../cli.rs && cargo +nightly build -Z unstable-options --target x86_64-apple-darwin --out-dir ../cli.js-darwin-x64/bin"
+    },
+    "os": [
+        "darwin"
+    ],
+    "cpu": [
+        "x64"
+    ]
+}

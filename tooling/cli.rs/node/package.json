@@ -1,0 +1,40 @@
+{
+  "name": "@tauri-apps/cli",
+  "version": "0.0.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "name": "cli",
+    "triples": {
+      "additional": [
+        "aarch64-apple-darwin",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-pc-windows-msvc",
+        "armv7-unknown-linux-gnueabihf",
+        "x86_64-unknown-linux-musl",
+        "x86_64-unknown-freebsd"
+      ]
+    }
+  },
+  "license": "Apache-2.0 OR MIT",
+  "devDependencies": {
+    "@napi-rs/cli": "^2.4.2",
+    "prettier": "^2.5.1"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "bin": {
+    "tauri": "./tauri.js"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "version": "napi version",
+    "tauri": "tauri",
+    "format": "prettier --write ./package.json ./tauri.js"
+  }
+}

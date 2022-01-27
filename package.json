@@ -18,6 +18,6 @@
   "devDependencies": {
     "covector": "^0.5.3",
     "husky": "^6.0.0",
-    "prettier": "^2.2.1"
+    "prettier": "^2.5.1"
   }
 }

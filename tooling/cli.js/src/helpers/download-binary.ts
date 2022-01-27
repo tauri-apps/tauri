@@ -6,9 +6,6 @@ import { bootstrap } from 'global-agent'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 
-// eslint-disable-next-line
-declare let __RUST_CLI_VERSION__: string
-
 const currentDirName = path.dirname(fileURLToPath(import.meta.url))
 
 const require = createRequire(import.meta.url)
@@ -22,11 +19,10 @@ const pipeline = promisify(stream.pipeline)
 const downloads: { [url: string]: boolean } = {}
 
 async function downloadBinaryRelease(
-  tag: string,
-  asset: string,
+  url: string,
   outPath: string
 ): Promise<void> {
-  const url = `https://github.com/tauri-apps/binary-releases/releases/download/${tag}/${asset}`
+  // const url = `https://github.com/tauri-apps/binary-releases/releases/download/${tag}/${asset}`
 
   const removeDownloadedCliIfNeeded = (): void => {
     try {
@@ -68,36 +64,24 @@ async function downloadBinaryRelease(
   console.log('Download Complete')
 }
 
-async function downloadCli(): Promise<void> {
-  let platform: string = process.platform
-  if (platform === 'win32') {
-    platform = 'windows'
-  } else if (platform === 'linux') {
-    platform = 'linux'
-  } else if (platform === 'darwin') {
-    platform = 'macos'
-  } else {
-    throw Error('Unsupported platform')
-  }
-  const extension = platform === 'windows' ? '.exe' : ''
-  const outPath = path.join(currentDirName, `../../bin/tauri-cli${extension}`)
-  console.log('Downloading Rust CLI...')
-  await downloadBinaryRelease(
-    `tauri-cli-v${__RUST_CLI_VERSION__}`,
-    `tauri-cli_${platform}${extension}`,
-    outPath
-  )
-}
-
 async function downloadRustup(): Promise<void> {
+  let url: string
+  if (process.platform === 'win32' && process.arch === 'ia32') {
+    url = 'https://win.rustup.rs/i686'
+  } else if (process.platform === 'win32' && process.arch === 'x64') {
+    url = 'https://win.rustup.rs/x86_64'
+  } else {
+    url = 'https://sh.rustup.rs'
+  }
+
   const assetName =
     process.platform === 'win32' ? 'rustup-init.exe' : 'rustup-init.sh'
+
   console.log('Downloading Rustup...')
   return await downloadBinaryRelease(
-    'rustup',
-    assetName,
+    url,
     path.join(currentDirName, `../../bin/${assetName}`)
   )
 }
 
-export { downloadCli, downloadRustup }
+export { downloadRustup }

@@ -5,8 +5,8 @@
 import { existsSync } from 'fs'
 import { resolve, join, dirname } from 'path'
 import { spawnSync, spawn } from './spawn'
-import { downloadCli } from './download-binary'
 import { fileURLToPath } from 'url'
+import os from 'os'
 
 // eslint-disable-next-line
 declare let __RUST_CLI_VERSION__: string
@@ -17,16 +17,22 @@ interface Options {
   cwd?: string
 }
 
-export async function runOnRustCli(
+export function runOnRustCli(
   command: string,
   args: string[],
   options: Options = {}
-): Promise<{ pid: number; promise: Promise<void> }> {
+): { pid: number; promise: Promise<void> } {
   const cwd = options.cwd ?? process.cwd()
-  const targetPath = resolve(currentDirName, '../..')
+
+  const targetPath = resolve(
+    currentDirName,
+    '../../../',
+    `cli-${os.platform()}-${os.arch()}`
+  )
+
   const targetCliPath = join(
     targetPath,
-    'bin/tauri-cli' + (process.platform === 'win32' ? '.exe' : '')
+    `/bin/cargo-tauri${process.platform === 'win32' ? '.exe' : ''}`
   )
 
   let resolveCb: () => void
@@ -47,7 +53,6 @@ export async function runOnRustCli(
   if (existsSync(targetCliPath)) {
     pid = spawn(targetCliPath, ['tauri', command, ...args], cwd, onClose)
   } else if (process.env.NODE_ENV === 'production') {
-    await downloadCli()
     pid = spawn(targetCliPath, ['tauri', command, ...args], cwd, onClose)
   } else {
     if (existsSync(resolve(targetPath, 'test'))) {

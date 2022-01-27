@@ -168,6 +168,8 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Provider short name for notarization.
+  pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
   /// Path to the Info.plist file for the bundle.

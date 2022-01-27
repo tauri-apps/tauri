@@ -897,6 +897,13 @@
             "null"
           ]
         },
+        "providerShortName": {
+          "description": "Provider short name for notarization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "useBootstrapper": {
           "description": "Enable the boostrapper script.",
           "default": false,

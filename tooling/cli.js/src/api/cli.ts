@@ -20,7 +20,7 @@ function toKebabCase(value: string): string {
     .toLowerCase()
 }
 
-async function runCliCommand(command: string, args?: Args): Promise<Cmd> {
+function runCliCommand(command: string, args?: Args): Cmd {
   const argsArray = []
   for (const [argName, argValue] of Object.entries(args ?? {})) {
     if (argValue === false) {
@@ -34,12 +34,9 @@ async function runCliCommand(command: string, args?: Args): Promise<Cmd> {
       typeof argValue === 'string' ? argValue : JSON.stringify(argValue)
     )
   }
-  return await runOnRustCli(command, argsArray)
+  return runOnRustCli(command, argsArray)
 }
 
-export const init = async (args?: Args): Promise<Cmd> =>
-  await runCliCommand('init', args)
-export const dev = async (args?: Args): Promise<Cmd> =>
-  await runCliCommand('dev', args)
-export const build = async (args?: Args): Promise<Cmd> =>
-  await runCliCommand('build', args)
+export const init = (args?: Args): Cmd => runCliCommand('init', args)
+export const dev = (args?: Args): Cmd => runCliCommand('dev', args)
+export const build = (args?: Args): Cmd => runCliCommand('build', args)

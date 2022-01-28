@@ -890,15 +890,15 @@
             "null"
           ]
         },
-        "signingIdentity": {
-          "description": "Identity to use for code signing.",
+        "providerShortName": {
+          "description": "Provider short name for notarization.",
           "type": [
             "string",
             "null"
           ]
         },
-        "providerShortName": {
-          "description": "Provider short name for notarization.",
+        "signingIdentity": {
+          "description": "Identity to use for code signing.",
           "type": [
             "string",
             "null"

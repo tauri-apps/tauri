@@ -36,7 +36,7 @@ impl ExecuteArgs {
   pub fn is_empty(&self) -> bool {
     match self {
       Self::None => true,
-      Self::Single(s) if s == "" => true,
+      Self::Single(s) if s.is_empty() => true,
       Self::List(l) => l.is_empty(),
       Self::Map(m) => m.is_empty(),
       _ => false,

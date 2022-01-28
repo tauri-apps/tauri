@@ -380,7 +380,7 @@ mod tests {
   #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
   fn read_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
-    let res = super::Cmd::read_text_file(crate::test::mock_invoke_context(), path, options);
+    let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
     assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
   }
 

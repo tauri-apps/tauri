@@ -7,15 +7,15 @@
     "Tauri Programme within The Commons Conservancy"
   ],
   "workspaces": [
-    "tooling/cli.js"
+    "tooling/cli.js",
+    "tooling/api"
   ],
   "bin": {
     "tauri": "tooling/cli.js/bin/tauri.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tauri-apps/tauri.git",
-    "directory": "tooling/cli.js"
+    "url": "https://github.com/tauri-apps/tauri.git"
   },
   "scripts": {
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"

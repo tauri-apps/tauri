@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,"__esModule",{value:!0}),require("./tauri-7725a9e6.cjs"),require("./tauri-1ac190e6.cjs");var e=require("./app-679ae696.cjs");exports.getName=e.getName,exports.getTauriVersion=e.getTauriVersion,exports.getVersion=e.getVersion;

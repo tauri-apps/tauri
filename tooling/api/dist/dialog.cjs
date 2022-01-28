@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,"__esModule",{value:!0}),require("./tauri-7725a9e6.cjs"),require("./tauri-1ac190e6.cjs");var e=require("./dialog-82617b35.cjs");exports.ask=e.ask,exports.confirm=e.confirm,exports.message=e.message,exports.open=e.open,exports.save=e.save;

@@ -1,0 +1,1 @@
+"use strict";Object.defineProperty(exports,"__esModule",{value:!0}),require("./tauri-7725a9e6.cjs"),require("./event-e8ead5be.cjs");var e=require("./updater-76c11965.cjs");require("./tauri-1ac190e6.cjs"),exports.checkUpdate=e.checkUpdate,exports.installUpdate=e.installUpdate;

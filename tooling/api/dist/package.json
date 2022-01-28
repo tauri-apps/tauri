@@ -1,0 +1,144 @@
+{
+  "name": "@tauri-apps/api",
+  "version": "1.0.0-beta.8",
+  "description": "Tauri API definitions",
+  "type": "module",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/tauri"
+  },
+  "exports": {
+    "./app": {
+      "import": "./app.js",
+      "require": "./app.cjs"
+    },
+    "./bundle": {
+      "import": "./bundle.js",
+      "require": "./bundle.cjs"
+    },
+    "./cli": {
+      "import": "./cli.js",
+      "require": "./cli.cjs"
+    },
+    "./clipboard": {
+      "import": "./clipboard.js",
+      "require": "./clipboard.cjs"
+    },
+    "./dialog": {
+      "import": "./dialog.js",
+      "require": "./dialog.cjs"
+    },
+    "./event": {
+      "import": "./event.js",
+      "require": "./event.cjs"
+    },
+    "./fs": {
+      "import": "./fs.js",
+      "require": "./fs.cjs"
+    },
+    "./globalShortcut": {
+      "import": "./globalShortcut.js",
+      "require": "./globalShortcut.cjs"
+    },
+    "./http": {
+      "import": "./http.js",
+      "require": "./http.cjs"
+    },
+    ".": "./dist/*.js",
+    "./notification": {
+      "import": "./notification.js",
+      "require": "./notification.cjs"
+    },
+    "./os": {
+      "import": "./os.js",
+      "require": "./os.cjs"
+    },
+    "./path": {
+      "import": "./path.js",
+      "require": "./path.cjs"
+    },
+    "./process": {
+      "import": "./process.js",
+      "require": "./process.cjs"
+    },
+    "./shell": {
+      "import": "./shell.js",
+      "require": "./shell.cjs"
+    },
+    "./tauri": {
+      "import": "./tauri.js",
+      "require": "./tauri.cjs"
+    },
+    "./updater": {
+      "import": "./updater.js",
+      "require": "./updater.cjs"
+    },
+    "./window": {
+      "import": "./window.js",
+      "require": "./window.cjs"
+    }
+  },
+  "scripts": {
+    "build": "rimraf ./dist && rollup -c --silent && node ./scripts/after-build.cjs",
+    "npm-pack": "yarn build && cd ./dist && npm pack",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
+    "lint": "eslint --ext ts \"./src/**/*.ts\"",
+    "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
+    "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
+    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "generate-docs": "typedoc src --githubPages false --readme none --entryDocument index.md --hideInPageTOC true"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">= 12.13.0",
+    "npm": ">= 6.6.0",
+    "yarn": ">= 1.19.1"
+  },
+  "devDependencies": {
+    "@babel/core": "7.16.7",
+    "@babel/preset-env": "7.16.7",
+    "@babel/preset-typescript": "7.16.7",
+    "@rollup/plugin-babel": "5.3.0",
+    "@rollup/plugin-commonjs": "21.0.1",
+    "@rollup/plugin-node-resolve": "13.1.2",
+    "@rollup/plugin-sucrase": "4.0.1",
+    "@rollup/plugin-typescript": "8.3.0",
+    "@typescript-eslint/eslint-plugin": "5.9.0",
+    "@typescript-eslint/parser": "5.9.0",
+    "eslint": "8.6.0",
+    "eslint-config-prettier": "8.3.0",
+    "eslint-config-standard-with-typescript": "21.0.1",
+    "eslint-plugin-import": "2.25.4",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "6.0.0",
+    "eslint-plugin-security": "1.4.0",
+    "lockfile-lint": "4.6.2",
+    "prettier": "2.5.1",
+    "regenerator-runtime": "0.13.9",
+    "rimraf": "3.0.2",
+    "rollup": "2.63.0",
+    "rollup-plugin-terser": "7.0.2",
+    "tslib": "2.3.1",
+    "typedoc": "0.22.10",
+    "typedoc-plugin-markdown": "3.11.9",
+    "typescript": "4.5.4"
+  },
+  "dependencies": {
+    "type-fest": "2.8.0"
+  }
+}

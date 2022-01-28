@@ -65,11 +65,15 @@ impl Default for Env {
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
-        // an AppImage is mounted to `/tmp/.mount_${appPrefix}${hash}`
+        // an AppImage is mounted to `/$TEMPDIR/.mount_${appPrefix}${hash}`
         // see https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501
         // note that it is safe to use `std::env::current_exe` here since we just loaded an AppImage.
         if !std::env::current_exe()
-          .map(|p| p.to_string_lossy().into_owned().starts_with("/tmp/.mount_"))
+          .map(|p| {
+            p.display()
+              .to_string()
+              .starts_with(&format!("{}/.mount_", std::env::temp_dir().display()))
+          })
           .unwrap_or(true)
         {
           panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");

@@ -543,7 +543,17 @@ impl<R: Runtime> WindowManager<R> {
       {plugin_initialization_script}
     "#,
       key = key,
-      core_script = include_str!("../scripts/core.js").replace("_KEY_VALUE_", &key.to_string()),
+      core_script = include_str!("../scripts/core.js")
+        .replace(
+          "_LISTEN_JS_",
+          &crate::event::listen_js(
+            self.event_listeners_object_name(),
+            "eventName".into(),
+            0,
+            "handler".into()
+          )
+        )
+        .replace("_KEY_VALUE_", &key.to_string()),
       event_initialization_script = self.event_initialization_script(),
       plugin_initialization_script = plugin_initialization_script
     )

@@ -11,6 +11,12 @@
     return array.join('')
   }
 
+  // immediately listen
+  function listen(eventName, cb) {
+    const handler = window.__TAURI__.transformCallback(cb)
+    _LISTEN_JS_
+  }
+
   if (!window.__TAURI__) {
     window.__TAURI__ = {}
   }
@@ -146,25 +152,14 @@
     }
   })
 
-  window.__TAURI_INVOKE__(
-    'tauri',
-    {
-      __tauriModule: 'Event',
-      message: {
-        cmd: 'listen',
-        event: 'tauri://window-created',
-        handler: window.__TAURI__.transformCallback(function (event) {
-          if (event.payload) {
-            var windowLabel = event.payload.label
-            window.__TAURI__.__windows.push({
-              label: windowLabel
-            })
-          }
-        })
-      }
-    },
-    _KEY_VALUE_
-  )
+  listen('tauri://window-created', function (event) {
+    if (event.payload) {
+      var windowLabel = event.payload.label
+      window.__TAURI__.__windows.push({
+        label: windowLabel
+      })
+    }
+  })
 
   let permissionSettable = false
   let permissionValue = 'default'

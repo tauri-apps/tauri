@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, runtime::Runtime, sealed::ManagerBase, Manager, Window};
+use crate::{
+  endpoints::InvokeResponse,
+  event::{listen_js, unlisten_js},
+  runtime::Runtime,
+  sealed::ManagerBase,
+  Manager, Window,
+};
 use serde::Deserialize;
 
 /// The API descriptor.
@@ -29,12 +35,20 @@ impl Cmd {
     match self {
       Self::Listen { event, handler } => {
         let event_id = rand::random();
-        window.eval(&listen_js(&window, event.clone(), event_id, handler))?;
+        window.eval(&listen_js(
+          window.manager().event_listeners_object_name(),
+          format!("'{}'", event),
+          event_id,
+          format!("'{}'", handler),
+        ))?;
         window.register_js_listener(event, event_id);
         Ok(event_id.into())
       }
       Self::Unlisten { event_id } => {
-        window.eval(&unlisten_js(&window, event_id))?;
+        window.eval(&unlisten_js(
+          window.manager().event_listeners_object_name(),
+          event_id,
+        ))?;
         window.unregister_js_listener(event_id);
         Ok(().into())
       }
@@ -55,44 +69,4 @@ impl Cmd {
       }
     }
   }
-}
-
-pub fn unlisten_js<R: Runtime>(window: &Window<R>, event_id: u64) -> String {
-  format!(
-    "
-      for (var event in (window['{listeners}'] || {{}})) {{
-        var listeners = (window['{listeners}'] || {{}})[event]
-        if (listeners) {{
-          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
-        }}
-      }}
-    ",
-    listeners = window.manager().event_listeners_object_name(),
-    event_id = event_id,
-  )
-}
-
-pub fn listen_js<R: Runtime>(
-  window: &Window<R>,
-  event: String,
-  event_id: u64,
-  handler: String,
-) -> String {
-  format!(
-    "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = Object.create(null)
-    }}
-    if (window['{listeners}']['{event}'] === void 0) {{
-      window['{listeners}']['{event}'] = []
-    }}
-    window['{listeners}']['{event}'].push({{
-      id: {event_id},
-      handler: window['{handler}']
-    }});
-  ",
-    listeners = window.manager().event_listeners_object_name(),
-    event = event,
-    event_id = event_id,
-    handler = handler
-  )
 }

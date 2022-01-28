@@ -426,7 +426,7 @@ pub struct SecurityConfig {
 }
 
 pub trait Allowlist {
-  fn to_features(&self) -> Vec<&str>;
+  fn to_features(self) -> Vec<&'static str>;
 }
 
 macro_rules! check_feature {
@@ -476,7 +476,7 @@ pub struct FsAllowlistConfig {
 }
 
 impl Allowlist for FsAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["fs-all"]
     } else {
@@ -508,7 +508,7 @@ pub struct WindowAllowlistConfig {
 }
 
 impl Allowlist for WindowAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["window-all"]
     } else {
@@ -534,7 +534,7 @@ pub struct ShellAllowlistConfig {
 }
 
 impl Allowlist for ShellAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["shell-all"]
     } else {
@@ -561,7 +561,7 @@ pub struct DialogAllowlistConfig {
 }
 
 impl Allowlist for DialogAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["dialog-all"]
     } else {
@@ -585,7 +585,7 @@ pub struct HttpAllowlistConfig {
 }
 
 impl Allowlist for HttpAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["http-all"]
     } else {
@@ -605,7 +605,7 @@ pub struct NotificationAllowlistConfig {
 }
 
 impl Allowlist for NotificationAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["notification-all"]
     } else {
@@ -623,7 +623,7 @@ pub struct GlobalShortcutAllowlistConfig {
 }
 
 impl Allowlist for GlobalShortcutAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["global-shortcut-all"]
     } else {
@@ -641,7 +641,7 @@ pub struct OsAllowlistConfig {
 }
 
 impl Allowlist for OsAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["os-all"]
     } else {
@@ -659,7 +659,7 @@ pub struct PathAllowlistConfig {
 }
 
 impl Allowlist for PathAllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["path-all"]
     } else {
@@ -704,7 +704,7 @@ pub struct AllowlistConfig {
 }
 
 impl Allowlist for AllowlistConfig {
-  fn to_features(&self) -> Vec<&str> {
+  fn to_features(self) -> Vec<&'static str> {
     if self.all {
       vec!["api-all"]
     } else {
@@ -751,7 +751,7 @@ pub struct TauriConfig {
 impl TauriConfig {
   #[allow(dead_code)]
   pub fn features(&self) -> Vec<&str> {
-    self.allowlist.to_features()
+    self.allowlist.clone().to_features()
   }
 }
 

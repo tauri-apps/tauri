@@ -116,10 +116,38 @@ pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
 }
 
 pub fn all_allowlist_features() -> Vec<&'static str> {
-  AllowlistConfig {
+  let mut allow_all_list = AllowlistConfig {
     all: true,
     fs: FsAllowlistConfig {
       all: true,
+      ..Default::default()
+    },
+    window: WindowAllowlistConfig {
+      all: true,
+      ..Default::default()
+    },
+    shell: ShellAllowlistConfig {
+      all: true,
+      ..Default::default()
+    },
+    dialog: DialogAllowlistConfig {
+      all: true,
+      ..Default::default()
+    },
+    http: HttpAllowlistConfig {
+      all: true,
+      ..Default::default()
+    },
+    notification: NotificationAllowlistConfig { all: true },
+    global_shortcut: GlobalShortcutAllowlistConfig { all: true },
+    os: OsAllowlistConfig { all: true },
+    path: PathAllowlistConfig { all: true },
+  }
+  .to_features();
+  let regular_feature_list = AllowlistConfig {
+    all: false,
+    fs: FsAllowlistConfig {
+      all: false,
       read_text_file: true,
       read_binary_file: true,
       write_file: true,
@@ -132,27 +160,29 @@ pub fn all_allowlist_features() -> Vec<&'static str> {
       rename_file: true,
     },
     window: WindowAllowlistConfig {
-      all: true,
+      all: false,
       create: true,
     },
     shell: ShellAllowlistConfig {
-      all: true,
+      all: false,
       execute: true,
       open: true,
     },
     dialog: DialogAllowlistConfig {
-      all: true,
+      all: false,
       open: true,
       save: true,
     },
     http: HttpAllowlistConfig {
-      all: true,
+      all: false,
       request: true,
     },
-    notification: NotificationAllowlistConfig { all: true },
-    global_shortcut: GlobalShortcutAllowlistConfig { all: true },
-    os: OsAllowlistConfig { all: true },
-    path: PathAllowlistConfig { all: true },
+    notification: NotificationAllowlistConfig { all: false },
+    global_shortcut: GlobalShortcutAllowlistConfig { all: false },
+    os: OsAllowlistConfig { all: false },
+    path: PathAllowlistConfig { all: false },
   }
-  .to_features()
+  .to_features();
+  allow_all_list.extend(regular_feature_list);
+  allow_all_list
 }

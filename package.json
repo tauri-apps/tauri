@@ -8,7 +8,7 @@
   ],
   "workspaces": [
     "tooling/cli.js",
-    "tooling/api"
+    "tooling/api/dist"
   ],
   "bin": {
     "tauri": "tooling/cli.js/bin/tauri.js"

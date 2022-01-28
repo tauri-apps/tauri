@@ -40,6 +40,7 @@ impl<R: Read + Seek> Extract<R> {
   /// Create archive from reader.
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<R> {
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
     Extract {
@@ -53,6 +54,7 @@ impl<R: Read + Seek> Extract<R> {
     let reader = &mut self.reader;
     let mut all_files = Vec::new();
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
     match self.archive_format {
@@ -88,6 +90,7 @@ impl<R: Read + Seek> Extract<R> {
     compression: Option<Compression>,
   ) -> Either<&mut R, flate2::read::GzDecoder<&mut R>> {
     if source.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
     match compression {
@@ -102,6 +105,7 @@ impl<R: Read + Seek> Extract<R> {
   pub fn extract_into(&mut self, into_dir: &path::Path) -> crate::api::Result<()> {
     let reader = &mut self.reader;
     if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
     match self.archive_format {

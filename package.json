@@ -6,9 +6,12 @@
   "contributors": [
     "Tauri Programme within The Commons Conservancy"
   ],
-  "workspaces":[
+  "workspaces": [
     "tooling/cli.js"
   ],
+  "bin": {
+    "tauri": "tooling/cli.js/bin/tauri.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/tauri-apps/tauri.git",

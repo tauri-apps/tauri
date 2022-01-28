@@ -599,15 +599,9 @@ macro_rules! check_feature {
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FsAllowlistScope(pub Vec<PathBuf>);
-
-impl Default for FsAllowlistScope {
-  fn default() -> Self {
-    Self(vec!["$APP/**".into()])
-  }
-}
 
 /// Allowlist for the file system APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]

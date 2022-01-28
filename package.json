@@ -6,14 +6,16 @@
   "contributors": [
     "Tauri Programme within The Commons Conservancy"
   ],
+  "workspaces":[
+    "tooling/cli.js"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/tauri-apps/tauri.git",
     "directory": "tooling/cli.js"
   },
   "scripts": {
-    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
-    "postinstall": "husky install"
+    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore"
   },
   "devDependencies": {
     "covector": "^0.5.3",

@@ -8,7 +8,7 @@
     "url": "https://opencollective.com/tauri"
   },
   "exports": {
-    "./package.json": "./package.json"
+    ".": "./dist/*.js"
   },
   "scripts": {
     "build": "rimraf ./dist && rollup -c --silent && node ./scripts/after-build.cjs",

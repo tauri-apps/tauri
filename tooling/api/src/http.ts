@@ -37,7 +37,7 @@ enum ResponseType {
   Binary = 3
 }
 
-type Part = string | number[]
+type Part = string | Uint8Array
 
 /** The body object to be used on POST and PUT requests. */
 class Body {
@@ -90,8 +90,9 @@ class Body {
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: number[]): Body {
-    return new Body('Bytes', bytes)
+  static bytes(bytes: Uint8Array): Body {
+    // stringifying Uint8Array doesn't return an array of numbers, so we create one here
+    return new Body('Bytes', Array.from(bytes))
   }
 }
 

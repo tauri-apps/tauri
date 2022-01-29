@@ -120,7 +120,7 @@ async function readBinaryFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<Uint8Array> {
-  const arr = invokeTauriCommand<number[]>({
+  const arr = await invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readBinaryFile',

@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{io::Cursor, process::Command};
-
-#[derive(Debug, serde::Deserialize)]
-struct TargetSpec {
-  arch: String
-}
+use regex::Regex;
+use std::process::Command;
 
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
@@ -23,14 +19,16 @@ struct TargetSpec {
 /// * Errors:
 ///     * Unexpected system config
 pub fn target_triple() -> Result<String, crate::Error> {
-  let output = Command::new("rustc")
-    .args(&["-Z", "unstable-options", "--print", "target-spec-json"])
-    .env("RUSTC_BOOTSTRAP", "1")
-    .output()?;
+  let output = Command::new("rustc").args(&["--print", "cfg"]).output()?;
 
   let arch = if output.status.success() {
-    let target_spec: TargetSpec = serde_json::from_reader(Cursor::new(output.stdout))?;
-    target_spec.arch
+    let re = Regex::new(r#"target_arch="(\S+)""#)?;
+
+    let text = std::str::from_utf8(&output.stdout)?;
+
+    re.captures(text)
+      .expect("Failed to parse rustc output. This is a bug")[1]
+      .to_string()
   } else {
     super::common::print_info(&format!(
       "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",

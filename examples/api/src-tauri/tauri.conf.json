@@ -80,6 +80,7 @@
       "shell": {
         "scope": [
           {
+            "name": "test",
             "cmd": "__test",
             "args": [
               "-d --date <DATE> ^\\d{4}-\\d{2}-\\d{2}$",
@@ -90,9 +91,11 @@
             ]
           },
           {
+            "name": "sh",
             "cmd": "sh"
           },
           {
+            "name": "cmd",
             "cmd": "cmd"
           }
         ]
@@ -102,7 +105,7 @@
         "assetScope": ["$RESOURCE/**"]
       },
       "http": {
-        "scope": ["https://jsonplaceholder.typicode.com"]
+        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
       }
     },
     "windows": [

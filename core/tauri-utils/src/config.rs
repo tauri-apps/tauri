@@ -1058,6 +1058,7 @@ impl Allowlist for DialogAllowlistConfig {
 
 /// HTTP API scope definition.
 /// It is a list of URLs that can be accessed by the webview when using the HTTP APIs.
+/// The URL path is matched against the request URL using a glob pattern.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);

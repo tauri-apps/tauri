@@ -28,6 +28,7 @@ struct YarnVersionInfo {
 struct CargoLockPackage {
   name: String,
   version: String,
+  source: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -51,6 +52,7 @@ struct VersionMetadata {
 #[derive(Clone, Deserialize)]
 struct CargoManifestDependencyPackage {
   version: Option<String>,
+  git: Option<String>,
   path: Option<PathBuf>,
 }
 
@@ -642,24 +644,43 @@ pub fn command(_options: Options) -> Result<()> {
         .collect()
     })
     .unwrap_or_default();
-  let (tauri_version_string, found_tauri_versions) =
+  let (mut tauri_version_string, found_tauri_versions) =
     match (&manifest, &lock, tauri_lock_packages.len()) {
       (Some(_manifest), Some(_lock), 1) => {
         let tauri_lock_package = tauri_lock_packages.first().unwrap();
+        let git_suffix = if let Some(s) = tauri_lock_package.source.clone() {
+          if s.starts_with("git") {
+            "(git lockfile)"
+          } else {
+            ""
+          }
+        } else {
+          ""
+        };
         (
-          tauri_lock_package.version.clone(),
+          format!("{} {}", tauri_lock_package.version.clone(), git_suffix),
           vec![tauri_lock_package.version.clone()],
         )
       }
       (None, Some(_lock), 1) => {
         let tauri_lock_package = tauri_lock_packages.first().unwrap();
+        let git_suffix = if let Some(s) = tauri_lock_package.source.clone() {
+          if s.starts_with("git") {
+            "(git lockfile)"
+          } else {
+            ""
+          }
+        } else {
+          ""
+        };
         (
-          format!("{} (no manifest)", tauri_lock_package.version),
+          format!("{} {}(no manifest)", tauri_lock_package.version, git_suffix),
           vec![tauri_lock_package.version.clone()],
         )
       }
       _ => {
         let mut found_tauri_versions = Vec::new();
+        let mut is_git = false;
         let manifest_version = match manifest.and_then(|m| m.dependencies.get("tauri").cloned()) {
           Some(tauri) => match tauri {
             CargoManifestDependency::Version(v) => {
@@ -680,6 +701,9 @@ pub fn command(_options: Options) -> Result<()> {
                   Err(_) => "unknown version".to_string(),
                 };
                 format!("path:{:?} [{}]", p, v)
+              } else if let Some(g) = p.git {
+                is_git = true;
+                format!("git:{:?}", g)
               } else {
                 "unknown manifest".to_string()
               }
@@ -699,7 +723,12 @@ pub fn command(_options: Options) -> Result<()> {
         };
 
         (
-          format!("{} ({})", manifest_version, lock_version),
+          format!(
+            "{} {}({})",
+            manifest_version,
+            if is_git { "(git manifest)" } else { "" },
+            lock_version
+          ),
           found_tauri_versions,
         )
       }

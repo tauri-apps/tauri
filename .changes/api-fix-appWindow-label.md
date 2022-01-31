@@ -1,5 +1,5 @@
 ---
-"api.js": "patch"
+"api": "patch"
 ---
 
 Fix `appWindow.label` always `null` or empty string.

@@ -10,7 +10,8 @@
     "declaration": true,
     "declarationDir": "dist",
     "rootDir": "src",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "target": "ES5"
   },
   "include": ["./src"]
 }

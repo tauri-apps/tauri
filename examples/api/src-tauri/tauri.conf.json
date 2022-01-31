@@ -71,7 +71,10 @@
     "windows": [
       {
         "title": "Tauri API Validation",
-        "transparent": true
+        "x": 100,
+        "y": 100,
+        "height": 800,
+        "width": 1000
       }
     ],
     "security": {

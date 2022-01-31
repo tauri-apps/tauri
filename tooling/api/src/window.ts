@@ -223,19 +223,27 @@ export type WindowLabel = string
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
 class WebviewWindowHandle {
-  /** Window label. */
-  label: WindowLabel
+  private __label: WindowLabel
   /** Local event listeners. */
-  listeners: { [key: string]: Array<EventCallback<any>> }
+  private listeners: { [key: string]: Array<EventCallback<any>> }
 
   constructor(label: WindowLabel | null | undefined) {
-    try {
-      this.label = label ?? window.__TAURI__.__currentWindow.label
-    } catch {
-      this.label = ''
-    }
+    this.__label = label ?? window.__TAURI__.__currentWindow.label ?? ''
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
+  }
+
+  /** Window label. */
+  get label(): WindowLabel {
+    // if `this.__label` is null or an empty string, it means this is a handle to the current
+    // window and probably accessed through `appWindow` so it should be reassigned to the current window label.
+    //
+    // why reassign this on read?
+    // because of the UMD bundle of this api when used with `withGlobalTauri`, is executed before
+    // `window.__TAURI__.__currentWindow.label` is assigned so we need to reassign here when
+    // likely that `window.__TAURI__.__currentWindow.label` is properly assigned and not a null value.
+    if (!this.__label) this.__label = window.__TAURI__.__currentWindow.label
+    return this.__label
   }
 
   /**
@@ -291,7 +299,7 @@ class WebviewWindowHandle {
       }
       return Promise.resolve()
     }
-    return emit(event, this.label, payload)
+    return emit(event, this.__label, payload)
   }
 
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {

@@ -228,7 +228,7 @@ class WebviewWindowHandle {
   private listeners: { [key: string]: Array<EventCallback<any>> }
 
   constructor(label: WindowLabel | null | undefined) {
-    this.__label = label ?? window.__TAURI__.__currentWindow.label ?? ''
+    this.__label = label ?? window.__TAURI__?.__currentWindow?.label ?? ''
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }

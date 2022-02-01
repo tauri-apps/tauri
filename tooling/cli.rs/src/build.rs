@@ -132,20 +132,49 @@ pub fn command(options: Options) -> Result<()> {
     cargo_features.extend(features);
   }
 
-  crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
-    .with_context(|| "failed to build app")?;
 
   let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
   let out_dir = app_settings
     .get_out_dir(options.target.clone(), options.debug)
     .with_context(|| "failed to get project out directory")?;
+
+  let bin_name = app_settings
+    .cargo_package_settings()
+    .name
+    .clone()
+    .with_context(|| "Cargo manifest must have the `package.name` field")?;
+
+  if options.target == Some("universal-apple-darwin".to_owned()) {
+    std::fs::create_dir_all(&out_dir)
+      .with_context(|| "failed to create project out directory")?;
+
+    let mut lipo_cmd = Command::new("lipo");
+    lipo_cmd
+      .arg("-create")
+      .arg("-output")
+      .arg(out_dir.clone().join(&bin_name));
+    
+    for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
+      crate::interface::rust::build_project(runner.clone(), &Some(triple.to_owned()), cargo_features.clone(), options.debug)
+        .with_context(|| format!("failed to build {} binary", triple))?;
+      let triple_out_dir = app_settings.get_out_dir(Some(triple.to_owned()), options.debug)
+        .with_context(|| format!("failed to get {} out dir", triple))?;
+      lipo_cmd.arg(triple_out_dir.join(&bin_name));
+    }
+
+    let lipo_status = lipo_cmd.status()?;
+    if !lipo_status.success() {
+      return Err(anyhow::anyhow!(format!(
+        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)", lipo_status
+      )));
+    }
+  } else {
+    crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
+    .with_context(|| "failed to build app")?;
+  }
+
   if let Some(product_name) = config_.package.product_name.clone() {
-    let bin_name = app_settings
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
     #[cfg(windows)]
     let (bin_path, product_path) = {
       (

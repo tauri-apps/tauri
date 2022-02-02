@@ -16,7 +16,7 @@ use crate::{
     http::{Request as HttpRequest, Response as HttpResponse},
     webview::{WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent as RunTimeEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::assets::Assets,
@@ -493,11 +493,11 @@ impl<R: Runtime> App<R> {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
-      RunTimeEvent::Exit => {
+      RuntimeRunEvent::Exit => {
         app_handle.cleanup_before_exit();
         on_event_loop_event(
           &app_handle,
-          RunTimeEvent::Exit,
+          RuntimeRunEvent::Exit,
           &manager,
           Some(&mut callback),
         );
@@ -1122,28 +1122,28 @@ impl<R: Runtime> Builder<R> {
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
-  event: RunTimeEvent,
+  event: RuntimeRunEvent,
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
-  if let RunTimeEvent::WindowClose(label) = &event {
+  if let RuntimeRunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
   }
 
   let event = match event {
-    RunTimeEvent::Exit => RunEvent::Exit,
-    RunTimeEvent::ExitRequested { window_label, tx } => RunEvent::ExitRequested {
+    RuntimeRunEvent::Exit => RunEvent::Exit,
+    RuntimeRunEvent::ExitRequested { window_label, tx } => RunEvent::ExitRequested {
       window_label,
       api: ExitRequestApi(tx),
     },
-    RunTimeEvent::CloseRequested { label, signal_tx } => RunEvent::CloseRequested {
+    RuntimeRunEvent::CloseRequested { label, signal_tx } => RunEvent::CloseRequested {
       label,
       api: CloseRequestApi(signal_tx),
     },
-    RunTimeEvent::WindowClose(label) => RunEvent::WindowClosed(label),
-    RunTimeEvent::Ready => RunEvent::Ready,
-    RunTimeEvent::Resumed => RunEvent::Resumed,
-    RunTimeEvent::MainEventsCleared => RunEvent::MainEventsCleared,
+    RuntimeRunEvent::WindowClose(label) => RunEvent::WindowClosed(label),
+    RuntimeRunEvent::Ready => RunEvent::Ready,
+    RuntimeRunEvent::Resumed => RunEvent::Resumed,
+    RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     _ => unimplemented!(),
   };
 

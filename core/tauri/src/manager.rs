@@ -4,7 +4,7 @@
 
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
-  event::{Event, EventHandler, Listeners},
+  event::{EmittedEvent, EventHandler, Listeners},
   hooks::{InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
@@ -780,7 +780,7 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.listeners.trigger(event, window, data)
   }
 
-  pub fn listen<F: Fn(Event) + Send + 'static>(
+  pub fn listen<F: Fn(EmittedEvent) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
@@ -788,7 +788,7 @@ impl<R: Runtime> WindowManager<R> {
   ) -> EventHandler {
     self.inner.listeners.listen(event, window, handler)
   }
-  pub fn once<F: Fn(Event) + Send + 'static>(
+  pub fn once<F: Fn(EmittedEvent) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,

@@ -35,7 +35,7 @@ pub mod command;
 /// The Tauri API endpoints.
 mod endpoints;
 mod error;
-mod event;
+pub mod event;
 mod hooks;
 mod manager;
 pub mod plugin;
@@ -60,7 +60,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use crate::{
-  event::{Event as EmittedEvent, EventHandler},
+  event::{EmittedEvent, EventHandler},
   runtime::window::PendingWindow,
 };
 use serde::Serialize;

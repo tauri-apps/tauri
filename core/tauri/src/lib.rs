@@ -23,6 +23,7 @@
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **egui**: Enables method to create a native egui window. This can be used for creating native OpenGL contexts or [egui](https://github.com/emilk/egui) widgets.
+//! - **window-data-url**: Enables usage of data URLs on the webview.
 //!
 //! ## Cargo allowlist features
 //!

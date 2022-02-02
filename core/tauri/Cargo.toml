@@ -76,7 +76,7 @@ futures-lite = "1.12"
 epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
 regex = "1.5"
 glob = "0.3"
-data-url = "0.1"
+data-url = { version = "0.1", optional = true }
 serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -122,6 +122,7 @@ cli = ["clap"]
 system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
 dox = ["tauri-runtime-wry/dox"]
 macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
+window-data-url = ["data-url"]
 api-all = [
   "clipboard-all",
   "dialog-all",

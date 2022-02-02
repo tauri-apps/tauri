@@ -103,6 +103,9 @@ pub enum Error {
   #[cfg(feature = "isolation")]
   #[error("isolation pattern error: {0}")]
   IsolationPattern(#[from] tauri_utils::pattern::isolation::Error),
+  /// An invalid window URL was provided. Includes details about the error.
+  #[error("invalid window url: {0}")]
+  InvalidWindowUrl(&'static str),
 }
 
 impl From<serde_json::Error> for Error {

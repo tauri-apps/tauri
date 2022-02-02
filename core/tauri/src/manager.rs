@@ -21,7 +21,7 @@ use tauri_macros::default_runtime;
 use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
-  html::{inject_csp, parse as parse_html, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
+  html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
 #[cfg(target_os = "windows")]
@@ -924,6 +924,7 @@ impl<R: Runtime> WindowManager<R> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
+    #[allow(unused_mut)] // mut url only for the data-url parsing
     let (is_local, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
@@ -945,6 +946,14 @@ impl<R: Runtime> WindowManager<R> {
       _ => unimplemented!(),
     };
 
+    #[cfg(not(feature = "window-data-url"))]
+    if url.scheme() == "data" {
+      return Err(crate::Error::InvalidWindowUrl(
+        "data URLs are not supported without the `window-data-url` feature.",
+      ));
+    }
+
+    #[cfg(feature = "window-data-url")]
     if let Some(csp) = self.csp() {
       if url.scheme() == "data" {
         if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
@@ -952,8 +961,8 @@ impl<R: Runtime> WindowManager<R> {
           let html = String::from_utf8_lossy(&body).into_owned();
           // naive way to check if it's an html
           if html.contains('<') && html.contains('>') {
-            let mut document = parse_html(html);
-            inject_csp(&mut document, &csp);
+            let mut document = tauri_utils::html::parse(html);
+            tauri_utils::html::inject_csp(&mut document, &csp);
             url.set_path(&format!("text/html,{}", document.to_string()));
           }
         }

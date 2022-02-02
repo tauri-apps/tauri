@@ -101,7 +101,7 @@ tokio-test = "0.4.2"
 tokio = { version = "1.15", features = [ "full" ] }
 
 [target."cfg(windows)".dev-dependencies.windows]
-version = "0.29.0"
+version = "0.30.0"
 features = [
   "Win32_Foundation",
 ]
@@ -172,6 +172,7 @@ path-all = []
 process-all = ["process-relaunch", "process-exit"]
 process-exit = []
 process-relaunch = []
+process-relaunch-dangerous-allow-symlink-macos = ["tauri-utils/process-relaunch-dangerous-allow-symlink-macos"]
 protocol-all = ["protocol-asset"]
 protocol-asset = []
 shell-all = ["shell-execute", "shell-sidecar", "shell-open"]

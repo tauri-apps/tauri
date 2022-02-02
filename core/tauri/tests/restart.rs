@@ -37,6 +37,14 @@ fn compile_restart_test_binary() -> io::Result<PathBuf> {
   cargo.arg("--manifest-path");
   cargo.arg(project.join("Cargo.toml"));
 
+  // enable the dangerous macos flag on tauri if the test runner has the feature enabled
+  if cfg!(feature = "process-relaunch-dangerous-allow-symlink-macos") {
+    cargo.args([
+      "--features",
+      "tauri/process-relaunch-dangerous-allow-symlink-macos",
+    ]);
+  }
+
   let status = cargo.status()?;
   if !status.success() {
     return Err(io::Error::new(
@@ -81,14 +89,32 @@ fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Res
     // add the restart parameter so that the invocation will call tauri::api::process::restart
     cmd.arg("restart");
 
-    // gather the output into a string
-    let output = String::from_utf8(cmd.output()?.stdout)?;
+    let output = cmd.output()?;
 
-    // run destructors to prevent resource leaking if the assertion fails
+    // run `TempDir` destructors to prevent resource leaking if the assertion fails
     drop(temp);
 
-    // we expect the output to be the bin path, twice
-    assert_eq!(output, format!("{bin}\n{bin}\n", bin = bin.display()));
+    if output.status.success() {
+      // gather the output into a string
+      let stdout = String::from_utf8(output.stdout)?;
+
+      // we expect the output to be the bin path, twice
+      assert_eq!(stdout, format!("{bin}\n{bin}\n", bin = bin.display()));
+    } else if cfg!(all(
+      target_os = "macos",
+      not(feature = "process-relaunch-dangerous-allow-symlink-macos")
+    )) {
+      // we expect this to fail on macOS without the dangerous symlink flag set
+      let stderr = String::from_utf8(output.stderr)?;
+
+      // make sure it's the error that we expect
+      assert!(stderr.contains(
+        "StartingBinary found current_exe() that contains a symlink on a non-allowed platform"
+      ));
+    } else {
+      // we didn't expect the program to fail in this configuration, just panic
+      panic!("restart integration test runner failed for unknown reason");
+    }
   }
 
   Ok(())

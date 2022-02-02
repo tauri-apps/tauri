@@ -1260,6 +1260,12 @@ pub struct ProcessAllowlistConfig {
   /// Enables the relaunch API.
   #[serde(default)]
   pub relaunch: bool,
+  /// Dangerous option that allows macOS to relaunch even if the binary contains a symlink.
+  ///
+  /// This is due to macOS having less symlink protection. Highly recommended to not set this flag
+  /// unless you have a very specific reason too, and understand the implications of it.
+  #[serde(default)]
+  pub relaunch_dangerous_allow_symlink_macos: bool,
   /// Enables the exit API.
   #[serde(default)]
   pub exit: bool,
@@ -1270,6 +1276,7 @@ impl Allowlist for ProcessAllowlistConfig {
     let allowlist = Self {
       all: false,
       relaunch: true,
+      relaunch_dangerous_allow_symlink_macos: false,
       exit: true,
     };
     let mut features = allowlist.to_features();
@@ -1283,6 +1290,12 @@ impl Allowlist for ProcessAllowlistConfig {
     } else {
       let mut features = Vec::new();
       check_feature!(self, features, relaunch, "process-relaunch");
+      check_feature!(
+        self,
+        features,
+        relaunch_dangerous_allow_symlink_macos,
+        "process-relaunch-dangerous-allow-symlink-macos"
+      );
       check_feature!(self, features, exit, "process-exit");
       features
     }

@@ -146,13 +146,15 @@ impl Scope {
           }
         })
         .collect(),
-      (Some(list), arg) if arg.is_empty() && list.iter().all(ShellScopeAllowedArg::is_fixed) => list
-        .iter()
-        .map(|arg| match arg {
-          ShellScopeAllowedArg::Fixed(fixed) => Ok(fixed.to_string()),
-          _ => unreachable!(),
-        })
-        .collect(),
+      (Some(list), arg) if arg.is_empty() && list.iter().all(ShellScopeAllowedArg::is_fixed) => {
+        list
+          .iter()
+          .map(|arg| match arg {
+            ShellScopeAllowedArg::Fixed(fixed) => Ok(fixed.to_string()),
+            _ => unreachable!(),
+          })
+          .collect()
+      }
       (Some(list), _) if list.is_empty() => Err(ScopeError::InvalidInput(command_name.into())),
       (Some(_), _) => Err(ScopeError::InvalidInput(command_name.into())),
     }?;

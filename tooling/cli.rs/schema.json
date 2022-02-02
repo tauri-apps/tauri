@@ -65,9 +65,7 @@
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
-            "scope": [
-              "$APP/**"
-            ],
+            "scope": [],
             "writeFile": false
           },
           "globalShortcut": {
@@ -90,14 +88,13 @@
           "process": {
             "all": false,
             "exit": false,
-            "relaunch": false
+            "relaunch": false,
+            "relaunchDangerousAllowSymlinkMacos": false
           },
           "protocol": {
             "all": false,
             "asset": false,
-            "assetScope": [
-              "$APP/**"
-            ]
+            "assetScope": []
           },
           "shell": {
             "all": false,
@@ -244,9 +241,7 @@
             "removeDir": false,
             "removeFile": false,
             "renameFile": false,
-            "scope": [
-              "$APP/**"
-            ],
+            "scope": [],
             "writeFile": false
           },
           "allOf": [
@@ -317,7 +312,8 @@
           "default": {
             "all": false,
             "exit": false,
-            "relaunch": false
+            "relaunch": false,
+            "relaunchDangerousAllowSymlinkMacos": false
           },
           "allOf": [
             {
@@ -330,9 +326,7 @@
           "default": {
             "all": false,
             "asset": false,
-            "assetScope": [
-              "$APP/**"
-            ]
+            "assetScope": []
           },
           "allOf": [
             {
@@ -1003,9 +997,7 @@
         },
         "scope": {
           "description": "The access scope for the filesystem APIs.",
-          "default": [
-            "$APP/**"
-          ],
+          "default": [],
           "allOf": [
             {
               "$ref": "#/definitions/FsAllowlistScope"
@@ -1066,7 +1058,7 @@
       "additionalProperties": false
     },
     "HttpAllowlistScope": {
-      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs.",
+      "description": "HTTP API scope definition. It is a list of URLs that can be accessed by the webview when using the HTTP APIs. The URL path is matched against the request URL using a glob pattern.",
       "type": "array",
       "items": {
         "type": "string",
@@ -1259,6 +1251,11 @@
           "description": "Enables the relaunch API.",
           "default": false,
           "type": "boolean"
+        },
+        "relaunchDangerousAllowSymlinkMacos": {
+          "description": "Dangerous option that allows macOS to relaunch even if the binary contains a symlink.\n\nThis is due to macOS having less symlink protection. Highly recommended to not set this flag unless you have a very specific reason too, and understand the implications of it.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1279,9 +1276,7 @@
         },
         "assetScope": {
           "description": "The access scope for the asset protocol.",
-          "default": [
-            "$APP/**"
-          ],
+          "default": [],
           "allOf": [
             {
               "$ref": "#/definitions/FsAllowlistScope"
@@ -1505,9 +1500,7 @@
               "removeDir": false,
               "removeFile": false,
               "renameFile": false,
-              "scope": [
-                "$APP/**"
-              ],
+              "scope": [],
               "writeFile": false
             },
             "globalShortcut": {
@@ -1530,14 +1523,13 @@
             "process": {
               "all": false,
               "exit": false,
-              "relaunch": false
+              "relaunch": false,
+              "relaunchDangerousAllowSymlinkMacos": false
             },
             "protocol": {
               "all": false,
               "asset": false,
-              "assetScope": [
-                "$APP/**"
-              ]
+              "assetScope": []
             },
             "shell": {
               "all": false,

@@ -68,14 +68,15 @@ impl Default for Env {
         // an AppImage is mounted to `/$TEMPDIR/.mount_${appPrefix}${hash}`
         // see https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501
         // note that it is safe to use `std::env::current_exe` here since we just loaded an AppImage.
-        if !std::env::current_exe()
+        let is_temp = std::env::current_exe()
           .map(|p| {
             p.display()
               .to_string()
               .starts_with(&format!("{}/.mount_", std::env::temp_dir().display()))
           })
-          .unwrap_or(true)
-        {
+          .unwrap_or(true);
+
+        if !is_temp {
           panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }

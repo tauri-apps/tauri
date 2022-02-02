@@ -23,6 +23,7 @@
 
   function openDialog() {
     open({
+      title: 'My wonderful open dialog',
       defaultPath,
       filters: filter
         ? [
@@ -70,6 +71,7 @@
 
   function saveDialog() {
     save({
+      title: 'My wonderful save dialog',
       defaultPath,
       filters: filter
         ? [

@@ -377,7 +377,7 @@ macro_rules! shared_app_impl {
         label: impl Into<String>,
         url: WindowUrl,
         setup: F,
-      ) -> crate::Result<()>
+      ) -> crate::Result<Window<R>>
       where
         F: FnOnce(
           <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -395,8 +395,7 @@ macro_rules! shared_app_impl {
           window_builder,
           webview_attributes,
           label,
-        ))?;
-        Ok(())
+        ))
       }
 
       #[cfg(feature = "system-tray")]

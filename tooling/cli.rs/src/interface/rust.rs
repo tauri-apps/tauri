@@ -433,6 +433,16 @@ fn tauri_config_to_bundle_settings(
     None => config.macos.signing_identity,
   };
 
+  let provider_short_name = match std::env::var_os("APPLE_PROVIDER_SHORT_NAME") {
+    Some(provider_short_name) => Some(
+      provider_short_name
+        .to_str()
+        .expect("failed to convert APPLE_PROVIDER_SHORT_NAME to string")
+        .to_string(),
+    ),
+    None => config.macos.provider_short_name,
+  };
+
   Ok(BundleSettings {
     identifier: Some(config.identifier),
     icon: Some(config.icon),
@@ -468,6 +478,7 @@ fn tauri_config_to_bundle_settings(
       use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {
         let path = tauri_dir().join("Info.plist");

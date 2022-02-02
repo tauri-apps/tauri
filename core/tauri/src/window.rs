@@ -451,10 +451,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -467,10 +463,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -481,10 +473,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Returns the list of all the monitors available on the system.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -506,7 +494,7 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd as *mut _)
+      .map(|hwnd| hwnd.0 as *mut _)
       .map_err(Into::into)
   }
 
@@ -541,6 +529,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** `None` has no effect.
+  /// - **Linux:** Urgency levels have the same effect.
   pub fn request_user_attention(
     &self,
     request_type: Option<UserAttentionType>,

@@ -2,4 +2,4 @@
 "cli.rs": patch
 ---
 
-Define `PLATFORM`, `ARCH`, `FAMILY`, `PLATFORM_TYPE` and `TAURI_DEBUG` environment variables for the `beforeDevCommand` and `beforeBuildCommand` scripts.
+Define `TAURI_PLATFORM`, `TAURI_ARCH`, `TAURI_FAMILY`, `TAURI_PLATFORM_TYPE`, `TAURI_PLATFORM_VERSION` and `TAURI_DEBUG` environment variables for the `beforeDevCommand` and `beforeBuildCommand` scripts.

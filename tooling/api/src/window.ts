@@ -514,6 +514,7 @@ class WindowManager extends WebviewWindowHandle {
    * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
+   * - **Linux:** Urgency levels have the same effect.
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.

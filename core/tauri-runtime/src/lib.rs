@@ -105,6 +105,9 @@ pub enum Error {
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
+  /// Failed to receive message from webview.
+  #[error("failed to receive message from webview")]
+  FailedToReceiveMessage,
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),

@@ -5,7 +5,7 @@
 /**
  * Provides operating system-related utility methods and properties.
  *
- * This package is also accessible with `window.__TAURI__.fs` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.os` when `tauri.conf.json > build > withGlobalTauri` is set to true.
  *
  * The APIs must be allowlisted on `tauri.conf.json`:
  * ```json

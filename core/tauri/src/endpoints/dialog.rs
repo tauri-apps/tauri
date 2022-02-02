@@ -25,6 +25,8 @@ pub struct DialogFilter {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenDialogOptions {
+  /// The title of the dialog window.
+  pub title: Option<String>,
   /// The filters of the dialog.
   #[serde(default)]
   pub filters: Vec<DialogFilter>,
@@ -42,6 +44,8 @@ pub struct OpenDialogOptions {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaveDialogOptions {
+  /// The title of the dialog window.
+  pub title: Option<String>,
   /// The filters of the dialog.
   #[serde(default)]
   pub filters: Vec<DialogFilter>,

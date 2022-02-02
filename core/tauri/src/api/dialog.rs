@@ -74,6 +74,12 @@ impl FileDialogBuilder {
     self
   }
 
+  /// Set the title of the dialog.
+  pub fn set_title(mut self, title: &str) -> Self {
+    self.0 = self.0.set_title(title);
+    self
+  }
+
   /// Pick one file.
   pub fn pick_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
     run_dialog!(self.0.pick_file(), f)

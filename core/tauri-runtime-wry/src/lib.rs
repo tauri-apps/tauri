@@ -37,10 +37,6 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-#[cfg(feature = "egui")]
-static EGUI_ID: once_cell::sync::Lazy<Mutex<Option<WindowId>>> =
-  once_cell::sync::Lazy::new(|| Mutex::new(None));
-
 use tauri_utils::config::WindowConfig;
 use uuid::Uuid;
 use wry::{
@@ -98,24 +94,12 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
-#[cfg(feature = "egui")]
-#[cfg(target_os = "linux")]
-use glutin::platform::ContextTraitExt;
-#[cfg(feature = "egui")]
-#[cfg(target_os = "linux")]
-use gtk::prelude::*;
-#[cfg(feature = "egui")]
-#[cfg(target_os = "linux")]
-use std::{
-  cell::RefCell,
-  rc::Rc,
-  sync::atomic::{AtomicU8, Ordering},
-};
-
 #[cfg(feature = "system-tray")]
 mod system_tray;
 #[cfg(feature = "system-tray")]
 use system_tray::*;
+#[cfg(feature = "egui")]
+mod egui;
 
 type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
@@ -132,7 +116,7 @@ pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
     send_user_message(&$self.context, $message)?;
-    $rx.recv().unwrap()
+    $rx.recv().map_err(|_| Error::FailedToReceiveMessage)
   }};
 }
 
@@ -417,14 +401,14 @@ impl fmt::Debug for GlobalShortcutManagerHandle {
 impl GlobalShortcutManager for GlobalShortcutManagerHandle {
   fn is_registered(&self, accelerator: &str) -> Result<bool> {
     let (tx, rx) = channel();
-    Ok(getter!(
+    getter!(
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::IsRegistered(
         accelerator.parse().expect("invalid accelerator"),
         tx
       ))
-    ))
+    )
   }
 
   fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()> {
@@ -435,7 +419,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::Register(wry_accelerator, tx))
-    )?;
+    )??;
 
     self.listeners.lock().unwrap().insert(id, Box::new(handler));
     self
@@ -453,7 +437,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
       self,
       rx,
       Message::GlobalShortcut(GlobalShortcutMessage::UnregisterAll(tx))
-    )?;
+    )??;
     self.listeners.lock().unwrap().clear();
     self.shortcuts.lock().unwrap().clear();
     Ok(())
@@ -466,7 +450,7 @@ impl GlobalShortcutManager for GlobalShortcutManagerHandle {
         self,
         rx,
         Message::GlobalShortcut(GlobalShortcutMessage::Unregister(shortcut, tx))
-      )?;
+      )??;
       self.listeners.lock().unwrap().remove(&accelerator_id);
     }
     Ok(())
@@ -485,11 +469,7 @@ unsafe impl Sync for ClipboardManagerWrapper {}
 impl ClipboardManager for ClipboardManagerWrapper {
   fn read_text(&self) -> Result<Option<String>> {
     let (tx, rx) = channel();
-    Ok(getter!(
-      self,
-      rx,
-      Message::Clipboard(ClipboardMessage::ReadText(tx))
-    ))
+    getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
   }
 
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
@@ -498,7 +478,7 @@ impl ClipboardManager for ClipboardManagerWrapper {
       self,
       rx,
       Message::Clipboard(ClipboardMessage::WriteText(text.into(), tx))
-    );
+    )?;
     Ok(())
   }
 }
@@ -1122,62 +1102,62 @@ impl Dispatch for WryDispatcher {
   // Getters
 
   fn scale_factor(&self) -> Result<f64> {
-    Ok(window_getter!(self, WindowMessage::ScaleFactor))
+    window_getter!(self, WindowMessage::ScaleFactor)
   }
 
   fn inner_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::InnerPosition)
+    window_getter!(self, WindowMessage::InnerPosition)?
   }
 
   fn outer_position(&self) -> Result<PhysicalPosition<i32>> {
-    window_getter!(self, WindowMessage::OuterPosition)
+    window_getter!(self, WindowMessage::OuterPosition)?
   }
 
   fn inner_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(window_getter!(self, WindowMessage::InnerSize))
+    window_getter!(self, WindowMessage::InnerSize)
   }
 
   fn outer_size(&self) -> Result<PhysicalSize<u32>> {
-    Ok(window_getter!(self, WindowMessage::OuterSize))
+    window_getter!(self, WindowMessage::OuterSize)
   }
 
   fn is_fullscreen(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsFullscreen))
+    window_getter!(self, WindowMessage::IsFullscreen)
   }
 
   fn is_maximized(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsMaximized))
+    window_getter!(self, WindowMessage::IsMaximized)
   }
 
   /// Gets the window’s current decoration state.
   fn is_decorated(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsDecorated))
+    window_getter!(self, WindowMessage::IsDecorated)
   }
 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsResizable))
+    window_getter!(self, WindowMessage::IsResizable)
   }
 
   fn is_visible(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsVisible))
+    window_getter!(self, WindowMessage::IsVisible)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
-    Ok(window_getter!(self, WindowMessage::IsMenuVisible))
+    window_getter!(self, WindowMessage::IsMenuVisible)
   }
 
   fn current_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::CurrentMonitor).map(|m| MonitorHandleWrapper(m).into()))
+    Ok(window_getter!(self, WindowMessage::CurrentMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
-    Ok(window_getter!(self, WindowMessage::PrimaryMonitor).map(|m| MonitorHandleWrapper(m).into()))
+    Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(
-      window_getter!(self, WindowMessage::AvailableMonitors)
+      window_getter!(self, WindowMessage::AvailableMonitors)?
         .into_iter()
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
@@ -1186,12 +1166,12 @@ impl Dispatch for WryDispatcher {
 
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    Ok(window_getter!(self, WindowMessage::NSWindow).0)
+    window_getter!(self, WindowMessage::NSWindow).map(|w| w.0)
   }
 
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
-    Ok(window_getter!(self, WindowMessage::Hwnd).0)
+    window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -1203,13 +1183,13 @@ impl Dispatch for WryDispatcher {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
-    Ok(window_getter!(self, WindowMessage::GtkWindow).0)
+    window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
   }
 
   // Setters
 
   fn center(&self) -> Result<()> {
-    window_getter!(self, WindowMessage::Center)
+    window_getter!(self, WindowMessage::Center)?
   }
 
   fn print(&self) -> Result<()> {
@@ -1462,22 +1442,7 @@ enum WindowHandle {
   Webview(WebView),
   Window(Arc<Window>),
   #[cfg(feature = "egui")]
-  #[cfg(not(target_os = "linux"))]
-  GLWindow(
-    glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>,
-    glow::Context,
-    egui_glow::Painter,
-    egui_tao::epi::EpiIntegration,
-  ),
-  #[cfg(feature = "egui")]
-  #[cfg(target_os = "linux")]
-  GLWindow(
-    Rc<glutin::ContextWrapper<glutin::PossiblyCurrent, glutin::window::Window>>,
-    Rc<glow::Context>,
-    Rc<RefCell<egui_glow::Painter>>,
-    Rc<RefCell<egui_tao::epi::EpiIntegration>>,
-    Rc<AtomicU8>,
-  ),
+  GLWindow(egui::GlutinWindowContext),
 }
 
 impl fmt::Debug for WindowHandle {
@@ -1492,7 +1457,7 @@ impl WindowHandle {
       Self::Webview(w) => w.window(),
       Self::Window(w) => w,
       #[cfg(feature = "egui")]
-      Self::GLWindow(w, ..) => w.window(),
+      Self::GLWindow(w) => w.window(),
     }
   }
 
@@ -1501,7 +1466,7 @@ impl WindowHandle {
       WindowHandle::Window(w) => w.inner_size(),
       WindowHandle::Webview(w) => w.inner_size(),
       #[cfg(feature = "egui")]
-      WindowHandle::GLWindow(w, ..) => w.window().inner_size(),
+      WindowHandle::GLWindow(w) => w.window().inner_size(),
     }
   }
 }
@@ -1901,24 +1866,29 @@ impl Runtime for Wry {
         }
 
         #[cfg(feature = "egui")]
-        handle_gl_loop(
-          &event,
-          event_loop,
-          control_flow,
-          EventLoopIterationContext {
-            callback: &mut callback,
-            windows: windows.clone(),
-            window_event_listeners: &window_event_listeners,
-            global_shortcut_manager: global_shortcut_manager.clone(),
-            global_shortcut_manager_handle: &global_shortcut_manager_handle,
-            clipboard_manager: clipboard_manager.clone(),
-            menu_event_listeners: &menu_event_listeners,
-            #[cfg(feature = "system-tray")]
-            tray_context: &tray_context,
-          },
-          &web_context,
-          &mut is_focused,
-        );
+        {
+          let prevent_default = egui::handle_gl_loop(
+            &event,
+            event_loop,
+            control_flow,
+            EventLoopIterationContext {
+              callback: &mut callback,
+              windows: windows.clone(),
+              window_event_listeners: &window_event_listeners,
+              global_shortcut_manager: global_shortcut_manager.clone(),
+              global_shortcut_manager_handle: &global_shortcut_manager_handle,
+              clipboard_manager: clipboard_manager.clone(),
+              menu_event_listeners: &menu_event_listeners,
+              #[cfg(feature = "system-tray")]
+              tray_context: &tray_context,
+            },
+            &web_context,
+            &mut is_focused,
+          );
+          if prevent_default {
+            return;
+          }
+        }
         iteration = handle_event_loop(
           event,
           event_loop,
@@ -1957,24 +1927,29 @@ impl Runtime for Wry {
 
     self.event_loop.run(move |event, event_loop, control_flow| {
       #[cfg(feature = "egui")]
-      handle_gl_loop(
-        &event,
-        event_loop,
-        control_flow,
-        EventLoopIterationContext {
-          callback: &mut callback,
-          windows: windows.clone(),
-          window_event_listeners: &window_event_listeners,
-          global_shortcut_manager: global_shortcut_manager.clone(),
-          global_shortcut_manager_handle: &global_shortcut_manager_handle,
-          clipboard_manager: clipboard_manager.clone(),
-          menu_event_listeners: &menu_event_listeners,
-          #[cfg(feature = "system-tray")]
-          tray_context: &tray_context,
-        },
-        &web_context,
-        &mut is_focused,
-      );
+      {
+        let prevent_default = egui::handle_gl_loop(
+          &event,
+          event_loop,
+          control_flow,
+          EventLoopIterationContext {
+            callback: &mut callback,
+            windows: windows.clone(),
+            window_event_listeners: &window_event_listeners,
+            global_shortcut_manager: global_shortcut_manager.clone(),
+            global_shortcut_manager_handle: &global_shortcut_manager_handle,
+            clipboard_manager: clipboard_manager.clone(),
+            menu_event_listeners: &menu_event_listeners,
+            #[cfg(feature = "system-tray")]
+            tray_context: &tray_context,
+          },
+          &web_context,
+          &mut is_focused,
+        );
+        if prevent_default {
+          return;
+        }
+      }
       handle_event_loop(
         event,
         event_loop,
@@ -1996,7 +1971,7 @@ impl Runtime for Wry {
   }
 }
 
-struct EventLoopIterationContext<'a> {
+pub struct EventLoopIterationContext<'a> {
   callback: &'a mut (dyn FnMut(RunEvent) + 'static),
   windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   window_event_listeners: &'a WindowEventListeners,
@@ -2081,7 +2056,7 @@ fn handle_user_message(
           #[cfg(target_os = "macos")]
           WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
           #[cfg(windows)]
-          WindowMessage::Hwnd(tx) => tx.send(Hwnd(window.hwnd() as _)).unwrap(),
+          WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
           #[cfg(any(
             target_os = "linux",
             target_os = "dragonfly",
@@ -2247,167 +2222,18 @@ fn handle_user_message(
         sender.send(Err(Error::CreateWindow)).unwrap();
       }
     }
+
     #[cfg(feature = "egui")]
-    Message::CreateGLWindow(label, app, native_options, proxy) => {
-      let mut egui_id = EGUI_ID.lock().unwrap();
-      if let Some(id) = *egui_id {
-        if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) =
-          &mut windows.lock().unwrap().get_mut(&id).unwrap().inner
-        {
-          #[cfg(target_os = "linux")]
-          let mut integration = integration.borrow_mut();
-          #[cfg(target_os = "linux")]
-          let mut painter = painter.borrow_mut();
-          integration.on_exit(gl_window.window());
-          painter.destroy(gl);
-        }
-        *egui_id = None;
-        let _ = proxy.send_event(Message::Window(id, WindowMessage::Close));
-      }
-
-      let persistence = egui_tao::epi::Persistence::from_app_name(app.name());
-      let window_settings = persistence.load_window_settings();
-      let window_builder =
-        egui_tao::epi::window_builder(&native_options, &window_settings).with_title(app.name());
-      let gl_window = unsafe {
-        glutin::ContextBuilder::new()
-          .with_depth_buffer(0)
-          .with_srgb(true)
-          .with_stencil_buffer(0)
-          .with_vsync(true)
-          .build_windowed(window_builder, event_loop)
-          .unwrap()
-          .make_current()
-          .unwrap()
-      };
-      let window_id = gl_window.window().id();
-      *egui_id = Some(window_id);
-
-      let gl = unsafe { glow::Context::from_loader_function(|s| gl_window.get_proc_address(s)) };
-
-      unsafe {
-        use glow::HasContext as _;
-        gl.enable(glow::FRAMEBUFFER_SRGB);
-      }
-
-      struct GlowRepaintSignal(EventLoopProxy<Message>, WindowId);
-
-      impl epi::backend::RepaintSignal for GlowRepaintSignal {
-        fn request_repaint(&self) {
-          let _ = self
-            .0
-            .send_event(Message::Window(self.1, WindowMessage::RequestRedraw));
-        }
-      }
-
-      let repaint_signal = std::sync::Arc::new(GlowRepaintSignal(proxy, window_id));
-
-      let painter = egui_glow::Painter::new(&gl, None, "")
-        .map_err(|error| eprintln!("some OpenGL error occurred {}\n", error))
-        .unwrap();
-
-      let integration = egui_tao::epi::EpiIntegration::new(
-        "egui_glow",
-        gl_window.window(),
-        repaint_signal,
-        persistence,
-        app,
-      );
-
-      window_event_listeners
-        .lock()
-        .unwrap()
-        .insert(window_id, WindowEventListenersMap::default());
-
-      menu_event_listeners
-        .lock()
-        .unwrap()
-        .insert(window_id, WindowMenuEventListeners::default());
-
-      #[cfg(not(target_os = "linux"))]
-      {
-        windows.lock().expect("poisoned webview collection").insert(
-          window_id,
-          WindowWrapper {
-            label,
-            inner: WindowHandle::GLWindow(gl_window, gl, painter, integration),
-            menu_items: Default::default(),
-          },
-        );
-      }
-      #[cfg(target_os = "linux")]
-      {
-        let area = unsafe { gl_window.raw_handle() };
-        let integration = Rc::new(RefCell::new(integration));
-        let painter = Rc::new(RefCell::new(painter));
-        let render_flow = Rc::new(AtomicU8::new(1));
-        let gl_window = Rc::new(gl_window);
-        let gl = Rc::new(gl);
-
-        let i = integration.clone();
-        let p = painter.clone();
-        let r = render_flow.clone();
-        let gl_window_ = Rc::downgrade(&gl_window);
-        let gl_ = gl.clone();
-        area.connect_render(move |_, _| {
-          if let Some(gl_window) = gl_window_.upgrade() {
-            let mut integration = i.borrow_mut();
-            let mut painter = p.borrow_mut();
-            let (needs_repaint, mut tex_allocation_data, shapes) =
-              integration.update(gl_window.window());
-            let clipped_meshes = integration.egui_ctx.tessellate(shapes);
-
-            for (id, image) in tex_allocation_data.creations {
-              painter.set_texture(&gl_, id, &image);
-            }
-
-            {
-              let color = integration.app.clear_color();
-              unsafe {
-                use glow::HasContext as _;
-                gl_.disable(glow::SCISSOR_TEST);
-                gl_.clear_color(color[0], color[1], color[2], color[3]);
-                gl_.clear(glow::COLOR_BUFFER_BIT);
-              }
-              painter.upload_egui_texture(&gl_, &integration.egui_ctx.font_image());
-              painter.paint_meshes(
-                &gl_,
-                gl_window.window().inner_size().into(),
-                integration.egui_ctx.pixels_per_point(),
-                clipped_meshes,
-              );
-            }
-
-            for id in tex_allocation_data.destructions.drain(..) {
-              painter.free_texture(id);
-            }
-
-            {
-              let control_flow = if integration.should_quit() {
-                1
-              } else if needs_repaint {
-                0
-              } else {
-                1
-              };
-              r.store(control_flow, Ordering::Relaxed);
-            }
-
-            integration.maybe_autosave(gl_window.window());
-          }
-          gtk::Inhibit(false)
-        });
-
-        windows.lock().expect("poisoned webview collection").insert(
-          window_id,
-          WindowWrapper {
-            label,
-            inner: WindowHandle::GLWindow(gl_window, gl, painter, integration, render_flow),
-            menu_items: Default::default(),
-          },
-        );
-      }
-    }
+    Message::CreateGLWindow(label, app, native_options, proxy) => egui::create_gl_window(
+      event_loop,
+      &windows,
+      &window_event_listeners,
+      &menu_event_listeners,
+      label,
+      app,
+      native_options,
+      proxy,
+    ),
 
     #[cfg(feature = "system-tray")]
     Message::Tray(tray_message) => match tray_message {
@@ -2636,42 +2462,14 @@ fn handle_event_loop(
 
       match event {
         WryWindowEvent::CloseRequested => {
-          let (tx, rx) = channel();
-          let windows_guard = windows.lock().expect("poisoned webview collection");
-          if let Some(w) = windows_guard.get(&window_id) {
-            let label = w.label.clone();
-            drop(windows_guard);
-            for handler in window_event_listeners
-              .lock()
-              .unwrap()
-              .get(&window_id)
-              .unwrap()
-              .lock()
-              .unwrap()
-              .values()
-            {
-              handler(&WindowEvent::CloseRequested {
-                label: label.clone(),
-                signal_tx: tx.clone(),
-              });
-            }
-            callback(RunEvent::CloseRequested {
-              label,
-              signal_tx: tx,
-            });
-            if let Ok(true) = rx.try_recv() {
-            } else {
-              on_window_close(
-                callback,
-                window_id,
-                windows.lock().expect("poisoned webview collection"),
-                control_flow,
-                #[cfg(target_os = "linux")]
-                window_event_listeners,
-                menu_event_listeners.clone(),
-              );
-            }
-          }
+          on_close_requested(
+            callback,
+            window_id,
+            windows.clone(),
+            control_flow,
+            window_event_listeners,
+            menu_event_listeners.clone(),
+          );
         }
         WryWindowEvent::Resized(_) => {
           if let Some(WindowHandle::Webview(webview)) = windows
@@ -2726,206 +2524,52 @@ fn handle_event_loop(
   it
 }
 
-#[allow(dead_code)]
-#[cfg(feature = "egui")]
-#[cfg(not(target_os = "linux"))]
-fn handle_gl_loop(
-  event: &Event<'_, Message>,
-  _event_loop: &EventLoopWindowTarget<Message>,
+fn on_close_requested<'a>(
+  callback: &'a mut (dyn FnMut(RunEvent) + 'static),
+  window_id: WindowId,
+  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   control_flow: &mut ControlFlow,
-  context: EventLoopIterationContext<'_>,
-  _web_context: &WebContextStore,
-  is_focused: &mut bool,
-) {
-  let EventLoopIterationContext {
-    callback,
-    windows,
-    menu_event_listeners,
-    #[cfg(feature = "system-tray")]
-    tray_context,
-    ..
-  } = context;
-  let egui_id = EGUI_ID.lock().unwrap();
-  if let Some(id) = *egui_id {
-    let mut windows = windows.lock().unwrap();
-    let mut should_quit = false;
-    if let Some(win) = windows.get_mut(&id) {
-      if let WindowHandle::GLWindow(gl_window, gl, painter, integration) = &mut win.inner {
-        let mut redraw = || {
-          if !*is_focused {
-            // On Mac, a minimized Window uses up all CPU: https://github.com/emilk/egui/issues/325
-            // We can't know if we are minimized: https://github.com/rust-windowing/winit/issues/208
-            // But we know if we are focused (in foreground). When minimized, we are not focused.
-            // However, a user may want an egui with an animation in the background,
-            // so we still need to repaint quite fast.
-            std::thread::sleep(std::time::Duration::from_millis(10));
-          }
-
-          let (needs_repaint, mut tex_allocation_data, shapes) =
-            integration.update(gl_window.window());
-          let clipped_meshes = integration.egui_ctx.tessellate(shapes);
-
-          for (id, image) in tex_allocation_data.creations {
-            painter.set_texture(&gl, id, &image);
-          }
-
-          {
-            let color = integration.app.clear_color();
-            unsafe {
-              use glow::HasContext as _;
-              gl.disable(glow::SCISSOR_TEST);
-              gl.clear_color(color[0], color[1], color[2], color[3]);
-              gl.clear(glow::COLOR_BUFFER_BIT);
-            }
-            painter.upload_egui_texture(&gl, &integration.egui_ctx.font_image());
-            painter.paint_meshes(
-              &gl,
-              gl_window.window().inner_size().into(),
-              integration.egui_ctx.pixels_per_point(),
-              clipped_meshes,
-            );
-
-            gl_window.swap_buffers().unwrap();
-          }
-
-          for id in tex_allocation_data.destructions.drain(..) {
-            painter.free_texture(id);
-          }
-
-          {
-            *control_flow = if integration.should_quit() {
-              should_quit = true;
-              glutin::event_loop::ControlFlow::Wait
-            } else if needs_repaint {
-              gl_window.window().request_redraw();
-              glutin::event_loop::ControlFlow::Poll
-            } else {
-              glutin::event_loop::ControlFlow::Wait
-            };
-          }
-
-          integration.maybe_autosave(gl_window.window());
-        };
-        match event {
-          // Platform-dependent event handlers to workaround a winit bug
-          // See: https://github.com/rust-windowing/winit/issues/987
-          // See: https://github.com/rust-windowing/winit/issues/1619
-          glutin::event::Event::RedrawEventsCleared if cfg!(windows) => redraw(),
-          glutin::event::Event::RedrawRequested(_) if !cfg!(windows) => redraw(),
-          glutin::event::Event::WindowEvent {
-            event, window_id, ..
-          } => {
-            if window_id == &id {
-              if let glutin::event::WindowEvent::Focused(new_focused) = event {
-                *is_focused = *new_focused;
-              }
-
-              if let glutin::event::WindowEvent::Resized(physical_size) = event {
-                gl_window.resize(*physical_size);
-              }
-
-              integration.on_event(&event);
-              if integration.should_quit() {
-                should_quit = true;
-                *control_flow = glutin::event_loop::ControlFlow::Wait;
-              }
-
-              gl_window.window().request_redraw();
-            }
-          }
-          _ => (),
-        }
-      }
+  window_event_listeners: &WindowEventListeners,
+  menu_event_listeners: MenuEventListeners,
+) -> Option<WindowWrapper> {
+  let (tx, rx) = channel();
+  let windows_guard = windows.lock().expect("poisoned webview collection");
+  if let Some(w) = windows_guard.get(&window_id) {
+    let label = w.label.clone();
+    drop(windows_guard);
+    for handler in window_event_listeners
+      .lock()
+      .unwrap()
+      .get(&window_id)
+      .unwrap()
+      .lock()
+      .unwrap()
+      .values()
+    {
+      handler(&WindowEvent::CloseRequested {
+        label: label.clone(),
+        signal_tx: tx.clone(),
+      });
     }
-
-    if should_quit {
-      drop(egui_id);
+    callback(RunEvent::CloseRequested {
+      label,
+      signal_tx: tx,
+    });
+    if let Ok(true) = rx.try_recv() {
+      None
+    } else {
       on_window_close(
         callback,
-        id,
-        windows,
+        window_id,
+        windows.lock().expect("poisoned webview collection"),
         control_flow,
-        menu_event_listeners.clone(),
-      );
-    }
-  }
-}
-
-#[allow(dead_code)]
-#[cfg(feature = "egui")]
-#[cfg(target_os = "linux")]
-fn handle_gl_loop(
-  event: &Event<'_, Message>,
-  _event_loop: &EventLoopWindowTarget<Message>,
-  control_flow: &mut ControlFlow,
-  context: EventLoopIterationContext<'_>,
-  _web_context: &WebContextStore,
-  is_focused: &mut bool,
-) {
-  let EventLoopIterationContext {
-    callback,
-    windows,
-    window_event_listeners,
-    menu_event_listeners,
-    ..
-  } = context;
-  let egui_id = EGUI_ID.lock().unwrap();
-  if let Some(id) = *egui_id {
-    let mut windows = windows.lock().unwrap();
-    let mut should_quit = false;
-    if let Some(win) = windows.get_mut(&id) {
-      if let WindowHandle::GLWindow(gl_window, _gl, _painter, integration, render_flow) =
-        &mut win.inner
-      {
-        let mut integration = integration.borrow_mut();
-        let area = unsafe { gl_window.raw_handle() };
-        match event {
-          glutin::event::Event::MainEventsCleared => {
-            area.queue_render();
-            match render_flow.load(Ordering::Relaxed) {
-              0 => *control_flow = glutin::event_loop::ControlFlow::Poll,
-              1 => *control_flow = glutin::event_loop::ControlFlow::Wait,
-              2 => *control_flow = glutin::event_loop::ControlFlow::Exit,
-              _ => unreachable!(),
-            }
-          }
-          glutin::event::Event::WindowEvent {
-            event, window_id, ..
-          } => {
-            if window_id == &id {
-              if let glutin::event::WindowEvent::Focused(new_focused) = event {
-                *is_focused = *new_focused;
-              }
-
-              if let glutin::event::WindowEvent::Resized(physical_size) = event {
-                gl_window.resize(*physical_size);
-              }
-
-              integration.on_event(event);
-              if integration.should_quit() {
-                should_quit = true;
-                *control_flow = glutin::event_loop::ControlFlow::Wait;
-              }
-
-              gl_window.window().request_redraw();
-            }
-          }
-          _ => (),
-        }
-      }
-    }
-
-    if should_quit {
-      drop(egui_id);
-      on_window_close(
-        callback,
-        id,
-        windows,
-        control_flow,
+        #[cfg(target_os = "linux")]
         window_event_listeners,
-        menu_event_listeners.clone(),
-      );
+        menu_event_listeners,
+      )
     }
+  } else {
+    None
   }
 }
 
@@ -2936,33 +2580,11 @@ fn on_window_close<'a>(
   control_flow: &mut ControlFlow,
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
-) {
-  if let Some(webview) = windows.remove(&window_id) {
+) -> Option<WindowWrapper> {
+  #[allow(unused_mut)]
+  let w = if let Some(mut webview) = windows.remove(&window_id) {
     #[cfg(feature = "egui")]
-    {
-      // Destrooy GL context if its a GLWindow
-      let mut egui_id = EGUI_ID.lock().unwrap();
-      if let Some(id) = *egui_id {
-        if id == window_id {
-          #[cfg(not(target_os = "linux"))]
-          if let WindowHandle::GLWindow(gl_window, gl, mut painter, mut integration, ..) =
-            webview.inner
-          {
-            integration.on_exit(gl_window.window());
-            painter.destroy(&gl);
-            *egui_id = None;
-          }
-          #[cfg(target_os = "linux")]
-          if let WindowHandle::GLWindow(gl_window, gl, painter, integration, ..) = webview.inner {
-            let mut integration = integration.borrow_mut();
-            let mut painter = painter.borrow_mut();
-            integration.on_exit(gl_window.window());
-            painter.destroy(&gl);
-            *egui_id = None;
-          }
-        }
-      }
-    }
+    egui::on_window_close(&window_id, &mut webview);
 
     let is_empty = windows.is_empty();
     drop(windows);
@@ -2972,7 +2594,7 @@ fn on_window_close<'a>(
     if is_empty {
       let (tx, rx) = channel();
       callback(RunEvent::ExitRequested {
-        window_label: webview.label,
+        window_label: webview.label.clone(),
         tx,
       });
 
@@ -2984,7 +2606,10 @@ fn on_window_close<'a>(
         callback(RunEvent::Exit);
       }
     }
-  }
+    Some(webview)
+  } else {
+    None
+  };
   // TODO: tao does not fire the destroyed event properly
   #[cfg(target_os = "linux")]
   {
@@ -3000,6 +2625,7 @@ fn on_window_close<'a>(
       handler(&WindowEvent::Destroyed);
     }
   }
+  w
 }
 
 fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {

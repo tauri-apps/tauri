@@ -1107,6 +1107,13 @@
             "null"
           ]
         },
+        "providerShortName": {
+          "description": "Provider short name for notarization.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "signingIdentity": {
           "description": "Identity to use for code signing.",
           "type": [

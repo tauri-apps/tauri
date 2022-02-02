@@ -11,7 +11,7 @@ pub use menu::{MenuEvent, MenuHandle};
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
-  event::{EmittedEvent, EventHandler},
+  event::{Event, EventHandler},
   hooks::InvokeResponder,
   manager::WindowManager,
   runtime::{
@@ -299,7 +299,7 @@ impl<R: Runtime> Window<R> {
   /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(EmittedEvent) + Send + 'static,
+    F: Fn(Event) + Send + 'static,
   {
     let label = self.window.label.clone();
     self.manager.listen(event.into(), Some(label), handler)
@@ -313,7 +313,7 @@ impl<R: Runtime> Window<R> {
   /// Listen to an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(EmittedEvent) + Send + 'static,
+    F: Fn(Event) + Send + 'static,
   {
     let label = self.window.label.clone();
     self.manager.once(event.into(), Some(label), handler)

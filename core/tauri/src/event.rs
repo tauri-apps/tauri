@@ -23,12 +23,12 @@ impl fmt::Display for EventHandler {
 
 /// An event that was triggered.
 #[derive(Debug, Clone)]
-pub struct EmittedEvent {
+pub struct Event {
   id: EventHandler,
   data: Option<String>,
 }
 
-impl EmittedEvent {
+impl Event {
   /// The [`EventHandler`] that was triggered.
   pub fn id(&self) -> EventHandler {
     self.id
@@ -50,7 +50,7 @@ enum Pending {
 /// Stored in [`Listeners`] to be called upon when the event that stored it is triggered.
 struct Handler {
   window: Option<String>,
-  callback: Box<dyn Fn(EmittedEvent) + Send>,
+  callback: Box<dyn Fn(Event) + Send>,
 }
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
@@ -138,7 +138,7 @@ impl Listeners {
   }
 
   /// Adds an event listener for JS events.
-  pub(crate) fn listen<F: Fn(EmittedEvent) + Send + 'static>(
+  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
@@ -156,7 +156,7 @@ impl Listeners {
   }
 
   /// Listen to a JS event and immediately unlisten.
-  pub(crate) fn once<F: Fn(EmittedEvent) + Send + 'static>(
+  pub(crate) fn once<F: Fn(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
@@ -189,7 +189,7 @@ impl Listeners {
           for (&id, handler) in handlers {
             if handler.window.is_none() || window == handler.window {
               maybe_pending = true;
-              (handler.callback)(self::EmittedEvent {
+              (handler.callback)(self::Event {
                 id,
                 data: payload.clone(),
               })
@@ -211,7 +211,7 @@ mod test {
   use proptest::prelude::*;
 
   // dummy event handler function
-  fn event_fn(s: EmittedEvent) {
+  fn event_fn(s: Event) {
     println!("{:?}", s);
   }
 

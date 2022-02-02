@@ -2,5 +2,5 @@
 "tauri": patch
 ---
 
-- `tauri::event::Event` and `tauri::event::EventHandler` are now exported as `tauri::Event` and `tauri::EventHandler`
-- **breaking**: The old `tauri::app::Event` has been renamed to `tauri::app::RunEvent` and is available as `tauri::RunEvent`
+* **Breaking change**: Renamed `tauri::Event`  to `tauri::RunEvent`
+* Exported `tauri::Event` and `tauri::EventHandler` so you can define a function and pass it to `Window::listen`

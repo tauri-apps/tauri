@@ -208,6 +208,7 @@ mod tests {
         multiple: bool::arbitrary(g),
         directory: bool::arbitrary(g),
         default_path: Option::arbitrary(g),
+        title: Option::arbitrary(g),
       }
     }
   }
@@ -217,6 +218,7 @@ mod tests {
       Self {
         filters: Vec::new(),
         default_path: Option::arbitrary(g),
+        title: Option::arbitrary(g),
       }
     }
   }

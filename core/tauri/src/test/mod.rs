@@ -7,10 +7,13 @@
 mod mock_runtime;
 pub use mock_runtime::*;
 
+#[cfg(shell_scope)]
 use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
-use crate::{Manager, Pattern, ShellScopeConfig};
+#[cfg(shell_scope)]
+use crate::ShellScopeConfig;
+use crate::{Manager, Pattern};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
@@ -72,6 +75,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
+    #[cfg(shell_scope)]
     shell_scope: ShellScopeConfig {
       open: None,
       scopes: HashMap::new(),

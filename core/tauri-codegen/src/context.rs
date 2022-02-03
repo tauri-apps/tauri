@@ -7,11 +7,10 @@ use std::path::{Path, PathBuf};
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use regex::Regex;
 use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{AppUrl, Config, PatternKind, ShellAllowlistOpen, WindowUrl};
+use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
 use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
 
 #[cfg(feature = "shell-scope")]
@@ -293,33 +292,38 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(feature = "shell-scope")]
-  let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
+  let shell_scope_config = {
+    use regex::Regex;
+    use tauri_utils::config::ShellAllowlistOpen;
 
-  #[cfg(not(feature = "shell-scope"))]
-  let shell_scopes = quote!(::std::collections::HashMap::new());
+    let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
 
-  let shell_scope_open = match &config.tauri.allowlist.shell.open {
-    ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
-    ShellAllowlistOpen::Flag(true) => {
-      quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
-    }
-    ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
-      Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
-      Err(error) => {
-        let error = error.to_string();
-        quote!({
-          compile_error!(#error);
-          ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
-        })
+    let shell_scope_open = match &config.tauri.allowlist.shell.open {
+      ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
+      ShellAllowlistOpen::Flag(true) => {
+        quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
       }
-    },
-    _ => panic!("unknown shell open format, unable to prepare"),
+      ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
+        Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
+        Err(error) => {
+          let error = error.to_string();
+          quote!({
+            compile_error!(#error);
+            ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+          })
+        }
+      },
+      _ => panic!("unknown shell open format, unable to prepare"),
+    };
+
+    quote!(#root::ShellScopeConfig {
+      open: #shell_scope_open,
+      scopes: #shell_scopes
+    })
   };
 
-  let shell_scope_config = quote!(#root::ShellScopeConfig {
-    open: #shell_scope_open,
-    scopes: #shell_scopes
-  });
+  #[cfg(not(feature = "shell-scope"))]
+  let shell_scope_config = quote!();
 
   Ok(quote!(#root::Context::new(
     #config,

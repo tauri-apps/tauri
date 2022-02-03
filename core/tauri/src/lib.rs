@@ -129,9 +129,6 @@
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
-#[cfg(feature = "shell-execute")]
-#[doc(hidden)]
-pub use clap;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;
@@ -280,19 +277,21 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  pub(crate) shell_scope: ShellScopeConfig,
+  #[cfg(shell_scope)]
+  pub(crate) shell_scope: scope::ShellScopeConfig,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Context")
-      .field("config", &self.config)
+    let mut d = f.debug_struct("Context");
+    d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern)
-      .field("shell_scope", &self.shell_scope)
-      .finish()
+      .field("pattern", &self.pattern);
+    #[cfg(shell_scope)]
+    d.field("shell_scope", &self.shell_scope);
+    d.finish()
   }
 }
 
@@ -364,8 +363,9 @@ impl<A: Assets> Context<A> {
   }
 
   /// The scoped shell commands, where the `HashMap` key is the name each configuration.
+  #[cfg(shell_scope)]
   #[inline(always)]
-  pub fn allowed_commands(&self) -> &ShellScopeConfig {
+  pub fn allowed_commands(&self) -> &scope::ShellScopeConfig {
     &self.shell_scope
   }
 
@@ -380,7 +380,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    shell_scope: ShellScopeConfig,
+    #[cfg(shell_scope)] shell_scope: scope::ShellScopeConfig,
   ) -> Self {
     Self {
       config,
@@ -390,6 +390,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
+      #[cfg(shell_scope)]
       shell_scope,
     }
   }

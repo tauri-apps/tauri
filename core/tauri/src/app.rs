@@ -26,6 +26,7 @@ use crate::{
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
+#[cfg(shell_scope)]
 use crate::scope::ShellScope;
 
 use tauri_macros::default_runtime;
@@ -461,6 +462,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets the scope for the shell execute APIs.
+      #[cfg(shell_scope)]
       pub fn shell_scope(&self) -> ShellScope {
         self.state::<Scopes>().inner().shell.clone()
       }
@@ -977,6 +979,7 @@ impl<R: Runtime> Builder<R> {
       .map(|t| t.icon_as_template)
       .unwrap_or_default();
 
+    #[cfg(shell_scope)]
     let shell_scope = context.shell_scope.clone();
 
     let manager = WindowManager::with_handlers(
@@ -1048,6 +1051,7 @@ impl<R: Runtime> Builder<R> {
       ),
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
+      #[cfg(shell_scope)]
       shell: ShellScope::new(shell_scope),
     });
     app.manage(env);

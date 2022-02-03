@@ -10,7 +10,6 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
-use regex::{Captures, Regex};
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -139,6 +138,23 @@ fn set_csp<R: Runtime>(
   csp
 }
 
+// inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
+fn replace_with_callback<F: FnMut() -> String>(
+  original: &str,
+  pattern: &str,
+  mut replacement: F,
+) -> String {
+  let mut result = String::new();
+  let mut last_end = 0;
+  for (start, part) in original.match_indices(pattern) {
+    result.push_str(unsafe { original.get_unchecked(last_end..start) });
+    result.push_str(&replacement());
+    last_end = start + part.len();
+  }
+  result.push_str(unsafe { original.get_unchecked(last_end..original.len()) });
+  result
+}
+
 fn replace_csp_nonce(
   asset: &mut String,
   token: &str,
@@ -146,15 +162,12 @@ fn replace_csp_nonce(
   csp_attr: &str,
   hashes: String,
 ) {
-  let regex = Regex::new(token).unwrap();
   let mut nonces = Vec::new();
-  *asset = regex
-    .replace_all(asset, |_: &Captures<'_>| {
-      let nonce = rand::random::<usize>();
-      nonces.push(nonce);
-      nonce.to_string()
-    })
-    .to_string();
+  *asset = replace_with_callback(asset, token, || {
+    let nonce = rand::random::<usize>();
+    nonces.push(nonce);
+    nonce.to_string()
+  });
 
   if !(nonces.is_empty() && hashes.is_empty()) {
     let attr = format!(
@@ -1218,5 +1231,26 @@ fn request_to_path(request: &tauri_runtime::http::Request, replace: &str) -> Str
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::replace_with_callback;
+
+  #[test]
+  fn string_replace_with_callback() {
+    let mut tauri_index = 0;
+    for (src, pattern, replacement, result) in [(
+      "tauri is awesome, tauri is amazing",
+      "tauri",
+      || {
+        tauri_index = tauri_index + 1;
+        tauri_index.to_string()
+      },
+      "1 is awesome, 2 is amazing",
+    )] {
+      assert_eq!(replace_with_callback(src, pattern, replacement), result);
+    }
   }
 }

@@ -3,11 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use super::InvokeContext;
-use crate::{api::ipc::CallbackFn, ExecuteArgs, Runtime};
+use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_execute)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
+
+#[cfg(shell_scope)]
+use crate::ExecuteArgs;
+#[cfg(not(shell_scope))]
+type ExecuteArgs = ();
 
 #[cfg(shell_execute)]
 use std::sync::{Arc, Mutex};
@@ -232,8 +237,8 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  use super::{Buffer, ChildId, CommandOptions};
-  use crate::{api::ipc::CallbackFn, ExecuteArgs};
+  use super::{Buffer, ChildId, CommandOptions, ExecuteArgs};
+  use crate::api::ipc::CallbackFn;
   use quickcheck::{Arbitrary, Gen};
 
   impl Arbitrary for CommandOptions {
@@ -252,6 +257,7 @@ mod tests {
     }
   }
 
+  #[cfg(shell_scope)]
   impl Arbitrary for ExecuteArgs {
     fn arbitrary(_: &mut Gen) -> Self {
       ExecuteArgs::None

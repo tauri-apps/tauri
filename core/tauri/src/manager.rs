@@ -1245,7 +1245,7 @@ mod tests {
       "tauri is awesome, tauri is amazing",
       "tauri",
       || {
-        tauri_index = tauri_index + 1;
+        tauri_index += 1;
         tauri_index.to_string()
       },
       "1 is awesome, 2 is amazing",

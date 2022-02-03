@@ -24,6 +24,11 @@ use url::Url;
 
 use std::{collections::HashMap, fmt, fs::read_to_string, path::PathBuf};
 
+/// Items to help with parsing content into a [`Config`].
+pub mod parse;
+
+pub use self::parse::parse;
+
 /// The window webview URL options.
 #[derive(PartialEq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

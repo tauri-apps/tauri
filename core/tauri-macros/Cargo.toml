@@ -21,9 +21,11 @@ quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.3"
 tauri-codegen = { version = "1.0.0-beta.4", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]
 compression = [ "tauri-codegen/compression" ]
 isolation = ["tauri-codegen/isolation"]
 shell-scope = ["tauri-codegen/shell-scope"]
+config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]

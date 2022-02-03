@@ -232,6 +232,9 @@ window-start-dragging = [ ]
 window-print = [ ]
 egui = ["epi", "tauri-runtime-wry/egui"]
 
+# features unrelated to api/endpoints
+config-json5 = [ "tauri-macros/config-json5" ]
+
 [[example]]
 name = "commands"
 path = "../../examples/commands/src-tauri/src/main.rs"

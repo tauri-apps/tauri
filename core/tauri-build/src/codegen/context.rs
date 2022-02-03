@@ -120,7 +120,7 @@ impl CodegenContext {
       )
     })?;
 
-    writeln!(&mut file, "{}", code).with_context(|| {
+    writeln!(file, "{}", code).with_context(|| {
       format!(
         "Unable to write tokenstream to out file during tauri-build {}",
         out.display()

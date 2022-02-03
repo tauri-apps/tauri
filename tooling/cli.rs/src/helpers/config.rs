@@ -29,8 +29,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
 
 use std::{
   env::set_var,
-  fs::File,
-  io::BufReader,
   process::exit,
   sync::{Arc, Mutex},
 };
@@ -48,11 +46,13 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     return Ok(config_handle().clone());
   }
 
-  let path = super::app_paths::tauri_dir().join("tauri.conf.json");
-  let file = File::open(path)?;
-  let buf = BufReader::new(file);
-  let mut config: JsonValue =
-    serde_json::from_reader(buf).with_context(|| "failed to parse `tauri.conf.json`")?;
+  let mut config = tauri_utils::config::parse::read_from(super::app_paths::tauri_dir())?;
+
+  if let Some(merge_config) = merge_config {
+    let merge_config: JsonValue =
+      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
+    merge(&mut config, &merge_config);
+  }
 
   let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
   let mut scope = valico::json_schema::Scope::new();
@@ -72,27 +72,6 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
       );
     }
     exit(1);
-  }
-
-  if let Some(merge_config) = merge_config {
-    let merge_config: JsonValue =
-      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
-    merge(&mut config, &merge_config);
-  }
-
-  let platform_config_filename = if cfg!(target_os = "macos") {
-    "tauri.macos.conf.json"
-  } else if cfg!(windows) {
-    "tauri.windows.conf.json"
-  } else {
-    "tauri.linux.conf.json"
-  };
-  let platform_config_path = super::app_paths::tauri_dir().join(platform_config_filename);
-  if platform_config_path.exists() {
-    let platform_config_file = File::open(platform_config_path)?;
-    let platform_config: JsonValue = serde_json::from_reader(BufReader::new(platform_config_file))
-      .with_context(|| format!("failed to parse `{}`", platform_config_filename))?;
-    merge(&mut config, &platform_config);
   }
 
   let config: Config = serde_json::from_value(config)?;

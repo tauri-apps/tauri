@@ -109,13 +109,20 @@ pub fn build() {
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
   use cargo_toml::{Dependency, Manifest};
-  use std::fs::read_to_string;
   use tauri_utils::config::Config;
 
-  println!("cargo:rerun-if-changed=tauri.conf.json");
   println!("cargo:rerun-if-changed=src/Cargo.toml");
+  println!("cargo:rerun-if-changed=tauri.conf.json");
+  #[cfg(feature = "config-json5")]
+  println!("cargo:rerun-if-changed=tauri.conf.json5");
 
-  let config: Config = serde_json::from_str(&read_to_string("tauri.conf.json")?)?;
+  let config: Config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    serde_json::from_str(&env)?
+  } else {
+    serde_json::from_value(tauri_utils::config::parse::read_from(
+      std::env::current_dir().unwrap(),
+    )?)?
+  };
 
   let mut manifest = Manifest::from_path("Cargo.toml")?;
   if let Some(tauri) = manifest.dependencies.remove("tauri") {

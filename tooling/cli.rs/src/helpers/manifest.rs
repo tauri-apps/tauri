@@ -66,7 +66,7 @@ fn write_features(
         }
       }
     }
-    *manifest_features = Item::Value(Value::Array(toml_array(&features)));
+    *manifest_features = Item::Value(Value::Array(toml_array(features)));
     Ok(true)
   } else if let Some(dep) = item.as_value_mut() {
     match dep {
@@ -81,7 +81,7 @@ fn write_features(
             }
           }
         }
-        *manifest_features = Value::Array(toml_array(&features));
+        *manifest_features = Value::Array(toml_array(features));
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -89,7 +89,7 @@ fn write_features(
           "version",
           version.to_string().replace('\"', "").replace(' ', ""),
         );
-        def.get_or_insert("features", Value::Array(toml_array(&features)));
+        def.get_or_insert("features", Value::Array(toml_array(features)));
         *dep = Value::InlineTable(def);
       }
       _ => {

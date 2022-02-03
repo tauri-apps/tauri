@@ -80,17 +80,6 @@
       "shell": {
         "scope": [
           {
-            "name": "test",
-            "cmd": "__test",
-            "args": [
-              "-d --date <DATE> ^\\d{4}-\\d{2}-\\d{2}$",
-              "-i --input [INPUT]",
-              "-f --flag",
-              "-v --verbose ...",
-              "<MAGIC> -"
-            ]
-          },
-          {
             "name": "sh",
             "cmd": "sh"
           },

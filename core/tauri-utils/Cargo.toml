@@ -24,8 +24,6 @@ proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
 schemars = { version = "0.8", features = ["url"], optional = true }
 serde_with = "1.10"
-sha2 = "0.9"
-base64 = "0.13"
 aes-gcm = { version = "0.9", optional = true }
 ring = { version = "0.16", optional = true, features = ["std"] }
 once_cell = { version = "1.8", optional = true }

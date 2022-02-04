@@ -85,7 +85,7 @@ jobs:
         run: |
           cargo test
           cargo test --features api-all
-          cargo test --all-features
+          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray
 
   test-tauri-cli:
     runs-on: ${{ matrix.platform }}

@@ -20,7 +20,7 @@ version = "1.0.0-beta.8"
 
 [package.metadata.docs.rs]
 default-features = false
-features = ["wry", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
+features = ["compression", "wry", "isolation", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [

@@ -98,8 +98,6 @@ use std::{
 mod system_tray;
 #[cfg(feature = "system-tray")]
 use system_tray::*;
-#[cfg(feature = "egui")]
-mod egui;
 
 type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
@@ -1025,13 +1023,6 @@ pub enum Message {
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
-  #[cfg(feature = "egui")]
-  CreateGLWindow(
-    String,
-    Box<dyn epi::App + Send>,
-    epi::NativeOptions,
-    EventLoopProxy<Message>,
-  ),
   GlobalShortcut(GlobalShortcutMessage),
   Clipboard(ClipboardMessage),
 }
@@ -1441,8 +1432,6 @@ impl fmt::Debug for TrayContext {
 enum WindowHandle {
   Webview(WebView),
   Window(Arc<Window>),
-  #[cfg(feature = "egui")]
-  GLWindow(Box<egui::GlutinWindowContext>),
 }
 
 impl fmt::Debug for WindowHandle {
@@ -1456,8 +1445,6 @@ impl WindowHandle {
     match self {
       Self::Webview(w) => w.window(),
       Self::Window(w) => w,
-      #[cfg(feature = "egui")]
-      Self::GLWindow(w) => w.window(),
     }
   }
 
@@ -1465,8 +1452,6 @@ impl WindowHandle {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
       WindowHandle::Webview(w) => w.inner_size(),
-      #[cfg(feature = "egui")]
-      WindowHandle::GLWindow(w) => w.window().inner_size(),
     }
   }
 }
@@ -1513,22 +1498,6 @@ impl WryHandle {
     let (tx, rx) = channel();
     send_user_message(&self.context, Message::CreateWindow(Box::new(f), tx))?;
     rx.recv().unwrap()
-  }
-
-  #[cfg(feature = "egui")]
-  /// Creates a new egui window.
-  pub fn create_egui_window(
-    &self,
-    label: String,
-    app: Box<dyn epi::App + Send>,
-    native_options: epi::NativeOptions,
-  ) -> Result<()> {
-    let proxy = self.context.proxy.clone();
-    send_user_message(
-      &self.context,
-      Message::CreateGLWindow(label, app, native_options, proxy),
-    )?;
-    Ok(())
   }
 
   /// Send a message to the event loop.
@@ -1854,9 +1823,6 @@ impl Runtime for Wry {
     let clipboard_manager = self.clipboard_manager.clone();
     let mut iteration = RunIteration::default();
 
-    #[cfg(feature = "egui")]
-    let mut is_focused = true;
-
     self
       .event_loop
       .run_return(|event, event_loop, control_flow| {
@@ -1865,30 +1831,6 @@ impl Runtime for Wry {
           *control_flow = ControlFlow::Exit;
         }
 
-        #[cfg(feature = "egui")]
-        {
-          let prevent_default = egui::handle_gl_loop(
-            &event,
-            event_loop,
-            control_flow,
-            EventLoopIterationContext {
-              callback: &mut callback,
-              windows: windows.clone(),
-              window_event_listeners: &window_event_listeners,
-              global_shortcut_manager: global_shortcut_manager.clone(),
-              global_shortcut_manager_handle: &global_shortcut_manager_handle,
-              clipboard_manager: clipboard_manager.clone(),
-              menu_event_listeners: &menu_event_listeners,
-              #[cfg(feature = "system-tray")]
-              tray_context: &tray_context,
-            },
-            &web_context,
-            &mut is_focused,
-          );
-          if prevent_default {
-            return;
-          }
-        }
         iteration = handle_event_loop(
           event,
           event_loop,
@@ -1922,34 +1864,7 @@ impl Runtime for Wry {
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
     let clipboard_manager = self.clipboard_manager.clone();
 
-    #[cfg(feature = "egui")]
-    let mut is_focused = true;
-
     self.event_loop.run(move |event, event_loop, control_flow| {
-      #[cfg(feature = "egui")]
-      {
-        let prevent_default = egui::handle_gl_loop(
-          &event,
-          event_loop,
-          control_flow,
-          EventLoopIterationContext {
-            callback: &mut callback,
-            windows: windows.clone(),
-            window_event_listeners: &window_event_listeners,
-            global_shortcut_manager: global_shortcut_manager.clone(),
-            global_shortcut_manager_handle: &global_shortcut_manager_handle,
-            clipboard_manager: clipboard_manager.clone(),
-            menu_event_listeners: &menu_event_listeners,
-            #[cfg(feature = "system-tray")]
-            tray_context: &tray_context,
-          },
-          &web_context,
-          &mut is_focused,
-        );
-        if prevent_default {
-          return;
-        }
-      }
       handle_event_loop(
         event,
         event_loop,
@@ -2222,18 +2137,6 @@ fn handle_user_message(
         sender.send(Err(Error::CreateWindow)).unwrap();
       }
     }
-
-    #[cfg(feature = "egui")]
-    Message::CreateGLWindow(label, app, native_options, proxy) => egui::create_gl_window(
-      event_loop,
-      &windows,
-      window_event_listeners,
-      menu_event_listeners,
-      label,
-      app,
-      native_options,
-      proxy,
-    ),
 
     #[cfg(feature = "system-tray")]
     Message::Tray(tray_message) => match tray_message {
@@ -2583,9 +2486,6 @@ fn on_window_close<'a>(
 ) -> Option<WindowWrapper> {
   #[allow(unused_mut)]
   let w = if let Some(mut webview) = windows.remove(&window_id) {
-    #[cfg(feature = "egui")]
-    egui::on_window_close(&window_id, &mut webview);
-
     let is_empty = windows.is_empty();
     drop(windows);
     menu_event_listeners.lock().unwrap().remove(&window_id);

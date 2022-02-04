@@ -20,13 +20,6 @@ tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 infer = "0.4"
 
-epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
-egui-tao = { git = "https://github.com/wusyong/egui", branch = "tao", features = ["epi"], optional = true }
-egui_glow = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
-tao-glutin = { git = "https://github.com/wusyong/glutin", branch = "tao", version = "0.1.0", optional = true }
-glow = { version = "0.11", optional = true }
-once_cell = { version = "1.8", optional = true}
-
 [target."cfg(windows)".dependencies]
 ico = "0.1"
 webview2-com = "0.10.0"
@@ -44,5 +37,4 @@ gtk = { version = "0.14", features = [ "v3_20" ] }
 [features]
 dox = [ "wry/dox" ]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]
-egui = ["epi", "egui-tao", "egui_glow", "tao-glutin", "glow", "once_cell"]
 macos-private-api = [ "wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api" ]

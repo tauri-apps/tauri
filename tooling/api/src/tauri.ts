@@ -13,7 +13,7 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    __TAURI_IPC__: (message: any) => void,
+    __TAURI_IPC__: (message: any) => void
     ipc: {
       postMessage: (args: string) => void
     }
@@ -76,14 +76,12 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.__TAURI_IPC__(
-      {
-        cmd,
-        callback,
-        error,
-        ...args
-      }
-    )
+    window.__TAURI_IPC__({
+      cmd,
+      callback,
+      error,
+      ...args
+    })
   })
 }
 

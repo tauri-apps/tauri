@@ -252,7 +252,7 @@ pub enum Body {
 ///     .max_redirections(3)
 ///     .build()
 ///     .unwrap();
-///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
+///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com").unwrap();
 ///   let request = request_builder.response_type(ResponseType::Text);
 ///
 ///   if let Ok(response) = client.send(request).await {

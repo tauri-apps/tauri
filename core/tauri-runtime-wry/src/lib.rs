@@ -1442,7 +1442,7 @@ enum WindowHandle {
   Webview(WebView),
   Window(Arc<Window>),
   #[cfg(feature = "egui")]
-  GLWindow(egui::GlutinWindowContext),
+  GLWindow(Box<egui::GlutinWindowContext>),
 }
 
 impl fmt::Debug for WindowHandle {
@@ -2227,8 +2227,8 @@ fn handle_user_message(
     Message::CreateGLWindow(label, app, native_options, proxy) => egui::create_gl_window(
       event_loop,
       &windows,
-      &window_event_listeners,
-      &menu_event_listeners,
+      window_event_listeners,
+      menu_event_listeners,
       label,
       app,
       native_options,

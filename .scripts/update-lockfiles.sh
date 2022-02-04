@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-set -e
-
 declare -a paths=("api" "sidecar" "updater" "resources")
 declare -a tooling=("bench" "cli.rs" "webdriver")
 

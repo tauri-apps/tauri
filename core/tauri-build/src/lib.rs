@@ -148,7 +148,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     let mut error_message = String::new();
     if !diff.remove.is_empty() {
       error_message.push_str("remove the `");
-      error_message.push_str(&diff.remove.join(", ").to_string());
+      error_message.push_str(&diff.remove.join(", "));
       error_message.push_str(if diff.remove.len() == 1 {
         "` feature"
       } else {
@@ -160,7 +160,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
     if !diff.add.is_empty() {
       error_message.push_str("add the `");
-      error_message.push_str(&diff.add.join(", ").to_string());
+      error_message.push_str(&diff.add.join(", "));
       error_message.push_str(if diff.add.len() == 1 {
         "` feature"
       } else {
@@ -234,7 +234,7 @@ fn features_diff(current: &[String], expected: &[String]) -> Diff {
   let mut remove = Vec::new();
   let mut add = Vec::new();
   for feature in current {
-    if !expected.contains(&feature) {
+    if !expected.contains(feature) {
       remove.push(feature.clone());
     }
   }

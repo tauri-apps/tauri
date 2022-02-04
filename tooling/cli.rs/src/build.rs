@@ -31,7 +31,9 @@ pub struct Options {
   /// Enables verbose logging
   #[clap(short, long)]
   verbose: bool,
-  /// Target triple to build against
+  /// Target triple to build against.
+  /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate

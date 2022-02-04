@@ -53,6 +53,8 @@ struct VersionMetadata {
 struct CargoManifestDependencyPackage {
   version: Option<String>,
   git: Option<String>,
+  branch: Option<String>,
+  rev: Option<String>,
   path: Option<PathBuf>,
 }
 
@@ -644,37 +646,34 @@ pub fn command(_options: Options) -> Result<()> {
         .collect()
     })
     .unwrap_or_default();
-  let (mut tauri_version_string, found_tauri_versions) =
+  let (tauri_version_string, found_tauri_versions) =
     match (&manifest, &lock, tauri_lock_packages.len()) {
       (Some(_manifest), Some(_lock), 1) => {
         let tauri_lock_package = tauri_lock_packages.first().unwrap();
-        let git_suffix = if let Some(s) = tauri_lock_package.source.clone() {
+        let version_string = if let Some(s) = &tauri_lock_package.source {
           if s.starts_with("git") {
-            "(git lockfile)"
+            format!("{} ({})", s, tauri_lock_package.version)
           } else {
-            ""
+            tauri_lock_package.version.clone()
           }
         } else {
-          ""
+          tauri_lock_package.version.clone()
         };
-        (
-          format!("{} {}", tauri_lock_package.version.clone(), git_suffix),
-          vec![tauri_lock_package.version.clone()],
-        )
+        (version_string, vec![tauri_lock_package.version.clone()])
       }
       (None, Some(_lock), 1) => {
         let tauri_lock_package = tauri_lock_packages.first().unwrap();
-        let git_suffix = if let Some(s) = tauri_lock_package.source.clone() {
+        let version_string = if let Some(s) = &tauri_lock_package.source {
           if s.starts_with("git") {
-            "(git lockfile)"
+            format!("{} ({})", s, tauri_lock_package.version)
           } else {
-            ""
+            tauri_lock_package.version.clone()
           }
         } else {
-          ""
+          tauri_lock_package.version.clone()
         };
         (
-          format!("{} {}(no manifest)", tauri_lock_package.version, git_suffix),
+          format!("{} (no manifest)", version_string),
           vec![tauri_lock_package.version.clone()],
         )
       }
@@ -703,7 +702,13 @@ pub fn command(_options: Options) -> Result<()> {
                 format!("path:{:?} [{}]", p, v)
               } else if let Some(g) = p.git {
                 is_git = true;
-                format!("git:{:?}", g)
+                let mut v = format!("git:{}", g);
+                if let Some(branch) = p.branch {
+                  v.push_str(&format!("&branch={}", branch));
+                } else if let Some(rev) = p.rev {
+                  v.push_str(&format!("#{}", rev));
+                }
+                v
               } else {
                 "unknown manifest".to_string()
               }

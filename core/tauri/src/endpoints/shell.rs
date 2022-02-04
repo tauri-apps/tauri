@@ -4,7 +4,7 @@
 
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
-#[cfg(shell_execute)]
+#[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
@@ -14,15 +14,15 @@ use crate::ExecuteArgs;
 #[cfg(not(shell_scope))]
 type ExecuteArgs = ();
 
-#[cfg(shell_execute)]
+#[cfg(any(shell_execute, shell_sidecar))]
 use std::sync::{Arc, Mutex};
 use std::{collections::HashMap, path::PathBuf};
 
 type ChildId = u32;
-#[cfg(shell_execute)]
+#[cfg(any(shell_execute, shell_sidecar))]
 type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::process::CommandChild>>>;
 
-#[cfg(shell_execute)]
+#[cfg(any(shell_execute, shell_sidecar))]
 fn command_childs() -> &'static ChildStore {
   use once_cell::sync::Lazy;
   static STORE: Lazy<ChildStore> = Lazy::new(Default::default);

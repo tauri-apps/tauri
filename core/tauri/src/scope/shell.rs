@@ -166,7 +166,7 @@ pub enum ScopeError {
   MissingVar(String),
 
   /// At least one argument did not pass input validation.
-  #[cfg(any(shell_execute, shell_open))]
+  #[cfg(shell_scope)]
   #[cfg_attr(
     doc_cfg,
     doc(cfg(any(feature = "shell-execute", feature = "shell-open")))
@@ -193,7 +193,7 @@ pub enum ScopeError {
   InvalidInput(String),
 
   /// A generic IO error that occurs while executing specified shell commands.
-  #[cfg(any(shell_execute, shell_sidecar))]
+  #[cfg(shell_scope)]
   #[cfg_attr(
     doc_cfg,
     doc(cfg(any(feature = "shell-execute", feature = "shell-sidecar")))

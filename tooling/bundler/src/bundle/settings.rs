@@ -681,18 +681,6 @@ impl Settings {
       None => false,
     }
   }
-
-  /// Get pubkey (mainly for testing)
-  #[cfg(test)]
-  pub fn updater_pubkey(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .expect("Updater is not defined")
-      .pubkey
-      .as_deref()
-  }
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.

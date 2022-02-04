@@ -1703,11 +1703,11 @@ pub struct BuildConfig {
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.
   ///
-  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_dev_command: Option<String>,
   /// A shell command to run before `tauri build` kicks in.
   ///
-  /// The PLATFORM, ARCH, FAMILY, PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   pub before_build_command: Option<String>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,

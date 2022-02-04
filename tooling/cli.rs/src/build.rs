@@ -157,7 +157,7 @@ pub fn command(options: Options) -> Result<()> {
     lipo_cmd
       .arg("-create")
       .arg("-output")
-      .arg(out_dir.clone().join(&bin_name));
+      .arg(out_dir.join(&bin_name));
     for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
       crate::interface::rust::build_project(
         runner.clone(),

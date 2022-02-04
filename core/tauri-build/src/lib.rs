@@ -109,7 +109,7 @@ pub fn build() {
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
   use cargo_toml::{Dependency, Manifest};
-  use tauri_utils::config::Config;
+  use tauri_utils::config::{Config, TauriConfig};
 
   println!("cargo:rerun-if-changed=src/Cargo.toml");
   println!("cargo:rerun-if-changed=tauri.conf.json");
@@ -126,18 +126,53 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let mut manifest = Manifest::from_path("Cargo.toml")?;
   if let Some(tauri) = manifest.dependencies.remove("tauri") {
-    let mut features = match tauri {
+    let features = match tauri {
       Dependency::Simple(_) => Vec::new(),
       Dependency::Detailed(dep) => dep.features,
     };
-    features.sort();
 
-    let expected_features = config.tauri.features();
-    if features != expected_features {
+    let all_cli_managed_features = TauriConfig::all_features();
+    let diff = features_diff(
+      &features
+        .into_iter()
+        .filter(|f| all_cli_managed_features.contains(&f.as_str()))
+        .collect::<Vec<String>>(),
+      &config
+        .tauri
+        .features()
+        .into_iter()
+        .map(|f| f.to_string())
+        .collect::<Vec<String>>(),
+    );
+
+    let mut error_message = String::new();
+    if !diff.remove.is_empty() {
+      error_message.push_str("remove the `");
+      error_message.push_str(&diff.remove.join(", ").to_string());
+      error_message.push_str(if diff.remove.len() == 1 {
+        "` feature"
+      } else {
+        "` features"
+      });
+      if !diff.add.is_empty() {
+        error_message.push_str(" and ");
+      }
+    }
+    if !diff.add.is_empty() {
+      error_message.push_str("add the `");
+      error_message.push_str(&diff.add.join(", ").to_string());
+      error_message.push_str(if diff.add.len() == 1 {
+        "` feature"
+      } else {
+        "` features"
+      });
+    }
+
+    if !error_message.is_empty() {
       return Err(anyhow!("
       The `tauri` dependency features on the `Cargo.toml` file does not match the allowlist defined under `tauri.conf.json`.
-      Please run `tauri dev` or `tauri build` or set it to {:?}.
-    ", expected_features));
+      Please run `tauri dev` or `tauri build` or {}.
+    ", error_message));
     }
   }
 
@@ -187,4 +222,67 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct Diff {
+  remove: Vec<String>,
+  add: Vec<String>,
+}
+
+fn features_diff(current: &[String], expected: &[String]) -> Diff {
+  let mut remove = Vec::new();
+  let mut add = Vec::new();
+  for feature in current {
+    if !expected.contains(&feature) {
+      remove.push(feature.clone());
+    }
+  }
+
+  for feature in expected {
+    if !current.contains(feature) {
+      add.push(feature.clone());
+    }
+  }
+
+  Diff { remove, add }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::Diff;
+
+  #[test]
+  fn array_diff() {
+    for (current, expected, result) in [
+      (vec![], vec![], Default::default()),
+      (
+        vec!["a".into()],
+        vec![],
+        Diff {
+          remove: vec!["a".into()],
+          add: vec![],
+        },
+      ),
+      (vec!["a".into()], vec!["a".into()], Default::default()),
+      (
+        vec!["a".into(), "b".into()],
+        vec!["a".into()],
+        Diff {
+          remove: vec!["b".into()],
+          add: vec![],
+        },
+      ),
+      (
+        vec!["a".into(), "b".into()],
+        vec!["a".into(), "c".into()],
+        Diff {
+          remove: vec!["b".into()],
+          add: vec!["c".into()],
+        },
+      ),
+    ] {
+      assert_eq!(super::features_diff(&current, &expected), result);
+    }
+  }
 }

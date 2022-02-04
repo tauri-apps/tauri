@@ -1398,6 +1398,7 @@ pub struct AllowlistConfig {
 impl Allowlist for AllowlistConfig {
   fn all_features() -> Vec<&'static str> {
     let mut features = Vec::new();
+    features.push("api-all");
     features.extend(FsAllowlistConfig::all_features());
     features.extend(WindowAllowlistConfig::all_features());
     features.extend(ShellAllowlistConfig::all_features());
@@ -1428,6 +1429,8 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.os.to_features());
       features.extend(self.path.to_features());
       features.extend(self.protocol.to_features());
+      features.extend(self.process.to_features());
+      features.extend(self.clipboard.to_features());
       features
     }
   }

@@ -1,12 +1,15 @@
 <script>
   export let onMessage;
 
+  // send the notification directly
+  // the backend is responsible for checking the permission
   function _sendNotification() {
     new Notification("Notification title", {
       body: "This is the notification body",
     });
   }
 
+  // alternatively, check the permission ourselves
   function sendNotification() {
     if (Notification.permission === "default") {
       Notification.requestPermission()
@@ -26,6 +29,6 @@
   }
 </script>
 
-<button class="button" id="notification" on:click={sendNotification}>
+<button class="button" id="notification" on:click={_sendNotification}>
   Send test notification
 </button>

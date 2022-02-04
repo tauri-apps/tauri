@@ -82,7 +82,7 @@ async function type(): Promise<
   return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
-      cmd: 'type'
+      cmd: 'osType'
     }
   })
 }

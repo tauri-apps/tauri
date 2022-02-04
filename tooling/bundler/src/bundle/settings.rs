@@ -113,8 +113,8 @@ pub struct UpdaterSettings {
   pub active: bool,
   /// The updater endpoints.
   pub endpoints: Option<Vec<String>>,
-  /// Optional pubkey.
-  pub pubkey: Option<String>,
+  /// Signature public key.
+  pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
 }
@@ -227,6 +227,8 @@ pub struct WindowsSettings {
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
+  /// Path to the webview fixed runtime to use.
+  pub webview_fixed_runtime_path: Option<PathBuf>,
 }
 
 impl Default for WindowsSettings {
@@ -237,6 +239,7 @@ impl Default for WindowsSettings {
       timestamp_url: None,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
+      webview_fixed_runtime_path: None,
     }
   }
 }
@@ -677,26 +680,6 @@ impl Settings {
       Some(val) => val.active,
       None => false,
     }
-  }
-
-  /// Is pubkey provided?
-  pub fn is_updater_pubkey(&self) -> bool {
-    match &self.bundle_settings.updater {
-      Some(val) => val.pubkey.is_some(),
-      None => false,
-    }
-  }
-
-  /// Get pubkey (mainly for testing)
-  #[cfg(test)]
-  pub fn updater_pubkey(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .expect("Updater is not defined")
-      .pubkey
-      .as_deref()
   }
 }
 

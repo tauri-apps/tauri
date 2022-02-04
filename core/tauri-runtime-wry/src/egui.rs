@@ -66,7 +66,7 @@ impl<T> Deref for MaybeRc<T> {
 impl<T> std::borrow::Borrow<T> for MaybeRc<T> {
   fn borrow(&self) -> &T {
     match self {
-      Self::Actual(v) => &v,
+      Self::Actual(v) => v,
       Self::Rc(r) => r.borrow(),
     }
   }
@@ -111,6 +111,7 @@ impl GlutinWindowContext {
   }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_gl_window(
   event_loop: &EventLoopWindowTarget<Message>,
   windows: &Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
@@ -200,12 +201,12 @@ pub fn create_gl_window(
       window_id,
       WindowWrapper {
         label,
-        inner: WindowHandle::GLWindow(GlutinWindowContext {
+        inner: WindowHandle::GLWindow(Box::new(GlutinWindowContext {
           context: MaybeRc::new(gl_window),
           glow_context: MaybeRc::new(gl),
           painter: MaybeRcCell::new(painter),
           integration: MaybeRcCell::new(integration),
-        }),
+        })),
         menu_items: Default::default(),
       },
     );
@@ -277,13 +278,13 @@ pub fn create_gl_window(
       window_id,
       WindowWrapper {
         label,
-        inner: WindowHandle::GLWindow(GlutinWindowContext {
+        inner: WindowHandle::GLWindow(Box::new(GlutinWindowContext {
           context: MaybeRc::Rc(gl_window),
           glow_context: MaybeRc::Rc(gl),
           painter: MaybeRcCell::RcCell(painter),
           integration: MaybeRcCell::RcCell(integration),
           render_flow,
-        }),
+        })),
         menu_items: Default::default(),
       },
     );
@@ -400,7 +401,7 @@ pub fn handle_gl_loop(
     menu_event_listeners,
     ..
   } = context;
-  let egui_id = EGUI_ID.lock().unwrap().clone();
+  let egui_id = *EGUI_ID.lock().unwrap();
   if let Some(id) = egui_id {
     let mut windows_lock = windows.lock().unwrap();
     let mut should_quit = false;
@@ -410,12 +411,12 @@ pub fn handle_gl_loop(
         win_mac_gl_loop(
           control_flow,
           glutin_window_context,
-          &event,
+          event,
           *is_focused,
           &mut should_quit,
         );
         #[cfg(target_os = "linux")]
-        linux_gl_loop(control_flow, glutin_window_context, &event);
+        linux_gl_loop(control_flow, glutin_window_context, event);
 
         if should_quit {
           drop(windows_lock);
@@ -449,7 +450,7 @@ pub fn handle_gl_loop(
                   // marker
                   let gl_window = &glutin_window_context.context;
                   let mut integration = glutin_window_context.integration.borrow_mut();
-                  integration.on_event(&event);
+                  integration.on_event(event);
                   if integration.should_quit() {
                     should_quit = true;
                     *control_flow = glutin::event_loop::ControlFlow::Wait;
@@ -462,7 +463,7 @@ pub fn handle_gl_loop(
               // same as the `marker` above
               let gl_window = &glutin_window_context.context;
               let mut integration = glutin_window_context.integration.borrow_mut();
-              integration.on_event(&event);
+              integration.on_event(event);
               if integration.should_quit() {
                 should_quit = true;
                 *control_flow = glutin::event_loop::ControlFlow::Wait;
@@ -478,7 +479,6 @@ pub fn handle_gl_loop(
     }
 
     if should_quit {
-      drop(egui_id);
       super::on_window_close(
         callback,
         id,

@@ -736,11 +736,14 @@ pub fn command(_options: Options) -> Result<()> {
       })
       .display();
     InfoBlock::new("  CSP")
-      .value(if let Some(security) = &config.tauri.security {
-        security.csp.clone().unwrap_or_else(|| "unset".to_string())
-      } else {
-        "unset".to_string()
-      })
+      .value(
+        config
+          .tauri
+          .security
+          .csp
+          .clone()
+          .unwrap_or_else(|| "unset".to_string()),
+      )
       .display();
     InfoBlock::new("  distDir")
       .value(config.build.dist_dir.to_string())

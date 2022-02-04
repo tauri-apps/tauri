@@ -7,7 +7,7 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
+  webview::{FileDropHandler, WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, WindowBuilder,
 };
 use serde::Serialize;
@@ -93,8 +93,8 @@ pub struct PendingWindow<R: Runtime> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
-  /// How to handle RPC calls on the webview window.
-  pub rpc_handler: Option<WebviewRpcHandler<R>>,
+  /// How to handle IPC calls on the webview window.
+  pub ipc_handler: Option<WebviewIpcHandler<R>>,
 
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<R>>,
@@ -109,6 +109,13 @@ pub struct PendingWindow<R: Runtime> {
   pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
 }
 
+fn validate_label(label: &str) {
+  assert!(
+    label.chars().all(char::is_alphanumeric),
+    "Window label must be alphanumeric"
+  );
+}
+
 impl<R: Runtime> PendingWindow<R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
@@ -120,12 +127,14 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    validate_label(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
-      rpc_handler: None,
+      label,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),
@@ -144,12 +153,14 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    validate_label(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
-      rpc_handler: None,
+      label,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),
@@ -157,6 +168,7 @@ impl<R: Runtime> PendingWindow<R> {
     }
   }
 
+  #[must_use]
   pub fn set_menu(mut self, menu: Menu) -> Self {
     let mut menu_ids = HashMap::new();
     get_menu_ids(&mut menu_ids, &menu);

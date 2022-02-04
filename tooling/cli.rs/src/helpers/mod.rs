@@ -47,7 +47,10 @@ pub fn command_env(debug: bool) -> HashMap<String, String> {
   map.insert("TAURI_PLATFORM".into(), std::env::consts::OS.into());
   map.insert("TAURI_ARCH".into(), std::env::consts::ARCH.into());
   map.insert("TAURI_FAMILY".into(), std::env::consts::FAMILY.into());
-  map.insert("TAURI_PLATFORM_VERSION".into(), os_info::get().version().to_string());
+  map.insert(
+    "TAURI_PLATFORM_VERSION".into(),
+    os_info::get().version().to_string(),
+  );
 
   #[cfg(target_os = "linux")]
   map.insert("TAURI_PLATFORM_TYPE".into(), "Linux".into());

@@ -140,28 +140,29 @@ pub fn command(options: Options) -> Result<()> {
   let out_dir = app_settings
     .get_out_dir(options.target.clone(), options.debug)
     .with_context(|| "failed to get project out directory")?;
+
+  let bin_name = app_settings
+    .cargo_package_settings()
+    .name
+    .clone()
+    .expect("Cargo manifest must have the `package.name` field");
+  #[cfg(windows)]
+  let bin_path = out_dir.join(format!("{}.exe", bin_name));
+  #[cfg(not(windows))]
+  let bin_path = out_dir.join(&bin_name);
+
+  #[cfg(unix)]
+  if !options.debug {
+    strip(&bin_path, &logger)?;
+  }
+
   if let Some(product_name) = config_.package.product_name.clone() {
-    let bin_name = app_settings
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
     #[cfg(windows)]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(format!("{}.exe", bin_name)),
-        out_dir.join(format!("{}.exe", product_name)),
-      )
-    };
+    let product_path = out_dir.join(format!("{}.exe", product_name));
     #[cfg(target_os = "macos")]
-    let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+    let product_path = out_dir.join(product_name);
     #[cfg(target_os = "linux")]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(bin_name),
-        out_dir.join(product_name.to_kebab_case()),
-      )
-    };
+    let product_path = out_dir.join(product_name.to_kebab_case());
     rename(&bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
@@ -175,7 +176,10 @@ pub fn command(options: Options) -> Result<()> {
     // move merge modules to the out dir so the bundler can load it
     #[cfg(windows)]
     {
-      let target = options.target.clone().unwrap_or_else(|| std::env::consts::ARCH.into());
+      let target = options
+        .target
+        .clone()
+        .unwrap_or_else(|| std::env::consts::ARCH.into());
       let arch = if target.starts_with("x86_64") {
         "x86_64"
       } else if target.starts_with('i') || target.starts_with("x86") {
@@ -185,7 +189,10 @@ pub fn command(options: Options) -> Result<()> {
       } else if target.starts_with("aarch64") {
         "aarch64"
       } else {
-        panic!("Unexpected target architecture {}", target.split("_").next().unwrap())
+        panic!(
+          "Unexpected target architecture {}",
+          target.split("_").next().unwrap()
+        )
       };
       let (filename, vcruntime_msm) = if arch == "x86" {
         let _ = std::fs::remove_file(out_dir.join("Microsoft_VC142_CRT_x64.msm"));
@@ -263,8 +270,8 @@ pub fn command(options: Options) -> Result<()> {
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active and pubkey is available
-    if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
+    // If updater is active
+    if config_.tauri.updater.active {
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
       for elem in bundles
@@ -279,6 +286,7 @@ pub fn command(options: Options) -> Result<()> {
           signed_paths.append(&mut vec![signature_path]);
         }
       }
+
       if !signed_paths.is_empty() {
         print_signed_updater_archive(&signed_paths)?;
       }
@@ -300,5 +308,36 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   for path in output_paths {
     println!("        {}", path.display());
   }
+  Ok(())
+}
+
+// TODO: drop this when https://github.com/rust-lang/rust/issues/72110 is stabilized
+#[cfg(unix)]
+fn strip(path: &std::path::Path, logger: &Logger) -> crate::Result<()> {
+  use humansize::{file_size_opts, FileSize};
+
+  let filesize_before = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  // Strip the binary
+  Command::new("strip")
+    .arg(&path)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .status()
+    .with_context(|| "failed to execute strip")?;
+
+  let filesize_after = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  logger.log(format!(
+    "Binary stripped, size reduced by {}",
+    (filesize_before - filesize_after)
+      .file_size(file_size_opts::CONVENTIONAL)
+      .unwrap(),
+  ));
+
   Ok(())
 }

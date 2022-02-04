@@ -1,36 +1,36 @@
 [package]
-name = "tauri"
-version = "1.0.0-beta.8"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
-license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.studio"
-repository = "https://github.com/tauri-apps/tauri"
+authors = ["Tauri Programme within The Commons Conservancy"]
+categories = ["gui", "web-programming"]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [
   "/test",
   "/.scripts",
   ".license_template",
   "CHANGELOG.md",
-  "/target"
+  "/target",
 ]
+homepage = "https://tauri.studio"
+license = "Apache-2.0 OR MIT"
+name = "tauri"
 readme = "README.md"
+repository = "https://github.com/tauri-apps/tauri"
+version = "1.0.0-beta.8"
 
 [package.metadata.docs.rs]
 default-features = false
-features = ["wry", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
+features = ["compression", "wry", "isolation", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin"
+  "x86_64-apple-darwin",
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "attohttpc" ]
+normal = ["attohttpc"]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -46,16 +46,16 @@ tauri-macros = { version = "1.0.0-beta.5", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.2.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
-tempfile = "3"
 semver = "1.0"
 serde_repr = "0.1"
+state = "0.5"
+tar = "0.4"
+tempfile = "3"
 zip = "0.5"
 ignore = "0.4"
 either = "1.6"
-tar = "0.4"
 flate2 = "1.0"
 http = "0.2"
-state = "0.5"
 bincode = "1.3"
 dirs-next = "2.0"
 percent-encoding = "2.1"
@@ -64,20 +64,24 @@ clap = { version = "=3.0.4", optional = true }
 notify-rust = { version = "4.5", optional = true }
 reqwest = { version = "0.11", features = [ "json", "multipart" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
-attohttpc = { version = "0.18", features = [ "json", "form" ] }
+attohttpc = { version = "0.18", features = [ "json", "form" ], optional = true }
 open = { version = "2.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.6.3", features = [ "parent" ] }
+rfd = { version = "0.6.3", features = [ "parent" ], optional = true }
 raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
 os_info = { version = "3.0.9", optional = true }
 futures-lite = "1.12"
 epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
+regex = { version = "1.5", optional = true }
+glob = "0.3"
+data-url = { version = "0.1", optional = true }
+serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.14", features = [ "v3_20" ] }
 glib = "0.14"
+gtk = {version = "0.14", features = ["v3_20"]}
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -86,61 +90,150 @@ embed_plist = "1.2"
 cfg_aliases = "0.1.1"
 
 [dev-dependencies]
+mockito = "0.30"
 proptest = "1.0.0"
-serde_json = "1.0"
-tauri = { path = "." }
-serde = { version = "1.0", features = [ "derive" ] }
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
+serde = {version = "1.0", features = ["derive"]}
+serde_json = "1.0"
+tauri = {path = "."}
 tokio-test = "0.4.2"
 tokio = { version = "1.15", features = [ "full" ] }
-mockito = "0.30"
+
+[target."cfg(windows)".dev-dependencies.windows]
+version = "0.30.0"
+features = [
+  "Win32_Foundation",
+]
 
 [features]
 default = [ "wry", "compression" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
-dox = [ "tauri-runtime-wry/dox" ]
-wry = [ "tauri-runtime-wry" ]
-cli = [ "clap" ]
-custom-protocol = [ "tauri-macros/custom-protocol" ]
+wry = ["tauri-runtime-wry"]
+isolation = ["tauri-utils/isolation", "tauri-macros/isolation"]
+custom-protocol = ["tauri-macros/custom-protocol"]
+updater = ["minisign-verify", "base64", "dialog-ask"]
+http-api = ["attohttpc"]
+reqwest-client = ["reqwest", "bytes"]
+command = ["shared_child", "os_pipe"]
+dialog = ["rfd"]
+notification = ["notify-rust"]
+cli = ["clap"]
+system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
+dox = ["tauri-runtime-wry/dox"]
+macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
+window-data-url = ["data-url"]
 api-all = [
-  "notification-all",
-  "global-shortcut-all",
-  "shell-all",
-  "os-all",
+  "clipboard-all",
   "dialog-all",
-  "updater",
-  "path-all"
+  "fs-all",
+  "global-shortcut-all",
+  "http-all",
+  "notification-all",
+  "os-all",
+  "path-all",
+  "process-all",
+  "protocol-all",
+  "shell-all",
+  "window-all"
 ]
-updater = [ "minisign-verify", "base64" ]
-system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
-reqwest-client = [ "reqwest", "bytes" ]
-fs-all = [ "fs-write-binary-file" ]
-fs-read-text-file = [ ]
-fs-read-binary-file = [ ]
-fs-write-file = [ ]
-fs-write-binary-file = [ "base64" ]
-fs-read-dir = [ ]
-fs-copy-file = [ ]
-fs-create-dir = [ ]
-fs-remove-dir = [ ]
-fs-remove-file = [ ]
-fs-rename-file = [ ]
-path-all = [ ]
-window-all = [ ]
+clipboard-all = ["clipboard-write-text", "clipboard-read-text"]
+clipboard-read-text = []
+clipboard-write-text = []
+dialog-all = ["dialog-open", "dialog-save", "dialog-message", "dialog-ask"]
+dialog-ask = ["dialog"]
+dialog-confirm = ["dialog"]
+dialog-message = ["dialog"]
+dialog-open = ["dialog"]
+dialog-save = ["dialog"]
+fs-all = [
+  "fs-copy-file",
+  "fs-create-dir",
+  "fs-read-file",
+  "fs-read-dir",
+  "fs-remove-dir",
+  "fs-remove-file",
+  "fs-rename-file",
+  "fs-write-file"
+]
+fs-copy-file = []
+fs-create-dir = []
+fs-read-file = []
+fs-read-dir = []
+fs-remove-dir = []
+fs-remove-file = []
+fs-rename-file = []
+fs-write-file = []
+global-shortcut-all = []
+http-all = ["http-request"]
+http-request = ["http-api"]
+notification-all = ["notification", "dialog-ask"]
+os-all = ["os_info"]
+path-all = []
+process-all = ["process-relaunch", "process-exit"]
+process-exit = []
+process-relaunch = []
+process-relaunch-dangerous-allow-symlink-macos = ["tauri-utils/process-relaunch-dangerous-allow-symlink-macos"]
+protocol-all = ["protocol-asset"]
+protocol-asset = []
+shell-all = ["shell-execute", "shell-sidecar", "shell-open"]
+shell-execute = ["command", "regex", "tauri-macros/shell-scope"]
+shell-sidecar = ["command", "regex", "tauri-macros/shell-scope"]
+shell-open = ["open", "regex", "tauri-macros/shell-scope"]
+window-all = [
+  "window-create",
+  "window-center",
+  "window-request-user-attention",
+  "window-set-resizable",
+  "window-set-title",
+  "window-maximize",
+  "window-unmaximize",
+  "window-minimize",
+  "window-unminimize",
+  "window-show",
+  "window-hide",
+  "window-close",
+  "window-set-decorations",
+  "window-set-always-on-top",
+  "window-set-size",
+  "window-set-min-size",
+  "window-set-max-size",
+  "window-set-position",
+  "window-set-fullscreen",
+  "window-set-focus",
+  "window-set-icon",
+  "window-set-skip-taskbar",
+  "window-start-dragging",
+  "window-print",
+]
 window-create = [ ]
-shell-all = [ "shell-open", "shell-execute" ]
-shell-execute = [ "shared_child", "os_pipe" ]
-shell-open = [ "open" ]
-dialog-all = [ "dialog-open", "dialog-save" ]
-dialog-open = [ ]
-dialog-save = [ ]
-http-all = [ ]
-http-request = [ ]
-notification-all = [ "notify-rust" ]
-global-shortcut-all = [ ]
-os-all = [ "os_info" ]
+window-center = [ ]
+window-request-user-attention = [ ]
+window-set-resizable = [ ]
+window-set-title = [ ]
+window-maximize = [ ]
+window-unmaximize = [ ]
+window-minimize = [ ]
+window-unminimize = [ ]
+window-show = [ ]
+window-hide = [ ]
+window-close = [ ]
+window-set-decorations = [ ]
+window-set-always-on-top = [ ]
+window-set-size = [ ]
+window-set-min-size = [ ]
+window-set-max-size = [ ]
+window-set-position = [ ]
+window-set-fullscreen = [ ]
+window-set-focus = [ ]
+window-set-icon = [ ]
+window-set-skip-taskbar = [ ]
+window-start-dragging = [ ]
+window-print = [ ]
 egui = ["epi", "tauri-runtime-wry/egui"]
+
+# features unrelated to api/endpoints
+config-json5 = [ "tauri-macros/config-json5" ]
 
 [[example]]
 name = "commands"
@@ -153,10 +246,12 @@ path = "../../examples/helloworld/src-tauri/src/main.rs"
 [[example]]
 name = "multiwindow"
 path = "../../examples/multiwindow/src-tauri/src/main.rs"
+required-features = [ "window-create" ]
 
 [[example]]
 name = "navigation"
 path = "../../examples/navigation/src-tauri/src/main.rs"
+required-features = [ "window-create" ]
 
 [[example]]
 name = "splashscreen"
@@ -167,9 +262,10 @@ name = "state"
 path = "../../examples/state/src-tauri/src/main.rs"
 
 [[example]]
-name = "resources"
-path = "../../examples/resources/src-tauri/src/main.rs"
-
-[[example]]
 name = "streaming"
 path = "../../examples/streaming/src-tauri/src/main.rs"
+
+[[example]]
+name = "isolation"
+path = "../../examples/isolation/src-tauri/src/main.rs"
+required-features = [ "isolation" ]

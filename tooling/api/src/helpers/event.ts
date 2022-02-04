@@ -8,15 +8,15 @@ import { invokeTauriCommand } from './tauri'
 /**
  * Emits an event to the backend.
  *
- * @param event Event name
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param [windowLabel] The label of the window to which the event is sent, if null/undefined the event will be sent to all windows
  * @param [payload] Event payload
  * @returns
  */
 async function emit(
   event: string,
-  windowLabel: WindowLabel | null,
-  payload?: unknown
+  windowLabel?: WindowLabel,
+  payload?: string
 ): Promise<void> {
   await invokeTauriCommand({
     __tauriModule: 'Event',

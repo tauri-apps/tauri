@@ -38,7 +38,7 @@
     "allowlist": {
       "all": false,
       "fs": {
-        "readBinaryFile": true
+        "readFile": true
       }
     },
     "windows": [

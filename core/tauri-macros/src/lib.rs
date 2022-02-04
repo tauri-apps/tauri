@@ -4,9 +4,10 @@
 
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, DeriveInput, ItemFn};
 
 mod command;
+mod command_module;
 mod runtime;
 
 #[macro_use]
@@ -72,4 +73,33 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
   let attributes = parse_macro_input!(attributes as runtime::Attributes);
   let input = parse_macro_input!(input as DeriveInput);
   runtime::default_runtime(attributes, input).into()
+}
+
+/// Adds a `run` method to an enum (one of the tauri endpoint modules).
+/// The `run` method takes a `tauri::endpoints::InvokeContext`
+/// and returns a `tauri::Result<tauri::endpoints::InvokeResponse>`.
+/// It matches on each enum variant and call a method with name equal to the variant name, lowercased and snake_cased,
+/// passing the the context and the variant's fields as arguments.
+/// That function must also return the same `Result<InvokeResponse>`.
+#[doc(hidden)]
+#[proc_macro_derive(CommandModule, attributes(cmd))]
+pub fn derive_command_module(input: TokenStream) -> TokenStream {
+  let input = parse_macro_input!(input as DeriveInput);
+  command_module::generate_run_fn(input)
+}
+
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn module_command_handler(attributes: TokenStream, input: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as command_module::HandlerAttributes);
+  let input = parse_macro_input!(input as ItemFn);
+  command_module::command_handler(attributes, input).into()
+}
+
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn module_command_test(attributes: TokenStream, input: TokenStream) -> TokenStream {
+  let attributes = parse_macro_input!(attributes as command_module::HandlerTestAttributes);
+  let input = parse_macro_input!(input as ItemFn);
+  command_module::command_test(attributes, input).into()
 }

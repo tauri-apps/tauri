@@ -11,7 +11,7 @@ use crate::{
     file::read_binary,
     path::{resolve_path, BaseDirectory},
   },
-  Config, PackageInfo,
+  Config, Env, PackageInfo,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,10 +30,15 @@ pub struct Settings {
 }
 
 /// Gets the path to the settings file.
-fn get_settings_path(config: &Config, package_info: &PackageInfo) -> crate::api::Result<PathBuf> {
+fn get_settings_path(
+  config: &Config,
+  package_info: &PackageInfo,
+  env: &Env,
+) -> crate::api::Result<PathBuf> {
   resolve_path(
     config,
     package_info,
+    env,
     ".tauri-settings",
     Some(BaseDirectory::App),
   )
@@ -44,9 +49,10 @@ fn get_settings_path(config: &Config, package_info: &PackageInfo) -> crate::api:
 pub(crate) fn write_settings(
   config: &Config,
   package_info: &PackageInfo,
+  env: &Env,
   settings: Settings,
 ) -> crate::Result<()> {
-  let settings_path = get_settings_path(config, package_info)?;
+  let settings_path = get_settings_path(config, package_info, env)?;
   let settings_folder = Path::new(&settings_path).parent().unwrap();
   if !settings_folder.exists() {
     std::fs::create_dir(settings_folder)?;
@@ -60,8 +66,8 @@ pub(crate) fn write_settings(
 }
 
 /// Reads the settings from the file system.
-pub fn read_settings(config: &Config, package_info: &PackageInfo) -> Settings {
-  if let Ok(settings_path) = get_settings_path(config, package_info) {
+pub fn read_settings(config: &Config, package_info: &PackageInfo, env: &Env) -> Settings {
+  if let Ok(settings_path) = get_settings_path(config, package_info, env) {
     if settings_path.exists() {
       read_binary(settings_path)
         .and_then(|settings| bincode::deserialize(&settings).map_err(Into::into))

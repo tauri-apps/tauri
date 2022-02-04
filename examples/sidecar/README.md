@@ -4,8 +4,8 @@ This example demonstrates how to use the Tauri sidecar feature. It uses [pkg](ht
 
 ## Running the example
 
-- Compile tauri
-go to root of the tauri repo and run
+- Compile Tauri
+go to root of the Tauri repo and run:
 Linux / Mac:
 ```
 # choose to install node cli (1)
@@ -17,7 +17,7 @@ Windows:
 ./.scripts/setup.ps1
 ```
 
-- Install dependencies (Run inside of this folder tauri/examples/api/)
+- Install dependencies (Run inside of this folder `examples/sidecar/`)
 ```bash
 # with yarn
 $ yarn
@@ -28,11 +28,16 @@ $ yarn tauri
 $ yarn package
 ```
 
-
-- Compile the app (Run inside of this folder tauri/examples/api/)
+- Run the app in development mode (Run inside of this folder `examples/sidecar/`)
 ```bash
 # with yarn
 $ yarn tauri dev
 # with npm
 $ npm run tauri dev
+```
+
+- Build an run the release app (Run inside of this folder `examples/sidecar/`)
+```bash
+$ yarn tauri build
+$ ./src-tauri/target/release/app
 ```

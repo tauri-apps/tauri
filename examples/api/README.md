@@ -6,8 +6,8 @@ In the future, this app will be used on Tauri's integration tests.
 
 ## Running the example
 
-- Compile tauri
-go to root of the tauri repo and run
+- Compile Tauri
+go to root of the Tauri repo and run:
 Linux / Mac:
 ```
 # choose to install node cli (1)
@@ -19,7 +19,7 @@ Windows:
 ./.scripts/setup.ps1
 ```
 
-- Install dependencies (Run inside of this folder tauri/examples/api/)
+- Install dependencies (Run inside of this folder `examples/api/`)
 ```bash
 # with yarn
 $ yarn
@@ -27,8 +27,7 @@ $ yarn
 $ npm install
 ```
 
-
-- Compile the app (Run inside of this folder tauri/examples/api/)
+- Run the app in development mode (Run inside of this folder `examples/api/`)
 ```bash
 # with yarn
 $ yarn tauri dev
@@ -36,7 +35,7 @@ $ yarn tauri dev
 $ npm run tauri dev
 ```
 
-- Run the release app
+- Build an run the release app (Run inside of this folder `examples/api/`)
 ```bash
 $ yarn tauri build
 $ ./src-tauri/target/release/app

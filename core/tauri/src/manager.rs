@@ -23,8 +23,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-#[cfg(target_os = "windows")]
-use crate::api::path::{resolve_path, BaseDirectory};
 use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]

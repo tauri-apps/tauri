@@ -31,7 +31,9 @@ pub struct Options {
   /// Enables verbose logging
   #[clap(short, long)]
   verbose: bool,
-  /// Target triple to build against
+  /// Target triple to build against.
+  /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate
@@ -132,9 +134,6 @@ pub fn command(options: Options) -> Result<()> {
     cargo_features.extend(features);
   }
 
-  crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
-    .with_context(|| "failed to build app")?;
-
   let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
   let out_dir = app_settings
@@ -150,6 +149,40 @@ pub fn command(options: Options) -> Result<()> {
   let bin_path = out_dir.join(format!("{}.exe", bin_name));
   #[cfg(not(windows))]
   let bin_path = out_dir.join(&bin_name);
+
+  if options.target == Some("universal-apple-darwin".into()) {
+    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+
+    let mut lipo_cmd = Command::new("lipo");
+    lipo_cmd
+      .arg("-create")
+      .arg("-output")
+      .arg(out_dir.join(&bin_name));
+    for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
+      crate::interface::rust::build_project(
+        runner.clone(),
+        &Some(triple.into()),
+        cargo_features.clone(),
+        options.debug,
+      )
+      .with_context(|| format!("failed to build {} binary", triple))?;
+      let triple_out_dir = app_settings
+        .get_out_dir(Some(triple.into()), options.debug)
+        .with_context(|| format!("failed to get {} out dir", triple))?;
+      lipo_cmd.arg(triple_out_dir.join(&bin_name));
+    }
+
+    let lipo_status = lipo_cmd.status()?;
+    if !lipo_status.success() {
+      return Err(anyhow::anyhow!(format!(
+        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
+        lipo_status
+      )));
+    }
+  } else {
+    crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
+      .with_context(|| "failed to build app")?;
+  }
 
   #[cfg(unix)]
   if !options.debug {

@@ -467,6 +467,8 @@ impl Settings {
       "arm"
     } else if self.target.starts_with("aarch64") {
       "aarch64"
+    } else if self.target.starts_with("universal") {
+      "universal"
     } else {
       panic!("Unexpected target triple {}", self.target)
     }

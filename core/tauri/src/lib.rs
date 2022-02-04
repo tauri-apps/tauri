@@ -172,10 +172,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use crate::{
-  event::{Event as EmittedEvent, EventHandler},
-  runtime::window::PendingWindow,
-};
+use crate::runtime::window::PendingWindow;
 use serde::Serialize;
 use std::{collections::HashMap, fmt, sync::Arc};
 
@@ -197,12 +194,14 @@ pub use {
 };
 pub use {
   self::app::WindowMenuEvent,
+  self::event::{Event, EventHandler},
   self::runtime::menu::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
   self::window::menu::MenuEvent,
 };
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, Event, GlobalWindowEvent, PathResolver,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, PathResolver,
+    RunEvent,
   },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
@@ -418,7 +417,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to a global event.
   fn listen_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(EmittedEvent) + Send + 'static,
+    F: Fn(Event) + Send + 'static,
   {
     self.manager().listen(event.into(), None, handler)
   }
@@ -426,7 +425,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to a global event only once.
   fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(EmittedEvent) + Send + 'static,
+    F: Fn(Event) + Send + 'static,
   {
     self.manager().once(event.into(), None, handler)
   }

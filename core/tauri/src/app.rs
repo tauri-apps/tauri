@@ -17,7 +17,7 @@ use crate::{
     http::{Request as HttpRequest, Response as HttpResponse},
     webview::{WebviewAttributes, WindowBuilder},
     window::{PendingWindow, WindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -80,7 +80,7 @@ impl CloseRequestApi {
 /// An application event, triggered from the event loop.
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum Event {
+pub enum RunEvent {
   /// Event loop is exiting.
   Exit,
   /// The app is about to exit
@@ -502,13 +502,18 @@ impl<R: Runtime> App<R> {
   ///   });
   /// }
   /// ```
-  pub fn run<F: FnMut(&AppHandle<R>, Event) + 'static>(mut self, mut callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
-      RunEvent::Exit => {
+      RuntimeRunEvent::Exit => {
         app_handle.cleanup_before_exit();
-        on_event_loop_event(&app_handle, RunEvent::Exit, &manager, Some(&mut callback));
+        on_event_loop_event(
+          &app_handle,
+          RuntimeRunEvent::Exit,
+          &manager,
+          Some(&mut callback),
+        );
       }
       _ => {
         on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
@@ -545,7 +550,7 @@ impl<R: Runtime> App<R> {
         &app_handle,
         event,
         &manager,
-        Option::<&mut Box<dyn FnMut(&AppHandle<R>, Event)>>::None,
+        Option::<&mut Box<dyn FnMut(&AppHandle<R>, RunEvent)>>::None,
       )
     })
   }
@@ -1187,30 +1192,30 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, Event) + 'static>(
+fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
-  event: RunEvent,
+  event: RuntimeRunEvent,
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
-  if let RunEvent::WindowClose(label) = &event {
+  if let RuntimeRunEvent::WindowClose(label) = &event {
     manager.on_window_close(label);
   }
 
   let event = match event {
-    RunEvent::Exit => Event::Exit,
-    RunEvent::ExitRequested { window_label, tx } => Event::ExitRequested {
+    RuntimeRunEvent::Exit => RunEvent::Exit,
+    RuntimeRunEvent::ExitRequested { window_label, tx } => RunEvent::ExitRequested {
       window_label,
       api: ExitRequestApi(tx),
     },
-    RunEvent::CloseRequested { label, signal_tx } => Event::CloseRequested {
+    RuntimeRunEvent::CloseRequested { label, signal_tx } => RunEvent::CloseRequested {
       label,
       api: CloseRequestApi(signal_tx),
     },
-    RunEvent::WindowClose(label) => Event::WindowClosed(label),
-    RunEvent::Ready => Event::Ready,
-    RunEvent::Resumed => Event::Resumed,
-    RunEvent::MainEventsCleared => Event::MainEventsCleared,
+    RuntimeRunEvent::WindowClose(label) => RunEvent::WindowClosed(label),
+    RuntimeRunEvent::Ready => RunEvent::Ready,
+    RuntimeRunEvent::Resumed => RunEvent::Resumed,
+    RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     _ => unimplemented!(),
   };
 

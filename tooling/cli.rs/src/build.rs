@@ -75,6 +75,7 @@ pub fn command(options: Options) -> Result<()> {
       #[cfg(target_os = "windows")]
       execute_with_output(
         Command::new("cmd")
+          .arg("/S")
           .arg("/C")
           .arg(before_build)
           .current_dir(app_dir())

@@ -982,7 +982,7 @@ impl<R: Runtime> Builder<R> {
   ///       window.set_focus().unwrap();
   ///     }
   ///     _ => {}
-  ///   })
+  ///   });
   /// ```
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]

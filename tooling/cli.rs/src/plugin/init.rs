@@ -24,7 +24,7 @@ pub struct Options {
   #[clap(short = 'n', long = "name")]
   plugin_name: String,
   /// Initializes a Tauri plugin with TypeScript API
-  #[clap(short, long)]
+  #[clap(long)]
   api: bool,
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(short, long, hide(true))]

@@ -9,10 +9,8 @@ use std::{
   io::{BufWriter, Write},
 };
 
-mod config_definition;
-
 pub fn main() -> Result<(), Box<dyn Error>> {
-  let schema = schemars::schema_for!(config_definition::Config);
+  let schema = schemars::schema_for!(tauri_utils::config::Config);
   let schema_file_path = current_dir()?.join("schema.json");
   let mut schema_file = BufWriter::new(File::create(&schema_file_path)?);
   write!(

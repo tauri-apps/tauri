@@ -5,7 +5,8 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Event, Invoke, PageLoadPayload, Window,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, PageLoadPayload, RunEvent,
+  Window,
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
@@ -45,7 +46,7 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Callback invoked when the event loop receives a new event.
   #[allow(unused_variables)]
-  fn on_event(&mut self, app: &AppHandle<R>, event: &Event) {}
+  fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
 
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
@@ -126,7 +127,7 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Runs the on_event hook for all plugins in the store.
-  pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &Event) {
+  pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
     self
       .store
       .values_mut()

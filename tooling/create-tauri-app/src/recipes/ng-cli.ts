@@ -11,14 +11,19 @@ const addAdditionalPackage = async (
 ): Promise<void> => {
   const ngCommand = ['ng', 'add', packageName, '--skip-confirmation']
 
-  if (packageManager === 'npm') {
-    await shell('npm', ['run', ...ngCommand], {
-      cwd: join(cwd, appName)
-    })
-  } else {
-    await shell(packageManager, ngCommand, {
-      cwd: join(cwd, appName)
-    })
+  switch (packageManager) {
+    case 'pnpm':
+    case 'yarn':
+      await shell(packageManager, ngCommand, {
+        cwd: join(cwd, appName)
+      })
+      break
+
+    case 'npm':
+      await shell('npm', ['run', ...ngCommand], {
+        cwd: join(cwd, appName)
+      })
+      break
   }
 }
 
@@ -58,10 +63,11 @@ const ngcli: Recipe = {
       }
     ]
   },
-  preInit: async ({ cwd, cfg, answers, packageManager }) => {
+  preInit: async ({ cwd, cfg, answers, packageManager, ci }) => {
     await shell(
       'npx',
       [
+        ci ? '--yes' : '',
         '-p',
         '@angular/cli',
         'ng',
@@ -74,24 +80,22 @@ const ngcli: Recipe = {
       }
     )
 
-    if (answers) {
-      if (answers.material) {
-        await addAdditionalPackage(
-          packageManager,
-          cwd,
-          cfg.appName,
-          '@angular/material'
-        )
-      }
+    if (answers?.material) {
+      await addAdditionalPackage(
+        packageManager,
+        cwd,
+        cfg.appName,
+        '@angular/material'
+      )
+    }
 
-      if (answers.eslint) {
-        await addAdditionalPackage(
-          packageManager,
-          cwd,
-          cfg.appName,
-          '@angular-eslint/schematics'
-        )
-      }
+    if (answers?.eslint) {
+      await addAdditionalPackage(
+        packageManager,
+        cwd,
+        cfg.appName,
+        '@angular-eslint/schematics'
+      )
     }
   },
   postInit: async ({ packageManager, cfg }) => {

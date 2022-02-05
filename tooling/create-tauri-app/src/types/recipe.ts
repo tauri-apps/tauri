@@ -7,8 +7,7 @@ export interface RecipeArgs {
   cfg: TauriBuildConfig
   packageManager: PackageManager
   ci: boolean
-  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-  answers?: undefined | void | Answers
+  answers?: Answers
 }
 
 export interface Recipe {

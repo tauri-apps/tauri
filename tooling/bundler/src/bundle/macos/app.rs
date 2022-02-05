@@ -180,7 +180,11 @@ fn create_info_plist(
   bundle_icon_file: Option<PathBuf>,
   settings: &Settings,
 ) -> crate::Result<()> {
-  let build_number = chrono::Utc::now().format("%Y%m%d.%H%M%S");
+  let format = time::format_description::parse("[year][month][day].[hour][minute][second]")
+    .map_err(|e| time::error::Error::from(e))?;
+  let build_number = time::OffsetDateTime::now_utc()
+    .format(&format)
+    .map_err(|e| time::error::Error::from(e))?;
 
   let bundle_plist_path = bundle_dir.join("Info.plist");
   let file = &mut common::create_file(&bundle_plist_path)?;

@@ -7,9 +7,16 @@
   },
   "package": {
     "productName": "Tauri API",
-    "version": "0.1.0"
+    "version": "../package.json"
   },
   "tauri": {
+    "pattern": {
+      "use": "isolation",
+      "options": {
+        "dir": "../isolation-dist/"
+      }
+    },
+    "macOSPrivateApi": true,
     "cli": {
       "description": "Tauri API example",
       "args": [
@@ -66,7 +73,29 @@
       ]
     },
     "allowlist": {
-      "all": true
+      "all": true,
+      "fs": {
+        "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
+      },
+      "shell": {
+        "scope": [
+          {
+            "name": "sh",
+            "cmd": "sh"
+          },
+          {
+            "name": "cmd",
+            "cmd": "cmd"
+          }
+        ]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": ["$RESOURCE/**"]
+      },
+      "http": {
+        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
+      }
     },
     "windows": [
       {
@@ -75,7 +104,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: asset: customprotocol: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com"
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

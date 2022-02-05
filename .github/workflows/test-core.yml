@@ -20,7 +20,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  build-tauri-core:
+  test-tauri-core:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -84,6 +84,8 @@ jobs:
       - name: test
         run: |
           cargo test
+          cargo test --features api-all
+          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray
 
   test-tauri-cli:
     runs-on: ${{ matrix.platform }}

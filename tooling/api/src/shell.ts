@@ -56,8 +56,7 @@ interface ChildProcess {
  * Spawns a process.
  *
  * @ignore
- * @param program The name of the program to execute e.g. 'mkdir' or 'node'.
- * @param sidecar Whether the program is a sidecar or a system program.
+ * @param program The name of the scoped command.
  * @param onEvent Event handler.
  * @param args Program arguments.
  * @param options Configuration for the process spawn.
@@ -66,7 +65,7 @@ interface ChildProcess {
 async function execute(
   onEvent: (event: CommandEvent) => void,
   program: string,
-  args?: string | string[],
+  args?: string | string[] | { [key: string]: string },
   options?: InternalSpawnOptions
 ): Promise<number> {
   if (typeof args === 'object') {
@@ -78,7 +77,7 @@ async function execute(
     message: {
       cmd: 'execute',
       program,
-      args: typeof args === 'string' ? [args] : args,
+      args,
       options,
       onEventFn: transformCallback(onEvent)
     }
@@ -341,6 +340,10 @@ type CommandEvent =
 /**
  * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`.
+ *
+ * The `openWith` value must be one of `firefox`, `google chrome`, `chromium` `safari`,
+ * `open`, `start`, `xdg-open`, `gio`, gnome-open`, `kde-open` or `wslview`.
+ *
  * @example
  * ```typescript
  * // opens the given URL on the default browser:

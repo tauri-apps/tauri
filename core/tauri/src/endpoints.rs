@@ -28,6 +28,24 @@ mod process;
 mod shell;
 mod window;
 
+/// The context passed to the invoke handler.
+pub struct InvokeContext<R: Runtime> {
+  pub window: Window<R>,
+  pub config: Arc<Config>,
+  pub package_info: PackageInfo,
+}
+
+#[cfg(test)]
+impl<R: Runtime> Clone for InvokeContext<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      config: self.config.clone(),
+      package_info: self.package_info.clone(),
+    }
+  }
+}
+
 /// The response for a JS `invoke` call.
 pub struct InvokeResponse {
   json: crate::Result<JsonValue>,
@@ -68,86 +86,95 @@ impl Module {
     config: Arc<Config>,
     package_info: PackageInfo,
   ) {
+    let context = InvokeContext {
+      window,
+      config,
+      package_info,
+    };
     match self {
       Self::App(cmd) => resolver.respond_async(async move {
         cmd
-          .run(package_info)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      Self::Process(cmd) => resolver
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
+      Self::Process(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(context)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
       Self::Fs(cmd) => resolver.respond_async(async move {
         cmd
-          .run(config, &package_info)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Path(cmd) => resolver.respond_async(async move {
         cmd
-          .run(config, &package_info)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      Self::Os(cmd) => resolver
-        .respond_async(async move { cmd.run().and_then(|r| r.json).map_err(InvokeError::from) }),
+      Self::Os(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(context)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
       Self::Window(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .await
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Shell(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Event(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Dialog(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
-      Self::Cli(cmd) => {
-        if let Some(cli_config) = config.tauri.cli.clone() {
-          resolver.respond_async(async move {
-            cmd
-              .run(&cli_config, &package_info)
-              .and_then(|r| r.json)
-              .map_err(InvokeError::from)
-          })
-        }
-      }
+      Self::Cli(cmd) => resolver.respond_async(async move {
+        cmd
+          .run(context)
+          .and_then(|r| r.json)
+          .map_err(InvokeError::from)
+      }),
       Self::Notification(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window, config, &package_info)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Http(cmd) => resolver.respond_async(async move {
         cmd
-          .run()
+          .run(context)
           .await
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::GlobalShortcut(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),
       Self::Clipboard(cmd) => resolver.respond_async(async move {
         cmd
-          .run(window)
+          .run(context)
           .and_then(|r| r.json)
           .map_err(InvokeError::from)
       }),

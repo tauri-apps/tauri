@@ -16,8 +16,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
-  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, GlobalShortcutManager, Manager,
+  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
 #[derive(Serialize)]
@@ -125,15 +125,15 @@ fn main() {
           }
           "new" => {
             app
-            .create_window(
-              "new",
-              WindowUrl::App("index.html".into()),
-              |window_builder, webview_attributes| {
-                (window_builder.title("Tauri"), webview_attributes)
-              },
-            )
-            .unwrap();
-          },
+              .create_window(
+                "new",
+                WindowUrl::App("index.html".into()),
+                |window_builder, webview_attributes| {
+                  (window_builder.title("Tauri"), webview_attributes)
+                },
+              )
+              .unwrap();
+          }
           #[cfg(target_os = "macos")]
           "icon_1" => {
             app.tray_handle().set_icon_as_template(true).unwrap();
@@ -214,7 +214,7 @@ fn main() {
 
   app.run(|app_handle, e| match e {
     // Application is ready (triggered only once)
-    Event::Ready => {
+    RunEvent::Ready => {
       let app_handle = app_handle.clone();
       app_handle
         .global_shortcut_manager()
@@ -227,7 +227,7 @@ fn main() {
     }
 
     // Triggered when a window is trying to close
-    Event::CloseRequested { label, api, .. } => {
+    RunEvent::CloseRequested { label, api, .. } => {
       let app_handle = app_handle.clone();
       let window = app_handle.get_window(&label).unwrap();
       // use the exposed close api, and prevent the event loop to close
@@ -250,7 +250,7 @@ fn main() {
 
     // Keep the event loop running even if all windows are closed
     // This allow us to catch system tray events when there is no window
-    Event::ExitRequested { api, .. } => {
+    RunEvent::ExitRequested { api, .. } => {
       api.prevent_exit();
     }
     _ => {}

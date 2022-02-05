@@ -7,7 +7,10 @@
   export let onMessage;
 
   async function makeHttpRequest() {
-    const client = await getClient();
+    const client = await getClient().catch(e => {
+      onMessage(e)
+      throw e
+    });
     let method = httpMethod || "GET";
     let url = httpUrl || "";
 

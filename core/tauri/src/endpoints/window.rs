@@ -156,7 +156,7 @@ impl Cmd {
     let label = options.label.clone();
     let url = options.url.clone();
 
-    window.create_window(label.clone(), url, |_, webview_attributes| {
+    window.create_window(label, url, |_, webview_attributes| {
       (
         <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
         webview_attributes,

@@ -661,7 +661,11 @@ pub fn build_wix_app_installer(
     let prefix_len = "<String ".len();
     for locale_string in locale_strings.split('\n').filter(|s| !s.is_empty()) {
       // strip `<String ` prefix and `>{value}</String` suffix.
-      let id = locale_string.chars().skip(prefix_len).take(locale_string.find('>').unwrap() - prefix_len).collect::<String>();
+      let id = locale_string
+        .chars()
+        .skip(prefix_len)
+        .take(locale_string.find('>').unwrap() - prefix_len)
+        .collect::<String>();
       if !locale_contents.contains(&id) {
         unset_locale_strings.push_str(locale_string);
       }

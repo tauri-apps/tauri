@@ -28,16 +28,17 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Example
 /// ```rust,ignore
-/// use tauri::command;
+/// use tauri_macros::{command, generate_handler};
 /// #[command]
-/// fn command_one() {}
+/// fn command_one() {
+///   println!("command one called");
+/// }
 /// #[command]
-/// fn command_two() {}
+/// fn command_two() {
+///   println!("command two called");
+/// }
 /// fn main() {
-///   tauri::Builder::default()
-///     .invoke_handler(tauri::generate_handler![command_one, command_two])
-///     .run(tauri::generate_context!())
-///     .expect("error while running tauri application");
+///   let _handler = generate_handler![command_one, command_two];
 /// }
 /// ```
 /// # Stability

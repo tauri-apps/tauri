@@ -422,33 +422,11 @@ macro_rules! shared_app_impl {
         self.manager.package_info()
       }
 
-      /// Gets the managed [`Env`].
-      pub fn env(&self) -> Env {
-        self.state::<Env>().inner().clone()
-      }
-
       /// The application's asset resolver.
       pub fn asset_resolver(&self) -> AssetResolver<R> {
         AssetResolver {
           manager: self.manager.clone(),
         }
-      }
-
-      /// Gets the scope for the filesystem APIs.
-      pub fn fs_scope(&self) -> FsScope {
-        self.state::<Scopes>().inner().fs.clone()
-      }
-
-      /// Gets the scope for the asset protocol.
-      #[cfg(protocol_asset)]
-      pub fn asset_protocol_scope(&self) -> FsScope {
-        self.state::<Scopes>().inner().asset_protocol.clone()
-      }
-
-      /// Gets the scope for the shell execute APIs.
-      #[cfg(shell_scope)]
-      pub fn shell_scope(&self) -> ShellScope {
-        self.state::<Scopes>().inner().shell.clone()
       }
     }
   };
@@ -466,10 +444,11 @@ impl<R: Runtime> App<R> {
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// fn main() {
   ///   let mut app = tauri::Builder::default()
-  ///     .build(tauri::generate_context!())
+  ///     // on an actual app, remove the string argument
+  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///     .expect("error while building tauri application");
   ///   #[cfg(target_os = "macos")]
   ///   app.set_activation_policy(tauri::ActivationPolicy::Accessory);
@@ -489,13 +468,14 @@ impl<R: Runtime> App<R> {
   /// Runs the application.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// fn main() {
   ///   let app = tauri::Builder::default()
-  ///     .build(tauri::generate_context!())
+  ///     // on an actual app, remove the string argument
+  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///     .expect("error while building tauri application");
   ///   app.run(|_app_handle, event| match event {
-  ///     tauri::Event::ExitRequested { api, .. } => {
+  ///     tauri::RunEvent::ExitRequested { api, .. } => {
   ///       api.prevent_exit();
   ///     }
   ///     _ => {}
@@ -528,14 +508,15 @@ impl<R: Runtime> App<R> {
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// fn main() {
   ///   let mut app = tauri::Builder::default()
-  ///     .build(tauri::generate_context!())
+  ///     // on an actual app, remove the string argument
+  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///     .expect("error while building tauri application");
   ///   loop {
   ///     let iteration = app.run_iteration();
-  ///     if iteration.webview_count == 0 {
+  ///     if iteration.window_count == 0 {
   ///       break;
   ///     }
   ///   }
@@ -614,10 +595,11 @@ impl<R: Runtime> App<R> {
 /// Builds a Tauri application.
 ///
 /// # Example
-/// ```rust,ignore
+/// ```rust,no_run
 /// fn main() {
 ///   tauri::Builder::default()
-///    .run(tauri::generate_context!())
+///     // on an actual app, remove the string argument
+///     .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
 ///    .expect("error while running tauri application");
 /// }
 /// ```
@@ -695,7 +677,7 @@ impl<R: Runtime> Builder<R> {
   /// Defines the JS message handler callback.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// #[tauri::command]
   /// fn command_1() -> String {
   ///   return "hello world".to_string();
@@ -734,11 +716,12 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
+  /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let main_window = app.get_window("main").unwrap();
-  ///     dialog::message(Some(&main_window), "Hello", "Welcome back!");
+  #[cfg_attr(feature = "dialog", doc = r#"     tauri::api::dialog::blocking::message(Some(&main_window), "Hello", "Welcome back!");"#)]
   ///     Ok(())
   ///   });
   /// ```
@@ -786,7 +769,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
@@ -807,18 +790,19 @@ impl<R: Runtime> Builder<R> {
   /// }
   ///
   /// fn main() {
-  ///   Builder::default()
+  ///   tauri::Builder::default()
   ///     .manage(Storage(Default::default()))
   ///     .manage(DbConnection(Default::default()))
   ///     .invoke_handler(tauri::generate_handler![connect, storage_insert])
-  ///     .run(tauri::generate_context!())
+  ///     // on an actual app, remove the string argument
+  ///     .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///     .expect("error while running tauri application");
   /// }
   /// ```
   ///
   /// # Example
   ///
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::State;
   ///
   /// struct MyInt(isize);
@@ -839,7 +823,8 @@ impl<R: Runtime> Builder<R> {
   ///         .manage(MyInt(10))
   ///         .manage(MyString("Hello, managed state!".to_string()))
   ///         .invoke_handler(tauri::generate_handler![int_command, string_command])
-  ///         .run(tauri::generate_context!())
+  ///         // on an actual app, remove the string argument
+  ///         .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///         .expect("error while running tauri application");
   /// }
   /// ```
@@ -860,7 +845,8 @@ impl<R: Runtime> Builder<R> {
   /// Creates a new webview window.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
+  /// use tauri::WindowBuilder;
   /// tauri::Builder::default()
   ///   .create_window("main", tauri::WindowUrl::default(), |win, webview| {
   ///     let win = win
@@ -906,7 +892,7 @@ impl<R: Runtime> Builder<R> {
   /// Sets the menu to use on all windows.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
   ///
   /// tauri::Builder::default()
@@ -930,8 +916,8 @@ impl<R: Runtime> Builder<R> {
   /// Registers a menu event handler for all windows.
   ///
   /// # Example
-  /// ```rust,ignore
-  /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api};
+  /// ```rust,no_run
+  /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api, Manager};
   /// tauri::Builder::default()
   ///   .menu(Menu::with_items([
   ///     MenuEntry::Submenu(Submenu::new(
@@ -945,12 +931,12 @@ impl<R: Runtime> Builder<R> {
   ///   .on_menu_event(|event| {
   ///     match event.menu_item_id() {
   ///       "Learn More" => {
-  ///         // open in browser (requires shell open API to be enabled)
-  ///         api::shell::open("https://github.com/tauri-apps/tauri".to_string(), None).unwrap();
+  ///         // open in browser (requires the `shell-open-api` feature)
+  #[cfg_attr(feature = "shell-open-api", doc = r#"         api::shell::open(&event.window().shell_scope(), "https://github.com/tauri-apps/tauri".to_string(), None).unwrap();"#)]
   ///       }
   ///       id => {
-  ///         // emit others to frontend
-  ///         event.window().emit("menu", id).unwrap();
+  ///         // do something with other events
+  ///         println!("got menu event: {}", id);
   ///       }
   ///     }
   ///   });
@@ -967,7 +953,7 @@ impl<R: Runtime> Builder<R> {
   /// Registers a window event handler for all windows.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .on_window_event(|event| match event.event() {
   ///     tauri::WindowEvent::Focused(focused) => {
@@ -991,7 +977,8 @@ impl<R: Runtime> Builder<R> {
   /// Registers a system tray event handler.
   ///
   /// # Example
-  /// ```rust,ignore
+  /// ```rust,no_run
+  /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .on_system_tray_event(|app, event| match event {
   ///     // show window with id "main" when the tray is left clicked

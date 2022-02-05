@@ -4,7 +4,7 @@
 
 #[cfg(any(shell_execute, shell_sidecar))]
 use crate::api::process::Command;
-#[cfg(shell_open)]
+#[cfg(feature = "shell-open-api")]
 use crate::api::shell::Program;
 
 use regex::Regex;
@@ -280,7 +280,7 @@ impl Scope {
   ///
   /// The path is validated against the `tauri > allowlist > shell > open` validation regex, which
   /// defaults to `^https?://`.
-  #[cfg(shell_open)]
+  #[cfg(feature = "shell-open-api")]
   pub fn open(&self, path: &str, with: Option<Program>) -> Result<(), ScopeError> {
     // ensure we pass validation if the configuration has one
     if let Some(regex) = &self.0.open {

@@ -113,6 +113,7 @@ isolation = ["tauri-utils/isolation", "tauri-macros/isolation"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 updater = ["minisign-verify", "base64", "http-api", "dialog-ask"]
 http-api = ["attohttpc"]
+shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 reqwest-client = ["reqwest", "bytes"]
 command = ["shared_child", "os_pipe"]
 dialog = ["rfd"]
@@ -178,7 +179,7 @@ protocol-asset = []
 shell-all = ["shell-execute", "shell-sidecar", "shell-open"]
 shell-execute = ["command", "regex", "tauri-macros/shell-scope"]
 shell-sidecar = ["command", "regex", "tauri-macros/shell-scope"]
-shell-open = ["open", "regex", "tauri-macros/shell-scope"]
+shell-open = ["shell-open-api"]
 window-all = [
   "window-create",
   "window-center",

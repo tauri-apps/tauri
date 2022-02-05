@@ -50,7 +50,7 @@ sha2 = "0.10"
 hex = "0.4"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-chrono = "0.4"
+time = { version = "0.3", features = ["formatting"] }
 dirs-next = "2.0"
 
 [target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]

@@ -9,12 +9,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
 
 [[package]]
-name = "autocfg"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
-
-[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -25,19 +19,6 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
-
-[[package]]
-name = "chrono"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
-dependencies = [
- "libc",
- "num-integer",
- "num-traits",
- "time",
- "winapi",
-]
 
 [[package]]
 name = "fastrand"
@@ -70,22 +51,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e74d72e0f9b65b5b4ca49a346af3976df0f9c61d550727f349ecd559f251a26c"
 
 [[package]]
-name = "num-integer"
-version = "0.1.44"
+name = "num_threads"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2cc698a63b549a70bc047073d2949cce27cd1c7b0a4a862d08a8031bc2801db"
+checksum = "97ba99ba6393e2c3734791401b66902d981cb03bf190af674ca69949b6d5fb15"
 dependencies = [
- "autocfg",
- "num-traits",
-]
-
-[[package]]
-name = "num-traits"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
-dependencies = [
- "autocfg",
+ "libc",
 ]
 
 [[package]]
@@ -177,10 +148,10 @@ name = "tauri_bench"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "chrono",
  "serde",
  "serde_json",
  "tempfile",
+ "time",
 ]
 
 [[package]]
@@ -199,13 +170,13 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.1.44"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6db9e6914ab8b1ae1c260a4ae7a49b6c5611b40328a735b21862567685e73255"
+checksum = "004cbc98f30fa233c61a38bc77e96a9106e65c88f2d3bef182ae952027e5753d"
 dependencies = [
+ "itoa",
  "libc",
- "wasi",
- "winapi",
+ "num_threads",
 ]
 
 [[package]]
@@ -213,12 +184,6 @@ name = "unicode-xid"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
-
-[[package]]
-name = "wasi"
-version = "0.10.0+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "winapi"

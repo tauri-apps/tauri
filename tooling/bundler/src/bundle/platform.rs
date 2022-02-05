@@ -16,7 +16,7 @@ struct RustCfg {
 fn parse_rust_cfg(cfg: String) -> RustCfg {
   let target_line = "target_arch=\"";
   let mut target_arch = None;
-  for line in cfg.split("\n") {
+  for line in cfg.split('\n') {
     if line.starts_with(target_line) {
       let len = target_line.len();
       let arch = line.chars().skip(len).take(line.len() - len - 1).collect();

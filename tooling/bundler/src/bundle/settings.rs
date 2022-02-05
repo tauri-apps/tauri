@@ -176,11 +176,28 @@ pub struct MacOsSettings {
   pub info_plist_path: Option<PathBuf>,
 }
 
+/// Configuration for a target language for the WiX build.
+#[derive(Debug, Clone, Default)]
+pub struct WixLanguageConfig {
+  /// The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.
+  pub locale_path: Option<PathBuf>,
+}
+
+/// The languages to build using WiX.
+#[derive(Debug, Clone)]
+pub struct WixLanguage(pub Vec<(String, WixLanguageConfig)>);
+
+impl Default for WixLanguage {
+  fn default() -> Self {
+    Self(vec![("en-US".into(), Default::default())])
+  }
+}
+
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
-  /// The app language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
-  pub language: String,
+  /// The app languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  pub language: WixLanguage,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
@@ -310,6 +327,7 @@ impl BundleBinary {
   }
 
   /// Sets the src path of the binary.
+  #[must_use]
   pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
     self.src_path = src_path;
     self
@@ -381,6 +399,7 @@ impl SettingsBuilder {
   }
 
   /// Sets the project output directory. It's used as current working directory.
+  #[must_use]
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
@@ -389,36 +408,42 @@ impl SettingsBuilder {
   }
 
   /// Enables verbose output.
+  #[must_use]
   pub fn verbose(mut self) -> Self {
     self.verbose = true;
     self
   }
 
   /// Sets the package types to create.
+  #[must_use]
   pub fn package_types(mut self, package_types: Vec<PackageType>) -> Self {
     self.package_types = Some(package_types);
     self
   }
 
   /// Sets the package settings.
+  #[must_use]
   pub fn package_settings(mut self, settings: PackageSettings) -> Self {
     self.package_settings.replace(settings);
     self
   }
 
   /// Sets the bundle settings.
+  #[must_use]
   pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
     self.bundle_settings = settings;
     self
   }
 
   /// Sets the binaries to bundle.
+  #[must_use]
   pub fn binaries(mut self, binaries: Vec<BundleBinary>) -> Self {
     self.binaries = binaries;
     self
   }
 
   /// Sets the target triple.
+  #[must_use]
   pub fn target(mut self, target: String) -> Self {
     self.target.replace(target);
     self

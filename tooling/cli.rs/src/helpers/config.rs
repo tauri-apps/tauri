@@ -9,9 +9,34 @@ use serde_json::Value as JsonValue;
 
 pub use tauri_utils::config::*;
 
+use std::{
+  env::set_var,
+  process::exit,
+  sync::{Arc, Mutex},
+};
+
+pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
+
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
-    language: config.language,
+    language: tauri_bundler::WixLanguage(match config.language {
+      WixLanguage::One(lang) => vec![(lang, Default::default())],
+      WixLanguage::List(languages) => languages
+        .into_iter()
+        .map(|lang| (lang, Default::default()))
+        .collect(),
+      WixLanguage::Localized(languages) => languages
+        .into_iter()
+        .map(|(lang, config)| {
+          (
+            lang,
+            tauri_bundler::WixLanguageConfig {
+              locale_path: config.locale_path.map(Into::into),
+            },
+          )
+        })
+        .collect(),
+    }),
     template: config.template,
     fragment_paths: config.fragment_paths,
     component_group_refs: config.component_group_refs,
@@ -26,14 +51,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     dialog_image_path: config.dialog_image_path,
   }
 }
-
-use std::{
-  env::set_var,
-  process::exit,
-  sync::{Arc, Mutex},
-};
-
-pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
 
 fn config_handle() -> &'static ConfigHandle {
   static CONFING_HANDLE: Lazy<ConfigHandle> = Lazy::new(Default::default);

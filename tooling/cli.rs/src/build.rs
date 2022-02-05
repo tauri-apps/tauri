@@ -224,7 +224,7 @@ pub fn command(options: Options) -> Result<()> {
       } else {
         panic!(
           "Unexpected target architecture {}",
-          target.split("_").next().unwrap()
+          target.split('_').next().unwrap()
         )
       };
       let (filename, vcruntime_msm) = if arch == "x86" {

@@ -13,9 +13,9 @@ cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 cd "{{app_name}}.AppDir"
 
 # Copy WebKit files.
-find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
-find /usr/lib* -name WebKitWebProcess -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
-find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p $(dirname '{}') \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
+find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
 wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
 chmod +x AppRun
@@ -33,4 +33,10 @@ wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxde
 chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-x86_64.AppImage
 
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+args=()
+if ! lsmod | grep -q 'fuse'
+then
+  args+=( '--appimage-extract-and-run' )
+fi
+
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage "${args[@]}" --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

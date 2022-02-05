@@ -1,4 +1,4 @@
-<img src="docs/splash.png" alt="Tauri" />
+<img src=".github/splash.png" alt="Tauri" />
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
@@ -7,7 +7,7 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
+[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/get-started/intro)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 

@@ -11,6 +11,7 @@ use syn::{
   LitStr, PathArguments, PathSegment, Token,
 };
 use tauri_codegen::{context_codegen, get_config, ContextData};
+use tauri_utils::config::parse::does_supported_extension_exist;
 
 pub(crate) struct ContextItems {
   config_file: PathBuf,
@@ -35,7 +36,7 @@ impl Parse for ContextItems {
       VarError::NotUnicode(_) => "CARGO_MANIFEST_DIR env var contained invalid utf8".into(),
     })
     .and_then(|path| {
-      if path.exists() {
+      if does_supported_extension_exist(&path) {
         Ok(path)
       } else {
         Err(format!(

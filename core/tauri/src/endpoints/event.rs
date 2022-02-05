@@ -2,15 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{endpoints::InvokeResponse, runtime::Runtime, sealed::ManagerBase, Manager, Window};
-use serde::Deserialize;
+use super::InvokeContext;
+use crate::{
+  api::ipc::CallbackFn, event::is_event_name_valid, sealed::ManagerBase, Manager, Runtime, Window,
+};
+use serde::{de::Deserializer, Deserialize};
+use tauri_macros::CommandModule;
+
+pub struct EventId(String);
+
+impl<'de> Deserialize<'de> for EventId {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let event_id = String::deserialize(deserializer)?;
+    if is_event_name_valid(&event_id) {
+      Ok(EventId(event_id))
+    } else {
+      Err(serde::de::Error::custom(
+        "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
+      ))
+    }
+  }
+}
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Listen to an event.
-  Listen { event: String, handler: String },
+  Listen { event: EventId, handler: CallbackFn },
   /// Unlisten to an event.
   #[serde(rename_all = "camelCase")]
   Unlisten { event_id: u64 },
@@ -18,42 +40,52 @@ pub enum Cmd {
   /// If the window_label is omitted, the event will be triggered on all listeners.
   #[serde(rename_all = "camelCase")]
   Emit {
-    event: String,
+    event: EventId,
     window_label: Option<String>,
     payload: Option<String>,
   },
 }
 
 impl Cmd {
-  pub fn run<R: Runtime>(self, window: Window<R>) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::Listen { event, handler } => {
-        let event_id = rand::random();
-        window.eval(&listen_js(&window, event.clone(), event_id, handler))?;
-        window.register_js_listener(event, event_id);
-        Ok(event_id.into())
-      }
-      Self::Unlisten { event_id } => {
-        window.eval(&unlisten_js(&window, event_id))?;
-        window.unregister_js_listener(event_id);
-        Ok(().into())
-      }
-      Self::Emit {
-        event,
-        window_label,
-        payload,
-      } => {
-        // dispatch the event to Rust listeners
-        window.trigger(&event, payload.clone());
+  fn listen<R: Runtime>(
+    context: InvokeContext<R>,
+    event: EventId,
+    handler: CallbackFn,
+  ) -> crate::Result<u64> {
+    let event_id = rand::random();
+    context.window.eval(&listen_js(
+      &context.window,
+      event.0.clone(),
+      event_id,
+      handler,
+    ))?;
+    context.window.register_js_listener(event.0, event_id);
+    Ok(event_id)
+  }
 
-        if let Some(target) = window_label {
-          window.emit_to(&target, &event, payload)?;
-        } else {
-          window.emit_all(&event, payload)?;
-        }
-        Ok(().into())
-      }
+  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> crate::Result<()> {
+    context
+      .window
+      .eval(&unlisten_js(&context.window, event_id))?;
+    context.window.unregister_js_listener(event_id);
+    Ok(())
+  }
+
+  fn emit<R: Runtime>(
+    context: InvokeContext<R>,
+    event: EventId,
+    window_label: Option<String>,
+    payload: Option<String>,
+  ) -> crate::Result<()> {
+    // dispatch the event to Rust listeners
+    context.window.trigger(&event.0, payload.clone());
+
+    if let Some(target) = window_label {
+      context.window.emit_to(&target, &event.0, payload)?;
+    } else {
+      context.window.emit_all(&event.0, payload)?;
     }
+    Ok(())
   }
 }
 
@@ -76,7 +108,7 @@ pub fn listen_js<R: Runtime>(
   window: &Window<R>,
   event: String,
   event_id: u64,
-  handler: String,
+  handler: CallbackFn,
 ) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
@@ -87,12 +119,12 @@ pub fn listen_js<R: Runtime>(
     }}
     window['{listeners}']['{event}'].push({{
       id: {event_id},
-      handler: window['{handler}']
+      handler: window['_{handler}']
     }});
   ",
     listeners = window.manager().event_listeners_object_name(),
     event = event,
     event_id = event_id,
-    handler = handler
+    handler = handler.0
   )
 }

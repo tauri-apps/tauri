@@ -4,7 +4,7 @@
 
 use super::{
   app_paths::tauri_dir,
-  config::{all_allowlist_features, ConfigHandle},
+  config::{ConfigHandle, PatternKind},
 };
 
 use anyhow::Context;
@@ -14,6 +14,7 @@ use std::{
   collections::HashSet,
   fs::File,
   io::{Read, Write},
+  iter::FromIterator,
   path::Path,
 };
 
@@ -46,65 +47,41 @@ fn toml_array(features: &HashSet<String>) -> Array {
   f
 }
 
-pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
-  let manifest_path = tauri_dir().join("Cargo.toml");
-  let mut manifest = read_manifest(&manifest_path)?;
-  let dependencies = manifest
-    .as_table_mut()
-    .entry("dependencies")
-    .or_insert(Item::Table(Table::new()))
-    .as_table_mut()
-    .expect("manifest dependencies isn't a table");
+fn write_features(
+  dependencies: &mut Table,
+  dependency_name: &str,
+  all_features: Vec<&str>,
+  features: &mut HashSet<String>,
+) -> crate::Result<bool> {
+  let item = dependencies.entry(dependency_name).or_insert(Item::None);
 
-  let tauri_item = dependencies.entry("tauri").or_insert(Item::None);
-
-  let config_guard = config.lock().unwrap();
-  let config = config_guard.as_ref().unwrap();
-
-  let allowlist_features = config.tauri.features();
-  let mut features = HashSet::new();
-  for feature in allowlist_features {
-    features.insert(feature.to_string());
-  }
-  if config.tauri.cli.is_some() {
-    features.insert("cli".to_string());
-  }
-  if config.tauri.updater.active {
-    features.insert("updater".to_string());
-  }
-  if config.tauri.system_tray.is_some() {
-    features.insert("system-tray".to_string());
-  }
-
-  let mut cli_managed_features = all_allowlist_features();
-  cli_managed_features.extend(vec!["cli", "updater", "system-tray"]);
-
-  if let Some(tauri) = tauri_item.as_table_mut() {
-    let manifest_features = tauri.entry("features").or_insert(Item::None);
+  if let Some(dep) = item.as_table_mut() {
+    let manifest_features = dep.entry("features").or_insert(Item::None);
     if let Item::Value(Value::Array(f)) = &manifest_features {
       for feat in f.iter() {
         if let Value::String(feature) = feat {
-          if !cli_managed_features.contains(&feature.value().as_str()) {
+          if !all_features.contains(&feature.value().as_str()) {
             features.insert(feature.value().to_string());
           }
         }
       }
     }
-    *manifest_features = Item::Value(Value::Array(toml_array(&features)));
-  } else if let Some(tauri) = tauri_item.as_value_mut() {
-    match tauri {
+    *manifest_features = Item::Value(Value::Array(toml_array(features)));
+    Ok(true)
+  } else if let Some(dep) = item.as_value_mut() {
+    match dep {
       Value::InlineTable(table) => {
         let manifest_features = table.get_or_insert("features", Value::Array(Default::default()));
         if let Value::Array(f) = &manifest_features {
           for feat in f.iter() {
             if let Value::String(feature) = feat {
-              if !cli_managed_features.contains(&feature.value().as_str()) {
+              if !all_features.contains(&feature.value().as_str()) {
                 features.insert(feature.value().to_string());
               }
             }
           }
         }
-        *manifest_features = Value::Array(toml_array(&features));
+        *manifest_features = Value::Array(toml_array(features));
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
@@ -112,34 +89,89 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
           "version",
           version.to_string().replace('\"', "").replace(' ', ""),
         );
-        def.get_or_insert("features", Value::Array(toml_array(&features)));
-        *tauri = Value::InlineTable(def);
+        def.get_or_insert("features", Value::Array(toml_array(features)));
+        *dep = Value::InlineTable(def);
       }
       _ => {
         return Err(anyhow::anyhow!(
-          "Unsupported tauri dependency format on Cargo.toml"
+          "Unsupported {} dependency format on Cargo.toml",
+          dependency_name
         ))
       }
     }
+    Ok(true)
   } else {
-    return Ok(Manifest { features });
+    Ok(false)
   }
+}
 
-  let mut manifest_file =
-    File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-  manifest_file.write_all(
+pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
+  let manifest_path = tauri_dir().join("Cargo.toml");
+  let mut manifest = read_manifest(&manifest_path)?;
+
+  let config_guard = config.lock().unwrap();
+  let config = config_guard.as_ref().unwrap();
+
+  let mut tauri_build_features = HashSet::new();
+  if let PatternKind::Isolation { .. } = config.tauri.pattern {
+    tauri_build_features.insert("isolation".to_string());
+  }
+  let resp = write_features(
     manifest
-      .to_string()
-      // apply some formatting fixes
-      .replace(r#"" ,features =["#, r#"", features = ["#)
-      .replace("]}", "] }")
-      .replace("={", "= {")
-      .replace("=[", "= [")
-      .as_bytes(),
+      .as_table_mut()
+      .entry("build-dependencies")
+      .or_insert(Item::Table(Table::new()))
+      .as_table_mut()
+      .expect("manifest build-dependencies isn't a table"),
+    "tauri-build",
+    vec!["isolation"],
+    &mut tauri_build_features,
   )?;
-  manifest_file.flush()?;
 
-  Ok(Manifest { features })
+  let mut tauri_features =
+    HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
+  let cli_managed_tauri_features = super::config::TauriConfig::all_features();
+  let res = match write_features(
+    manifest
+      .as_table_mut()
+      .entry("dependencies")
+      .or_insert(Item::Table(Table::new()))
+      .as_table_mut()
+      .expect("manifest dependencies isn't a table"),
+    "tauri",
+    cli_managed_tauri_features,
+    &mut tauri_features,
+  ) {
+    Err(e) => Err(e),
+    Ok(t) if !resp => Ok(t),
+    _ => Ok(true),
+  };
+
+  match res {
+    Ok(true) => {
+      let mut manifest_file =
+        File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
+      manifest_file.write_all(
+        manifest
+          .to_string()
+          // apply some formatting fixes
+          .replace(r#"" ,features =["#, r#"", features = ["#)
+          .replace(r#"" , features"#, r#"", features"#)
+          .replace("]}", "] }")
+          .replace("={", "= {")
+          .replace("=[", "= [")
+          .as_bytes(),
+      )?;
+      manifest_file.flush()?;
+      Ok(Manifest {
+        features: tauri_features,
+      })
+    }
+    Ok(false) => Ok(Manifest {
+      features: tauri_features,
+    }),
+    Err(e) => Err(e),
+  }
 }
 
 pub fn get_workspace_members() -> crate::Result<Vec<String>> {

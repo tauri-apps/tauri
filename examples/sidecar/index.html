@@ -13,7 +13,7 @@
       const div = document.querySelector('div')
       window.__TAURI__.event.listen('message', (event) => {
         const p = document.createElement('p')
-        p.innerHTML = event.payload
+        p.innerText = event.payload
         div.appendChild(p)
       })
     </script>

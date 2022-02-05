@@ -69,11 +69,6 @@ package-lock.json
 proptest-regressions/
 TODO.md
 
-
-# Tauri output
-/bundle.json
-/config.json
-
 # rust compiled folders
 target
 

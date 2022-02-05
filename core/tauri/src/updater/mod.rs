@@ -336,7 +336,7 @@ use crate::{
   api::{dialog::blocking::ask, process::restart},
   runtime::Runtime,
   utils::config::UpdaterConfig,
-  Window,
+  Env, Manager, Window,
 };
 
 /// Check for new updates
@@ -379,8 +379,13 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
   window: Window<R>,
 ) {
   if let Some(endpoints) = updater_config.endpoints.clone() {
+    let endpoints = endpoints
+      .iter()
+      .map(|e| e.to_string())
+      .collect::<Vec<String>>();
+    let env = window.state::<Env>().inner().clone();
     // check updates
-    match self::core::builder()
+    match self::core::builder(env)
       .urls(&endpoints[..])
       .current_version(&package_info.version)
       .build()
@@ -437,7 +442,9 @@ pub(crate) fn listener<R: Runtime>(
       .endpoints
       .as_ref()
       .expect("Something wrong with endpoints")
-      .clone();
+      .iter()
+      .map(|e| e.to_string())
+      .collect::<Vec<String>>();
 
     let pubkey = updater_config.pubkey.clone();
 
@@ -446,8 +453,9 @@ pub(crate) fn listener<R: Runtime>(
       let window = window.clone();
       let window_isolation = window.clone();
       let pubkey = pubkey.clone();
+      let env = window.state::<Env>().inner().clone();
 
-      match self::core::builder()
+      match self::core::builder(env)
         .urls(&endpoints[..])
         .current_version(&package_info.version)
         .build()
@@ -524,7 +532,7 @@ async fn prompt_for_install<R: Runtime>(
   updater: &self::core::Update,
   app_name: &str,
   body: &str,
-  pubkey: Option<String>,
+  pubkey: String,
 ) -> crate::Result<()> {
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
@@ -553,13 +561,14 @@ Release Notes:
     updater.download_and_install(pubkey.clone()).await?;
 
     // Ask user if we need to restart the application
+    let env = window.state::<Env>().inner().clone();
     let should_exit = ask(
       Some(&window),
       "Ready to Restart",
       "The installation was successful, do you want to restart the application now?",
     );
     if should_exit {
-      restart();
+      restart(&env);
     }
   }
 

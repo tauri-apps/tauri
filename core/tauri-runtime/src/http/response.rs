@@ -168,7 +168,8 @@ impl Builder {
   }
 
   /// Set the HTTP mimetype for this response.
-  pub fn mimetype(self, mimetype: &str) -> Builder {
+  #[must_use]
+  pub fn mimetype(self, mimetype: &str) -> Self {
     self.and_then(move |mut head| {
       head.mimetype = Some(mimetype.to_string());
       Ok(head)
@@ -176,7 +177,8 @@ impl Builder {
   }
 
   /// Set the HTTP status for this response.
-  pub fn status<T>(self, status: T) -> Builder
+  #[must_use]
+  pub fn status<T>(self, status: T) -> Self
   where
     StatusCode: TryFrom<T>,
     <StatusCode as TryFrom<T>>::Error: Into<crate::Error>,
@@ -193,7 +195,8 @@ impl Builder {
   /// will be returned from `Builder::build`.
   ///
   /// By default this is HTTP/1.1
-  pub fn version(self, version: Version) -> Builder {
+  #[must_use]
+  pub fn version(self, version: Version) -> Self {
     self.and_then(move |mut head| {
       head.version = version;
       Ok(head)
@@ -205,7 +208,8 @@ impl Builder {
   /// This function will append the provided key/value as a header to the
   /// internal `HeaderMap` being constructed. Essentially this is equivalent
   /// to calling `HeaderMap::append`.
-  pub fn header<K, V>(self, key: K, value: V) -> Builder
+  #[must_use]
+  pub fn header<K, V>(self, key: K, value: V) -> Self
   where
     HeaderName: TryFrom<K>,
     <HeaderName as TryFrom<K>>::Error: Into<crate::Error>,

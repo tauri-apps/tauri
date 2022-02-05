@@ -57,6 +57,7 @@ impl SystemTray {
   }
 
   /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  #[must_use]
   pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
     self
@@ -64,12 +65,14 @@ impl SystemTray {
 
   /// Sets the tray icon as template.
   #[cfg(target_os = "macos")]
+  #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.icon_as_template = is_template;
     self
   }
 
   /// Sets the menu to show when the system tray is right clicked.
+  #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self

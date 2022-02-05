@@ -57,11 +57,15 @@
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(windowMap[selectedWindow].setIcon);
+    }).then(path => {
+      if (path) {
+        windowMap[selectedWindow].setIcon(path)
+      }
+    });
   }
 
   function createWindow() {
-    const label = Math.random().toString();
+    const label = Math.random().toString().replace('.', '');
     const webview = new WebviewWindow(label);
     windowMap[label] = webview;
     webview.once('tauri://error', function () {

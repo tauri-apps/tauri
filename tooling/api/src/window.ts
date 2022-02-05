@@ -241,7 +241,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -262,7 +262,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -280,7 +280,7 @@ class WebviewWindowHandle {
   /**
    * Emits an event to the backend, tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
   async emit(event: string, payload?: unknown): Promise<void> {
@@ -1096,6 +1096,11 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
+  /**
+   * Creates a new WebviewWindow.
+   * * @param label The webview window label. It must be alphanumeric.
+   * @returns The WebviewWindow instance to communicate with the webview.
+   */
   constructor(
     label: WindowLabel | null | undefined,
     options: WindowOptions = {}
@@ -1173,7 +1178,11 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially hidden or focused. */
   focus?: boolean
-  /** Whether the window is transparent or not. */
+  /**
+   * Whether the window is transparent or not.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean

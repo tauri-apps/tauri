@@ -3,7 +3,7 @@ name = "navigation"
 version = "0.1.0"
 description = "A very simple Tauri Appplication with navigation"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ] }

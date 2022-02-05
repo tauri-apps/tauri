@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 //! The Tauri API interface.
-#![warn(missing_docs)]
-// #![feature(const_int_pow)]
 
+#[cfg(feature = "dialog")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "dialog")))]
 pub mod dialog;
 pub mod dir;
 pub mod file;
+#[cfg(feature = "http-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "http-api")))]
 pub mod http;
+pub mod ipc;
 pub mod path;
 pub mod process;
-pub mod rpc;
 #[cfg(shell_open)]
 pub mod shell;
 pub mod version;
@@ -25,7 +27,8 @@ pub mod cli;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
-#[cfg(notification_all)]
+#[cfg(feature = "notification")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "notification")))]
 pub mod notification;
 
 mod error;

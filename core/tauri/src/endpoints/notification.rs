@@ -111,17 +111,11 @@ fn request_permission<R: Runtime>(context: &InvokeContext<R>) -> bool {
   if let Some(allow_notification) = settings.allow_notification {
     return allow_notification;
   }
-  let (tx, rx) = std::sync::mpsc::channel();
-  crate::api::dialog::ask(
+  let answer = crate::api::dialog::blocking::ask(
     Some(&context.window),
     "Permissions",
     "This app wants to show notifications. Do you allow?",
-    move |answer| {
-      tx.send(answer).unwrap();
-    },
   );
-
-  let answer = rx.recv().unwrap();
 
   settings.allow_notification = Some(answer);
   let _ = crate::settings::write_settings(

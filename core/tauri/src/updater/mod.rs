@@ -333,13 +333,11 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::{dialog::ask, process::restart},
+  api::{dialog::blocking::ask, process::restart},
   runtime::Runtime,
   utils::config::UpdaterConfig,
   Env, Manager, Window,
 };
-
-use std::sync::mpsc::channel;
 
 /// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";
@@ -539,11 +537,9 @@ async fn prompt_for_install<R: Runtime>(
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
 
-  let (tx, rx) = channel();
-
   // todo(lemarier): We should review this and make sure we have
   // something more conventional.
-  ask(
+  let should_install = ask(
     Some(&window),
     format!(r#"A new version of {} is available! "#, app_name),
     format!(
@@ -555,10 +551,9 @@ Release Notes:
 {}"#,
       app_name, updater.version, updater.current_version, escaped_body,
     ),
-    move |should_install| tx.send(should_install).unwrap(),
   );
 
-  if rx.recv().unwrap() {
+  if should_install {
     // Launch updater download process
     // macOS we display the `Ready to restart dialog` asking to restart
     // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
@@ -567,16 +562,14 @@ Release Notes:
 
     // Ask user if we need to restart the application
     let env = window.state::<Env>().inner().clone();
-    ask(
+    let should_exit = ask(
       Some(&window),
       "Ready to Restart",
       "The installation was successful, do you want to restart the application now?",
-      move |should_exit| {
-        if should_exit {
-          restart(&env);
-        }
-      },
     );
+    if should_exit {
+      restart(&env);
+    }
   }
 
   Ok(())

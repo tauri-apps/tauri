@@ -4,14 +4,12 @@
 
 use super::{InvokeContext, InvokeResponse};
 #[cfg(any(dialog_open, dialog_save))]
-use crate::api::dialog::FileDialogBuilder;
+use crate::api::dialog::blocking::FileDialogBuilder;
 use crate::Runtime;
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
 use std::path::PathBuf;
-#[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
-use std::sync::mpsc::channel;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -99,17 +97,15 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
-    let (tx, rx) = channel();
-
-    if options.directory {
-      dialog_builder.pick_folder(move |p| tx.send(p.into()).unwrap());
+    let res = if options.directory {
+      dialog_builder.pick_folder().into()
     } else if options.multiple {
-      dialog_builder.pick_files(move |p| tx.send(p.into()).unwrap());
+      dialog_builder.pick_files().into()
     } else {
-      dialog_builder.pick_file(move |p| tx.send(p.into()).unwrap());
-    }
+      dialog_builder.pick_file().into()
+    };
 
-    Ok(rx.recv().unwrap())
+    Ok(res)
   }
 
   #[module_command_handler(dialog_save, "dialog > save")]
@@ -130,14 +126,13 @@ impl Cmd {
       let extensions: Vec<&str> = filter.extensions.iter().map(|s| &**s).collect();
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
-    let (tx, rx) = channel();
-    dialog_builder.save_file(move |p| tx.send(p).unwrap());
-    Ok(rx.recv().unwrap())
+
+    Ok(dialog_builder.save_file())
   }
 
   #[module_command_handler(dialog_message, "dialog > message")]
   fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> crate::Result<()> {
-    crate::api::dialog::message(
+    crate::api::dialog::blocking::message(
       Some(&context.window),
       &context.window.app_handle.package_info().name,
       message,
@@ -151,14 +146,11 @@ impl Cmd {
     title: Option<String>,
     message: String,
   ) -> crate::Result<bool> {
-    let (tx, rx) = channel();
-    crate::api::dialog::ask(
+    Ok(crate::api::dialog::blocking::ask(
       Some(&context.window),
       title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
       message,
-      move |m| tx.send(m).unwrap(),
-    );
-    Ok(rx.recv().unwrap())
+    ))
   }
 
   #[module_command_handler(dialog_confirm, "dialog > confirm")]
@@ -167,14 +159,11 @@ impl Cmd {
     title: Option<String>,
     message: String,
   ) -> crate::Result<bool> {
-    let (tx, rx) = channel();
-    crate::api::dialog::confirm(
+    Ok(crate::api::dialog::blocking::confirm(
       Some(&context.window),
       title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
       message,
-      move |m| tx.send(m).unwrap(),
-    );
-    Ok(rx.recv().unwrap())
+    ))
   }
 }
 

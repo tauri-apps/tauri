@@ -11,6 +11,13 @@ use std::{
 };
 use uuid::Uuid;
 
+/// Checks if an event name is valid.
+pub fn is_event_name_valid(event: &str) -> bool {
+  event
+    .chars()
+    .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
+}
+
 /// Represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EventHandler(Uuid);
@@ -310,7 +317,7 @@ pub fn listen_js(
     }}
     window['{listeners}'][{event}].push({{
       id: {event_id},
-      handler: window[{handler}]
+      handler: {handler}
     }});
   ",
     listeners = listeners_object_name,

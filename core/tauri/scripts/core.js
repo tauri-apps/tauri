@@ -158,7 +158,7 @@
       handler: window.__TAURI__.transformCallback(function (event) {
         if (event.payload) {
           var windowLabel = event.payload.label
-          window.__TAURI__.__windows.push({
+          window.__TAURI_METADATA__.__windows.push({
             label: windowLabel
           })
         }

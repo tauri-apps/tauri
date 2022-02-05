@@ -424,20 +424,20 @@ impl<R: Runtime> WindowManager<R> {
 
     webview_attributes = webview_attributes
       .initialization_script(&self.inner.invoke_initialization_script)
-      .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
       .initialization_script(&format!(
         r#"
-          if (!window.__TAURI__) {{
-            Object.defineProperty(window, '__TAURI__', {{
-              value: {{}}
-            }})
-          }}
-          window.__TAURI__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }});
-          window.__TAURI__.__currentWindow = {{ label: {current_window_label} }}
+          Object.defineProperty(window, '__TAURI_METADATA__', {{
+            value: {{
+              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              __currentWindow: {{ label: {current_window_label} }}
+            }}
+          }})
         "#,
         window_labels_array = serde_json::to_string(pending_labels)?,
         current_window_label = serde_json::to_string(&label)?,
-      ));
+      ))
+      .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
+      ;
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -1164,7 +1164,7 @@ fn on_window_event<R: Runtime>(
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
-          r#"window.__TAURI__.__windows = window.__TAURI__.__windows.filter(w => w.label !== "{}");"#,
+          r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
           label
         ))?;
       }

@@ -54,10 +54,11 @@ export async function runOnRustCli(
       // running local CLI since test directory exists
       const cliPath = resolve(targetPath, '../cli.rs')
       spawnSync('cargo', ['build', '--release'], cliPath)
-      const localCliPath = resolve(
-        targetPath,
-        '../cli.rs/target/release/cargo-tauri'
-      )
+      const localCliPath = process.env.CARGO_TARGET_DIR
+        ? join(process.env.CARGO_TARGET_DIR, 'release/cargo-tauri')
+        : process.env.CARGO_BUILD_TARGET_DIR
+        ? join(process.env.CARGO_BUILD_TARGET_DIR, 'release/cargo-tauri')
+        : resolve(targetPath, '../cli.rs/target/release/cargo-tauri')
       pid = spawn(localCliPath, ['tauri', command, ...args], cwd, onClose)
     } else {
       spawnSync(

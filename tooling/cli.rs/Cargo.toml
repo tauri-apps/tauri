@@ -5,7 +5,7 @@ name = "tauri-cli"
 version = "1.0.0-beta.7"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
@@ -18,7 +18,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "=3.0.0-rc.9", features = [ "derive" ] }
+clap = { version = "=3.0.7", features = [ "derive" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.0-beta.4", path = "../bundler" }
 colored = "2.0"
@@ -30,10 +30,10 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.12"
 json-patch = "0.2"
-schemars = { version = "0.8", features = ["url"] }
+tauri-utils = { version = "1.0.0-beta.3", path = "../../core/tauri-utils", features = ["isolation", "schema", "config-json5"] }
 toml = "0.5"
 valico = "3.6"
-handlebars = "4.1"
+handlebars = "4.2"
 include_dir = "0.7"
 minisign = "0.7"
 base64 = "0.13.0"
@@ -55,10 +55,14 @@ url = { version = "2.2", features = [ "serde" ] }
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"
 
+[target."cfg(not(windows))".dependencies]
+humansize = "1.1"
+
 [target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.4"
 
 [build-dependencies]
+tauri-utils = { version = "1.0.0-beta.3", features = ["schema", "isolation"], path = "../../core/tauri-utils" }
 schemars = { version = "0.8", features = ["url"] }
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"

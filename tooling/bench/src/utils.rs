@@ -41,7 +41,7 @@ pub fn get_target() -> &'static str {
   #[cfg(target_os = "linux")]
   return "x86_64-unknown-linux-gnu";
   #[cfg(target_os = "windows")]
-  return unimplemented!();
+  unimplemented!();
 }
 
 pub fn target_dir() -> PathBuf {

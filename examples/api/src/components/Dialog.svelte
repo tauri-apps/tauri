@@ -3,6 +3,7 @@
   import { readBinaryFile } from "@tauri-apps/api/fs";
 
   export let onMessage;
+  export let insecureRenderHtml;
   let defaultPath = null;
   let filter = null;
   let multiple = false;
@@ -22,6 +23,7 @@
 
   function openDialog() {
     open({
+      title: 'My wonderful open dialog',
       defaultPath,
       filters: filter
         ? [
@@ -51,7 +53,7 @@
                     new Uint8Array(response),
                     function (base64) {
                       var src = "data:image/png;base64," + base64;
-                      onMessage('<img src="' + src + '"></img>');
+                      insecureRenderHtml('<img src="' + src + '"></img>');
                     }
                   );
                 } else {
@@ -69,6 +71,7 @@
 
   function saveDialog() {
     save({
+      title: 'My wonderful save dialog',
       defaultPath,
       filters: filter
         ? [

@@ -13,20 +13,19 @@
             Id="*"
             Name="{{{product_name}}}"
             UpgradeCode="{{{upgrade_code}}}"
-            Language="{{language_id}}"
-            Codepage="{{ascii_codepage}}"
+            Language="!(loc.TauriLanguage)"
             Manufacturer="{{{manufacturer}}}"
             Version="{{{version}}}">
 
         <Package Id="*"
                  Keywords="Installer"
                  InstallerVersion="450"
-                 Languages="{{language_id}}"
+                 Languages="0"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="{{ascii_codepage}}"/>
+                 SummaryCodepage="!(loc.TauriCodepage)"/>
 
-        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+        <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)"
           AllowSameVersionUpgrades="yes" />
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
@@ -46,8 +45,13 @@
         <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
         <SetProperty Id="ARPNOMODIFY" Value="1" After="InstallValidate" Sequence="execute"/>
 
+        <!-- initialize with previous InstallDir -->
+        <Property Id="INSTALLDIR">
+            <RegistrySearch Id="PrevInstallDirReg" Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="InstallDir" Type="raw"/>
+        </Property>
+
         <!-- launch app checkbox -->
-        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch {{{product_name}}}" />
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
         <Property Id="WixShellExecTarget" Value="{{{app_exe_source}}}" />
         <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
@@ -79,7 +83,7 @@
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
-                    <RegistryValue Root="HKCU" Key="Software\\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
                 </Component>
             </Directory>
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
@@ -91,6 +95,11 @@
         </Directory>
 
         <DirectoryRef Id="INSTALLDIR">
+            <Component Id="RegistryEntries" Guid="*">
+                <RegistryKey Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}">
+                    <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+                </RegistryKey>
+            </Component>
             <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
             </Component>
@@ -122,9 +131,9 @@
 				<RemoveFolder Id="INSTALLDIR"
 							  On="uninstall" />
 
-				<RegistryValue Root="HKCR"
+				<RegistryValue Root="HKCU"
 							   Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
-							   Name="installed"
+							   Name="Uninstaller Shortcut"
 							   Type="integer"
 							   Value="1"
 							   KeyPath="yes" />
@@ -139,16 +148,16 @@
                     Target="[!Path]"
                     Icon="ProductIcon"
                     WorkingDirectory="INSTALLDIR">
-                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{manufacturer}}}"/>
+                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{bundle_id}}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
            </Component>
         </DirectoryRef>
 
         {{#each merge_modules as |msm| ~}}
         <DirectoryRef Id="TARGETDIR">
-            <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="0"/>
+            <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="!(loc.TauriLanguage)" />
         </DirectoryRef>
 
         <Feature Id="{{ msm.name }}" Title="{{ msm.name }}" AllowAdvertise="no" Display="hidden" Level="1">
@@ -159,12 +168,14 @@
         <Feature
                 Id="MainProgram"
                 Title="Application"
-                Description="Installs {{{product_name}}}."
+                Description="!(loc.InstallAppFeature)"
                 Level="1"
                 ConfigurableDirectory="INSTALLDIR"
                 AllowAdvertise="no"
                 Display="expand"
                 Absent="disallow">
+
+            <ComponentRef Id="RegistryEntries"/>
 
             {{#each resource_file_ids as |resource_file_id| ~}}
                 <ComponentRef Id="{{ resource_file_id }}"/>
@@ -188,7 +199,7 @@
             <Feature
                 Id="Environment"
                 Title="PATH Environment Variable"
-                Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
+                Description="!(loc.PathEnvVarFeature)"
                 Level="1"
                 Absent="allow">
             <ComponentRef Id="Path"/>

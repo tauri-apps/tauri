@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { execa, Options, ExecaChildProcess } from 'execa'
+import execa, { Options, ExecaChildProcess } from 'execa'
 
 export const shell = async (
   command: string,

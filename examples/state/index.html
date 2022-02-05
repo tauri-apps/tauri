@@ -31,7 +31,7 @@
       const responseContainer = document.querySelector('#response')
 
       function updateResponse(response) {
-        responseContainer.innerHTML =
+        responseContainer.innerText =
           typeof response === 'string' ? response : JSON.stringify(response)
       }
 

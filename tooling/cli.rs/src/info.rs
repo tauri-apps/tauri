@@ -438,7 +438,6 @@ pub fn command(_options: Options) -> Result<()> {
       }
       .display();
     } else {
-    }
 
     InfoBlock {
       section: false,

@@ -9,7 +9,11 @@
 
   <body>
     <h1></h1>
-    <button onclick="window.history.back()">Back</button>
+    <button>Back</button>
+    <script>
+      const button = document.querySelector('button')
+      button.addEventListener('click', () => window.history.back())
+    </script>
     <script src="index.js"></script>
   </body>
 </html>

@@ -206,18 +206,21 @@ impl Menu {
   }
 
   /// Adds the custom menu item to the menu.
+  #[must_use]
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuEntry::CustomItem(item));
     self
   }
 
   /// Adds a native item to the menu.
+  #[must_use]
   pub fn add_native_item(mut self, item: MenuItem) -> Self {
     self.items.push(MenuEntry::NativeItem(item));
     self
   }
 
   /// Adds an entry with submenu.
+  #[must_use]
   pub fn add_submenu(mut self, submenu: Submenu) -> Self {
     self.items.push(MenuEntry::Submenu(submenu));
     self
@@ -255,6 +258,7 @@ impl CustomMenuItem {
   }
 
   /// Assign a keyboard shortcut to the menu action.
+  #[must_use]
   pub fn accelerator<T: Into<String>>(mut self, accelerator: T) -> Self {
     self.keyboard_accelerator.replace(accelerator.into());
     self
@@ -262,6 +266,7 @@ impl CustomMenuItem {
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[must_use]
   /// A native image do render on the menu item.
   pub fn native_image(mut self, image: NativeImage) -> Self {
     self.native_image.replace(image);
@@ -269,12 +274,14 @@ impl CustomMenuItem {
   }
 
   /// Mark the item as disabled.
+  #[must_use]
   pub fn disabled(mut self) -> Self {
     self.enabled = false;
     self
   }
 
   /// Mark the item as selected.
+  #[must_use]
   pub fn selected(mut self) -> Self {
     self.selected = true;
     self
@@ -320,18 +327,21 @@ impl SystemTrayMenu {
   }
 
   /// Adds the custom menu item to the system tray menu.
+  #[must_use]
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(SystemTrayMenuEntry::CustomItem(item));
     self
   }
 
   /// Adds a native item to the system tray menu.
+  #[must_use]
   pub fn add_native_item(mut self, item: SystemTrayMenuItem) -> Self {
     self.items.push(SystemTrayMenuEntry::NativeItem(item));
     self
   }
 
   /// Adds an entry with submenu.
+  #[must_use]
   pub fn add_submenu(mut self, submenu: SystemTraySubmenu) -> Self {
     self.items.push(SystemTrayMenuEntry::Submenu(submenu));
     self

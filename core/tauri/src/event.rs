@@ -11,6 +11,13 @@ use std::{
 };
 use uuid::Uuid;
 
+/// Checks if an event name is valid.
+pub fn is_event_name_valid(event: &str) -> bool {
+  event
+    .chars()
+    .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
+}
+
 /// Represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EventHandler(Uuid);
@@ -278,4 +285,44 @@ mod test {
       assert!(l.contains_key(&key));
     }
   }
+}
+
+pub fn unlisten_js(listeners_object_name: String, event_id: u64) -> String {
+  format!(
+    "
+      for (var event in (window['{listeners}'] || {{}})) {{
+        var listeners = (window['{listeners}'] || {{}})[event]
+        if (listeners) {{
+          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
+        }}
+      }}
+    ",
+    listeners = listeners_object_name,
+    event_id = event_id,
+  )
+}
+
+pub fn listen_js(
+  listeners_object_name: String,
+  event: String,
+  event_id: u64,
+  handler: String,
+) -> String {
+  format!(
+    "if (window['{listeners}'] === void 0) {{
+      window['{listeners}'] = Object.create(null)
+    }}
+    if (window['{listeners}'][{event}] === void 0) {{
+      window['{listeners}'][{event}] = []
+    }}
+    window['{listeners}'][{event}].push({{
+      id: {event_id},
+      handler: {handler}
+    }});
+  ",
+    listeners = listeners_object_name,
+    event = event,
+    event_id = event_id,
+    handler = handler
+  )
 }

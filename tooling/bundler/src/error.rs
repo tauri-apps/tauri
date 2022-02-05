@@ -50,6 +50,7 @@ pub enum Error {
   #[error("`{0}`")]
   JsonError(#[from] serde_json::error::Error),
   /// Regex error.
+  #[cfg(any(target_os = "macos", windows))]
   #[error("`{0}`")]
   RegexError(#[from] regex::Error),
   /// Failed to perform HTTP request.

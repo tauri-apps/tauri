@@ -29,7 +29,7 @@ const svelte: Recipe = {
   configUpdate: ({ cfg, packageManager }) => ({
     ...cfg,
     distDir: `../public`,
-    devPath: 'http://localhost:5000',
+    devPath: 'http://localhost:8080',
     beforeDevCommand: `${
       packageManager === 'npm' ? 'npm run' : packageManager
     } dev`,

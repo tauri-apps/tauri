@@ -104,7 +104,7 @@ impl Options {
 
     self.dist_dir = self.dist_dir
                 .or(request_input(
-                    r#"Whe re are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
+                    r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
                     init_defaults.framework.as_ref().map(|f| f.dist_dir()),
                     self.ci)?);
 

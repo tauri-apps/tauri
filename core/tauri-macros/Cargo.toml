@@ -8,7 +8,7 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Macros for the tauri crate."
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -19,8 +19,13 @@ proc-macro = true
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
+heck = "0.3"
 tauri-codegen = { version = "1.0.0-beta.4", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]
 compression = [ "tauri-codegen/compression" ]
+isolation = ["tauri-codegen/isolation"]
+shell-scope = ["tauri-codegen/shell-scope"]
+config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]

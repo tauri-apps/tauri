@@ -110,7 +110,7 @@ async function once<T>(
  * @returns
  */
 async function emit(event: string, payload?: unknown): Promise<void> {
-  return emitEvent(event, null, payload)
+  return emitEvent(event, undefined, payload)
 }
 
 export type { Event, EventName, EventCallback, UnlistenFn }

@@ -58,7 +58,14 @@ class Body {
    * @return The body object ready to be used on the POST and PUT requests.
    */
   static form(data: Record<string, Part>): Body {
-    return new Body('Form', data)
+    const form: Record<string, string | number[]> = {}
+    for (const key in data) {
+      // eslint-disable-next-line security/detect-object-injection
+      const v = data[key]
+      // eslint-disable-next-line security/detect-object-injection
+      form[key] = typeof v === 'string' ? v : Array.from(v)
+    }
+    return new Body('Form', form)
   }
 
   /**

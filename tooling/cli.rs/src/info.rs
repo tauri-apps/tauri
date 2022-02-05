@@ -429,22 +429,27 @@ pub fn command(_options: Options) -> Result<()> {
       .unwrap_or_default()
       .unwrap_or_default();
 
+    if build_tools.is_empty() {
+      InfoBlock {
+        section: false,
+        key: "Visual Studio Build Tools - Not installed",
+        value: None,
+        suffix: None,
+      }
+      .display();
+    } else {
+    }
+
     InfoBlock {
       section: false,
-      key: if !build_tools.is_empty() {
-        "Visual Studio Build Tools:"
-      } else {
-        "Visual Studio Build Tools - Not installed"
-      },
+      key: "Visual Studio Build Tools:",
       value: None,
       suffix: None,
     }
     .display();
 
-    if !build_tools.is_empty() {
-      for i in build_tools {
-        VersionBlock::new("  ", i).display();
-      }
+    for i in build_tools {
+      VersionBlock::new("  ", i).display();
     }
   }
 

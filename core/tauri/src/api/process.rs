@@ -4,42 +4,60 @@
 
 //! Types and functions related to child processes management.
 
-use std::{
-  env,
-  path::PathBuf,
-  process::{exit, Command as StdCommand},
-};
+use crate::Env;
 
-#[cfg(shell_execute)]
+use std::path::PathBuf;
+
+#[cfg(feature = "command")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
 mod command;
-#[cfg(shell_execute)]
+#[cfg(feature = "command")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
 pub use command::*;
 
-/// Gets the current binary.
-pub fn current_binary() -> Option<PathBuf> {
-  let mut current_binary = None;
-
-  // if we are running with an APP Image, we should return the app image path
+/// Finds the current running binary's path.
+///
+/// With exception to any following platform-specific behavior, the path is cached as soon as
+/// possible, and then used repeatedly instead of querying for a new path every time this function
+/// is called.
+///
+/// # Platform-specific behavior
+///
+/// ## Linux
+///
+/// On Linux, this function will **attempt** to detect if it's currently running from a
+/// valid [AppImage] and use that path instead.
+///
+/// ## macOS
+///
+/// On `macOS`, this function will return an error if the original path contained any symlinks
+/// due to less protection on macOS regarding symlinks. This behavior can be disabled by setting the
+/// `process-relaunch-dangerous-allow-symlink-macos` feature, although it is *highly discouraged*.
+///
+/// # Security
+///
+/// See [`tauri_utils::platform::current_exe`] for possible security implications.
+///
+/// [AppImage]: https://appimage.org/
+pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
+  // if we are running from an AppImage, we ONLY want the set AppImage path
   #[cfg(target_os = "linux")]
-  if let Some(app_image_path) = env::var_os("APPIMAGE") {
-    current_binary = Some(PathBuf::from(app_image_path));
+  if let Some(app_image_path) = &_env.appimage {
+    return Ok(PathBuf::from(app_image_path));
   }
 
-  // if we didn't extracted binary in previous step,
-  // let use the current_exe from current environment
-  if current_binary.is_none() {
-    if let Ok(current_process) = env::current_exe() {
-      current_binary = Some(current_process);
-    }
-  }
-
-  current_binary
+  tauri_utils::platform::current_exe()
 }
 
-/// Restarts the process.
-pub fn restart() {
-  if let Some(path) = current_binary() {
-    StdCommand::new(path)
+/// Restarts the currently running binary.
+///
+/// See [`current_binary`] for platform specific behavior, and
+/// [`tauri_utils::platform::current_exe`] for possible security implications.
+pub fn restart(env: &Env) {
+  use std::process::{exit, Command};
+
+  if let Ok(path) = current_binary(env) {
+    Command::new(path)
       .spawn()
       .expect("application failed to start");
   }

@@ -50,9 +50,7 @@
  *
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
- *
- * #### 'tauri://destroyed'
- * Emitted after the window is closed.
+ * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.
@@ -166,7 +164,7 @@ interface WindowDef {
 /** @ignore */
 declare global {
   interface Window {
-    __TAURI__: {
+    __TAURI_METADATA__: {
       __windows: WindowDef[]
       __currentWindow: WindowDef
     }
@@ -195,7 +193,7 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
     // @ts-expect-error
     skip: true
   })
@@ -207,7 +205,7 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  return window.__TAURI__.__windows.map(
+  return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
         // @ts-expect-error
@@ -230,12 +228,8 @@ class WebviewWindowHandle {
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel | null | undefined) {
-    try {
-      this.label = label ?? window.__TAURI__.__currentWindow.label
-    } catch {
-      this.label = ''
-    }
+  constructor(label: WindowLabel) {
+    this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }
@@ -243,7 +237,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -264,7 +258,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -282,10 +276,10 @@ class WebviewWindowHandle {
   /**
    * Emits an event to the backend, tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: string): Promise<void> {
+  async emit(event: string, payload?: unknown): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
@@ -516,6 +510,7 @@ class WindowManager extends WebviewWindowHandle {
    * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
+   * - **Linux:** Urgency levels have the same effect.
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -1007,7 +1002,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | number[]): Promise<void> {
+  async setIcon(icon: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -1017,7 +1012,8 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setIcon',
             payload: {
-              icon
+              // correctly serialize Uint8Arrays
+              icon: typeof icon === 'string' ? icon : Array.from(icon)
             }
           }
         }
@@ -1096,10 +1092,12 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(
-    label: WindowLabel | null | undefined,
-    options: WindowOptions = {}
-  ) {
+  /**
+   * Creates a new WebviewWindow.
+   * * @param label The webview window label. It must be alphanumeric.
+   * @returns The WebviewWindow instance to communicate with the webview.
+   */
+  constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1136,10 +1134,13 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(null, {
-  // @ts-expect-error
-  skip: true
-})
+const appWindow = new WebviewWindow(
+  window.__TAURI_METADATA__.__currentWindow.label,
+  {
+    // @ts-expect-error
+    skip: true
+  }
+)
 
 /** Configuration for the window to create. */
 interface WindowOptions {
@@ -1173,7 +1174,11 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially hidden or focused. */
   focus?: boolean
-  /** Whether the window is transparent or not. */
+  /**
+   * Whether the window is transparent or not.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean
@@ -1185,6 +1190,12 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   *
+   * Disabling it is required to use drag and drop on the frontend on Windows.
+   */
+  fileDropEnabled?: boolean
 }
 
 /**

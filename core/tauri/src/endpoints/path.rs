@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
-use crate::{api::path::BaseDirectory, Config, PackageInfo};
-use serde::Deserialize;
+use crate::{api::path::BaseDirectory, Runtime};
 #[cfg(path_all)]
-use std::path::{Component, Path, PathBuf, MAIN_SEPARATOR};
-use std::sync::Arc;
+use crate::{Env, Manager};
+use std::path::PathBuf;
+#[cfg(path_all)]
+use std::path::{Component, Path, MAIN_SEPARATOR};
+
+use super::InvokeContext;
+use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
+
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   ResolvePath {
@@ -41,147 +46,136 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[allow(unused_variables)]
-  pub fn run(
-    self,
-    config: Arc<Config>,
-    package_info: &PackageInfo,
-  ) -> crate::Result<InvokeResponse> {
-    #[cfg(path_all)]
-    return match self {
-      Cmd::ResolvePath { directory, path } => {
-        resolve_path_handler(&config, package_info, path, directory).map(Into::into)
-      }
-      Cmd::Resolve { paths } => resolve(paths).map(Into::into),
-      Cmd::Normalize { path } => normalize(path).map(Into::into),
-      Cmd::Join { paths } => join(paths).map(Into::into),
-      Cmd::Dirname { path } => dirname(path).map(Into::into),
-      Cmd::Extname { path } => extname(path).map(Into::into),
-      Cmd::Basename { path, ext } => basename(path, ext).map(Into::into),
-      Cmd::IsAbsolute { path } => Ok(Path::new(&path).is_absolute()).map(Into::into),
-    };
-    #[cfg(not(path_all))]
-    Err(crate::Error::ApiNotAllowlisted("path".into()))
+  #[module_command_handler(path_all, "path > all")]
+  fn resolve_path<R: Runtime>(
+    context: InvokeContext<R>,
+    path: String,
+    directory: Option<BaseDirectory>,
+  ) -> crate::Result<PathBuf> {
+    crate::api::path::resolve_path(
+      &context.config,
+      &context.package_info,
+      context.window.state::<Env>().inner(),
+      path,
+      directory,
+    )
+    .map_err(Into::into)
   }
-}
 
-#[cfg(path_all)]
-pub fn resolve_path_handler(
-  config: &Config,
-  package_info: &PackageInfo,
-  path: String,
-  directory: Option<BaseDirectory>,
-) -> crate::Result<PathBuf> {
-  crate::api::path::resolve_path(config, package_info, path, directory).map_err(Into::into)
-}
-
-#[cfg(path_all)]
-fn resolve(paths: Vec<String>) -> crate::Result<String> {
-  // Start with current directory path because users might pass empty or vec!["."]
-  // then start adding paths from the vector one by one using path.push()
-  // so if an absolute path is encountered in the iteration, we use it as the current full path
-  // examples:
-  // 1. vec!["."] or vec![] will be equal to std::env::current_dir()
-  // 2. vec!["/foo/bar", "/tmp/file", "baz"] will be equal to PathBuf::from("/tmp/file/baz")
-  let mut path = std::env::current_dir()?;
-  for p in paths {
-    path.push(p);
+  #[module_command_handler(path_all, "path > all")]
+  fn resolve<R: Runtime>(_context: InvokeContext<R>, paths: Vec<String>) -> crate::Result<PathBuf> {
+    // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
+    // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
+    //
+    // examples:
+    // 1. `vec!["."]` or `vec![]` will be equal to `std::env::current_dir()`
+    // 2. `vec!["/foo/bar", "/tmp/file", "baz"]` will be equal to `PathBuf::from("/tmp/file/baz")`
+    let mut path = std::env::current_dir()?;
+    for p in paths {
+      path.push(p);
+    }
+    Ok(normalize_path(&path))
   }
-  Ok(normalize_path(&path).to_string_lossy().to_string())
-}
 
-#[cfg(path_all)]
-fn join(paths: Vec<String>) -> crate::Result<String> {
-  let path = PathBuf::from(
-    paths
-      .iter()
-      .map(|p| {
-        // Add MAIN_SEPARATOR if this is not the first element in the vector
-        // and if it doesn't already have a spearator.
-        // Doing this to ensure that the vector elements are separated in
-        // the resulting string so path.components() can work correctly when called
-        //  in normalize_path_no_absolute() later
-        if !p.starts_with('/') && !p.starts_with('\\') && p != &paths[0] {
-          let mut tmp = String::from(MAIN_SEPARATOR);
-          tmp.push_str(p);
-          tmp
-        } else {
-          p.to_string()
+  #[module_command_handler(path_all, "path > all")]
+  fn normalize<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<String> {
+    let mut p = normalize_path_no_absolute(Path::new(&path))
+      .to_string_lossy()
+      .to_string();
+    Ok(
+      // Node.js behavior is to return `".."` for `normalize("..")`
+      // and `"."` for `normalize("")` or `normalize(".")`
+      if p.is_empty() && path == ".." {
+        "..".into()
+      } else if p.is_empty() && path == "." {
+        ".".into()
+      } else {
+        // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
+        if (path.ends_with('/') || path.ends_with('\\'))
+          && (!p.ends_with('/') || !p.ends_with('\\'))
+        {
+          p.push(MAIN_SEPARATOR);
         }
-      })
-      .collect::<String>(),
-  );
+        p
+      },
+    )
+  }
 
-  let p = normalize_path_no_absolute(&path)
-    .to_string_lossy()
-    .to_string();
-  Ok(if p.is_empty() { ".".into() } else { p })
-}
+  #[module_command_handler(path_all, "path > all")]
+  fn join<R: Runtime>(_context: InvokeContext<R>, mut paths: Vec<String>) -> crate::Result<String> {
+    let path = PathBuf::from(
+      paths
+        .iter_mut()
+        .map(|p| {
+          // Add a `MAIN_SEPARATOR` if it doesn't already have one.
+          // Doing this to ensure that the vector elements are separated in
+          // the resulting string so path.components() can work correctly when called
+          // in `normalize_path_no_absolute()` later on.
+          if !p.ends_with('/') && !p.ends_with('\\') {
+            p.push(MAIN_SEPARATOR);
+          }
+          p.to_string()
+        })
+        .collect::<String>(),
+    );
 
-#[cfg(path_all)]
-fn normalize(path: String) -> crate::Result<String> {
-  let mut p = normalize_path_no_absolute(Path::new(&path))
-    .to_string_lossy()
-    .to_string();
-  Ok(if p.is_empty() {
-    // Nodejs will return ".." if we used normalize("..")
-    // and will return "." if we used normalize("") or normalize(".")
-    if path == ".." {
-      path
-    } else {
-      ".".into()
+    let p = normalize_path_no_absolute(&path)
+      .to_string_lossy()
+      .to_string();
+    Ok(if p.is_empty() { ".".into() } else { p })
+  }
+
+  #[module_command_handler(path_all, "path > all")]
+  fn dirname<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<PathBuf> {
+    match Path::new(&path).parent() {
+      Some(p) => Ok(p.to_path_buf()),
+      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+        "Couldn't get the parent directory".into(),
+      ))),
     }
-  } else {
-    // If the path passed to this function contains a trailing separator,
-    // we make sure to perserve it. That's how NodeJS works
-    if (path.ends_with('/') || path.ends_with('\\')) && (!p.ends_with('/') || !p.ends_with('\\')) {
-      p.push(MAIN_SEPARATOR);
+  }
+
+  #[module_command_handler(path_all, "path > all")]
+  fn extname<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<String> {
+    match Path::new(&path)
+      .extension()
+      .and_then(std::ffi::OsStr::to_str)
+    {
+      Some(p) => Ok(p.to_string()),
+      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+        "Couldn't get the extension of the file".into(),
+      ))),
     }
-    p
-  })
-}
+  }
 
-#[cfg(path_all)]
-fn dirname(path: String) -> crate::Result<String> {
-  match Path::new(&path).parent() {
-    Some(p) => Ok(p.to_string_lossy().to_string()),
-    None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
-      "Couldn't get the parent directory".into(),
-    ))),
+  #[module_command_handler(path_all, "path > all")]
+  fn basename<R: Runtime>(
+    _context: InvokeContext<R>,
+    path: String,
+    ext: Option<String>,
+  ) -> crate::Result<String> {
+    match Path::new(&path)
+      .file_name()
+      .and_then(std::ffi::OsStr::to_str)
+    {
+      Some(p) => Ok(if let Some(ext) = ext {
+        p.replace(ext.as_str(), "")
+      } else {
+        p.to_string()
+      }),
+      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+        "Couldn't get the basename".into(),
+      ))),
+    }
+  }
+
+  #[module_command_handler(path_all, "path > all")]
+  fn is_absolute<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<bool> {
+    Ok(Path::new(&path).is_absolute())
   }
 }
 
-#[cfg(path_all)]
-fn extname(path: String) -> crate::Result<String> {
-  match Path::new(&path)
-    .extension()
-    .and_then(std::ffi::OsStr::to_str)
-  {
-    Some(p) => Ok(p.to_string()),
-    None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
-      "Couldn't get the extension of the file".into(),
-    ))),
-  }
-}
-
-#[cfg(path_all)]
-fn basename(path: String, ext: Option<String>) -> crate::Result<String> {
-  match Path::new(&path)
-    .file_name()
-    .and_then(std::ffi::OsStr::to_str)
-  {
-    Some(p) => Ok(if let Some(ext) = ext {
-      p.replace(ext.as_str(), "")
-    } else {
-      p.to_string()
-    }),
-    None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
-      "Couldn't get the basename".into(),
-    ))),
-  }
-}
-
-/// Resolve ".." and "." if there is any , this snippet is taken from cargo's paths util
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
 #[cfg(path_all)]
 fn normalize_path(path: &Path) -> PathBuf {
@@ -211,8 +205,8 @@ fn normalize_path(path: &Path) -> PathBuf {
   ret
 }
 
-/// Resolve ".." and "." if there is any , this snippet is taken from cargo's paths util but
-/// slightly modified to not resolve absolute paths
+/// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util but
+/// slightly modified to not resolve absolute paths.
 /// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
 #[cfg(path_all)]
 fn normalize_path_no_absolute(path: &Path) -> PathBuf {
@@ -240,8 +234,8 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
         // to a string and do simple string concatenation with the current component then convert it
         // back to a PathBuf
         let mut p = ret.to_string_lossy().to_string();
-        // Don't add the separator if the resolved path is empty,
-        // otherwise we are gonna have unwanted leading separator
+        // Only add a separator if it doesn't have one already or if current normalized path is empty,
+        // this ensures it won't have an unwanted leading separator
         if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }
@@ -253,4 +247,41 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
     }
   }
   ret
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::api::path::BaseDirectory;
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn resolve_path(_path: String, _directory: Option<BaseDirectory>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn resolve(_paths: Vec<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn normalize(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn join(_paths: Vec<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn dirname(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn extname(_path: String) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn basename(_path: String, _ext: Option<String>) {}
+
+  #[tauri_macros::module_command_test(path_all, "path > all")]
+  #[quickcheck_macros::quickcheck]
+  fn is_absolute(_path: String) {}
 }

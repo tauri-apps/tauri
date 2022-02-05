@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import execa from 'execa'
+import execa, { Options, ExecaChildProcess } from 'execa'
 
 export const shell = async (
   command: string,
   args?: string[],
-  options?: execa.Options,
+  options?: Options,
   log: boolean = false
-): Promise<execa.ExecaReturnValue> => {
+): Promise<ExecaChildProcess> => {
   try {
     if (options && options.shell === true) {
       const stringCommand = [command, ...(args ?? [])].join(' ')

@@ -2,11 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::embedded_assets::{AssetOptions, EmbeddedAssets, EmbeddedAssetsError};
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
+
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::path::{Path, PathBuf};
-use tauri_utils::config::{AppUrl, Config, WindowUrl};
+use sha2::{Digest, Sha256};
+
+use tauri_utils::assets::AssetKey;
+use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
+
+#[cfg(feature = "shell-scope")]
+use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
+
+use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {
@@ -14,6 +24,81 @@ pub struct ContextData {
   pub config: Config,
   pub config_parent: PathBuf,
   pub root: TokenStream,
+}
+
+fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
+  #[cfg(target_os = "linux")]
+  ::tauri_utils::html::inject_csp_token(document);
+  inject_nonce_token(document);
+  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+    let mut scripts = Vec::new();
+    for inline_script_el in inline_script_elements {
+      let script = inline_script_el.as_node().text_contents();
+      let mut hasher = Sha256::new();
+      hasher.update(&script);
+      let hash = hasher.finalize();
+      scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+    }
+    csp_hashes
+      .inline_scripts
+      .entry(key.clone().into())
+      .or_default()
+      .append(&mut scripts);
+  }
+}
+
+fn map_core_assets(
+  options: &AssetOptions,
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+  #[cfg(feature = "isolation")]
+  let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
+  let csp = options.csp;
+  move |key, path, input, csp_hashes| {
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+
+      if csp {
+        load_csp(&mut document, key, csp_hashes);
+
+        #[cfg(feature = "isolation")]
+        if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
+          // create the csp for the isolation iframe styling now, to make the runtime less complex
+          let mut hasher = Sha256::new();
+          hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
+          let hash = hasher.finalize();
+          csp_hashes
+            .styles
+            .push(format!("'sha256-{}'", base64::encode(&hash)));
+        }
+      }
+
+      *input = document.to_string().as_bytes().to_vec();
+    }
+    Ok(())
+  }
+}
+
+#[cfg(feature = "isolation")]
+fn map_isolation(
+  _options: &AssetOptions,
+  dir: PathBuf,
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+  move |_key, path, input, _csp_hashes| {
+    if path.extension() == Some(OsStr::new("html")) {
+      let mut isolation_html =
+        tauri_utils::html::parse(String::from_utf8_lossy(input).into_owned());
+
+      // this is appended, so no need to reverse order it
+      tauri_utils::html::inject_codegen_isolation_script(&mut isolation_html);
+
+      // temporary workaround for windows not loading assets
+      tauri_utils::html::inline_isolation(&mut isolation_html, &dir);
+
+      *input = isolation_html.to_string().as_bytes().to_vec()
+    }
+
+    Ok(())
+  }
 }
 
 /// Build a `tauri::Context` for including in application code.
@@ -25,9 +110,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
   } = data;
 
-  let mut options = AssetOptions::new();
-  if let Some(csp) = &config.tauri.security.csp {
-    options = options.csp(csp.clone());
+  let mut options = AssetOptions::new(config.tauri.pattern.clone())
+    .freeze_prototype(config.tauri.security.freeze_prototype);
+  let csp = if dev {
+    config
+      .tauri
+      .security
+      .dev_csp
+      .clone()
+      .or_else(|| config.tauri.security.csp.clone())
+  } else {
+    config.tauri.security.csp.clone()
+  };
+  if csp.is_some() {
+    options = options.with_csp();
   }
 
   let app_url = if dev {
@@ -54,13 +150,16 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(&assets_path, options)?
+        EmbeddedAssets::new(assets_path, map_core_assets(&options))?
       }
       _ => unimplemented!(),
     },
-    AppUrl::Files(files) => EmbeddedAssets::load_paths(
-      files.iter().map(|p| config_parent.join(p)).collect(),
-      options,
+    AppUrl::Files(files) => EmbeddedAssets::new(
+      files
+        .iter()
+        .map(|p| config_parent.join(p))
+        .collect::<Vec<_>>(),
+      map_core_assets(&options),
     )?,
     _ => unimplemented!(),
   };
@@ -100,6 +199,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #root::PackageInfo {
       name: #package_name,
       version: #package_version,
+      authors: env!("CARGO_PKG_AUTHORS"),
+      description: env!("CARGO_PKG_DESCRIPTION"),
     }
   );
 
@@ -119,9 +220,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         Some(
           #root::Icon::File(
             #root::api::path::resolve_path(
-              &#config, &#package_info,
-             #system_tray_icon_file_path,
-             Some(#root::api::path::BaseDirectory::Resource)
+              &#config,
+              &#package_info,
+              &Default::default(),
+              #system_tray_icon_file_path,
+              Some(#root::api::path::BaseDirectory::Resource)
             ).expect("failed to resolve resource dir")
           )
         )
@@ -163,7 +266,65 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(target_os = "macos"))]
   let info_plist = quote!(());
 
-  // double braces are purposeful to force the code into a block expression
+  let pattern = match &options.pattern {
+    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    #[cfg(feature = "isolation")]
+    PatternKind::Isolation { dir } => {
+      let dir = config_parent.join(dir);
+      if !dir.exists() {
+        panic!(
+          "The isolation dir configuration is set to `{:?}` but this path doesn't exist",
+          dir
+        )
+      }
+
+      let key = uuid::Uuid::new_v4().to_string();
+      let assets = EmbeddedAssets::new(dir.clone(), map_isolation(&options, dir))?;
+      let schema = options.isolation_schema;
+
+      quote!(#root::Pattern::Isolation {
+        assets: ::std::sync::Arc::new(#assets),
+        schema: #schema.into(),
+        key: #key.into(),
+        crypto_keys: std::boxed::Box::new(::tauri::utils::pattern::isolation::Keys::new().expect("unable to generate cryptographically secure keys for Tauri \"Isolation\" Pattern")),
+      })
+    }
+  };
+
+  #[cfg(feature = "shell-scope")]
+  let shell_scope_config = {
+    use regex::Regex;
+    use tauri_utils::config::ShellAllowlistOpen;
+
+    let shell_scopes = get_allowed_clis(&root, &config.tauri.allowlist.shell.scope);
+
+    let shell_scope_open = match &config.tauri.allowlist.shell.open {
+      ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
+      ShellAllowlistOpen::Flag(true) => {
+        quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
+      }
+      ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
+        Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),
+        Err(error) => {
+          let error = error.to_string();
+          quote!({
+            compile_error!(#error);
+            ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+          })
+        }
+      },
+      _ => panic!("unknown shell open format, unable to prepare"),
+    };
+
+    quote!(#root::ShellScopeConfig {
+      open: #shell_scope_open,
+      scopes: #shell_scopes
+    })
+  };
+
+  #[cfg(not(feature = "shell-scope"))]
+  let shell_scope_config = quote!();
+
   Ok(quote!(#root::Context::new(
     #config,
     ::std::sync::Arc::new(#assets),
@@ -171,6 +332,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #system_tray_icon,
     #package_info,
     #info_plist,
+    #pattern,
+    #shell_scope_config
   )))
 }
 
@@ -189,4 +352,82 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .cloned()
     .unwrap_or_else(|| default.to_string());
   config_parent.join(icon_path).display().to_string()
+}
+
+#[cfg(feature = "shell-scope")]
+fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStream {
+  let commands = scope
+    .0
+    .iter()
+    .map(|scope| {
+      let sidecar = &scope.sidecar;
+
+      let name = &scope.name;
+      let name = quote!(#name.into());
+
+      let command = scope.command.to_string_lossy();
+      let command = quote!(::std::path::PathBuf::from(#command));
+
+      let args = match &scope.args {
+        ShellAllowedArgs::Flag(true) => quote!(::std::option::Option::None),
+        ShellAllowedArgs::Flag(false) => quote!(::std::option::Option::Some(::std::vec![])),
+        ShellAllowedArgs::List(list) => {
+          let list = list.iter().map(|arg| match arg {
+            ShellAllowedArg::Fixed(fixed) => {
+              quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
+            }
+            ShellAllowedArg::Var { name, validate } => {
+              let validate = match validate {
+                None => quote!(::std::option::Option::None),
+                Some(regex) => match regex::Regex::new(regex) {
+                  Ok(regex) => {
+                    let regex = regex.as_str();
+                    quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap()))
+                  }
+                  Err(error) => {
+                    let error = error.to_string();
+                    quote!({
+                      compile_error!(#error);
+                      ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
+                    })
+                  }
+                },
+              };
+
+              quote!(#root::scope::ShellScopeAllowedArg::Var { name: #name.into(), validate: #validate })
+            }
+            _ => panic!("unknown shell scope arg, unable to prepare"),
+          });
+
+          quote!(::std::option::Option::Some(::std::vec![#(#list),*]))
+        }
+        _ => panic!("unknown shell scope command, unable to prepare"),
+      };
+
+      (
+        quote!(#name),
+        quote!(
+          #root::scope::ShellScopeAllowedCommand {
+            command: #command,
+            args: #args,
+            sidecar: #sidecar,
+          }
+        ),
+      )
+    })
+    .collect::<Vec<_>>();
+
+  if commands.is_empty() {
+    quote!(::std::collections::HashMap::new())
+  } else {
+    let insertions = commands
+      .iter()
+      .map(|(name, value)| quote!(hashmap.insert(#name, #value);));
+
+    quote!({
+      let mut hashmap = ::std::collections::HashMap::new();
+      #(#insertions)*
+      hashmap
+    })
+  }
 }

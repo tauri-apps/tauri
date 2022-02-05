@@ -7,34 +7,28 @@ use json_patch::merge;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
-#[path = "../../config_definition.rs"]
-mod config_definition;
-pub use config_definition::*;
+pub use tauri_utils::config::*;
 
-impl From<WixConfig> for tauri_bundler::WixSettings {
-  fn from(config: WixConfig) -> tauri_bundler::WixSettings {
-    tauri_bundler::WixSettings {
-      language: config.language,
-      template: config.template,
-      fragment_paths: config.fragment_paths,
-      component_group_refs: config.component_group_refs,
-      component_refs: config.component_refs,
-      feature_group_refs: config.feature_group_refs,
-      feature_refs: config.feature_refs,
-      merge_refs: config.merge_refs,
-      skip_webview_install: config.skip_webview_install,
-      license: config.license,
-      enable_elevated_update_task: config.enable_elevated_update_task,
-      banner_path: config.banner_path,
-      dialog_image_path: config.dialog_image_path,
-    }
+pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
+  tauri_bundler::WixSettings {
+    language: config.language,
+    template: config.template,
+    fragment_paths: config.fragment_paths,
+    component_group_refs: config.component_group_refs,
+    component_refs: config.component_refs,
+    feature_group_refs: config.feature_group_refs,
+    feature_refs: config.feature_refs,
+    merge_refs: config.merge_refs,
+    skip_webview_install: config.skip_webview_install,
+    license: config.license,
+    enable_elevated_update_task: config.enable_elevated_update_task,
+    banner_path: config.banner_path,
+    dialog_image_path: config.dialog_image_path,
   }
 }
 
 use std::{
   env::set_var,
-  fs::File,
-  io::BufReader,
   process::exit,
   sync::{Arc, Mutex},
 };
@@ -52,11 +46,13 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     return Ok(config_handle().clone());
   }
 
-  let path = super::app_paths::tauri_dir().join("tauri.conf.json");
-  let file = File::open(path)?;
-  let buf = BufReader::new(file);
-  let mut config: JsonValue =
-    serde_json::from_reader(buf).with_context(|| "failed to parse `tauri.conf.json`")?;
+  let mut config = tauri_utils::config::parse::read_from(super::app_paths::tauri_dir())?;
+
+  if let Some(merge_config) = merge_config {
+    let merge_config: JsonValue =
+      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
+    merge(&mut config, &merge_config);
+  }
 
   let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
   let mut scope = valico::json_schema::Scope::new();
@@ -71,32 +67,11 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
           .chars()
           .skip(1)
           .collect::<String>()
-          .replace("/", " > "),
+          .replace('/', " > "),
         error.get_detail().unwrap_or_else(|| error.get_title()),
       );
     }
     exit(1);
-  }
-
-  if let Some(merge_config) = merge_config {
-    let merge_config: JsonValue =
-      serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
-    merge(&mut config, &merge_config);
-  }
-
-  let platform_config_filename = if cfg!(target_os = "macos") {
-    "tauri.macos.conf.json"
-  } else if cfg!(windows) {
-    "tauri.windows.conf.json"
-  } else {
-    "tauri.linux.conf.json"
-  };
-  let platform_config_path = super::app_paths::tauri_dir().join(platform_config_filename);
-  if platform_config_path.exists() {
-    let platform_config_file = File::open(platform_config_path)?;
-    let platform_config: JsonValue = serde_json::from_reader(BufReader::new(platform_config_file))
-      .with_context(|| format!("failed to parse `{}`", platform_config_filename))?;
-    merge(&mut config, &platform_config);
   }
 
   let config: Config = serde_json::from_value(config)?;
@@ -113,46 +88,4 @@ pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
 pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
   get_internal(merge_config, true)?;
   Ok(())
-}
-
-pub fn all_allowlist_features() -> Vec<&'static str> {
-  AllowlistConfig {
-    all: true,
-    fs: FsAllowlistConfig {
-      all: true,
-      read_text_file: true,
-      read_binary_file: true,
-      write_file: true,
-      write_binary_file: true,
-      read_dir: true,
-      copy_file: true,
-      create_dir: true,
-      remove_dir: true,
-      remove_file: true,
-      rename_file: true,
-    },
-    window: WindowAllowlistConfig {
-      all: true,
-      create: true,
-    },
-    shell: ShellAllowlistConfig {
-      all: true,
-      execute: true,
-      open: true,
-    },
-    dialog: DialogAllowlistConfig {
-      all: true,
-      open: true,
-      save: true,
-    },
-    http: HttpAllowlistConfig {
-      all: true,
-      request: true,
-    },
-    notification: NotificationAllowlistConfig { all: true },
-    global_shortcut: GlobalShortcutAllowlistConfig { all: true },
-    os: OsAllowlistConfig { all: true },
-    path: PathAllowlistConfig { all: true },
-  }
-  .to_features()
 }

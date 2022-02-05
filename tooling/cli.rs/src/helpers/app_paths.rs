@@ -12,7 +12,6 @@ fn get_tauri_dir() -> PathBuf {
       .expect("failed to read cwd")
       .join("**/tauri.conf.json")
       .to_string_lossy()
-      .into_owned(),
   )
   .unwrap()
   .filter_map(Result::ok)
@@ -26,8 +25,7 @@ fn get_app_dir() -> Option<PathBuf> {
     &current_dir()
       .expect("failed to read cwd")
       .join("**/package.json")
-      .to_string_lossy()
-      .into_owned(),
+      .to_string_lossy(),
   )
   .unwrap()
   .filter_map(Result::ok)

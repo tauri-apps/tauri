@@ -8,13 +8,13 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "27cf3735f717ffcc409e79031356ea0c99cadf8a", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "d25273376b88a98f4f92fc378b5aa105f19d602e", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -22,18 +22,19 @@ infer = "0.4"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
-webview2-com = "0.7.0"
+webview2-com = "0.10.0"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.25.0"
+version = "0.30.0"
 features = [
   "Win32_Foundation",
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"
-gtk = { version = "0.14", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
 dox = [ "wry/dox" ]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]
+macos-private-api = [ "wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api" ]

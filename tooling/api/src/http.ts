@@ -37,7 +37,7 @@ enum ResponseType {
   Binary = 3
 }
 
-type Part = 'string' | number[]
+type Part = string | Uint8Array
 
 /** The body object to be used on POST and PUT requests. */
 class Body {
@@ -58,7 +58,14 @@ class Body {
    * @return The body object ready to be used on the POST and PUT requests.
    */
   static form(data: Record<string, Part>): Body {
-    return new Body('Form', data)
+    const form: Record<string, string | number[]> = {}
+    for (const key in data) {
+      // eslint-disable-next-line security/detect-object-injection
+      const v = data[key]
+      // eslint-disable-next-line security/detect-object-injection
+      form[key] = typeof v === 'string' ? v : Array.from(v)
+    }
+    return new Body('Form', form)
   }
 
   /**
@@ -90,8 +97,9 @@ class Body {
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: number[]): Body {
-    return new Body('Bytes', bytes)
+  static bytes(bytes: Uint8Array): Body {
+    // stringifying Uint8Array doesn't return an array of numbers, so we create one here
+    return new Body('Bytes', Array.from(bytes))
   }
 }
 
@@ -128,6 +136,7 @@ interface IResponse<T> {
   url: string
   status: number
   headers: Record<string, string>
+  rawHeaders: Record<string, string[]>
   data: T
 }
 
@@ -141,6 +150,8 @@ class Response<T> {
   ok: boolean
   /** The response headers. */
   headers: Record<string, string>
+  /** The response raw headers. */
+  rawHeaders: Record<string, string[]>
   /** The response data. */
   data: T
 
@@ -150,6 +161,7 @@ class Response<T> {
     this.status = response.status
     this.ok = this.status >= 200 && this.status < 300
     this.headers = response.headers
+    this.rawHeaders = response.rawHeaders
     this.data = response.data
   }
 }
@@ -203,7 +215,10 @@ class Client {
           // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
-          if (response.ok) {
+          if (response.ok && (response.data as unknown as string) === '') {
+            // @ts-expect-error
+            response.data = {}
+          } else if (response.ok) {
             throw Error(
               `Failed to parse response \`${response.data}\` as JSON: ${e};
               try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`
@@ -322,7 +337,7 @@ async function getClient(options?: ClientOptions): Promise<Client> {
   }).then((id) => new Client(id))
 }
 
-/** @ignore */
+/** @internal */
 let defaultClient: Client | null = null
 
 /**

@@ -632,14 +632,6 @@ pub fn build_wix_app_installer(
 
   let mut output_paths = Vec::new();
 
-  let fallback_locale_str = include_str!("./fallback-locale.wxl");
-  let fallback_locale_path = output_path.join("fallback-locale.wxl");
-  {
-    let mut fileout =
-      File::create(&fallback_locale_path).expect("Failed to create fallback locale file");
-    fileout.write_all(fallback_locale_str.as_bytes())?;
-  }
-
   for (language, language_config) in configured_languages.0 {
     let language_metadata = language_map.get(&language).unwrap_or_else(|| {
       panic!(
@@ -653,21 +645,33 @@ pub fn build_wix_app_installer(
       )
     });
 
-    let locale_strings = include_str!("./default-locale-strings.xml")
-      .replace("__language__", &language_metadata.lang_id.to_string())
-      .replace("__codepage__", &language_metadata.ascii_code.to_string());
-
     let locale_contents = match language_config.locale_path {
-      Some(p) => read_to_string(p)?.replace(
-        "</WixLocalization>",
-        &format!("{}</WixLocalization>", locale_strings),
-      ),
+      Some(p) => read_to_string(p)?,
       None => format!(
-        r#"<WixLocalization Culture="{culture}" xmlns="http://schemas.microsoft.com/wix/2006/localization">{strings}</WixLocalization>"#,
-        culture = language.to_lowercase(),
-        strings = locale_strings,
+        r#"<WixLocalization Culture="{}" xmlns="http://schemas.microsoft.com/wix/2006/localization"></WixLocalization>"#,
+        language.to_lowercase(),
       ),
     };
+
+    let locale_strings = include_str!("./default-locale-strings.xml")
+      .replace("__language__", &language_metadata.lang_id.to_string())
+      .replace("__codepage__", &language_metadata.ascii_code.to_string())
+      .replace("__productName__", settings.product_name());
+
+    let mut unset_locale_strings = String::new();
+    let prefix_len = "<String ".len();
+    for locale_string in locale_strings.split('\n').filter(|s| !s.is_empty()) {
+      // strip `<String ` prefix and `>{value}</String` suffix.
+      let id = locale_string.chars().skip(prefix_len).take(locale_string.find(">").unwrap() - prefix_len).collect::<String>();
+      if !locale_contents.contains(&id) {
+        unset_locale_strings.push_str(&locale_string);
+      }
+    }
+
+    let locale_contents = locale_contents.replace(
+      "</WixLocalization>",
+      &format!("{}</WixLocalization>", unset_locale_strings),
+    );
     let locale_path = output_path.join("locale.wxl");
     {
       let mut fileout = File::create(&locale_path).expect("Failed to create locale file");
@@ -685,8 +689,6 @@ pub fn build_wix_app_installer(
       ),
       "-loc".into(),
       locale_path.display().to_string(),
-      "-loc".into(),
-      fallback_locale_path.display().to_string(),
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");

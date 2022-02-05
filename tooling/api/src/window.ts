@@ -1096,10 +1096,7 @@ class WebviewWindow extends WindowManager {
    * * @param label The webview window label. It must be alphanumeric.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
-  constructor(
-    label: WindowLabel,
-    options: WindowOptions = {}
-  ) {
+  constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1136,10 +1133,13 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
-  // @ts-expect-error
-  skip: true
-})
+const appWindow = new WebviewWindow(
+  window.__TAURI_METADATA__.__currentWindow.label,
+  {
+    // @ts-expect-error
+    skip: true
+  }
+)
 
 /** Configuration for the window to create. */
 interface WindowOptions {

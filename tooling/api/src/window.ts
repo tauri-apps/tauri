@@ -164,7 +164,7 @@ interface WindowDef {
 /** @ignore */
 declare global {
   interface Window {
-    __TAURI__: {
+    __TAURI_METADATA__: {
       __windows: WindowDef[]
       __currentWindow: WindowDef
     }
@@ -193,7 +193,7 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
     // @ts-expect-error
     skip: true
   })
@@ -205,7 +205,7 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  return window.__TAURI__.__windows.map(
+  return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
         // @ts-expect-error
@@ -228,12 +228,8 @@ class WebviewWindowHandle {
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel | null | undefined) {
-    try {
-      this.label = label ?? window.__TAURI__.__currentWindow.label
-    } catch {
-      this.label = ''
-    }
+  constructor(label: WindowLabel) {
+    this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }
@@ -1100,10 +1096,7 @@ class WebviewWindow extends WindowManager {
    * * @param label The webview window label. It must be alphanumeric.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
-  constructor(
-    label: WindowLabel | null | undefined,
-    options: WindowOptions = {}
-  ) {
+  constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1140,10 +1133,13 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(null, {
-  // @ts-expect-error
-  skip: true
-})
+const appWindow = new WebviewWindow(
+  window.__TAURI_METADATA__.__currentWindow.label,
+  {
+    // @ts-expect-error
+    skip: true
+  }
+)
 
 /** Configuration for the window to create. */
 interface WindowOptions {

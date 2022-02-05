@@ -438,17 +438,17 @@ pub fn command(_options: Options) -> Result<()> {
       }
       .display();
     } else {
+      InfoBlock {
+        section: false,
+        key: "Visual Studio Build Tools:",
+        value: None,
+        suffix: None,
+      }
+      .display();
 
-    InfoBlock {
-      section: false,
-      key: "Visual Studio Build Tools:",
-      value: None,
-      suffix: None,
-    }
-    .display();
-
-    for i in build_tools {
-      VersionBlock::new("  ", i).display();
+      for i in build_tools {
+        VersionBlock::new("  ", i).display();
+      }
     }
   }
 

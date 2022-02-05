@@ -132,10 +132,11 @@ impl ResourceDirectory {
       format!("{}{}", files, directories)
     } else {
       format!(
-        r#"<Directory Id="{id}" Name="{name}">{contents}</Directory>"#,
-        id = format!("I{}", Uuid::new_v4().to_simple()),
+        r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
+        id = Uuid::new_v4().to_simple(),
         name = self.name,
-        contents = format!("{}{}", files, directories)
+        files = files,
+        directories = directories,
       )
     };
 
@@ -540,8 +541,7 @@ pub fn build_wix_app_installer(
         .file_name()
         .unwrap()
         .to_string_lossy()
-        .into_owned()
-        .to_string();
+        .into_owned();
       data.insert(
         "banner_path",
         to_json(copy_icon(settings, &filename, banner_path)?),
@@ -553,8 +553,7 @@ pub fn build_wix_app_installer(
         .file_name()
         .unwrap()
         .to_string_lossy()
-        .into_owned()
-        .to_string();
+        .into_owned();
       data.insert(
         "dialog_image_path",
         to_json(copy_icon(settings, &filename, dialog_image_path)?),
@@ -600,7 +599,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Installer handlebars");
     let temp_ps1_path = output_path.join("install-task.ps1");
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content.clone())?;
+    write(&temp_ps1_path, install_script_content)?;
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
@@ -611,7 +610,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Uninstaller handlebars");
     let temp_ps1_path = output_path.join("uninstall-task.ps1");
     let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content.clone())?;
+    write(&temp_ps1_path, install_script_content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
@@ -662,9 +661,9 @@ pub fn build_wix_app_installer(
     let prefix_len = "<String ".len();
     for locale_string in locale_strings.split('\n').filter(|s| !s.is_empty()) {
       // strip `<String ` prefix and `>{value}</String` suffix.
-      let id = locale_string.chars().skip(prefix_len).take(locale_string.find(">").unwrap() - prefix_len).collect::<String>();
+      let id = locale_string.chars().skip(prefix_len).take(locale_string.find('>').unwrap() - prefix_len).collect::<String>();
       if !locale_contents.contains(&id) {
-        unset_locale_strings.push_str(&locale_string);
+        unset_locale_strings.push_str(locale_string);
       }
     }
 

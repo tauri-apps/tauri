@@ -445,15 +445,13 @@ impl<R: Runtime> App<R> {
   ///
   /// # Example
   /// ```rust,no_run
-  /// fn main() {
-  ///   let mut app = tauri::Builder::default()
-  ///     // on an actual app, remove the string argument
-  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///     .expect("error while building tauri application");
-  ///   #[cfg(target_os = "macos")]
-  ///   app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  ///   app.run(|_app_handle, _event| {});
-  /// }
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// #[cfg(target_os = "macos")]
+  /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  /// app.run(|_app_handle, _event| {});
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
@@ -469,18 +467,16 @@ impl<R: Runtime> App<R> {
   ///
   /// # Example
   /// ```rust,no_run
-  /// fn main() {
-  ///   let app = tauri::Builder::default()
-  ///     // on an actual app, remove the string argument
-  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///     .expect("error while building tauri application");
-  ///   app.run(|_app_handle, event| match event {
-  ///     tauri::RunEvent::ExitRequested { api, .. } => {
-  ///       api.prevent_exit();
-  ///     }
-  ///     _ => {}
-  ///   });
-  /// }
+  /// let app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// app.run(|_app_handle, event| match event {
+  ///   tauri::RunEvent::ExitRequested { api, .. } => {
+  ///     api.prevent_exit();
+  ///   }
+  ///   _ => {}
+  /// });
   /// ```
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle();
@@ -509,16 +505,14 @@ impl<R: Runtime> App<R> {
   ///
   /// # Example
   /// ```rust,no_run
-  /// fn main() {
-  ///   let mut app = tauri::Builder::default()
-  ///     // on an actual app, remove the string argument
-  ///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///     .expect("error while building tauri application");
-  ///   loop {
-  ///     let iteration = app.run_iteration();
-  ///     if iteration.window_count == 0 {
-  ///       break;
-  ///     }
+  /// let mut app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// loop {
+  ///   let iteration = app.run_iteration();
+  ///   if iteration.window_count == 0 {
+  ///     break;
   ///   }
   /// }
   /// ```
@@ -596,12 +590,10 @@ impl<R: Runtime> App<R> {
 ///
 /// # Example
 /// ```rust,no_run
-/// fn main() {
-///   tauri::Builder::default()
-///     // on an actual app, remove the string argument
-///     .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-///    .expect("error while running tauri application");
-/// }
+/// tauri::Builder::default()
+///   // on an actual app, remove the string argument
+///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///  .expect("error while running tauri application");
 /// ```
 #[allow(clippy::type_complexity)]
 pub struct Builder<R: Runtime> {
@@ -721,7 +713,10 @@ impl<R: Runtime> Builder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let main_window = app.get_window("main").unwrap();
-  #[cfg_attr(feature = "dialog", doc = r#"     tauri::api::dialog::blocking::message(Some(&main_window), "Hello", "Welcome back!");"#)]
+  #[cfg_attr(
+    feature = "dialog",
+    doc = r#"     tauri::api::dialog::blocking::message(Some(&main_window), "Hello", "Welcome back!");"#
+  )]
   ///     Ok(())
   ///   });
   /// ```
@@ -789,15 +784,13 @@ impl<R: Runtime> Builder<R> {
   ///   storage.0.lock().unwrap().insert(key, value);
   /// }
   ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .manage(Storage(Default::default()))
-  ///     .manage(DbConnection(Default::default()))
-  ///     .invoke_handler(tauri::generate_handler![connect, storage_insert])
-  ///     // on an actual app, remove the string argument
-  ///     .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///     .expect("error while running tauri application");
-  /// }
+  /// tauri::Builder::default()
+  ///   .manage(Storage(Default::default()))
+  ///   .manage(DbConnection(Default::default()))
+  ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
+  ///   // on an actual app, remove the string argument
+  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while running tauri application");
   /// ```
   ///
   /// # Example
@@ -818,15 +811,13 @@ impl<R: Runtime> Builder<R> {
   ///     println!("state: {}", state.inner().0);
   /// }
   ///
-  /// fn main() {
-  ///     tauri::Builder::default()
-  ///         .manage(MyInt(10))
-  ///         .manage(MyString("Hello, managed state!".to_string()))
-  ///         .invoke_handler(tauri::generate_handler![int_command, string_command])
-  ///         // on an actual app, remove the string argument
-  ///         .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///         .expect("error while running tauri application");
-  /// }
+  /// tauri::Builder::default()
+  ///   .manage(MyInt(10))
+  ///   .manage(MyString("Hello, managed state!".to_string()))
+  ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
+  ///   // on an actual app, remove the string argument
+  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while running tauri application");
   /// ```
   #[must_use]
   pub fn manage<T>(self, state: T) -> Self
@@ -932,7 +923,10 @@ impl<R: Runtime> Builder<R> {
   ///     match event.menu_item_id() {
   ///       "Learn More" => {
   ///         // open in browser (requires the `shell-open-api` feature)
-  #[cfg_attr(feature = "shell-open-api", doc = r#"         api::shell::open(&event.window().shell_scope(), "https://github.com/tauri-apps/tauri".to_string(), None).unwrap();"#)]
+  #[cfg_attr(
+    feature = "shell-open-api",
+    doc = r#"         api::shell::open(&event.window().shell_scope(), "https://github.com/tauri-apps/tauri".to_string(), None).unwrap();"#
+  )]
   ///       }
   ///       id => {
   ///         // do something with other events

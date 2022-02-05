@@ -3,7 +3,7 @@ name = "multiwindow"
 version = "0.1.0"
 description = "An example Tauri Multi-Window Application"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]

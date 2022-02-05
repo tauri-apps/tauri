@@ -74,22 +74,67 @@ impl<P: AsRef<Path>> From<P> for AssetKey {
   }
 }
 
+/// A Content-Security-Policy hash value for a specific directive.
+/// For more information see [the MDN page](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy#directives).
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy)]
+pub enum CspHash<'a> {
+  /// The `script-src` directive.
+  Script(&'a str),
+
+  /// The `style-src` directive.
+  Style(&'a str),
+}
+
+impl CspHash<'_> {
+  /// The Content-Security-Policy directive this hash applies to.
+  pub fn directive(&self) -> &'static str {
+    match self {
+      Self::Script(_) => "script-src",
+      Self::Style(_) => "style-src",
+    }
+  }
+
+  /// The value of the Content-Security-Policy hash.
+  pub fn hash(&self) -> &str {
+    match self {
+      Self::Script(hash) => hash,
+      Self::Style(hash) => hash,
+    }
+  }
+}
+
 /// Represents a container of file assets that are retrievable during runtime.
 pub trait Assets: Send + Sync + 'static {
   /// Get the content of the passed [`AssetKey`].
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
+
+  /// Gets the hashes for the CSP tag of the HTML on the given path.
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
 }
 
 /// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
 #[derive(Debug)]
-pub struct EmbeddedAssets(phf::Map<&'static str, &'static [u8]>);
+pub struct EmbeddedAssets {
+  assets: phf::Map<&'static str, &'static [u8]>,
+  // Hashes that must be injected to the CSP of every HTML file.
+  global_hashes: &'static [CspHash<'static>],
+  // Hashes that are associated to the CSP of the HTML file identified by the map key (the HTML asset key).
+  html_hashes: phf::Map<&'static str, &'static [CspHash<'static>]>,
+}
 
 impl EmbeddedAssets {
-  /// Wrap a [zstd] compressed [`phf::Map`].
-  ///
-  /// [zstd]: https://facebook.github.io/zstd/
-  pub const fn from_zstd(map: phf::Map<&'static str, &'static [u8]>) -> Self {
-    Self(map)
+  /// Creates a new instance from the given asset map and script hash list.
+  pub const fn new(
+    map: phf::Map<&'static str, &'static [u8]>,
+    global_hashes: &'static [CspHash<'static>],
+    html_hashes: phf::Map<&'static str, &'static [CspHash<'static>]>,
+  ) -> Self {
+    Self {
+      assets: map,
+      global_hashes,
+      html_hashes,
+    }
   }
 }
 
@@ -97,7 +142,7 @@ impl Assets for EmbeddedAssets {
   #[cfg(feature = "compression")]
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
-      .0
+      .assets
       .get(key.as_ref())
       .copied()
       .map(zstd::decode_all)
@@ -108,9 +153,27 @@ impl Assets for EmbeddedAssets {
   #[cfg(not(feature = "compression"))]
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
-      .0
+      .assets
       .get(key.as_ref())
       .copied()
       .map(|a| Cow::Owned(a.to_vec()))
+  }
+
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+    Box::new(
+      self
+        .global_hashes
+        .iter()
+        .chain(
+          self
+            .html_hashes
+            .get(html_path.as_ref())
+            .copied()
+            .into_iter()
+            .flatten()
+            .into_iter(),
+        )
+        .copied(),
+    )
   }
 }

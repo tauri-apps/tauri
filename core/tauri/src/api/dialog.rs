@@ -47,26 +47,36 @@ impl FileDialogBuilder {
   }
 
   /// Add file extension filter. Takes in the name of the filter, and list of extensions
+  #[must_use]
   pub fn add_filter(mut self, name: impl AsRef<str>, extensions: &[&str]) -> Self {
     self.0 = self.0.add_filter(name.as_ref(), extensions);
     self
   }
 
   /// Set starting directory of the dialog.
+  #[must_use]
   pub fn set_directory<P: AsRef<Path>>(mut self, directory: P) -> Self {
     self.0 = self.0.set_directory(directory);
     self
   }
 
   /// Set starting file name of the dialog.
+  #[must_use]
   pub fn set_file_name(mut self, file_name: &str) -> Self {
     self.0 = self.0.set_file_name(file_name);
     self
   }
 
   /// Sets the parent window of the dialog.
+  #[must_use]
   pub fn set_parent<W: raw_window_handle::HasRawWindowHandle>(mut self, parent: &W) -> Self {
     self.0 = self.0.set_parent(parent);
+    self
+  }
+
+  /// Set the title of the dialog.
+  pub fn set_title(mut self, title: &str) -> Self {
+    self.0 = self.0.set_title(title);
     self
   }
 

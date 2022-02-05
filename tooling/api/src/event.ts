@@ -16,7 +16,7 @@ import { LiteralUnion } from 'type-fest'
 
 interface Event<T> {
   /** Event name */
-  event: string
+  event: EventName
   /** Event identifier used to unlisten */
   id: number
   /** Event payload */
@@ -65,8 +65,8 @@ async function _unlisten(eventId: number): Promise<void> {
 /**
  * Listen to an event from the backend.
  *
- * @param event Event name
- * @param handler Event handler callback
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param handler Event handler callback.
  * @return A promise resolving to a function to unlisten to the event.
  */
 async function listen<T>(
@@ -88,8 +88,8 @@ async function listen<T>(
 /**
  * Listen to an one-off event from the backend.
  *
- * @param event Event name
- * @param handler Event handler callback
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
+ * @param handler Event handler callback.
  * @returns A promise resolving to a function to unlisten to the event.
  */
 async function once<T>(
@@ -105,12 +105,12 @@ async function once<T>(
 /**
  * Emits an event to the backend.
  *
- * @param event Event name
+ * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param [payload] Event payload
  * @returns
  */
 async function emit(event: string, payload?: unknown): Promise<void> {
-  return emitEvent(event, null, payload)
+  return emitEvent(event, undefined, payload)
 }
 
 export type { Event, EventName, EventCallback, UnlistenFn }

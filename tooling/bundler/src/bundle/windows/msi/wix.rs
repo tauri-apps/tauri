@@ -387,27 +387,32 @@ pub fn build_wix_app_installer(
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
+  let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
+    if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
+      common::print_info(&format!("signing {}", file_path.display()))?;
+      sign(
+        &file_path,
+        &SignParams {
+          digest_algorithm: settings
+            .windows()
+            .digest_algorithm
+            .as_ref()
+            .map(|algorithm| algorithm.to_string())
+            .unwrap_or_else(|| "sha256".to_string()),
+          certificate_thumbprint: certificate_thumbprint.to_string(),
+          timestamp_url: settings
+            .windows()
+            .timestamp_url
+            .as_ref()
+            .map(|url| url.to_string()),
+        },
+      )?;
+    }
+    Ok(())
+  };
 
-  if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-    common::print_info("signing app")?;
-    sign(
-      &app_exe_source,
-      &SignParams {
-        digest_algorithm: settings
-          .windows()
-          .digest_algorithm
-          .as_ref()
-          .map(|algorithm| algorithm.to_string())
-          .unwrap_or_else(|| "sha256".to_string()),
-        certificate_thumbprint: certificate_thumbprint.to_string(),
-        timestamp_url: settings
-          .windows()
-          .timestamp_url
-          .as_ref()
-          .map(|url| url.to_string()),
-      },
-    )?;
-  }
+  common::print_info("trying to sign app")?;
+  try_sign(&app_exe_source)?;
 
   // ensure that `target/{release, debug}/wix` folder exists
   std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
@@ -518,7 +523,7 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
-  let mut install_webview = true;
+  let mut install_webview = settings.windows().webview_fixed_runtime_path.is_none();
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -528,7 +533,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
-    install_webview = !wix.skip_webview_install;
+    if wix.skip_webview_install {
+      install_webview = false;
+    }
     enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
@@ -653,6 +660,7 @@ pub fn build_wix_app_installer(
     settings,
   )?;
   rename(&msi_output_path, &msi_path)?;
+  try_sign(&msi_path)?;
 
   Ok(msi_path)
 }

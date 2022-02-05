@@ -413,22 +413,6 @@ async function videoDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the current working directory.
- *
- * @returns
- */
-async function currentDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
-    message: {
-      cmd: 'resolvePath',
-      path: '',
-      directory: BaseDirectory.Current
-    }
-  })
-}
-
-/**
  * Returns the path to the suggested log directory.
  *
  * ### Platform-specific
@@ -578,7 +562,6 @@ export {
   runtimeDir,
   templateDir,
   videoDir,
-  currentDir,
   logDir,
   BaseDirectory,
   sep,

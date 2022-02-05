@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 #wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "ddb695afda719e8dd32fa584b336b7c9ff574399", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
+wry = { git = "https://github.com/tauri-apps/wry", rev = "d25273376b88a98f4f92fc378b5aa105f19d602e", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -32,7 +32,7 @@ features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"
-gtk = { version = "0.14", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
 dox = [ "wry/dox" ]

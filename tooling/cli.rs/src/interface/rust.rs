@@ -15,10 +15,15 @@ use anyhow::Context;
 use heck::ToKebabCase;
 use serde::Deserialize;
 
-use crate::helpers::{app_paths::tauri_dir, config::Config, manifest::Manifest, Logger};
+use crate::helpers::{
+  app_paths::tauri_dir,
+  config::{wix_settings, Config},
+  manifest::Manifest,
+  Logger,
+};
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings, WixSettings,
+  UpdaterSettings, WindowsSettings,
 };
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
@@ -347,7 +352,7 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
           if let Some(workspace_settings) = cargo_settings.workspace {
             if let Some(members) = workspace_settings.members {
               if members.iter().any(|member| {
-                glob::glob(&dir.join(member).to_string_lossy().into_owned())
+                glob::glob(&dir.join(member).to_string_lossy())
                   .unwrap()
                   .any(|p| p.unwrap() == project_path)
               }) {
@@ -384,8 +389,9 @@ fn tauri_config_to_bundle_settings(
   let windows_icon_path = PathBuf::from(
     config
       .icon
-      .as_ref()
-      .and_then(|icons| icons.iter().find(|i| i.ends_with(".ico")).cloned())
+      .iter()
+      .find(|i| i.ends_with(".ico"))
+      .cloned()
       .expect("the bundle config must have a `.ico` icon"),
   );
   #[cfg(not(windows))]
@@ -410,6 +416,13 @@ fn tauri_config_to_bundle_settings(
     depends.push("libgtk-3-0".to_string());
   }
 
+  #[cfg(windows)]
+  {
+    if let Some(webview_fixed_runtime_path) = &config.windows.webview_fixed_runtime_path {
+      resources.push(webview_fixed_runtime_path.display().to_string());
+    }
+  }
+
   let signing_identity = match std::env::var_os("APPLE_SIGNING_IDENTITY") {
     Some(signing_identity) => Some(
       signing_identity
@@ -420,9 +433,19 @@ fn tauri_config_to_bundle_settings(
     None => config.macos.signing_identity,
   };
 
+  let provider_short_name = match std::env::var_os("APPLE_PROVIDER_SHORT_NAME") {
+    Some(provider_short_name) => Some(
+      provider_short_name
+        .to_str()
+        .expect("failed to convert APPLE_PROVIDER_SHORT_NAME to string")
+        .to_string(),
+    ),
+    None => config.macos.provider_short_name,
+  };
+
   Ok(BundleSettings {
-    identifier: config.identifier,
-    icon: config.icon,
+    identifier: Some(config.identifier),
+    icon: Some(config.icon),
     resources: if resources.is_empty() {
       None
     } else {
@@ -455,6 +478,7 @@ fn tauri_config_to_bundle_settings(
       use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {
         let path = tauri_dir().join("Info.plist");
@@ -470,19 +494,22 @@ fn tauri_config_to_bundle_settings(
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(|w| {
-        let mut wix = WixSettings::from(w);
+        let mut wix = wix_settings(w);
         wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
       icon_path: windows_icon_path,
+      webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,
       // we set it to true by default we shouldn't have to use
       // unwrap_or as we have a default value but used to prevent any failing
-      dialog: updater_config.dialog.unwrap_or(true),
+      dialog: updater_config.dialog,
       pubkey: updater_config.pubkey,
-      endpoints: updater_config.endpoints,
+      endpoints: updater_config
+        .endpoints
+        .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
     }),
     ..Default::default()
   })

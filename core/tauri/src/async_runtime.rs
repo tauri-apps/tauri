@@ -279,6 +279,7 @@ where
   runtime.spawn_blocking(func)
 }
 
+#[allow(dead_code)]
 pub(crate) fn safe_block_on<F>(task: F) -> F::Output
 where
   F: Future + Send + 'static,

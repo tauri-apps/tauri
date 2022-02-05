@@ -42,7 +42,7 @@ features = [
 ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.14", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
 system-tray = [ ]

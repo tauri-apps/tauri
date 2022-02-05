@@ -498,6 +498,11 @@ pub(crate) mod sealed {
     Dispatch(R::Dispatcher),
   }
 
+  #[derive(Clone, serde::Serialize)]
+  struct WindowCreatedEvent {
+    label: String,
+  }
+
   /// Managed handle to the application runtime.
   pub trait ManagerBase<R: Runtime> {
     /// The manager behind the [`Managed`] item.
@@ -516,16 +521,22 @@ pub(crate) mod sealed {
       let pending = self
         .manager()
         .prepare_window(self.app_handle(), pending, &labels)?;
-      match self.runtime() {
-        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending).map_err(Into::into),
-        RuntimeOrDispatch::RuntimeHandle(handle) => {
-          handle.create_window(pending).map_err(Into::into)
-        }
-        RuntimeOrDispatch::Dispatch(mut dispatcher) => {
-          dispatcher.create_window(pending).map_err(Into::into)
-        }
+      let window = match self.runtime() {
+        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
+        RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
+        RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
       }
-      .map(|window| self.manager().attach_window(self.app_handle(), window))
+      .map(|window| self.manager().attach_window(self.app_handle(), window))?;
+
+      self.manager().emit_filter(
+        "tauri://window-created",
+        Some(WindowCreatedEvent {
+          label: window.label().into(),
+        }),
+        |w| w != &window,
+      )?;
+
+      Ok(window)
     }
   }
 }

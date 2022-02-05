@@ -146,12 +146,6 @@ pub enum Cmd {
   },
 }
 
-#[cfg(window_create)]
-#[derive(Clone, serde::Serialize)]
-struct WindowCreatedEvent {
-  label: String,
-}
-
 impl Cmd {
   #[module_command_handler(window_create, "window > create")]
   async fn create_webview<R: Runtime>(
@@ -162,14 +156,12 @@ impl Cmd {
     let label = options.label.clone();
     let url = options.url.clone();
 
-    window
-      .create_window(label.clone(), url, |_, webview_attributes| {
-        (
-          <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
-          webview_attributes,
-        )
-      })?
-      .emit_others("tauri://window-created", Some(WindowCreatedEvent { label }))?;
+    window.create_window(label, url, |_, webview_attributes| {
+      (
+        <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
+        webview_attributes,
+      )
+    })?;
 
     Ok(())
   }

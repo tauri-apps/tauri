@@ -150,18 +150,11 @@
     }
   })
 
-  window.__TAURI_INVOKE__('tauri', {
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'listen',
-      event: 'tauri://window-created',
-      handler: window.__TAURI__.transformCallback(function (event) {
-        if (event.payload) {
-          var windowLabel = event.payload.label
-          window.__TAURI_METADATA__.__windows.push({
-            label: windowLabel
-          })
-        }
+  listen('tauri://window-created', function (event) {
+    if (event.payload) {
+      var windowLabel = event.payload.label
+      window.__TAURI_METADATA__.__windows.push({
+        label: windowLabel
       })
     }
   })

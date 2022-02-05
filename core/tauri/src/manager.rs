@@ -395,7 +395,7 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     mut pending: PendingWindow<R>,
     label: &str,
-    pending_labels: &[String],
+    window_labels: &[String],
     app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
@@ -422,6 +422,11 @@ impl<R: Runtime> WindowManager<R> {
 
     let mut webview_attributes = pending.webview_attributes;
 
+    let mut window_labels = window_labels.to_vec();
+    let l = label.to_string();
+    if !window_labels.contains(&l) {
+      window_labels.push(l);
+    }
     webview_attributes = webview_attributes
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(
@@ -433,7 +438,7 @@ impl<R: Runtime> WindowManager<R> {
             }}
           }})
         "#,
-        window_labels_array = serde_json::to_string(pending_labels)?,
+        window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
       .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
@@ -809,6 +814,9 @@ impl<R: Runtime> WindowManager<R> {
       ipc_script: &'a str,
       #[raw]
       bundle_script: &'a str,
+      // A function to immediately listen to an event.
+      #[raw]
+      listen_function: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -836,6 +844,15 @@ impl<R: Runtime> WindowManager<R> {
       pattern_script,
       ipc_script,
       bundle_script,
+      listen_function: &format!(
+        "function listen(eventName, cb) {{ {} }}",
+        crate::event::listen_js(
+          self.event_listeners_object_name(),
+          "eventName".into(),
+          0,
+          "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
+        )
+      ),
       core_script: include_str!("../scripts/core.js"),
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
@@ -930,7 +947,7 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<R>,
-    pending_labels: &[String],
+    window_labels: &[String],
   ) -> crate::Result<PendingWindow<R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -982,7 +999,7 @@ impl<R: Runtime> WindowManager<R> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, &label, pending_labels, app_handle.clone())?;
+      pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
       pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
     }
 

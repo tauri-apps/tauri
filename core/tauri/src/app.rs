@@ -1156,7 +1156,7 @@ impl<R: Runtime> Builder<R> {
 
     app.manager.initialize_plugins(&app.handle())?;
 
-    let pending_labels = self
+    let window_labels = self
       .pending_windows
       .iter()
       .map(|p| p.label.clone())
@@ -1168,7 +1168,7 @@ impl<R: Runtime> Builder<R> {
     for pending in self.pending_windows {
       let pending = app
         .manager
-        .prepare_window(app.handle.clone(), pending, &pending_labels)?;
+        .prepare_window(app.handle.clone(), pending, &window_labels)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
       #[cfg(feature = "updater")]

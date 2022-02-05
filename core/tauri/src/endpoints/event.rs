@@ -4,7 +4,11 @@
 
 use super::InvokeContext;
 use crate::{
-  api::ipc::CallbackFn, event::is_event_name_valid, sealed::ManagerBase, Manager, Runtime, Window,
+  api::ipc::CallbackFn,
+  event::is_event_name_valid,
+  event::{listen_js, unlisten_js},
+  sealed::ManagerBase,
+  Manager, Runtime,
 };
 use serde::{de::Deserializer, Deserialize};
 use tauri_macros::CommandModule;
@@ -54,19 +58,20 @@ impl Cmd {
   ) -> crate::Result<u64> {
     let event_id = rand::random();
     context.window.eval(&listen_js(
-      &context.window,
-      event.0.clone(),
+      context.window.manager().event_listeners_object_name(),
+      format!("'{}'", event.0),
       event_id,
-      handler,
+      format!("window['_{}']", handler.0),
     ))?;
     context.window.register_js_listener(event.0, event_id);
     Ok(event_id)
   }
 
   fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> crate::Result<()> {
-    context
-      .window
-      .eval(&unlisten_js(&context.window, event_id))?;
+    context.window.eval(&unlisten_js(
+      context.window.manager().event_listeners_object_name(),
+      event_id,
+    ))?;
     context.window.unregister_js_listener(event_id);
     Ok(())
   }
@@ -87,44 +92,4 @@ impl Cmd {
     }
     Ok(())
   }
-}
-
-pub fn unlisten_js<R: Runtime>(window: &Window<R>, event_id: u64) -> String {
-  format!(
-    "
-      for (var event in (window['{listeners}'] || {{}})) {{
-        var listeners = (window['{listeners}'] || {{}})[event]
-        if (listeners) {{
-          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
-        }}
-      }}
-    ",
-    listeners = window.manager().event_listeners_object_name(),
-    event_id = event_id,
-  )
-}
-
-pub fn listen_js<R: Runtime>(
-  window: &Window<R>,
-  event: String,
-  event_id: u64,
-  handler: CallbackFn,
-) -> String {
-  format!(
-    "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = Object.create(null)
-    }}
-    if (window['{listeners}']['{event}'] === void 0) {{
-      window['{listeners}']['{event}'] = []
-    }}
-    window['{listeners}']['{event}'].push({{
-      id: {event_id},
-      handler: window['_{handler}']
-    }});
-  ",
-    listeners = window.manager().event_listeners_object_name(),
-    event = event,
-    event_id = event_id,
-    handler = handler.0
-  )
 }

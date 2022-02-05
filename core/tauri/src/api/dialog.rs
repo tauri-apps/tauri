@@ -49,11 +49,9 @@ macro_rules! file_dialog_builder {
     /// The file dialog builder.
     ///
     /// Constructs file picker dialogs that can select single/multiple files or directories.
-    #[cfg(any(dialog_open, dialog_save))]
     #[derive(Debug, Default)]
     pub struct FileDialogBuilder(rfd::FileDialog);
 
-    #[cfg(any(dialog_open, dialog_save))]
     impl FileDialogBuilder {
       /// Gets the default file dialog builder.
       pub fn new() -> Self {
@@ -107,7 +105,6 @@ macro_rules! file_dialog_builder {
 /// Examples of main thread context are the [`tauri::App::run`] closure and non-async commmands.
 pub mod blocking {
   use crate::{Runtime, Window};
-  #[cfg(any(dialog_open, dialog_save))]
   use std::path::{Path, PathBuf};
   use std::sync::mpsc::sync_channel;
 
@@ -282,7 +279,6 @@ pub mod blocking {
 
 mod nonblocking {
   use crate::{Runtime, Window};
-  #[cfg(any(dialog_open, dialog_save))]
   use std::path::{Path, PathBuf};
 
   file_dialog_builder!();

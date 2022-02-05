@@ -1002,7 +1002,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | number[]): Promise<void> {
+  async setIcon(icon: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -1012,7 +1012,8 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setIcon',
             payload: {
-              icon
+              // correctly serialize Uint8Arrays
+              icon: typeof icon === 'string' ? icon : Array.from(icon)
             }
           }
         }

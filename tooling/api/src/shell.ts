@@ -149,13 +149,14 @@ class Child {
    *
    * @return A promise indicating the success or failure of the operation.
    */
-  async write(data: string | number[]): Promise<void> {
+  async write(data: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
       message: {
         cmd: 'stdinWrite',
         pid: this.pid,
-        buffer: data
+        // correctly serialize Uint8Arrays
+        buffer: typeof data === 'string' ? data : Array.from(data)
       }
     })
   }

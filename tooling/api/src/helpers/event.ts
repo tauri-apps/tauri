@@ -16,7 +16,7 @@ import { invokeTauriCommand } from './tauri'
 async function emit(
   event: string,
   windowLabel?: WindowLabel,
-  payload?: string
+  payload?: unknown
 ): Promise<void> {
   await invokeTauriCommand({
     __tauriModule: 'Event',

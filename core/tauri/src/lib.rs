@@ -479,6 +479,28 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   {
     self.manager().inner.state.try_get()
   }
+
+  /// Gets the managed [`Env`].
+  fn env(&self) -> Env {
+    self.state::<Env>().inner().clone()
+  }
+
+  /// Gets the scope for the filesystem APIs.
+  fn fs_scope(&self) -> FsScope {
+    self.state::<Scopes>().inner().fs.clone()
+  }
+
+  /// Gets the scope for the asset protocol.
+  #[cfg(protocol_asset)]
+  fn asset_protocol_scope(&self) -> FsScope {
+    self.state::<Scopes>().inner().asset_protocol.clone()
+  }
+
+  /// Gets the scope for the shell execute APIs.
+  #[cfg(shell_scope)]
+  fn shell_scope(&self) -> ShellScope {
+    self.state::<Scopes>().inner().shell.clone()
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.

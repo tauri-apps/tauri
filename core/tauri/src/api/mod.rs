@@ -15,7 +15,8 @@ pub mod http;
 pub mod ipc;
 pub mod path;
 pub mod process;
-#[cfg(shell_open)]
+#[cfg(feature = "shell-open-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "shell-open-api")))]
 pub mod shell;
 pub mod version;
 

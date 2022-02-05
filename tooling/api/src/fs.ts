@@ -131,7 +131,7 @@ async function readBinaryFile(
       options
     }
   })
-  
+
   return Uint8Array.from(arr)
 }
 

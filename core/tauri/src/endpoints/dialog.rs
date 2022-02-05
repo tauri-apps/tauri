@@ -127,7 +127,7 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
-    Ok(dialog_builder.save_file().into())
+    Ok(dialog_builder.save_file())
   }
 
   #[module_command_handler(dialog_message, "dialog > message")]

@@ -1002,6 +1002,8 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    pending.url = url.to_string();
+
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
@@ -1011,8 +1013,6 @@ impl<R: Runtime> WindowManager<R> {
     if pending.webview_attributes.file_drop_handler_enabled {
       pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
     }
-
-    pending.url = url.to_string();
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

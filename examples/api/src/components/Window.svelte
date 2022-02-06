@@ -1,9 +1,8 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
-  window.UserAttentionType = UserAttentionType;
   let selectedWindow = appWindow.label;
   const windowMap = {
     [selectedWindow]: appWindow
@@ -58,7 +57,7 @@
     openDialog({
       multiple: false,
     }).then(path => {
-      if (path) {
+      if (typeof path === 'string') {
         windowMap[selectedWindow].setIcon(path)
       }
     });

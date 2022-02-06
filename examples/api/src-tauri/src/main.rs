@@ -20,7 +20,7 @@ use tauri::{
   RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
 };
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct Reply {
   data: String,
 }

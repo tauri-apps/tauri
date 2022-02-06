@@ -9,58 +9,13 @@
  * @module
  */
 
-import { invokeTauriCommand } from './helpers/tauri'
-import { emit as emitEvent } from './helpers/event'
-import { transformCallback } from './tauri'
-import { LiteralUnion } from 'type-fest'
-
-interface Event<T> {
-  /** Event name */
-  event: EventName
-  /** Event identifier used to unlisten */
-  id: number
-  /** Event payload */
-  payload: T
-}
-
-type EventName = LiteralUnion<
-  | 'tauri://update'
-  | 'tauri://update-available'
-  | 'tauri://update-install'
-  | 'tauri://update-status'
-  | 'tauri://resize'
-  | 'tauri://move'
-  | 'tauri://close-requested'
-  | 'tauri://focus'
-  | 'tauri://blur'
-  | 'tauri://scale-change'
-  | 'tauri://menu'
-  | 'tauri://file-drop'
-  | 'tauri://file-drop-hover'
-  | 'tauri://file-drop-cancelled',
-  string
->
-
-type EventCallback<T> = (event: Event<T>) => void
-
-type UnlistenFn = () => void
-
-/**
- * Unregister the event listener associated with the given id.
- *
- * @ignore
- * @param eventId Event identifier
- * @returns
- */
-async function _unlisten(eventId: number): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'unlisten',
-      eventId
-    }
-  })
-}
+import * as eventApi from './helpers/event'
+import type {
+  EventName,
+  EventCallback,
+  UnlistenFn,
+  Event
+} from './helpers/event'
 
 /**
  * Listen to an event from the backend.
@@ -73,16 +28,7 @@ async function listen<T>(
   event: EventName,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Event',
-    message: {
-      cmd: 'listen',
-      event,
-      handler: transformCallback(handler)
-    }
-  }).then((eventId) => {
-    return async () => _unlisten(eventId)
-  })
+  return eventApi.listen(event, null, handler)
 }
 
 /**
@@ -96,10 +42,7 @@ async function once<T>(
   event: EventName,
   handler: EventCallback<T>
 ): Promise<UnlistenFn> {
-  return listen<T>(event, (eventData) => {
-    handler(eventData)
-    _unlisten(eventData.id).catch(() => {})
-  })
+  return eventApi.once(event, null, handler)
 }
 
 /**
@@ -110,7 +53,7 @@ async function once<T>(
  * @returns
  */
 async function emit(event: string, payload?: unknown): Promise<void> {
-  return emitEvent(event, undefined, payload)
+  return eventApi.emit(event, undefined, payload)
 }
 
 export type { Event, EventName, EventCallback, UnlistenFn }

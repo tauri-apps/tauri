@@ -18,6 +18,13 @@ pub fn is_event_name_valid(event: &str) -> bool {
     .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
 }
 
+pub fn assert_event_name_is_valid(event: &str) {
+  assert!(
+    is_event_name_valid(event),
+    "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`."
+  );
+}
+
 /// Represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EventHandler(Uuid);
@@ -306,23 +313,31 @@ pub fn listen_js(
   listeners_object_name: String,
   event: String,
   event_id: u64,
+  window_label: Option<String>,
   handler: String,
 ) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = Object.create(null)
+      Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
     }}
     if (window['{listeners}'][{event}] === void 0) {{
-      window['{listeners}'][{event}] = []
+      Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
     }}
     window['{listeners}'][{event}].push({{
       id: {event_id},
+      windowLabel: {window_label},
       handler: {handler}
     }});
   ",
     listeners = listeners_object_name,
     event = event,
     event_id = event_id,
+    window_label = if let Some(l) = window_label {
+      crate::runtime::window::assert_label_is_valid(&l);
+      format!("'{}'", l)
+    } else {
+      "null".to_owned()
+    },
     handler = handler
   )
 }

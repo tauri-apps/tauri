@@ -105,14 +105,20 @@ pub struct PendingWindow<R: Runtime> {
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
-  /// A HashMap mapping JS event names with listener ids associated.
-  pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
+  /// A HashMap mapping JS event names with associated listener ids.
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
-fn validate_label(label: &str) {
+pub fn is_label_valid(label: &str) -> bool {
+  label
+    .chars()
+    .all(|c| char::is_alphanumeric(c) || c == '-' || c == '/' || c == ':' || c == '_')
+}
+
+pub fn assert_label_is_valid(label: &str) {
   assert!(
-    label.chars().all(char::is_alphanumeric),
-    "Window label must be alphanumeric"
+    is_label_valid(label),
+    "Window label must include only alphanumeric characters, `-`, `/`, `:` and `_`."
   );
 }
 
@@ -128,7 +134,7 @@ impl<R: Runtime> PendingWindow<R> {
       get_menu_ids(&mut menu_ids, menu);
     }
     let label = label.into();
-    validate_label(&label);
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,
@@ -154,7 +160,7 @@ impl<R: Runtime> PendingWindow<R> {
       get_menu_ids(&mut menu_ids, menu);
     }
     let label = label.into();
-    validate_label(&label);
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,
@@ -192,6 +198,15 @@ impl<R: Runtime> PendingWindow<R> {
   }
 }
 
+/// Key for a JS event listener.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct JsEventListenerKey {
+  /// The associated window label.
+  pub window_label: Option<String>,
+  /// The event name.
+  pub event: String,
+}
+
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<R: Runtime> {
@@ -204,8 +219,8 @@ pub struct DetachedWindow<R: Runtime> {
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
 
-  /// A HashMap mapping JS event names with listener ids associated.
-  pub js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
+  /// A HashMap mapping JS event names with associated listener ids.
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
 impl<R: Runtime> Clone for DetachedWindow<R> {

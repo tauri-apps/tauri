@@ -12,5 +12,10 @@ export default defineConfig({
         assetFileNames: `assets/[name].[ext]`
       }
     }
+  },
+  server: {
+    fs: {
+      allow: ['.', '../../tooling/api/dist']
+    }
   }
 })

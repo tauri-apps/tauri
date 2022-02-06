@@ -14,7 +14,7 @@ use tauri_runtime::{
   webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, PendingWindow, WindowEvent,
+    DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, Error, ExitRequestedEventAction, GlobalShortcutManager, Icon, Result,
   RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
@@ -2700,7 +2700,7 @@ fn create_ipc_handler(
   context: Context,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<Wry>,
 ) -> Box<dyn Fn(&Window, String) + 'static> {
   Box::new(move |window, request| {
@@ -2724,7 +2724,7 @@ fn create_file_drop_handler(
   context: Context,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
-  js_event_listeners: Arc<Mutex<HashMap<String, HashSet<u64>>>>,
+  js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: FileDropHandler<Wry>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   Box::new(move |window, event| {

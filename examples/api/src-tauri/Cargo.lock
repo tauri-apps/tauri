@@ -485,9 +485,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.0.4"
+version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d01c9347757e131122b19cd19a05c85805b68c2352a97b623efdc3c295290299"
+checksum = "1957aa4a5fb388f0a0a73ce7556c5b42025b874e5cdc2c670775e346e97adec0"
 dependencies = [
  "atty",
  "bitflags",
@@ -3236,7 +3236,8 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.6.0"
-source = "git+https://github.com/tauri-apps/tao?branch=dev#553055f4f44c6c4ba917a6254e1dfd3fbc1d8a3a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53d2bba60298cbc0ff0651fe5a0bdfb73438b91231f700dcc8d539548237cae7"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -4132,8 +4133,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.12.2"
-source = "git+https://github.com/tauri-apps/wry?rev=d25273376b88a98f4f92fc378b5aa105f19d602e#d25273376b88a98f4f92fc378b5aa105f19d602e"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f4875fbbfc2c63f6c57c4ef84f678b1b57e3b8795443add7fbd02f3e8017e30"
 dependencies = [
  "cocoa",
  "core-graphics",

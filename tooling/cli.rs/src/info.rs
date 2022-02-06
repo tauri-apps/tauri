@@ -100,7 +100,11 @@ fn crate_latest_version(name: &str) -> Option<String> {
 #[allow(clippy::let_and_return)]
 fn cross_command(bin: &str) -> Command {
   #[cfg(target_os = "windows")]
-  let cmd = Command::new("cmd").arg("/c").arg(bin);
+  let cmd = {
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/c").arg(bin);
+    cmd
+  };
   #[cfg(not(target_os = "windows"))]
   let cmd = Command::new(bin);
   cmd

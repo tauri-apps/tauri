@@ -30,7 +30,7 @@ use crate::hooks::IsolationJavascript;
 use crate::pattern::{format_real_schema, PatternJavascript};
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
-  event::{is_event_name_valid, Event, EventHandler, Listeners},
+  event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
   hooks::{InvokeHandler, InvokePayload, InvokeResponder, OnPageLoad, PageLoadPayload},
   plugin::PluginStore,
   runtime::{
@@ -1104,7 +1104,7 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
-    assert!(is_event_name_valid(event));
+    assert_event_name_is_valid(event);
     self
       .windows_lock()
       .values()
@@ -1129,7 +1129,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   pub fn trigger(&self, event: &str, window: Option<String>, data: Option<String>) {
-    assert!(is_event_name_valid(event));
+    assert_event_name_is_valid(event);
     self.inner.listeners.trigger(event, window, data)
   }
 
@@ -1139,7 +1139,7 @@ impl<R: Runtime> WindowManager<R> {
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
-    assert!(is_event_name_valid(&event));
+    assert_event_name_is_valid(&event);
     self.inner.listeners.listen(event, window, handler)
   }
 
@@ -1149,7 +1149,7 @@ impl<R: Runtime> WindowManager<R> {
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
-    assert!(is_event_name_valid(&event));
+    assert_event_name_is_valid(&event);
     self.inner.listeners.once(event, window, handler)
   }
 

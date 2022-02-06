@@ -18,6 +18,13 @@ pub fn is_event_name_valid(event: &str) -> bool {
     .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
 }
 
+pub fn assert_event_name_is_valid(event: &str) {
+  assert!(
+    is_event_name_valid(event),
+    "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`."
+  );
+}
+
 /// Represents an event handler.
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct EventHandler(Uuid);
@@ -326,7 +333,7 @@ pub fn listen_js(
     event = event,
     event_id = event_id,
     window_label = if let Some(l) = window_label {
-      crate::runtime::window::assert_valid_label(&l);
+      crate::runtime::window::assert_label_is_valid(&l);
       format!("'{}'", l)
     } else {
       "null".to_owned()

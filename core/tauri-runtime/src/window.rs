@@ -115,7 +115,7 @@ pub fn is_label_valid(label: &str) -> bool {
     .all(|c| char::is_alphanumeric(c) || c == '-' || c == '/' || c == ':' || c == '_')
 }
 
-pub fn assert_valid_label(label: &str) {
+pub fn assert_label_is_valid(label: &str) {
   assert!(
     is_label_valid(label),
     "Window label must include only alphanumeric characters, `-`, `/`, `:` and `_`."
@@ -134,7 +134,7 @@ impl<R: Runtime> PendingWindow<R> {
       get_menu_ids(&mut menu_ids, menu);
     }
     let label = label.into();
-    assert_valid_label(&label);
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,
@@ -160,7 +160,7 @@ impl<R: Runtime> PendingWindow<R> {
       get_menu_ids(&mut menu_ids, menu);
     }
     let label = label.into();
-    assert_valid_label(&label);
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,

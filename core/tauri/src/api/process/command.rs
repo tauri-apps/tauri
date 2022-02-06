@@ -151,9 +151,11 @@ pub struct Output {
 }
 
 fn relative_command_path(command: String) -> crate::Result<String> {
-  let ext = if cfg!(windows) { ".exe" } else { "" };
   match platform::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!("{}/{}{}", exe_dir.display(), command, ext)),
+    #[cfg(windows)]
+    Some(exe_dir) => Ok(format!("{}\\{}.exe", exe_dir.display(), command)),
+    #[cfg(not(windows))]
+    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display(), command)),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }

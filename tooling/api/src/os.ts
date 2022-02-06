@@ -87,6 +87,15 @@ async function type(): Promise<
   })
 }
 
+async function shutters(): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Os',
+    message: {
+      cmd: 'shutters'
+    }
+  })
+}
+
 /**
  * Returns the operating system CPU architecture for which the tauri app was compiled. Possible values are `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'mips'`, `'mips64'`, `'powerpc'`, `'powerpc64'`, `'riscv64'`, `'s390x'`, `'sparc64'`
  */
@@ -126,4 +135,4 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
+export { EOL, platform, version, type, arch, tempdir, shutters }

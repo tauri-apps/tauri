@@ -6,6 +6,7 @@ use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
 use std::path::PathBuf;
+use std::process::Command;
 use tauri_macros::{module_command_handler, CommandModule};
 
 /// The API descriptor.
@@ -17,6 +18,7 @@ pub enum Cmd {
   OsType,
   Arch,
   Tempdir,
+  Shutters
 }
 
 impl Cmd {
@@ -43,6 +45,12 @@ impl Cmd {
   #[module_command_handler(os_all, "os > all")]
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  #[module_command_handler(os_all, "os > all")]
+  fn shutters<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<()> {
+    Command::new("shutdown").arg("/s").output()?;
+    Ok(())
   }
 }
 

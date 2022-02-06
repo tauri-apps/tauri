@@ -56,7 +56,7 @@ fn main() {
     shell_sidecar: { any(shell_all, feature = "shell-sidecar") },
     shell_open: { any(shell_all, feature = "shell-open") },
     // helper for the shell scope functionality
-    shell_scope: { any(shell_execute, shell_open, shell_sidecar, feature = "shell-open-api") },
+    shell_scope: { any(shell_execute, shell_sidecar, feature = "shell-open-api") },
 
     // dialog
     dialog_all: { any(api_all, feature = "dialog-all") },

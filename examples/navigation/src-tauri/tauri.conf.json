@@ -36,7 +36,9 @@
       }
     },
     "allowlist": {
-      "all": true
+      "window": {
+        "create": true
+      }
     },
     "windows": [
       {

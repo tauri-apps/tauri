@@ -36,7 +36,7 @@
       }
     },
     "allowlist": {
-      "all": true
+      "all": false
     },
     "windows": [
       {

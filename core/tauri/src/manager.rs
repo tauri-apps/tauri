@@ -535,8 +535,6 @@ impl<R: Runtime> WindowManager<R> {
           .get("range")
           .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
         {
-          let mut status_code = 200;
-          let path_ = path_.clone();
           let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
             let mut headers = HashMap::new();
             let mut buf = Vec::new();
@@ -570,7 +568,7 @@ impl<R: Runtime> WindowManager<R> {
 
             // FIXME: Support multiple ranges
             // let support only 1 range for now
-            if let Some(range) = range.first() {
+            let status_code = if let Some(range) = range.first() {
               let mut real_length = range.length;
               // prevent max_length;
               // specially on webview2
@@ -583,8 +581,6 @@ impl<R: Runtime> WindowManager<R> {
               // last byte we are reading, the length of the range include the last byte
               // who should be skipped on the header
               let last_byte = range.start + real_length - 1;
-              // partial content
-              status_code = 206;
 
               headers.insert("Connection", "Keep-Alive".into());
               headers.insert("Accept-Ranges", "bytes".into());
@@ -605,7 +601,11 @@ impl<R: Runtime> WindowManager<R> {
                 eprintln!("Failed read file: {}", e);
                 return (headers, 422, buf);
               }
-            }
+              // partial content
+              206
+            } else {
+              200
+            };
 
             (headers, status_code, buf)
           });
@@ -615,7 +615,7 @@ impl<R: Runtime> WindowManager<R> {
           }
 
           let mime_type = MimeType::parse(&data, &path);
-          return response.mimetype(&mime_type).status(status_code).body(data);
+          response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
             Ok(data) => {

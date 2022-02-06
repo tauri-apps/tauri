@@ -133,7 +133,7 @@
 pub use embed_plist;
 /// The Tauri error enum.
 pub use error::Error;
-#[cfg(feature = "shell-execute")]
+#[cfg(any(feature = "shell-execute", feature = "shell-open-api"))]
 #[doc(hidden)]
 pub use regex;
 pub use tauri_macros::{command, generate_handler};

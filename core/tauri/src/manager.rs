@@ -850,6 +850,7 @@ impl<R: Runtime> WindowManager<R> {
           self.event_listeners_object_name(),
           "eventName".into(),
           0,
+          None,
           "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
         )
       ),
@@ -865,18 +866,22 @@ impl<R: Runtime> WindowManager<R> {
   fn event_initialization_script(&self) -> String {
     return format!(
       "
-      window['{function}'] = function (eventData) {{
-      const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
+      Object.defineProperty(window, '{function}', {{
+        value: function (eventData) {{
+          const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
 
-      for (let i = listeners.length - 1; i >= 0; i--) {{
-        const listener = listeners[i]
-        eventData.id = listener.id
-        listener.handler(eventData)
-      }}
-    }}
+          for (let i = listeners.length - 1; i >= 0; i--) {{
+            const listener = listeners[i]
+            if (listener.windowLabel === null || listener.windowLabel === eventData.windowLabel) {{
+              eventData.id = listener.id
+              listener.handler(eventData)
+            }}
+          }}
+        }}
+      }});
     ",
-      function = self.inner.listeners.function_name(),
-      listeners = self.inner.listeners.listeners_object_name()
+      function = self.event_emit_function_name(),
+      listeners = self.event_listeners_object_name()
     );
   }
 }
@@ -1088,7 +1093,13 @@ impl<R: Runtime> WindowManager<R> {
     self.windows_lock().remove(label);
   }
 
-  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  pub fn emit_filter<S, F>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+    filter: F,
+  ) -> crate::Result<()>
   where
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
@@ -1098,7 +1109,7 @@ impl<R: Runtime> WindowManager<R> {
       .windows_lock()
       .values()
       .filter(|&w| filter(w))
-      .try_for_each(|window| window.emit(event, payload.clone()))
+      .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
   }
 
   pub fn labels(&self) -> HashSet<String> {
@@ -1171,7 +1182,7 @@ fn on_window_event<R: Runtime>(
       label: _,
       signal_tx,
     } => {
-      if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
+      if window.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT) {
         signal_tx.send(true).unwrap();
       }
       window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
@@ -1210,7 +1221,7 @@ fn on_window_event<R: Runtime>(
   Ok(())
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ScaleFactorChanged {
   scale_factor: f64,

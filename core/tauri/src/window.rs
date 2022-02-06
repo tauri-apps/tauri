@@ -19,7 +19,7 @@ use crate::{
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, PendingWindow, WindowEvent,
+      DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
     Dispatch, Icon, Runtime, UserAttentionType,
   },
@@ -261,29 +261,41 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Emits an event to both the JavaScript and the Rust listeners.
-  pub fn emit_and_trigger<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+  pub fn emit_and_trigger<S: Serialize + Clone>(
+    &self,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
     self.trigger(event, Some(serde_json::to_string(&payload)?));
     self.emit(event, payload)
   }
 
-  /// Emits an event to the JavaScript listeners on the current window.
-  ///
-  /// The event is only delivered to listeners that used the `appWindow.listen` method on the @tauri-apps/api `window` module.
-  pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+  pub(crate) fn emit_internal<S: Serialize>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, payload: {}}})",
+      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
+      serde_json::to_string(&source_window_label)?,
       serde_json::to_value(payload)?,
     ))?;
     Ok(())
   }
 
-  /// Emits an event to the JavaScript listeners on all windows except this one.
+  /// Emits an event to the JavaScript listeners on the current window.
   ///
-  /// The event is only delivered to listeners that used the `appWindow.listen` function from the `@tauri-apps/api `window` module.
-  pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager.emit_filter(event, payload, |w| w != self)
+  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager
+      .emit_filter(event, Some(self.label()), payload, |w| {
+        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
+      })?;
+    Ok(())
   }
 
   /// Listen to an event on this window.
@@ -346,13 +358,16 @@ impl<R: Runtime> Window<R> {
     })
   }
 
-  pub(crate) fn register_js_listener(&self, event: String, id: u64) {
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
     self
       .window
       .js_event_listeners
       .lock()
       .unwrap()
-      .entry(event)
+      .entry(JsEventListenerKey {
+        window_label,
+        event,
+      })
       .or_insert_with(Default::default)
       .insert(id);
   }
@@ -360,28 +375,32 @@ impl<R: Runtime> Window<R> {
   pub(crate) fn unregister_js_listener(&self, id: u64) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
-    for (event, ids) in js_listeners.iter_mut() {
+    for (key, ids) in js_listeners.iter_mut() {
       if ids.contains(&id) {
         ids.remove(&id);
         if ids.is_empty() {
-          empty.replace(event.clone());
+          empty.replace(key.clone());
         }
         break;
       }
     }
 
-    if let Some(event) = empty {
-      js_listeners.remove(&event);
+    if let Some(key) = empty {
+      js_listeners.remove(&key);
     }
   }
 
-  pub(crate) fn has_js_listener(&self, event: &str) -> bool {
+  /// Whether this window registered a listener to an event from the given window and event name.
+  pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
       .window
       .js_event_listeners
       .lock()
       .unwrap()
-      .contains_key(event)
+      .contains_key(&JsEventListenerKey {
+        window_label,
+        event: event.into(),
+      })
   }
 
   // Getters

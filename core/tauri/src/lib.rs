@@ -404,14 +404,14 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Emits a event to all windows.
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-    self.manager().emit_filter(event, payload, |_| true)
+    self.manager().emit_filter(event, None, payload, |_| true)
   }
 
   /// Emits an event to a window with the specified label.
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
-      .emit_filter(event, payload, |w| label == w.label())
+      .emit_filter(event, None, payload, |w| label == w.label())
   }
 
   /// Listen to a global event.
@@ -552,6 +552,7 @@ pub(crate) mod sealed {
 
       self.manager().emit_filter(
         "tauri://window-created",
+        None,
         Some(WindowCreatedEvent {
           label: window.label().into(),
         }),

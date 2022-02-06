@@ -83,8 +83,8 @@
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventName, EventCallback, UnlistenFn, listen, once } from './event'
-import { emit } from './helpers/event'
+import type { EventName, EventCallback, UnlistenFn } from './event'
+import { emit, listen, once } from './helpers/event'
 
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
@@ -252,7 +252,7 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return listen(event, handler)
+    return listen(event, this.label, handler)
   }
 
   /**
@@ -270,7 +270,7 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return once(event, handler)
+    return once(event, this.label, handler)
   }
 
   /**
@@ -283,7 +283,7 @@ class WebviewWindowHandle {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ event, id: -1, payload })
+        handler({ event, id: -1, windowLabel: this.label, payload })
       }
       return Promise.resolve()
     }

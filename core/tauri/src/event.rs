@@ -306,23 +306,31 @@ pub fn listen_js(
   listeners_object_name: String,
   event: String,
   event_id: u64,
+  window_label: Option<String>,
   handler: String,
 ) -> String {
   format!(
     "if (window['{listeners}'] === void 0) {{
-      window['{listeners}'] = Object.create(null)
+      Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
     }}
     if (window['{listeners}'][{event}] === void 0) {{
-      window['{listeners}'][{event}] = []
+      Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
     }}
     window['{listeners}'][{event}].push({{
       id: {event_id},
+      windowLabel: {window_label},
       handler: {handler}
     }});
   ",
     listeners = listeners_object_name,
     event = event,
     event_id = event_id,
+    window_label = if let Some(l) = window_label {
+      crate::runtime::window::assert_valid_label(&l);
+      format!("'{}'", l)
+    } else {
+      "null".to_owned()
+    },
     handler = handler
   )
 }

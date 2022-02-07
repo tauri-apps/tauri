@@ -150,22 +150,12 @@ pub struct Output {
   pub stderr: String,
 }
 
-#[cfg(not(windows))]
 fn relative_command_path(command: String) -> crate::Result<String> {
-  match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.to_string_lossy(), command)),
-    None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
-  }
-}
-
-#[cfg(windows)]
-fn relative_command_path(command: String) -> crate::Result<String> {
-  match std::env::current_exe()?.parent() {
-    Some(exe_dir) => Ok(format!(
-      "{}/{}.exe",
-      exe_dir.to_string_lossy().to_string(),
-      command
-    )),
+  match platform::current_exe()?.parent() {
+    #[cfg(windows)]
+    Some(exe_dir) => Ok(format!("{}\\{}.exe", exe_dir.display(), command)),
+    #[cfg(not(windows))]
+    Some(exe_dir) => Ok(format!("{}/{}", exe_dir.display(), command)),
     None => Err(crate::api::Error::Command("Could not evaluate executable dir".to_string()).into()),
   }
 }
@@ -196,6 +186,7 @@ impl Command {
   }
 
   /// Appends arguments to the command.
+  #[must_use]
   pub fn args<I, S>(mut self, args: I) -> Self
   where
     I: IntoIterator<Item = S>,
@@ -208,18 +199,21 @@ impl Command {
   }
 
   /// Clears the entire environment map for the child process.
+  #[must_use]
   pub fn env_clear(mut self) -> Self {
     self.env_clear = true;
     self
   }
 
   /// Adds or updates multiple environment variable mappings.
+  #[must_use]
   pub fn envs(mut self, env: HashMap<String, String>) -> Self {
     self.env = env;
     self
   }
 
   /// Sets the working directory for the child process.
+  #[must_use]
   pub fn current_dir(mut self, current_dir: PathBuf) -> Self {
     self.current_dir.replace(current_dir);
     self
@@ -312,7 +306,7 @@ impl Command {
   /// Stdin, stdout and stderr are ignored.
   pub fn status(self) -> crate::api::Result<ExitStatus> {
     let (mut rx, _child) = self.spawn()?;
-    let code = crate::async_runtime::block_on(async move {
+    let code = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       #[allow(clippy::collapsible_match)]
       while let Some(event) = rx.recv().await {
@@ -330,7 +324,7 @@ impl Command {
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
-    let output = crate::async_runtime::block_on(async move {
+    let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
       let mut stdout = String::new();
       let mut stderr = String::new();

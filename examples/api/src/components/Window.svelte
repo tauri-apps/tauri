@@ -1,9 +1,8 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
-  window.UserAttentionType = UserAttentionType;
   let selectedWindow = appWindow.label;
   const windowMap = {
     [selectedWindow]: appWindow
@@ -57,11 +56,15 @@
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(windowMap[selectedWindow].setIcon);
+    }).then(path => {
+      if (typeof path === 'string') {
+        windowMap[selectedWindow].setIcon(path)
+      }
+    });
   }
 
   function createWindow() {
-    const label = Math.random().toString();
+    const label = Math.random().toString().replace('.', '');
     const webview = new WebviewWindow(label);
     windowMap[label] = webview;
     webview.once('tauri://error', function () {
@@ -91,15 +94,15 @@
     });
   }
 
-  function addWindowEventListeners(window) {
+  async function addWindowEventListeners(window) {
     if (resizeEventUnlisten) {
       resizeEventUnlisten();
     }
     if(moveEventUnlisten) {
       moveEventUnlisten();
     }
-    moveEventUnlisten = window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = window.listen('tauri://resize', handleWindowResize);
+    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove);
+    resizeEventUnlisten = await window.listen('tauri://resize', handleWindowResize);
   }
 
   async function requestUserAttention_() {

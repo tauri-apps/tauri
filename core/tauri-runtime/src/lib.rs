@@ -57,6 +57,7 @@ impl SystemTray {
   }
 
   /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  #[must_use]
   pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
     self
@@ -64,12 +65,14 @@ impl SystemTray {
 
   /// Sets the tray icon as template.
   #[cfg(target_os = "macos")]
+  #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.icon_as_template = is_template;
     self
   }
 
   /// Sets the menu to show when the system tray is right clicked.
+  #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
@@ -102,6 +105,9 @@ pub enum Error {
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
+  /// Failed to receive message from webview.
+  #[error("failed to receive message from webview")]
+  FailedToReceiveMessage,
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
@@ -304,8 +310,13 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
 
-  /// Creates a new webview runtime.
+  /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
+
+  /// Creates a new webview runtime on any thread.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  fn new_any_thread() -> crate::Result<Self>;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
@@ -335,7 +346,6 @@ pub trait Runtime: Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
@@ -358,6 +368,9 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
 
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self);
 
   // GETTERS
 

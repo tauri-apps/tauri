@@ -13,10 +13,16 @@ declare let __RUST_CLI_VERSION__: string
 
 const currentDirName = dirname(fileURLToPath(import.meta.url))
 
+interface Options {
+  cwd?: string
+}
+
 export async function runOnRustCli(
   command: string,
-  args: string[]
+  args: string[],
+  options: Options = {}
 ): Promise<{ pid: number; promise: Promise<void> }> {
+  const cwd = options.cwd ?? process.cwd()
   const targetPath = resolve(currentDirName, '../..')
   const targetCliPath = join(
     targetPath,
@@ -39,35 +45,21 @@ export async function runOnRustCli(
   }
 
   if (existsSync(targetCliPath)) {
-    pid = spawn(
-      targetCliPath,
-      ['tauri', command, ...args],
-      process.cwd(),
-      onClose
-    )
+    pid = spawn(targetCliPath, ['tauri', command, ...args], cwd, onClose)
   } else if (process.env.NODE_ENV === 'production') {
     await downloadCli()
-    pid = spawn(
-      targetCliPath,
-      ['tauri', command, ...args],
-      process.cwd(),
-      onClose
-    )
+    pid = spawn(targetCliPath, ['tauri', command, ...args], cwd, onClose)
   } else {
     if (existsSync(resolve(targetPath, 'test'))) {
       // running local CLI since test directory exists
       const cliPath = resolve(targetPath, '../cli.rs')
       spawnSync('cargo', ['build', '--release'], cliPath)
-      const localCliPath = resolve(
-        targetPath,
-        '../cli.rs/target/release/cargo-tauri'
-      )
-      pid = spawn(
-        localCliPath,
-        ['tauri', command, ...args],
-        process.cwd(),
-        onClose
-      )
+      const localCliPath = process.env.CARGO_TARGET_DIR
+        ? join(process.env.CARGO_TARGET_DIR, 'release/cargo-tauri')
+        : process.env.CARGO_BUILD_TARGET_DIR
+        ? join(process.env.CARGO_BUILD_TARGET_DIR, 'release/cargo-tauri')
+        : resolve(targetPath, '../cli.rs/target/release/cargo-tauri')
+      pid = spawn(localCliPath, ['tauri', command, ...args], cwd, onClose)
     } else {
       spawnSync(
         'cargo',
@@ -79,14 +71,9 @@ export async function runOnRustCli(
           '--version',
           __RUST_CLI_VERSION__
         ],
-        process.cwd()
+        cwd
       )
-      pid = spawn(
-        targetCliPath,
-        ['tauri', command, ...args],
-        process.cwd(),
-        onClose
-      )
+      pid = spawn(targetCliPath, ['tauri', command, ...args], cwd, onClose)
     }
   }
 

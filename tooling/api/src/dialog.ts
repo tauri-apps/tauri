@@ -43,9 +43,11 @@ interface DialogFilter {
 
 /** Options for the open dialog. */
 interface OpenDialogOptions {
+  /** The title of the dialog window. */
+  title?: string
   /** The filters of the dialog. */
   filters?: DialogFilter[]
-  /** Initial directory or file path. It must exist. */
+  /** Initial directory or file path. */
   defaultPath?: string
   /** Whether the dialog allows multiple selection or not. */
   multiple?: boolean
@@ -55,6 +57,8 @@ interface OpenDialogOptions {
 
 /** Options for the save dialog. */
 interface SaveDialogOptions {
+  /** The title of the dialog window. */
+  title?: string
   /** The filters of the dialog. */
   filters?: DialogFilter[]
   /**

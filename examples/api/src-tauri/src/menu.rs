@@ -17,7 +17,7 @@ pub fn get_menu() -> Menu {
   }
 
   // create a submenu
-  let my_sub_menu = Menu::new().add_item(disable_item);
+  let my_sub_menu = Menu::with_items([disable_item.into()]);
 
   let my_app_menu = Menu::new()
     .add_native_item(MenuItem::Copy)

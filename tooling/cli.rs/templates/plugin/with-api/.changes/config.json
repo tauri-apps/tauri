@@ -20,9 +20,7 @@
     "tauri-plugin-{{ plugin_name }}-api": {
       "path": ".",
       "manager": "javascript",
-      "dependencies": [
-        "tauri-plugin-{{ plugin_name }}"
-      ]
+      "dependencies": ["tauri-plugin-{{ plugin_name }}"]
     }
   }
 }

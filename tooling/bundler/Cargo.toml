@@ -13,7 +13,7 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [
   ".license_template",
   "CHANGELOG.md",
@@ -37,25 +37,27 @@ tar = "0.4"
 termcolor = "1.1.2"
 toml = "0.5.8"
 walkdir = "2"
-handlebars = { version = "4.1" }
+handlebars = { version = "4.2" }
 zip = { version = "0.5" }
-tempfile = "3.2.0"
-regex = "1"
+tempfile = "3.3.0"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 attohttpc = "0.18"
 uuid = { version = "0.8", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"
-sha2 = "0.9"
+sha2 = "0.10"
 hex = "0.4"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-chrono = "0.4"
+time = { version = "0.3", features = ["formatting"] }
 dirs-next = "2.0"
 
+[target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]
+regex = "1"
+
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.3"
+heck = "0.4"
 
 [lib]
 name = "tauri_bundler"

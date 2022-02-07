@@ -3,30 +3,46 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::rpc::{format_callback, format_callback_result},
+  api::ipc::{format_callback, format_callback_result, CallbackFn},
   app::App,
   runtime::Runtime,
   StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use serialize_to_javascript::{default_template, Template};
 use std::{future::Future, sync::Arc};
 
 use tauri_macros::default_runtime;
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
 pub type InvokeResponder<R> =
-  dyn Fn(Window<R>, InvokeResponse, String, String) + Send + Sync + 'static;
+  dyn Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
 
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
+
+// todo: why is this derive broken but the output works manually?
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
 
 /// The payload for the [`OnPageLoad`] hook.
 #[derive(Debug, Clone, Deserialize)]
@@ -39,6 +55,23 @@ impl PageLoadPayload {
   pub fn url(&self) -> &str {
     &self.url
   }
+}
+
+/// The payload used on the IPC invoke.
+#[derive(Debug, Deserialize)]
+pub struct InvokePayload {
+  /// The invoke command.
+  pub cmd: String,
+  #[serde(rename = "__tauriModule")]
+  #[doc(hidden)]
+  pub tauri_module: Option<String>,
+  /// The success callback.
+  pub callback: CallbackFn,
+  /// The error callback.
+  pub error: CallbackFn,
+  /// The payload of the message.
+  #[serde(flatten)]
+  pub inner: JsonValue,
 }
 
 /// The message and resolver given to a custom command.
@@ -124,12 +157,12 @@ impl From<InvokeError> for InvokeResponse {
 #[derive(Debug)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
-  pub(crate) callback: String,
-  pub(crate) error: String,
+  pub(crate) callback: CallbackFn,
+  pub(crate) error: CallbackFn,
 }
 
 impl<R: Runtime> InvokeResolver<R> {
-  pub(crate) fn new(window: Window<R>, callback: String, error: String) -> Self {
+  pub(crate) fn new(window: Window<R>, callback: CallbackFn, error: CallbackFn) -> Self {
     Self {
       window,
       callback,
@@ -144,7 +177,7 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      self.return_task(task).await;
+      Self::return_task(self.window, task, self.callback, self.error).await;
     });
   }
 
@@ -154,28 +187,33 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      self.return_result(task.await.into());
+      Self::return_result(self.window, task.await.into(), self.callback, self.error)
     });
   }
 
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
-    self.return_result(value.into())
+    Self::return_result(self.window, value.into(), self.callback, self.error)
   }
 
   /// Resolve the invoke promise with a value.
   pub fn resolve<T: Serialize>(self, value: T) {
-    self.return_result(Ok(value).into())
+    Self::return_result(self.window, Ok(value).into(), self.callback, self.error)
   }
 
   /// Reject the invoke promise with a value.
   pub fn reject<T: Serialize>(self, value: T) {
-    self.return_result(Result::<(), _>::Err(value.into()).into())
+    Self::return_result(
+      self.window,
+      Result::<(), _>::Err(value.into()).into(),
+      self.callback,
+      self.error,
+    )
   }
 
   /// Reject the invoke promise with an [`InvokeError`].
   pub fn invoke_error(self, error: InvokeError) {
-    self.return_result(error.into())
+    Self::return_result(self.window, error.into(), self.callback, self.error)
   }
 
   /// Asynchronously executes the given task
@@ -183,39 +221,50 @@ impl<R: Runtime> InvokeResolver<R> {
   ///
   /// If the Result `is_ok()`, the callback will be the `success_callback` function name and the argument will be the Ok value.
   /// If the Result `is_err()`, the callback will be the `error_callback` function name and the argument will be the Err value.
-  pub async fn return_task<T, F>(self, task: F)
-  where
+  pub async fn return_task<T, F>(
+    window: Window<R>,
+    task: F,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
+  ) where
     T: Serialize,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
   {
     let result = task.await;
-    self.return_closure(|| result)
+    Self::return_closure(window, || result, success_callback, error_callback)
   }
 
-  pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(self, f: F) {
-    self.return_result(f().into())
+  pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(
+    window: Window<R>,
+    f: F,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
+  ) {
+    Self::return_result(window, f().into(), success_callback, error_callback)
   }
 
-  fn return_result(self, response: InvokeResponse) {
-    (self.window.invoke_responder())(self.window, response, self.callback, self.error);
+  pub(crate) fn return_result(
+    window: Window<R>,
+    response: InvokeResponse,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
+  ) {
+    (window.invoke_responder())(window, response, success_callback, error_callback);
   }
 }
 
 pub fn window_invoke_responder<R: Runtime>(
   window: Window<R>,
   response: InvokeResponse,
-  success_callback: String,
-  error_callback: String,
+  success_callback: CallbackFn,
+  error_callback: CallbackFn,
 ) {
-  let callback_string = match format_callback_result(
-    response.into_result(),
-    success_callback,
-    error_callback.clone(),
-  ) {
-    Ok(callback_string) => callback_string,
-    Err(e) => format_callback(error_callback, &e.to_string())
-      .expect("unable to serialize shortcut string to json"),
-  };
+  let callback_string =
+    match format_callback_result(response.into_result(), success_callback, error_callback) {
+      Ok(callback_string) => callback_string,
+      Err(e) => format_callback(error_callback, &e.to_string())
+        .expect("unable to serialize response string to json"),
+    };
 
   let _ = window.eval(&callback_string);
 }
@@ -228,7 +277,7 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) window: Window<R>,
   /// Application managed state.
   pub(crate) state: Arc<StateManager>,
-  /// The RPC command.
+  /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: JsonValue,

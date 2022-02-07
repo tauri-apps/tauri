@@ -7,16 +7,16 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{FileDropHandler, WebviewAttributes, WebviewRpcHandler},
+  webview::{FileDropHandler, WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, WindowBuilder,
 };
 use serde::Serialize;
 use tauri_utils::config::WindowConfig;
 
 use std::{
-  collections::HashMap,
+  collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
-  sync::{Arc, Mutex},
+  sync::{mpsc::Sender, Arc, Mutex},
 };
 
 type UriSchemeProtocol =
@@ -34,7 +34,12 @@ pub enum WindowEvent {
   /// The position of the window has changed. Contains the window's new position.
   Moved(dpi::PhysicalPosition<i32>),
   /// The window has been requested to close.
-  CloseRequested,
+  CloseRequested {
+    /// The window label.
+    label: String,
+    /// A signal sender. If a `true` value is emitted, the window won't be closed.
+    signal_tx: Sender<bool>,
+  },
   /// The window has been destroyed.
   Destroyed,
   /// The window gained or lost focus.
@@ -88,8 +93,8 @@ pub struct PendingWindow<R: Runtime> {
 
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
-  /// How to handle RPC calls on the webview window.
-  pub rpc_handler: Option<WebviewRpcHandler<R>>,
+  /// How to handle IPC calls on the webview window.
+  pub ipc_handler: Option<WebviewIpcHandler<R>>,
 
   /// How to handle a file dropping onto the webview window.
   pub file_drop_handler: Option<FileDropHandler<R>>,
@@ -99,6 +104,22 @@ pub struct PendingWindow<R: Runtime> {
 
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+
+  /// A HashMap mapping JS event names with associated listener ids.
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+}
+
+pub fn is_label_valid(label: &str) -> bool {
+  label
+    .chars()
+    .all(|c| char::is_alphanumeric(c) || c == '-' || c == '/' || c == ':' || c == '_')
+}
+
+pub fn assert_label_is_valid(label: &str) {
+  assert!(
+    is_label_valid(label),
+    "Window label must include only alphanumeric characters, `-`, `/`, `:` and `_`."
+  );
 }
 
 impl<R: Runtime> PendingWindow<R> {
@@ -112,15 +133,18 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
-      rpc_handler: None,
+      label,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),
+      js_event_listeners: Default::default(),
     }
   }
 
@@ -135,18 +159,22 @@ impl<R: Runtime> PendingWindow<R> {
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
     }
+    let label = label.into();
+    assert_label_is_valid(&label);
     Self {
       window_builder,
       webview_attributes,
       uri_scheme_protocols: Default::default(),
-      label: label.into(),
-      rpc_handler: None,
+      label,
+      ipc_handler: None,
       file_drop_handler: None,
       url: "tauri://localhost".to_string(),
       menu_ids: Arc::new(Mutex::new(menu_ids)),
+      js_event_listeners: Default::default(),
     }
   }
 
+  #[must_use]
   pub fn set_menu(mut self, menu: Menu) -> Self {
     let mut menu_ids = HashMap::new();
     get_menu_ids(&mut menu_ids, &menu);
@@ -170,6 +198,15 @@ impl<R: Runtime> PendingWindow<R> {
   }
 }
 
+/// Key for a JS event listener.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct JsEventListenerKey {
+  /// The associated window label.
+  pub window_label: Option<String>,
+  /// The event name.
+  pub event: String,
+}
+
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
 pub struct DetachedWindow<R: Runtime> {
@@ -181,6 +218,9 @@ pub struct DetachedWindow<R: Runtime> {
 
   /// Maps runtime id to a string menu id.
   pub menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
+
+  /// A HashMap mapping JS event names with associated listener ids.
+  pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
 impl<R: Runtime> Clone for DetachedWindow<R> {
@@ -189,6 +229,7 @@ impl<R: Runtime> Clone for DetachedWindow<R> {
       label: self.label.clone(),
       dispatcher: self.dispatcher.clone(),
       menu_ids: self.menu_ids.clone(),
+      js_event_listeners: self.js_event_listeners.clone(),
     }
   }
 }

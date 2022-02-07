@@ -44,17 +44,20 @@ pub fn execute_with_output(cmd: &mut Command) -> crate::Result<()> {
 pub fn command_env(debug: bool) -> HashMap<String, String> {
   let mut map = HashMap::new();
 
-  map.insert("PLATFORM".into(), std::env::consts::OS.into());
-  map.insert("ARCH".into(), std::env::consts::ARCH.into());
-  map.insert("FAMILY".into(), std::env::consts::FAMILY.into());
-  map.insert("VERSION".into(), os_info::get().version().to_string());
+  map.insert("TAURI_PLATFORM".into(), std::env::consts::OS.into());
+  map.insert("TAURI_ARCH".into(), std::env::consts::ARCH.into());
+  map.insert("TAURI_FAMILY".into(), std::env::consts::FAMILY.into());
+  map.insert(
+    "TAURI_PLATFORM_VERSION".into(),
+    os_info::get().version().to_string(),
+  );
 
   #[cfg(target_os = "linux")]
-  map.insert("PLATFORM_TYPE".into(), "Linux".into());
+  map.insert("TAURI_PLATFORM_TYPE".into(), "Linux".into());
   #[cfg(target_os = "windows")]
-  map.insert("PLATFORM_TYPE".into(), "Windows_NT".into());
+  map.insert("TAURI_PLATFORM_TYPE".into(), "Windows_NT".into());
   #[cfg(target_os = "macos")]
-  map.insert("PLATFORM_TYPE".into(), "Darwin".into());
+  map.insert("TAURI_PLATFORM_TYPE".into(), "Darwin".into());
 
   if debug {
     map.insert("TAURI_DEBUG".into(), "true".to_string());

@@ -21,7 +21,7 @@ pub enum Framework {
 impl Framework {
   pub fn dev_path(&self) -> String {
     match self {
-      Self::Svelte => "http://localhost:5000",
+      Self::Svelte => "http://localhost:8080",
       Self::Angular => "http://localhost:4200",
       Self::React => "http://localhost:3000",
       Self::Nextjs => "http://localhost:3000",

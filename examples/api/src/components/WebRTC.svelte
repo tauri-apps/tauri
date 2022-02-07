@@ -47,5 +47,7 @@
 
 <div>
   <div class="alert"><p>Not available for Linux</p></div>
-  <video id="localVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline>
+    <track kind="captions" />
+  </video>
 </div>

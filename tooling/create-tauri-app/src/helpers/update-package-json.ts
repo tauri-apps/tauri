@@ -5,29 +5,17 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
-interface Package {
+interface PackageJSON {
   name?: string
   scripts?: Record<string, string>
 }
 
 export function updatePackageJson(
-  appDirectory: string,
-  appName: string,
-  recipeShortName: string
+  f: (pkg: PackageJSON) => PackageJSON,
+  cwd: string = process.cwd()
 ): void {
-  const pkgPath = join(appDirectory, 'package.json')
-  const pkgString = readFileSync(pkgPath, 'utf8')
-  const pkg = JSON.parse(pkgString) as Package
-  const outputPkg = {
-    ...pkg,
-    name: appName,
-    scripts: {
-      ...pkg.scripts,
-      start: `${recipeShortName === 'cra' ? 'cross-env BROWSER=none ' : ''}${
-        pkg.scripts?.start as string
-      }`,
-      tauri: 'tauri'
-    }
-  }
-  writeFileSync(pkgPath, JSON.stringify(outputPkg, undefined, 2))
+  const pkgPath = join(cwd, 'package.json')
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as PackageJSON
+  const output = f(pkg)
+  writeFileSync(pkgPath, JSON.stringify(output, undefined, 2))
 }

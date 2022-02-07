@@ -43,18 +43,21 @@ impl Notification {
   }
 
   /// Sets the notification body.
+  #[must_use]
   pub fn body(mut self, body: impl Into<String>) -> Self {
     self.body = Some(body.into());
     self
   }
 
   /// Sets the notification title.
+  #[must_use]
   pub fn title(mut self, title: impl Into<String>) -> Self {
     self.title = Some(title.into());
     self
   }
 
   /// Sets the notification icon.
+  #[must_use]
   pub fn icon(mut self, icon: impl Into<String>) -> Self {
     self.icon = Some(icon.into());
     self
@@ -74,7 +77,7 @@ impl Notification {
     }
     #[cfg(windows)]
     {
-      let exe = std::env::current_exe()?;
+      let exe = tauri_utils::platform::current_exe()?;
       let exe_dir = exe.parent().expect("failed to get exe directory");
       let curr_dir = exe_dir.display().to_string();
       // set the notification's System.AppUserModel.ID only when running the installed app

@@ -7,7 +7,7 @@ macro_rules! bind_string_arg {
     let arg = $arg;
     let mut clap_arg = $clap_arg;
     if let Some(value) = &arg.$arg_name {
-      clap_arg = clap_arg.$clap_field(value);
+      clap_arg = clap_arg.$clap_field(value.as_str());
     }
     clap_arg
   }};

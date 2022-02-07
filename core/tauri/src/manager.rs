@@ -519,34 +519,56 @@ impl<R: Runtime> WindowManager<R> {
           .to_string();
 
         if !asset_scope.is_allowed(&path) {
-          return HttpResponseBuilder::new()
-            .status(403)
-            .body(Vec::with_capacity(0));
+          #[cfg(debug_assertions)]
+          eprintln!("asset protocol not configured to allow the path: {}", path);
+          return HttpResponseBuilder::new().status(403).body(Vec::new());
         }
 
-        let path_for_data = path.clone();
+        let path_ = path.clone();
 
         let mut response =
           HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
         // handle 206 (partial range) http request
-        if let Some(range) = request.headers().get("range").cloned() {
-          let mut status_code = 200;
-          let path_for_data = path_for_data.clone();
+        if let Some(range) = request
+          .headers()
+          .get("range")
+          .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
+        {
           let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
             let mut headers = HashMap::new();
             let mut buf = Vec::new();
-            let mut file = tokio::fs::File::open(path_for_data.clone()).await.unwrap();
+            // open the file
+            let mut file = match tokio::fs::File::open(path_.clone()).await {
+              Ok(file) => file,
+              Err(e) => {
+                #[cfg(debug_assertions)]
+                eprintln!("Failed to open asset: {}", e);
+                return (headers, 404, buf);
+              }
+            };
             // Get the file size
-            let file_size = file.metadata().await.unwrap().len();
+            let file_size = match file.metadata().await {
+              Ok(metadata) => metadata.len(),
+              Err(e) => {
+                #[cfg(debug_assertions)]
+                eprintln!("Failed to read asset metadata: {}", e);
+                return (headers, 404, buf);
+              }
+            };
             // parse the range
-            let range =
-              crate::runtime::http::HttpRange::parse(range.to_str().unwrap(), file_size).unwrap();
+            let range = match crate::runtime::http::HttpRange::parse(&range, file_size) {
+              Ok(r) => r,
+              Err(e) => {
+                #[cfg(debug_assertions)]
+                eprintln!("Failed to parse range: {:?}", e);
+                return (headers, 400, buf);
+              }
+            };
 
             // FIXME: Support multiple ranges
             // let support only 1 range for now
-            let first_range = range.first();
-            if let Some(range) = first_range {
+            let status_code = if let Some(range) = range.first() {
               let mut real_length = range.length;
               // prevent max_length;
               // specially on webview2
@@ -559,8 +581,6 @@ impl<R: Runtime> WindowManager<R> {
               // last byte we are reading, the length of the range include the last byte
               // who should be skipped on the header
               let last_byte = range.start + real_length - 1;
-              // partial content
-              status_code = 206;
 
               headers.insert("Connection", "Keep-Alive".into());
               headers.insert("Accept-Ranges", "bytes".into());
@@ -570,12 +590,22 @@ impl<R: Runtime> WindowManager<R> {
                 format!("bytes {}-{}/{}", range.start, last_byte, file_size),
               );
 
-              file
-                .seek(std::io::SeekFrom::Start(range.start))
-                .await
-                .unwrap();
-              file.take(real_length).read_to_end(&mut buf).await.unwrap();
-            }
+              if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
+                #[cfg(debug_assertions)]
+                eprintln!("Failed to seek file to {}: {}", range.start, e);
+                return (headers, 422, buf);
+              }
+
+              if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
+                #[cfg(debug_assertions)]
+                eprintln!("Failed read file: {}", e);
+                return (headers, 422, buf);
+              }
+              // partial content
+              206
+            } else {
+              200
+            };
 
             (headers, status_code, buf)
           });
@@ -584,19 +614,20 @@ impl<R: Runtime> WindowManager<R> {
             response = response.header(k, v);
           }
 
-          if !data.is_empty() {
-            let mime_type = MimeType::parse(&data, &path);
-            return response.mimetype(&mime_type).status(status_code).body(data);
-          }
-        }
-
-        if let Ok(data) =
-          crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_for_data).await })
-        {
           let mime_type = MimeType::parse(&data, &path);
-          response.mimetype(&mime_type).body(data)
+          response.mimetype(&mime_type).status(status_code).body(data)
         } else {
-          response.status(404).body(Vec::new())
+          match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
+            Ok(data) => {
+              let mime_type = MimeType::parse(&data, &path);
+              response.mimetype(&mime_type).body(data)
+            }
+            Err(e) => {
+              #[cfg(debug_assertions)]
+              eprintln!("Failed to read file: {}", e);
+              response.status(404).body(Vec::new())
+            }
+          }
         }
       });
     }

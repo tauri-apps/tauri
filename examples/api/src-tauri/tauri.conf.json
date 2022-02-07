@@ -101,7 +101,7 @@
       },
       "protocol": {
         "asset": true,
-        "assetScope": ["$RESOURCE/**"]
+        "assetScope": ["$RESOURCE/**", "$APP/**"]
       },
       "http": {
         "scope": ["https://jsonplaceholder.typicode.com/todos/*"]

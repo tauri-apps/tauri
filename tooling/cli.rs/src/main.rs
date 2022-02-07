@@ -18,9 +18,6 @@ fn main() -> tauri_cli::Result<()> {
   {
     Some("cargo-tauri") => {
       if args.by_ref().peekable().peek().and_then(|s| s.to_str()) == Some("tauri") {
-        // remove the extra cargo external tools subcommand
-        args.next();
-
         Some("cargo tauri".into())
       } else {
         Some("cargo-tauri".into())

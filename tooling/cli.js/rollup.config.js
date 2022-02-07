@@ -19,7 +19,6 @@ const cliManifest = TOML.parse(cliManifestContents)
 export default {
   input: {
     'api/cli': './src/api/cli.ts',
-    'api/tauricon': './src/api/tauricon.ts',
     'api/dependency-manager': './src/api/dependency-manager/index.ts',
     'helpers/spawn': './src/helpers/spawn.ts',
     'helpers/rust-cli': './src/helpers/rust-cli.ts',

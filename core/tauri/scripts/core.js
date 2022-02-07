@@ -112,8 +112,7 @@
           }
           target = target.parentElement
         }
-      },
-      true
+      }
     )
   }
 
@@ -206,8 +205,8 @@
         options:
           typeof options === 'string'
             ? {
-                title: options
-              }
+              title: options
+            }
             : options
       }
     })

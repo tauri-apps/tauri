@@ -913,6 +913,8 @@ unsafe impl Send for GtkWindow {}
 
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  OpenDevTools,
   // Getters
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -1088,6 +1090,14 @@ impl Dispatch for WryDispatcher {
       .unwrap()
       .insert(id, Box::new(f));
     id
+  }
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self) {
+    let _ = send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::OpenDevTools),
+    );
   }
 
   // Getters
@@ -1933,6 +1943,12 @@ fn handle_user_message(
       {
         let window = webview.inner.window();
         match window_message {
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WindowMessage::OpenDevTools => {
+            if let WindowHandle::Webview(w) = &webview.inner {
+              w.devtool();
+            }
+          }
           // Getters
           WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
           WindowMessage::InnerPosition(tx) => tx
@@ -2681,6 +2697,11 @@ fn create_webview(
 
   if webview_attributes.clipboard {
     webview_builder.webview.clipboard = true;
+  }
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  {
+    webview_builder = webview_builder.with_dev_tool(true);
   }
 
   let webview = webview_builder

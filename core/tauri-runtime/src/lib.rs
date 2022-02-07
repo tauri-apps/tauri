@@ -365,6 +365,9 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self);
+
   // GETTERS
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.

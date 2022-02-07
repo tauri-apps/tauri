@@ -59,6 +59,11 @@ fn main() {
 
   #[allow(unused_mut)]
   let mut app = tauri::Builder::default()
+    .setup(|app| {
+      #[cfg(debug_assertions)]
+      app.get_window("main").unwrap().open_devtools();
+      Ok(())
+    })
     .on_page_load(|window, _| {
       let window_ = window.clone();
       window.listen("js-event", move |event| {

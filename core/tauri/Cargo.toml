@@ -20,7 +20,7 @@ version = "1.0.0-beta.8"
 
 [package.metadata.docs.rs]
 default-features = false
-features = ["compression", "wry", "isolation", "custom-protocol", "api-all", "cli", "updater", "system-tray", "dox"]
+features = ["compression", "wry", "isolation", "custom-protocol", "api-all", "cli", "updater", "system-tray", "devtools", "dox"]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
@@ -120,6 +120,7 @@ dialog = ["rfd"]
 notification = ["notify-rust"]
 cli = ["clap"]
 system-tray = ["tauri-runtime/system-tray", "tauri-runtime-wry/system-tray"]
+devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
 dox = ["tauri-runtime-wry/dox"]
 macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
 window-data-url = ["data-url"]

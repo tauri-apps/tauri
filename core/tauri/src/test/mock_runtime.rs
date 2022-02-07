@@ -261,6 +261,9 @@ impl Dispatch for MockDispatcher {
     Uuid::new_v4()
   }
 
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self) {}
+
   fn scale_factor(&self) -> Result<f64> {
     Ok(1.0)
   }

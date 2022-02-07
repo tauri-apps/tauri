@@ -403,6 +403,31 @@ impl<R: Runtime> Window<R> {
       })
   }
 
+  /// Opens the developer tools window (Web Inspector).
+  /// The devtools is only enabled on debug builds or with the `devtools` feature flag.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: This is a private API on macOS,
+  /// so you cannot use this if your application will be published on the App Store.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     app.get_window("main").unwrap().open_devtools();
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  pub fn open_devtools(&self) {
+    self.window.dispatcher.open_devtools();
+  }
+
   // Getters
 
   /// Gets a handle to the window menu.

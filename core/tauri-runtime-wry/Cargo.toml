@@ -13,7 +13,7 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.13", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { version = "0.13.1", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
@@ -21,7 +21,7 @@ infer = "0.4"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
-webview2-com = "0.10.0"
+webview2-com = "0.11.0"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.30.0"
@@ -35,5 +35,6 @@ gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
 dox = [ "wry/dox" ]
+devtools = [ "wry/devtool", "tauri-runtime/devtools" ]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]
 macos-private-api = [ "wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api" ]

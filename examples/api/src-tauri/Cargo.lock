@@ -3907,9 +3907,9 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "381febeeb86214fd262941a2b26322c33c38bf8b565b0ddfd4a7a8d4003053a9"
+checksum = "1975ce3573344c099935fe3903f1708dac69efe8539f1efee3ae54d8f9315fbb"
 dependencies = [
  "webview2-com-macros",
  "webview2-com-sys",
@@ -3930,9 +3930,9 @@ dependencies = [
 
 [[package]]
 name = "webview2-com-sys"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2e3542bb16fe61e951f87c9146571344f1e773327498efa65704a4cff472662"
+checksum = "9a746838a94b7391f707209a246e3436d81d1e71832126a65a897d3ee5511040"
 dependencies = [
  "regex",
  "serde",
@@ -4133,9 +4133,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f4875fbbfc2c63f6c57c4ef84f678b1b57e3b8795443add7fbd02f3e8017e30"
+checksum = "194b2750d8fe10fef189af5e2ca09e56cb8c5458a365d2b32842b024351f58c9"
 dependencies = [
  "cocoa",
  "core-graphics",

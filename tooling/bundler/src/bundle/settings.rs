@@ -287,12 +287,18 @@ pub struct BundleSettings {
   pub bin: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
-  /// Note that each binary name will have the target platform's target triple appended,
-  /// so if you're bundling the `sqlite3` app, the bundler will look for e.g.
-  /// `sqlite3-x86_64-unknown-linux-gnu` on linux,
+  /// Note that each binary name should have the target platform's target triple appended,
+  /// as well as `.exe` for Windows.
+  /// For example, if you're bundling a sidecar called `sqlite3`, the bundler expects
+  /// a binary named `sqlite3-x86_64-unknown-linux-gnu` on linux,
   /// and `sqlite3-x86_64-pc-windows-gnu.exe` on windows.
   ///
-  /// The possible target triples can be seen by running `$ rustup target list`.
+  /// Run `tauri build --help` for more info on targets.
+  ///
+  /// If you are building a universal binary for MacOS, the bundler expects
+  /// your external binary to also be universal, and named after the target triple,
+  /// e.g. `sqlite3-universal-apple-darwin`. See
+  /// https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
@@ -617,7 +623,9 @@ impl Settings {
       let dest = path.join(
         src
           .file_name()
-          .expect("failed to extract external binary filename"),
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", self.target), ""),
       );
       common::copy_file(&src, &dest)?;
     }

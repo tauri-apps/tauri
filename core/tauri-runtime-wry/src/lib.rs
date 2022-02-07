@@ -2192,7 +2192,7 @@ fn handle_user_message(
         }
       }
       TrayMessage::Close => {
-        tray_context.tray.lock().unwrap().replace(None);
+        *tray_context.tray.lock().unwrap() = None;
         tray_context.listeners.lock().unwrap().clear();
         tray_context.items.lock().unwrap().clear();
       }

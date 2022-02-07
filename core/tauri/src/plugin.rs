@@ -57,7 +57,7 @@ type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
 type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 
-/// Builds a [`GenericPlugin`].
+/// Builds a [`TauriPlugin`].
 pub struct Builder<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
@@ -137,9 +137,9 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Builds the [generic plugin](GenericPlugin).
-  pub fn build(self) -> GenericPlugin<R> {
-    GenericPlugin {
+  /// Builds the [TauriPlugin].
+  pub fn build(self) -> TauriPlugin<R> {
+    TauriPlugin {
       name: self.name,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
@@ -152,7 +152,7 @@ impl<R: Runtime> Builder<R> {
 }
 
 /// Plugin struct that is returned by the [`PluginBuilder`]. Should only be constructed through the builder.
-pub struct GenericPlugin<R: Runtime> {
+pub struct TauriPlugin<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
@@ -162,7 +162,7 @@ pub struct GenericPlugin<R: Runtime> {
   on_event: Box<OnEvent<R>>,
 }
 
-impl<R: Runtime> Plugin<R> for GenericPlugin<R> {
+impl<R: Runtime> Plugin<R> for TauriPlugin<R> {
   fn name(&self) -> &'static str {
     self.name
   }

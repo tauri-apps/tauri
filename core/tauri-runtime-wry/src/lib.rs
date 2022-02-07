@@ -993,6 +993,7 @@ pub enum TrayMessage {
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
+  Close,
 }
 
 #[derive(Debug, Clone)]
@@ -1565,7 +1566,7 @@ impl RuntimeHandle for WryHandle {
   #[cfg(all(windows, feature = "system-tray"))]
   /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {
-    Ok(())
+    send_user_message(&self.context, Message::Tray(TrayMessage::Close))
   }
 }
 
@@ -2189,6 +2190,11 @@ fn handle_user_message(
         if let Some(tray) = &*tray_context.tray.lock().unwrap() {
           tray.lock().unwrap().set_icon_as_template(is_template);
         }
+      }
+      TrayMessage::Close => {
+        tray_context.tray.lock().unwrap().replace(None);
+        tray_context.listeners.lock().unwrap().clear();
+        tray_context.items.lock().unwrap().clear();
       }
     },
     Message::GlobalShortcut(message) => match message {

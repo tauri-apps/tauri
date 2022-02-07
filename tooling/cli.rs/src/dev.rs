@@ -52,7 +52,7 @@ pub struct Options {
   #[clap(short, long)]
   config: Option<String>,
   /// Run the code in release mode
-  #[clap(short, long)]
+  #[clap(long = "release")]
   release_mode: bool,
   /// Args passed to the binary
   args: Vec<String>,
@@ -108,6 +108,7 @@ pub fn command(options: Options) -> Result<()> {
       logger.log(format!("Running `{}`", before_dev));
       #[cfg(target_os = "windows")]
       let child = Command::new("cmd")
+        .arg("/S")
         .arg("/C")
         .arg(before_dev)
         .current_dir(app_dir())

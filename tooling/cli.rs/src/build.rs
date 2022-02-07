@@ -31,7 +31,9 @@ pub struct Options {
   /// Enables verbose logging
   #[clap(short, long)]
   verbose: bool,
-  /// Target triple to build against
+  /// Target triple to build against.
+  /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate
@@ -73,6 +75,7 @@ pub fn command(options: Options) -> Result<()> {
       #[cfg(target_os = "windows")]
       execute_with_output(
         Command::new("cmd")
+          .arg("/S")
           .arg("/C")
           .arg(before_build)
           .current_dir(app_dir())
@@ -132,36 +135,68 @@ pub fn command(options: Options) -> Result<()> {
     cargo_features.extend(features);
   }
 
-  crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
-    .with_context(|| "failed to build app")?;
-
   let app_settings = crate::interface::rust::AppSettings::new(config_)?;
 
   let out_dir = app_settings
     .get_out_dir(options.target.clone(), options.debug)
     .with_context(|| "failed to get project out directory")?;
+
+  let bin_name = app_settings
+    .cargo_package_settings()
+    .name
+    .clone()
+    .expect("Cargo manifest must have the `package.name` field");
+  #[cfg(windows)]
+  let bin_path = out_dir.join(format!("{}.exe", bin_name));
+  #[cfg(not(windows))]
+  let bin_path = out_dir.join(&bin_name);
+
+  if options.target == Some("universal-apple-darwin".into()) {
+    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+
+    let mut lipo_cmd = Command::new("lipo");
+    lipo_cmd
+      .arg("-create")
+      .arg("-output")
+      .arg(out_dir.join(&bin_name));
+    for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
+      crate::interface::rust::build_project(
+        runner.clone(),
+        &Some(triple.into()),
+        cargo_features.clone(),
+        options.debug,
+      )
+      .with_context(|| format!("failed to build {} binary", triple))?;
+      let triple_out_dir = app_settings
+        .get_out_dir(Some(triple.into()), options.debug)
+        .with_context(|| format!("failed to get {} out dir", triple))?;
+      lipo_cmd.arg(triple_out_dir.join(&bin_name));
+    }
+
+    let lipo_status = lipo_cmd.status()?;
+    if !lipo_status.success() {
+      return Err(anyhow::anyhow!(format!(
+        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
+        lipo_status
+      )));
+    }
+  } else {
+    crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
+      .with_context(|| "failed to build app")?;
+  }
+
+  #[cfg(unix)]
+  if !options.debug {
+    strip(&bin_path, &logger)?;
+  }
+
   if let Some(product_name) = config_.package.product_name.clone() {
-    let bin_name = app_settings
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
     #[cfg(windows)]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(format!("{}.exe", bin_name)),
-        out_dir.join(format!("{}.exe", product_name)),
-      )
-    };
+    let product_path = out_dir.join(format!("{}.exe", product_name));
     #[cfg(target_os = "macos")]
-    let (bin_path, product_path) = { (out_dir.join(bin_name), out_dir.join(product_name)) };
+    let product_path = out_dir.join(product_name);
     #[cfg(target_os = "linux")]
-    let (bin_path, product_path) = {
-      (
-        out_dir.join(bin_name),
-        out_dir.join(product_name.to_kebab_case()),
-      )
-    };
+    let product_path = out_dir.join(product_name.to_kebab_case());
     rename(&bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
@@ -190,7 +225,7 @@ pub fn command(options: Options) -> Result<()> {
       } else {
         panic!(
           "Unexpected target architecture {}",
-          target.split("_").next().unwrap()
+          target.split('_').next().unwrap()
         )
       };
       let (filename, vcruntime_msm) = if arch == "x86" {
@@ -269,8 +304,8 @@ pub fn command(options: Options) -> Result<()> {
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active and pubkey is available
-    if config_.tauri.updater.active && config_.tauri.updater.pubkey.is_some() {
+    // If updater is active
+    if config_.tauri.updater.active {
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
       for elem in bundles
@@ -285,6 +320,7 @@ pub fn command(options: Options) -> Result<()> {
           signed_paths.append(&mut vec![signature_path]);
         }
       }
+
       if !signed_paths.is_empty() {
         print_signed_updater_archive(&signed_paths)?;
       }
@@ -306,5 +342,36 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   for path in output_paths {
     println!("        {}", path.display());
   }
+  Ok(())
+}
+
+// TODO: drop this when https://github.com/rust-lang/rust/issues/72110 is stabilized
+#[cfg(unix)]
+fn strip(path: &std::path::Path, logger: &Logger) -> crate::Result<()> {
+  use humansize::{file_size_opts, FileSize};
+
+  let filesize_before = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  // Strip the binary
+  Command::new("strip")
+    .arg(&path)
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .status()
+    .with_context(|| "failed to execute strip")?;
+
+  let filesize_after = std::fs::metadata(&path)
+    .with_context(|| "failed to get executable file size")?
+    .len();
+
+  logger.log(format!(
+    "Binary stripped, size reduced by {}",
+    (filesize_before - filesize_after)
+      .file_size(file_size_opts::CONVENTIONAL)
+      .unwrap(),
+  ));
+
   Ok(())
 }

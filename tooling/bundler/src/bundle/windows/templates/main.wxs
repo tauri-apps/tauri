@@ -13,20 +13,19 @@
             Id="*"
             Name="{{{product_name}}}"
             UpgradeCode="{{{upgrade_code}}}"
-            Language="{{language_id}}"
-            Codepage="{{ascii_codepage}}"
+            Language="!(loc.TauriLanguage)"
             Manufacturer="{{{manufacturer}}}"
             Version="{{{version}}}">
 
         <Package Id="*"
                  Keywords="Installer"
                  InstallerVersion="450"
-                 Languages="{{language_id}}"
+                 Languages="0"
                  Compressed="yes"
                  InstallScope="perMachine"
-                 SummaryCodepage="{{ascii_codepage}}"/>
+                 SummaryCodepage="!(loc.TauriCodepage)"/>
 
-        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+        <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)"
           AllowSameVersionUpgrades="yes" />
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
@@ -52,7 +51,7 @@
         </Property>
 
         <!-- launch app checkbox -->
-        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch {{{product_name}}}" />
+        <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
         <Property Id="WixShellExecTarget" Value="{{{app_exe_source}}}" />
         <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
@@ -158,7 +157,7 @@
 
         {{#each merge_modules as |msm| ~}}
         <DirectoryRef Id="TARGETDIR">
-            <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="0"/>
+            <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="!(loc.TauriLanguage)" />
         </DirectoryRef>
 
         <Feature Id="{{ msm.name }}" Title="{{ msm.name }}" AllowAdvertise="no" Display="hidden" Level="1">
@@ -169,7 +168,7 @@
         <Feature
                 Id="MainProgram"
                 Title="Application"
-                Description="Installs {{{product_name}}}."
+                Description="!(loc.InstallAppFeature)"
                 Level="1"
                 ConfigurableDirectory="INSTALLDIR"
                 AllowAdvertise="no"
@@ -200,7 +199,7 @@
             <Feature
                 Id="Environment"
                 Title="PATH Environment Variable"
-                Description="Add the install location of the [ProductName] executable to the PATH system environment variable. This allows the [ProductName] executable to be called from any location."
+                Description="!(loc.PathEnvVarFeature)"
                 Level="1"
                 Absent="allow">
             <ComponentRef Id="Path"/>

@@ -341,7 +341,6 @@ pub trait Runtime: Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.

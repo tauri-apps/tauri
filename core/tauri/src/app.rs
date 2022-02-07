@@ -516,7 +516,6 @@ impl<R: Runtime> App<R> {
   ///   }
   /// }
   /// ```
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();

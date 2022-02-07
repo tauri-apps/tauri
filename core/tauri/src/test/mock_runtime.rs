@@ -561,7 +561,6 @@ impl Runtime for MockRuntime {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(
     &mut self,
     callback: F,

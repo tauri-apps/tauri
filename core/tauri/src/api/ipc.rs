@@ -201,9 +201,7 @@ mod test {
       value: String,
     }
 
-    let raw_str = std::iter::repeat('T')
-      .take(MIN_JSON_PARSE_LEN)
-      .collect::<String>();
+    let raw_str = "T".repeat(MIN_JSON_PARSE_LEN);
     assert_eq!(
       escape_json_parse(&raw_str).unwrap(),
       format!("\"{}\"", raw_str)

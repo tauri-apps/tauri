@@ -310,8 +310,13 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
 
-  /// Creates a new webview runtime.
+  /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
+
+  /// Creates a new webview runtime on any thread.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  fn new_any_thread() -> crate::Result<Self>;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;

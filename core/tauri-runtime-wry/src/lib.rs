@@ -1569,16 +1569,8 @@ impl RuntimeHandle for WryHandle {
   }
 }
 
-impl Runtime for Wry {
-  type Dispatcher = WryDispatcher;
-  type Handle = WryHandle;
-  type GlobalShortcutManager = GlobalShortcutManagerHandle;
-  type ClipboardManager = ClipboardManagerWrapper;
-  #[cfg(feature = "system-tray")]
-  type TrayHandler = SystemTrayHandle;
-
-  fn new() -> Result<Self> {
-    let event_loop = EventLoop::<Message>::with_user_event();
+impl Wry {
+  fn init(event_loop: EventLoop<Message>) -> Result<Self> {
     let proxy = event_loop.create_proxy();
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
@@ -1630,6 +1622,30 @@ impl Runtime for Wry {
       #[cfg(feature = "system-tray")]
       tray_context,
     })
+  }
+}
+
+impl Runtime for Wry {
+  type Dispatcher = WryDispatcher;
+  type Handle = WryHandle;
+  type GlobalShortcutManager = GlobalShortcutManagerHandle;
+  type ClipboardManager = ClipboardManagerWrapper;
+  #[cfg(feature = "system-tray")]
+  type TrayHandler = SystemTrayHandle;
+
+  fn new() -> Result<Self> {
+    let event_loop = EventLoop::<Message>::with_user_event();
+    Self::init(event_loop)
+  }
+
+  #[cfg(any(windows, target_os = "linux"))]
+  fn new_any_thread() -> Result<Self> {
+    #[cfg(target_os = "linux")]
+    use wry::application::platform::unix::EventLoopExtUnix;
+    #[cfg(windows)]
+    use wry::application::platform::windows::EventLoopExtWindows;
+    let event_loop = EventLoop::<Message>::new_any_thread();
+    Self::init(event_loop)
   }
 
   fn handle(&self) -> Self::Handle {

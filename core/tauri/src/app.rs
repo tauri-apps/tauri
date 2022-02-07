@@ -596,6 +596,11 @@ impl<R: Runtime> App<R> {
 /// ```
 #[allow(clippy::type_complexity)]
 pub struct Builder<R: Runtime> {
+  /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
+  runtime_any_thread: bool,
+
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
@@ -645,6 +650,8 @@ impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
     Self {
+      #[cfg(any(windows, target_os = "linux"))]
+      runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| ()),
       invoke_responder: Arc::new(window_invoke_responder),
@@ -663,6 +670,18 @@ impl<R: Runtime> Builder<R> {
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
     }
+  }
+
+  /// Builds a new Tauri application running on any thread, bypassing the main thread requirement.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: on macOS the application *must* be executed on the main thread, so this function is not exposed.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
+  pub fn any_thread(mut self) -> Self {
+    self.runtime_any_thread = true;
+    self
   }
 
   /// Defines the JS message handler callback.
@@ -1098,7 +1117,15 @@ impl<R: Runtime> Builder<R> {
       ));
     }
 
+    #[cfg(any(windows, target_os = "linux"))]
+    let runtime = if self.runtime_any_thread {
+      R::new_any_thread()?
+    } else {
+      R::new()?
+    };
+    #[cfg(not(any(windows, target_os = "linux")))]
     let runtime = R::new()?;
+
     let runtime_handle = runtime.handle();
     let global_shortcut_manager = runtime.global_shortcut_manager();
     let clipboard_manager = runtime.clipboard_manager();

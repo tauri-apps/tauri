@@ -492,20 +492,13 @@ pub struct MockRuntime {
   tray_handler: MockTrayHandler,
 }
 
-impl Runtime for MockRuntime {
-  type Dispatcher = MockDispatcher;
-  type Handle = MockRuntimeHandle;
-  type GlobalShortcutManager = MockGlobalShortcutManager;
-  type ClipboardManager = MockClipboardManager;
-  #[cfg(feature = "system-tray")]
-  type TrayHandler = MockTrayHandler;
-
-  fn new() -> Result<Self> {
+impl MockRuntime {
+  fn init() -> Self {
     let context = RuntimeContext {
       shortcuts: Default::default(),
       clipboard: Default::default(),
     };
-    Ok(Self {
+    Self {
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
       },
@@ -517,7 +510,25 @@ impl Runtime for MockRuntime {
         context: context.clone(),
       },
       context,
-    })
+    }
+  }
+}
+
+impl Runtime for MockRuntime {
+  type Dispatcher = MockDispatcher;
+  type Handle = MockRuntimeHandle;
+  type GlobalShortcutManager = MockGlobalShortcutManager;
+  type ClipboardManager = MockClipboardManager;
+  #[cfg(feature = "system-tray")]
+  type TrayHandler = MockTrayHandler;
+
+  fn new() -> Result<Self> {
+    Ok(Self::init())
+  }
+
+  #[cfg(any(windows, target_os = "linux"))]
+  fn new_any_thread() -> Result<Self> {
+    Ok(Self::init())
   }
 
   fn handle(&self) -> Self::Handle {

@@ -8,24 +8,16 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-#wry = { version = "0.12", default-features = false, features = [ "file-drop", "protocol" ] }
-wry = { git = "https://github.com/tauri-apps/wry", rev = "a3829035a3e49e76db77b0db6924e147831124c7", default-features = false, features = [ "file-drop", "protocol", "transparent", "fullscreen" ] }
+wry = { version = "0.13", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.2.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 infer = "0.4"
-
-epi = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
-egui-tao = { git = "https://github.com/wusyong/egui", branch = "tao", features = ["epi"], optional = true }
-egui_glow = { git = "https://github.com/wusyong/egui", branch = "tao", optional = true }
-tao-glutin = { git = "https://github.com/wusyong/glutin", branch = "tao", version = "0.1.0", optional = true }
-glow = { version = "0.11", optional = true }
-once_cell = { version = "1.8", optional = true}
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"
@@ -39,9 +31,9 @@ features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 png = "0.16"
-gtk = { version = "0.14", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
 dox = [ "wry/dox" ]
 system-tray = [ "wry/tray", "tauri-runtime/system-tray" ]
-egui = ["epi", "egui-tao", "egui_glow", "tao-glutin", "glow", "once_cell"]
+macos-private-api = [ "wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api" ]

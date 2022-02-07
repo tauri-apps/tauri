@@ -261,6 +261,7 @@ pub struct RunIteration {
 /// Application's activation policy. Corresponds to NSApplicationActivationPolicy.
 #[cfg(target_os = "macos")]
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum ActivationPolicy {
   /// Corresponds to NSApplicationActivationPolicyRegular.
@@ -535,6 +536,13 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Hides the application on MacOS (independent of current window).
   #[cfg(target_os = "macos")]
   fn hide_application(&self) -> crate::Result<()>;
+
+  /// Sets the activation policy at runtime on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy_at_runtime(
+    &self,
+    activation_policy: ActivationPolicy,
+  ) -> crate::Result<()>;
 
   /// Closes the window.
   fn close(&self) -> Result<()>;

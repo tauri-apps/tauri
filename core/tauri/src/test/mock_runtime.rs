@@ -437,6 +437,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_activation_policy_at_runtime(&self, _: tauri_runtime::ActivationPolicy) -> Result<()> {
+    Ok(())
+  }
+
   fn close(&self) -> Result<()> {
     Ok(())
   }

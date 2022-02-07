@@ -32,6 +32,9 @@ use crate::{
   PageLoadPayload, Runtime, WindowEvent,
 };
 
+#[cfg(target_os = "macos")]
+use crate::runtime::ActivationPolicy;
+
 use serde::Serialize;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -1075,6 +1078,19 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hide_application()
+      .map_err(Into::into)
+  }
+
+  /// Sets the activation policy at runtime on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  pub fn set_activation_policy_at_runtime(
+    &self,
+    activation_policy: ActivationPolicy,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_activation_policy_at_runtime(activation_policy)
       .map_err(Into::into)
   }
 

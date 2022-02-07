@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-Expose `tauri::api::ipc::format_json` function.
+Expose `tauri::api::ipc::{serialize_js_with, serialize_js}` functions.

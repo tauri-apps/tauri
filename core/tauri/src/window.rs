@@ -1058,6 +1058,26 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.hide().map_err(Into::into)
   }
 
+  /// Shows the application on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  pub fn show_application(&self) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .show_application()
+      .map_err(Into::into)
+  }
+
+  /// Hides the application on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  pub fn hide_application(&self) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .hide_application()
+      .map_err(Into::into)
+  }
+
   /// Closes this window.
   /// # Panics
   ///

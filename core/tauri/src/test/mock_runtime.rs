@@ -427,6 +427,16 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  fn show_application(&self) -> Result<()> {
+    Ok(())
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide_application(&self) -> Result<()> {
+    Ok(())
+  }
+
   fn close(&self) -> Result<()> {
     Ok(())
   }

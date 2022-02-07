@@ -28,6 +28,9 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+
+#[cfg(target_os = "macos")]
+use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -1037,6 +1040,10 @@ pub enum WindowMessage {
   HideMenu,
   Show,
   Hide,
+  #[cfg(target_os = "macos")]
+  ShowApplication,
+  #[cfg(target_os = "macos")]
+  HideApplication,
   Close,
   SetDecorations(bool),
   SetAlwaysOnTop(bool),
@@ -1385,6 +1392,22 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::Hide),
+    )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn show_application(&self) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::ShowApplication),
+    )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide_application(&self) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::HideApplication),
     )
   }
 
@@ -2107,6 +2130,10 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::HideMenu => window.hide_menu(),
           WindowMessage::Show => window.set_visible(true),
           WindowMessage::Hide => window.set_visible(false),
+          #[cfg(target_os = "macos")]
+          WindowMessage::ShowApplication => event_loop.show_application(),
+          #[cfg(target_os = "macos")]
+          WindowMessage::HideApplication => event_loop.hide_application(),
           WindowMessage::Close => panic!("cannot handle `WindowMessage::Close` on the main thread"),
           WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
           WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),

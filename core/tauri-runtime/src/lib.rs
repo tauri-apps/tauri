@@ -528,6 +528,14 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Hides the window.
   fn hide(&self) -> Result<()>;
 
+  /// Shows the application on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  fn show_application(&self) -> crate::Result<()>;
+
+  /// Hides the application on MacOS (independent of current window).
+  #[cfg(target_os = "macos")]
+  fn hide_application(&self) -> crate::Result<()>;
+
   /// Closes the window.
   fn close(&self) -> Result<()>;
 

@@ -52,7 +52,7 @@ pub struct Options {
   #[clap(short, long)]
   config: Option<String>,
   /// Run the code in release mode
-  #[clap(short, long)]
+  #[clap(long = "release")]
   release_mode: bool,
   /// Args passed to the binary
   args: Vec<String>,

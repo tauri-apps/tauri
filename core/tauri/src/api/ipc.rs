@@ -22,11 +22,24 @@ pub struct CallbackFn(pub usize);
 /// In Firefox, strings have a maximum length of 2\*\*30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2\*\*28 - 1 (~256MB).
 const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
-/// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
+/// Minimum size JSON needs to be in order to convert it to JSON.parse with [`format_json`].
 // TODO: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
 
+/// Transforms & escapes a JSON String -> JSON.parse('{json}')
+///
+/// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
+/// need to escape strings that include backslashes or single quotes. If we used double quotes, then
+/// there would be no cases that a string doesn't need escaping.
+///
+/// # Safety
+///
+/// The ability to safely escape JSON into a JSON.parse('{json}') relies entirely on 2 things.
+///
+/// 1. `serde_json`'s ability to correctly escape and format json into a string.
+/// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
+///     character to end a string that was opened with it.
 fn escape(json: &RawValue) -> String {
   let json = json.get();
 
@@ -49,11 +62,26 @@ fn escape(json: &RawValue) -> String {
   s
 }
 
-/// Transforms & escapes a JSON String -> JSON.parse('{json}')
+/// Transforms & escapes a JSON value.
+/// If it's an object or array, JSON.parse('{json}') is used, with the '{json}' string properly escaped.
+/// The return value of this function can be safely used on [`eval`](crate::Window#method.eval) calls.
 ///
 /// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
 /// need to escape strings that include backslashes or single quotes. If we used double quotes, then
 /// there would be no cases that a string doesn't need escaping.
+///
+/// # Example
+///
+/// ```
+/// use tauri::api::ipc::format_json;
+/// #[derive(serde::Serialize)]
+/// struct Foo {
+///   bar: String,
+/// }
+/// let foo = Foo { bar: "x".repeat(20_000).into() };
+/// let value = format!("console.log({})", format_json(&foo).unwrap());
+/// assert_eq!(value, format!("console.log(JSON.parse('{{\"bar\":\"{}\"}}'))", foo.bar));
+/// ```
 ///
 /// # Safety
 ///
@@ -62,7 +90,7 @@ fn escape(json: &RawValue) -> String {
 /// 1. `serde_json`'s ability to correctly escape and format json into a string.
 /// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
 ///     character to end a string that was opened with it.
-pub fn escape_json_parse<T: Serialize>(value: &T) -> crate::api::Result<String> {
+pub fn format_json<T: Serialize>(value: &T) -> crate::api::Result<String> {
   // get a raw &str representation of a serialized json value.
   let string = serde_json::to_string(value)?;
   let raw = RawValue::from_string(string)?;
@@ -141,7 +169,7 @@ pub fn format_callback<T: Serialize>(
       console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
     }}"#,
     fn = function_name.0,
-    arg = escape_json_parse(arg)?
+    arg = format_json(arg)?
   ))
 }
 
@@ -192,9 +220,9 @@ mod test {
   }
 
   #[test]
-  fn test_escape_json_parse() {
-    assert_eq!(escape_json_parse(&()).unwrap(), "null");
-    assert_eq!(escape_json_parse(&5i32).unwrap(), "5");
+  fn test_format_json() {
+    assert_eq!(format_json(&()).unwrap(), "null");
+    assert_eq!(format_json(&5i32).unwrap(), "5");
 
     #[derive(serde::Serialize)]
     struct JsonObj {
@@ -202,13 +230,10 @@ mod test {
     }
 
     let raw_str = "T".repeat(MIN_JSON_PARSE_LEN);
-    assert_eq!(
-      escape_json_parse(&raw_str).unwrap(),
-      format!("\"{}\"", raw_str)
-    );
+    assert_eq!(format_json(&raw_str).unwrap(), format!("\"{}\"", raw_str));
 
     assert_eq!(
-      escape_json_parse(&JsonObj {
+      format_json(&JsonObj {
         value: raw_str.clone()
       })
       .unwrap(),
@@ -216,7 +241,7 @@ mod test {
     );
 
     assert_eq!(
-      escape_json_parse(&JsonObj {
+      format_json(&JsonObj {
         value: format!("\"{}\"", raw_str)
       })
       .unwrap(),

@@ -22,7 +22,7 @@ pub struct CallbackFn(pub usize);
 /// In Firefox, strings have a maximum length of 2\*\*30 - 2 (~1GB). In versions prior to Firefox 65, the maximum length was 2\*\*28 - 1 (~256MB).
 const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 
-/// Minimum size JSON needs to be in order to convert it to JSON.parse with [`escape_json_parse`].
+/// Minimum size JSON needs to be in order to convert it to JSON.parse with [`format_json`].
 // TODO: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
@@ -40,7 +40,7 @@ const MIN_JSON_PARSE_LEN: usize = 10_240;
 /// 1. `serde_json`'s ability to correctly escape and format json into a string.
 /// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
 ///     character to end a string that was opened with it.
-fn escape_json_parse(json: &RawValue) -> String {
+fn escape(json: &RawValue) -> String {
   let json = json.get();
 
   // 14 chars in JSON.parse('')
@@ -60,6 +60,109 @@ fn escape_json_parse(json: &RawValue) -> String {
   s.push_str(&json[last..]);
   s.push_str("')");
   s
+}
+
+/// Transforms & escapes a JSON value.
+///
+/// If it's an object or array, JSON.parse('{json}') is used, with the '{json}' string properly escaped.
+/// The return value of this function can be safely used on [`eval`](crate::Window#method.eval) calls.
+///
+/// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
+/// need to escape strings that include backslashes or single quotes. If we used double quotes, then
+/// there would be no cases that a string doesn't need escaping.
+///
+/// The function takes a closure to handle the escaped string in order to avoid unnecessary allocations.
+///
+/// # Safety
+///
+/// The ability to safely escape JSON into a JSON.parse('{json}') relies entirely on 2 things.
+///
+/// 1. `serde_json`'s ability to correctly escape and format json into a string.
+/// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
+///     character to end a string that was opened with it.
+///
+/// # Example
+///
+/// ```
+/// use tauri::api::ipc::serialize_js_with;
+/// #[derive(serde::Serialize)]
+/// struct Foo {
+///   bar: String,
+/// }
+/// let foo = Foo { bar: "x".repeat(20_000).into() };
+/// let value = serialize_js_with(&foo, |v| format!("console.log({})", v)).unwrap();
+/// assert_eq!(value, format!("console.log(JSON.parse('{{\"bar\":\"{}\"}}'))", foo.bar));
+/// ```
+pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
+  value: &T,
+  cb: F,
+) -> crate::api::Result<String> {
+  // get a raw &str representation of a serialized json value.
+  let string = serde_json::to_string(value)?;
+  let raw = RawValue::from_string(string)?;
+
+  // from here we know json.len() > 1 because an empty string is not a valid json value.
+  let json = raw.get();
+  let first = json.as_bytes()[0];
+
+  #[cfg(debug_assertions)]
+  if first == b'"' {
+    assert!(
+      json.len() < MAX_JSON_STR_LEN,
+      "passing a string larger than the max JavaScript literal string size"
+    )
+  }
+
+  let return_val = if json.len() > MIN_JSON_PARSE_LEN && (first == b'{' || first == b'[') {
+    let escaped = escape(&raw);
+    // only use JSON.parse('{arg}') for arrays and objects less than the limit
+    // smaller literals do not benefit from being parsed from json
+    if escaped.len() < MAX_JSON_STR_LEN {
+      cb(&escaped)
+    } else {
+      cb(json)
+    }
+  } else {
+    cb(json)
+  };
+
+  Ok(return_val)
+}
+
+/// Transforms & escapes a JSON value.
+///
+/// This is a convenience function for [`serialize_js_with`], simply allocating the result to a String.
+///
+/// For usage in functions where performance is more important than code readability, see [`serialize_js_with`].
+///
+/// # Example
+/// ```rust,no_run
+/// use tauri::{Manager, api::ipc::serialize_js};
+/// use serde::Serialize;
+///
+/// #[derive(Serialize)]
+/// struct Foo {
+///   bar: String,
+/// }
+///
+/// #[derive(Serialize)]
+/// struct Bar {
+///   baz: u32,
+/// }
+///
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let window = app.get_window("main").unwrap();
+///     window.eval(&format!(
+///       "console.log({}, {})",
+///       serialize_js(&Foo { bar: "bar".to_string() }).unwrap(),
+///       serialize_js(&Bar { baz: 0 }).unwrap()),
+///     ).unwrap();
+///     Ok(())
+///   });
+/// ```
+pub fn serialize_js<T: Serialize>(value: &T) -> crate::api::Result<String> {
+  serialize_js_with(value, |v| v.into())
 }
 
 /// Formats a function name and argument to be evaluated as callback.
@@ -100,52 +203,18 @@ pub fn format_callback<T: Serialize>(
   function_name: CallbackFn,
   arg: &T,
 ) -> crate::api::Result<String> {
-  macro_rules! format_callback {
-    ( $arg:expr ) => {
-      format!(
-        r#"
-          if (window["_{fn}"]) {{
-            window["_{fn}"]({arg})
-          }} else {{
-            console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-          }}
-        "#,
-        fn = function_name.0,
-        arg = $arg
-      )
-    }
-  }
-
-  // get a raw &str representation of a serialized json value.
-  let string = serde_json::to_string(arg)?;
-  let raw = RawValue::from_string(string)?;
-
-  // from here we know json.len() > 1 because an empty string is not a valid json value.
-  let json = raw.get();
-  let first = json.as_bytes()[0];
-
-  #[cfg(debug_assertions)]
-  if first == b'"' {
-    debug_assert!(
-      json.len() < MAX_JSON_STR_LEN,
-      "passing a callback string larger than the max JavaScript literal string size"
+  serialize_js_with(arg, |arg| {
+    format!(
+      r#"
+    if (window["_{fn}"]) {{
+      window["_{fn}"]({arg})
+    }} else {{
+      console.warn("[TAURI] Couldn't find callback id {fn} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
+    }}"#,
+      fn = function_name.0,
+      arg = arg
     )
-  }
-
-  // only use JSON.parse('{arg}') for arrays and objects less than the limit
-  // smaller literals do not benefit from being parsed from json
-  Ok(
-    if json.len() > MIN_JSON_PARSE_LEN && (first == b'{' || first == b'[') {
-      let escaped = escape_json_parse(&raw);
-      if escaped.len() < MAX_JSON_STR_LEN {
-        format_callback!(escaped)
-      } else {
-        format_callback!(json)
-      }
-    } else {
-      format_callback!(json)
-    },
-  )
+  })
 }
 
 /// Formats a Result type to its Promise response.
@@ -195,7 +264,34 @@ mod test {
   }
 
   #[test]
-  fn test_escape_json_parse() {
+  fn test_serialize_js() {
+    assert_eq!(serialize_js(&()).unwrap(), "null");
+    assert_eq!(serialize_js(&5i32).unwrap(), "5");
+
+    #[derive(serde::Serialize)]
+    struct JsonObj {
+      value: String,
+    }
+
+    let raw_str = "T".repeat(MIN_JSON_PARSE_LEN);
+    assert_eq!(serialize_js(&raw_str).unwrap(), format!("\"{}\"", raw_str));
+
+    assert_eq!(
+      serialize_js(&JsonObj {
+        value: raw_str.clone()
+      })
+      .unwrap(),
+      format!("JSON.parse('{{\"value\":\"{}\"}}')", raw_str)
+    );
+
+    assert_eq!(
+      serialize_js(&JsonObj {
+        value: format!("\"{}\"", raw_str)
+      })
+      .unwrap(),
+      format!("JSON.parse('{{\"value\":\"\\\\\"{}\\\\\"\"}}')", raw_str)
+    );
+
     let dangerous_json = RawValue::from_string(
       r#"{"test":"don\\🚀🐱‍👤\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don't forget to escape me!","test3":"\\🚀🐱‍👤\\\\'''\\\\🚀🐱‍👤\\\\🚀🐱‍👤\\'''''"}"#.into()
     ).unwrap();
@@ -207,7 +303,7 @@ mod test {
         .replace('\\', "\\\\")
         .replace('\'', "\\'")
     );
-    let escape_single_quoted_json_test = escape_json_parse(&dangerous_json);
+    let escape_single_quoted_json_test = escape(&dangerous_json);
 
     let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
     assert_eq!(definitely_escaped_dangerous_json, result);

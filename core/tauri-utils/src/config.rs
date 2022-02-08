@@ -29,7 +29,7 @@ pub mod parse;
 
 pub use self::parse::parse;
 
-/// The window webview URL options.
+/// An URL to open on a Tauri webview window.
 #[derive(PartialEq, Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]

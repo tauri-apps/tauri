@@ -179,6 +179,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Creates a new webview window.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
   pub fn create_window<F>(
     &mut self,
     label: String,

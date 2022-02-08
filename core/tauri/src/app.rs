@@ -357,6 +357,8 @@ macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Creates a new webview window.
+      ///
+      /// Data URLs are only supported with the `window-data-url` feature flag.
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,

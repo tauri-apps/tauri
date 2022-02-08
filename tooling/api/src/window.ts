@@ -1145,7 +1145,11 @@ const appWindow = new WebviewWindow(
 /** Configuration for the window to create. */
 interface WindowOptions {
   /**
-   * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
+   * Remote URL or local file path to open.
+   *
+   * - URL such as `https://github.com/tauri-apps` is opened directly on a Tauri window.
+   * - data: URL such as `data:text/html,<html>...` is only supported with the `window-data-url` Cargo feature for the `tauri` dependency.
+   * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
   /** Show window in the center of the screen.. */

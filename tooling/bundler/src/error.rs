@@ -54,6 +54,14 @@ pub enum Error {
   #[cfg(windows)]
   #[error("`{0}`")]
   HttpError(#[from] attohttpc::Error),
+  /// Invalid glob pattern.
+  #[cfg(windows)]
+  #[error("{0}")]
+  GlobPattern(#[from] glob::PatternError),
+  /// Failed to use glob pattern.
+  #[cfg(windows)]
+  #[error("`{0}`")]
+  Glob(#[from] glob::GlobError),
   /// Failed to validate downloaded file hash.
   #[error("hash mismatch of downloaded file")]
   HashError,

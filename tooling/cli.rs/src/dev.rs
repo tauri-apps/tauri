@@ -136,7 +136,7 @@ pub fn command(options: Options) -> Result<()> {
       std::thread::spawn(move || {
         let status = child_.wait().expect("failed to wait on before dev command");
         if !status.success() {
-          logger_.error("The before dev command terminated with a non-zero status code.");
+          logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
           exit(status.code().unwrap_or(1));
         }
       });

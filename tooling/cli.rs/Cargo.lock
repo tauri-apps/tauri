@@ -2380,7 +2380,6 @@ dependencies = [
  "attohttpc",
  "bitness",
  "dirs-next",
- "glob",
  "handlebars",
  "heck",
  "hex",
@@ -2394,6 +2393,7 @@ dependencies = [
  "sha2",
  "strsim",
  "tar",
+ "tauri-utils",
  "tempfile",
  "termcolor",
  "thiserror",
@@ -2453,6 +2453,7 @@ version = "1.0.0-beta.3"
 dependencies = [
  "aes-gcm",
  "ctor",
+ "glob",
  "heck",
  "html5ever",
  "json-patch",
@@ -2468,6 +2469,7 @@ dependencies = [
  "serialize-to-javascript",
  "thiserror",
  "url",
+ "walkdir",
 ]
 
 [[package]]

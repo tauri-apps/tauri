@@ -7,7 +7,7 @@ use std::{
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufWriter, Write},
-  path::{Component, Path, PathBuf},
+  path::Path,
   process::{Command, Stdio},
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -133,23 +133,6 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   Ok(())
 }
 
-/// Given a path (absolute or relative) to a resource file, returns the
-/// relative path from the bundle resources directory where that resource
-/// should be stored.
-pub fn resource_relpath(path: &Path) -> PathBuf {
-  let mut dest = PathBuf::new();
-  for component in path.components() {
-    match component {
-      Component::Prefix(_) => {}
-      Component::RootDir => dest.push("_root_"),
-      Component::CurDir => {}
-      Component::ParentDir => dest.push("_up_"),
-      Component::Normal(string) => dest.push(string),
-    }
-  }
-  dest
-}
-
 /// Prints a message to stderr, in the same format that `cargo` uses,
 /// indicating that we are creating a bundle with the given filename.
 pub fn print_bundling(filename: &str) -> crate::Result<()> {
@@ -233,8 +216,9 @@ pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::
 
 #[cfg(test)]
 mod tests {
-  use super::{create_file, is_retina, resource_relpath};
+  use super::{create_file, is_retina};
   use std::{io::Write, path::PathBuf};
+  use tauri_utils::resources::resource_relpath;
 
   #[test]
   fn create_file_with_parent_dirs() {

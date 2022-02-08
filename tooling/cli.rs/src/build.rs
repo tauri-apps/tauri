@@ -299,9 +299,6 @@ pub fn command(options: Options) -> Result<()> {
     )
     .with_context(|| "failed to build bundler settings")?;
 
-    settings.copy_resources(&out_dir)?;
-    settings.copy_binaries(&out_dir)?;
-
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
     // If updater is active

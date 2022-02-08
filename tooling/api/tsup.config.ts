@@ -4,7 +4,7 @@ export default defineConfig(() => [
   {
     entry: ['src/*.ts'],
     outDir: 'dist',
-    format: ['esm'],
+    format: ['esm', 'cjs'],
     clean: true,
     splitting: true,
     dts: true,

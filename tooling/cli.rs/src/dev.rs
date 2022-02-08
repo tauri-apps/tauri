@@ -134,7 +134,9 @@ pub fn command(options: Options) -> Result<()> {
       let child_ = child.clone();
       let logger_ = logger.clone();
       std::thread::spawn(move || {
-        let status = child_.wait().expect("failed to wait on before dev command");
+        let status = child_
+          .wait()
+          .expect("failed to wait on \"beforeDevCommand\"");
         if !status.success() {
           logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
           exit(status.code().unwrap_or(1));
@@ -220,14 +222,15 @@ pub fn command(options: Options) -> Result<()> {
       }
     };
     let mut i = 0;
-    let sleep_interval = std::time::Duration::from_secs(5);
-    let max_attempts = 36;
+    let sleep_interval = std::time::Duration::from_secs(2);
+    let max_attempts = 90;
     loop {
       if std::net::TcpStream::connect(addrs).is_ok() {
-        println!("it is ok!");
         break;
       }
-      logger.warn("Waiting for your dev server to start...");
+      if i % 3 == 0 {
+        logger.warn("Waiting for your dev server to start...");
+      }
       i += 1;
       if i == max_attempts {
         logger.error(format!(

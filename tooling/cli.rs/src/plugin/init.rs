@@ -27,7 +27,7 @@ pub struct Options {
   #[clap(long)]
   api: bool,
   /// Initializes a Tauri core plugin (internal usage)
-  #[clap(short, long, hide(true))]
+  #[clap(long, hide(true))]
   #[clap(setting(ArgSettings::Hidden))]
   tauri: bool,
   /// Set target directory for init

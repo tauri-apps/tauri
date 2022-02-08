@@ -1,6 +1,1992 @@
-var __TAURI__=(()=>{var y=Object.defineProperty;var oe=Object.getOwnPropertyDescriptor;var ue=Object.getOwnPropertyNames,Z=Object.getOwnPropertySymbols;var ee=Object.prototype.hasOwnProperty,le=Object.prototype.propertyIsEnumerable;var B=(t,e,n)=>e in t?y(t,e,{enumerable:!0,configurable:!0,writable:!0,value:n}):t[e]=n,m=(t,e)=>{for(var n in e||(e={}))ee.call(e,n)&&B(t,n,e[n]);if(Z)for(var n of Z(e))le.call(e,n)&&B(t,n,e[n]);return t};var me=t=>y(t,"__esModule",{value:!0});var l=(t,e)=>{for(var n in e)y(t,n,{get:e[n],enumerable:!0})},de=(t,e,n,r)=>{if(e&&typeof e=="object"||typeof e=="function")for(let a of ue(e))!ee.call(t,a)&&(n||a!=="default")&&y(t,a,{get:()=>e[a],enumerable:!(r=oe(e,a))||r.enumerable});return t};var ce=(t=>(e,n)=>t&&t.get(e)||(n=de(me({}),e,1),t&&t.set(e,n),n))(typeof WeakMap!="undefined"?new WeakMap:0);var Dt={};l(Dt,{app:()=>E,cli:()=>S,clipboard:()=>C,dialog:()=>k,event:()=>W,fs:()=>U,globalShortcut:()=>R,http:()=>N,notification:()=>H,os:()=>Y,path:()=>I,process:()=>j,shell:()=>V,tauri:()=>F,updater:()=>G,window:()=>X});var E={};l(E,{getName:()=>ye,getTauriVersion:()=>fe,getVersion:()=>he});var F={};l(F,{convertFileSrc:()=>pe,invoke:()=>O,transformCallback:()=>d});function ge(){return window.crypto.getRandomValues(new Uint32Array(1))[0]}function d(t,e=!1){let n=ge(),r=`_${n}`;return Object.defineProperty(window,r,{value:a=>(e&&Reflect.deleteProperty(window,r),t==null?void 0:t(a)),writable:!1,configurable:!0}),n}async function O(t,e={}){return new Promise((n,r)=>{let a=d(u=>{n(u),Reflect.deleteProperty(window,o)},!0),o=d(u=>{r(u),Reflect.deleteProperty(window,a)},!0);window.__TAURI_IPC__(m({cmd:t,callback:a,error:o},e))})}function pe(t){return navigator.userAgent.includes("Windows")?`https://asset.localhost/${t}`:`asset://${t}`}async function i(t){return O("tauri",t)}async function he(){return i({__tauriModule:"App",message:{cmd:"getAppVersion"}})}async function ye(){return i({__tauriModule:"App",message:{cmd:"getAppName"}})}async function fe(){return i({__tauriModule:"App",message:{cmd:"getTauriVersion"}})}var S={};l(S,{getMatches:()=>be});async function be(){return i({__tauriModule:"Cli",message:{cmd:"cliMatches"}})}var C={};l(C,{readText:()=>Pe,writeText:()=>_e});async function _e(t){return i({__tauriModule:"Clipboard",message:{cmd:"writeText",data:t}})}async function Pe(){return i({__tauriModule:"Clipboard",message:{cmd:"readText"}})}var k={};l(k,{ask:()=>Te,confirm:()=>xe,message:()=>Me,open:()=>we,save:()=>ve});async function we(t={}){return typeof t=="object"&&Object.freeze(t),i({__tauriModule:"Dialog",message:{cmd:"openDialog",options:t}})}async function ve(t={}){return typeof t=="object"&&Object.freeze(t),i({__tauriModule:"Dialog",message:{cmd:"saveDialog",options:t}})}async function Me(t){return i({__tauriModule:"Dialog",message:{cmd:"messageDialog",message:t}})}async function Te(t,e){return i({__tauriModule:"Dialog",message:{cmd:"askDialog",title:e,message:t}})}async function xe(t,e){return i({__tauriModule:"Dialog",message:{cmd:"confirmDialog",title:e,message:t}})}var W={};l(W,{emit:()=>P,listen:()=>_,once:()=>A});async function te(t){return i({__tauriModule:"Event",message:{cmd:"unlisten",eventId:t}})}async function f(t,e,n){await i({__tauriModule:"Event",message:{cmd:"emit",event:t,windowLabel:e,payload:typeof n=="string"?n:JSON.stringify(n)}})}async function p(t,e,n){return i({__tauriModule:"Event",message:{cmd:"listen",event:t,windowLabel:e,handler:d(n)}}).then(r=>async()=>te(r))}async function b(t,e,n){return p(t,e,r=>{n(r),te(r.id).catch(()=>{})})}async function _(t,e){return p(t,null,e)}async function A(t,e){return b(t,null,e)}async function P(t,e){return f(t,void 0,e)}var U={};l(U,{BaseDirectory:()=>w,Dir:()=>w,copyFile:()=>Ue,createDir:()=>Ae,readBinaryFile:()=>Ee,readDir:()=>ke,readTextFile:()=>Fe,removeDir:()=>We,removeFile:()=>Re,renameFile:()=>Le,writeBinaryFile:()=>Ce,writeFile:()=>Se});var w=(s=>(s[s.Audio=1]="Audio",s[s.Cache=2]="Cache",s[s.Config=3]="Config",s[s.Data=4]="Data",s[s.LocalData=5]="LocalData",s[s.Desktop=6]="Desktop",s[s.Document=7]="Document",s[s.Download=8]="Download",s[s.Executable=9]="Executable",s[s.Font=10]="Font",s[s.Home=11]="Home",s[s.Picture=12]="Picture",s[s.Public=13]="Public",s[s.Runtime=14]="Runtime",s[s.Template=15]="Template",s[s.Video=16]="Video",s[s.Resource=17]="Resource",s[s.App=18]="App",s[s.Log=19]="Log",s))(w||{});async function Fe(t,e={}){return i({__tauriModule:"Fs",message:{cmd:"readFile",path:t,options:e}}).then(n=>new TextDecoder().decode(new Uint8Array(n)))}async function Ee(t,e={}){let n=await i({__tauriModule:"Fs",message:{cmd:"readFile",path:t,options:e}});return Uint8Array.from(n)}async function Se(t,e={}){return typeof e=="object"&&Object.freeze(e),typeof t=="object"&&Object.freeze(t),i({__tauriModule:"Fs",message:{cmd:"writeFile",path:t.path,contents:Array.from(new TextEncoder().encode(t.contents)),options:e}})}async function Ce(t,e={}){return typeof e=="object"&&Object.freeze(e),typeof t=="object"&&Object.freeze(t),i({__tauriModule:"Fs",message:{cmd:"writeFile",path:t.path,contents:Array.from(t.contents),options:e}})}async function ke(t,e={}){return i({__tauriModule:"Fs",message:{cmd:"readDir",path:t,options:e}})}async function Ae(t,e={}){return i({__tauriModule:"Fs",message:{cmd:"createDir",path:t,options:e}})}async function We(t,e={}){return i({__tauriModule:"Fs",message:{cmd:"removeDir",path:t,options:e}})}async function Ue(t,e,n={}){return i({__tauriModule:"Fs",message:{cmd:"copyFile",source:t,destination:e,options:n}})}async function Re(t,e={}){return i({__tauriModule:"Fs",message:{cmd:"removeFile",path:t,options:e}})}async function Le(t,e,n={}){return i({__tauriModule:"Fs",message:{cmd:"renameFile",oldPath:t,newPath:e,options:n}})}var R={};l(R,{isRegistered:()=>Ne,register:()=>De,registerAll:()=>ze,unregister:()=>He,unregisterAll:()=>Ie});async function De(t,e){return i({__tauriModule:"GlobalShortcut",message:{cmd:"register",shortcut:t,handler:d(e)}})}async function ze(t,e){return i({__tauriModule:"GlobalShortcut",message:{cmd:"registerAll",shortcuts:t,handler:d(e)}})}async function Ne(t){return i({__tauriModule:"GlobalShortcut",message:{cmd:"isRegistered",shortcut:t}})}async function He(t){return i({__tauriModule:"GlobalShortcut",message:{cmd:"unregister",shortcut:t}})}async function Ie(){return i({__tauriModule:"GlobalShortcut",message:{cmd:"unregisterAll"}})}var N={};l(N,{Body:()=>c,Client:()=>z,Response:()=>D,ResponseType:()=>ne,fetch:()=>je,getClient:()=>ie});var ne=(r=>(r[r.JSON=1]="JSON",r[r.Text=2]="Text",r[r.Binary=3]="Binary",r))(ne||{}),c=class{constructor(e,n){this.type=e,this.payload=n}static form(e){let n={};for(let r in e){let a=e[r];n[r]=typeof a=="string"?a:Array.from(a)}return new c("Form",n)}static json(e){return new c("Json",e)}static text(e){return new c("Text",e)}static bytes(e){return new c("Bytes",Array.from(e))}},D=class{constructor(e){this.url=e.url,this.status=e.status,this.ok=this.status>=200&&this.status<300,this.headers=e.headers,this.rawHeaders=e.rawHeaders,this.data=e.data}},z=class{constructor(e){this.id=e}async drop(){return i({__tauriModule:"Http",message:{cmd:"dropClient",client:this.id}})}async request(e){let n=!e.responseType||e.responseType===1;return n&&(e.responseType=2),i({__tauriModule:"Http",message:{cmd:"httpRequest",client:this.id,options:e}}).then(r=>{let a=new D(r);if(n){try{a.data=JSON.parse(a.data)}catch(o){if(a.ok&&a.data==="")a.data={};else if(a.ok)throw Error(`Failed to parse response \`${a.data}\` as JSON: ${o};
-              try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`)}return a}return a})}async get(e,n){return this.request(m({method:"GET",url:e},n))}async post(e,n,r){return this.request(m({method:"POST",url:e,body:n},r))}async put(e,n,r){return this.request(m({method:"PUT",url:e,body:n},r))}async patch(e,n){return this.request(m({method:"PATCH",url:e},n))}async delete(e,n){return this.request(m({method:"DELETE",url:e},n))}};async function ie(t){return i({__tauriModule:"Http",message:{cmd:"createClient",options:t}}).then(e=>new z(e))}var L=null;async function je(t,e){var n;return L===null&&(L=await ie()),L.request(m({url:t,method:(n=e==null?void 0:e.method)!=null?n:"GET"},e))}var H={};l(H,{isPermissionGranted:()=>qe,requestPermission:()=>Ve,sendNotification:()=>Ge});async function qe(){return window.Notification.permission!=="default"?Promise.resolve(window.Notification.permission==="granted"):i({__tauriModule:"Notification",message:{cmd:"isNotificationPermissionGranted"}})}async function Ve(){return window.Notification.requestPermission()}function Ge(t){typeof t=="string"?new window.Notification(t):new window.Notification(t.title,t)}var I={};l(I,{BaseDirectory:()=>w,appDir:()=>Je,audioDir:()=>$e,basename:()=>bt,cacheDir:()=>Ke,configDir:()=>Qe,dataDir:()=>Xe,delimiter:()=>ct,desktopDir:()=>Ye,dirname:()=>yt,documentDir:()=>Ze,downloadDir:()=>Be,executableDir:()=>et,extname:()=>ft,fontDir:()=>tt,homeDir:()=>nt,isAbsolute:()=>_t,join:()=>ht,localDataDir:()=>it,logDir:()=>mt,normalize:()=>pt,pictureDir:()=>rt,publicDir:()=>st,resolve:()=>gt,resourceDir:()=>at,runtimeDir:()=>ot,sep:()=>dt,templateDir:()=>ut,videoDir:()=>lt});function h(){return navigator.appVersion.includes("Win")}async function Je(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:18}})}async function $e(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:1}})}async function Ke(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:2}})}async function Qe(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:3}})}async function Xe(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:4}})}async function Ye(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:6}})}async function Ze(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:7}})}async function Be(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:8}})}async function et(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:9}})}async function tt(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:10}})}async function nt(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:11}})}async function it(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:5}})}async function rt(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:12}})}async function st(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:13}})}async function at(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:17}})}async function ot(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:14}})}async function ut(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:15}})}async function lt(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:16}})}async function mt(){return i({__tauriModule:"Path",message:{cmd:"resolvePath",path:"",directory:19}})}var dt=h()?"\\":"/",ct=h()?";":":";async function gt(...t){return i({__tauriModule:"Path",message:{cmd:"resolve",paths:t}})}async function pt(t){return i({__tauriModule:"Path",message:{cmd:"normalize",path:t}})}async function ht(...t){return i({__tauriModule:"Path",message:{cmd:"join",paths:t}})}async function yt(t){return i({__tauriModule:"Path",message:{cmd:"dirname",path:t}})}async function ft(t){return i({__tauriModule:"Path",message:{cmd:"extname",path:t}})}async function bt(t,e){return i({__tauriModule:"Path",message:{cmd:"basename",path:t,ext:e}})}async function _t(t){return i({__tauriModule:"Path",message:{cmd:"isAbsolute",path:t}})}var j={};l(j,{exit:()=>Pt,relaunch:()=>wt});async function Pt(t=0){return i({__tauriModule:"Process",message:{cmd:"exit",exitCode:t}})}async function wt(){return i({__tauriModule:"Process",message:{cmd:"relaunch"}})}var V={};l(V,{Child:()=>q,Command:()=>M,open:()=>Mt});async function vt(t,e,n,r){return typeof n=="object"&&Object.freeze(n),i({__tauriModule:"Shell",message:{cmd:"execute",program:e,args:n,options:r,onEventFn:d(t)}})}var v=class{constructor(){this.eventListeners=Object.create(null)}addEventListener(e,n){e in this.eventListeners?this.eventListeners[e].push(n):this.eventListeners[e]=[n]}_emit(e,n){if(e in this.eventListeners){let r=this.eventListeners[e];for(let a of r)a(n)}}on(e,n){return this.addEventListener(e,n),this}},q=class{constructor(e){this.pid=e}async write(e){return i({__tauriModule:"Shell",message:{cmd:"stdinWrite",pid:this.pid,buffer:typeof e=="string"?e:Array.from(e)}})}async kill(){return i({__tauriModule:"Shell",message:{cmd:"killChild",pid:this.pid}})}},M=class extends v{constructor(e,n=[],r){super();this.stdout=new v;this.stderr=new v;this.program=e,this.args=typeof n=="string"?[n]:n,this.options=r!=null?r:{}}static sidecar(e,n=[],r){let a=new M(e,n,r);return a.options.sidecar=!0,a}async spawn(){return vt(e=>{switch(e.event){case"Error":this._emit("error",e.payload);break;case"Terminated":this._emit("close",e.payload);break;case"Stdout":this.stdout._emit("data",e.payload);break;case"Stderr":this.stderr._emit("data",e.payload);break}},this.program,this.args,this.options).then(e=>new q(e))}async execute(){return new Promise((e,n)=>{this.on("error",n);let r=[],a=[];this.stdout.on("data",o=>{r.push(o)}),this.stderr.on("data",o=>{a.push(o)}),this.on("close",o=>{e({code:o.code,signal:o.signal,stdout:r.join(`
-`),stderr:a.join(`
-`)})}),this.spawn().catch(n)})}};async function Mt(t,e){return i({__tauriModule:"Shell",message:{cmd:"open",path:t,with:e}})}var G={};l(G,{checkUpdate:()=>xt,installUpdate:()=>Tt});async function Tt(){let t;function e(){t&&t(),t=void 0}return new Promise((n,r)=>{function a(o){if(o.error)return e(),r(o.error);if(o.status==="DONE")return e(),n()}_("tauri://update-status",o=>{a(o==null?void 0:o.payload)}).then(o=>{t=o}).catch(o=>{throw e(),o}),P("tauri://update-install").catch(o=>{throw e(),o})})}async function xt(){let t;function e(){t&&t(),t=void 0}return new Promise((n,r)=>{function a(u){return e(),n({manifest:u,shouldUpdate:!0})}function o(u){if(u.error)return e(),r(u.error);if(u.status==="UPTODATE")return e(),n({shouldUpdate:!1})}A("tauri://update-available",u=>{a(u==null?void 0:u.payload)}).catch(u=>{throw e(),u}),_("tauri://update-status",u=>{o(u==null?void 0:u.payload)}).then(u=>{t=u}).catch(u=>{throw e(),u}),P("tauri://update").catch(u=>{throw e(),u})})}var X={};l(X,{LogicalPosition:()=>$,LogicalSize:()=>J,PhysicalPosition:()=>x,PhysicalSize:()=>T,UserAttentionType:()=>se,WebviewWindow:()=>g,WebviewWindowHandle:()=>K,WindowManager:()=>Q,appWindow:()=>Ft,availableMonitors:()=>Ct,currentMonitor:()=>Et,getAll:()=>ae,getCurrent:()=>Ot,primaryMonitor:()=>St});var J=class{constructor(e,n){this.type="Logical";this.width=e,this.height=n}},T=class{constructor(e,n){this.type="Physical";this.width=e,this.height=n}toLogical(e){return new J(this.width/e,this.height/e)}},$=class{constructor(e,n){this.type="Logical";this.x=e,this.y=n}},x=class{constructor(e,n){this.type="Physical";this.x=e,this.y=n}toLogical(e){return new $(this.x/e,this.y/e)}},se=(n=>(n[n.Critical=1]="Critical",n[n.Informational=2]="Informational",n))(se||{});function Ot(){return new g(window.__TAURI_METADATA__.__currentWindow.label,{skip:!0})}function ae(){return window.__TAURI_METADATA__.__windows.map(t=>new g(t.label,{skip:!0}))}var re=["tauri://created","tauri://error"],K=class{constructor(e){this.label=e,this.listeners=Object.create(null)}async listen(e,n){return this._handleTauriEvent(e,n)?Promise.resolve(()=>{let r=this.listeners[e];r.splice(r.indexOf(n),1)}):p(e,this.label,n)}async once(e,n){return this._handleTauriEvent(e,n)?Promise.resolve(()=>{let r=this.listeners[e];r.splice(r.indexOf(n),1)}):b(e,this.label,n)}async emit(e,n){if(re.includes(e)){for(let r of this.listeners[e]||[])r({event:e,id:-1,windowLabel:this.label,payload:n});return Promise.resolve()}return f(e,this.label,n)}_handleTauriEvent(e,n){return re.includes(e)?(e in this.listeners?this.listeners[e].push(n):this.listeners[e]=[n],!0):!1}},Q=class extends K{async scaleFactor(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"scaleFactor"}}}})}async innerPosition(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"innerPosition"}}}}).then(({x:e,y:n})=>new x(e,n))}async outerPosition(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"outerPosition"}}}}).then(({x:e,y:n})=>new x(e,n))}async innerSize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"innerSize"}}}}).then(({width:e,height:n})=>new T(e,n))}async outerSize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"outerSize"}}}}).then(({width:e,height:n})=>new T(e,n))}async isFullscreen(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"isFullscreen"}}}})}async isMaximized(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"isMaximized"}}}})}async isDecorated(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"isDecorated"}}}})}async isResizable(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"isResizable"}}}})}async isVisible(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"isVisible"}}}})}async center(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"center"}}}})}async requestUserAttention(e){let n=null;return e&&(e===1?n={type:"Critical"}:n={type:"Informational"}),i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"requestUserAttention",payload:n}}}})}async setResizable(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setResizable",payload:e}}}})}async setTitle(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setTitle",payload:e}}}})}async maximize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"maximize"}}}})}async unmaximize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"unmaximize"}}}})}async toggleMaximize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"toggleMaximize"}}}})}async minimize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"minimize"}}}})}async unminimize(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"unminimize"}}}})}async show(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"show"}}}})}async hide(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"hide"}}}})}async close(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"close"}}}})}async setDecorations(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setDecorations",payload:e}}}})}async setAlwaysOnTop(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setAlwaysOnTop",payload:e}}}})}async setSize(e){if(!e||e.type!=="Logical"&&e.type!=="Physical")throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setSize",payload:{type:e.type,data:{width:e.width,height:e.height}}}}}})}async setMinSize(e){if(e&&e.type!=="Logical"&&e.type!=="Physical")throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setMinSize",payload:e?{type:e.type,data:{width:e.width,height:e.height}}:null}}}})}async setMaxSize(e){if(e&&e.type!=="Logical"&&e.type!=="Physical")throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setMaxSize",payload:e?{type:e.type,data:{width:e.width,height:e.height}}:null}}}})}async setPosition(e){if(!e||e.type!=="Logical"&&e.type!=="Physical")throw new Error("the `position` argument must be either a LogicalPosition or a PhysicalPosition instance");return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setPosition",payload:{type:e.type,data:{x:e.x,y:e.y}}}}}})}async setFullscreen(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setFullscreen",payload:e}}}})}async setFocus(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setFocus"}}}})}async setIcon(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setIcon",payload:{icon:typeof e=="string"?e:Array.from(e)}}}}})}async setSkipTaskbar(e){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"setSkipTaskbar",payload:e}}}})}async startDragging(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{label:this.label,cmd:{type:"startDragging"}}}})}},g=class extends Q{constructor(e,n={}){super(e);(n==null?void 0:n.skip)||i({__tauriModule:"Window",message:{cmd:"createWebview",data:{options:m({label:e},n)}}}).then(async()=>this.emit("tauri://created")).catch(async r=>this.emit("tauri://error",r))}static getByLabel(e){return ae().some(n=>n.label===e)?new g(e,{skip:!0}):null}},Ft=new g(window.__TAURI_METADATA__.__currentWindow.label,{skip:!0});async function Et(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{cmd:{type:"currentMonitor"}}}})}async function St(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{cmd:{type:"primaryMonitor"}}}})}async function Ct(){return i({__tauriModule:"Window",message:{cmd:"manage",data:{cmd:{type:"availableMonitors"}}}})}var Y={};l(Y,{EOL:()=>kt,arch:()=>Rt,platform:()=>At,tempdir:()=>Lt,type:()=>Ut,version:()=>Wt});var kt=h()?`\r
-`:`
-`;async function At(){return i({__tauriModule:"Os",message:{cmd:"platform"}})}async function Wt(){return i({__tauriModule:"Os",message:{cmd:"version"}})}async function Ut(){return i({__tauriModule:"Os",message:{cmd:"osType"}})}async function Rt(){return i({__tauriModule:"Os",message:{cmd:"arch"}})}async function Lt(){return i({__tauriModule:"Os",message:{cmd:"tempdir"}})}return ce(Dt);})();
+var __TAURI__ = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __propIsEnum = Object.prototype.propertyIsEnumerable;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __spreadValues = (a, b) => {
+    for (var prop in b || (b = {}))
+      if (__hasOwnProp.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    if (__getOwnPropSymbols)
+      for (var prop of __getOwnPropSymbols(b)) {
+        if (__propIsEnum.call(b, prop))
+          __defNormalProp(a, prop, b[prop]);
+      }
+    return a;
+  };
+  var __markAsModule = (target) => __defProp(target, "__esModule", { value: true });
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __reExport = (target, module, copyDefault, desc) => {
+    if (module && typeof module === "object" || typeof module === "function") {
+      for (let key of __getOwnPropNames(module))
+        if (!__hasOwnProp.call(target, key) && (copyDefault || key !== "default"))
+          __defProp(target, key, { get: () => module[key], enumerable: !(desc = __getOwnPropDesc(module, key)) || desc.enumerable });
+    }
+    return target;
+  };
+  var __toCommonJS = /* @__PURE__ */ ((cache) => {
+    return (module, temp) => {
+      return cache && cache.get(module) || (temp = __reExport(__markAsModule({}), module, 1), cache && cache.set(module, temp), temp);
+    };
+  })(typeof WeakMap !== "undefined" ? /* @__PURE__ */ new WeakMap() : 0);
+
+  // src/index.ts
+  var src_exports = {};
+  __export(src_exports, {
+    app: () => app_exports,
+    cli: () => cli_exports,
+    clipboard: () => clipboard_exports,
+    dialog: () => dialog_exports,
+    event: () => event_exports,
+    fs: () => fs_exports,
+    globalShortcut: () => globalShortcut_exports,
+    http: () => http_exports,
+    notification: () => notification_exports,
+    os: () => os_exports,
+    path: () => path_exports,
+    process: () => process_exports,
+    shell: () => shell_exports,
+    tauri: () => tauri_exports,
+    updater: () => updater_exports,
+    window: () => window_exports
+  });
+
+  // src/app.ts
+  var app_exports = {};
+  __export(app_exports, {
+    getName: () => getName,
+    getTauriVersion: () => getTauriVersion,
+    getVersion: () => getVersion
+  });
+
+  // src/tauri.ts
+  var tauri_exports = {};
+  __export(tauri_exports, {
+    convertFileSrc: () => convertFileSrc,
+    invoke: () => invoke,
+    transformCallback: () => transformCallback
+  });
+  function uid() {
+    return window.crypto.getRandomValues(new Uint32Array(1))[0];
+  }
+  function transformCallback(callback, once3 = false) {
+    const identifier = uid();
+    const prop = `_${identifier}`;
+    Object.defineProperty(window, prop, {
+      value: (result) => {
+        if (once3) {
+          Reflect.deleteProperty(window, prop);
+        }
+        return callback == null ? void 0 : callback(result);
+      },
+      writable: false,
+      configurable: true
+    });
+    return identifier;
+  }
+  async function invoke(cmd, args = {}) {
+    return new Promise((resolve2, reject) => {
+      const callback = transformCallback((e) => {
+        resolve2(e);
+        Reflect.deleteProperty(window, error);
+      }, true);
+      const error = transformCallback((e) => {
+        reject(e);
+        Reflect.deleteProperty(window, callback);
+      }, true);
+      window.__TAURI_IPC__(__spreadValues({
+        cmd,
+        callback,
+        error
+      }, args));
+    });
+  }
+  function convertFileSrc(filePath) {
+    return navigator.userAgent.includes("Windows") ? `https://asset.localhost/${filePath}` : `asset://${filePath}`;
+  }
+
+  // src/helpers/tauri.ts
+  async function invokeTauriCommand(command) {
+    return invoke("tauri", command);
+  }
+
+  // src/app.ts
+  async function getVersion() {
+    return invokeTauriCommand({
+      __tauriModule: "App",
+      message: {
+        cmd: "getAppVersion"
+      }
+    });
+  }
+  async function getName() {
+    return invokeTauriCommand({
+      __tauriModule: "App",
+      message: {
+        cmd: "getAppName"
+      }
+    });
+  }
+  async function getTauriVersion() {
+    return invokeTauriCommand({
+      __tauriModule: "App",
+      message: {
+        cmd: "getTauriVersion"
+      }
+    });
+  }
+
+  // src/cli.ts
+  var cli_exports = {};
+  __export(cli_exports, {
+    getMatches: () => getMatches
+  });
+  async function getMatches() {
+    return invokeTauriCommand({
+      __tauriModule: "Cli",
+      message: {
+        cmd: "cliMatches"
+      }
+    });
+  }
+
+  // src/clipboard.ts
+  var clipboard_exports = {};
+  __export(clipboard_exports, {
+    readText: () => readText,
+    writeText: () => writeText
+  });
+  async function writeText(text) {
+    return invokeTauriCommand({
+      __tauriModule: "Clipboard",
+      message: {
+        cmd: "writeText",
+        data: text
+      }
+    });
+  }
+  async function readText() {
+    return invokeTauriCommand({
+      __tauriModule: "Clipboard",
+      message: {
+        cmd: "readText"
+      }
+    });
+  }
+
+  // src/dialog.ts
+  var dialog_exports = {};
+  __export(dialog_exports, {
+    ask: () => ask,
+    confirm: () => confirm,
+    message: () => message,
+    open: () => open,
+    save: () => save
+  });
+  async function open(options = {}) {
+    if (typeof options === "object") {
+      Object.freeze(options);
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Dialog",
+      message: {
+        cmd: "openDialog",
+        options
+      }
+    });
+  }
+  async function save(options = {}) {
+    if (typeof options === "object") {
+      Object.freeze(options);
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Dialog",
+      message: {
+        cmd: "saveDialog",
+        options
+      }
+    });
+  }
+  async function message(message2) {
+    return invokeTauriCommand({
+      __tauriModule: "Dialog",
+      message: {
+        cmd: "messageDialog",
+        message: message2
+      }
+    });
+  }
+  async function ask(message2, title) {
+    return invokeTauriCommand({
+      __tauriModule: "Dialog",
+      message: {
+        cmd: "askDialog",
+        title,
+        message: message2
+      }
+    });
+  }
+  async function confirm(message2, title) {
+    return invokeTauriCommand({
+      __tauriModule: "Dialog",
+      message: {
+        cmd: "confirmDialog",
+        title,
+        message: message2
+      }
+    });
+  }
+
+  // src/event.ts
+  var event_exports = {};
+  __export(event_exports, {
+    emit: () => emit2,
+    listen: () => listen2,
+    once: () => once2
+  });
+
+  // src/helpers/event.ts
+  async function _unlisten(eventId) {
+    return invokeTauriCommand({
+      __tauriModule: "Event",
+      message: {
+        cmd: "unlisten",
+        eventId
+      }
+    });
+  }
+  async function emit(event, windowLabel, payload) {
+    await invokeTauriCommand({
+      __tauriModule: "Event",
+      message: {
+        cmd: "emit",
+        event,
+        windowLabel,
+        payload: typeof payload === "string" ? payload : JSON.stringify(payload)
+      }
+    });
+  }
+  async function listen(event, windowLabel, handler) {
+    return invokeTauriCommand({
+      __tauriModule: "Event",
+      message: {
+        cmd: "listen",
+        event,
+        windowLabel,
+        handler: transformCallback(handler)
+      }
+    }).then((eventId) => {
+      return async () => _unlisten(eventId);
+    });
+  }
+  async function once(event, windowLabel, handler) {
+    return listen(event, windowLabel, (eventData) => {
+      handler(eventData);
+      _unlisten(eventData.id).catch(() => {
+      });
+    });
+  }
+
+  // src/event.ts
+  async function listen2(event, handler) {
+    return listen(event, null, handler);
+  }
+  async function once2(event, handler) {
+    return once(event, null, handler);
+  }
+  async function emit2(event, payload) {
+    return emit(event, void 0, payload);
+  }
+
+  // src/fs.ts
+  var fs_exports = {};
+  __export(fs_exports, {
+    BaseDirectory: () => BaseDirectory,
+    Dir: () => BaseDirectory,
+    copyFile: () => copyFile,
+    createDir: () => createDir,
+    readBinaryFile: () => readBinaryFile,
+    readDir: () => readDir,
+    readTextFile: () => readTextFile,
+    removeDir: () => removeDir,
+    removeFile: () => removeFile,
+    renameFile: () => renameFile,
+    writeBinaryFile: () => writeBinaryFile,
+    writeFile: () => writeFile
+  });
+  var BaseDirectory = /* @__PURE__ */ ((BaseDirectory2) => {
+    BaseDirectory2[BaseDirectory2["Audio"] = 1] = "Audio";
+    BaseDirectory2[BaseDirectory2["Cache"] = 2] = "Cache";
+    BaseDirectory2[BaseDirectory2["Config"] = 3] = "Config";
+    BaseDirectory2[BaseDirectory2["Data"] = 4] = "Data";
+    BaseDirectory2[BaseDirectory2["LocalData"] = 5] = "LocalData";
+    BaseDirectory2[BaseDirectory2["Desktop"] = 6] = "Desktop";
+    BaseDirectory2[BaseDirectory2["Document"] = 7] = "Document";
+    BaseDirectory2[BaseDirectory2["Download"] = 8] = "Download";
+    BaseDirectory2[BaseDirectory2["Executable"] = 9] = "Executable";
+    BaseDirectory2[BaseDirectory2["Font"] = 10] = "Font";
+    BaseDirectory2[BaseDirectory2["Home"] = 11] = "Home";
+    BaseDirectory2[BaseDirectory2["Picture"] = 12] = "Picture";
+    BaseDirectory2[BaseDirectory2["Public"] = 13] = "Public";
+    BaseDirectory2[BaseDirectory2["Runtime"] = 14] = "Runtime";
+    BaseDirectory2[BaseDirectory2["Template"] = 15] = "Template";
+    BaseDirectory2[BaseDirectory2["Video"] = 16] = "Video";
+    BaseDirectory2[BaseDirectory2["Resource"] = 17] = "Resource";
+    BaseDirectory2[BaseDirectory2["App"] = 18] = "App";
+    BaseDirectory2[BaseDirectory2["Log"] = 19] = "Log";
+    return BaseDirectory2;
+  })(BaseDirectory || {});
+  async function readTextFile(filePath, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "readFile",
+        path: filePath,
+        options
+      }
+    }).then((data) => new TextDecoder().decode(new Uint8Array(data)));
+  }
+  async function readBinaryFile(filePath, options = {}) {
+    const arr = await invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "readFile",
+        path: filePath,
+        options
+      }
+    });
+    return Uint8Array.from(arr);
+  }
+  async function writeFile(file, options = {}) {
+    if (typeof options === "object") {
+      Object.freeze(options);
+    }
+    if (typeof file === "object") {
+      Object.freeze(file);
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "writeFile",
+        path: file.path,
+        contents: Array.from(new TextEncoder().encode(file.contents)),
+        options
+      }
+    });
+  }
+  async function writeBinaryFile(file, options = {}) {
+    if (typeof options === "object") {
+      Object.freeze(options);
+    }
+    if (typeof file === "object") {
+      Object.freeze(file);
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "writeFile",
+        path: file.path,
+        contents: Array.from(file.contents),
+        options
+      }
+    });
+  }
+  async function readDir(dir, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "readDir",
+        path: dir,
+        options
+      }
+    });
+  }
+  async function createDir(dir, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "createDir",
+        path: dir,
+        options
+      }
+    });
+  }
+  async function removeDir(dir, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "removeDir",
+        path: dir,
+        options
+      }
+    });
+  }
+  async function copyFile(source, destination, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "copyFile",
+        source,
+        destination,
+        options
+      }
+    });
+  }
+  async function removeFile(file, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "removeFile",
+        path: file,
+        options
+      }
+    });
+  }
+  async function renameFile(oldPath, newPath, options = {}) {
+    return invokeTauriCommand({
+      __tauriModule: "Fs",
+      message: {
+        cmd: "renameFile",
+        oldPath,
+        newPath,
+        options
+      }
+    });
+  }
+
+  // src/globalShortcut.ts
+  var globalShortcut_exports = {};
+  __export(globalShortcut_exports, {
+    isRegistered: () => isRegistered,
+    register: () => register,
+    registerAll: () => registerAll,
+    unregister: () => unregister,
+    unregisterAll: () => unregisterAll
+  });
+  async function register(shortcut, handler) {
+    return invokeTauriCommand({
+      __tauriModule: "GlobalShortcut",
+      message: {
+        cmd: "register",
+        shortcut,
+        handler: transformCallback(handler)
+      }
+    });
+  }
+  async function registerAll(shortcuts, handler) {
+    return invokeTauriCommand({
+      __tauriModule: "GlobalShortcut",
+      message: {
+        cmd: "registerAll",
+        shortcuts,
+        handler: transformCallback(handler)
+      }
+    });
+  }
+  async function isRegistered(shortcut) {
+    return invokeTauriCommand({
+      __tauriModule: "GlobalShortcut",
+      message: {
+        cmd: "isRegistered",
+        shortcut
+      }
+    });
+  }
+  async function unregister(shortcut) {
+    return invokeTauriCommand({
+      __tauriModule: "GlobalShortcut",
+      message: {
+        cmd: "unregister",
+        shortcut
+      }
+    });
+  }
+  async function unregisterAll() {
+    return invokeTauriCommand({
+      __tauriModule: "GlobalShortcut",
+      message: {
+        cmd: "unregisterAll"
+      }
+    });
+  }
+
+  // src/http.ts
+  var http_exports = {};
+  __export(http_exports, {
+    Body: () => Body,
+    Client: () => Client,
+    Response: () => Response,
+    ResponseType: () => ResponseType,
+    fetch: () => fetch,
+    getClient: () => getClient
+  });
+  var ResponseType = /* @__PURE__ */ ((ResponseType2) => {
+    ResponseType2[ResponseType2["JSON"] = 1] = "JSON";
+    ResponseType2[ResponseType2["Text"] = 2] = "Text";
+    ResponseType2[ResponseType2["Binary"] = 3] = "Binary";
+    return ResponseType2;
+  })(ResponseType || {});
+  var Body = class {
+    constructor(type2, payload) {
+      this.type = type2;
+      this.payload = payload;
+    }
+    static form(data) {
+      const form = {};
+      for (const key in data) {
+        const v = data[key];
+        form[key] = typeof v === "string" ? v : Array.from(v);
+      }
+      return new Body("Form", form);
+    }
+    static json(data) {
+      return new Body("Json", data);
+    }
+    static text(value) {
+      return new Body("Text", value);
+    }
+    static bytes(bytes) {
+      return new Body("Bytes", Array.from(bytes));
+    }
+  };
+  var Response = class {
+    constructor(response) {
+      this.url = response.url;
+      this.status = response.status;
+      this.ok = this.status >= 200 && this.status < 300;
+      this.headers = response.headers;
+      this.rawHeaders = response.rawHeaders;
+      this.data = response.data;
+    }
+  };
+  var Client = class {
+    constructor(id) {
+      this.id = id;
+    }
+    async drop() {
+      return invokeTauriCommand({
+        __tauriModule: "Http",
+        message: {
+          cmd: "dropClient",
+          client: this.id
+        }
+      });
+    }
+    async request(options) {
+      const jsonResponse = !options.responseType || options.responseType === 1 /* JSON */;
+      if (jsonResponse) {
+        options.responseType = 2 /* Text */;
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Http",
+        message: {
+          cmd: "httpRequest",
+          client: this.id,
+          options
+        }
+      }).then((res) => {
+        const response = new Response(res);
+        if (jsonResponse) {
+          try {
+            response.data = JSON.parse(response.data);
+          } catch (e) {
+            if (response.ok && response.data === "") {
+              response.data = {};
+            } else if (response.ok) {
+              throw Error(`Failed to parse response \`${response.data}\` as JSON: ${e};
+              try setting the \`responseType\` option to \`ResponseType.Text\` or \`ResponseType.Binary\` if the API does not return a JSON response.`);
+            }
+          }
+          return response;
+        }
+        return response;
+      });
+    }
+    async get(url, options) {
+      return this.request(__spreadValues({
+        method: "GET",
+        url
+      }, options));
+    }
+    async post(url, body, options) {
+      return this.request(__spreadValues({
+        method: "POST",
+        url,
+        body
+      }, options));
+    }
+    async put(url, body, options) {
+      return this.request(__spreadValues({
+        method: "PUT",
+        url,
+        body
+      }, options));
+    }
+    async patch(url, options) {
+      return this.request(__spreadValues({
+        method: "PATCH",
+        url
+      }, options));
+    }
+    async delete(url, options) {
+      return this.request(__spreadValues({
+        method: "DELETE",
+        url
+      }, options));
+    }
+  };
+  async function getClient(options) {
+    return invokeTauriCommand({
+      __tauriModule: "Http",
+      message: {
+        cmd: "createClient",
+        options
+      }
+    }).then((id) => new Client(id));
+  }
+  var defaultClient = null;
+  async function fetch(url, options) {
+    var _a;
+    if (defaultClient === null) {
+      defaultClient = await getClient();
+    }
+    return defaultClient.request(__spreadValues({
+      url,
+      method: (_a = options == null ? void 0 : options.method) != null ? _a : "GET"
+    }, options));
+  }
+
+  // src/notification.ts
+  var notification_exports = {};
+  __export(notification_exports, {
+    isPermissionGranted: () => isPermissionGranted,
+    requestPermission: () => requestPermission,
+    sendNotification: () => sendNotification
+  });
+  async function isPermissionGranted() {
+    if (window.Notification.permission !== "default") {
+      return Promise.resolve(window.Notification.permission === "granted");
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Notification",
+      message: {
+        cmd: "isNotificationPermissionGranted"
+      }
+    });
+  }
+  async function requestPermission() {
+    return window.Notification.requestPermission();
+  }
+  function sendNotification(options) {
+    if (typeof options === "string") {
+      new window.Notification(options);
+    } else {
+      new window.Notification(options.title, options);
+    }
+  }
+
+  // src/path.ts
+  var path_exports = {};
+  __export(path_exports, {
+    BaseDirectory: () => BaseDirectory,
+    appDir: () => appDir,
+    audioDir: () => audioDir,
+    basename: () => basename,
+    cacheDir: () => cacheDir,
+    configDir: () => configDir,
+    dataDir: () => dataDir,
+    delimiter: () => delimiter,
+    desktopDir: () => desktopDir,
+    dirname: () => dirname,
+    documentDir: () => documentDir,
+    downloadDir: () => downloadDir,
+    executableDir: () => executableDir,
+    extname: () => extname,
+    fontDir: () => fontDir,
+    homeDir: () => homeDir,
+    isAbsolute: () => isAbsolute,
+    join: () => join,
+    localDataDir: () => localDataDir,
+    logDir: () => logDir,
+    normalize: () => normalize,
+    pictureDir: () => pictureDir,
+    publicDir: () => publicDir,
+    resolve: () => resolve,
+    resourceDir: () => resourceDir,
+    runtimeDir: () => runtimeDir,
+    sep: () => sep,
+    templateDir: () => templateDir,
+    videoDir: () => videoDir
+  });
+
+  // src/helpers/os-check.ts
+  function isWindows() {
+    return navigator.appVersion.includes("Win");
+  }
+
+  // src/path.ts
+  async function appDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 18 /* App */
+      }
+    });
+  }
+  async function audioDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 1 /* Audio */
+      }
+    });
+  }
+  async function cacheDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 2 /* Cache */
+      }
+    });
+  }
+  async function configDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 3 /* Config */
+      }
+    });
+  }
+  async function dataDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 4 /* Data */
+      }
+    });
+  }
+  async function desktopDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 6 /* Desktop */
+      }
+    });
+  }
+  async function documentDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 7 /* Document */
+      }
+    });
+  }
+  async function downloadDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 8 /* Download */
+      }
+    });
+  }
+  async function executableDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 9 /* Executable */
+      }
+    });
+  }
+  async function fontDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 10 /* Font */
+      }
+    });
+  }
+  async function homeDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 11 /* Home */
+      }
+    });
+  }
+  async function localDataDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 5 /* LocalData */
+      }
+    });
+  }
+  async function pictureDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 12 /* Picture */
+      }
+    });
+  }
+  async function publicDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 13 /* Public */
+      }
+    });
+  }
+  async function resourceDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 17 /* Resource */
+      }
+    });
+  }
+  async function runtimeDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 14 /* Runtime */
+      }
+    });
+  }
+  async function templateDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 15 /* Template */
+      }
+    });
+  }
+  async function videoDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 16 /* Video */
+      }
+    });
+  }
+  async function logDir() {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolvePath",
+        path: "",
+        directory: 19 /* Log */
+      }
+    });
+  }
+  var sep = isWindows() ? "\\" : "/";
+  var delimiter = isWindows() ? ";" : ":";
+  async function resolve(...paths) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "resolve",
+        paths
+      }
+    });
+  }
+  async function normalize(path) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "normalize",
+        path
+      }
+    });
+  }
+  async function join(...paths) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "join",
+        paths
+      }
+    });
+  }
+  async function dirname(path) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "dirname",
+        path
+      }
+    });
+  }
+  async function extname(path) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "extname",
+        path
+      }
+    });
+  }
+  async function basename(path, ext) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "basename",
+        path,
+        ext
+      }
+    });
+  }
+  async function isAbsolute(path) {
+    return invokeTauriCommand({
+      __tauriModule: "Path",
+      message: {
+        cmd: "isAbsolute",
+        path
+      }
+    });
+  }
+
+  // src/process.ts
+  var process_exports = {};
+  __export(process_exports, {
+    exit: () => exit,
+    relaunch: () => relaunch
+  });
+  async function exit(exitCode = 0) {
+    return invokeTauriCommand({
+      __tauriModule: "Process",
+      message: {
+        cmd: "exit",
+        exitCode
+      }
+    });
+  }
+  async function relaunch() {
+    return invokeTauriCommand({
+      __tauriModule: "Process",
+      message: {
+        cmd: "relaunch"
+      }
+    });
+  }
+
+  // src/shell.ts
+  var shell_exports = {};
+  __export(shell_exports, {
+    Child: () => Child,
+    Command: () => Command,
+    open: () => open2
+  });
+  async function execute(onEvent, program, args, options) {
+    if (typeof args === "object") {
+      Object.freeze(args);
+    }
+    return invokeTauriCommand({
+      __tauriModule: "Shell",
+      message: {
+        cmd: "execute",
+        program,
+        args,
+        options,
+        onEventFn: transformCallback(onEvent)
+      }
+    });
+  }
+  var EventEmitter = class {
+    constructor() {
+      this.eventListeners = /* @__PURE__ */ Object.create(null);
+    }
+    addEventListener(event, handler) {
+      if (event in this.eventListeners) {
+        this.eventListeners[event].push(handler);
+      } else {
+        this.eventListeners[event] = [handler];
+      }
+    }
+    _emit(event, payload) {
+      if (event in this.eventListeners) {
+        const listeners = this.eventListeners[event];
+        for (const listener of listeners) {
+          listener(payload);
+        }
+      }
+    }
+    on(event, handler) {
+      this.addEventListener(event, handler);
+      return this;
+    }
+  };
+  var Child = class {
+    constructor(pid) {
+      this.pid = pid;
+    }
+    async write(data) {
+      return invokeTauriCommand({
+        __tauriModule: "Shell",
+        message: {
+          cmd: "stdinWrite",
+          pid: this.pid,
+          buffer: typeof data === "string" ? data : Array.from(data)
+        }
+      });
+    }
+    async kill() {
+      return invokeTauriCommand({
+        __tauriModule: "Shell",
+        message: {
+          cmd: "killChild",
+          pid: this.pid
+        }
+      });
+    }
+  };
+  var Command = class extends EventEmitter {
+    constructor(program, args = [], options) {
+      super();
+      this.stdout = new EventEmitter();
+      this.stderr = new EventEmitter();
+      this.program = program;
+      this.args = typeof args === "string" ? [args] : args;
+      this.options = options != null ? options : {};
+    }
+    static sidecar(program, args = [], options) {
+      const instance = new Command(program, args, options);
+      instance.options.sidecar = true;
+      return instance;
+    }
+    async spawn() {
+      return execute((event) => {
+        switch (event.event) {
+          case "Error":
+            this._emit("error", event.payload);
+            break;
+          case "Terminated":
+            this._emit("close", event.payload);
+            break;
+          case "Stdout":
+            this.stdout._emit("data", event.payload);
+            break;
+          case "Stderr":
+            this.stderr._emit("data", event.payload);
+            break;
+        }
+      }, this.program, this.args, this.options).then((pid) => new Child(pid));
+    }
+    async execute() {
+      return new Promise((resolve2, reject) => {
+        this.on("error", reject);
+        const stdout = [];
+        const stderr = [];
+        this.stdout.on("data", (line) => {
+          stdout.push(line);
+        });
+        this.stderr.on("data", (line) => {
+          stderr.push(line);
+        });
+        this.on("close", (payload) => {
+          resolve2({
+            code: payload.code,
+            signal: payload.signal,
+            stdout: stdout.join("\n"),
+            stderr: stderr.join("\n")
+          });
+        });
+        this.spawn().catch(reject);
+      });
+    }
+  };
+  async function open2(path, openWith) {
+    return invokeTauriCommand({
+      __tauriModule: "Shell",
+      message: {
+        cmd: "open",
+        path,
+        with: openWith
+      }
+    });
+  }
+
+  // src/updater.ts
+  var updater_exports = {};
+  __export(updater_exports, {
+    checkUpdate: () => checkUpdate,
+    installUpdate: () => installUpdate
+  });
+  async function installUpdate() {
+    let unlistenerFn;
+    function cleanListener() {
+      if (unlistenerFn) {
+        unlistenerFn();
+      }
+      unlistenerFn = void 0;
+    }
+    return new Promise((resolve2, reject) => {
+      function onStatusChange(statusResult) {
+        if (statusResult.error) {
+          cleanListener();
+          return reject(statusResult.error);
+        }
+        if (statusResult.status === "DONE") {
+          cleanListener();
+          return resolve2();
+        }
+      }
+      listen2("tauri://update-status", (data) => {
+        onStatusChange(data == null ? void 0 : data.payload);
+      }).then((fn) => {
+        unlistenerFn = fn;
+      }).catch((e) => {
+        cleanListener();
+        throw e;
+      });
+      emit2("tauri://update-install").catch((e) => {
+        cleanListener();
+        throw e;
+      });
+    });
+  }
+  async function checkUpdate() {
+    let unlistenerFn;
+    function cleanListener() {
+      if (unlistenerFn) {
+        unlistenerFn();
+      }
+      unlistenerFn = void 0;
+    }
+    return new Promise((resolve2, reject) => {
+      function onUpdateAvailable(manifest) {
+        cleanListener();
+        return resolve2({
+          manifest,
+          shouldUpdate: true
+        });
+      }
+      function onStatusChange(statusResult) {
+        if (statusResult.error) {
+          cleanListener();
+          return reject(statusResult.error);
+        }
+        if (statusResult.status === "UPTODATE") {
+          cleanListener();
+          return resolve2({
+            shouldUpdate: false
+          });
+        }
+      }
+      once2("tauri://update-available", (data) => {
+        onUpdateAvailable(data == null ? void 0 : data.payload);
+      }).catch((e) => {
+        cleanListener();
+        throw e;
+      });
+      listen2("tauri://update-status", (data) => {
+        onStatusChange(data == null ? void 0 : data.payload);
+      }).then((fn) => {
+        unlistenerFn = fn;
+      }).catch((e) => {
+        cleanListener();
+        throw e;
+      });
+      emit2("tauri://update").catch((e) => {
+        cleanListener();
+        throw e;
+      });
+    });
+  }
+
+  // src/window.ts
+  var window_exports = {};
+  __export(window_exports, {
+    LogicalPosition: () => LogicalPosition,
+    LogicalSize: () => LogicalSize,
+    PhysicalPosition: () => PhysicalPosition,
+    PhysicalSize: () => PhysicalSize,
+    UserAttentionType: () => UserAttentionType,
+    WebviewWindow: () => WebviewWindow,
+    WebviewWindowHandle: () => WebviewWindowHandle,
+    WindowManager: () => WindowManager,
+    appWindow: () => appWindow,
+    availableMonitors: () => availableMonitors,
+    currentMonitor: () => currentMonitor,
+    getAll: () => getAll,
+    getCurrent: () => getCurrent,
+    primaryMonitor: () => primaryMonitor
+  });
+  var LogicalSize = class {
+    constructor(width, height) {
+      this.type = "Logical";
+      this.width = width;
+      this.height = height;
+    }
+  };
+  var PhysicalSize = class {
+    constructor(width, height) {
+      this.type = "Physical";
+      this.width = width;
+      this.height = height;
+    }
+    toLogical(scaleFactor) {
+      return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor);
+    }
+  };
+  var LogicalPosition = class {
+    constructor(x, y) {
+      this.type = "Logical";
+      this.x = x;
+      this.y = y;
+    }
+  };
+  var PhysicalPosition = class {
+    constructor(x, y) {
+      this.type = "Physical";
+      this.x = x;
+      this.y = y;
+    }
+    toLogical(scaleFactor) {
+      return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor);
+    }
+  };
+  var UserAttentionType = /* @__PURE__ */ ((UserAttentionType2) => {
+    UserAttentionType2[UserAttentionType2["Critical"] = 1] = "Critical";
+    UserAttentionType2[UserAttentionType2["Informational"] = 2] = "Informational";
+    return UserAttentionType2;
+  })(UserAttentionType || {});
+  function getCurrent() {
+    return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
+      skip: true
+    });
+  }
+  function getAll() {
+    return window.__TAURI_METADATA__.__windows.map((w) => new WebviewWindow(w.label, {
+      skip: true
+    }));
+  }
+  var localTauriEvents = ["tauri://created", "tauri://error"];
+  var WebviewWindowHandle = class {
+    constructor(label) {
+      this.label = label;
+      this.listeners = /* @__PURE__ */ Object.create(null);
+    }
+    async listen(event, handler) {
+      if (this._handleTauriEvent(event, handler)) {
+        return Promise.resolve(() => {
+          const listeners = this.listeners[event];
+          listeners.splice(listeners.indexOf(handler), 1);
+        });
+      }
+      return listen(event, this.label, handler);
+    }
+    async once(event, handler) {
+      if (this._handleTauriEvent(event, handler)) {
+        return Promise.resolve(() => {
+          const listeners = this.listeners[event];
+          listeners.splice(listeners.indexOf(handler), 1);
+        });
+      }
+      return once(event, this.label, handler);
+    }
+    async emit(event, payload) {
+      if (localTauriEvents.includes(event)) {
+        for (const handler of this.listeners[event] || []) {
+          handler({ event, id: -1, windowLabel: this.label, payload });
+        }
+        return Promise.resolve();
+      }
+      return emit(event, this.label, payload);
+    }
+    _handleTauriEvent(event, handler) {
+      if (localTauriEvents.includes(event)) {
+        if (!(event in this.listeners)) {
+          this.listeners[event] = [handler];
+        } else {
+          this.listeners[event].push(handler);
+        }
+        return true;
+      }
+      return false;
+    }
+  };
+  var WindowManager = class extends WebviewWindowHandle {
+    async scaleFactor() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "scaleFactor"
+            }
+          }
+        }
+      });
+    }
+    async innerPosition() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "innerPosition"
+            }
+          }
+        }
+      }).then(({ x, y }) => new PhysicalPosition(x, y));
+    }
+    async outerPosition() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "outerPosition"
+            }
+          }
+        }
+      }).then(({ x, y }) => new PhysicalPosition(x, y));
+    }
+    async innerSize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "innerSize"
+            }
+          }
+        }
+      }).then(({ width, height }) => new PhysicalSize(width, height));
+    }
+    async outerSize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "outerSize"
+            }
+          }
+        }
+      }).then(({ width, height }) => new PhysicalSize(width, height));
+    }
+    async isFullscreen() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "isFullscreen"
+            }
+          }
+        }
+      });
+    }
+    async isMaximized() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "isMaximized"
+            }
+          }
+        }
+      });
+    }
+    async isDecorated() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "isDecorated"
+            }
+          }
+        }
+      });
+    }
+    async isResizable() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "isResizable"
+            }
+          }
+        }
+      });
+    }
+    async isVisible() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "isVisible"
+            }
+          }
+        }
+      });
+    }
+    async center() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "center"
+            }
+          }
+        }
+      });
+    }
+    async requestUserAttention(requestType) {
+      let requestType_ = null;
+      if (requestType) {
+        if (requestType === 1 /* Critical */) {
+          requestType_ = { type: "Critical" };
+        } else {
+          requestType_ = { type: "Informational" };
+        }
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "requestUserAttention",
+              payload: requestType_
+            }
+          }
+        }
+      });
+    }
+    async setResizable(resizable) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setResizable",
+              payload: resizable
+            }
+          }
+        }
+      });
+    }
+    async setTitle(title) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setTitle",
+              payload: title
+            }
+          }
+        }
+      });
+    }
+    async maximize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "maximize"
+            }
+          }
+        }
+      });
+    }
+    async unmaximize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "unmaximize"
+            }
+          }
+        }
+      });
+    }
+    async toggleMaximize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "toggleMaximize"
+            }
+          }
+        }
+      });
+    }
+    async minimize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "minimize"
+            }
+          }
+        }
+      });
+    }
+    async unminimize() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "unminimize"
+            }
+          }
+        }
+      });
+    }
+    async show() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "show"
+            }
+          }
+        }
+      });
+    }
+    async hide() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "hide"
+            }
+          }
+        }
+      });
+    }
+    async close() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "close"
+            }
+          }
+        }
+      });
+    }
+    async setDecorations(decorations) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setDecorations",
+              payload: decorations
+            }
+          }
+        }
+      });
+    }
+    async setAlwaysOnTop(alwaysOnTop) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setAlwaysOnTop",
+              payload: alwaysOnTop
+            }
+          }
+        }
+      });
+    }
+    async setSize(size) {
+      if (!size || size.type !== "Logical" && size.type !== "Physical") {
+        throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setSize",
+              payload: {
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    async setMinSize(size) {
+      if (size && size.type !== "Logical" && size.type !== "Physical") {
+        throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setMinSize",
+              payload: size ? {
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
+                }
+              } : null
+            }
+          }
+        }
+      });
+    }
+    async setMaxSize(size) {
+      if (size && size.type !== "Logical" && size.type !== "Physical") {
+        throw new Error("the `size` argument must be either a LogicalSize or a PhysicalSize instance");
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setMaxSize",
+              payload: size ? {
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
+                }
+              } : null
+            }
+          }
+        }
+      });
+    }
+    async setPosition(position) {
+      if (!position || position.type !== "Logical" && position.type !== "Physical") {
+        throw new Error("the `position` argument must be either a LogicalPosition or a PhysicalPosition instance");
+      }
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setPosition",
+              payload: {
+                type: position.type,
+                data: {
+                  x: position.x,
+                  y: position.y
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+    async setFullscreen(fullscreen) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setFullscreen",
+              payload: fullscreen
+            }
+          }
+        }
+      });
+    }
+    async setFocus() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setFocus"
+            }
+          }
+        }
+      });
+    }
+    async setIcon(icon) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setIcon",
+              payload: {
+                icon: typeof icon === "string" ? icon : Array.from(icon)
+              }
+            }
+          }
+        }
+      });
+    }
+    async setSkipTaskbar(skip) {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "setSkipTaskbar",
+              payload: skip
+            }
+          }
+        }
+      });
+    }
+    async startDragging() {
+      return invokeTauriCommand({
+        __tauriModule: "Window",
+        message: {
+          cmd: "manage",
+          data: {
+            label: this.label,
+            cmd: {
+              type: "startDragging"
+            }
+          }
+        }
+      });
+    }
+  };
+  var WebviewWindow = class extends WindowManager {
+    constructor(label, options = {}) {
+      super(label);
+      if (!(options == null ? void 0 : options.skip)) {
+        invokeTauriCommand({
+          __tauriModule: "Window",
+          message: {
+            cmd: "createWebview",
+            data: {
+              options: __spreadValues({
+                label
+              }, options)
+            }
+          }
+        }).then(async () => this.emit("tauri://created")).catch(async (e) => this.emit("tauri://error", e));
+      }
+    }
+    static getByLabel(label) {
+      if (getAll().some((w) => w.label === label)) {
+        return new WebviewWindow(label, { skip: true });
+      }
+      return null;
+    }
+  };
+  var appWindow = new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
+    skip: true
+  });
+  async function currentMonitor() {
+    return invokeTauriCommand({
+      __tauriModule: "Window",
+      message: {
+        cmd: "manage",
+        data: {
+          cmd: {
+            type: "currentMonitor"
+          }
+        }
+      }
+    });
+  }
+  async function primaryMonitor() {
+    return invokeTauriCommand({
+      __tauriModule: "Window",
+      message: {
+        cmd: "manage",
+        data: {
+          cmd: {
+            type: "primaryMonitor"
+          }
+        }
+      }
+    });
+  }
+  async function availableMonitors() {
+    return invokeTauriCommand({
+      __tauriModule: "Window",
+      message: {
+        cmd: "manage",
+        data: {
+          cmd: {
+            type: "availableMonitors"
+          }
+        }
+      }
+    });
+  }
+
+  // src/os.ts
+  var os_exports = {};
+  __export(os_exports, {
+    EOL: () => EOL,
+    arch: () => arch,
+    platform: () => platform,
+    tempdir: () => tempdir,
+    type: () => type,
+    version: () => version
+  });
+  var EOL = isWindows() ? "\r\n" : "\n";
+  async function platform() {
+    return invokeTauriCommand({
+      __tauriModule: "Os",
+      message: {
+        cmd: "platform"
+      }
+    });
+  }
+  async function version() {
+    return invokeTauriCommand({
+      __tauriModule: "Os",
+      message: {
+        cmd: "version"
+      }
+    });
+  }
+  async function type() {
+    return invokeTauriCommand({
+      __tauriModule: "Os",
+      message: {
+        cmd: "osType"
+      }
+    });
+  }
+  async function arch() {
+    return invokeTauriCommand({
+      __tauriModule: "Os",
+      message: {
+        cmd: "arch"
+      }
+    });
+  }
+  async function tempdir() {
+    return invokeTauriCommand({
+      __tauriModule: "Os",
+      message: {
+        cmd: "tempdir"
+      }
+    });
+  }
+  return __toCommonJS(src_exports);
+})();

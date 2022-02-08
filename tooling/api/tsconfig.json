@@ -7,8 +7,6 @@
     "paths": {
       "types": ["@types"]
     },
-    "declaration": true,
-    "declarationDir": "dist",
     "rootDir": "src",
     "moduleResolution": "node"
   },

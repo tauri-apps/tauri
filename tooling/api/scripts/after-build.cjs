@@ -12,6 +12,7 @@ const modules = readdirSync('src')
 
 const outputPkg = {
   ...pkg,
+  devDependencies: {},
   exports: Object.assign(
     {},
     ...modules.map((mod) => {

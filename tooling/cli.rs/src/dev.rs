@@ -189,57 +189,59 @@ pub fn command(options: Options) -> Result<()> {
   let (child_wait_tx, child_wait_rx) = channel();
   let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
 
-  if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_path
-    .clone()
-  {
-    let host = dev_server_url
-      .host()
-      .unwrap_or_else(|| panic!("No host name in the URL"));
-    let port = dev_server_url
-      .port_or_known_default()
-      .unwrap_or_else(|| panic!("No port number in the URL"));
-    let addrs;
-    let addr;
-    let addrs = match host {
-      url::Host::Domain(domain) => {
-        use std::net::ToSocketAddrs;
-        addrs = (domain, port).to_socket_addrs()?;
-        addrs.as_slice()
-      }
-      url::Host::Ipv4(ip) => {
-        addr = (ip, port).into();
-        std::slice::from_ref(&addr)
-      }
-      url::Host::Ipv6(ip) => {
-        addr = (ip, port).into();
-        std::slice::from_ref(&addr)
-      }
-    };
-    let mut i = 0;
-    let sleep_interval = std::time::Duration::from_secs(2);
-    let max_attempts = 90;
-    loop {
-      if std::net::TcpStream::connect(addrs).is_ok() {
-        break;
-      }
-      if i % 3 == 0 {
-        logger.warn("Waiting for your dev server to start...");
-      }
-      i += 1;
-      if i == max_attempts {
-        logger.error(format!(
+  if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
+    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_path
+      .clone()
+    {
+      let host = dev_server_url
+        .host()
+        .unwrap_or_else(|| panic!("No host name in the URL"));
+      let port = dev_server_url
+        .port_or_known_default()
+        .unwrap_or_else(|| panic!("No port number in the URL"));
+      let addrs;
+      let addr;
+      let addrs = match host {
+        url::Host::Domain(domain) => {
+          use std::net::ToSocketAddrs;
+          addrs = (domain, port).to_socket_addrs()?;
+          addrs.as_slice()
+        }
+        url::Host::Ipv4(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+        url::Host::Ipv6(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+      };
+      let mut i = 0;
+      let sleep_interval = std::time::Duration::from_secs(2);
+      let max_attempts = 90;
+      loop {
+        if std::net::TcpStream::connect(addrs).is_ok() {
+          break;
+        }
+        if i % 3 == 0 {
+          logger.warn("Waiting for your dev server to start...");
+        }
+        i += 1;
+        if i == max_attempts {
+          logger.error(format!(
           "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
           dev_server_url, i * sleep_interval.as_secs()
         ));
-        exit(1);
+          exit(1);
+        }
+        std::thread::sleep(sleep_interval);
       }
-      std::thread::sleep(sleep_interval);
     }
   }
 

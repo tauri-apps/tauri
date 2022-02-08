@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config},
+    config::{get as get_config, reload as reload_config, AppUrl, WindowUrl},
     manifest::{get_workspace_members, rewrite_manifest},
     Logger,
   },
@@ -22,7 +22,7 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
-  process::{exit, Child, Command},
+  process::{exit, Command},
   sync::{
     mpsc::{channel, Receiver},
     Arc, Mutex,
@@ -30,7 +30,7 @@ use std::{
   time::Duration,
 };
 
-static BEFORE_DEV: OnceCell<Mutex<Child>> = OnceCell::new();
+static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
 
 #[derive(Debug, Parser)]
 #[clap(about = "Tauri dev")]
@@ -107,22 +107,42 @@ pub fn command(options: Options) -> Result<()> {
     if !before_dev.is_empty() {
       logger.log(format!("Running `{}`", before_dev));
       #[cfg(target_os = "windows")]
-      let child = Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .arg(before_dev)
-        .current_dir(app_dir())
-        .envs(command_env(true)) // development build always includes debug information
-        .spawn()
-        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_dev))?;
+      let mut command = {
+        let mut command = Command::new("cmd");
+        command
+          .arg("/S")
+          .arg("/C")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .envs(command_env(true)); // development build always includes debug information
+        command
+      };
       #[cfg(not(target_os = "windows"))]
-      let child = Command::new("sh")
-        .arg("-c")
-        .arg(before_dev)
-        .current_dir(app_dir())
-        .envs(command_env(true)) // development build always includes debug information
-        .spawn()
-        .with_context(|| format!("failed to run `{}` with `sh -c`", before_dev))?;
+      let mut command = {
+        let mut command = Command::new("sh");
+        command
+          .arg("-c")
+          .arg(before_dev)
+          .current_dir(app_dir())
+          .envs(command_env(true)); // development build always includes debug information
+        command
+      };
+
+      let child = SharedChild::spawn(&mut command)
+        .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+      let child = Arc::new(child);
+      let child_ = child.clone();
+      let logger_ = logger.clone();
+      std::thread::spawn(move || {
+        let status = child_
+          .wait()
+          .expect("failed to wait on \"beforeDevCommand\"");
+        if !status.success() {
+          logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
+          exit(status.code().unwrap_or(1));
+        }
+      });
+
       BEFORE_DEV.set(Mutex::new(child)).unwrap();
     }
   }
@@ -168,6 +188,62 @@ pub fn command(options: Options) -> Result<()> {
 
   let (child_wait_tx, child_wait_rx) = channel();
   let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
+
+  if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
+    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_path
+      .clone()
+    {
+      let host = dev_server_url
+        .host()
+        .unwrap_or_else(|| panic!("No host name in the URL"));
+      let port = dev_server_url
+        .port_or_known_default()
+        .unwrap_or_else(|| panic!("No port number in the URL"));
+      let addrs;
+      let addr;
+      let addrs = match host {
+        url::Host::Domain(domain) => {
+          use std::net::ToSocketAddrs;
+          addrs = (domain, port).to_socket_addrs()?;
+          addrs.as_slice()
+        }
+        url::Host::Ipv4(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+        url::Host::Ipv6(ip) => {
+          addr = (ip, port).into();
+          std::slice::from_ref(&addr)
+        }
+      };
+      let mut i = 0;
+      let sleep_interval = std::time::Duration::from_secs(2);
+      let max_attempts = 90;
+      loop {
+        if std::net::TcpStream::connect(addrs).is_ok() {
+          break;
+        }
+        if i % 3 == 0 {
+          logger.warn("Waiting for your dev server to start...");
+        }
+        i += 1;
+        if i == max_attempts {
+          logger.error(format!(
+          "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
+          dev_server_url, i * sleep_interval.as_secs()
+        ));
+          exit(1);
+        }
+        std::thread::sleep(sleep_interval);
+      }
+    }
+  }
 
   let mut process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone());
 
@@ -221,7 +297,7 @@ pub fn command(options: Options) -> Result<()> {
 
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
-    let mut child = child.lock().unwrap();
+    let child = child.lock().unwrap();
     #[cfg(windows)]
       let _ = Command::new("powershell")
         .arg("-NoProfile")

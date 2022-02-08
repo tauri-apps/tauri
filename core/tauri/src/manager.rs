@@ -441,7 +441,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
       ;
 
     #[cfg(feature = "isolation")]
@@ -891,6 +891,7 @@ impl<R: Runtime> WindowManager<R> {
       freeze_prototype,
     }
     .render_default(&Default::default())
+    .map(|s| s.into_string())
     .map_err(Into::into)
   }
 

@@ -9,6 +9,9 @@ pub mod assets;
 pub mod config;
 pub mod html;
 pub mod platform;
+/// Prepare application resources and sidecars.
+#[cfg(feature = "resources")]
+pub mod resources;
 
 /// Application pattern.
 pub mod pattern;
@@ -123,4 +126,24 @@ pub enum Error {
   /// Invalid pattern.
   #[error("invalid pattern `{0}`. Expected either `brownfield` or `isolation`.")]
   InvalidPattern(String),
+  /// Invalid glob pattern.
+  #[cfg(feature = "resources")]
+  #[error("{0}")]
+  GlobPattern(#[from] glob::PatternError),
+  /// Failed to use glob pattern.
+  #[cfg(feature = "resources")]
+  #[error("`{0}`")]
+  Glob(#[from] glob::GlobError),
+  /// Glob pattern did not find any results.
+  #[cfg(feature = "resources")]
+  #[error("path matching {0} not found.")]
+  GlobPathNotFound(String),
+  /// Error walking directory.
+  #[cfg(feature = "resources")]
+  #[error("{0}")]
+  WalkdirError(#[from] walkdir::Error),
+  /// Not allowed to walk dir.
+  #[cfg(feature = "resources")]
+  #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
+  NotAllowedToWalkDir(std::path::PathBuf),
 }

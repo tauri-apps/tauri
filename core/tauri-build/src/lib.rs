@@ -5,6 +5,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
 
@@ -14,6 +15,44 @@ mod codegen;
 #[cfg(feature = "codegen")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
+
+fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
+  let from = from.as_ref();
+  let to = to.as_ref();
+  if !from.exists() {
+    return Err(anyhow::anyhow!("{:?} does not exist", from));
+  }
+  if !from.is_file() {
+    return Err(anyhow::anyhow!("{:?} is not a file", from));
+  }
+  std::fs::copy(from, to)?;
+  Ok(())
+}
+
+fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
+  for src in binaries {
+    let src = src?;
+    let dest = path.join(
+      src
+        .file_name()
+        .expect("failed to extract external binary filename")
+        .to_string_lossy()
+        .replace(&format!("-{}", target_triple), ""),
+    );
+    copy_file(&src, &dest)?;
+  }
+  Ok(())
+}
+
+/// Copies resources to a path.
+fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+  for src in resources {
+    let src = src?;
+    let dest = path.join(resource_relpath(&src));
+    copy_file(&src, &dest)?;
+  }
+  Ok(())
+}
 
 /// Attributes used on Windows.
 #[allow(dead_code)]
@@ -174,6 +213,28 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       Please run `tauri dev` or `tauri build` or {}.
     ", error_message));
     }
+  }
+
+  let target_triple = std::env::var("TARGET").unwrap();
+  let out_dir = std::env::var("OUT_DIR").unwrap();
+  // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
+  let target_dir = Path::new(&out_dir)
+    .parent()
+    .unwrap()
+    .parent()
+    .unwrap()
+    .parent()
+    .unwrap();
+
+  if let Some(paths) = config.tauri.bundle.external_bin {
+    copy_binaries(
+      ResourcePaths::new(external_binaries(&paths, &target_triple).as_slice(), true),
+      &target_triple,
+      target_dir,
+    )?;
+  }
+  if let Some(paths) = config.tauri.bundle.resources {
+    copy_resources(ResourcePaths::new(paths.as_slice(), true), target_dir)?;
   }
 
   #[cfg(windows)]

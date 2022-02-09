@@ -13,7 +13,9 @@ let binName
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.
 if (binStem === 'node' || binStem === 'nodejs') {
-  const managerStem = path.parse(process.env.npm_execpath).name.toLowerCase()
+  const managerStem = process.env.npm_execpath
+    ? path.parse(process.env.npm_execpath).name.toLowerCase()
+    : null
   if (managerStem) {
     let manager
     switch (managerStem) {

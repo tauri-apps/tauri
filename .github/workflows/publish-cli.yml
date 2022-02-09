@@ -1,4 +1,4 @@
-name: CI
+name: publish cli.js
 env:
   DEBUG: napi:*
   APP_NAME: cli

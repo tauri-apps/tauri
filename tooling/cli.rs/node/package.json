@@ -1,6 +1,26 @@
 {
   "name": "@tauri-apps/cli",
   "version": "0.0.0",
+  "description": "Command line interface for building Tauri apps",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/tauri"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "contributors": [
+    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -17,7 +37,6 @@
       ]
     }
   },
-  "license": "Apache-2.0 OR MIT",
   "devDependencies": {
     "@napi-rs/cli": "^2.4.2",
     "prettier": "^2.5.1"
@@ -36,5 +55,17 @@
     "version": "napi version",
     "tauri": "tauri",
     "format": "prettier --write ./package.json ./tauri.js"
+  },
+  "optionalDependencies": {
+    "@tauri-apps/cli-win32-x64-msvc": "0.0.0",
+    "@tauri-apps/cli-darwin-x64": "0.0.0",
+    "@tauri-apps/cli-linux-x64-gnu": "0.0.0",
+    "@tauri-apps/cli-darwin-arm64": "0.0.0",
+    "@tauri-apps/cli-linux-arm64-gnu": "0.0.0",
+    "@tauri-apps/cli-linux-arm64-musl": "0.0.0",
+    "@tauri-apps/cli-win32-arm64-msvc": "0.0.0",
+    "@tauri-apps/cli-linux-arm-gnueabihf": "0.0.0",
+    "@tauri-apps/cli-linux-x64-musl": "0.0.0",
+    "@tauri-apps/cli-freebsd-x64": "0.0.0"
   }
 }

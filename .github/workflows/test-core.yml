@@ -234,4 +234,5 @@ jobs:
         run: |
           cd ./tooling/cli.rs/node
           yarn
+          yarn build
           yarn test

@@ -100,7 +100,7 @@ tokio-test = "0.4.2"
 tokio = { version = "1.16", features = [ "full" ] }
 
 [target."cfg(windows)".dev-dependencies.windows]
-version = "0.32.0"
+version = "0.30.0"
 features = [
   "Win32_Foundation",
 ]

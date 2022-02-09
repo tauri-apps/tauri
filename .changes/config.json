@@ -235,7 +235,7 @@
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": ["tauri-codegen"]
+      "dependencies": ["tauri-codegen", "tauri-utils"]
     },
     "tauri-build": {
       "path": "./core/tauri-build",

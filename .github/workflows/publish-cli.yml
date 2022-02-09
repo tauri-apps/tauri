@@ -407,19 +407,10 @@ jobs:
       - name: List packages
         run: ls -R ./npm
         shell: bash
-      #- name: Publish
-      #  run: |
-      #    if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
-      #    then
-      #      echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      #      npm publish --access public
-      #    elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
-      #    then
-      #      echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-      #      npm publish --tag next --access public
-      #    else
-      #      echo "Not a release, skipping publish"
-      #    fi
-      #  env:
-      #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #    NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          npm publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

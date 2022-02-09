@@ -8,7 +8,9 @@ env:
   repository_dispatch:
     types: [publish-clijs]
   #FIXME: REMOVE THIS!!!
-  pull_request:
+  push:
+    branches:
+      - 'feat/napi'
 
 defaults:
   run:

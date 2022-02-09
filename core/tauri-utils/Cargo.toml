@@ -23,11 +23,11 @@ html5ever = "0.25"
 proc-macro2 = { version = "1.0", optional = true }
 quote = { version = "1.0", optional = true }
 schemars = { version = "0.8", features = ["url"], optional = true }
-serde_with = "1.10"
+serde_with = "1.12"
 aes-gcm = { version = "0.9", optional = true }
 ring = { version = "0.16", optional = true, features = ["std"] }
-once_cell = { version = "1.8", optional = true }
-serialize-to-javascript = "=0.1.0"
+once_cell = { version = "1.9", optional = true }
+serialize-to-javascript = "=0.1.1"
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
 json-patch = "0.2"

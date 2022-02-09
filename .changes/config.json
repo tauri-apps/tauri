@@ -258,6 +258,7 @@
       "path": "./tooling/cli.rs/node",
       "manager": "javascript",
       "dependencies": ["cli.rs"],
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "prepublish": [],
       "publish": [],
       "postpublish": []

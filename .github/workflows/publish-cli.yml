@@ -176,7 +176,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-freebsd
-          path: tooling/cli.rs/node/${{ env.APP_NAME }}.*.node
+          path: ${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}

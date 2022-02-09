@@ -376,25 +376,22 @@ fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStr
             ShellAllowedArg::Fixed(fixed) => {
               quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
             }
-            ShellAllowedArg::Var { name, validate } => {
-              let validate = match validate {
-                None => quote!(::std::option::Option::None),
-                Some(regex) => match regex::Regex::new(regex) {
-                  Ok(regex) => {
-                    let regex = regex.as_str();
-                    quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap()))
-                  }
-                  Err(error) => {
-                    let error = error.to_string();
-                    quote!({
-                      compile_error!(#error);
-                      ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
-                    })
-                  }
-                },
+            ShellAllowedArg::Var { validator } => {
+              let validator = match regex::Regex::new(validator) {
+                Ok(regex) => {
+                  let regex = regex.as_str();
+                  quote!(#root::regex::Regex::new(#regex).unwrap())
+                }
+                Err(error) => {
+                  let error = error.to_string();
+                  quote!({
+                    compile_error!(#error);
+                    #root::regex::Regex::new(#validator).unwrap()
+                  })
+                }
               };
 
-              quote!(#root::scope::ShellScopeAllowedArg::Var { name: #name.into(), validate: #validate })
+              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
             }
             _ => panic!("unknown shell scope arg, unable to prepare"),
           });

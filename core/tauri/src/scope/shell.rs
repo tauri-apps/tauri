@@ -24,9 +24,6 @@ pub enum ExecuteArgs {
 
   /// Multiple string arguments
   List(Vec<String>),
-
-  /// Multiple string arguments in a key-value fashion
-  Map(HashMap<String, String>),
 }
 
 impl ExecuteArgs {
@@ -36,7 +33,6 @@ impl ExecuteArgs {
       Self::None => true,
       Self::Single(s) if s.is_empty() => true,
       Self::List(l) => l.is_empty(),
-      Self::Map(m) => m.is_empty(),
       _ => false,
     }
   }
@@ -57,12 +53,6 @@ impl From<String> for ExecuteArgs {
 impl From<Vec<String>> for ExecuteArgs {
   fn from(vec: Vec<String>) -> Self {
     Self::List(vec)
-  }
-}
-
-impl From<HashMap<String, String>> for ExecuteArgs {
-  fn from(map: HashMap<String, String>) -> Self {
-    Self::Map(map)
   }
 }
 
@@ -95,13 +85,10 @@ pub enum ScopeAllowedArg {
   /// A non-configurable argument.
   Fixed(String),
 
-  /// An argument with a value to be evaluated at runtime, optionally must pass a regex validation.
+  /// An argument with a value to be evaluated at runtime, must pass a regex validation.
   Var {
-    /// The key name of the argument variable
-    name: String,
-
-    /// The validation, if set, that the variable value must pass in order to be called.
-    validate: Option<Regex>,
+    /// The validation that the variable value must pass in order to be called.
+    validator: Regex,
   },
 }
 
@@ -157,13 +144,15 @@ pub enum ScopeError {
   NotFound(String),
 
   /// A command variable has no value set in the arguments.
-  #[error("Scoped command argument {0} was not found")]
+  #[error(
+    "Scoped command argument at position {0} must match regex validation {1} but it was not found"
+  )]
   #[cfg(any(shell_execute, shell_sidecar))]
   #[cfg_attr(
     doc_cfg,
     doc(cfg(any(feature = "shell-execute", feature = "shell-sidecar")))
   )]
-  MissingVar(String),
+  MissingVar(usize, String),
 
   /// At least one argument did not pass input validation.
   #[cfg(shell_scope)]
@@ -171,10 +160,10 @@ pub enum ScopeError {
     doc_cfg,
     doc(cfg(any(feature = "shell-execute", feature = "shell-open")))
   )]
-  #[error("Scoped command argument {var} was found, but failed regex validation {validation}")]
+  #[error("Scoped command argument at position {index} was found, but failed regex validation {validation}")]
   Validation {
-    /// Name of the variable.
-    var: String,
+    /// Index of the variable.
+    index: usize,
 
     /// Regex that the variable value failed to match.
     validation: String,
@@ -229,28 +218,23 @@ impl Scope {
       (None, ExecuteArgs::None) => Ok(vec![]),
       (None, ExecuteArgs::List(list)) => Ok(list),
       (None, ExecuteArgs::Single(string)) => Ok(vec![string]),
-      (None, _) => Err(ScopeError::InvalidInput(command_name.into())),
-      (Some(list), ExecuteArgs::Map(args)) => list
+      (Some(list), ExecuteArgs::List(args)) => list
         .iter()
-        .map(|arg| match arg {
+        .enumerate()
+        .map(|(i, arg)| match arg {
           ScopeAllowedArg::Fixed(fixed) => Ok(fixed.to_string()),
-          ScopeAllowedArg::Var { name, validate } => {
+          ScopeAllowedArg::Var { validator } => {
             let value = args
-              .get(name)
-              .ok_or_else(|| ScopeError::MissingVar(name.into()))?
+              .get(i)
+              .ok_or_else(|| ScopeError::MissingVar(i, validator.to_string()))?
               .to_string();
-            match validate {
-              None => Ok(value),
-              Some(regex) => {
-                if regex.is_match(&value) {
-                  Ok(value)
-                } else {
-                  Err(ScopeError::Validation {
-                    var: name.into(),
-                    validation: regex.as_str().into(),
-                  })
-                }
-              }
+            if validator.is_match(&value) {
+              Ok(value)
+            } else {
+              Err(ScopeError::Validation {
+                index: i,
+                validation: validator.to_string(),
+              })
             }
           }
         })
@@ -286,7 +270,7 @@ impl Scope {
     if let Some(regex) = &self.0.open {
       if !regex.is_match(path) {
         return Err(ScopeError::Validation {
-          var: "open".into(),
+          index: 0,
           validation: regex.as_str().into(),
         });
       }

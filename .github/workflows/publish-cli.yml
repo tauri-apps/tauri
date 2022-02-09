@@ -90,6 +90,7 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
+          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -98,25 +99,14 @@ jobs:
           override: true
           toolchain: stable
           target: ${{ matrix.settings.target }}
-      - name: Generate Cargo.lock
-        uses: actions-rs/cargo@v1
+      #  should be committed
+      #- name: Generate Cargo.lock
+      #  uses: actions-rs/cargo@v1
+      #  with:
+      #    command: generate-lockfile
+      - uses: Swatinem/rust-cache@v1
         with:
-          command: generate-lockfile
-      - name: Cache cargo registry
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ matrix.settings.target }}-node@16-cargo-registry-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ matrix.settings.target }}-node@16-cargo-index-trimmed-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-${{ matrix.settings.target }}-node@16-${{ hashFiles('yarn.lock') }}
+          working-directory: 'tooling/cli.rs/'
       - name: Pull latest image
         run: ${{ matrix.settings.docker }}
         env:
@@ -127,15 +117,17 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Build
+        working-directory: 'tooling/cli.rs/node/'
         run: ${{ matrix.settings.build }}
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: ${{ env.APP_NAME }}.*.node
+          path: tooling/cli.rs/node/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   build-freebsd:
     runs-on: macos-10.15
@@ -174,17 +166,17 @@ jobs:
             whoami
             env
             freebsd-version
+            cd tooling/cli.rs/node/
             yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
             yarn build
             strip -x *.node
-            yarn test
             rm -rf node_modules
-            rm -rf target
+            rm -rf ../target
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
           name: bindings-freebsd
-          path: ${{ env.APP_NAME }}.*.node
+          path: tooling/cli.rs/node/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -209,22 +201,20 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-${{ matrix.settings.target }}-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
       - name: Test bindings
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn test
   test-linux-x64-gnu-binding:
     name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
@@ -246,20 +236,16 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-linux-x64-gnu-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-x86_64-unknown-linux-gnu
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
       - name: Test bindings
         run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim yarn test
@@ -283,20 +269,17 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-x86_64-unknown-linux-musl-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-x86_64-unknown-linux-musl
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
       - name: Test bindings
         run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine yarn test
@@ -319,16 +302,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: bindings-aarch64-unknown-linux-gnu
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-linux-aarch64-gnu-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Setup and run tests
         uses: addnab/docker-run-action@v3
@@ -351,15 +330,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: bindings-aarch64-unknown-linux-musl
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-linux-aarch64-musl-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install dependencies
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Setup and run tests
@@ -390,16 +364,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
-          path: .
+          path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R .
+        run: ls -R tooling/cli.rs/node/
         shell: bash
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-test-linux-arm-gnueabihf-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Setup and run tests
         uses: addnab/docker-run-action@v3
@@ -429,30 +399,20 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
-      - name: Cache NPM dependencies
-        uses: actions/cache@v2
-        with:
-          path: node_modules
-          key: npm-cache-ubuntu-latest-${{ hashFiles('yarn.lock') }}
-          restore-keys: |
-            npm-cache-
+          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
-          path: artifacts
+          path: tooling/cli.rs/node/artifacts
       - name: Move artifacts
+        working-directory: 'tooling/cli.rs/node/'
         run: yarn artifacts
       - name: List packages
-        run: ls -R ./npm
+        run: ls -R tooling/cli.rs/node/npm
         shell: bash
-      - name: publish dry-run
-        run: npm prepublish --dry-run
-      - name: TEMP upload complete package artifacts
-        uses: actions/upload-artifacts@v2
-        with:
-          path: npm
       #- name: Publish
       #  run: |
       #    if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";

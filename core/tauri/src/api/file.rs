@@ -48,10 +48,8 @@ mod test {
 
     assert!(res.is_err());
 
+    #[cfg(not(windows))]
     if let Error::Io(e) = res.unwrap_err() {
-      #[cfg(windows)]
-      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
-      #[cfg(not(windows))]
       assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }
   }

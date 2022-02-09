@@ -4,6 +4,7 @@
 
 use colored::Colorize;
 
+#[derive(Clone)]
 pub struct Logger<'a> {
   context: &'a str,
 }

@@ -4,6 +4,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use tauri_utils::resources::{external_binaries, ResourcePaths};
 
 use std::{
   collections::HashMap,
@@ -287,12 +288,18 @@ pub struct BundleSettings {
   pub bin: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
-  /// Note that each binary name will have the target platform's target triple appended,
-  /// so if you're bundling the `sqlite3` app, the bundler will look for e.g.
-  /// `sqlite3-x86_64-unknown-linux-gnu` on linux,
+  /// Note that each binary name should have the target platform's target triple appended,
+  /// as well as `.exe` for Windows.
+  /// For example, if you're bundling a sidecar called `sqlite3`, the bundler expects
+  /// a binary named `sqlite3-x86_64-unknown-linux-gnu` on linux,
   /// and `sqlite3-x86_64-pc-windows-gnu.exe` on windows.
   ///
-  /// The possible target triples can be seen by running `$ rustup target list`.
+  /// Run `tauri build --help` for more info on targets.
+  ///
+  /// If you are building a universal binary for MacOS, the bundler expects
+  /// your external binary to also be universal, and named after the target triple,
+  /// e.g. `sqlite3-universal-apple-darwin`. See
+  /// https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
@@ -460,7 +467,6 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
-    let bundle_settings = parse_external_bin(&target, self.bundle_settings)?;
 
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
@@ -470,7 +476,14 @@ impl SettingsBuilder {
         .project_out_directory
         .expect("out directory is required"),
       binaries: self.binaries,
-      bundle_settings,
+      bundle_settings: BundleSettings {
+        external_bin: self
+          .bundle_settings
+          .external_bin
+          .as_ref()
+          .map(|bins| external_binaries(bins, &target)),
+        ..self.bundle_settings
+      },
       target,
     })
   }
@@ -617,7 +630,9 @@ impl Settings {
       let dest = path.join(
         src
           .file_name()
-          .expect("failed to extract external binary filename"),
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", self.target), ""),
       );
       common::copy_file(&src, &dest)?;
     }
@@ -628,7 +643,7 @@ impl Settings {
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
     for src in self.resource_files() {
       let src = src?;
-      let dest = path.join(common::resource_relpath(&src));
+      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
       common::copy_file(&src, &dest)?;
     }
     Ok(())
@@ -706,127 +721,6 @@ impl Settings {
     match &self.bundle_settings.updater {
       Some(val) => val.active,
       None => false,
-    }
-  }
-}
-
-/// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-fn parse_external_bin(
-  target_triple: &str,
-  bundle_settings: BundleSettings,
-) -> crate::Result<BundleSettings> {
-  let mut win_paths = Vec::new();
-  let external_bin = match bundle_settings.external_bin {
-    Some(paths) => {
-      for curr_path in paths.iter() {
-        win_paths.push(format!(
-          "{}-{}{}",
-          curr_path,
-          target_triple,
-          if cfg!(windows) { ".exe" } else { "" }
-        ));
-      }
-      Some(win_paths)
-    }
-    None => Some(vec![]),
-  };
-
-  Ok(BundleSettings {
-    external_bin,
-    ..bundle_settings
-  })
-}
-
-/// A helper to iterate through resources.
-pub struct ResourcePaths<'a> {
-  /// the patterns to iterate.
-  pattern_iter: std::slice::Iter<'a, String>,
-  /// the glob iterator if the path from the current iteration is a glob pattern.
-  glob_iter: Option<glob::Paths>,
-  /// the walkdir iterator if the path from the current iteration is a directory.
-  walk_iter: Option<walkdir::IntoIter>,
-  /// whether the resource paths allows directories or not.
-  allow_walk: bool,
-  /// the pattern of the current iteration.
-  current_pattern: Option<String>,
-  /// whether the current pattern is valid or not.
-  current_pattern_is_valid: bool,
-}
-
-impl<'a> ResourcePaths<'a> {
-  /// Creates a new ResourcePaths from a slice of patterns to iterate
-  fn new(patterns: &'a [String], allow_walk: bool) -> ResourcePaths<'a> {
-    ResourcePaths {
-      pattern_iter: patterns.iter(),
-      glob_iter: None,
-      walk_iter: None,
-      allow_walk,
-      current_pattern: None,
-      current_pattern_is_valid: false,
-    }
-  }
-}
-
-impl<'a> Iterator for ResourcePaths<'a> {
-  type Item = crate::Result<PathBuf>;
-
-  fn next(&mut self) -> Option<crate::Result<PathBuf>> {
-    loop {
-      if let Some(ref mut walk_entries) = self.walk_iter {
-        if let Some(entry) = walk_entries.next() {
-          let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          let path = entry.path();
-          if path.is_dir() {
-            continue;
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path.to_path_buf()));
-        }
-      }
-      self.walk_iter = None;
-      if let Some(ref mut glob_paths) = self.glob_iter {
-        if let Some(glob_result) = glob_paths.next() {
-          let path = match glob_result {
-            Ok(path) => path,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          if path.is_dir() {
-            if self.allow_walk {
-              let walk = walkdir::WalkDir::new(path);
-              self.walk_iter = Some(walk.into_iter());
-              continue;
-            } else {
-              let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::GenericError(msg)));
-            }
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path));
-        } else if let Some(current_path) = &self.current_pattern {
-          if !self.current_pattern_is_valid {
-            self.glob_iter = None;
-            return Some(Err(crate::Error::GenericError(format!(
-              "Path matching '{}' not found",
-              current_path
-            ))));
-          }
-        }
-      }
-      self.glob_iter = None;
-      if let Some(pattern) = self.pattern_iter.next() {
-        self.current_pattern = Some(pattern.to_string());
-        self.current_pattern_is_valid = false;
-        let glob = match glob::glob(pattern) {
-          Ok(glob) => glob,
-          Err(error) => return Some(Err(crate::Error::from(error))),
-        };
-        self.glob_iter = Some(glob);
-        continue;
-      }
-      return None;
     }
   }
 }

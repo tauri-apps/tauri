@@ -149,7 +149,8 @@ pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
     script.append(NodeRef::new_text(
       IsolationJavascriptCodegen {}
         .render_default(&Default::default())
-        .expect("unable to render codegen isolation script template"),
+        .expect("unable to render codegen isolation script template")
+        .into_string(),
     ));
 
     head.prepend(script);

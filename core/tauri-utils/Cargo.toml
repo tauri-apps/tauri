@@ -27,10 +27,12 @@ serde_with = "1.10"
 aes-gcm = { version = "0.9", optional = true }
 ring = { version = "0.16", optional = true, features = ["std"] }
 once_cell = { version = "1.8", optional = true }
-serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
+serialize-to-javascript = "=0.1.0"
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
 json-patch = "0.2"
+glob = { version = "0.3.0", optional = true }
+walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
@@ -42,3 +44,4 @@ schema = ["schemars"]
 isolation = [ "aes-gcm", "ring", "once_cell" ]
 process-relaunch-dangerous-allow-symlink-macos = []
 config-json5 = [ "json5" ]
+resources = [ "glob", "walkdir" ]

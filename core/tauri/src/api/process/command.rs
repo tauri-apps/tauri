@@ -177,12 +177,7 @@ impl Command {
   /// A sidecar program is a embedded external binary in order to make your application work
   /// or to prevent users having to install additional dependencies (e.g. Node.js, Python, etc).
   pub fn new_sidecar<S: Into<String>>(program: S) -> crate::Result<Self> {
-    let program = format!(
-      "{}-{}",
-      program.into(),
-      platform::target_triple().expect("unsupported platform")
-    );
-    Ok(Self::new(relative_command_path(program)?))
+    Ok(Self::new(relative_command_path(program.into())?))
   }
 
   /// Appends arguments to the command.

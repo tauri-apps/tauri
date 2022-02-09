@@ -22,8 +22,8 @@ exclude = [
 ]
 
 [dependencies]
+tauri-utils = { version = "1.0.0-beta.3", path = "../../core/tauri-utils", features = [ "resources" ] }
 ar = "0.9.0"
-glob = "0.3.0"
 icns = "0.3"
 image = "0.23.14"
 libflate = "1.1"
@@ -48,6 +48,7 @@ bitness = "0.4"
 winreg = "0.10"
 sha2 = "0.10"
 hex = "0.4"
+glob = "0.3"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 time = { version = "0.3", features = ["formatting"] }

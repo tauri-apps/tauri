@@ -248,7 +248,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim sh -c "cd tooling/cli.rs/node && yarn test"
+        run: yarn test
   test-linux-x64-musl-binding:
     name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
     needs:
@@ -281,7 +281,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine sh -c "cd tooling/cli.rs/node && yarn test"
+        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine sh -c "yarn test"
   test-linux-aarch64-gnu-binding:
     name: Test bindings on aarch64-unknown-linux-gnu - node@${{ matrix.node }}
     needs:
@@ -296,6 +296,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2
       - name: Download artifacts
         uses: actions/download-artifact@v2
@@ -323,6 +324,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2
       - name: Download artifacts
         uses: actions/download-artifact@v2
@@ -357,6 +359,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2
       - name: Download artifacts
         uses: actions/download-artifact@v2
@@ -383,7 +386,7 @@ jobs:
     needs:
       #- build-freebsd
       - test-macOS-windows-binding
-      #- test-linux-x64-gnu-binding
+      - test-linux-x64-gnu-binding
       #- test-linux-x64-musl-binding
       #- test-linux-aarch64-gnu-binding
       #- test-linux-aarch64-musl-binding

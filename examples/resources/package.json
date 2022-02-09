@@ -2,6 +2,6 @@
   "name": "resources",
   "version": "1.0.0",
   "scripts": {
-    "tauri": "cargo tauri"
+    "tauri": "node ../../tooling/cli.rs/node/tauri.js"
   }
 }

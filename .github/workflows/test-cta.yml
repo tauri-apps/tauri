@@ -47,9 +47,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
       #- run: yarn
-      #  working-directory: tooling/cli.js
+      #  working-directory: tooling/cli.rs/node
       #- run: yarn build
-      #  working-directory: tooling/cli.js
+      #  working-directory: tooling/cli.rs/node
       - run: yarn
         working-directory: tooling/api
       - run: yarn build

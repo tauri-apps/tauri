@@ -170,7 +170,7 @@ jobs:
         with:
           node-version: 14
           cache: yarn
-          cache-dependency-path: tooling/cli.js/yarn.lock
+          cache-dependency-path: tooling/cli.rs/node/yarn.lock
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -221,7 +221,7 @@ jobs:
       - name: Cache template cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.js/test/jest/fixtures/empty/src-tauri/target
+          path: tooling/cli.rs/node/test/jest/fixtures/empty/src-tauri/target
           # Add date to the cache to keep it up to date
           key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
@@ -232,10 +232,6 @@ jobs:
       - name: test
         timeout-minutes: 30
         run: |
-          cd ./tooling/cli.js
+          cd ./tooling/cli.rs/node
           yarn
           yarn test
-      - name: run release build
-        timeout-minutes: 15
-        working-directory: tooling/cli.js
-        run: yarn build-release

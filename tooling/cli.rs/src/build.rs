@@ -72,7 +72,7 @@ pub fn command(options: Options) -> Result<()> {
     if !before_build.is_empty() {
       logger.log(format!("Running `{}`", before_build));
       #[cfg(target_os = "windows")]
-      Command::new("cmd")
+      let status = Command::new("cmd")
         .arg("/S")
         .arg("/C")
         .arg(before_build)
@@ -82,7 +82,7 @@ pub fn command(options: Options) -> Result<()> {
         .status()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
-      Command::new("sh")
+      let status = Command::new("sh")
         .arg("-c")
         .arg(before_build)
         .current_dir(app_dir())
@@ -90,6 +90,13 @@ pub fn command(options: Options) -> Result<()> {
         .pipe()?
         .status()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
+      if !status.success() {
+        return Err(anyhow::anyhow!(
+          "beforeDevCommand `{}` failed with exit code {}",
+          before_build,
+          status.code().unwrap_or_default()
+        ));
+      }
     }
   }
 

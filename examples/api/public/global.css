@@ -186,3 +186,7 @@ main {
   border-left: 6px solid #ff0000;
   background: #f0f4f5;
 }
+
+#file-response {
+  height: 400px;
+}

@@ -135,7 +135,11 @@ impl Cmd {
         .prepare(&program, args, false)
       {
         Ok(cmd) => cmd,
-        Err(_) => return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program))),
+        Err(e) => {
+          #[cfg(debug_assertions)]
+          eprintln!("{}", e);
+          return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)));
+        }
       }
     };
     #[cfg(any(shell_execute, shell_sidecar))]

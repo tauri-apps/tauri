@@ -248,7 +248,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim cd tooling/cli.rs/node/ && yarn test
+        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim sh -c "cd tooling/cli.rs/node && yarn test"
   test-linux-x64-musl-binding:
     name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
     needs:
@@ -281,7 +281,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine cd tooling/cli.rs/node/ && yarn test
+        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine sh -c "cd tooling/cli.rs/node && yarn test"
   test-linux-aarch64-gnu-binding:
     name: Test bindings on aarch64-unknown-linux-gnu - node@${{ matrix.node }}
     needs:
@@ -314,8 +314,7 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
-            cd tooling/cli.rs/node
-            yarn test
+            sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   test-linux-aarch64-musl-binding:
     name: Test bindings on aarch64-unknown-linux-musl - node@${{ matrix.node }}
@@ -343,8 +342,7 @@ jobs:
           run: |
             set -e
             apk add nodejs npm yarn
-            cd tooling/cli.rs/node
-            yarn test
+            sh -c "cd tooling/cli.rs/node && yarn test"
   test-linux-arm-gnueabihf-binding:
     name: Test bindings on armv7-unknown-linux-gnueabihf - node@${{ matrix.node }}
     needs:
@@ -377,8 +375,7 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
-            cd tooling/cli.rs/node
-            yarn test
+            sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   publish:
     name: Publish

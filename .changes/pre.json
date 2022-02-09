@@ -1,4 +1,6 @@
 {
   "tag": "rc",
-  "changes": []
+  "changes": [
+    ".changes/going-rc.md"
+  ]
 }

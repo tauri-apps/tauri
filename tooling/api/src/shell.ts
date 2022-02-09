@@ -65,7 +65,7 @@ interface ChildProcess {
 async function execute(
   onEvent: (event: CommandEvent) => void,
   program: string,
-  args?: string | string[] | { [key: string]: string },
+  args: string | string[] = [],
   options?: InternalSpawnOptions
 ): Promise<number> {
   if (typeof args === 'object') {

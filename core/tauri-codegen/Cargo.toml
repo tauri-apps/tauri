@@ -13,7 +13,7 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-sha2 = "0.9"
+sha2 = "0.10"
 base64 = "0.13"
 blake3 = { version = "1.3", features = [ "rayon" ] }
 proc-macro2 = "1"

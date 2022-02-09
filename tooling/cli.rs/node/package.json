@@ -52,6 +52,7 @@
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
+    "test": "echo \"TODO\"",
     "version": "napi version",
     "tauri": "tauri",
     "format": "prettier --write ./package.json ./tauri.js",

@@ -22,9 +22,10 @@ if (bump !== 'prerelease' && bump !== 'prepatch') {
 }
 
 const inc = (version) => {
-  const v = version.split('')
-  const n = v.pop()
-  return [...v, String(Number(n) + 1)].join('')
+  const v = version.split('.')
+  const n = v[v.length - 1]
+  v[v.length - 1] = String(Number(n) + 1)
+  return v.join('.')
 }
 
 // read file into js object

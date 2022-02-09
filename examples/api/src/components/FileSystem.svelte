@@ -48,7 +48,7 @@
           } else {
             const value = String.fromCharCode.apply(null, response);
             insecureRenderHtml(
-              '<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>'
+              '<textarea id="file-response"></textarea><button id="file-save">Save</button>'
             );
             setTimeout(() => {
               const fileInput = document.getElementById("file-response");

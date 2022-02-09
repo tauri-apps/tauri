@@ -115,7 +115,7 @@
 </script>
 
 <main>
-  <div class="flex row noselect just-around" style="margin=1em;" data-tauri-drag-region>
+  <div class="flex row noselect just-around container" data-tauri-drag-region>
     <img class="logo" src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
       <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/get-started/intro">
@@ -130,7 +130,7 @@
     </div>
   </div>
   <div class="flex row">
-    <div style="width:15em; margin-left:0.5em">
+    <div class="view-container">
       {#each views as view}
       <p class="nv noselect {selected === view ? 'nv_selected' : ''}" on:click={()=> select(view)}
         >
@@ -142,7 +142,7 @@
       <svelte:component this={selected.component} {onMessage} {insecureRenderHtml} />
     </div>
   </div>
-  <div id="response" style="white-space: pre-line">
+  <div id="response">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
       <span class="nv" on:click={clear}>clear</span>
@@ -156,3 +156,18 @@
     {/each}
   </div>
 </main>
+
+<style>
+  .container {
+    margin: 1em;
+  }
+
+  .view-container {
+    width:15em;
+    margin-left:0.5em;
+  }
+
+  #response {
+    white-space: pre-line;
+  }
+</style>

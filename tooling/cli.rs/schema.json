@@ -2009,7 +2009,7 @@
       "additionalProperties": false
     },
     "WindowUrl": {
-      "description": "The window webview URL options.",
+      "description": "An URL to open on a Tauri webview window.",
       "anyOf": [
         {
           "description": "An external URL.",

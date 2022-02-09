@@ -54,6 +54,7 @@
     "prepublishOnly": "napi prepublish -t npm",
     "version": "napi version",
     "tauri": "tauri",
-    "format": "prettier --write ./package.json ./tauri.js"
+    "format": "prettier --write ./package.json ./tauri.js",
+    "format:check": "prettier --check ./package.json ./tauri.js"
   }
 }

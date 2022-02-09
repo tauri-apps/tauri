@@ -8,6 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
+pub use serialize_to_javascript::Options as SerializeOptions;
+use serialize_to_javascript::Serialized;
 
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
@@ -26,41 +28,6 @@ const MAX_JSON_STR_LEN: usize = usize::pow(2, 30) - 2;
 // TODO: this number should be benchmarked and checked for optimal range, I set 10 KiB arbitrarily
 // we don't want to lose the gained object parsing time to extra allocations preparing it
 const MIN_JSON_PARSE_LEN: usize = 10_240;
-
-/// Transforms & escapes a JSON String -> JSON.parse('{json}')
-///
-/// Single quotes chosen because double quotes are already used in JSON. With single quotes, we only
-/// need to escape strings that include backslashes or single quotes. If we used double quotes, then
-/// there would be no cases that a string doesn't need escaping.
-///
-/// # Safety
-///
-/// The ability to safely escape JSON into a JSON.parse('{json}') relies entirely on 2 things.
-///
-/// 1. `serde_json`'s ability to correctly escape and format json into a string.
-/// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
-///     character to end a string that was opened with it.
-fn escape(json: &RawValue) -> String {
-  let json = json.get();
-
-  // 14 chars in JSON.parse('')
-  // todo: should we increase the 14 by x to allow x amount of escapes before another allocation?
-  let mut s = String::with_capacity(json.len() + 14);
-  s.push_str("JSON.parse('");
-
-  // insert a backslash before any backslash or single quote characters.
-  let mut last = 0;
-  for (idx, _) in json.match_indices(|c| c == '\\' || c == '\'') {
-    s.push_str(&json[last..idx]);
-    s.push('\\');
-    last = idx;
-  }
-
-  // finish appending the trailing characters that don't need escaping
-  s.push_str(&json[last..]);
-  s.push_str("')");
-  s
-}
 
 /// Transforms & escapes a JSON value.
 ///
@@ -84,17 +51,18 @@ fn escape(json: &RawValue) -> String {
 /// # Example
 ///
 /// ```
-/// use tauri::api::ipc::serialize_js_with;
+/// use tauri::api::ipc::{serialize_js_with, SerializeOptions};
 /// #[derive(serde::Serialize)]
 /// struct Foo {
 ///   bar: String,
 /// }
 /// let foo = Foo { bar: "x".repeat(20_000).into() };
-/// let value = serialize_js_with(&foo, |v| format!("console.log({})", v)).unwrap();
+/// let value = serialize_js_with(&foo, SerializeOptions::default(), |v| format!("console.log({})", v)).unwrap();
 /// assert_eq!(value, format!("console.log(JSON.parse('{{\"bar\":\"{}\"}}'))", foo.bar));
 /// ```
 pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
   value: &T,
+  options: SerializeOptions,
   cb: F,
 ) -> crate::api::Result<String> {
   // get a raw &str representation of a serialized json value.
@@ -114,11 +82,11 @@ pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
   }
 
   let return_val = if json.len() > MIN_JSON_PARSE_LEN && (first == b'{' || first == b'[') {
-    let escaped = escape(&raw);
+    let serialized = Serialized::new(&raw, &options).into_string();
     // only use JSON.parse('{arg}') for arrays and objects less than the limit
     // smaller literals do not benefit from being parsed from json
-    if escaped.len() < MAX_JSON_STR_LEN {
-      cb(&escaped)
+    if serialized.len() < MAX_JSON_STR_LEN {
+      cb(&serialized)
     } else {
       cb(json)
     }
@@ -162,7 +130,7 @@ pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
 ///   });
 /// ```
 pub fn serialize_js<T: Serialize>(value: &T) -> crate::api::Result<String> {
-  serialize_js_with(value, |v| v.into())
+  serialize_js_with(value, Default::default(), |v| v.into())
 }
 
 /// Formats a function name and argument to be evaluated as callback.
@@ -203,7 +171,7 @@ pub fn format_callback<T: Serialize>(
   function_name: CallbackFn,
   arg: &T,
 ) -> crate::api::Result<String> {
-  serialize_js_with(arg, |arg| {
+  serialize_js_with(arg, Default::default(), |arg| {
     format!(
       r#"
     if (window["_{fn}"]) {{
@@ -303,7 +271,8 @@ mod test {
         .replace('\\', "\\\\")
         .replace('\'', "\\'")
     );
-    let escape_single_quoted_json_test = escape(&dangerous_json);
+    let escape_single_quoted_json_test =
+      serialize_to_javascript::Serialized::new(&dangerous_json, &Default::default()).into_string();
 
     let result = r#"JSON.parse('{"test":"don\\\\🚀🐱‍👤\\\\\'t forget to escape me!🚀🐱‍👤","te🚀🐱‍👤st2":"don\'t forget to escape me!","test3":"\\\\🚀🐱‍👤\\\\\\\\\'\'\'\\\\\\\\🚀🐱‍👤\\\\\\\\🚀🐱‍👤\\\\\'\'\'\'\'"}')"#;
     assert_eq!(definitely_escaped_dangerous_json, result);

@@ -441,7 +441,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init,&pattern_init,&plugin_init, is_init_global)?)
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
       ;
 
     #[cfg(feature = "isolation")]
@@ -451,7 +451,8 @@ impl<R: Runtime> WindowManager<R> {
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
-        .render_default(&Default::default())?,
+        .render_default(&Default::default())?
+        .into_string(),
       );
     }
 
@@ -656,7 +657,7 @@ impl<R: Runtime> WindowManager<R> {
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
                   .mimetype("text/html")
-                  .body(asset.as_bytes().to_vec()),
+                  .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponseBuilder::new()
                   .status(500)
                   .mimetype("text/plain")
@@ -891,6 +892,7 @@ impl<R: Runtime> WindowManager<R> {
       freeze_prototype,
     }
     .render_default(&Default::default())
+    .map(|s| s.into_string())
     .map_err(Into::into)
   }
 

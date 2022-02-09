@@ -27,7 +27,7 @@ serde_with = "1.10"
 aes-gcm = { version = "0.9", optional = true }
 ring = { version = "0.16", optional = true, features = ["std"] }
 once_cell = { version = "1.8", optional = true }
-serialize-to-javascript = { git = "https://github.com/chippers/serialize-to-javascript" }
+serialize-to-javascript = "=0.1.0"
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
 json-patch = "0.2"

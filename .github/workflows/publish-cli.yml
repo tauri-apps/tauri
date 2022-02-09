@@ -7,10 +7,6 @@ env:
   workflow_dispatch:
   repository_dispatch:
     types: [publish-clijs]
-  #FIXME: REMOVE THIS!!!
-  push:
-    branches:
-      - 'feat/napi'
 
 defaults:
   run:

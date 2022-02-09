@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+ // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,7 +8,10 @@ This script is solely intended to be run as part of the `covector version` step 
 keep the `tauri-runtime`, `tauri-runtime-wry` and `tauri-driver` crates version without the `beta` or `rc` suffix.
 */
 
-const { readFileSync, writeFileSync } = require('fs')
+const {
+  readFileSync,
+  writeFileSync
+} = require('fs')
 
 const packageNickname = process.argv[2]
 const bump = process.argv[3]

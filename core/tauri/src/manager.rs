@@ -451,7 +451,8 @@ impl<R: Runtime> WindowManager<R> {
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
-        .render_default(&Default::default())?,
+        .render_default(&Default::default())?
+        .into_string(),
       );
     }
 
@@ -656,7 +657,7 @@ impl<R: Runtime> WindowManager<R> {
               match template.render(asset.as_ref(), &Default::default()) {
                 Ok(asset) => HttpResponseBuilder::new()
                   .mimetype("text/html")
-                  .body(asset.as_bytes().to_vec()),
+                  .body(asset.into_string().as_bytes().to_vec()),
                 Err(_) => HttpResponseBuilder::new()
                   .status(500)
                   .mimetype("text/plain")

@@ -50,8 +50,15 @@
     id="request-body"
     placeholder="Request body"
     rows="5"
-    style="width:100%;margin-right:10px;font-size:12px"
     bind:value={httpBody}
   />
   <button class="button" id="make-request"> Make request </button>
 </form>
+
+<style>
+#request-body {
+  width:100%;
+  margin-right:10px;
+  font-size:12px;
+}
+</style>

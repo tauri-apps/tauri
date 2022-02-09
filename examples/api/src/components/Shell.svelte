@@ -63,6 +63,12 @@
   </div>
   <div>
     <input bind:value={cwd} placeholder="Working directory">
-    <input bind:value={env} placeholder="Environment variables" style="width: 300px">
+    <input class="env-vars" bind:value={env} placeholder="Environment variables">
   </div>
 </div>
+
+<style>
+.env-vars {
+  width: 300px;
+}
+</style>

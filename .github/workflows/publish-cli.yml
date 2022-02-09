@@ -10,6 +10,10 @@ env:
   #FIXME: REMOVE THIS!!!
   pull_request:
 
+defaults:
+  run:
+    working-directory: tooling/cli.rs/node/
+
 jobs:
   build:
     strategy:
@@ -114,10 +118,8 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Build
-        working-directory: 'tooling/cli.rs/node/'
         run: ${{ matrix.settings.build }}
         shell: bash
       - name: Upload artifact
@@ -163,7 +165,6 @@ jobs:
             whoami
             env
             freebsd-version
-            cd tooling/cli.rs/node/
             yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
             yarn build
             strip -x *.node
@@ -200,7 +201,6 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
@@ -208,10 +208,9 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Test bindings
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn test
   test-linux-x64-gnu-binding:
     name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
@@ -242,7 +241,7 @@ jobs:
           name: bindings-x86_64-unknown-linux-gnu
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Test bindings
         run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-slim yarn test
@@ -268,7 +267,6 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
@@ -276,7 +274,7 @@ jobs:
           name: bindings-x86_64-unknown-linux-musl
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Test bindings
         run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine yarn test
@@ -301,10 +299,9 @@ jobs:
           name: bindings-aarch64-unknown-linux-gnu
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Setup and run tests
         uses: addnab/docker-run-action@v3
@@ -329,7 +326,7 @@ jobs:
           name: bindings-aarch64-unknown-linux-musl
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Install dependencies
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
@@ -363,10 +360,9 @@ jobs:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: 'tooling/cli.rs/node/'
       - name: List packages
-        run: ls -R tooling/cli.rs/node/
+        run: ls -R .
         shell: bash
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Setup and run tests
         uses: addnab/docker-run-action@v3
@@ -398,17 +394,15 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
       - name: Install dependencies
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
           path: tooling/cli.rs/node/artifacts
       - name: Move artifacts
-        working-directory: 'tooling/cli.rs/node/'
         run: yarn artifacts
       - name: List packages
-        run: ls -R tooling/cli.rs/node/npm
+        run: ls -R ./npm
         shell: bash
       #- name: Publish
       #  run: |

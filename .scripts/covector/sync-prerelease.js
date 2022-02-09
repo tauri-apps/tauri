@@ -5,7 +5,7 @@
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `tauri-runtime`, `tauri-runtime-wry` and `tauri-driver` crates version without the `beta` or `beta-rc` suffix.
+keep the `tauri-runtime`, `tauri-runtime-wry` and `tauri-driver` crates version without the `beta` or `rc` suffix.
 */
 
 const { readFileSync, writeFileSync } = require('fs')

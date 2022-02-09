@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Settings;
+use crate::{CommandExt, Settings};
 use std::{
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufWriter, Write},
   path::Path,
-  process::{Command, Stdio},
+  process::Command,
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -196,16 +196,10 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 }
 
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
-  let stdio_config = if settings.is_verbose() {
-    Stdio::inherit
-  } else {
-    Stdio::null
-  };
-  let status = cmd
-    .stdout(stdio_config())
-    .stderr(stdio_config())
-    .status()
-    .expect("failed to spawn command");
+  if settings.is_verbose() {
+    cmd.pipe()?;
+  }
+  let status = cmd.status().expect("failed to spawn command");
 
   if status.success() {
     Ok(())

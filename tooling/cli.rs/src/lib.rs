@@ -17,6 +17,18 @@ use clap::{AppSettings, FromArgMatches, IntoApp, Parser, Subcommand};
 
 use std::ffi::OsString;
 
+pub(crate) trait CommandExt {
+  fn pipe(&mut self) -> Result<&mut Self>;
+}
+
+impl CommandExt for std::process::Command {
+  fn pipe(&mut self) -> Result<&mut Self> {
+    self.stdout(os_pipe::dup_stdout()?);
+    self.stderr(os_pipe::dup_stderr()?);
+    Ok(self)
+  }
+}
+
 #[derive(serde::Deserialize)]
 pub struct VersionMetadata {
   tauri: String,

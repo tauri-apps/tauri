@@ -56,7 +56,7 @@
     "prepublishOnly": "napi prepublish -t npm",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",
-    "tauri": "tauri",
+    "tauri": "node ./tauri.js",
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
   }

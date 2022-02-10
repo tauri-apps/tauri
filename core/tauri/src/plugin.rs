@@ -8,6 +8,7 @@ use crate::{
   runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, OnPageLoad,
   PageLoadPayload, RunEvent, Window,
 };
+use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
@@ -54,26 +55,29 @@ pub trait Plugin<R: Runtime>: Send {
 }
 
 type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
+type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send + Sync;
 type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
-pub struct Builder<R: Runtime> {
+pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
+  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
 }
 
-impl<R: Runtime> Builder<R> {
+impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Creates a new Plugin builder.
   pub fn new(name: &'static str) -> Self {
     Self {
       name,
       setup: Box::new(|_| Ok(())),
+      setup_with_config: None,
       js_init_script: None,
       invoke_handler: Box::new(|_| ()),
       on_page_load: Box::new(|_, _| ()),
@@ -110,6 +114,15 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Define a closure that can setup the plugin accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
+  where
+    F: Fn(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+  {
+    self.setup_with_config.replace(Box::new(setup_with_config));
+    self
+  }
+
   /// Callback invoked when the webview performs a navigation to a page.
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
@@ -138,11 +151,12 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Builds the [TauriPlugin].
-  pub fn build(self) -> TauriPlugin<R> {
+  pub fn build(self) -> TauriPlugin<R, C> {
     TauriPlugin {
       name: self.name,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
+      setup_with_config: self.setup_with_config,
       js_init_script: self.js_init_script,
       on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
@@ -152,23 +166,28 @@ impl<R: Runtime> Builder<R> {
 }
 
 /// Plugin struct that is returned by the [`PluginBuilder`]. Should only be constructed through the builder.
-pub struct TauriPlugin<R: Runtime> {
+pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Box<SetupHook<R>>,
+  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
 }
 
-impl<R: Runtime> Plugin<R> for TauriPlugin<R> {
+impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   fn name(&self) -> &'static str {
     self.name
   }
 
-  fn initialize(&mut self, app: &AppHandle<R>, _: JsonValue) -> Result<()> {
-    (self.setup)(app)
+  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+    (self.setup)(app)?;
+    if let Some(s) = &self.setup_with_config {
+      (s)(app, serde_json::from_value(config)?)?;
+    }
+    Ok(())
   }
 
   fn initialization_script(&self) -> Option<String> {

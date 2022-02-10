@@ -480,7 +480,6 @@ pub(crate) fn listener<R: Runtime>(
             window.once(EVENT_INSTALL_UPDATE, move |_msg| {
               let window = window_isolation.clone();
               let updater = updater.clone();
-              let pubkey = pubkey.clone();
 
               // Start installation
               crate::async_runtime::spawn(async move {

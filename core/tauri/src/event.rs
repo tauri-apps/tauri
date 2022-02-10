@@ -4,6 +4,7 @@
 
 use std::{
   boxed::Box,
+  cell::Cell,
   collections::HashMap,
   fmt,
   hash::Hash,
@@ -170,16 +171,21 @@ impl Listeners {
   }
 
   /// Listen to a JS event and immediately unlisten.
-  pub(crate) fn once<F: Fn(Event) + Send + 'static>(
+  pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
     let self_ = self.clone();
+    let handler = Cell::new(Some(handler));
+
     self.listen(event, window, move |event| {
       self_.unlisten(event.id);
-      handler(event);
+      let handler = handler
+        .take()
+        .expect("attempted to call handler more than once");
+      handler(event)
     })
   }
 

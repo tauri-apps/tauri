@@ -1478,7 +1478,7 @@ impl Default for PatternKind {
 
 /// The Tauri configuration object.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TauriConfig {
@@ -1507,22 +1507,6 @@ pub struct TauriConfig {
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
   #[serde(rename = "macOSPrivateApi", default)]
   pub macos_private_api: bool,
-}
-
-impl Default for TauriConfig {
-  fn default() -> Self {
-    Self {
-      pattern: Default::default(),
-      windows: Default::default(),
-      cli: None,
-      bundle: BundleConfig::default(),
-      allowlist: AllowlistConfig::default(),
-      security: SecurityConfig::default(),
-      updater: UpdaterConfig::default(),
-      system_tray: None,
-      macos_private_api: false,
-    }
-  }
 }
 
 impl TauriConfig {

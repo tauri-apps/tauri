@@ -297,59 +297,59 @@ jobs:
           rustup default stable
           yarn test
           ls -la
-  # test-linux-arm-bindings:
-  #   name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
-  #   needs:
-  #     - build
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       node:
-  #         - '12'
-  #         - '14'
-  #         - '16'
-  #       image:
-  #         - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
-  #         - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-  #       working-directory: ${{ github.workspace }}
-  #     - uses: actions/checkout@v2
-  #     - name: List packages
-  #       run: ls -R .
-  #       shell: bash
-  #     - name: Install dependencies
-  #       run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #     - name: Download aarch64-gnu artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: bindings-aarch64-unknown-linux-gnu
-  #         path: 'tooling/cli.rs/node/'
-  #     - name: Download armv7-gnueabihf artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         name: bindings-armv7-unknown-linux-gnueabihf
-  #         path: 'tooling/cli.rs/node/'
-  #     - uses: addnab/docker-run-action@v3
-  #       with:
-  #         image: ${{ matrix.image }}
-  #         options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
-  #         shell: bash
-  #         run: |
-  #           set -e
-  #           export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
-  #           apt-get update
-  #           DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-  #           bash
-  #           curl https://sh.rustup.rs -sSf | bash -s -- -y
-  #           curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
-  #           eval "$(fnm env --use-on-cd)"
-  #           fnm install ${{ matrix.node }}
-  #           fnm use ${{ matrix.node }}
-  #           cd tooling/cli.rs/node
-  #           yarn test
-  #           ls -la
+  test-linux-arm-bindings:
+    name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - '12'
+          - '14'
+          - '16'
+        image:
+          - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
+          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        working-directory: ${{ github.workspace }}
+      - uses: actions/checkout@v2
+      - name: List packages
+        run: ls -R .
+        shell: bash
+      - name: Install dependencies
+        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+      - name: Download aarch64-gnu artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: bindings-aarch64-unknown-linux-gnu
+          path: 'tooling/cli.rs/node/'
+      - name: Download armv7-gnueabihf artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: bindings-armv7-unknown-linux-gnueabihf
+          path: 'tooling/cli.rs/node/'
+      - uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.image }}
+          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          shell: bash
+          run: |
+            set -e
+            export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            bash
+            curl https://sh.rustup.rs -sSf | bash -s -- -y
+            curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
+            eval "$(fnm env --use-on-cd)"
+            fnm install ${{ matrix.node }}
+            fnm use ${{ matrix.node }}
+            cd tooling/cli.rs/node
+            yarn tauri --help
+            ls -la
   publish:
     name: Publish
     runs-on: ubuntu-latest

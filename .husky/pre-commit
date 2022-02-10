@@ -20,6 +20,7 @@ if [ -z "$(git diff --name-only tooling/cli.rs/node)" ]; then
 else
   cd tooling/cli.rs/node
   yarn format
+  yarn lint-fix
   cd ../../..
 fi
 

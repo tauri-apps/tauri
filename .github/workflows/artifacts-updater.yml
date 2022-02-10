@@ -12,7 +12,7 @@ on:
     paths:
       - '.github/workflows/artifacts-updater.yml'
       - 'core/tauri/**'
-      - 'tolling/cli/**'
+      - 'tooling/cli/**'
       - 'tooling/bundler/**'
       - 'examples/updater/**'
 
@@ -82,16 +82,16 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tolling/cli/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ${{ matrix.platform }}-stable-cargo-cli-
 
       - name: build and install cli.rs
-        run: cargo install --path tolling/cli
+        run: cargo install --path tooling/cli
       - name: Check whether code signing should be enabled
         id: enablecodesigning
         env:

@@ -89,7 +89,7 @@
     {
       "enabled": true,
       "paths": [
-        "tolling/cli/**"
+        "tooling/cli/**"
       ],
       "groupName": "Tauri CLI",
       "groupSlug": "allTauriCLI",
@@ -115,7 +115,7 @@
     {
       "enabled": true,
       "paths": [
-        "tolling/cli/node"
+        "tooling/cli/node"
       ],
       "groupName": "Tauri JS CLI",
       "groupSlug": "allTauriJSCLI",

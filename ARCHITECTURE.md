@@ -44,10 +44,10 @@ A typescript library that creates `cjs` and `esm` Javascript endpoints for you t
 #### [bundler](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) [RUST / SHELL]
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
 
-#### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tolling/cli/node) [JS]
-It is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tolling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
+#### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) [JS]
+It is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
 
-#### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tolling/cli) [RUST]
+#### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
 
 #### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]

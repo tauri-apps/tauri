@@ -5,7 +5,7 @@
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `../tolling/cli/metadata.json` up to date with other version bumps. Long term
+keep the `../tooling/cli/metadata.json` up to date with other version bumps. Long term
 we should look to find a more "rusty way" to import / "pin" a version value in our cli.rs
 rust binaries.
 */
@@ -15,7 +15,7 @@ const {
   writeFileSync
 } = require('fs')
 
-const filePath = `../../tolling/cli/metadata.json`
+const filePath = `../../tooling/cli/metadata.json`
 const packageNickname = process.argv[2]
 const bump = process.argv[3]
 if (bump !== 'prerelease' && bump !== 'prepatch') {

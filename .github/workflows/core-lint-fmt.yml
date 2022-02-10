@@ -14,7 +14,7 @@ on:
       - '.github/workflows/core-lint-fmt.yml'
       - 'core/**'
       - 'examples/**'
-      - 'tolling/cli/**'
+      - 'tooling/cli/**'
 
 jobs:
   workspace_clippy_fmt_check:
@@ -97,7 +97,7 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./tolling/cli/Cargo.toml --all-targets --all-features -- -D warnings
+          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features -- -D warnings
           name: cli
 
       - name: Get current date
@@ -128,18 +128,18 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tolling/cli/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}
+            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ubuntu-latest-nightly-cargo-cli-
 
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path ./tolling/cli/Cargo.toml --all -- --check
+          args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
 
   core_clippy_check:
     runs-on: ubuntu-latest

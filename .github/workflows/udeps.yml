@@ -10,7 +10,7 @@ on:
       - '.github/workflows/udeps.yml'
       - 'core/**'
       - 'tooling/bundler/**'
-      - 'tolling/cli/**'
+      - 'tooling/cli/**'
 
 jobs:
   udeps:
@@ -74,12 +74,12 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tolling/cli/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}
+            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ubuntu-latest-nightly-cargo-cli-
 
       - uses: actions-rs/cargo@v1
@@ -105,4 +105,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --manifest-path ./tolling/cli/Cargo.toml --all-targets --all-features
+          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features

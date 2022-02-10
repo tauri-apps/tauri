@@ -244,7 +244,10 @@
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": ["tauri-codegen", "tauri-utils"]
+      "dependencies": [
+        "tauri-codegen",
+        "tauri-utils"
+      ]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
@@ -267,7 +270,7 @@
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
-      "path": "./tolling/cli/node",
+      "path": "./tooling/cli/node",
       "manager": "javascript",
       "dependencies": [
         "cli.rs"
@@ -278,9 +281,12 @@
       "postpublish": []
     },
     "cli.rs": {
-      "path": "./tolling/cli",
+      "path": "./tooling/cli",
       "manager": "rust",
-      "dependencies": ["tauri-bundler", "tauri-utils"],
+      "dependencies": [
+        "tauri-bundler",
+        "tauri-utils"
+      ],
       "postversion": "cargo check"
     },
     "create-tauri-app": {

@@ -18,16 +18,17 @@ const {
 const filePath = `../../tolling/cli/metadata.json`
 const packageNickname = process.argv[2]
 const bump = process.argv[3]
-if (bump !== 'prerelease') {
+if (bump !== 'prerelease' && bump !== 'prepatch') {
   throw new Error(
     `We don't handle anything except prerelease right now. Exiting.`
   )
 }
 
 const inc = (version) => {
-  const v = version.split('')
-  const n = v.pop()
-  return [...v, String(Number(n) + 1)].join('')
+  const v = version.split('.')
+  const n = v[v.length - 1]
+  v[v.length - 1] = String(Number(n) + 1)
+  return v.join('.')
 }
 
 // read file into js object

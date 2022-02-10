@@ -8,7 +8,7 @@ When you select the version bump required, you do *not* need to consider depeden
 Use the following format:
 ```md
 ---
-"tauri-plugin-{{ plugin_name }}": minor
+"tauri-plugin-{{ plugin_name }}": patch
 ---
 
 Change summary goes here

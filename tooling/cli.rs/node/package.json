@@ -56,7 +56,6 @@
     "prepublishOnly": "napi prepublish -t npm",
     "test:local": "jest --runInBand --forceExit",
     "test": "jest --runInBand --forceExit --no-cache --testPathIgnorePatterns=\"(build|dev)\"",
-    "pretest": "yarn build",
     "version": "napi version",
     "tauri": "tauri",
     "format": "prettier --write ./package.json ./tauri.js",

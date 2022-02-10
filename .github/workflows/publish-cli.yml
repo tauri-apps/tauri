@@ -291,11 +291,11 @@ jobs:
           apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
       - name: Setup and run tests
         run: |
-          cd tooling/cli.rs/node
+          cd node
           yarn test
           ls -la
   test-linux-arm-bindings:
-    name: Test bindings on ${{ matrix.settings.image }} - node@${{ matrix.node }}
+    name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
     needs:
       - build
     strategy:
@@ -318,10 +318,21 @@ jobs:
         shell: bash
       - name: Install dependencies
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+      - name: Download aarch64-gnu artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: bindings-aarch64-unknown-linux-gnu
+          path: 'tooling/cli.rs/node/'
+      - name: Download armv7-gnueabihf artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: bindings-armv7-unknown-linux-gnueabihf
+          path: 'tooling/cli.rs/node/'
       - uses: addnab/docker-run-action@v3
         with:
           image: ${{ matrix.image }}
           options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          shell: bash
           run: |
             set -e
             export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH

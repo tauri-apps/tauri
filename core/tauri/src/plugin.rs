@@ -58,6 +58,7 @@ type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
+#[default_runtime(crate::Wry, wry)]
 pub struct Builder<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
@@ -152,6 +153,7 @@ impl<R: Runtime> Builder<R> {
 }
 
 /// Plugin struct that is returned by the [`PluginBuilder`]. Should only be constructed through the builder.
+#[default_runtime(crate::Wry, wry)]
 pub struct TauriPlugin<R: Runtime> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,

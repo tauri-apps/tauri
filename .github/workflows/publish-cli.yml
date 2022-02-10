@@ -293,6 +293,8 @@ jobs:
           apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
       - name: Setup and run tests
         run: |
+          rustup install stable
+          rustup default stable
           yarn test
           ls -la
   test-linux-arm-bindings:

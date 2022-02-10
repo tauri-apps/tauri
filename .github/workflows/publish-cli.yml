@@ -265,6 +265,8 @@ jobs:
           - '14'
           - '16'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
       - uses: actions/checkout@v2
       - name: Setup node
@@ -284,18 +286,16 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
+      - name: Install system dependencies
+        run: |
+          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
       - name: Setup and run tests
-        uses: addnab/docker-run-action@v3
-        with:
-          image: node:${{ matrix.node }}-alpine
-          options: '-v ${{ github.workspace }}:/build -w /build'
-          run: |
-            set -e
-            apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
-            sh -c "cd tooling/cli.rs/node && yarn test"
-            ls -la
-  test-linux-aarch64-gnu-binding:
-    name: Test bindings on aarch64-unknown-linux-gnu - node@${{ matrix.node }}
+        run: |
+          cd tooling/cli.rs/node
+          yarn test
+          ls -la
+  test-linux-arm-bindings:
+    name: Test bindings on ${{ matrix.settings.image }} - node@${{ matrix.node }}
     needs:
       - build
     strategy:
@@ -305,97 +305,36 @@ jobs:
           - '12'
           - '14'
           - '16'
+        image:
+          - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
+          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: bindings-aarch64-unknown-linux-gnu
-          path: 'tooling/cli.rs/node/'
       - name: List packages
         run: ls -R .
         shell: bash
       - name: Install dependencies
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-      - name: Setup and run tests
-        uses: addnab/docker-run-action@v3
+      - uses: addnab/docker-run-action@v3
         with:
-          image: ghcr.io/napi-rs/napi-rs/nodejs:aarch64-${{ matrix.node }}
-          options: '-v ${{ github.workspace }}:/build -w /build'
+          image: ${{ matrix.image }}
+          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
           run: |
             set -e
+            export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
             apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-            sh -c "cd tooling/cli.rs/node && yarn test"
-            ls -la
-  test-linux-aarch64-musl-binding:
-    name: Test bindings on aarch64-unknown-linux-musl - node@${{ matrix.node }}
-    needs:
-      - build
-    runs-on: ubuntu-latest
-    steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-        working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v2
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: bindings-aarch64-unknown-linux-musl
-          path: 'tooling/cli.rs/node/'
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Install dependencies
-        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-      - name: Setup and run tests
-        uses: addnab/docker-run-action@v3
-        with:
-          image: multiarch/alpine:aarch64-latest-stable
-          options: '-v ${{ github.workspace }}:/build -w /build'
-          run: |
-            set -e
-            apk add nodejs npm yarn
-            apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
-            sh -c "cd tooling/cli.rs/node && yarn test"
-  test-linux-arm-gnueabihf-binding:
-    name: Test bindings on armv7-unknown-linux-gnueabihf - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - '12'
-          - '14'
-          - '16'
-    runs-on: ubuntu-latest
-    steps:
-      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-        working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v2
-      - name: Download artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: bindings-armv7-unknown-linux-gnueabihf
-          path: 'tooling/cli.rs/node/'
-      - name: List packages
-        run: ls -R .
-        shell: bash
-      - name: Install dependencies
-        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-      - name: Setup and run tests
-        uses: addnab/docker-run-action@v3
-        with:
-          image: ghcr.io/napi-rs/napi-rs/nodejs:armhf-${{ matrix.node }}
-          options: '-v ${{ github.workspace }}:/build -w /build'
-          run: |
-            set -e
-            apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-            sh -c "cd tooling/cli.rs/node && yarn test"
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            bash
+            curl https://sh.rustup.rs -sSf | bash -s -- -y
+            curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
+            eval "$(fnm env --use-on-cd)"
+            fnm install ${{ matrix.node }}
+            fnm use ${{ matrix.node }}
+            cd tooling/cli.rs/node
+            yarn test
             ls -la
   publish:
     name: Publish
@@ -405,9 +344,7 @@ jobs:
       - test-macOS-windows-binding
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
-      - test-linux-aarch64-gnu-binding
-      - test-linux-aarch64-musl-binding
-      - test-linux-arm-gnueabihf-binding
+      - test-linux-arm-bindings
     steps:
       - uses: actions/checkout@v2
       - name: Setup node

@@ -206,16 +206,16 @@
         }
       ]
     },
+    "tauri-utils": {
+      "path": "./core/tauri-utils",
+      "manager": "rust"
+    },
     "tauri-bundler": {
       "path": "./tooling/bundler",
       "manager": "rust",
       "dependencies": [
         "tauri-utils"
       ]
-    },
-    "tauri-utils": {
-      "path": "./core/tauri-utils",
-      "manager": "rust"
     },
     "tauri-runtime": {
       "path": "./core/tauri-runtime",

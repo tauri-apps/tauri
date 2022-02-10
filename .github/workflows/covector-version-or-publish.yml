@@ -84,7 +84,7 @@ jobs:
       - name: Trigger cli.js publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
-          contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
+          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}

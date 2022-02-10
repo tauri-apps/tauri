@@ -15,10 +15,10 @@ const {
   writeFileSync
 } = require('fs')
 
-const filePath = `../../tooling/cli/metadata.json`
 const packageNickname = process.argv[2]
+const filePath = packageNickname === 'cli.js' ? `../../../tooling/cli/metadata.json` : `../../tooling/cli/metadata.json`
 const bump = process.argv[3]
-if (bump !== 'prerelease' && bump !== 'prepatch') {
+if (bump !== 'prerelease') {
   throw new Error(
     `We don't handle anything except prerelease right now. Exiting.`
   )

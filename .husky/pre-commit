@@ -15,10 +15,10 @@ else
   cd ../..
 fi
 
-if [ -z "$(git diff --name-only tooling/cli.rs/node)" ]; then
+if [ -z "$(git diff --name-only tolling/cli/node)" ]; then
   echo "skipping cli.js - no changes detected"
 else
-  cd tooling/cli.rs/node
+  cd tolling/cli/node
   yarn format
   cd ../../..
 fi

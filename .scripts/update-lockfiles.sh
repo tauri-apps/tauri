@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 
 declare -a examples=("api" "sidecar" "updater" "resources")
-declare -a tooling=("bench" "cli.rs" "webdriver")
+declare -a tooling=("bench" "cli" "webdriver")
 
 for example in "${examples[@]}"
 do

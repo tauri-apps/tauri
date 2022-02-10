@@ -10,99 +10,99 @@ on:
       - '.github/workflows/udeps.yml'
       - 'core/**'
       - 'tooling/bundler/**'
-      - 'tooling/cli.rs/**'
+      - 'tolling/cli/**'
 
 jobs:
   udeps:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        override: true
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
 
-    - name: Get current date
-      run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-    - name: Cache cargo registry
-      uses: actions/cache@v2.1.4
-      with:
-        path: ~/.cargo/registry
-        # Add date to the cache to keep it up to date
-        key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-          ubuntu-latest-nightly-cargo-registry-
+      - name: Cache cargo registry
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/registry
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-registry-
 
-    - name: Cache cargo index
-      uses: actions/cache@v2.1.4
-      with:
-        path: ~/.cargo/git
-        # Add date to the cache to keep it up to date
-        key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-          ubuntu-latest-nightly-cargo-index-
+      - name: Cache cargo index
+        uses: actions/cache@v2.1.4
+        with:
+          path: ~/.cargo/git
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-index-
 
-    - name: Cache core cargo target
-      uses: actions/cache@v2
-      with:
-        path: target
-        # Add date to the cache to keep it up to date
-        key: ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
-          ubuntu-latest-nightly-cargo-core-
+      - name: Cache core cargo target
+        uses: actions/cache@v2
+        with:
+          path: target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
+            ubuntu-latest-nightly-cargo-core-
 
-    - name: Cache bundler cargo target
-      uses: actions/cache@v2
-      with:
-        path: tooling/bundler/target
-        # Add date to the cache to keep it up to date
-        key: ubuntu-latest-nightly-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ubuntu-latest-nightly-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}
-          ubuntu-latest-nightly-cargo-bundler-
+      - name: Cache bundler cargo target
+        uses: actions/cache@v2
+        with:
+          path: tooling/bundler/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}
+            ubuntu-latest-nightly-cargo-bundler-
 
-    - name: Cache CLI cargo target
-      uses: actions/cache@v2
-      with:
-        path: tooling/cli.rs/target
-        # Add date to the cache to keep it up to date
-        key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
-          ubuntu-latest-nightly-cargo-cli-
+      - name: Cache CLI cargo target
+        uses: actions/cache@v2
+        with:
+          path: tolling/cli/target
+          # Add date to the cache to keep it up to date
+          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}
+            ubuntu-latest-nightly-cargo-cli-
 
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: cargo-udeps --locked
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-udeps --locked
 
-    - name: Install required packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+      - name: Install required packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
 
-    - uses: actions-rs/cargo@v1
-      with:
-        command: udeps
-        args: --all-targets --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: udeps
+          args: --all-targets --all-features
 
-    - uses: actions-rs/cargo@v1
-      with:
-        command: udeps
-        args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: udeps
+          args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets --all-features
 
-    - uses: actions-rs/cargo@v1
-      with:
-        command: udeps
-        args: --manifest-path ./tooling/cli.rs/Cargo.toml --all-targets --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: udeps
+          args: --manifest-path ./tolling/cli/Cargo.toml --all-targets --all-features

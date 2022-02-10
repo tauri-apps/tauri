@@ -1,18 +1,21 @@
 #!/usr/bin/env node
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+ // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `../tooling/cli.rs/metadata.json` up to date with other version bumps. Long term
+keep the `../tolling/cli/metadata.json` up to date with other version bumps. Long term
 we should look to find a more "rusty way" to import / "pin" a version value in our cli.rs
 rust binaries.
 */
 
-const { readFileSync, writeFileSync } = require('fs')
+const {
+  readFileSync,
+  writeFileSync
+} = require('fs')
 
-const filePath = `../../tooling/cli.rs/metadata.json`
+const filePath = `../../tolling/cli/metadata.json`
 const packageNickname = process.argv[2]
 const bump = process.argv[3]
 if (bump !== 'prerelease') {

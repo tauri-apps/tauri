@@ -32,19 +32,19 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.rs/target
+          path: tolling/cli/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tolling/cli/Cargo.lock') }}
             ubuntu-latest-stable-cargo-cli-
 
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli.rs/Cargo.toml
+          args: --manifest-path ./tolling/cli/Cargo.toml
 
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}

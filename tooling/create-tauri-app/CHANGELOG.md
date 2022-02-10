@@ -1,5 +1,16 @@
 # Changelog
 
+## \[1.0.0-rc.0]
+
+- Add empty description to Cargo.toml in dominator recipe.
+  - [97edb3ac](https://www.github.com/tauri-apps/tauri/commit/97edb3ac49d59c5c95ad8486c17b3c333f4f86a2) Fix: [#2508](https://www.github.com/tauri-apps/tauri/pull/2508). Update dominator recipe description. ([#2514](https://www.github.com/tauri-apps/tauri/pull/2514)) on 2021-08-24
+- `create-tauri-app` should now be fully compatiable with CI environments.
+  - [f5e77ff4](https://www.github.com/tauri-apps/tauri/commit/f5e77ff48f00e14476f95cce257d091377ba987c) refactor(cta): use `commander` instead of `minimst` ([#2551](https://www.github.com/tauri-apps/tauri/pull/2551)) on 2022-01-01
+- Stop react recipe from opening in browser by default.
+  - [ea51504e](https://www.github.com/tauri-apps/tauri/commit/ea51504e3a57eedc28e40573fbcc899b8a5c358c) fix(cta): stop react recipe from opening in browser, closes [#2793](https://www.github.com/tauri-apps/tauri/pull/2793) ([#2988](https://www.github.com/tauri-apps/tauri/pull/2988)) on 2021-11-30
+- Add SolidJS recipe using the official template.
+  - [71ea86a4](https://www.github.com/tauri-apps/tauri/commit/71ea86a443f2585fa98edd79f2361bd85b380f0c) feat(cta): add SolidJS recipe ([#2619](https://www.github.com/tauri-apps/tauri/pull/2619)) on 2021-09-22
+
 ## \[1.0.0-beta.4]
 
 - [`pnpm`](https://pnpm.io) package manager is now officially supported, either run `pnpx create-tauri-app` or explicitly specifiy it `npx create-tauri-app --manager pnpm`.

@@ -4,10 +4,11 @@
 
 use std::{
   boxed::Box,
+  cell::Cell,
   collections::HashMap,
   fmt,
   hash::Hash,
-  sync::{Arc, Mutex}, cell::Cell,
+  sync::{Arc, Mutex},
 };
 use uuid::Uuid;
 
@@ -181,7 +182,9 @@ impl Listeners {
 
     self.listen(event, window, move |event| {
       self_.unlisten(event.id);
-      let handler = handler.take().expect("attempted to call handler more than once");
+      let handler = handler
+        .take()
+        .expect("attempted to call handler more than once");
       handler(event)
     })
   }

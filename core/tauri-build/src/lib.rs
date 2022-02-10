@@ -25,6 +25,8 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   if !from.is_file() {
     return Err(anyhow::anyhow!("{:?} is not a file", from));
   }
+  let dest_dir = to.parent().expect("No data in parent");
+  std::fs::create_dir_all(dest_dir)?;
   std::fs::copy(from, to)?;
   Ok(())
 }

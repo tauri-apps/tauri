@@ -9,25 +9,20 @@
 
 fn main() {
   use tauri::{
-    api::{
-      path::{resolve_path, BaseDirectory},
-      process::{Command, CommandEvent},
-    },
+    api::process::{Command, CommandEvent},
     Manager,
   };
-  let context = tauri::generate_context!();
-  let script_path = resolve_path(
-    context.config(),
-    context.package_info(),
-    &Default::default(),
-    "assets/index.js",
-    Some(BaseDirectory::Resource),
-  )
-  .unwrap();
+
   tauri::Builder::default()
     .setup(move |app| {
       let window = app.get_window("main").unwrap();
-      let script_path = script_path.to_string_lossy().to_string();
+      let script_path = app
+        .path_resolver()
+        .resource_dir()
+        .unwrap()
+        .join("assets/index.js")
+        .to_string_lossy()
+        .to_string();
       tauri::async_runtime::spawn(async move {
         let (mut rx, _child) = Command::new("node")
           .args(&[script_path])
@@ -46,6 +41,6 @@ fn main() {
 
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

@@ -1454,10 +1454,6 @@ impl Allowlist for AllowlistConfig {
   }
 }
 
-fn default_window_config() -> Vec<WindowConfig> {
-  vec![Default::default()]
-}
-
 /// The application pattern.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -1490,7 +1486,7 @@ pub struct TauriConfig {
   #[serde(default)]
   pub pattern: PatternKind,
   /// The windows configuration.
-  #[serde(default = "default_window_config")]
+  #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// The CLI configuration.
   pub cli: Option<CliConfig>,
@@ -1517,7 +1513,7 @@ impl Default for TauriConfig {
   fn default() -> Self {
     Self {
       pattern: Default::default(),
-      windows: default_window_config(),
+      windows: Default::default(),
       cli: None,
       bundle: BundleConfig::default(),
       allowlist: AllowlistConfig::default(),
@@ -2544,9 +2540,7 @@ mod test {
     // get default dev path
     let d_path = default_dev_path();
     // get default window
-    let d_windows = default_window_config();
-    // get default title
-    let d_title = default_title();
+    let d_windows: Vec<WindowConfig> = vec![];
     // get default bundle
     let d_bundle = BundleConfig::default();
     // get default updater
@@ -2555,30 +2549,7 @@ mod test {
     // create a tauri config.
     let tauri = TauriConfig {
       pattern: Default::default(),
-      windows: vec![WindowConfig {
-        label: "main".to_string(),
-        url: WindowUrl::default(),
-        file_drop_enabled: true,
-        center: false,
-        x: None,
-        y: None,
-        width: 800f64,
-        height: 600f64,
-        min_width: None,
-        min_height: None,
-        max_width: None,
-        max_height: None,
-        resizable: true,
-        title: String::from("Tauri App"),
-        fullscreen: false,
-        focus: false,
-        transparent: false,
-        maximized: false,
-        visible: true,
-        decorations: true,
-        always_on_top: false,
-        skip_taskbar: false,
-      }],
+      windows: vec![],
       bundle: BundleConfig {
         active: false,
         targets: None,
@@ -2635,7 +2606,6 @@ mod test {
         Url::parse("http://localhost:8080").unwrap()
       ))
     );
-    assert_eq!(d_title, tauri.windows[0].title);
     assert_eq!(d_windows, tauri.windows);
   }
 }

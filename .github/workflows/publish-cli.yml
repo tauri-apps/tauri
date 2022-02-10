@@ -323,6 +323,12 @@ jobs:
           sudo mount -t tmpfs -o size=10G none /var/lib/docker
           sudo systemctl restart docker
         working-directory: ${{ github.workspace }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2

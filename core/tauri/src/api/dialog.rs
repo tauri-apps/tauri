@@ -101,8 +101,8 @@ macro_rules! file_dialog_builder {
 /// The blocking APIs will block the current thread to execute instead of relying on callback closures,
 /// which makes them easier to use.
 ///
-/// **NOTE:** You cannot block the main thread when executing the dialog APIs, so you must use the [`tauri::api::dialog`] methods instead.
-/// Examples of main thread context are the [`tauri::App::run`] closure and non-async commmands.
+/// **NOTE:** You cannot block the main thread when executing the dialog APIs, so you must use the [`crate::api::dialog`] methods instead.
+/// Examples of main thread context are the [`crate::App::run`] closure and non-async commmands.
 pub mod blocking {
   use crate::{Runtime, Window};
   use std::path::{Path, PathBuf};

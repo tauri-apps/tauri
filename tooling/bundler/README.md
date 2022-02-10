@@ -4,7 +4,7 @@ Wrap Rust executables in OS-specific app bundles.
 
 ## About
 
-This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../cli.rs).
+This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../cli).
 
 ## Configuration
 

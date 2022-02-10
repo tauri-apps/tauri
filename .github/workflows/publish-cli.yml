@@ -10,7 +10,7 @@ on:
 
 defaults:
   run:
-    working-directory: tooling/cli.rs/node/
+    working-directory: tooling/cli/node/
 
 jobs:
   build:
@@ -35,14 +35,14 @@ jobs:
               docker pull $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian
               docker tag $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian builder
             build: |
-              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli.rs/node && yarn build && strip *.node"
+              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build && strip *.node"
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-musl
             architecture: x64
             docker: |
               docker pull $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-alpine
               docker tag $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
-            build: docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli.rs/node && yarn build && strip *.node"
+            build: docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build && strip *.node"
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
@@ -74,7 +74,7 @@ jobs:
               docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
               docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
             build: |
-              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli.rs/node && yarn build --target=aarch64-unknown-linux-musl && /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node"
+              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build --target=aarch64-unknown-linux-musl && /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node"
           #- host: windows-latest
           #  architecture: x64
           #  target: aarch64-pc-windows-msvc
@@ -89,7 +89,7 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -106,7 +106,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}
-          working-directory: 'tooling/cli.rs/'
+          working-directory: 'tooling/cli/'
       - name: Pull latest image
         run: ${{ matrix.settings.docker }}
         env:
@@ -125,7 +125,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: tooling/cli.rs/node/${{ env.APP_NAME }}.*.node
+          path: tooling/cli/node/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   #  build-freebsd:
   #    runs-on: macos-10.15
@@ -164,7 +164,7 @@ jobs:
   #            whoami
   #            env
   #            freebsd-version
-  #            cd ./tooling/cli.rs/node/
+  #            cd ./tooling/cli/node/
   #            yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
   #            yarn build
   #            strip -x *.node
@@ -174,7 +174,7 @@ jobs:
   #        uses: actions/upload-artifact@v2
   #        with:
   #          name: bindings-freebsd
-  #          path: tooling/cli.rs/node/${{ env.APP_NAME }}.*.node
+  #          path: tooling/cli/node/${{ env.APP_NAME }}.*.node
   #          if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -201,14 +201,14 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: 'tooling/cli.rs/node/'
+          path: 'tooling/cli/node/'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -234,14 +234,14 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-x86_64-unknown-linux-gnu
-          path: 'tooling/cli.rs/node/'
+          path: 'tooling/cli/node/'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -273,14 +273,14 @@ jobs:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-x86_64-unknown-linux-musl
-          path: 'tooling/cli.rs/node/'
+          path: 'tooling/cli/node/'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -326,12 +326,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: bindings-aarch64-unknown-linux-gnu
-          path: 'tooling/cli.rs/node/'
+          path: 'tooling/cli/node/'
       - name: Download armv7-gnueabihf artifacts
         uses: actions/download-artifact@v2
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
-          path: 'tooling/cli.rs/node/'
+          path: 'tooling/cli/node/'
       # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
       - uses: addnab/docker-run-action@v3
         with:
@@ -349,7 +349,7 @@ jobs:
             eval "$(fnm env --use-on-cd)"
             fnm install ${{ matrix.node }}
             fnm use ${{ matrix.node }}
-            cd tooling/cli.rs/node
+            cd tooling/cli/node
             yarn tauri --help
             ls -la
   publish:
@@ -369,13 +369,13 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli.rs/node/yarn.lock'
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
-          path: tooling/cli.rs/node/artifacts
+          path: tooling/cli/node/artifacts
       - name: Move artifacts
         run: yarn artifacts
       - name: List packages

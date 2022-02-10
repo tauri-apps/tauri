@@ -17,8 +17,8 @@
 
 /tooling/bundler/ @tauri-apps/bundler
 
-/tooling/cli.rs/ @tauri-apps/core
+/tooling/cli/ @tauri-apps/core
 
-/tooling/cli.rs/node/ @tauri-apps/js-cli
+/tooling/cli/node/ @tauri-apps/js-cli
 
 /core/** @tauri-apps/core

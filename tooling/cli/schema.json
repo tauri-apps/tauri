@@ -162,26 +162,7 @@
           "dialog": true,
           "pubkey": ""
         },
-        "windows": [
-          {
-            "alwaysOnTop": false,
-            "center": false,
-            "decorations": true,
-            "fileDropEnabled": true,
-            "focus": false,
-            "fullscreen": false,
-            "height": 600.0,
-            "label": "main",
-            "maximized": false,
-            "resizable": true,
-            "skipTaskbar": false,
-            "title": "Tauri App",
-            "transparent": false,
-            "url": "index.html",
-            "visible": true,
-            "width": 800.0
-          }
-        ]
+        "windows": []
       },
       "allOf": [
         {
@@ -1421,7 +1402,7 @@
           ]
         },
         "sidecar": {
-          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command, an executable that is shipped with the application. For more information see <https://tauri.studio/en/docs/usage/guides/bundler/sidecar>.",
+          "description": "Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command, an executable that is shipped with the application. For more information see <https://tauri.studio/docs/guides/bundler/sidecar/>.",
           "default": false,
           "type": "boolean"
         }
@@ -1660,26 +1641,7 @@
         },
         "windows": {
           "description": "The windows configuration.",
-          "default": [
-            {
-              "alwaysOnTop": false,
-              "center": false,
-              "decorations": true,
-              "fileDropEnabled": true,
-              "focus": false,
-              "fullscreen": false,
-              "height": 600.0,
-              "label": "main",
-              "maximized": false,
-              "resizable": true,
-              "skipTaskbar": false,
-              "title": "Tauri App",
-              "transparent": false,
-              "url": "index.html",
-              "visible": true,
-              "width": 800.0
-            }
-          ],
+          "default": [],
           "type": "array",
           "items": {
             "$ref": "#/definitions/WindowConfig"

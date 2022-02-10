@@ -8,7 +8,7 @@ use std::{
 };
 
 /// Directory options.
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct DirOpts {
   pub depth: u64,
 }
@@ -48,12 +48,6 @@ impl Default for Options {
       content_only: false,
       depth: 0,
     }
-  }
-}
-
-impl Default for DirOpts {
-  fn default() -> DirOpts {
-    DirOpts { depth: 0 }
   }
 }
 
@@ -166,14 +160,14 @@ where
       "Path is not a directory".to_owned(),
     ));
   }
-  let dir_name;
-  if let Some(val) = from.components().last() {
-    dir_name = val.as_os_str();
+
+  let dir_name = if let Some(val) = from.components().last() {
+    val.as_os_str()
   } else {
     return Err(crate::Error::PathUtilError(
       "Invalid Folder form".to_owned(),
     ));
-  }
+  };
   let mut to: PathBuf = to.as_ref().to_path_buf();
   if !options.content_only && (!options.copy_files || to.exists()) {
     to.push(dir_name);

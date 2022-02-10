@@ -7,7 +7,8 @@ license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
-edition = "2018"
+edition = "2021"
+rust-version = "1.57"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -32,10 +33,18 @@ http-range = "0.1.4"
 infer = "0.4"
 
 [target."cfg(windows)".dependencies]
-winapi = "0.3"
+webview2-com = "0.11.0"
+
+[target."cfg(windows)".dependencies.windows]
+version = "0.30.0"
+features = [
+  "Win32_Foundation",
+]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.14", features = [ "v3_20" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]
+devtools = [ ]
 system-tray = [ ]
+macos-private-api = [ ]

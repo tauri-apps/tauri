@@ -3,7 +3,7 @@
   "timeout": 3600000,
   "pkgManagers": {
     "rust": {
-      "errorOnVersionRange": "1.0.0-beta.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
+      "errorOnVersionRange": "1.0.0-rc.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
       "version": true,
       "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE \"s/^[^\\\"]*\\\"//; s/\\\".*//1p\"",
       "prepublish": [
@@ -78,7 +78,7 @@
       ]
     },
     "javascript": {
-      "errorOnVersionRange": "1.0.0-beta-rc.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
+      "errorOnVersionRange": "1.0.0-rc.100 - 99.x || ^1.1.0-0 || ^2.0.0-0",
       "version": true,
       "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
       "prepublish": [
@@ -208,7 +208,10 @@
     },
     "tauri-bundler": {
       "path": "./tooling/bundler",
-      "manager": "rust"
+      "manager": "rust",
+      "dependencies": [
+        "tauri-utils"
+      ]
     },
     "tauri-utils": {
       "path": "./core/tauri-utils",
@@ -217,30 +220,43 @@
     "tauri-runtime": {
       "path": "./core/tauri-runtime",
       "manager": "rust",
-      "dependencies": ["tauri-utils"],
-      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": [
+        "tauri-utils"
+      ],
+      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-runtime-wry": {
       "path": "./core/tauri-runtime-wry",
       "manager": "rust",
-      "dependencies": ["tauri-utils", "tauri-runtime"],
-      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": [
+        "tauri-utils",
+        "tauri-runtime"
+      ],
+      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
       "manager": "rust",
-      "dependencies": ["tauri-utils"]
+      "dependencies": [
+        "tauri-utils"
+      ]
     },
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": ["tauri-codegen"]
+      "dependencies": [
+        "tauri-codegen",
+        "tauri-utils"
+      ]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
-      "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": [
+        "tauri-codegen",
+        "tauri-utils"
+      ],
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
       "path": "./core/tauri",
@@ -251,24 +267,26 @@
         "tauri-runtime",
         "tauri-runtime-wry"
       ],
-      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
-      "path": "./tooling/cli.js",
+      "path": "./tooling/cli/node",
       "manager": "javascript",
-      "dependencies": ["cli.rs"],
-      "postversion": "node ../../.scripts/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-      "assets": [
-        {
-          "path": "./tooling/cli.js/tauri-apps-cli-${ pkgFile.version }.tgz",
-          "name": "cli.js-${ pkgFile.version }.tgz"
-        }
-      ]
+      "dependencies": [
+        "cli.rs"
+      ],
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "prepublish": [],
+      "publish": [],
+      "postpublish": []
     },
     "cli.rs": {
-      "path": "./tooling/cli.rs",
+      "path": "./tooling/cli",
       "manager": "rust",
-      "dependencies": ["tauri-bundler"],
+      "dependencies": [
+        "tauri-bundler",
+        "tauri-utils"
+      ],
       "postversion": "cargo check"
     },
     "create-tauri-app": {
@@ -278,7 +296,7 @@
     "tauri-driver": {
       "path": "./tooling/webdriver",
       "manager": "rust",
-      "postversion": "node ../../.scripts/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     }
   }
 }

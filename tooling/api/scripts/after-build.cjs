@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 const { readFileSync, readdirSync, writeFileSync, copyFileSync } = require('fs')
-const { copySync } = require('fs-extra')
 
 // append our api modules to `exports` in `package.json` then write it to `./dist`
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -42,6 +41,3 @@ const files = [
   ...dir.filter((f) => f.endsWith('.md'))
 ]
 files.forEach((f) => copyFileSync(f, `dist/${f}`))
-
-// copy typescript src files to `./dist`
-copySync('src', 'dist')

@@ -1,14 +1,30 @@
-use std::{io::Cursor, process::Command};
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 
-#[derive(Debug, serde::Deserialize)]
-struct TargetSpec {
-  #[serde(rename = "llvm-target")]
-  llvm_target: String,
-}
+use std::process::Command;
 
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
+
+#[derive(Debug, PartialEq, Eq)]
+struct RustCfg {
+  target_arch: Option<String>,
+}
+
+fn parse_rust_cfg(cfg: String) -> RustCfg {
+  let target_line = "target_arch=\"";
+  let mut target_arch = None;
+  for line in cfg.split('\n') {
+    if line.starts_with(target_line) {
+      let len = target_line.len();
+      let arch = line.chars().skip(len).take(line.len() - len - 1).collect();
+      target_arch.replace(arch);
+    }
+  }
+  RustCfg { target_arch }
+}
 
 /// Try to determine the current target triple.
 ///
@@ -20,18 +36,12 @@ struct TargetSpec {
 /// * Errors:
 ///     * Unexpected system config
 pub fn target_triple() -> Result<String, crate::Error> {
-  let output = Command::new("rustc")
-    .args(&["-Z", "unstable-options", "--print", "target-spec-json"])
-    .env("RUSTC_BOOTSTRAP", "1")
-    .output()?;
+  let output = Command::new("rustc").args(&["--print", "cfg"]).output()?;
+
   let arch = if output.status.success() {
-    let target_spec: TargetSpec = serde_json::from_reader(Cursor::new(output.stdout))?;
-    target_spec
-      .llvm_target
-      .split('-')
-      .next()
-      .unwrap()
-      .to_string()
+    parse_rust_cfg(String::from_utf8_lossy(&output.stdout).into_owned())
+      .target_arch
+      .expect("could not find `target_arch` when running `rustc --print cfg`.")
   } else {
     super::common::print_info(&format!(
       "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",
@@ -85,4 +95,35 @@ pub fn target_triple() -> Result<String, crate::Error> {
   };
 
   Ok(format!("{}-{}", arch, os))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::RustCfg;
+
+  #[test]
+  fn parse_rust_cfg() {
+    assert_eq!(
+      super::parse_rust_cfg("target_arch".into()),
+      RustCfg { target_arch: None }
+    );
+
+    assert_eq!(
+      super::parse_rust_cfg(
+        r#"debug_assertions
+target_arch="aarch64"
+target_endian="little"
+target_env=""
+target_family="unix"
+target_os="macos"
+target_pointer_width="64"
+target_vendor="apple"
+unix"#
+          .into()
+      ),
+      RustCfg {
+        target_arch: Some("aarch64".into())
+      }
+    );
+  }
 }

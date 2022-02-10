@@ -7,11 +7,12 @@ on:
   push:
     branches:
       - dev
+      - next
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
       - 'core/tauri/**'
-      - 'tooling/cli.rs/**'
+      - 'tooling/cli/**'
       - 'tooling/bundler/**'
       - 'examples/updater/**'
 
@@ -36,7 +37,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-        
+
       - name: Get current date
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
         if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
@@ -77,38 +78,34 @@ jobs:
           restore-keys: |
             ${{ matrix.platform }}-stable-cargo-core-${{ hashFiles('core/**/Cargo.toml') }}
             ${{ matrix.platform }}-stable-cargo-core-
-        
+
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.rs/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-nightly-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ${{ matrix.platform }}-stable-cargo-cli-
 
-      - name: install cli deps via yarn
-        working-directory: ./tooling/cli.js
-        run: yarn
-      - name: build cli
-        working-directory: ./tooling/cli.js
-        run: yarn build
+      - name: build and install cli.rs
+        run: cargo install --path tooling/cli
       - name: Check whether code signing should be enabled
         id: enablecodesigning
         env:
-            ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
+          ENABLE_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE }}
         run: |
-            echo "Enable code signing: ${{ env.ENABLE_CODE_SIGNING != '' }}"
-            echo "::set-output name=enabled::${{ env.ENABLE_CODE_SIGNING != '' }}"
+          echo "Enable code signing: ${{ env.ENABLE_CODE_SIGNING != '' }}"
+          echo "::set-output name=enabled::${{ env.ENABLE_CODE_SIGNING != '' }}"
       # run only on tauri-apps/tauri repo (require secrets)
       - name: build sample artifacts + code signing (updater)
         if: steps.enablecodesigning.outputs.enabled == 'true'
         working-directory: ./examples/updater
         run: |
           yarn install
-          node ../../tooling/cli.js/bin/tauri build
+          cargo tauri build
         env:
           # Notarization (disabled)
           # FIXME: enable only on `dev` push maybe? as it take some times...
@@ -128,7 +125,7 @@ jobs:
         working-directory: ./examples/updater
         run: |
           yarn install
-          node ../../tooling/cli.js/bin/tauri build
+          cargo tauri build
         env:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
       # upload assets
@@ -136,14 +133,14 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         with:
           name: linux-updater-artifacts
-          path: ./target/release/bundle/appimage/updater-example_*.AppImage.*
+          path: ./examples/updater/src-tauri/target/release/bundle/appimage/updater-example_*.AppImage.*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'windows-latest'
         with:
           name: windows-updater-artifacts
-          path: ./target/release/bundle/msi/*
+          path: ./examples/updater/src-tauri/target/release/bundle/msi/*
       - uses: actions/upload-artifact@v2
         if: matrix.platform == 'macos-latest'
         with:
           name: macos-updater-artifacts
-          path: ./target/release/bundle/macos/updater-example.app.tar.*
+          path: ./examples/updater/src-tauri/target/release/bundle/macos/updater-example.app.tar.*

@@ -18,13 +18,13 @@ if (nodeVersion === '14') {
 }
 
 const ctaBinary = path.resolve('./bin/create-tauri-app.js')
-const clijs = path.resolve('../cli.js/')
-const api = path.resolve('../api/')
+//const clijs = path.resolve('../cli.js/')
+//const api = path.resolve('../api/')
 
 const manager = process.env.TAURI_RUN_MANAGER || 'yarn'
 const recipes = process.env.TAURI_RECIPE
   ? process.env.TAURI_RECIPE.split(',')
-  : ['vanillajs', 'cra', 'vite', 'ngcli']
+  : ['vanillajs', 'cra', 'vite', 'ngcli', 'solid', 'cljs']
 const parallelize = process.env.TAURI_RECIPE_PARALLELIZE || false
 
 main(function* start() {

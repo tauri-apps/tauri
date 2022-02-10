@@ -19,7 +19,7 @@ enum ExecutionContext {
 }
 
 impl Parse for ExecutionContext {
-  fn parse(input: &ParseBuffer) -> syn::Result<Self> {
+  fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
     if input.is_empty() {
       return Ok(Self::Blocking);
     }

@@ -32,18 +32,18 @@ impl Client {
 struct Connection(Mutex<Option<Client>>);
 
 #[tauri::command]
-fn connect(connection: State<Connection>) {
+fn connect(connection: State<'_, Connection>) {
   *connection.0.lock().unwrap() = Some(Client {});
 }
 
 #[tauri::command]
-fn disconnect(connection: State<Connection>) {
+fn disconnect(connection: State<'_, Connection>) {
   // drop the connection
   *connection.0.lock().unwrap() = None;
 }
 
 #[tauri::command]
-fn connection_send(connection: State<Connection>) {
+fn connection_send(connection: State<'_, Connection>) {
   connection
     .0
     .lock()
@@ -54,17 +54,17 @@ fn connection_send(connection: State<Connection>) {
 }
 
 #[tauri::command]
-fn increment_counter(counter: State<Counter>) -> usize {
+fn increment_counter(counter: State<'_, Counter>) -> usize {
   counter.0.fetch_add(1, Ordering::Relaxed) + 1
 }
 
 #[tauri::command]
-fn db_insert(key: String, value: String, db: State<Database>) {
+fn db_insert(key: String, value: String, db: State<'_, Database>) {
   db.0.lock().unwrap().insert(key, value);
 }
 
 #[tauri::command]
-fn db_read(key: String, db: State<Database>) -> Option<String> {
+fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
   db.0.lock().unwrap().get(&key).cloned()
 }
 

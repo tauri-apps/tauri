@@ -25,7 +25,7 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
-  #[cfg(not(feature = "reqwest-client"))]
+  #[cfg(all(feature = "http-api", not(feature = "reqwest-client")))]
   #[error("Network Error: {0}")]
   Network(#[from] attohttpc::Error),
   /// The network error.
@@ -72,6 +72,9 @@ pub enum Error {
   #[cfg(notification_all)]
   #[error(transparent)]
   Notification(#[from] notify_rust::error::Error),
+  /// Url error.
+  #[error(transparent)]
+  Url(#[from] url::ParseError),
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),
@@ -79,8 +82,18 @@ pub enum Error {
   #[cfg(feature = "cli")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
   #[error("failed to parse CLI arguments: {0}")]
-  ParseCliArguments(#[from] clap::Error),
+  ParseCliArguments(String),
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),
+  /// Unknown program name.
+  #[error("unknown program name: {0}")]
+  UnknownProgramName(String),
+}
+
+#[cfg(feature = "cli")]
+impl From<clap::Error> for Error {
+  fn from(error: clap::Error) -> Self {
+    Self::ParseCliArguments(error.to_string())
+  }
 }

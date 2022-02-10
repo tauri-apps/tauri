@@ -148,13 +148,14 @@ pub enum MenuUpdate {
 
 pub trait TrayHandle: fmt::Debug {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
+  fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
 }
 
 /// A window menu.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct Menu {
   pub items: Vec<MenuEntry>,
@@ -179,31 +180,47 @@ impl Submenu {
   }
 }
 
-impl Default for Menu {
-  fn default() -> Self {
-    Self { items: Vec::new() }
-  }
-}
-
 impl Menu {
   /// Creates a new window menu.
   pub fn new() -> Self {
     Default::default()
   }
 
+  /// Creates a new window menu with the given items.
+  ///
+  /// # Example
+  /// ```
+  /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
+  /// Menu::with_items([
+  ///   MenuItem::SelectAll.into(),
+  ///   #[cfg(target_os = "macos")]
+  ///   MenuItem::Redo.into(),
+  ///   CustomMenuItem::new("toggle", "Toggle visibility").into(),
+  ///   Submenu::new("View", Menu::new()).into(),
+  /// ]);
+  /// ```
+  pub fn with_items<I: IntoIterator<Item = MenuEntry>>(items: I) -> Self {
+    Self {
+      items: items.into_iter().collect(),
+    }
+  }
+
   /// Adds the custom menu item to the menu.
+  #[must_use]
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(MenuEntry::CustomItem(item));
     self
   }
 
   /// Adds a native item to the menu.
+  #[must_use]
   pub fn add_native_item(mut self, item: MenuItem) -> Self {
     self.items.push(MenuEntry::NativeItem(item));
     self
   }
 
   /// Adds an entry with submenu.
+  #[must_use]
   pub fn add_submenu(mut self, submenu: Submenu) -> Self {
     self.items.push(MenuEntry::Submenu(submenu));
     self
@@ -241,6 +258,7 @@ impl CustomMenuItem {
   }
 
   /// Assign a keyboard shortcut to the menu action.
+  #[must_use]
   pub fn accelerator<T: Into<String>>(mut self, accelerator: T) -> Self {
     self.keyboard_accelerator.replace(accelerator.into());
     self
@@ -248,6 +266,7 @@ impl CustomMenuItem {
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[must_use]
   /// A native image do render on the menu item.
   pub fn native_image(mut self, image: NativeImage) -> Self {
     self.native_image.replace(image);
@@ -255,12 +274,14 @@ impl CustomMenuItem {
   }
 
   /// Mark the item as disabled.
+  #[must_use]
   pub fn disabled(mut self) -> Self {
     self.enabled = false;
     self
   }
 
   /// Mark the item as selected.
+  #[must_use]
   pub fn selected(mut self) -> Self {
     self.selected = true;
     self
@@ -274,16 +295,10 @@ impl CustomMenuItem {
 }
 
 /// A system tray menu.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct SystemTrayMenu {
   pub items: Vec<SystemTrayMenuEntry>,
-}
-
-impl Default for SystemTrayMenu {
-  fn default() -> Self {
-    Self { items: Vec::new() }
-  }
 }
 
 #[derive(Debug, Clone)]
@@ -312,18 +327,21 @@ impl SystemTrayMenu {
   }
 
   /// Adds the custom menu item to the system tray menu.
+  #[must_use]
   pub fn add_item(mut self, item: CustomMenuItem) -> Self {
     self.items.push(SystemTrayMenuEntry::CustomItem(item));
     self
   }
 
   /// Adds a native item to the system tray menu.
+  #[must_use]
   pub fn add_native_item(mut self, item: SystemTrayMenuItem) -> Self {
     self.items.push(SystemTrayMenuEntry::NativeItem(item));
     self
   }
 
   /// Adds an entry with submenu.
+  #[must_use]
   pub fn add_submenu(mut self, submenu: SystemTraySubmenu) -> Self {
     self.items.push(SystemTrayMenuEntry::Submenu(submenu));
     self
@@ -358,6 +376,24 @@ pub enum MenuEntry {
   NativeItem(MenuItem),
   /// An entry with submenu.
   Submenu(Submenu),
+}
+
+impl From<CustomMenuItem> for MenuEntry {
+  fn from(item: CustomMenuItem) -> Self {
+    Self::CustomItem(item)
+  }
+}
+
+impl From<MenuItem> for MenuEntry {
+  fn from(item: MenuItem) -> Self {
+    Self::NativeItem(item)
+  }
+}
+
+impl From<Submenu> for MenuEntry {
+  fn from(submenu: Submenu) -> Self {
+    Self::Submenu(submenu)
+  }
 }
 
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only

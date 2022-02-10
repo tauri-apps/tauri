@@ -2,17 +2,26 @@
 name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
-edition = "2018"
+edition = "2021"
+rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build" }
+tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "system-tray", "updater"] }
+tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "isolation", "macos-private-api", "system-tray", "updater"] }
 
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
+
+# default to small, optimized release binaries
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"

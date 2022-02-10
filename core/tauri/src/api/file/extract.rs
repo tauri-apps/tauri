@@ -3,8 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use either::{self, Either};
-
-use std::{fs, io, path};
+use std::{
+  fs,
+  io::{self, Read, Seek},
+  path::{self, Path, PathBuf},
+};
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,49 +31,68 @@ pub enum Compression {
 
 /// The extract manager to retrieve files from archives.
 #[derive(Debug)]
-pub struct Extract<'a> {
-  source: &'a path::Path,
-  archive_format: Option<ArchiveFormat>,
+pub struct Extract<R> {
+  reader: R,
+  archive_format: ArchiveFormat,
 }
 
-fn detect_archive_type(path: &path::Path) -> ArchiveFormat {
-  match path.extension() {
-    Some(extension) if extension == std::ffi::OsStr::new("zip") => ArchiveFormat::Zip,
-    Some(extension) if extension == std::ffi::OsStr::new("tar") => ArchiveFormat::Tar(None),
-    Some(extension) if extension == std::ffi::OsStr::new("gz") => match path
-      .file_stem()
-      .map(|e| path::Path::new(e))
-      .and_then(|f| f.extension())
-    {
-      Some(extension) if extension == std::ffi::OsStr::new("tar") => {
-        ArchiveFormat::Tar(Some(Compression::Gz))
-      }
-      _ => ArchiveFormat::Plain(Some(Compression::Gz)),
-    },
-    _ => ArchiveFormat::Plain(None),
-  }
-}
-
-impl<'a> Extract<'a> {
-  /// Create an `Extractor from a source path
-  pub fn from_source(source: &'a path::Path) -> Extract<'a> {
-    Self {
-      source,
-      archive_format: None,
+impl<R: Read + Seek> Extract<R> {
+  /// Create archive from reader.
+  pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<R> {
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
+      eprintln!("Could not seek to start of the file");
+    }
+    Extract {
+      reader,
+      archive_format,
     }
   }
 
-  /// Specify an archive format of the source being extracted. If not specified, the
-  /// archive format will determined from the file extension.
-  pub fn archive_format(&mut self, format: ArchiveFormat) -> &mut Self {
-    self.archive_format = Some(format);
-    self
+  /// Get the archive content.
+  pub fn files(&mut self) -> crate::api::Result<Vec<PathBuf>> {
+    let reader = &mut self.reader;
+    let mut all_files = Vec::new();
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
+      eprintln!("Could not seek to start of the file");
+    }
+    match self.archive_format {
+      ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
+        let reader = Self::get_archive_reader(reader, compression);
+        match self.archive_format {
+          ArchiveFormat::Tar(_) => {
+            let mut archive = tar::Archive::new(reader);
+            for entry in archive.entries()?.flatten() {
+              if let Ok(path) = entry.path() {
+                all_files.push(path.to_path_buf());
+              }
+            }
+          }
+          _ => unreachable!(),
+        };
+      }
+
+      ArchiveFormat::Zip => {
+        let archive = zip::ZipArchive::new(reader)?;
+        for entry in archive.file_names() {
+          all_files.push(PathBuf::from(entry));
+        }
+      }
+    }
+
+    Ok(all_files)
   }
 
+  // Get the reader based on the compression type.
   fn get_archive_reader(
-    source: fs::File,
+    source: &mut R,
     compression: Option<Compression>,
-  ) -> Either<fs::File, flate2::read::GzDecoder<fs::File>> {
+  ) -> Either<&mut R, flate2::read::GzDecoder<&mut R>> {
+    if source.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
+      eprintln!("Could not seek to start of the file");
+    }
     match compression {
       Some(Compression::Gz) => Either::Right(flate2::read::GzDecoder::new(source)),
       None => Either::Left(source),
@@ -80,17 +102,16 @@ impl<'a> Extract<'a> {
   /// Extract an entire source archive into a specified path. If the source is a single compressed
   /// file and not an archive, it will be extracted into a file with the same name inside of
   /// `into_dir`.
-  pub fn extract_into(&self, into_dir: &path::Path) -> crate::api::Result<()> {
-    let source = fs::File::open(self.source)?;
-    let archive = self
-      .archive_format
-      .unwrap_or_else(|| detect_archive_type(self.source));
-
-    match archive {
+  pub fn extract_into(&mut self, into_dir: &path::Path) -> crate::api::Result<()> {
+    let reader = &mut self.reader;
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+      #[cfg(debug_assertions)]
+      eprintln!("Could not seek to start of the file");
+    }
+    match self.archive_format {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
-        let mut reader = Self::get_archive_reader(source, compression);
-
-        match archive {
+        let mut reader = Self::get_archive_reader(reader, compression);
+        match self.archive_format {
           ArchiveFormat::Plain(_) => {
             match fs::create_dir_all(into_dir) {
               Ok(_) => (),
@@ -100,12 +121,8 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = self.source.file_name().ok_or_else(|| {
-              crate::api::Error::Extract("Extractor source has no file-name".into())
-            })?;
-            let mut out_path = into_dir.join(file_name);
-            out_path.set_extension("");
-            let mut out_file = fs::File::create(&out_path)?;
+
+            let mut out_file = fs::File::create(&into_dir)?;
             io::copy(&mut reader, &mut out_file)?;
           }
           ArchiveFormat::Tar(_) => {
@@ -115,40 +132,57 @@ impl<'a> Extract<'a> {
           _ => unreachable!(),
         };
       }
+
       ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(source)?;
+        let mut archive = zip::ZipArchive::new(reader)?;
         for i in 0..archive.len() {
           let mut file = archive.by_index(i)?;
-          let path = into_dir.join(file.name());
-          let mut output = fs::File::create(path)?;
-          io::copy(&mut file, &mut output)?;
+          // Decode the file name from raw bytes instead of using file.name() directly.
+          // file.name() uses String::from_utf8_lossy() which may return messy characters
+          // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
+          // Here we require the file name must be a valid UTF-8.
+          let file_name = String::from_utf8(file.name_raw().to_vec())?;
+          let out_path = into_dir.join(&file_name);
+          if file.is_dir() {
+            fs::create_dir_all(&out_path)?;
+          } else {
+            if let Some(out_path_parent) = out_path.parent() {
+              fs::create_dir_all(&out_path_parent)?;
+            }
+            let mut out_file = fs::File::create(&out_path)?;
+            io::copy(&mut file, &mut out_file)?;
+          }
+          // Get and Set permissions
+          #[cfg(unix)]
+          {
+            use std::os::unix::fs::PermissionsExt;
+            if let Some(mode) = file.unix_mode() {
+              fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
+            }
+          }
         }
       }
-    };
+    }
     Ok(())
   }
 
-  /// Extract a single file from a source and save to a file of the same name in `into_dir`.
-  /// If the source is a single compressed file, it will be saved with the name `file_to_extract`
-  /// in the specified `into_dir`.
+  /// Extract a single file from a source and extract it `into_path`.
+  /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
+  /// Note: You need to include the complete path, with file name and extension.
   pub fn extract_file<T: AsRef<path::Path>>(
-    &self,
-    into_dir: &path::Path,
+    &mut self,
+    into_path: &path::Path,
     file_to_extract: T,
   ) -> crate::api::Result<()> {
     let file_to_extract = file_to_extract.as_ref();
-    let source = fs::File::open(self.source)?;
-    let archive = self
-      .archive_format
-      .unwrap_or_else(|| detect_archive_type(self.source));
+    let reader = &mut self.reader;
 
-    match archive {
+    match self.archive_format {
       ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
-        let mut reader = Self::get_archive_reader(source, compression);
-
-        match archive {
+        let mut reader = Self::get_archive_reader(reader, compression);
+        match self.archive_format {
           ArchiveFormat::Plain(_) => {
-            match fs::create_dir_all(into_dir) {
+            match fs::create_dir_all(into_path) {
               Ok(_) => (),
               Err(e) => {
                 if e.kind() != io::ErrorKind::AlreadyExists {
@@ -156,11 +190,7 @@ impl<'a> Extract<'a> {
                 }
               }
             }
-            let file_name = file_to_extract.file_name().ok_or_else(|| {
-              crate::api::Error::Extract("Extractor source has no file-name".into())
-            })?;
-            let out_path = into_dir.join(file_name);
-            let mut out_file = fs::File::create(&out_path)?;
+            let mut out_file = fs::File::create(into_path)?;
             io::copy(&mut reader, &mut out_file)?;
           }
           ArchiveFormat::Tar(_) => {
@@ -175,7 +205,27 @@ impl<'a> Extract<'a> {
                   file_to_extract
                 ))
               })?;
-            entry.unpack_in(into_dir)?;
+
+            // determine if it's a file or a directory
+            if entry.header().entry_type() == tar::EntryType::Directory {
+              // this is a directory, lets create it
+              match fs::create_dir_all(into_path) {
+                Ok(_) => (),
+                Err(e) => {
+                  if e.kind() != io::ErrorKind::AlreadyExists {
+                    return Err(e.into());
+                  }
+                }
+              }
+            } else {
+              let mut out_file = fs::File::create(into_path)?;
+              io::copy(&mut entry, &mut out_file)?;
+
+              // make sure we set permissions
+              if let Ok(mode) = entry.header().mode() {
+                set_perms(into_path, Some(&mut out_file), mode, true)?;
+              }
+            }
           }
           _ => {
             panic!("Unreasonable code");
@@ -183,16 +233,87 @@ impl<'a> Extract<'a> {
         };
       }
       ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(source)?;
+        let mut archive = zip::ZipArchive::new(reader)?;
         let mut file = archive.by_name(
           file_to_extract
             .to_str()
             .expect("Could not convert file to str"),
         )?;
-        let mut output = fs::File::create(into_dir.join(file.name()))?;
-        io::copy(&mut file, &mut output)?;
+
+        if file.is_dir() {
+          // this is a directory, lets create it
+          match fs::create_dir_all(into_path) {
+            Ok(_) => (),
+            Err(e) => {
+              if e.kind() != io::ErrorKind::AlreadyExists {
+                return Err(e.into());
+              }
+            }
+          }
+        } else {
+          let mut out_file = fs::File::create(into_path)?;
+          io::copy(&mut file, &mut out_file)?;
+        }
       }
-    };
+    }
+
     Ok(())
+  }
+}
+
+fn set_perms(
+  dst: &Path,
+  f: Option<&mut std::fs::File>,
+  mode: u32,
+  preserve: bool,
+) -> crate::api::Result<()> {
+  _set_perms(dst, f, mode, preserve).map_err(|_| {
+    crate::api::Error::Extract(format!(
+      "failed to set permissions to {:o} \
+               for `{}`",
+      mode,
+      dst.display()
+    ))
+  })
+}
+
+#[cfg(unix)]
+fn _set_perms(
+  dst: &Path,
+  f: Option<&mut std::fs::File>,
+  mode: u32,
+  preserve: bool,
+) -> io::Result<()> {
+  use std::os::unix::prelude::*;
+
+  let mode = if preserve { mode } else { mode & 0o777 };
+  let perm = fs::Permissions::from_mode(mode as _);
+  match f {
+    Some(f) => f.set_permissions(perm),
+    None => fs::set_permissions(dst, perm),
+  }
+}
+
+#[cfg(windows)]
+fn _set_perms(
+  dst: &Path,
+  f: Option<&mut std::fs::File>,
+  mode: u32,
+  _preserve: bool,
+) -> io::Result<()> {
+  if mode & 0o200 == 0o200 {
+    return Ok(());
+  }
+  match f {
+    Some(f) => {
+      let mut perm = f.metadata()?.permissions();
+      perm.set_readonly(true);
+      f.set_permissions(perm)
+    }
+    None => {
+      let mut perm = fs::metadata(dst)?.permissions();
+      perm.set_readonly(true);
+      fs::set_permissions(dst, perm)
+    }
   }
 }

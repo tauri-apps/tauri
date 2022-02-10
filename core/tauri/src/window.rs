@@ -12,13 +12,14 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
+  hooks::{InvokePayload, InvokeResponder},
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
-    webview::{InvokePayload, WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, PendingWindow, WindowEvent,
+      DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
     Dispatch, Icon, Runtime, UserAttentionType,
   },
@@ -32,7 +33,10 @@ use serde::Serialize;
 
 use tauri_macros::default_runtime;
 
-use std::hash::{Hash, Hasher};
+use std::{
+  hash::{Hash, Hasher},
+  sync::Arc,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -91,6 +95,26 @@ pub struct Window<R: Runtime> {
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
+unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
+  #[cfg(windows)]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::Win32Handle::empty();
+    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
+    raw_window_handle::RawWindowHandle::Win32(handle)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+    let mut handle = raw_window_handle::AppKitHandle::empty();
+    handle.ns_window = self
+      .ns_window()
+      .expect("failed to get window's `ns_window`");
+    raw_window_handle::RawWindowHandle::AppKit(handle)
+  }
 }
 
 impl<R: Runtime> Clone for Window<R> {
@@ -155,6 +179,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Creates a new webview window.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
   pub fn create_window<F>(
     &mut self,
     label: String,
@@ -181,13 +207,17 @@ impl<R: Runtime> Window<R> {
     ))
   }
 
+  pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
+    self.manager.invoke_responder()
+  }
+
   /// The current window's dispatcher.
   pub(crate) fn dispatcher(&self) -> R::Dispatcher {
     self.window.dispatcher.clone()
   }
 
-  #[allow(dead_code)]
-  pub(crate) fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
+  /// Runs the given closure on the main thread.
+  pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self
       .window
       .dispatcher
@@ -196,9 +226,9 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub(crate) fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
-    match command.as_str() {
+    match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
         manager.run_on_page_load(self, payload);
@@ -207,25 +237,19 @@ impl<R: Runtime> Window<R> {
         let message = InvokeMessage::new(
           self.clone(),
           manager.state(),
-          command.to_string(),
+          payload.cmd.to_string(),
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+
         let invoke = Invoke { message, resolver };
-        if manager.verify_invoke_key(payload.key) {
-          if let Some(module) = &payload.tauri_module {
-            let module = module.to_string();
-            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
-          } else if command.starts_with("plugin:") {
-            manager.extend_api(invoke);
-          } else {
-            manager.run_invoke_handler(invoke);
-          }
+        if let Some(module) = &payload.tauri_module {
+          let module = module.to_string();
+          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+        } else if payload.cmd.starts_with("plugin:") {
+          manager.extend_api(invoke);
         } else {
-          panic!(
-            r#"The invoke key "{}" is invalid. This means that an external, possible malicious script is trying to access the system interface."#,
-            payload.key
-          );
+          manager.run_invoke_handler(invoke);
         }
       }
     }
@@ -238,24 +262,49 @@ impl<R: Runtime> Window<R> {
     &self.window.label
   }
 
-  /// Emits an event to the current window.
-  pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+  /// Emits an event to both the JavaScript and the Rust listeners.
+  pub fn emit_and_trigger<S: Serialize + Clone>(
+    &self,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
+    self.trigger(event, Some(serde_json::to_string(&payload)?));
+    self.emit(event, payload)
+  }
+
+  pub(crate) fn emit_internal<S: Serialize>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, payload: {}}})",
+      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
+      serde_json::to_string(&source_window_label)?,
       serde_json::to_value(payload)?,
     ))?;
-
     Ok(())
   }
 
-  /// Emits an event on all windows except this one.
-  pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager.emit_filter(event, payload, |w| w != self)
+  /// Emits an event to the JavaScript listeners on the current window.
+  ///
+  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager
+      .emit_filter(event, Some(self.label()), payload, |w| {
+        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
+      })?;
+    Ok(())
   }
 
   /// Listen to an event on this window.
+  ///
+  /// This listener only receives events that are triggered using the
+  /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
+  /// the `appWindow.emit` function from the @tauri-apps/api `window` module.
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,
@@ -264,16 +313,23 @@ impl<R: Runtime> Window<R> {
     self.manager.listen(event.into(), Some(label), handler)
   }
 
-  /// Listen to a an event on this window a single time.
+  /// Unlisten to an event on this window.
+  pub fn unlisten(&self, handler_id: EventHandler) {
+    self.manager.unlisten(handler_id)
+  }
+
+  /// Listen to an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: FnOnce(Event) + Send + 'static,
   {
     let label = self.window.label.clone();
     self.manager.once(event.into(), Some(label), handler)
   }
 
-  /// Triggers an event on this window.
+  /// Triggers an event to the Rust listeners on this window.
+  ///
+  /// The event is only delivered to listeners that used the [`listen`](Window#method.listen) method.
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)
@@ -291,12 +347,87 @@ impl<R: Runtime> Window<R> {
 
   /// Registers a menu event listener.
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
-    let menu_ids = self.manager.menu_ids();
+    let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
       f(MenuEvent {
-        menu_item_id: menu_ids.get(&event.menu_item_id).unwrap().clone(),
+        menu_item_id: menu_ids
+          .lock()
+          .unwrap()
+          .get(&event.menu_item_id)
+          .unwrap()
+          .clone(),
       })
     })
+  }
+
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .entry(JsEventListenerKey {
+        window_label,
+        event,
+      })
+      .or_insert_with(Default::default)
+      .insert(id);
+  }
+
+  pub(crate) fn unregister_js_listener(&self, id: u64) {
+    let mut empty = None;
+    let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
+    for (key, ids) in js_listeners.iter_mut() {
+      if ids.contains(&id) {
+        ids.remove(&id);
+        if ids.is_empty() {
+          empty.replace(key.clone());
+        }
+        break;
+      }
+    }
+
+    if let Some(key) = empty {
+      js_listeners.remove(&key);
+    }
+  }
+
+  /// Whether this window registered a listener to an event from the given window and event name.
+  pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
+    self
+      .window
+      .js_event_listeners
+      .lock()
+      .unwrap()
+      .contains_key(&JsEventListenerKey {
+        window_label,
+        event: event.into(),
+      })
+  }
+
+  /// Opens the developer tools window (Web Inspector).
+  /// The devtools is only enabled on debug builds or with the `devtools` feature flag.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: This is a private API on macOS,
+  /// so you cannot use this if your application will be published on the App Store.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     app.get_window("main").unwrap().open_devtools();
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  pub fn open_devtools(&self) {
+    self.window.dispatcher.open_devtools();
   }
 
   // Getters
@@ -304,43 +435,22 @@ impl<R: Runtime> Window<R> {
   /// Gets a handle to the window menu.
   pub fn menu_handle(&self) -> MenuHandle<R> {
     MenuHandle {
-      ids: self.manager.menu_ids(),
+      ids: self.window.menu_ids.clone(),
       dispatcher: self.dispatcher(),
     }
   }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.inner_position().map_err(Into::into)
   }
 
   /// Returns the position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>> {
     self.window.dispatcher.outer_position().map_err(Into::into)
   }
@@ -348,13 +458,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the physical size of the window's client area.
   ///
   /// The client area is the content of the window, excluding the title bar and borders.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn inner_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.inner_size().map_err(Into::into)
   }
@@ -362,73 +465,31 @@ impl<R: Runtime> Window<R> {
   /// Returns the physical size of the entire window.
   ///
   /// These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn outer_size(&self) -> crate::Result<PhysicalSize<u32>> {
     self.window.dispatcher.outer_size().map_err(Into::into)
   }
 
   /// Gets the window's current fullscreen state.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_fullscreen(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
   /// Gets the window's current maximized state.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
   }
 
   /// Gets the window’s current decoration state.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
   /// Gets the window’s current resizable state.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
   /// Gets the window's current vibility state.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
@@ -436,17 +497,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -459,17 +509,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -480,17 +519,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Returns the list of all the monitors available on the system.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -501,32 +529,18 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Returns the native handle that is used by this window.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.ns_window().map_err(Into::into)
   }
   /// Returns the native handle that is used by this window.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
     self
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd as *mut _)
+      .map(|hwnd| hwnd.0 as *mut _)
       .map_err(Into::into)
   }
 
@@ -561,6 +575,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** `None` has no effect.
+  /// - **Linux:** Urgency levels have the same effect.
   pub fn request_user_attention(
     &self,
     request_type: Option<UserAttentionType>,
@@ -628,6 +643,12 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Closes this window.
+  /// # Panics
+  ///
+  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
+  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
+  ///
+  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn close(&self) -> crate::Result<()> {
     self.window.dispatcher.close().map_err(Into::into)
   }
@@ -719,5 +740,14 @@ impl<R: Runtime> Window<R> {
   /// Starts dragging the window.
   pub fn start_dragging(&self) -> crate::Result<()> {
     self.window.dispatcher.start_dragging().map_err(Into::into)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn window_is_send_sync() {
+    crate::test_utils::assert_send::<super::Window>();
+    crate::test_utils::assert_sync::<super::Window>();
   }
 }

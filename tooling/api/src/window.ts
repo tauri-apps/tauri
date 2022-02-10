@@ -50,9 +50,7 @@
  *
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
- *
- * #### 'tauri://destroyed'
- * Emitted after the window is closed.
+ * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.
@@ -85,8 +83,8 @@
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventName, EventCallback, UnlistenFn, listen, once } from './event'
-import { emit } from './helpers/event'
+import type { EventName, EventCallback, UnlistenFn } from './event'
+import { emit, listen, once } from './helpers/event'
 
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
@@ -166,7 +164,7 @@ interface WindowDef {
 /** @ignore */
 declare global {
   interface Window {
-    __TAURI__: {
+    __TAURI_METADATA__: {
       __windows: WindowDef[]
       __currentWindow: WindowDef
     }
@@ -176,13 +174,13 @@ declare global {
 /** Attention type to request on a window. */
 enum UserAttentionType {
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    *  - **macOS:** Bounces the dock icon until the application is in focus.
    * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
    */
   Critical = 1,
   /**
-   * ## Platform-specific
+   * #### Platform-specific
    * - **macOS:** Bounces the dock icon once.
    * - **Windows:** Flashes the taskbar button until the application is in focus.
    */
@@ -195,7 +193,7 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
     // @ts-expect-error
     skip: true
   })
@@ -207,7 +205,7 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  return window.__TAURI__.__windows.map(
+  return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
         // @ts-expect-error
@@ -220,7 +218,7 @@ function getAll(): WebviewWindow[] {
 // events that are emitted right here instead of by the created webview
 const localTauriEvents = ['tauri://created', 'tauri://error']
 /** @ignore */
-export type WindowLabel = string | null | undefined
+export type WindowLabel = string
 /**
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
@@ -239,7 +237,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -254,13 +252,13 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return listen(event, handler)
+    return listen(event, this.label, handler)
   }
 
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -272,20 +270,20 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return once(event, handler)
+    return once(event, this.label, handler)
   }
 
   /**
    * Emits an event to the backend, tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: string): Promise<void> {
+  async emit(event: string, payload?: unknown): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ event, id: -1, payload })
+        handler({ event, id: -1, windowLabel: this.label, payload })
       }
       return Promise.resolve()
     }
@@ -330,7 +328,7 @@ class WindowManager extends WebviewWindowHandle {
 
   /** The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop. */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -341,12 +339,12 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ x, y }) => new PhysicalPosition(x, y))
   }
 
   /** The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop. */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -357,7 +355,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ x, y }) => new PhysicalPosition(x, y))
   }
 
   /**
@@ -365,7 +363,7 @@ class WindowManager extends WebviewWindowHandle {
    * The client area is the content of the window, excluding the title bar and borders.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ width: number; height: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -376,7 +374,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
   /**
@@ -384,7 +382,7 @@ class WindowManager extends WebviewWindowHandle {
    * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invokeTauriCommand({
+    return invokeTauriCommand<{ width: number; height: number }>({
       __tauriModule: 'Window',
       message: {
         cmd: 'manage',
@@ -395,7 +393,7 @@ class WindowManager extends WebviewWindowHandle {
           }
         }
       }
-    })
+    }).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
   /** Gets the window's current fullscreen state. */
@@ -509,9 +507,10 @@ class WindowManager extends WebviewWindowHandle {
    * Providing `null` will unset the request for user attention. Unsetting the request for
    * user attention might not be done automatically by the WM when the window receives input.
    *
-   * ## Platform-specific
+   * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
+   * - **Linux:** Urgency levels have the same effect.
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -791,14 +790,14 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Resizes the window.
+   * Resizes the window with a new inner size.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
@@ -829,18 +828,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window min size. If the `size` argument is not provided, the min size is unset.
+   * Sets the window minimum inner size. If the `size` argument is not provided, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMinSize(new PhysicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -871,18 +870,18 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window max size. If the `size` argument is undefined, the max size is unset.
+   * Sets the window maximum inner size. If the `size` argument is undefined, the constraint is unset.
    * @example
    * ```typescript
    * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
    * await appWindow.setMaxSize(new LogicalSize(600, 500))
    * ```
    *
-   * @param size The logical or physical size.
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaxSize(
-    size: LogicalSize | PhysicalSize | undefined
+    size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
     if (size && size.type !== 'Logical' && size.type !== 'Physical') {
       throw new Error(
@@ -913,7 +912,7 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Sets the window position.
+   * Sets the window outer position.
    * @example
    * ```typescript
    * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'
@@ -1003,7 +1002,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | number[]): Promise<void> {
+  async setIcon(icon: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -1013,7 +1012,8 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setIcon',
             payload: {
-              icon
+              // correctly serialize Uint8Arrays
+              icon: typeof icon === 'string' ? icon : Array.from(icon)
             }
           }
         }
@@ -1092,6 +1092,11 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
+  /**
+   * Creates a new WebviewWindow.
+   * * @param label The webview window label. It must be alphanumeric.
+   * @returns The WebviewWindow instance to communicate with the webview.
+   */
   constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
@@ -1109,7 +1114,7 @@ class WebviewWindow extends WindowManager {
         }
       })
         .then(async () => this.emit('tauri://created'))
-        .catch(async (e) => this.emit('tauri://error', e))
+        .catch(async (e: string) => this.emit('tauri://error', e))
     }
   }
 
@@ -1129,15 +1134,22 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(null, {
-  // @ts-expect-error
-  skip: true
-})
+const appWindow = new WebviewWindow(
+  window.__TAURI_METADATA__.__currentWindow.label,
+  {
+    // @ts-expect-error
+    skip: true
+  }
+)
 
 /** Configuration for the window to create. */
 interface WindowOptions {
   /**
-   * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
+   * Remote URL or local file path to open.
+   *
+   * - URL such as `https://github.com/tauri-apps` is opened directly on a Tauri window.
+   * - data: URL such as `data:text/html,<html>...` is only supported with the `window-data-url` Cargo feature for the `tauri` dependency.
+   * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
   /** Show window in the center of the screen.. */
@@ -1166,7 +1178,11 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially hidden or focused. */
   focus?: boolean
-  /** Whether the window is transparent or not. */
+  /**
+   * Whether the window is transparent or not.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean
@@ -1178,6 +1194,12 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   *
+   * Disabling it is required to use drag and drop on the frontend on Windows.
+   */
+  fileDropEnabled?: boolean
 }
 
 /**

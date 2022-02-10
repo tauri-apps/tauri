@@ -3,33 +3,35 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
-use crate::api::{file::Extract, version};
+use crate::api::{
+  file::{ArchiveFormat, Extract, Move},
+  http::{ClientBuilder, HttpRequestBuilder},
+  version,
+};
 use base64::decode;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
+use tauri_utils::{platform::current_exe, Env};
+
 use std::{
   collections::HashMap,
   env,
-  ffi::OsStr,
-  fs::{read_dir, remove_file, File, OpenOptions},
-  io::{prelude::*, BufReader, Read},
+  io::{Cursor, Read, Seek},
   path::{Path, PathBuf},
   str::from_utf8,
-  time::{SystemTime, UNIX_EPOCH},
 };
 
-#[cfg(target_os = "macos")]
-use std::fs::rename;
 #[cfg(not(target_os = "macos"))]
-use std::process::Command;
+use std::ffi::OsStr;
 
-#[cfg(target_os = "macos")]
-use crate::api::file::Move;
-
-use crate::api::http::{ClientBuilder, HttpRequestBuilder};
+#[cfg(not(target_os = "windows"))]
+use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
-use std::process::exit;
+use std::{
+  fs::read_dir,
+  process::{exit, Command},
+};
 
 #[derive(Debug)]
 pub struct RemoteRelease {
@@ -171,6 +173,8 @@ impl RemoteRelease {
 
 #[derive(Debug)]
 pub struct UpdateBuilder<'a> {
+  /// Environment information.
+  pub env: Env,
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
@@ -181,21 +185,16 @@ pub struct UpdateBuilder<'a> {
   pub executable_path: Option<PathBuf>,
 }
 
-impl<'a> Default for UpdateBuilder<'a> {
-  fn default() -> Self {
+// Create new updater instance and return an Update
+impl<'a> UpdateBuilder<'a> {
+  pub fn new(env: Env) -> Self {
     UpdateBuilder {
+      env,
       urls: Vec::new(),
       target: None,
       executable_path: None,
       current_version: env!("CARGO_PKG_VERSION"),
     }
-  }
-}
-
-// Create new updater instance and return an Update
-impl<'a> UpdateBuilder<'a> {
-  pub fn new() -> Self {
-    UpdateBuilder::default()
   }
 
   #[allow(dead_code)]
@@ -249,25 +248,18 @@ impl<'a> UpdateBuilder<'a> {
     // set current version if not set
     let current_version = self.current_version;
 
-    // If no executable path provided, we use current_exe from rust
-    let executable_path = if let Some(v) = &self.executable_path {
-      v.clone()
-    } else {
-      // we expect it to fail if we can't find the executable path
-      // without this path we can't continue the update process.
-      env::current_exe()?
-    };
+    // If no executable path provided, we use current_exe from tauri_utils
+    let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
     // Did the target is provided by the config?
     // Should be: linux, darwin, win32 or win64
-    let target = if let Some(t) = &self.target {
-      t.clone()
-    } else {
-      get_updater_target().ok_or(Error::UnsupportedPlatform)?
-    };
+    let target = self
+      .target
+      .or_else(get_updater_target)
+      .ok_or(Error::UnsupportedPlatform)?;
 
     // Get the extract_path from the provided executable_path
-    let extract_path = extract_path_from_executable(&executable_path);
+    let extract_path = extract_path_from_executable(&self.env, &executable_path);
 
     // Set SSL certs for linux if they aren't available.
     // We do not require to recheck in the download_and_install as we use
@@ -305,7 +297,7 @@ impl<'a> UpdateBuilder<'a> {
       let resp = ClientBuilder::new()
         .build()?
         .send(
-          HttpRequestBuilder::new("GET", &fixed_link)
+          HttpRequestBuilder::new("GET", &fixed_link)?
             .headers(headers)
             // wait 20sec for the firewall
             .timeout(20),
@@ -317,7 +309,10 @@ impl<'a> UpdateBuilder<'a> {
       if let Ok(res) = resp {
         let res = res.read().await?;
         // got status code 2XX
-        if StatusCode::from_u16(res.status).unwrap().is_success() {
+        if StatusCode::from_u16(res.status)
+          .map_err(|e| Error::Builder(e.to_string()))?
+          .is_success()
+        {
           // if we got 204
           if StatusCode::NO_CONTENT.as_u16() == res.status {
             // return with `UpToDate` error
@@ -357,6 +352,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // create our new updater
     Ok(Update {
+      env: self.env,
       target,
       extract_path,
       should_update,
@@ -372,12 +368,14 @@ impl<'a> UpdateBuilder<'a> {
   }
 }
 
-pub fn builder<'a>() -> UpdateBuilder<'a> {
-  UpdateBuilder::new()
+pub fn builder<'a>(env: Env) -> UpdateBuilder<'a> {
+  UpdateBuilder::new(env)
 }
 
 #[derive(Debug, Clone)]
 pub struct Update {
+  /// Environment information.
+  pub env: Env,
   /// Update description
   pub body: Option<String>,
   /// Should we update or not
@@ -389,6 +387,7 @@ pub struct Update {
   /// Update publish date
   pub date: String,
   /// Target
+  #[allow(dead_code)]
   target: String,
   /// Extract path
   extract_path: PathBuf,
@@ -405,11 +404,11 @@ pub struct Update {
 impl Update {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub async fn download_and_install(&self, pub_key: Option<String>) -> Result {
+  pub async fn download_and_install(&self, pub_key: String) -> Result {
     // download url for selected release
-    let url = self.download_url.clone();
+    let url = self.download_url.as_str();
     // extract path
-    let extract_path = self.extract_path.clone();
+    let extract_path = &self.extract_path;
 
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
@@ -417,34 +416,9 @@ impl Update {
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
     #[cfg(target_os = "linux")]
-    if env::var_os("APPIMAGE").is_none() {
+    if self.env.appimage.is_none() {
       return Err(Error::UnsupportedPlatform);
     }
-
-    // used  for temp file name
-    // if we cant extract app name, we use unix epoch duration
-    let current_time = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .expect("Unable to get Unix Epoch")
-      .subsec_nanos()
-      .to_string();
-
-    // get the current app name
-    let bin_name = std::env::current_exe()
-      .ok()
-      .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
-      .and_then(|s| s.into_string().ok())
-      .unwrap_or_else(|| current_time.clone());
-
-    // tmp dir for extraction
-    let tmp_dir = tempfile::Builder::new()
-      .prefix(&format!("{}_{}_download", bin_name, current_time))
-      .tempdir()?;
-
-    // tmp directories are used to create backup of current application
-    // if something goes wrong, we can restore to previous state
-    let tmp_archive_path = tmp_dir.path().join(detect_archive_in_url(&url));
-    let mut tmp_archive = File::create(&tmp_archive_path)?;
 
     // set our headers
     let mut headers = HashMap::new();
@@ -455,7 +429,7 @@ impl Update {
     let resp = ClientBuilder::new()
       .build()?
       .send(
-        HttpRequestBuilder::new("GET", &url)
+        HttpRequestBuilder::new("GET", url)?
           .headers(headers)
           // wait 20sec for the firewall
           .timeout(20),
@@ -465,39 +439,37 @@ impl Update {
       .await?;
 
     // make sure it's success
-    if !StatusCode::from_u16(resp.status).unwrap().is_success() {
+    if !StatusCode::from_u16(resp.status)
+      .map_err(|e| Error::Network(e.to_string()))?
+      .is_success()
+    {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
         resp.status
       )));
     }
 
-    tmp_archive.write_all(&resp.data)?;
+    // create memory buffer from our archive (Seek + Read)
+    let mut archive_buffer = Cursor::new(resp.data);
 
-    // Validate signature ONLY if pubkey is available in tauri.conf.json
-    if let Some(pub_key) = pub_key {
-      // We need an announced signature by the server
-      // if there is no signature, bail out.
-      if let Some(signature) = self.signature.clone() {
-        // we make sure the archive is valid and signed with the private key linked with the publickey
-        verify_signature(&tmp_archive_path, signature, &pub_key)?;
-      } else {
-        // We have a public key inside our source file, but not announced by the server,
-        // we assume this update is NOT valid.
-        return Err(Error::PubkeyButNoSignature);
-      }
+    // We need an announced signature by the server
+    // if there is no signature, bail out.
+    if let Some(signature) = &self.signature {
+      // we make sure the archive is valid and signed with the private key linked with the publickey
+      verify_signature(&mut archive_buffer, signature, &pub_key)?;
+    } else {
+      // We have a public key inside our source file, but not announced by the server,
+      // we assume this update is NOT valid.
+      return Err(Error::MissingUpdaterSignature);
     }
-    // extract using tauri api inside a tmp path
-    Extract::from_source(&tmp_archive_path).extract_into(tmp_dir.path())?;
-    // Remove archive (not needed anymore)
-    remove_file(&tmp_archive_path)?;
+
     // we copy the files depending of the operating system
     // we run the setup, appimage re-install or overwrite the
     // macos .app
     #[cfg(target_os = "windows")]
-    copy_files_and_run(tmp_dir, extract_path, self.with_elevated_task)?;
+    copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
     #[cfg(not(target_os = "windows"))]
-    copy_files_and_run(tmp_dir, extract_path)?;
+    copy_files_and_run(archive_buffer, extract_path)?;
     // We are done!
     Ok(())
   }
@@ -514,25 +486,28 @@ impl Update {
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
-  // we delete our current AppImage (we'll create a new one later)
-  remove_file(&extract_path)?;
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
+  let tmp_dir = tempfile::Builder::new()
+    .prefix("tauri_current_app")
+    .tempdir()?;
 
-  // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir)?;
+  let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
-  for path in paths {
-    let found_path = path?.path();
-    // make sure it's our .AppImage
-    if found_path.extension() == Some(OsStr::new("AppImage")) {
-      // Simply overwrite our AppImage (we use the command)
-      // because it prevent failing of bytes stream
-      Command::new("mv")
-        .arg("-f")
-        .arg(&found_path)
-        .arg(&extract_path)
-        .status()?;
+  // create a backup of our current app image
+  Move::from_source(extract_path).to_dest(tmp_app_image)?;
 
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor =
+    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+
+  for file in extractor.files()? {
+    if file.extension() == Some(OsStr::new("AppImage")) {
+      // if something went wrong during the extraction, we should restore previous app
+      if let Err(err) = extractor.extract_file(extract_path, &file) {
+        Move::from_source(tmp_app_image).to_dest(extract_path)?;
+        return Err(Error::Extract(err.to_string()));
+      }
       // early finish we have everything we need here
       return Ok(());
     }
@@ -557,17 +532,31 @@ fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Resu
 // Update server can provide a custom EXE (installer) who can run any task.
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
-fn copy_files_and_run(
-  tmp_dir: tempfile::TempDir,
-  _extract_path: PathBuf,
+fn copy_files_and_run<R: Read + Seek>(
+  archive_buffer: R,
+  _extract_path: &Path,
   with_elevated_task: bool,
 ) -> Result {
-  use crate::api::file::Move;
+  // FIXME: We need to create a memory buffer with the MSI and then run it.
+  //        (instead of extracting the MSI to a temp path)
+  //
+  // The tricky part is the MSI need to be exposed and spawned so the memory allocation
+  // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
+  // is done, otherwise we have a huge memory leak.
+
+  let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
+
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor = Extract::from_cursor(archive_buffer, ArchiveFormat::Zip);
+
+  // extract the msi
+  extractor.extract_into(&tmp_dir)?;
 
   let paths = read_dir(&tmp_dir)?;
   // This consumes the TempDir without deleting directory on the filesystem,
   // meaning that the directory will no longer be automatically deleted.
-  let tmp_path = tmp_dir.into_path();
+
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
@@ -581,7 +570,7 @@ fn copy_files_and_run(
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       if with_elevated_task {
-        if let Some(bin_name) = std::env::current_exe()
+        if let Some(bin_name) = current_exe()
           .ok()
           .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
           .and_then(|s| s.into_string().ok())
@@ -598,7 +587,7 @@ fn copy_files_and_run(
           {
             if status.success() {
               // Rename the MSI to the match file name the Skip UAC task is expecting it to be
-              let temp_msi = tmp_path.with_file_name(bin_name).with_extension("msi");
+              let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
               Move::from_source(&found_path)
                 .to_dest(&temp_msi)
                 .expect("Unable to move update MSI");
@@ -635,17 +624,6 @@ fn copy_files_and_run(
   Ok(())
 }
 
-// Get the current app name in the path
-// Example; `/Applications/updater-example.app/Contents/MacOS/updater-example`
-// Should return; `updater-example.app`
-#[cfg(target_os = "macos")]
-fn macos_app_name_in_path(extract_path: &Path) -> String {
-  let components = extract_path.components();
-  let app_name = components.last().unwrap();
-  let app_name = app_name.as_os_str().to_str().unwrap();
-  app_name.to_string()
-}
-
 // MacOS
 // ### Expected structure:
 // ├── [AppName]_[version]_x64.app.tar.gz       # GZ generated by tauri-bundler
@@ -654,41 +632,44 @@ fn macos_app_name_in_path(extract_path: &Path) -> String {
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run(tmp_dir: tempfile::TempDir, extract_path: PathBuf) -> Result {
-  // In our tempdir we expect 1 directory (should be the <app>.app)
-  let paths = read_dir(&tmp_dir)?;
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
+  let mut extracted_files: Vec<PathBuf> = Vec::new();
 
-  // current app name in /Applications/<app>.app
-  let app_name = macos_app_name_in_path(&extract_path);
+  // extract the buffer to the tmp_dir
+  // we extract our signed archive into our final directory without any temp file
+  let mut extractor =
+    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+  // the first file in the tar.gz will always be
+  // <app_name>/Contents
+  let all_files = extractor.files()?;
+  let tmp_dir = tempfile::Builder::new()
+    .prefix("tauri_current_app")
+    .tempdir()?;
 
-  for path in paths {
-    let mut found_path = path?.path();
-    // make sure it's our .app
-    if found_path.extension() == Some(OsStr::new("app")) {
-      let found_app_name = macos_app_name_in_path(&found_path);
-      // make sure the app name in the archive matche the installed app name on path
-      if found_app_name != app_name {
-        // we need to replace the app name in the updater archive to match
-        // installed app name
-        let new_path = found_path.parent().unwrap().join(app_name);
-        rename(&found_path, &new_path)?;
+  // create backup of our current app
+  Move::from_source(extract_path).to_dest(tmp_dir.path())?;
 
-        found_path = new_path;
+  // extract all the files
+  for file in all_files {
+    // skip the first folder (should be the app name)
+    let collected_path: PathBuf = file.iter().skip(1).collect();
+    let extraction_path = extract_path.join(collected_path);
+
+    // if something went wrong during the extraction, we should restore previous app
+    if let Err(err) = extractor.extract_file(&extraction_path, &file) {
+      for file in extracted_files {
+        // delete all the files we extracted
+        if file.is_dir() {
+          std::fs::remove_dir(file)?;
+        } else {
+          std::fs::remove_file(file)?;
+        }
       }
-
-      let sandbox_app_path = tempfile::Builder::new()
-        .prefix("tauri_current_app_sandbox")
-        .tempdir()?;
-
-      // Replace the whole application to make sure the
-      // code signature is following
-      Move::from_source(&found_path)
-        .replace_using_temp(sandbox_app_path.path())
-        .to_dest(&extract_path)?;
-
-      // early finish we have everything we need here
-      return Ok(());
+      Move::from_source(tmp_dir.path()).to_dest(extract_path)?;
+      return Err(Error::Extract(err.to_string()));
     }
+
+    extracted_files.push(extraction_path);
   }
 
   Ok(())
@@ -717,7 +698,8 @@ pub fn get_updater_target() -> Option<String> {
 }
 
 /// Get the extract_path from the provided executable_path
-pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
+#[allow(unused_variables)]
+pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBuf {
   // Return the path of the current executable by default
   // Example C:\Program Files\My App\
   let extract_path = executable_path
@@ -747,40 +729,16 @@ pub fn extract_path_from_executable(executable_path: &Path) -> PathBuf {
   // We should use APPIMAGE exposed env variable
   // This is where our APPIMAGE should sit and should be replaced
   #[cfg(target_os = "linux")]
-  if let Some(app_image_path) = env::var_os("APPIMAGE") {
+  if let Some(app_image_path) = &env.appimage {
     return PathBuf::from(app_image_path);
   }
 
   extract_path
 }
 
-// Return the archive type to save on disk
-fn detect_archive_in_url(path: &str) -> String {
-  path
-    .split('/')
-    .next_back()
-    .unwrap_or(&default_archive_name_by_os())
-    .to_string()
-}
-
-// Fallback archive name by os
-// The main objective is to provide the right extension based on the target
-// if we cant extract the archive type in the url we'll fallback to this value
-fn default_archive_name_by_os() -> String {
-  #[cfg(target_os = "windows")]
-  {
-    "update.zip".into()
-  }
-
-  #[cfg(not(target_os = "windows"))]
-  {
-    "update.tar.gz".into()
-  }
-}
-
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
-  let decoded_string = &decode(base64_string.to_owned())?;
+  let decoded_string = &decode(base64_string)?;
   let result = from_utf8(decoded_string)?.to_string();
   Ok(result)
 }
@@ -788,29 +746,28 @@ fn base64_to_string(base64_string: &str) -> Result<String> {
 // Validate signature
 // need to be public because its been used
 // by our tests in the bundler
-pub fn verify_signature(
-  archive_path: &Path,
-  release_signature: String,
+//
+// NOTE: The buffer position is not reset.
+pub fn verify_signature<R>(
+  archive_reader: &mut R,
+  release_signature: &str,
   pub_key: &str,
-) -> Result<bool> {
+) -> Result<bool>
+where
+  R: Read,
+{
   // we need to convert the pub key
-  let pub_key_decoded = &base64_to_string(pub_key)?;
-  let public_key = PublicKey::decode(pub_key_decoded)?;
-  let signature_base64_decoded = base64_to_string(&release_signature)?;
-
+  let pub_key_decoded = base64_to_string(pub_key)?;
+  let public_key = PublicKey::decode(&pub_key_decoded)?;
+  let signature_base64_decoded = base64_to_string(release_signature)?;
   let signature = Signature::decode(&signature_base64_decoded)?;
 
-  // We need to open the file and extract the datas to make sure its not corrupted
-  let file_open = OpenOptions::new().read(true).open(&archive_path)?;
-
-  let mut file_buff: BufReader<File> = BufReader::new(file_open);
-
-  // read all bytes since EOF in the buffer
-  let mut data = vec![];
-  file_buff.read_to_end(&mut data)?;
+  // read all bytes until EOF in the buffer
+  let mut data = Vec::new();
+  archive_reader.read_to_end(&mut data)?;
 
   // Validate signature or bail out
-  public_key.verify(&data, &signature)?;
+  public_key.verify(&data, &signature, true)?;
   Ok(true)
 }
 
@@ -818,11 +775,7 @@ pub fn verify_signature(
 mod test {
   use super::*;
   #[cfg(target_os = "macos")]
-  use std::env::current_exe;
-  #[cfg(target_os = "macos")]
   use std::fs::File;
-  #[cfg(target_os = "macos")]
-  use std::path::Path;
 
   macro_rules! block {
     ($e:expr) => {
@@ -901,17 +854,6 @@ mod test {
     }"#.into()
   }
 
-  #[cfg(target_os = "macos")]
-  #[test]
-  fn test_app_name_in_path() {
-    let executable = extract_path_from_executable(Path::new(
-      "/Applications/updater-example.app/Contents/MacOS/updater-example",
-    ));
-    let app_name = macos_app_name_in_path(&executable);
-    assert!(executable.ends_with("updater-example.app"));
-    assert_eq!(app_name, "updater-example.app".to_string());
-  }
-
   #[test]
   fn simple_http_updater() {
     let _m = mockito::mock("GET", "/")
@@ -920,7 +862,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -939,7 +881,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -958,7 +900,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("0.0.0")
       .target("win64")
       .url(mockito::server_url())
@@ -984,7 +926,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("10.0.0")
       .url(mockito::server_url())
       .build());
@@ -1007,7 +949,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1034,7 +976,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("1.0.0")
       .url(format!(
         "{}/win64/{{{{current_version}}}}",
@@ -1060,7 +1002,7 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .current_version("10.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1082,7 +1024,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
       .current_version("0.0.1")
@@ -1102,7 +1044,7 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
@@ -1121,7 +1063,7 @@ mod test {
       .with_body(generate_sample_bad_json())
       .create();
 
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
@@ -1131,13 +1073,23 @@ mod test {
 
   // run complete process on mac only for now as we don't have
   // server (api) that we can use to test
-  #[cfg(target_os = "macos")]
   #[test]
+  #[cfg(target_os = "macos")]
   fn http_updater_complete_process() {
-    let good_archive_url = format!("{}/archive.tar.gz", mockito::server_url());
+    #[cfg(target_os = "macos")]
+    let archive_file = "archive.macos.tar.gz";
+    #[cfg(target_os = "linux")]
+    let archive_file = "archive.linux.tar.gz";
+    #[cfg(target_os = "windows")]
+    let archive_file = "archive.windows.zip";
 
-    let mut signature_file = File::open("./test/updater/fixture/archives/archive.tar.gz.sig")
-      .expect("Unable to open signature");
+    let good_archive_url = format!("{}/{}", mockito::server_url(), archive_file);
+
+    let mut signature_file = File::open(format!(
+      "./test/updater/fixture/archives/{}.sig",
+      archive_file
+    ))
+    .expect("Unable to open signature");
     let mut signature = String::new();
     signature_file
       .read_to_string(&mut signature)
@@ -1151,10 +1103,10 @@ mod test {
       .expect("Unable to read signature as string");
 
     // add sample file
-    let _m = mockito::mock("GET", "/archive.tar.gz")
+    let _m = mockito::mock("GET", format!("/{}", archive_file).as_str())
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file("./test/updater/fixture/archives/archive.tar.gz")
+      .with_body_from_file(format!("./test/updater/fixture/archives/{}", archive_file))
       .create();
 
     // sample mock for update file
@@ -1184,15 +1136,27 @@ mod test {
     let tmp_dir_unwrap = tmp_dir.expect("Can't find tmp_dir");
     let tmp_dir_path = tmp_dir_unwrap.path();
 
+    #[cfg(target_os = "linux")]
+    let my_executable = &tmp_dir_path.join("updater-example_0.1.0_amd64.AppImage");
+    #[cfg(target_os = "macos")]
+    let my_executable = &tmp_dir_path.join("my_app");
+    #[cfg(target_os = "windows")]
+    let my_executable = &tmp_dir_path.join("my_app.exe");
+
     // configure the updater
-    let check_update = block!(builder()
+    let check_update = block!(builder(Default::default())
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
-      .executable_path(&tmp_dir_path.join("my_app.exe"))
+      .executable_path(my_executable)
       // make sure we force an update
       .current_version("1.0.0")
       .build());
+
+    #[cfg(target_os = "linux")]
+    {
+      env::set_var("APPIMAGE", my_executable);
+    }
 
     // make sure the process worked
     assert!(check_update.is_ok());
@@ -1206,13 +1170,19 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = block!(updater.download_and_install(Some(pubkey)));
+    let install_process = block!(updater.download_and_install(pubkey));
     assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)
     // as we can't extract in /Applications directly
+    #[cfg(target_os = "macos")]
     let bin_file = tmp_dir_path.join("Contents").join("MacOS").join("app");
-    let bin_file_exist = Path::new(&bin_file).exists();
-    assert!(bin_file_exist);
+    #[cfg(target_os = "linux")]
+    // linux should extract at same place as the executable path
+    let bin_file = my_executable;
+    #[cfg(target_os = "windows")]
+    let bin_file = tmp_dir_path.join("with").join("long").join("path.json");
+
+    assert!(bin_file.exists());
   }
 }

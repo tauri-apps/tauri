@@ -8,7 +8,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/js-lint.yml'
-      - 'tooling/cli.js/**'
+      - 'tooling/cli/node/**'
       - 'tooling/api/**'
       - 'tooling/create-tauri-app/**'
 
@@ -17,17 +17,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - uses: actions/setup-node@v2
         with:
           node-version: '12'
+          cache: yarn
+          cache-dependency-path: tooling/*/yarn.lock
       - name: install cli.js deps via yarn
-        working-directory: ./tooling/cli.js/
+        working-directory: ./tooling/cli/node/
         run: yarn
-      - name: run cli.js lint
-        working-directory: ./tooling/cli.js/
-        run: yarn lint
+      # nothing to lint
+      #- name: run cli.js lint
+      #  working-directory: ./tooling/cli/node/
+      #  run: yarn lint
       - name: run cli.js format
-        working-directory: ./tooling/cli.js/
+        working-directory: ./tooling/cli/node/
         run: yarn format:check
 
       - name: install api deps via yarn

@@ -12,7 +12,7 @@ document.querySelector('#go').addEventListener('click', () => {
 })
 
 document.querySelector('#open-window').addEventListener('click', () => {
-  new WebviewWindow(Math.random().toString(), {
+  new WebviewWindow(Math.random().toString().replace('.', ''), {
     url: routeSelect.value
   })
 })

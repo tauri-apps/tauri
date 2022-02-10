@@ -9,7 +9,10 @@ use crate::runtime::{
 
 use tauri_macros::default_runtime;
 
-use std::collections::HashMap;
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 /// The window menu event.
 #[derive(Debug, Clone)]
@@ -28,7 +31,7 @@ impl MenuEvent {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct MenuHandle<R: Runtime> {
-  pub(crate) ids: HashMap<MenuHash, MenuId>,
+  pub(crate) ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   pub(crate) dispatcher: R::Dispatcher,
 }
 
@@ -61,7 +64,7 @@ impl<R: Runtime> Clone for MenuItemHandle<R> {
 impl<R: Runtime> MenuHandle<R> {
   /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: MenuIdRef<'_>) -> MenuItemHandle<R> {
-    for (raw, item_id) in self.ids.iter() {
+    for (raw, item_id) in self.ids.lock().unwrap().iter() {
       if item_id == id {
         return MenuItemHandle {
           id: *raw,
@@ -83,25 +86,11 @@ impl<R: Runtime> MenuHandle<R> {
   }
 
   /// Whether the menu is visible or not.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.dispatcher.is_menu_visible().map_err(Into::into)
   }
 
   /// Toggles the menu visibility.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the [`setup`](crate::Builder#method.setup) closure.
-  /// - Panics when called on the main thread, usually on the [`run`](crate::App#method.run) closure.
-  ///
-  /// You can spawn a task to use the API using [`crate::async_runtime::spawn`] or [`std::thread::spawn`] to prevent the panic.
   pub fn toggle(&self) -> crate::Result<()> {
     if self.is_visible()? {
       self.hide()

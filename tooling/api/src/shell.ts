@@ -56,8 +56,7 @@ interface ChildProcess {
  * Spawns a process.
  *
  * @ignore
- * @param program The name of the program to execute e.g. 'mkdir' or 'node'.
- * @param sidecar Whether the program is a sidecar or a system program.
+ * @param program The name of the scoped command.
  * @param onEvent Event handler.
  * @param args Program arguments.
  * @param options Configuration for the process spawn.
@@ -66,7 +65,7 @@ interface ChildProcess {
 async function execute(
   onEvent: (event: CommandEvent) => void,
   program: string,
-  args?: string | string[],
+  args: string | string[] = [],
   options?: InternalSpawnOptions
 ): Promise<number> {
   if (typeof args === 'object') {
@@ -78,14 +77,14 @@ async function execute(
     message: {
       cmd: 'execute',
       program,
-      args: typeof args === 'string' ? [args] : args,
+      args,
       options,
       onEventFn: transformCallback(onEvent)
     }
   })
 }
 
-class EventEmitter<E> {
+class EventEmitter<E extends string> {
   /** @ignore  */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   private eventListeners: {
@@ -123,7 +122,7 @@ class EventEmitter<E> {
    * @return The `this` instance for chained calls.
    */
   on(event: E, handler: (arg: any) => void): EventEmitter<E> {
-    this.addEventListener(event as any, handler)
+    this.addEventListener(event, handler)
     return this
   }
 }
@@ -150,13 +149,14 @@ class Child {
    *
    * @return A promise indicating the success or failure of the operation.
    */
-  async write(data: string | number[]): Promise<void> {
+  async write(data: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Shell',
       message: {
         cmd: 'stdinWrite',
         pid: this.pid,
-        buffer: data
+        // correctly serialize Uint8Arrays
+        buffer: typeof data === 'string' ? data : Array.from(data)
       }
     })
   }
@@ -294,10 +294,10 @@ class Command extends EventEmitter<'close' | 'error'> {
       this.on('error', reject)
       const stdout: string[] = []
       const stderr: string[] = []
-      this.stdout.on('data', (line) => {
+      this.stdout.on('data', (line: string) => {
         stdout.push(line)
       })
-      this.stderr.on('data', (line) => {
+      this.stderr.on('data', (line: string) => {
         stderr.push(line)
       })
       this.on('close', (payload: TerminatedPayload) => {
@@ -341,6 +341,10 @@ type CommandEvent =
 /**
  * Opens a path or URL with the system's default app,
  * or the one specified with `openWith`.
+ *
+ * The `openWith` value must be one of `firefox`, `google chrome`, `chromium` `safari`,
+ * `open`, `start`, `xdg-open`, `gio`, gnome-open`, `kde-open` or `wslview`.
+ *
  * @example
  * ```typescript
  * // opens the given URL on the default browser:

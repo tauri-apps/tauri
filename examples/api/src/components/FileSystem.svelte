@@ -3,6 +3,7 @@
   import { convertFileSrc } from "@tauri-apps/api/tauri";
 
   export let onMessage;
+  export let insecureRenderHtml;
 
   let pathToRead = "";
   let img;
@@ -42,12 +43,12 @@
           if (pathToRead.includes(".png") || pathToRead.includes(".jpg")) {
             arrayBufferToBase64(new Uint8Array(response), function (base64) {
               const src = "data:image/png;base64," + base64;
-              onMessage('<img src="' + src + '"></img>');
+              insecureRenderHtml('<img src="' + src + '"></img>');
             });
           } else {
             const value = String.fromCharCode.apply(null, response);
-            onMessage(
-              '<textarea id="file-response" style="height: 400px"></textarea><button id="file-save">Save</button>'
+            insecureRenderHtml(
+              '<textarea id="file-response"></textarea><button id="file-save">Save</button>'
             );
             setTimeout(() => {
               const fileInput = document.getElementById("file-response");

@@ -5,8 +5,10 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, PageLoadPayload, Window,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, OnPageLoad,
+  PageLoadPayload, RunEvent, Window,
 };
+use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 
@@ -43,9 +45,209 @@ pub trait Plugin<R: Runtime>: Send {
   #[allow(unused_variables)]
   fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {}
 
+  /// Callback invoked when the event loop receives a new event.
+  #[allow(unused_variables)]
+  fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {}
+
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
   fn extend_api(&mut self, invoke: Invoke<R>) {}
+}
+
+type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
+type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send + Sync;
+type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
+type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
+
+/// Builds a [`TauriPlugin`].
+pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
+  name: &'static str,
+  invoke_handler: Box<InvokeHandler<R>>,
+  setup: Box<SetupHook<R>>,
+  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
+  js_init_script: Option<String>,
+  on_page_load: Box<OnPageLoad<R>>,
+  on_webview_ready: Box<OnWebviewReady<R>>,
+  on_event: Box<OnEvent<R>>,
+}
+
+impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
+  /// Creates a new Plugin builder.
+  pub fn new(name: &'static str) -> Self {
+    Self {
+      name,
+      setup: Box::new(|_| Ok(())),
+      setup_with_config: None,
+      js_init_script: None,
+      invoke_handler: Box::new(|_| ()),
+      on_page_load: Box::new(|_, _| ()),
+      on_webview_ready: Box::new(|_| ()),
+      on_event: Box::new(|_, _| ()),
+    }
+  }
+
+  /// Defines the JS message handler callback.
+  #[must_use]
+  pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
+  where
+    F: Fn(Invoke<R>) + Send + Sync + 'static,
+  {
+    self.invoke_handler = Box::new(invoke_handler);
+    self
+  }
+
+  /// The JS script to evaluate on webview initialization.
+  /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
+  /// so global variables must be assigned to `window` instead of implicity declared.
+  ///
+  /// It's guaranteed that this script is executed before the page is loaded.
+  #[must_use]
+  pub fn js_init_script(mut self, js_init_script: String) -> Self {
+    self.js_init_script = Some(js_init_script);
+    self
+  }
+
+  /// Define a closure that runs when the app is built.
+  ///
+  /// This is a convenience function around [setup_with_config], without the need to specify a configuration object.
+  ///
+  /// The closure gets called before the [setup_with_config] closure.
+  ///
+  /// [setup_with_config]: struct.Builder.html#method.setup_with_config
+  #[must_use]
+  pub fn setup<F>(mut self, setup: F) -> Self
+  where
+    F: Fn(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+  {
+    self.setup = Box::new(setup);
+    self
+  }
+
+  /// Define a closure that runs when the app is built, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  ///
+  /// If your plugin is not pulling a configuration object from `tauri.conf.json`, use [setup].
+  ///
+  /// The closure gets called after the [setup] closure.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// #[derive(serde::Deserialize)]
+  /// struct Config {
+  ///   api_url: String,
+  /// }
+  ///
+  /// fn get_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
+  ///   tauri::plugin::Builder::<R, Config>::new("api")
+  ///     .setup_with_config(|_app, config| {
+  ///       println!("config: {:?}", config.api_url);
+  ///       Ok(())
+  ///     })
+  ///     .build()
+  /// }
+  ///
+  /// tauri::Builder::default().plugin(get_plugin());
+  /// ```
+  ///
+  /// [setup]: struct.Builder.html#method.setup
+  #[must_use]
+  pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
+  where
+    F: Fn(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+  {
+    self.setup_with_config.replace(Box::new(setup_with_config));
+    self
+  }
+
+  /// Callback invoked when the webview performs a navigation to a page.
+  #[must_use]
+  pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
+  where
+    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+  {
+    self.on_page_load = Box::new(on_page_load);
+    self
+  }
+
+  /// Callback invoked when the webview is created.
+  #[must_use]
+  pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
+  where
+    F: Fn(Window<R>) + Send + Sync + 'static,
+  {
+    self.on_webview_ready = Box::new(on_webview_ready);
+    self
+  }
+
+  /// Callback invoked when the event loop receives a new event.
+  #[must_use]
+  pub fn on_event<F>(mut self, on_event: F) -> Self
+  where
+    F: Fn(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
+  {
+    self.on_event = Box::new(on_event);
+    self
+  }
+
+  /// Builds the [TauriPlugin].
+  pub fn build(self) -> TauriPlugin<R, C> {
+    TauriPlugin {
+      name: self.name,
+      invoke_handler: self.invoke_handler,
+      setup: self.setup,
+      setup_with_config: self.setup_with_config,
+      js_init_script: self.js_init_script,
+      on_page_load: self.on_page_load,
+      on_webview_ready: self.on_webview_ready,
+      on_event: self.on_event,
+    }
+  }
+}
+
+/// Plugin struct that is returned by the [`Builder`]. Should only be constructed through the builder.
+pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
+  name: &'static str,
+  invoke_handler: Box<InvokeHandler<R>>,
+  setup: Box<SetupHook<R>>,
+  setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
+  js_init_script: Option<String>,
+  on_page_load: Box<OnPageLoad<R>>,
+  on_webview_ready: Box<OnWebviewReady<R>>,
+  on_event: Box<OnEvent<R>>,
+}
+
+impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
+  fn name(&self) -> &'static str {
+    self.name
+  }
+
+  fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+    (self.setup)(app)?;
+    if let Some(s) = &self.setup_with_config {
+      (s)(app, serde_json::from_value(config)?)?;
+    }
+    Ok(())
+  }
+
+  fn initialization_script(&self) -> Option<String> {
+    self.js_init_script.clone()
+  }
+
+  fn created(&mut self, window: Window<R>) {
+    (self.on_webview_ready)(window)
+  }
+
+  fn on_page_load(&mut self, window: Window<R>, payload: PageLoadPayload) {
+    (self.on_page_load)(window, payload)
+  }
+
+  fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
+    (self.on_event)(app, event)
+  }
+
+  fn extend_api(&mut self, invoke: Invoke<R>) {
+    (self.invoke_handler)(invoke)
+  }
 }
 
 /// Plugin collection type.
@@ -119,6 +321,14 @@ impl<R: Runtime> PluginStore<R> {
       .store
       .values_mut()
       .for_each(|plugin| plugin.on_page_load(window.clone(), payload.clone()))
+  }
+
+  /// Runs the on_event hook for all plugins in the store.
+  pub(crate) fn on_event(&mut self, app: &AppHandle<R>, event: &RunEvent) {
+    self
+      .store
+      .values_mut()
+      .for_each(|plugin| plugin.on_event(app, event))
   }
 
   pub(crate) fn extend_api(&mut self, mut invoke: Invoke<R>) {

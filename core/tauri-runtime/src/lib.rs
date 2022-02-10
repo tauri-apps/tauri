@@ -11,7 +11,7 @@ use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
 use uuid::Uuid;
 
 #[cfg(windows)]
-use winapi::shared::windef::HWND;
+use windows::Win32::Foundation::HWND;
 
 pub mod http;
 /// Create window and system tray menus.
@@ -37,24 +37,12 @@ use crate::http::{
 
 #[cfg(feature = "system-tray")]
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
-}
-
-#[cfg(feature = "system-tray")]
-impl Default for SystemTray {
-  fn default() -> Self {
-    Self {
-      icon: None,
-      menu: None,
-      #[cfg(target_os = "macos")]
-      icon_as_template: false,
-    }
-  }
 }
 
 #[cfg(feature = "system-tray")]
@@ -69,6 +57,7 @@ impl SystemTray {
   }
 
   /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  #[must_use]
   pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
     self
@@ -76,12 +65,14 @@ impl SystemTray {
 
   /// Sets the tray icon as template.
   #[cfg(target_os = "macos")]
+  #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.icon_as_template = is_template;
     self
   }
 
   /// Sets the menu to show when the system tray is right clicked.
+  #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
@@ -114,6 +105,9 @@ pub enum Error {
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
+  /// Failed to receive message from webview.
+  #[error("failed to receive message from webview")]
+  FailedToReceiveMessage,
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
@@ -267,6 +261,9 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
     pending: PendingWindow<Self::Runtime>,
   ) -> crate::Result<DetachedWindow<Self::Runtime>>;
 
+  /// Run a task on the main thread.
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> crate::Result<()>;
@@ -275,23 +272,9 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
 /// A global shortcut manager.
 pub trait GlobalShortcutManager: Debug {
   /// Whether the application has registered the given `accelerator`.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
 
   /// Register a global shortcut of `accelerator`.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn register<F: Fn() + Send + 'static>(
     &mut self,
     accelerator: &str,
@@ -299,45 +282,17 @@ pub trait GlobalShortcutManager: Debug {
   ) -> crate::Result<()>;
 
   /// Unregister all accelerators registered by the manager instance.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister_all(&mut self) -> crate::Result<()>;
 
   /// Unregister the provided `accelerator`.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
 }
 
 /// Clipboard manager.
 pub trait ClipboardManager: Debug {
   /// Writes the text into the clipboard as plain text.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
-  ///
-  /// # Panics
-  ///
-  /// - Panics if the event loop is not running yet, usually when called on the `tauri::Builder#setup` closure.
-  /// - Panics when called on the main thread, usually on the `tauri::App#run`closure.
-  ///
-  /// You can spawn a task to use the API using `tauri::async_runtime::spawn` or [`std::thread::spawn`] to prevent the panic.
   fn read_text(&self) -> Result<Option<String>>;
 }
 
@@ -355,8 +310,13 @@ pub trait Runtime: Sized + 'static {
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle + Clone + Send;
 
-  /// Creates a new webview runtime.
+  /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
+
+  /// Creates a new webview runtime on any thread.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  fn new_any_thread() -> crate::Result<Self>;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
@@ -386,11 +346,10 @@ pub trait Runtime: Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
   fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: Fn(RunEvent) + 'static>(self, callback: F);
+  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
@@ -409,6 +368,9 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
 
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self);
 
   // GETTERS
 

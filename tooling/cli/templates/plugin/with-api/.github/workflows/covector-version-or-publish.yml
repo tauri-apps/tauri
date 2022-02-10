@@ -1,0 +1,39 @@
+{{{{raw}}}}
+name: covector version or publish
+on:
+  push:
+    branches:
+    - dev
+
+jobs:
+  covector:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 12
+          registry-url: 'https://registry.npmjs.org'
+      - name: git config
+        run: |
+          git config --global user.name "${{ github.event.pusher.name }}"
+          git config --global user.email "${{ github.event.pusher.email }}"
+      - name: covector version-or-publish
+        uses: jbolda/covector/packages/action@covector-v0
+        id: covector
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          command: 'version-or-publish'
+          createRelease: true
+      - name: create pull request
+        id: cpr
+        uses: tauri-apps/create-pull-request@v2.8.0
+        with:
+          title: "Publish New Versions"
+          labels: "version updates"
+          branch: "release"
+          body: ${{ steps.covector.outputs.change }}
+{{{{/raw}}}}

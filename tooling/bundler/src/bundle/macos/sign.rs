@@ -1,3 +1,7 @@
+// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::{
   fs::File,
   io::prelude::*,
@@ -254,7 +258,7 @@ pub fn notarize(
     sign(zip_path.clone(), identity, &settings, false)?;
   };
 
-  let notarize_args = vec![
+  let mut notarize_args = vec![
     "altool",
     "--notarize-app",
     "-f",
@@ -264,6 +268,12 @@ pub fn notarize(
     "--primary-bundle-id",
     identifier,
   ];
+
+  if let Some(provider_short_name) = &settings.macos().provider_short_name {
+    notarize_args.push("--asc-provider");
+    notarize_args.push(provider_short_name);
+  }
+
   common::print_info("notarizing app")?;
   let output = Command::new("xcrun")
     .args(notarize_args)

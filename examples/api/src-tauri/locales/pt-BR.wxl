@@ -1,0 +1,6 @@
+<WixLocalization Culture="pt-BR" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <String Id="LaunchApp">Executar Tauri API</String>
+    <String Id="DowngradeErrorMessage">Uma versão mais recente de Tauri API está instalada.</String>
+    <String Id="PathEnvVarFeature">Adiciona o caminho do executável de Tauri API para a variável de ambiente PATH. Isso permite Tauri API ser executado pela linha de comando.</String>
+    <String Id="InstallAppFeature">Instala Tauri API.</String>
+</WixLocalization>

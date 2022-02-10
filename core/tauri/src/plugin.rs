@@ -105,7 +105,13 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// Define a closure that can setup plugin specific state.
+  /// Define a closure that runs when the app is built.
+  ///
+  /// This is a convenience function around [setup_with_config], without the need to specify a configuration object.
+  ///
+  /// The closure gets called before the [setup_with_config] closure.
+  ///
+  /// [setup_with_config]: struct.Builder.html#method.setup_with_config
   pub fn setup<F>(mut self, setup: F) -> Self
   where
     F: Fn(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
@@ -114,7 +120,33 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// Define a closure that can setup the plugin accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  /// Define a closure that runs when the app is built, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  ///
+  /// If your plugin is not pulling a configuration object from `tauri.conf.json`, use [setup].
+  ///
+  /// The closure gets called after the [setup] closure.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// #[derive(serde::Deserialize)]
+  /// struct Config {
+  ///   api_url: String,
+  /// }
+  ///
+  /// fn get_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
+  ///   tauri::plugin::Builder::<R, Config>::new("api")
+  ///     .setup_with_config(|_app, config| {
+  ///       println!("config: {:?}", config.api_url);
+  ///       Ok(())
+  ///     })
+  ///     .build()
+  /// }
+  ///
+  /// tauri::Builder::default().plugin(get_plugin());
+  /// ```
+  ///
+  /// [setup]: struct.Builder.html#method.setup
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
     F: Fn(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
@@ -165,7 +197,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 }
 
-/// Plugin struct that is returned by the [`PluginBuilder`]. Should only be constructed through the builder.
+/// Plugin struct that is returned by the [`Builder`]. Should only be constructed through the builder.
 pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,

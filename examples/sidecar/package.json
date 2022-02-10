@@ -8,7 +8,7 @@
     ]
   },
   "scripts": {
-    "tauri": "node ../../tooling/cli.js/bin/tauri",
+    "tauri": "node ../../tooling/cli.rs/node/tauri.js",
     "package": "pkg package.json --output src-tauri/binaries/app && node scripts/move-binary.js"
   },
   "devDependencies": {

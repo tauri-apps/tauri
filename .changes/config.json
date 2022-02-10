@@ -255,16 +255,13 @@
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
-      "path": "./tooling/cli.js",
+      "path": "./tooling/cli.rs/node",
       "manager": "javascript",
       "dependencies": ["cli.rs"],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-      "assets": [
-        {
-          "path": "./tooling/cli.js/tauri-apps-cli-${ pkgFile.version }.tgz",
-          "name": "cli.js-${ pkgFile.version }.tgz"
-        }
-      ]
+      "prepublish": [],
+      "publish": [],
+      "postpublish": []
     },
     "cli.rs": {
       "path": "./tooling/cli.rs",

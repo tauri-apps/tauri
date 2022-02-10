@@ -266,11 +266,11 @@
     </div>
   </div>
 </div>
-<form style="margin-top: 24px" on:submit|preventDefault={setTitle_}>
+<form on:submit|preventDefault={setTitle_}>
   <input id="title" bind:value={windowTitle} />
   <button class="button" type="submit">Set title</button>
 </form>
-<form style="margin-top: 24px" on:submit|preventDefault={openUrl}>
+<form on:submit|preventDefault={openUrl}>
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
@@ -278,6 +278,10 @@
 <button class="button" on:click={createWindow}>New window</button>
 
 <style>
+  form {
+    margin-top: 24px;
+  }
+
   .flex-row {
     flex-direction: row;
   }

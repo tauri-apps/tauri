@@ -930,19 +930,14 @@ pub enum ShellAllowedArg {
   /// A variable that is set while calling the command from the webview API.
   ///
   Var {
-    /// The name of the variable to be passed in.
+    /// [regex] validator to require passed values to conform to an expected input.
     ///
-    /// This will try to match the key of the passed arguments object from the webview API.
-    name: String,
-
-    /// Optional [regex] validator to require passed values to conform to an expected input.
-    ///
-    /// This will require the argument value passed to this variable to match the `validate` regex
+    /// This will require the argument value passed to this variable to match the `validator` regex
     /// before it will be executed.
     ///
     /// [regex]: https://docs.rs/regex/latest/regex/#syntax
     #[serde(default)]
-    validate: Option<String>,
+    validator: String,
   },
 }
 
@@ -2427,10 +2422,9 @@ mod build {
           let fixed = str_lit(fixed);
           quote!(#prefix::Fixed(#fixed))
         }
-        Self::Var { name, validate } => {
-          let name = str_lit(name);
-          let validate = opt_str_lit(validate.as_ref());
-          quote!(#prefix::Var { name: #name, validate: #validate })
+        Self::Var { validator } => {
+          let validator = str_lit(validator);
+          quote!(#prefix::Var { validator: #validator })
         }
       })
     }

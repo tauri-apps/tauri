@@ -2,7 +2,7 @@
   "name": "isolation",
   "license": "Apache-2.0 OR MIT",
   "scripts": {
-    "tauri": "node ../../tooling/cli.js/bin/tauri"
+    "tauri": "node ../../tooling/cli.rs/node/tauri.js"
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist"

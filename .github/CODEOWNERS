@@ -19,6 +19,6 @@
 
 /tooling/cli.rs/ @tauri-apps/core
 
-/tooling/cli.js/ @tauri-apps/js-cli
+/tooling/cli.rs/node/ @tauri-apps/js-cli
 
 /core/** @tauri-apps/core

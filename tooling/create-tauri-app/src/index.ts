@@ -324,10 +324,10 @@ You may find the requirements here: ${cyan(setupLink)}
       return final
     }
   }, [])
-
-  const tauriCLIVersion = !argv.dev
-    ? 'latest'
-    : `file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+  // TODO: const tauriCLIVersion = !argv.dev ?
+  // 'latest'
+  // :`file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
+  const tauriCLIVersion = 'latest'
   const apiVersion = !argv.dev
     ? 'latest'
     : `file:${relative(appDirectory, join(__dirname, '../../api/dist'))}`

@@ -1329,21 +1329,11 @@
         {
           "description": "A variable that is set while calling the command from the webview API.",
           "type": "object",
-          "required": [
-            "name"
-          ],
           "properties": {
-            "name": {
-              "description": "The name of the variable to be passed in.\n\nThis will try to match the key of the passed arguments object from the webview API.",
+            "validator": {
+              "description": "[regex] validator to require passed values to conform to an expected input.\n\nThis will require the argument value passed to this variable to match the `validator` regex before it will be executed.\n\n[regex]: https://docs.rs/regex/latest/regex/#syntax",
+              "default": "",
               "type": "string"
-            },
-            "validate": {
-              "description": "Optional [regex] validator to require passed values to conform to an expected input.\n\nThis will require the argument value passed to this variable to match the `validate` regex before it will be executed.\n\n[regex]: https://docs.rs/regex/latest/regex/#syntax",
-              "default": null,
-              "type": [
-                "string",
-                "null"
-              ]
             }
           },
           "additionalProperties": false

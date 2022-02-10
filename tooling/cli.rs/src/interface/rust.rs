@@ -15,11 +15,14 @@ use anyhow::Context;
 use heck::ToKebabCase;
 use serde::Deserialize;
 
-use crate::helpers::{
-  app_paths::tauri_dir,
-  config::{wix_settings, Config},
-  manifest::Manifest,
-  Logger,
+use crate::{
+  helpers::{
+    app_paths::tauri_dir,
+    config::{wix_settings, Config},
+    manifest::Manifest,
+    Logger,
+  },
+  CommandExt,
 };
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
@@ -119,6 +122,8 @@ pub fn build_project(
   if !debug {
     command.arg("--release");
   }
+
+  command.pipe()?;
 
   let status = command
     .status()

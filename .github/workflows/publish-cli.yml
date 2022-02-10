@@ -247,6 +247,10 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
       - name: Test bindings
         run: yarn test
   test-linux-x64-musl-binding:
@@ -280,8 +284,17 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: Test bindings
-        run: docker run --rm -v $(pwd):/build -w /build node:${{ matrix.node }}-alpine sh -c "yarn test"
+      - name: Setup and run tests
+        uses: addnab/docker-run-action@v3
+        with:
+          image: node:${{ matrix.node }}-alpine
+          options: '-v ${{ github.workspace }}:/build -w /build'
+          run: |
+            set -e
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            sh -c "cd tooling/cli.rs/node && yarn test"
+            ls -la
   test-linux-aarch64-gnu-binding:
     name: Test bindings on aarch64-unknown-linux-gnu - node@${{ matrix.node }}
     needs:
@@ -315,6 +328,8 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
             sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   test-linux-aarch64-musl-binding:
@@ -344,6 +359,7 @@ jobs:
           run: |
             set -e
             apk add nodejs npm yarn
+            apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
             sh -c "cd tooling/cli.rs/node && yarn test"
   test-linux-arm-gnueabihf-binding:
     name: Test bindings on armv7-unknown-linux-gnueabihf - node@${{ matrix.node }}
@@ -378,6 +394,8 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
+            sudo apt-get update
+            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
             sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   publish:

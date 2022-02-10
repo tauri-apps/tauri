@@ -255,8 +255,7 @@
       "dependencies": [
         "tauri-codegen",
         "tauri-utils"
-      ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      ]
     },
     "tauri": {
       "path": "./core/tauri",
@@ -266,8 +265,7 @@
         "tauri-utils",
         "tauri-runtime",
         "tauri-runtime-wry"
-      ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      ]
     },
     "cli.js": {
       "path": "./tooling/cli/node",
@@ -275,7 +273,6 @@
       "dependencies": [
         "cli.rs"
       ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "prepublish": [],
       "publish": [],
       "postpublish": []

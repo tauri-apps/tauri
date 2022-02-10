@@ -660,9 +660,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "683d6b536309245c849479fba3da410962a43ed8e51c26b729208ec0ac2798d0"
+checksum = "a4600d695eb3f6ce1cd44e6e291adceb2cc3ab12f20a33777ecd0bf6eba34e06"
 dependencies = [
  "generic-array",
 ]
@@ -835,13 +835,12 @@ dependencies = [
 
 [[package]]
 name = "digest"
-version = "0.10.1"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b697d66081d42af4fba142d56918a3cb21dc8eb63372c6b85d14f44fb9c5979b"
+checksum = "8cb780dce4f9a8f5c087362b3a4595936b2019e7c8b30f2c3e9a7e94e6ae9837"
 dependencies = [
  "block-buffer",
  "crypto-common",
- "generic-array",
  "subtle",
 ]
 
@@ -3240,9 +3239,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53d2bba60298cbc0ff0651fe5a0bdfb73438b91231f700dcc8d539548237cae7"
+checksum = "402f170c4da28cc3108d854c7567d6904c82fc0e30e5b69f2a6b3e48f8a4f705"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3305,7 +3304,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-beta.8"
+version = "1.0.0-rc.0"
 dependencies = [
  "attohttpc",
  "base64",
@@ -3356,7 +3355,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-beta.4"
+version = "1.0.0-rc.0"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3368,7 +3367,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.0.0-beta.4"
+version = "1.0.0-rc.0"
 dependencies = [
  "base64",
  "blake3",
@@ -3387,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.0.0-beta.5"
+version = "1.0.0-rc.0"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -3399,7 +3398,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "gtk",
  "http",
@@ -3416,7 +3415,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "gtk",
  "ico",
@@ -3432,7 +3431,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.0.0-beta.3"
+version = "1.0.0-rc.0"
 dependencies = [
  "aes-gcm",
  "ctor",

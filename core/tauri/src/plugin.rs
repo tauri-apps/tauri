@@ -87,6 +87,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Defines the JS message handler callback.
+  #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
     F: Fn(Invoke<R>) + Send + Sync + 'static,
@@ -100,6 +101,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
+  #[must_use]
   pub fn js_init_script(mut self, js_init_script: String) -> Self {
     self.js_init_script = Some(js_init_script);
     self
@@ -112,6 +114,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// The closure gets called before the [setup_with_config] closure.
   ///
   /// [setup_with_config]: struct.Builder.html#method.setup_with_config
+  #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
     F: Fn(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
@@ -147,6 +150,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// ```
   ///
   /// [setup]: struct.Builder.html#method.setup
+  #[must_use]
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
     F: Fn(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
@@ -156,6 +160,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview performs a navigation to a page.
+  #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
     F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
@@ -165,6 +170,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview is created.
+  #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
     F: Fn(Window<R>) + Send + Sync + 'static,
@@ -174,6 +180,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the event loop receives a new event.
+  #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where
     F: Fn(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,

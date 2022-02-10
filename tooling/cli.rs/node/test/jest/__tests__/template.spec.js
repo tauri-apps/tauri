@@ -35,7 +35,7 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
-    cli.run(['build'])
+    cli.run(['build', '--verbose'])
     process.chdir(cwd)
   })
 })

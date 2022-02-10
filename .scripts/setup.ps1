@@ -21,7 +21,7 @@ $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
 $result = $host.ui.PromptForChoice("Node.js CLI", "Do you want to install the Node.js CLI?", $options, 1)
 switch ($result) {
   0{
-    cd tooling\cli/node
+    cd tooling\cli\node
     yarn; yarn build; yarn link
     cd ..\..
     echo "Tauri Node.js CLI installed. use `yarn link @tauri-apps/cli` and run it with '$ yarn tauri [COMMAND]'."

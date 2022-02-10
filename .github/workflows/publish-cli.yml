@@ -309,10 +309,26 @@ jobs:
           - '14'
           - '16'
         image:
-          - .github/docker/aarch64.Dockerfile
-          - .github/docker/armhf.Dockerfile
+          - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
+          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
     runs-on: ubuntu-latest
     steps:
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@v1.0
+        with:
+          swap-size-gb: 10
+      - run: |
+          # Workaround for https://github.com/rust-lang/cargo/issues/8719
+          sudo mkdir -p /var/lib/docker
+          sudo mount -t tmpfs -o size=10G none /var/lib/docker
+          sudo systemctl restart docker
+        working-directory: ${{ github.workspace }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
       - uses: actions/checkout@v2
@@ -331,17 +347,9 @@ jobs:
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: 'tooling/cli.rs/node/'
-      - name: Build docker image
-        uses: docker/build-push-action@v2
-        with:
-          file: ${{ matrix.image }}
-          push: false
-          tags: nodejs-rust:latest
-          build-args: |
-            NODE_VERSION=${{ matrix.node }}
       - uses: addnab/docker-run-action@v3
         with:
-          image: nodejs-rust:latest
+          image: ${{ matrix.image }}
           options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
           shell: bash
           run: |

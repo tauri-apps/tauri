@@ -6,12 +6,11 @@ use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   command_env,
   config::{get as get_config, AppUrl, WindowUrl},
-  execute_with_output,
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
   Logger,
 };
-use crate::Result;
+use crate::{CommandExt, Result};
 use anyhow::Context;
 use clap::Parser;
 #[cfg(target_os = "linux")]
@@ -73,24 +72,31 @@ pub fn command(options: Options) -> Result<()> {
     if !before_build.is_empty() {
       logger.log(format!("Running `{}`", before_build));
       #[cfg(target_os = "windows")]
-      execute_with_output(
-        Command::new("cmd")
-          .arg("/S")
-          .arg("/C")
-          .arg(before_build)
-          .current_dir(app_dir())
-          .envs(command_env(options.debug)),
-      )
-      .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
+      let status = Command::new("cmd")
+        .arg("/S")
+        .arg("/C")
+        .arg(before_build)
+        .current_dir(app_dir())
+        .envs(command_env(options.debug))
+        .pipe()?
+        .status()
+        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
-      execute_with_output(
-        Command::new("sh")
-          .arg("-c")
-          .arg(before_build)
-          .current_dir(app_dir())
-          .envs(command_env(options.debug)),
-      )
-      .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
+      let status = Command::new("sh")
+        .arg("-c")
+        .arg(before_build)
+        .current_dir(app_dir())
+        .envs(command_env(options.debug))
+        .pipe()?
+        .status()
+        .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
+      if !status.success() {
+        return Err(anyhow::anyhow!(
+          "beforeDevCommand `{}` failed with exit code {}",
+          before_build,
+          status.code().unwrap_or_default()
+        ));
+      }
     }
   }
 

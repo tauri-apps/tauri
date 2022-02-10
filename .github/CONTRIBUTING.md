@@ -49,7 +49,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know that you want to contribute. This way we can point you in the right direction and help ensure your contribution will be as helpful as possible.
 
-To set up your machine for development, follow the [Tauri setup guide](https://tauri.studio/en/docs/get-started/intro#setting-up-your-environment) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI/API (`tooling/cli.js` and `api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
+To set up your machine for development, follow the [Tauri setup guide](https://tauri.studio/en/docs/get-started/intro#setting-up-your-environment) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI or API packages (`tooling/cli.rs/node` and `tooling/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
 
 Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To build these automatically, run the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) script. This will install the Rust and Node.js CLI and build the JS API. After that, you should be able to run all the examples. Note that the setup script should be executed from the root folder of the respository in order to run correctly.
 
@@ -57,23 +57,14 @@ Some Tauri packages will be automatically built when running one of the examples
 
 - The JS API (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
 - The Rust CLI (`/tooling/cli.rs`) is the primary CLI for creating and developing Tauri apps.
-- cli.js (`/tooling/cli.js`) is a Node.js CLI wrapper for `cli.rs`.
+- cli.js (`/tooling/cli.rs/node`) is a Node.js CLI wrapper for `cli.rs`.
 - Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
 - Tauri Core (`/core/tauri`) is the heart of Tauri. It contains the code that starts the app, configures communication between Rust and the Webview, and ties all the other packages together.
 - The Macros (`/core/tauri-macros`) are used by Tauri Core for various functions.
 
 ### Developing The Node.js CLI (cli.js)
 
-`cli.js` is a CLI tool that houses the `icon`, and `deps` command. The code for cli.js is located in `[Tauri repo root]/tooling/cli.js`. There are a few package scripts you should be aware of:
-
-- `build` builds the CLI
-- `test` runs the unit and e2e test suite
-- `lint` runs ESLint to catch linting errors
-- `format` formats code with Prettier to match the style guide
-
-To test your changes, we recommend using the helloworld example app, located in `[Tauri repo root]/examples/helloworld`. Run `yarn tauri [COMMAND]` to run a command using your local cli.js copy. You will need to rebuild cli.js after every change by running `yarn build` in the cli.js directory.
-
-If you want to use your local copy of cli.js in another app, we recommend using [yarn link](https://classic.yarnpkg.com/en/docs/cli/link/). First, make sure you have don't have cli.js installed globally by running `npm uninstall -g tauri && yarn global remove tauri`. Then, run `yarn link` in the cli.js directory (note that the setup script will do this for you, so you can skip this step if you ran that). Now, you can just run `tauri [COMMAND]` anywhere, and your local copy will be used.
+`cli.js` is a wrapper to `cli.rs` so most changes should be written on the Rust CLI. The `[Tauri repo root]/tooling/cli.rs/node` folder contains only packaging scripts to properly publish the Rust CLI binaries to NPM.
 
 ### Developing Tauri Bundler and Rust CLI
 

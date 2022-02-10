@@ -80,3 +80,13 @@ jobs:
           token: ${{ secrets.TAURI_BOT_PAT }}
           repository: tauri-apps/tauri-docs
           event-type: update-docs
+
+      - name: Trigger cli.js publishing workflow
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.TAURI_BOT_PAT }}
+          repository: tauri-apps/tauri
+          event-type: publish-clijs

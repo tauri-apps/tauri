@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "tauri": "node ../../tooling/cli.js/bin/tauri"
+    "tauri": "node ../../tooling/cli.rs/node/tauri.js"
   },
   "private": true
 }

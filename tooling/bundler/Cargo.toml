@@ -40,6 +40,7 @@ walkdir = "2"
 handlebars = { version = "4.2" }
 zip = { version = "0.5" }
 tempfile = "3.3.0"
+os_pipe = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 attohttpc = "0.18"

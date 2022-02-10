@@ -10,7 +10,7 @@ use crate::{
     manifest::{get_workspace_members, rewrite_manifest},
     Logger,
   },
-  Result,
+  CommandExt, Result,
 };
 use clap::{AppSettings, Parser};
 
@@ -92,7 +92,8 @@ pub fn command(options: Options) -> Result<()> {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true)); // development build always includes debug information
+          .envs(command_env(true))
+          .pipe()?; // development build always includes debug information
         command
       };
       #[cfg(not(target_os = "windows"))]
@@ -102,7 +103,8 @@ pub fn command(options: Options) -> Result<()> {
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true)); // development build always includes debug information
+          .envs(command_env(true))
+          .pipe()?; // development build always includes debug information
         command
       };
 
@@ -315,6 +317,8 @@ fn start_app(
   if !options.args.is_empty() {
     command.arg("--").args(&options.args);
   }
+
+  command.pipe().unwrap();
 
   let child =
     SharedChild::spawn(&mut command).unwrap_or_else(|_| panic!("failed to run {}", runner));

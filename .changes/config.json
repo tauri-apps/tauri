@@ -255,22 +255,18 @@
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "cli.js": {
-      "path": "./tooling/cli.js",
+      "path": "./tooling/cli.rs/node",
       "manager": "javascript",
       "dependencies": ["cli.rs"],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-      "assets": [
-        {
-          "path": "./tooling/cli.js/tauri-apps-cli-${ pkgFile.version }.tgz",
-          "name": "cli.js-${ pkgFile.version }.tgz"
-        }
-      ]
+      "prepublish": [],
+      "publish": [],
+      "postpublish": []
     },
     "cli.rs": {
       "path": "./tooling/cli.rs",
       "manager": "rust",
-      "dependencies": ["tauri-bundler", "tauri-utils"],
-      "postversion": "node ../../.scripts/covector/generate-cli-doc.js && node ../../.scripts/covector/generate-config-doc.js && cargo check"
+      "dependencies": ["tauri-bundler", "tauri-utils"]
     },
     "create-tauri-app": {
       "path": "./tooling/create-tauri-app",

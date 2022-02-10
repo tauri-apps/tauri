@@ -1176,7 +1176,7 @@ impl<R: Runtime> WindowManager<R> {
     self.inner.listeners.listen(event, window, handler)
   }
 
-  pub fn once<F: Fn(Event) + Send + 'static>(
+  pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,

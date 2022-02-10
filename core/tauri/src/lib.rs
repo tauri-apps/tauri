@@ -427,7 +427,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to a global event only once.
   fn once_global<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: FnOnce(Event) + Send + 'static,
   {
     self.manager().once(event.into(), None, handler)
   }

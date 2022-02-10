@@ -56,7 +56,7 @@ Some Tauri packages will be automatically built when running one of the examples
 ### Packages Overview
 
 - The JS API (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
-- The Rust CLI (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
+- cli.rs (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
 - cli.js (`/tooling/cli/node`) is a Node.js CLI wrapper for `cli.rs`.
 - Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
 - Tauri Core (`/core/tauri`) is the heart of Tauri. It contains the code that starts the app, configures communication between Rust and the Webview, and ties all the other packages together.

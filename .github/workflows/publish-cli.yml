@@ -291,8 +291,8 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
-            sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            apt-get update
+            apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
             sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   test-linux-aarch64-gnu-binding:
@@ -328,8 +328,8 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
-            sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            apt-get update
+            apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
             sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   test-linux-aarch64-musl-binding:
@@ -394,8 +394,8 @@ jobs:
           options: '-v ${{ github.workspace }}:/build -w /build'
           run: |
             set -e
-            sudo apt-get update
-            sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+            apt-get update
+            apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
             sh -c "cd tooling/cli.rs/node && yarn test"
             ls -la
   publish:

@@ -2,35 +2,43 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{env::current_dir, path::PathBuf};
+use std::{
+  env::current_dir,
+  ffi::OsStr,
+  path::{Path, PathBuf},
+};
 
+use ignore::Walk;
 use once_cell::sync::Lazy;
 
+fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+  for entry in Walk::new(dir).flatten() {
+    let path = dir.join(entry.path());
+    if checker(&path) {
+      return Some(path);
+    }
+  }
+  None
+}
+
 fn get_tauri_dir() -> PathBuf {
-  glob::glob(
-    &current_dir()
-      .expect("failed to read cwd")
-      .join("**/tauri.conf.json")
-      .to_string_lossy(),
-  )
-  .unwrap()
-  .filter_map(Result::ok)
-  .last()
+  lookup(&current_dir().expect("failed to read cwd"), |path| if let Some(file_name) = path.file_name() {
+    file_name == OsStr::new("tauri.conf.json") || file_name == OsStr::new("tauri.conf.json5")
+  } else {
+    false
+  })
   .map(|p| p.parent().unwrap().to_path_buf())
-  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json` file in any subfolder.")
+  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json` or `tauri.conf.json5` file in any subfolder.")
 }
 
 fn get_app_dir() -> Option<PathBuf> {
-  glob::glob(
-    &current_dir()
-      .expect("failed to read cwd")
-      .join("**/package.json")
-      .to_string_lossy(),
-  )
-  .unwrap()
-  .filter_map(Result::ok)
-  .filter(|p| !p.to_string_lossy().into_owned().contains("node_modules"))
-  .last()
+  lookup(&current_dir().expect("failed to read cwd"), |path| {
+    if let Some(file_name) = path.file_name() {
+      file_name == OsStr::new("package.json")
+    } else {
+      false
+    }
+  })
   .map(|p| p.parent().unwrap().to_path_buf())
 }
 

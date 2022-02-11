@@ -88,12 +88,25 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
 /**
  * Convert a device file path to an URL that can be loaded by the webview.
  * Note that `asset:` and `https://asset.localhost` must be allowed on the `csp` value configured on `tauri.conf.json > tauri > security`.
- * Example CSP value: `"csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"`.
+ * Example CSP value: `"csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"` to use the asset protocol on image sources.
  *
  * Additionally, the `asset` must be allowlisted under `tauri.conf.json > tauri > allowlist > protocol`,
  * and its access scope must be defined on the `assetScope` array on the same `protocol` object.
  *
  * @param  filePath the file path.
+ * @example
+ * ```typescript
+ * import { appDir, join } from '@tauri-apps/api/path'
+ * import { convertFileSrc } from '@tauri-apps/api/tauri'
+ * const appDirPath = await appDir()
+ * const filePath = await join(appDir, 'assets/video.mp4')
+ * const assetUrl = convertFileSrc(filePath)
+ * 
+ * const video = document.getElementById('video_source')
+ * const sources = video.getElementsByTagName('source')
+ * sources[0].src = assetUrl
+ * video.load()
+ * ```
  *
  * @return the URL that can be used as source on the webview.
  */

@@ -54,10 +54,10 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
-type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send + Sync;
-type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
-type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
+type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send;
+type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send;
+type OnWebviewReady<R> = dyn Fn(Window<R>) + Send;
+type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send;
 
 /// Builds a [`TauriPlugin`].
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {

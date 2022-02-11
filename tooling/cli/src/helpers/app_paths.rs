@@ -8,11 +8,26 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use ignore::Walk;
+use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 
+const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
+
 fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
-  for entry in Walk::new(dir).flatten() {
+  let mut default_gitignore = std::env::temp_dir();
+  default_gitignore.push("tauri.gitignore");
+  if !default_gitignore.exists() {
+    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
+      use std::io::Write;
+      let _ = file.write_all(TAURI_GITIGNORE);
+    }
+  }
+
+  let mut builder = WalkBuilder::new(dir);
+  let _ = builder.add_ignore(default_gitignore);
+  builder.require_git(false).ignore(false).max_depth(Some(2));
+
+  for entry in builder.build().flatten() {
     let path = dir.join(entry.path());
     if checker(&path) {
       return Some(path);

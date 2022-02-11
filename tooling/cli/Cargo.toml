@@ -18,7 +18,8 @@ include = [
   "MergeModules/",
   "*.json",
   "*.rs",
-  "vswhere.exe"
+  "vswhere.exe",
+  "tauri.gitignore"
 ]
 
 [[bin]]

@@ -91,11 +91,13 @@
         "scope": [
           {
             "name": "sh",
-            "cmd": "sh"
+            "cmd": "sh",
+            "args": ["-c", { "validator": "\\S+" }]
           },
           {
             "name": "cmd",
-            "cmd": "cmd"
+            "cmd": "cmd",
+            "args": ["/C", { "validator": "\\S+" }]
           }
         ]
       },

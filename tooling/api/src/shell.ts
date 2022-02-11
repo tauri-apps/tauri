@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invokeTauriCommand } from './helpers/tauri'
-import { transformCallback } from './tauri'
-
 /**
  * Access the system shell.
  * Allows you to spawn child processes and manage files and URLs using their default application.
@@ -19,6 +16,7 @@ import { transformCallback } from './tauri'
  *       "shell": {
  *         "all": true, // enable all shell APIs
  *         "execute": true, // enable process spawn APIs
+ *         "sidecar": true, // enable spawning sidecars
  *         "open": true // enable opening files/URLs using the default program
  *       }
  *     }
@@ -26,8 +24,57 @@ import { transformCallback } from './tauri'
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ * 
+ * ## Security
+ * 
+ * This API has a scope configuration that forces you to restrict the programs and arguments that can be used.
+ * 
+ * ### Restricting access to the [[`open`]] API
+ * 
+ * On the allowlist, `open: true` means that the [[open]] API can be used with any URL,
+ * as the argument is validated with the `^https?://` regex.
+ * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
+ * 
+ * ### Restricting access to the [[`Command`]] APIs
+ * 
+ * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
+ * Each CLI is a configuration object `{ name: string, command: string, sidecar?: bool, args?: boolean | Arg[] }`.
+ * 
+ * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
+ * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
+ * - `command`: the program that is executed on this configuration. If it's a sidecar, it must be the same as `name`.
+ * - `sidecar`: whether the object configures a sidecar or a system program.
+ * - `args`: the arguments that can be passed to the program. By default no arguments are allowed.
+ *   - `true` means that any argument list is allowed.
+ *   - `false` means that no arguments are allowed.
+ *   - otherwise an array can be configured. Each item is either a string representing the fixed argument value
+ *     or a `{ validator: string }` that defines a regex validating the argument value.
+ * 
+ * #### Example scope configuration
+ * 
+ * CLI: `git commit -m "the commit message"`
+ * 
+ * Configuration:
+ * ```json
+ * {
+ *   "scope": {
+ *     "name": "run-git-commit",
+ *     "command": "git",
+ *     "args": ["commit", "-m", { "validator": "\\S+" }]
+ *   }
+ * }
+ * ```
+ * Usage:
+ * ```typescript
+ * import { Command } from '@tauri-apps/api/shell'
+ * new Command('run-git-commit', ['commit', '-m', 'the commit message'])
+ * ```
+ * 
  * @module
  */
+
+import { invokeTauriCommand } from './helpers/tauri'
+import { transformCallback } from './tauri'
 
 interface SpawnOptions {
   /** Current working directory. */
@@ -209,7 +256,8 @@ class Command extends EventEmitter<'close' | 'error'> {
   /**
    * Creates a new `Command` instance.
    *
-   * @param program The program to execute.
+   * @param program The program name to execute.
+   * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
    * @param args Program arguments.
    * @param options Spawn options.
    */
@@ -233,6 +281,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * ```
    *
    * @param program The program to execute.
+   * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
    * @param args Program arguments.
    * @param options Spawn options.
    * @returns
@@ -356,7 +405,10 @@ type CommandEvent =
  * ```
  *
  * @param path The path or URL to open.
- * @param openWith The app to open the file or URL with. Defaults to the system default application for the specified path type.
+ * This value is matched against the string regex defined on `tauri.conf.json > tauri > allowlist > shell > open`,
+ * which defaults to `^https?://`.
+ * @param openWith The app to open the file or URL with.
+ * Defaults to the system default application for the specified path type.
  * @returns
  */
 async function open(path: string, openWith?: string): Promise<void> {
@@ -370,5 +422,5 @@ async function open(path: string, openWith?: string): Promise<void> {
   })
 }
 
-export { Command, Child, open }
+export { Command, Child, EventEmitter, open }
 export type { ChildProcess, SpawnOptions }

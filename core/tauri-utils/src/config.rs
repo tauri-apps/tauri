@@ -936,7 +936,6 @@ pub enum ShellAllowedArg {
     /// before it will be executed.
     ///
     /// [regex]: https://docs.rs/regex/latest/regex/#syntax
-    #[serde(default)]
     validator: String,
   },
 }

@@ -14,7 +14,30 @@
  *     "allowlist": {
  *       "window": {
  *         "all": true, // enable all window APIs
- *         "create": true // enable window creation
+ *         "create": true, // enable window creation
+ *         "center": true,
+ *         "requestUserAttention": true,
+ *         "setResizable": true,
+ *         "setTitle": true,
+ *         "maximize": true,
+ *         "unmaximize": true,
+ *         "minimize": true,
+ *         "unminimize": true,
+ *         "show": true,
+ *         "hide": true,
+ *         "close": true,
+ *         "setDecorations": true,
+ *         "setAlwaysOnTop": true,
+ *         "setSize": true,
+ *         "setMinSize": true,
+ *         "setMaxSize": true,
+ *         "setPosition": true,
+ *         "setFullscreen": true,
+ *         "setFocus": true,
+ *         "setIcon": true,
+ *         "setSkipTaskbar": true,
+ *         "startDragging": true,
+ *         "print": true
  *       }
  *     }
  *   }

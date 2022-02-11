@@ -24,7 +24,7 @@ export const shell = async (
       if (log) console.log(`[running]: ${command}`)
       return await execa(
         command,
-        args.filter((e) => e != ''),
+        args.filter((e) => e !== ''),
         {
           stdio: 'inherit',
           cwd: process.cwd(),

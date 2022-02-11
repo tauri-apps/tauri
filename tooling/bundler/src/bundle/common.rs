@@ -8,7 +8,7 @@ use std::{
   fs::{self, File},
   io::{self, BufWriter, Write},
   path::Path,
-  process::Command,
+  process::{Command, Stdio},
 };
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
@@ -198,6 +198,8 @@ pub fn print_info(message: &str) -> crate::Result<()> {
 pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
   if settings.is_verbose() {
     cmd.pipe()?;
+  } else {
+    cmd.stdout(Stdio::null()).stderr(Stdio::null());
   }
   let status = cmd.status().expect("failed to spawn command");
 

@@ -46,5 +46,5 @@ if (binStem === 'node' || binStem === 'nodejs') {
 try {
   cli.run(arguments, binName)
 } catch (e) {
-  console.log(`Eror running CLI: ${e.message}`)
+  console.log(`Error running CLI: ${e.message}`)
 }

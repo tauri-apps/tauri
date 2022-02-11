@@ -90,17 +90,21 @@ impl Options {
       Default::default()
     };
 
-    self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
-      "What is your app name?",
-      init_defaults.app_name.clone(),
-      self.ci,
-    ))?;
+    self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+      request_input(
+        "What is your app name?",
+        init_defaults.app_name.clone(),
+        self.ci,
+      )
+    })?;
 
-    self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
-      "What should the window title be?",
-      init_defaults.app_name.clone(),
-      self.ci,
-    ))?;
+    self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+      request_input(
+        "What should the window title be?",
+        init_defaults.app_name.clone(),
+        self.ci,
+      )
+    })?;
 
     self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
@@ -108,11 +112,13 @@ impl Options {
       self.ci
     ))?;
 
-    self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
-      "What is the url of your dev server?",
-      init_defaults.framework.map(|f| f.dev_path()),
-      self.ci,
-    ))?;
+    self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| {
+      request_input(
+        "What is the url of your dev server?",
+        init_defaults.framework.map(|f| f.dev_path()),
+        self.ci,
+      )
+    })?;
 
     Ok(self)
   }

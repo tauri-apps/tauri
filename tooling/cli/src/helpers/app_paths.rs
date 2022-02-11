@@ -15,7 +15,7 @@ const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
 
 fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
   let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push("tauri.gitignore");
+  default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
       use std::io::Write;

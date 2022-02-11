@@ -54,7 +54,7 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send;
+type SetupHook<R> = dyn FnMut(&AppHandle<R>) -> Result<()> + Send;
 type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn Fn(Window<R>) + Send;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send;
@@ -117,7 +117,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+    F: FnMut(&AppHandle<R>) -> Result<()> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self

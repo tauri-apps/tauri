@@ -90,6 +90,7 @@
     ".changes/fix-menu-ids.md",
     ".changes/fix-once-fnonce.md",
     ".changes/fix-out-dir-detection.md",
+    ".changes/fix-path-resolution-node_modules.md",
     ".changes/fix-ready-check.md",
     ".changes/fix-tray-command.md",
     ".changes/fix-tray-remove-windows.md",

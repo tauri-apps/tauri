@@ -343,10 +343,7 @@ fn run_light(
   }
 
   let mut cmd = Command::new(&light_exe);
-  cmd
-    .args(&args)
-    .stdout(Stdio::piped())
-    .current_dir(build_path);
+  cmd.args(&args).current_dir(build_path);
 
   common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
     crate::Error::ShellScriptError(format!(

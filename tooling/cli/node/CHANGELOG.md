@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-rc.1]
+
+- Include `vswhere.exe` on the published package.
+  - Bumped due to a bump in cli.rs.
+  - [3227502e](https://www.github.com/tauri-apps/tauri/commit/3227502e8c9f137e5783cba2e0c692473cc5456d) fix(cli.rs): package `vswhere.exe` on 2022-02-10
+
 ## \[1.0.0-rc.0]
 
 - Do not force Tauri application code on `src-tauri` folder and use a glob pattern to look for a subfolder with a `tauri.conf.json` file.

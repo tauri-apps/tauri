@@ -40,6 +40,7 @@
     ".changes/clap-beta.4-core.md",
     ".changes/clap-beta.4.md",
     ".changes/cli-config-path.md",
+    ".changes/cli-include-vswhere.md",
     ".changes/cli.js-cjs-output.md",
     ".changes/cli.js-fix-ico.md",
     ".changes/cli.rs-active-toolchain.md",

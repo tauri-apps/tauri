@@ -28,6 +28,43 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * ## Security
+ *
+ * This module prevents path traversal, not allowing absolute paths or parent dir components
+ * (i.e. "/usr/path/to/file" or "../path/to/file" paths are not allowed).
+ * Paths accessed with this API must be relative to one of the [[BaseDirectory | base directories]]
+ * so if you need access to arbitrary filesystem paths, you must write such logic on the core layer instead.
+ *
+ * The API has a scope configuration that forces you to restrict the paths that can be accessed using glob patterns.
+ *
+ * The scope configuration is an array of glob patterns describing folder paths that are allowed.
+ * For instance, this scope configuration only allows accessing files on the
+ * *databases* folder of the [[path.appDir | $APP directory]]:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "fs": {
+ *         "scope": ["$APP/databases/*"]
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Notice the use of the `$APP` variable. The value is injected at runtime, resolving to the [[path.appDir | app directory]].
+ * The available variables are:
+ * [[path.audioDir | `$AUDIO`]], [[path.cacheDir | `$CACHE`]], [[path.configDir | `$CONFIG`]], [[path.dataDir | `$DATA`]],
+ * [[path.localDataDir | `$LOCALDATA`]], [[path.desktopDir | `$DESKTOP`]], [[path.documentDir | `$DOCUMENT`]],
+ * [[path.downloadDir | `$DOWNLOAD`]], [[path.executableDir | `$EXE`]], [[path.fontDir | `$FONT`]], [[path.homeDir | `$HOME`]],
+ * [[path.pictureDir | `$PICTURE`]], [[path.publicDir | `$PUBLIC`]], [[path.runtimeDir | `$RUNTIME`]],
+ * [[path.templateDir | `$TEMPLATE`]], [[path.videoDir | `$VIDEO`]], [[path.resourceDir | `$RESOURCE`]], [[path.appDir | `$APP`]].
+ *
+ * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
+ *
+ * Note that this scope applies to **all** APIs on this module.
+ *
  * @module
  */
 

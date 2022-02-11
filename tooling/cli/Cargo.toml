@@ -60,6 +60,7 @@ heck = "0.4"
 dialoguer = "0.9"
 url = { version = "2.2", features = [ "serde" ] }
 os_pipe = "1"
+ignore = "0.4"
 
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.1]
+
+- Fix `create-tauri-app` failing to bootstrap projects.
+  - [536c0cd7](https://www.github.com/tauri-apps/tauri/commit/536c0cd7d40b838765016e1554901dea8720d9af) fix(cta): filter out empty args, fixes [#3393](https://www.github.com/tauri-apps/tauri/pull/3393) ([#3396](https://www.github.com/tauri-apps/tauri/pull/3396)) on 2022-02-11
+
 ## \[1.0.0-rc.0]
 
 - Add empty description to Cargo.toml in dominator recipe.

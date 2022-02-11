@@ -63,6 +63,7 @@
     ".changes/csp-nonces.md",
     ".changes/cta-add-empty-description-for-rust-dominator.md",
     ".changes/cta-ci-compatible.md",
+    ".changes/cta-crash.md",
     ".changes/cta-react-disable-open-browser.md",
     ".changes/cta-solid-recipe.md",
     ".changes/current-binary-caching.md",

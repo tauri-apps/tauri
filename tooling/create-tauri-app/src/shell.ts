@@ -22,12 +22,16 @@ export const shell = async (
       })
     } else {
       if (log) console.log(`[running]: ${command}`)
-      return await execa(command, args, {
-        stdio: 'inherit',
-        cwd: process.cwd(),
-        env: process.env,
-        ...options
-      })
+      return await execa(
+        command,
+        args.filter((e) => e != ''),
+        {
+          stdio: 'inherit',
+          cwd: process.cwd(),
+          env: process.env,
+          ...options
+        }
+      )
     }
   } catch (error) {
     console.error('Error with command: %s', command)

@@ -14,7 +14,30 @@
  *     "allowlist": {
  *       "window": {
  *         "all": true, // enable all window APIs
- *         "create": true // enable window creation
+ *         "create": true, // enable window creation
+ *         "center": true,
+ *         "requestUserAttention": true,
+ *         "setResizable": true,
+ *         "setTitle": true,
+ *         "maximize": true,
+ *         "unmaximize": true,
+ *         "minimize": true,
+ *         "unminimize": true,
+ *         "show": true,
+ *         "hide": true,
+ *         "close": true,
+ *         "setDecorations": true,
+ *         "setAlwaysOnTop": true,
+ *         "setSize": true,
+ *         "setMinSize": true,
+ *         "setMaxSize": true,
+ *         "setPosition": true,
+ *         "setFullscreen": true,
+ *         "setFocus": true,
+ *         "setIcon": true,
+ *         "setSkipTaskbar": true,
+ *         "startDragging": true,
+ *         "print": true
  *       }
  *     }
  *   }
@@ -223,7 +246,7 @@ export type WindowLabel = string
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
 class WebviewWindowHandle {
-  /** Window label. */
+  /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
@@ -1094,7 +1117,7 @@ class WindowManager extends WebviewWindowHandle {
 class WebviewWindow extends WindowManager {
   /**
    * Creates a new WebviewWindow.
-   * * @param label The webview window label. It must be alphanumeric.
+   * * @param label The webview window label, a unique identifier that can be used to reference it later. It must be alphanumeric.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {

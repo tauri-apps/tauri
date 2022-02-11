@@ -21,6 +21,25 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * ## Security
+ *
+ * This API has a scope configuration that forces you to restrict the URLs and paths that can be accessed using glob patterns.
+ *
+ * For instance, this scope configuration only allows making HTTP requests to the GitHub API for the `tauri-apps` organization:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "http": {
+ *         "scope": ["https://api.github.com/repos/tauri-apps/*"]
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
+ *
  * @module
  */
 

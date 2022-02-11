@@ -629,7 +629,7 @@ macro_rules! check_feature {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FsAllowlistScope(pub Vec<PathBuf>);
@@ -882,7 +882,7 @@ pub struct ShellAllowedCommand {
   /// It can start with a variable that resolves to a system base directory.
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$CWD`.
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
   #[serde(rename = "cmd")]
   pub command: PathBuf,
 
@@ -936,7 +936,6 @@ pub enum ShellAllowedArg {
     /// before it will be executed.
     ///
     /// [regex]: https://docs.rs/regex/latest/regex/#syntax
-    #[serde(default)]
     validator: String,
   },
 }

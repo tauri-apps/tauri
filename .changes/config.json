@@ -41,7 +41,7 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "cargo package --allow-dirty",
+          "command": "cargo package --allow-dirty --no-verify",
           "dryRunCommand": true
         },
         {
@@ -72,7 +72,7 @@
       ],
       "assets": [
         {
-          "path": "${ pkg.path }/${ pkg.pkg }-${ pkgFile.version }.crate",
+          "path": "${ pkg.path }/target/package/${ pkgFile.pkg.name }-${ pkgFile.version }.crate",
           "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
         }
       ]

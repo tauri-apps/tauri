@@ -24,22 +24,22 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
- * 
+ *
  * ## Security
- * 
+ *
  * This API has a scope configuration that forces you to restrict the programs and arguments that can be used.
- * 
+ *
  * ### Restricting access to the [[`open`]] API
- * 
+ *
  * On the allowlist, `open: true` means that the [[open]] API can be used with any URL,
  * as the argument is validated with the `^https?://` regex.
  * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
- * 
+ *
  * ### Restricting access to the [[`Command`]] APIs
- * 
+ *
  * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
  * Each CLI is a configuration object `{ name: string, command: string, sidecar?: bool, args?: boolean | Arg[] }`.
- * 
+ *
  * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
  * - `command`: the program that is executed on this configuration. If it's a sidecar, it must be the same as `name`.
@@ -49,11 +49,11 @@
  *   - `false` means that no arguments are allowed.
  *   - otherwise an array can be configured. Each item is either a string representing the fixed argument value
  *     or a `{ validator: string }` that defines a regex validating the argument value.
- * 
+ *
  * #### Example scope configuration
- * 
+ *
  * CLI: `git commit -m "the commit message"`
- * 
+ *
  * Configuration:
  * ```json
  * {
@@ -69,7 +69,9 @@
  * import { Command } from '@tauri-apps/api/shell'
  * new Command('run-git-commit', ['commit', '-m', 'the commit message'])
  * ```
- * 
+ *
+ * Trying to execute any API with a program not configured on the scope results in a promise rejection due to denied access.
+ *
  * @module
  */
 

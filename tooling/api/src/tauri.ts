@@ -102,7 +102,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * const appDirPath = await appDir()
  * const filePath = await join(appDir, 'assets/video.mp4')
  * const assetUrl = convertFileSrc(filePath)
- * 
+ *
  * const video = document.getElementById('my-video')
  * const source = document.createElement('source')
  * source.type = 'video/mp4'

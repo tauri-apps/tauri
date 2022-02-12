@@ -5,7 +5,7 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, OnPageLoad,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler,
   PageLoadPayload, RunEvent, Window,
 };
 use serde::de::DeserializeOwned;
@@ -56,8 +56,9 @@ pub trait Plugin<R: Runtime>: Send {
 
 type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync;
 type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send + Sync;
-type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
-type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
+type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
+type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
+type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
@@ -146,7 +147,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///     .build()
   /// }
   ///
-  /// tauri::Builder::default().plugin(get_plugin());
+  /// tauri::Builder::default().plugin(init());
   /// ```
   ///
   /// [setup]: struct.Builder.html#method.setup
@@ -163,7 +164,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+    F: FnMut(Window<R>, PageLoadPayload) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -173,7 +174,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
-    F: Fn(Window<R>) + Send + Sync + 'static,
+    F: FnMut(Window<R>) + Send + Sync + 'static,
   {
     self.on_webview_ready = Box::new(on_webview_ready);
     self
@@ -183,7 +184,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where
-    F: Fn(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
+    F: FnMut(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
   {
     self.on_event = Box::new(on_event);
     self

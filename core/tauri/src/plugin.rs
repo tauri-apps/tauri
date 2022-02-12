@@ -87,6 +87,28 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Defines the JS message handler callback.
+  /// It is recommended you use the [tauri::generate_handler] to generate the input to this method, as the input type is not considered stable yet.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// #[tauri::command]
+  /// async fn foobar<R: Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>) -> Result<(), String> {
+  ///   println!("foobar");
+  ///
+  ///   Ok(())
+  /// }
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .invoke_handler(tauri::generate_handler![foobar])
+  ///     .build()
+  /// }
+  ///
+  /// ```
+  /// [tauri::generate_handler]: ../macro.generate_handler.html
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
@@ -101,17 +123,57 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// const INIT_SCRIPT: &str = r#"
+  ///    console.log("hello world from js init script");
+  ///
+  ///   window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' }
+  /// "#;
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .js_init_script(INIT_SCRIPT.to_string())
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn js_init_script(mut self, js_init_script: String) -> Self {
     self.js_init_script = Some(js_init_script);
     self
   }
 
-  /// Define a closure that runs when the app is built.
+  /// Define a closure that runs when the plugin is registered.
   ///
   /// This is a convenience function around [setup_with_config], without the need to specify a configuration object.
   ///
   /// The closure gets called before the [setup_with_config] closure.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime, Manager};
+  /// use std::path::PathBuf;
+  ///
+  /// #[derive(Debug, Default)]
+  /// struct PluginState {
+  ///    dir: Option<PathBuf>
+  /// }
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  /// Builder::new("example")
+  ///   .setup(|app_handle| {
+  ///     app_handle.manage(PluginState::default());
+  ///
+  ///     Ok(())
+  ///   })
+  ///   .build()
+  /// }
+  /// ```
   ///
   /// [setup_with_config]: struct.Builder.html#method.setup_with_config
   #[must_use]
@@ -123,7 +185,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// Define a closure that runs when the app is built, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  /// Define a closure that runs when the plugin is registered, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
   ///
   /// If your plugin is not pulling a configuration object from `tauri.conf.json`, use [setup].
   ///
@@ -137,9 +199,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///   api_url: String,
   /// }
   ///
-  /// fn get_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
+  /// fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
   ///   tauri::plugin::Builder::<R, Config>::new("api")
-  ///     .setup_with_config(|_app, config| {
+  ///     .setup_with_config(|_app_handle, config| {
   ///       println!("config: {:?}", config.api_url);
   ///       Ok(())
   ///     })
@@ -160,6 +222,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview performs a navigation to a page.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_page_load(|window, payload| {
+  ///       println!("Loaded URL {} in window {}", payload.url(), window.label());
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
@@ -170,6 +246,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview is created.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_webview_ready(|window| {
+  ///       println!("created window {}", window.label());
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
@@ -180,6 +270,28 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the event loop receives a new event.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_event(|app_handle, event| {
+  ///       match event {
+  ///         RunEvent::ExitRequested { api, .. } => {
+  ///           // Prevents the app from exiting.
+  ///           // This will case the core thread to continue running in the background even without any open windows.
+  ///           api.prevent_exit();
+  ///         }
+  ///         // Ignore all other cases.
+  ///         _ => {}
+  ///       }
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where

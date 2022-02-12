@@ -138,18 +138,20 @@ fn create_symlink(original: &Path, link: PathBuf) -> io::Result<Symlink> {
   };
 }
 
+/// Only use 1 test to prevent cargo from waiting on itself.
+///
+/// While not ideal, this is fine because they use the same solution for both cases.
 #[test]
-fn symlink() -> Result {
+fn restart_symlinks() -> Result {
+  // single symlink
   symlink_runner(|bin| {
     let mut link = bin.to_owned();
     link.set_file_name("symlink");
     link.set_extension("exe");
     create_symlink(bin, link)
-  })
-}
+  })?;
 
-#[test]
-fn nested_symlinks() -> Result {
+  // nested symlinks
   symlink_runner(|bin| {
     let mut link1 = bin.to_owned();
     link1.set_file_name("symlink1");

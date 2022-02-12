@@ -147,7 +147,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///     .build()
   /// }
   ///
-  /// tauri::Builder::default().plugin(init());
+  /// tauri::Builder::default().plugin(get_plugin());
   /// ```
   ///
   /// [setup]: struct.Builder.html#method.setup

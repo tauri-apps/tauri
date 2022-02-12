@@ -192,7 +192,7 @@ impl AssetOptions {
     Self {
       csp: false,
       pattern,
-      freeze_prototype: true,
+      freeze_prototype: false,
       #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }

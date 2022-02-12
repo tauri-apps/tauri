@@ -117,6 +117,7 @@
     ],
     "security": {
       "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com"
+      "freezePrototype": true
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

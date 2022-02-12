@@ -573,7 +573,7 @@ fn default_file_drop_enabled() -> bool {
 
 /// Security configuration.
 #[skip_serializing_none]
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -589,22 +589,8 @@ pub struct SecurityConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
   pub dev_csp: Option<String>,
   /// Freeze the `Object.prototype` when using the custom protocol.
-  #[serde(default = "default_freeze_prototype")]
+  #[serde(default)]
   pub freeze_prototype: bool,
-}
-
-impl Default for SecurityConfig {
-  fn default() -> Self {
-    Self {
-      csp: None,
-      dev_csp: None,
-      freeze_prototype: default_freeze_prototype(),
-    }
-  }
-}
-
-fn default_freeze_prototype() -> bool {
-  true
 }
 
 /// Defines an allowlist type.
@@ -2558,7 +2544,7 @@ mod test {
       security: SecurityConfig {
         csp: None,
         dev_csp: None,
-        freeze_prototype: true,
+        freeze_prototype: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

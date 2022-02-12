@@ -155,7 +155,7 @@
           "use": "brownfield"
         },
         "security": {
-          "freezePrototype": true
+          "freezePrototype": false
         },
         "updater": {
           "active": false,
@@ -1294,7 +1294,7 @@
         },
         "freezePrototype": {
           "description": "Freeze the `Object.prototype` when using the custom protocol.",
-          "default": true,
+          "default": false,
           "type": "boolean"
         }
       },
@@ -1609,7 +1609,7 @@
         "security": {
           "description": "Security configuration.",
           "default": {
-            "freezePrototype": true
+            "freezePrototype": false
           },
           "allOf": [
             {

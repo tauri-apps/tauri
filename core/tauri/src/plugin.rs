@@ -352,7 +352,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///       match event {
   ///         RunEvent::ExitRequested { api, .. } => {
   ///           // Prevents the app from exiting.
-  ///           // This will case the core thread to continue running in the background even without any open windows.
+  ///           // This will cause the core thread to continue running in the background even without any open windows.
   ///           api.prevent_exit();
   ///         }
   ///         // Ignore all other cases.

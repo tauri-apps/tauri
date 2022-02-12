@@ -60,6 +60,77 @@ type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
+///
+/// This Builder offers a more concise way to construct Tauri plugins than implementing the Plugin trait directly.
+///
+/// # Conventions
+///
+/// When using the Builder Pattern it is encouraged to export a function called `init` that constructs and returns the plugin.
+/// While plugin authors can provide every possible way to construct a plugin,
+/// sticking to the `init` function convention helps users to quickly identify the correct function to call.
+///
+/// ```rust
+/// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+///
+/// pub fn init<R: Runtime>() -> TauriPlugin<R> {
+///   Builder::new("example")
+///     .build()
+/// }
+/// ```
+///
+/// When plugins expose more complex configuration options, it can be helpful to provide a Builder instead:
+///
+/// ```rust
+/// use tauri::{plugin::{Builder as PluginBuilder, TauriPlugin}, runtime::Runtime};
+///
+/// pub struct Builder {
+///   option_a: String,
+///   option_b: String,
+///   option_c: bool
+/// }
+///
+/// impl Default for Builder {
+///   fn default() -> Self {
+///     Self {
+///       option_a: "foo".to_string(),
+///       option_b: "bar".to_string(),
+///       option_c: false
+///     }
+///   }
+/// }
+///
+/// impl Builder {
+///   pub fn new() -> Self {
+///     Default::default()
+///   }
+///
+///   pub fn option_a(mut self, option_a: String) -> Self {
+///     self.option_a = option_a;
+///     self
+///   }
+///
+///   pub fn option_b(mut self, option_b: String) -> Self {
+///     self.option_b = option_b;
+///     self
+///   }
+///
+///   pub fn option_c(mut self, option_c: bool) -> Self {
+///     self.option_c = option_c;
+///     self
+///   }
+///
+///   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
+///     PluginBuilder::new("example")
+///       .setup(move |app_handle| {
+///         // use the options here to do stuff
+///         println!("a: {}, b: {}, c: {}", self.option_a, self.option_b, self.option_c);
+///
+///         Ok(())
+///       })
+///       .build()
+///   }
+/// }
+/// ```
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
@@ -87,6 +158,28 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Defines the JS message handler callback.
+  /// It is recommended you use the [tauri::generate_handler] to generate the input to this method, as the input type is not considered stable yet.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// #[tauri::command]
+  /// async fn foobar<R: Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>) -> Result<(), String> {
+  ///   println!("foobar");
+  ///
+  ///   Ok(())
+  /// }
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .invoke_handler(tauri::generate_handler![foobar])
+  ///     .build()
+  /// }
+  ///
+  /// ```
+  /// [tauri::generate_handler]: ../macro.generate_handler.html
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
@@ -101,17 +194,57 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// const INIT_SCRIPT: &str = r#"
+  ///    console.log("hello world from js init script");
+  ///
+  ///   window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' }
+  /// "#;
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .js_init_script(INIT_SCRIPT.to_string())
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn js_init_script(mut self, js_init_script: String) -> Self {
     self.js_init_script = Some(js_init_script);
     self
   }
 
-  /// Define a closure that runs when the app is built.
+  /// Define a closure that runs when the plugin is registered.
   ///
   /// This is a convenience function around [setup_with_config], without the need to specify a configuration object.
   ///
   /// The closure gets called before the [setup_with_config] closure.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime, Manager};
+  /// use std::path::PathBuf;
+  ///
+  /// #[derive(Debug, Default)]
+  /// struct PluginState {
+  ///    dir: Option<PathBuf>
+  /// }
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  /// Builder::new("example")
+  ///   .setup(|app_handle| {
+  ///     app_handle.manage(PluginState::default());
+  ///
+  ///     Ok(())
+  ///   })
+  ///   .build()
+  /// }
+  /// ```
   ///
   /// [setup_with_config]: struct.Builder.html#method.setup_with_config
   #[must_use]
@@ -123,7 +256,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// Define a closure that runs when the app is built, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
+  /// Define a closure that runs when the plugin is registered, accepting a configuration object set on `tauri.conf.json > plugins > yourPluginName`.
   ///
   /// If your plugin is not pulling a configuration object from `tauri.conf.json`, use [setup].
   ///
@@ -137,16 +270,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///   api_url: String,
   /// }
   ///
-  /// fn get_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
+  /// fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R, Config> {
   ///   tauri::plugin::Builder::<R, Config>::new("api")
-  ///     .setup_with_config(|_app, config| {
+  ///     .setup_with_config(|_app_handle, config| {
   ///       println!("config: {:?}", config.api_url);
   ///       Ok(())
   ///     })
   ///     .build()
   /// }
   ///
-  /// tauri::Builder::default().plugin(get_plugin());
+  /// tauri::Builder::default().plugin(init());
   /// ```
   ///
   /// [setup]: struct.Builder.html#method.setup
@@ -160,6 +293,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview performs a navigation to a page.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_page_load(|window, payload| {
+  ///       println!("Loaded URL {} in window {}", payload.url(), window.label());
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
@@ -170,6 +317,20 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the webview is created.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_webview_ready(|window| {
+  ///       println!("created window {}", window.label());
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
@@ -180,6 +341,28 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Callback invoked when the event loop receives a new event.
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, runtime::Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_event(|app_handle, event| {
+  ///       match event {
+  ///         RunEvent::ExitRequested { api, .. } => {
+  ///           // Prevents the app from exiting.
+  ///           // This will cause the core thread to continue running in the background even without any open windows.
+  ///           api.prevent_exit();
+  ///         }
+  ///         // Ignore all other cases.
+  ///         _ => {}
+  ///       }
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where

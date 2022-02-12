@@ -60,6 +60,76 @@ type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
+///
+/// This Builder offers a more concise way to construct Tauri plugins than implementing the Plugin trait directly.
+///
+/// # Conventions
+///
+/// When using the Builder Pattern it is encouraged to export a function called `init` that constructs and returns the plugin.
+/// While plugin authors can provide every possible way to construct a plugin,
+/// sticking to the `init` function convention helps users to quickly identify the correct function to call.
+///
+/// ```rust
+/// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+///
+/// pub fn init<R: Runtime>() -> TauriPlugin<R> {
+///   Builder::new("example")
+///     .build()
+/// }
+/// ```
+///
+/// When plugins expose more complex configuration options, it can be helpful to provide a Builder instead:
+///
+/// ```rust
+/// use tauri::{plugin::{Builder as PluginBuilder, TauriPlugin}, runtime::Runtime};
+///
+/// pub struct Builder {
+///   optionA: String,
+///   optionB: String,
+///   optionC: bool
+/// }
+///
+/// impl Default for Builder {
+///   fn default() -> Self {
+///     Self {
+///       optionA: "foo".to_string(),
+///       optionB: "bar".to_string(),
+///       optionC: false
+///     }
+///   }
+/// }
+///
+/// impl Builder {
+///   pub fn new() -> Self {
+///     Default::default()
+///   }
+///
+///   pub fn option_a(mut self, option_a: String) -> Self {
+///     self.optionA = option_a;
+///     self
+///   }
+///
+///   pub fn option_b(mut self, option_b: String) -> Self {
+///     self.optionB = option_b;
+///     self
+///   }
+///
+///   pub fn option_c(mut self, option_c: bool) -> Self {
+///     self.optionC = option_c;
+///     self
+///   }
+///
+///   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
+///     PluginBuilder::new("example")
+///       .setup(|app_handle| {
+///         // use the options here to do stuff
+///
+///         Ok(())
+///       })
+///       .build()
+///   }
+/// }
+/// ```
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
@@ -208,7 +278,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///     .build()
   /// }
   ///
-  /// tauri::Builder::default().plugin(get_plugin());
+  /// tauri::Builder::default().plugin(init());
   /// ```
   ///
   /// [setup]: struct.Builder.html#method.setup

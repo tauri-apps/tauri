@@ -92,9 +92,9 @@ type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 /// impl Default for Builder {
 ///   fn default() -> Self {
 ///     Self {
-///       optionA: "foo".to_string(),
-///       optionB: "bar".to_string(),
-///       optionC: false
+///       option_a: "foo".to_string(),
+///       option_b: "bar".to_string(),
+///       option_c: false
 ///     }
 ///   }
 /// }
@@ -105,24 +105,25 @@ type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 ///   }
 ///
 ///   pub fn option_a(mut self, option_a: String) -> Self {
-///     self.optionA = option_a;
+///     self.option_a = option_a;
 ///     self
 ///   }
 ///
 ///   pub fn option_b(mut self, option_b: String) -> Self {
-///     self.optionB = option_b;
+///     self.option_b = option_b;
 ///     self
 ///   }
 ///
 ///   pub fn option_c(mut self, option_c: bool) -> Self {
-///     self.optionC = option_c;
+///     self.option_c = option_c;
 ///     self
 ///   }
 ///
 ///   pub fn build<R: Runtime>(self) -> TauriPlugin<R> {
 ///     PluginBuilder::new("example")
-///       .setup(|app_handle| {
+///       .setup(move |app_handle| {
 ///         // use the options here to do stuff
+///         println!("a: {}, b: {}, c: {}", self.option_a, self.option_b, self.option_c);
 ///
 ///         Ok(())
 ///       })

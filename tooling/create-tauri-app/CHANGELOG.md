@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.2]
+
+- Fix crash when using `create-react-app` recipe.
+  - [c0103604](https://www.github.com/tauri-apps/tauri/commit/c01036043dcec52ba360fc38268b8b4ae4c470a1) fix(cta): fix cli install with other deps, fixes [#3417](https://www.github.com/tauri-apps/tauri/pull/3417) ([#3420](https://www.github.com/tauri-apps/tauri/pull/3420)) on 2022-02-12
+
 ## \[1.0.0-rc.1]
 
 - Fix `create-tauri-app` failing to bootstrap projects.

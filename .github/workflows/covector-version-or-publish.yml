@@ -53,7 +53,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: covector version or publish (publish when no change files present)
-        uses: jbolda/covector/packages/action@feat/enable-prereleases
+        uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

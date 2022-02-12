@@ -84,9 +84,9 @@ type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 /// use tauri::{plugin::{Builder as PluginBuilder, TauriPlugin}, runtime::Runtime};
 ///
 /// pub struct Builder {
-///   optionA: String,
-///   optionB: String,
-///   optionC: bool
+///   option_a: String,
+///   option_b: String,
+///   option_c: bool
 /// }
 ///
 /// impl Default for Builder {

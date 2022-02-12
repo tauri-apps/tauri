@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Change default value for the `freezePrototype` configuration to `false`.
+  - Bumped due to a bump in cli.rs.
+  - [3a4c0160](https://www.github.com/tauri-apps/tauri/commit/3a4c01606184be762adee055ddac803de0d28527) fix(core): change default `freezePrototype` to false, closes [#3416](https://www.github.com/tauri-apps/tauri/pull/3416) [#3406](https://www.github.com/tauri-apps/tauri/pull/3406) ([#3423](https://www.github.com/tauri-apps/tauri/pull/3423)) on 2022-02-12
+
 ## \[1.0.0-rc.2]
 
 - Fixes Tauri path resolution on projects without Git or a `.gitignore` file.

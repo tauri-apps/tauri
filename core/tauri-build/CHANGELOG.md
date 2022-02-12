@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.1]
+
+- Remove `cargo:rerun-if-changed` check for non-existent file that caused projects to *always* rebuild.
+  - [65287cd6](https://www.github.com/tauri-apps/tauri/commit/65287cd6148feeba91df86217b261770fed34608) remove non-existent cargo rerun check ([#3412](https://www.github.com/tauri-apps/tauri/pull/3412)) on 2022-02-11
+
 ## \[1.0.0-rc.0]
 
 - Allow user to specify windows sdk path in build.rs.

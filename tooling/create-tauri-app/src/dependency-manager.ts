@@ -83,7 +83,7 @@ async function installNpmDevPackage(
       case 'yarn':
         await shell(
           packageManager,
-          ['add', '-D', '--ignore-scripts', packageNames.join(' ')],
+          ['add', '-D', '--ignore-scripts', ...packages],
           {
             cwd: appDir
           }
@@ -92,7 +92,7 @@ async function installNpmDevPackage(
       case 'npm':
         await shell(
           'npm',
-          ['install', '--save-dev', '--ignore-scripts', packageNames.join(' ')],
+          ['install', '--save-dev', '--ignore-scripts', ...packages],
           {
             cwd: appDir
           }

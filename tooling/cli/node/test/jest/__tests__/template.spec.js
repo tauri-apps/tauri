@@ -23,7 +23,7 @@ describe('[CLI] cli.js template', () => {
       await move(outPath, cacheOutPath)
     }
 
-    cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
+    await cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
 
     if (outExists) {
       await move(cacheOutPath, outPath)
@@ -35,7 +35,7 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
-    cli.run(['build', '--verbose'])
+    await cli.run(['build', '--verbose'])
     process.chdir(cwd)
   })
 })

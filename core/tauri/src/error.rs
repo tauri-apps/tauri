@@ -58,8 +58,8 @@ pub enum Error {
   #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
   /// Invalid args when running a command.
-  #[error("invalid args for command `{0}`: {1}")]
-  InvalidArgs(&'static str, serde_json::Error),
+  #[error("invalid args `{1}` for command `{0}`: {2}")]
+  InvalidArgs(&'static str, &'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
   Setup(Box<dyn std::error::Error + Send>),

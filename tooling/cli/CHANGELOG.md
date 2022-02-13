@@ -82,7 +82,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - Added `$ tauri plugin init` command, which initializes a Tauri plugin.
   - [ac8e69a9](https://www.github.com/tauri-apps/tauri/commit/ac8e69a98ca1d6f646344ffdef1876cc9274323a) feat(cli.rs): add `init plugin` command, bootstraps a plugin project ([#2669](https://www.github.com/tauri-apps/tauri/pull/2669)) on 2021-09-27
   - [db275f0b](https://www.github.com/tauri-apps/tauri/commit/db275f0b633f44fb2f85755d32929dfb7893b1e0) refactor(cli.rs): rename `init plugin` subcommand to `plugin init` ([#2885](https://www.github.com/tauri-apps/tauri/pull/2885)) on 2021-11-13
-- Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
+- **Breaking change:** Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
   - [6ac21b3c](https://www.github.com/tauri-apps/tauri/commit/6ac21b3cef7f14358df38cc69ea3d277011accaf) feat: add private api feature flag ([#7](https://www.github.com/tauri-apps/tauri/pull/7)) on 2022-01-09
 - Move the copying of resources and sidecars from `cli.rs` to `tauri-build` so using the Cargo CLI directly processes the files for the application execution in development.
   - [5eb72c24](https://www.github.com/tauri-apps/tauri/commit/5eb72c24deddf5a01093bea96b90c0d8806afc3f) refactor: copy resources and sidecars on the Cargo build script ([#3357](https://www.github.com/tauri-apps/tauri/pull/3357)) on 2022-02-08

@@ -9,7 +9,7 @@
 
 - The dialog allowlist now includes flags for the `message`, `ask` and `confirm` APIs.
   - [d660cab3](https://www.github.com/tauri-apps/tauri/commit/d660cab38d7d703e8b2bb85a3e9462d9e28b086b) feat: enhance allowlist configuration \[TRI-027] ([#11](https://www.github.com/tauri-apps/tauri/pull/11)) on 2022-01-09
-- - **Breaking change**: Renamed `tauri::Event`  to `tauri::RunEvent`
+- - **Breaking change:** Renamed `tauri::Event`  to `tauri::RunEvent`
 - Exported `tauri::Event` and `tauri::EventHandler` so you can define a function and pass it to `Window::listen`
 - [15358b18](https://www.github.com/tauri-apps/tauri/commit/15358b1895487cb9c258a8ca4d2336b4215e2a8f) Expose event interface. fixes [#2733](https://www.github.com/tauri-apps/tauri/pull/2733) ([#3321](https://www.github.com/tauri-apps/tauri/pull/3321)) on 2022-02-04
 - The `tauri::api` modules `http`, `notification`, `dialog`, and `process::Command` APIs are now hidden behind a feature flag, `http-api`, `notification`, `dialog` and `command`, respectively.
@@ -144,7 +144,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [cc2f39a2](https://www.github.com/tauri-apps/tauri/commit/cc2f39a29fc8852724aa3954ff0d42a36484929b) feat(core): add `on_event` hook on the `Plugin` trait ([#2656](https://www.github.com/tauri-apps/tauri/pull/2656)) on 2021-09-26
 - Prevent path traversal on the file system APIs.
   - [4d89f60d](https://www.github.com/tauri-apps/tauri/commit/4d89f60d77a2abe7f3358cec00e15ecacf5e1148) refactor(core): prevent path traversal \[TRI-012] ([#35](https://www.github.com/tauri-apps/tauri/pull/35)) on 2021-12-06
-- Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
+- **Breaking change:** Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
   - [6ac21b3c](https://www.github.com/tauri-apps/tauri/commit/6ac21b3cef7f14358df38cc69ea3d277011accaf) feat: add private api feature flag ([#7](https://www.github.com/tauri-apps/tauri/pull/7)) on 2022-01-09
 - Add `raw_headers` to `tauri::api::http::ResponseData`.
   - [b7a2345b](https://www.github.com/tauri-apps/tauri/commit/b7a2345b06ca0306988b4ba3d3deadd449e65af9) feat(core): add raw headers to HTTP API, closes [#2695](https://www.github.com/tauri-apps/tauri/pull/2695) ([#3053](https://www.github.com/tauri-apps/tauri/pull/3053)) on 2022-01-07
@@ -162,7 +162,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [f5109e0c](https://www.github.com/tauri-apps/tauri/commit/f5109e0c962e3d25404995194968bade1be33b16) fix(api): window label null instead of actual value, closes [#3295](https://www.github.com/tauri-apps/tauri/pull/3295) ([#3332](https://www.github.com/tauri-apps/tauri/pull/3332)) on 2022-02-04
 - Remove the `BaseDirectory::Current` enum variant for security reasons.
   - [696dca58](https://www.github.com/tauri-apps/tauri/commit/696dca58a9f8ee127a1cf857eb848e09f5845d18) refactor(core): remove `BaseDirectory::Current` variant on 2022-01-26
-- **Breaking change**\* Remove default webview window when `tauri.conf.json > tauri > windows` is not set.
+- **Breaking change:** Remove default webview window when `tauri.conf.json > tauri > windows` is not set.
   - [c119060e](https://www.github.com/tauri-apps/tauri/commit/c119060e3d9a5a824639fb6b3c45a87e7a62e4e2) refactor(core): empty default value for config > tauri > windows ([#3380](https://www.github.com/tauri-apps/tauri/pull/3380)) on 2022-02-10
 - **Breaking change:** Renamed the `rpc` module to `ipc`.
   - [3420aa50](https://www.github.com/tauri-apps/tauri/commit/3420aa5031b3274a95c6c5fa0f8683ca13213396) refactor: IPC handler \[TRI-019] ([#9](https://www.github.com/tauri-apps/tauri/pull/9)) on 2022-01-09
@@ -185,7 +185,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [63921fad](https://www.github.com/tauri-apps/tauri/commit/63921fada436f010c33bb5e647bd67c6e549571c) refactor: change `tauri::api::open` `with` argument to an enum \[TRI-022] ([#19](https://www.github.com/tauri-apps/tauri/pull/19)) on 2022-01-09
 - The `shell` allowlist now includes a `sidecar` flag, which enables the use of the `shell` API to execute sidecars.
   - [eed01728](https://www.github.com/tauri-apps/tauri/commit/eed017287fed2ade689af4268e8b63b9c9f2e585) feat(core): add `shell > sidecar` allowlist and `process` feature flag \[TRI-037] ([#18](https://www.github.com/tauri-apps/tauri/pull/18)) on 2021-10-24
-- **Breaking change**: The sidecar's target triple suffix is now removed at build time.
+- **Breaking change:** The sidecar's target triple suffix is now removed at build time.
   - [3035e458](https://www.github.com/tauri-apps/tauri/commit/3035e4581c161ec7f0bd6d9b42e9015cf1dd1d77) Remove target triple from sidecar bin paths, closes [#3355](https://www.github.com/tauri-apps/tauri/pull/3355) ([#3356](https://www.github.com/tauri-apps/tauri/pull/3356)) on 2022-02-07
 - Fix streaming of small files using the `asset` protocol.
   - [151e629e](https://www.github.com/tauri-apps/tauri/commit/151e629ebf15ec5c068eb623e3dbc0ecdef1f816) fix(core): streaming of small files using `asset://`, closes [#2854](https://www.github.com/tauri-apps/tauri/pull/2854) ([#3039](https://www.github.com/tauri-apps/tauri/pull/3039)) on 2021-12-09
@@ -243,10 +243,10 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [2088cd0f](https://www.github.com/tauri-apps/tauri/commit/2088cd0f24cd56ba427241136138c74bebee28f2) refactor(core): handle dialog threading internally, closes [#2223](https://www.github.com/tauri-apps/tauri/pull/2223) ([#2429](https://www.github.com/tauri-apps/tauri/pull/2429)) on 2021-08-14
   - [60b1e260](https://www.github.com/tauri-apps/tauri/commit/60b1e260f511f50bbebceb6367f412c11f8dcf11) chore: adjust change file on 2021-08-16
 
-- **Breaking change**: The `Plugin` trait `initialize` method now takes an `AppHandle` reference instead of `App`.
+- **Breaking change:** The `Plugin` trait `initialize` method now takes an `AppHandle` reference instead of `App`.
   - [c17532f7](https://www.github.com/tauri-apps/tauri/commit/c17532f7412bdcc57ae850c1251052ad1421fd67) refactor(core): change Plugin `initialize` signature, move register t… ([#2347](https://www.github.com/tauri-apps/tauri/pull/2347)) on 2021-08-03
 
-- **Breaking change**: Remove menu feature flag since there's no package dependency need to be installed on any platform anymore.
+- **Breaking change:** Remove menu feature flag since there's no package dependency need to be installed on any platform anymore.
   - [f81ebddf](https://www.github.com/tauri-apps/tauri/commit/f81ebddfcc1aea0d4989706aef43538e8ea98bea) feat: remove menu feature flag ([#2415](https://www.github.com/tauri-apps/tauri/pull/2415)) on 2021-08-13
 
 - Adds `set_activation_policy` API to the `tauri::App` struct (macOS only).
@@ -563,7 +563,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [5f351622](https://www.github.com/tauri-apps/tauri/commit/5f351622c7812ad1bb56ddb37364ccaa4124c24b) feat(core): add focus API to the WindowBuilder and WindowOptions, [#1737](https://www.github.com/tauri-apps/tauri/pull/1737) on 2021-05-30
   - [dee71ad5](https://www.github.com/tauri-apps/tauri/commit/dee71ad58349f699995cc9077b79032bacc6afcb) fix(workflows): update docs workflow syntax ([#2054](https://www.github.com/tauri-apps/tauri/pull/2054)) on 2021-06-23
 
-- **Breaking change**: The global shortcut API is now managed by `tao` so it cannot be accessed globally, the manager is now exposed on the `App` and `AppHandle` structs.
+- **Breaking change:** The global shortcut API is now managed by `tao` so it cannot be accessed globally, the manager is now exposed on the `App` and `AppHandle` structs.
   - [3280c4aa](https://www.github.com/tauri-apps/tauri/commit/3280c4aa91e50a8ccdd561a8b48a12a4a13ea8d5) refactor(core): global shortcut is now provided by `tao` ([#2031](https://www.github.com/tauri-apps/tauri/pull/2031)) on 2021-06-21
 
 - Hide `phf` crate export (not public API).
@@ -592,7 +592,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - Adds `accelerator` method to the `CustomMenuItem` struct to define a keyboard shortcut for the menu item.
   - [034c2601](https://www.github.com/tauri-apps/tauri/commit/034c26013bce0c7bbe6db067ea7fd24a53a5c998) feat(core): add `accelerator` method to `CustomMenuItem` ([#2043](https://www.github.com/tauri-apps/tauri/pull/2043)) on 2021-06-22
 
-- **Breaking change**: The `menu` API was not designed to have all the new features: submenus, item updates, disabled state... so we broke it before going to stable.
+- **Breaking change:** The `menu` API was not designed to have all the new features: submenus, item updates, disabled state... so we broke it before going to stable.
   - [f7e9fe8f](https://www.github.com/tauri-apps/tauri/commit/f7e9fe8f3f7c83532713be6cc4ef84e8b127c208) refactor(core): new system tray and window menu APIs, closes [#1898](https://www.github.com/tauri-apps/tauri/pull/1898) ([#1944](https://www.github.com/tauri-apps/tauri/pull/1944)) on 2021-06-04
 
 - Adds a `PathResolver` struct to simplify the usage of the `tauri::api::path::{app_dir, resource_dir}` APIs, accessible through the `App` and `AppHandle` `path_resolver` methods.
@@ -625,7 +625,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [5525b03a](https://www.github.com/tauri-apps/tauri/commit/5525b03a78a2232c650043fbd9894ce1553cad41) feat(core): add `skip_taskbar` API to the WindowBuilder/WindowOptions on 2021-05-30
   - [dee71ad5](https://www.github.com/tauri-apps/tauri/commit/dee71ad58349f699995cc9077b79032bacc6afcb) fix(workflows): update docs workflow syntax ([#2054](https://www.github.com/tauri-apps/tauri/pull/2054)) on 2021-06-23
 
-- **Breaking change**: The `system_tray` and `on_system_tray_event` APIs were not designed to have all the new features: submenus, item updates, click events, positioning... so we broke it before going to stable.
+- **Breaking change:** The `system_tray` and `on_system_tray_event` APIs were not designed to have all the new features: submenus, item updates, click events, positioning... so we broke it before going to stable.
   - [f7e9fe8f](https://www.github.com/tauri-apps/tauri/commit/f7e9fe8f3f7c83532713be6cc4ef84e8b127c208) refactor(core): new system tray and window menu APIs, closes [#1898](https://www.github.com/tauri-apps/tauri/pull/1898) ([#1944](https://www.github.com/tauri-apps/tauri/pull/1944)) on 2021-06-04
 
 - Fix loading url containing URI fragment

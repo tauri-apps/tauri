@@ -32,7 +32,7 @@
 - The minimum Rust version is now `1.56`.
   - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
 
-- **Breaking change**: The sidecar's target triple suffix is now removed at build time.
+- **Breaking change:** The sidecar's target triple suffix is now removed at build time.
   - [3035e458](https://www.github.com/tauri-apps/tauri/commit/3035e4581c161ec7f0bd6d9b42e9015cf1dd1d77) Remove target triple from sidecar bin paths, closes [#3355](https://www.github.com/tauri-apps/tauri/pull/3355) ([#3356](https://www.github.com/tauri-apps/tauri/pull/3356)) on 2022-02-07
 
 - When building Universal macOS Binaries through the virtual target `universal-apple-darwin`:

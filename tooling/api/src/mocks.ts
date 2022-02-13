@@ -8,7 +8,7 @@ interface IPCMessage {
 /**
  * Intercepts all IPC requests with the given mock handler.
  *
- * This function can be used when testing tauri frontend applications or when running the frontend in a nodejs context during static site generation.
+ * This function can be used when testing tauri frontend applications or when running the frontend in a Node.js context during static site generation.
  *
  * # Examples
  *

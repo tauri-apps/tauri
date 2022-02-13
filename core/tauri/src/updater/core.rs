@@ -199,7 +199,11 @@ impl<'a> UpdateBuilder<'a> {
 
   #[allow(dead_code)]
   pub fn url(mut self, url: String) -> Self {
-    self.urls.push(url);
+    self.urls.push(
+      percent_encoding::percent_decode(url.as_bytes())
+        .decode_utf8_lossy()
+        .to_string(),
+    );
     self
   }
 
@@ -955,6 +959,36 @@ mod test {
         "{}/darwin/{{{{current_version}}}}",
         mockito::server_url()
       ))
+      .build());
+
+    assert!(check_update.is_ok());
+    let updater = check_update.expect("Can't check update");
+
+    assert!(updater.should_update);
+  }
+
+  #[test]
+  fn simple_http_updater_percent_decode() {
+    let _m = mockito::mock("GET", "/darwin/1.0.0")
+      .with_status(200)
+      .with_header("content-type", "application/json")
+      .with_body(generate_sample_platform_json(
+        "2.0.0",
+        "SampleTauriKey",
+        "https://tauri.studio",
+      ))
+      .create();
+
+    let check_update = block!(builder(Default::default())
+      .current_version("1.0.0")
+      .url(
+        url::Url::parse(&format!(
+          "{}/darwin/{{{{current_version}}}}",
+          mockito::server_url()
+        ))
+        .unwrap()
+        .to_string()
+      )
       .build());
 
     assert!(check_update.is_ok());

@@ -5,8 +5,8 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, OnPageLoad,
-  PageLoadPayload, RunEvent, Window,
+  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, PageLoadPayload,
+  RunEvent, Window,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
@@ -54,10 +54,11 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn Fn(&AppHandle<R>) -> Result<()> + Send + Sync;
-type SetupWithConfigHook<R, T> = dyn Fn(&AppHandle<R>, T) -> Result<()> + Send + Sync;
-type OnWebviewReady<R> = dyn Fn(Window<R>) + Send + Sync;
-type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
+type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync;
+type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send + Sync;
+type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
+type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
+type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;
 
 /// Builds a [`TauriPlugin`].
 ///
@@ -134,7 +135,7 @@ type OnEvent<R> = dyn Fn(&AppHandle<R>, &RunEvent) + Send + Sync;
 pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
-  setup: Box<SetupHook<R>>,
+  setup: Option<Box<SetupHook<R>>>,
   setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
@@ -147,7 +148,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   pub fn new(name: &'static str) -> Self {
     Self {
       name,
-      setup: Box::new(|_| Ok(())),
+      setup: None,
       setup_with_config: None,
       js_init_script: None,
       invoke_handler: Box::new(|_| ()),
@@ -250,9 +251,9 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: Fn(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
   {
-    self.setup = Box::new(setup);
+    self.setup.replace(Box::new(setup));
     self
   }
 
@@ -286,7 +287,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
-    F: Fn(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
   {
     self.setup_with_config.replace(Box::new(setup_with_config));
     self
@@ -310,7 +311,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+    F: FnMut(Window<R>, PageLoadPayload) + Send + Sync + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -334,7 +335,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
-    F: Fn(Window<R>) + Send + Sync + 'static,
+    F: FnMut(Window<R>) + Send + Sync + 'static,
   {
     self.on_webview_ready = Box::new(on_webview_ready);
     self
@@ -366,7 +367,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where
-    F: Fn(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
+    F: FnMut(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
   {
     self.on_event = Box::new(on_event);
     self
@@ -391,7 +392,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
-  setup: Box<SetupHook<R>>,
+  setup: Option<Box<SetupHook<R>>>,
   setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
   js_init_script: Option<String>,
   on_page_load: Box<OnPageLoad<R>>,
@@ -405,8 +406,10 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   }
 
   fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
-    (self.setup)(app)?;
-    if let Some(s) = &self.setup_with_config {
+    if let Some(s) = self.setup.take() {
+      (s)(app)?;
+    }
+    if let Some(s) = self.setup_with_config.take() {
       (s)(app, serde_json::from_value(config)?)?;
     }
     Ok(())

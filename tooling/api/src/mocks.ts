@@ -31,3 +31,9 @@ export function mockWindows(current: string, ...additionalWindows: string[]): vo
     __currentWindow: { label: current },
   };
 }
+export function clearMocks(): void {
+  // @ts-expect-error
+  delete window.__TAURI_IPC__
+  // @ts-expect-error
+  delete window.__TAURI_METADATA__
+}

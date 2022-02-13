@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: eslint check
+name: api and cli.js lint check
 
 on:
   pull_request:
     paths:
-      - '.github/workflows/js-lint.yml'
+      - '.github/workflows/lint-js.yml'
       - 'tooling/cli/node/**'
       - 'tooling/api/**'
       - 'tooling/create-tauri-app/**'

@@ -688,7 +688,12 @@ pub fn command(_options: Options) -> Result<()> {
       None
     };
 
-  for (dep, label) in [("tauri", "  tauri"), ("tao", "  tao"), ("wry", "  wry")] {
+  for (dep, label) in [
+    ("tauri", "  tauri"),
+    ("tauri-build", "  tauri-build"),
+    ("tao", "  tao"),
+    ("wry", "  wry"),
+  ] {
     let (version_string, version_suffix) =
       crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
     InfoBlock::new(label)

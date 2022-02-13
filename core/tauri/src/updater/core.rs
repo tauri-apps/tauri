@@ -211,7 +211,11 @@ impl<'a> UpdateBuilder<'a> {
   pub fn urls(mut self, urls: &[String]) -> Self {
     let mut formatted_vec: Vec<String> = Vec::new();
     for url in urls {
-      formatted_vec.push(url.to_owned());
+      formatted_vec.push(
+        percent_encoding::percent_decode(url.as_bytes())
+          .decode_utf8_lossy()
+          .to_string(),
+      );
     }
     self.urls = formatted_vec;
     self
@@ -989,6 +993,21 @@ mod test {
         .unwrap()
         .to_string()
       )
+      .build());
+
+    assert!(check_update.is_ok());
+    let updater = check_update.expect("Can't check update");
+
+    assert!(updater.should_update);
+
+    let check_update = block!(builder(Default::default())
+      .current_version("1.0.0")
+      .urls(&[url::Url::parse(&format!(
+        "{}/darwin/{{{{current_version}}}}",
+        mockito::server_url()
+      ))
+      .unwrap()
+      .to_string()])
       .build());
 
     assert!(check_update.is_ok());

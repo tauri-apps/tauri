@@ -238,14 +238,4 @@ if (!nativeBinding) {
 
 const { run } = nativeBinding
 
-module.exports.run = (args, binName) => {
-  return new Promise((resolve, reject) => {
-    run(args, binName, res => {
-      if (res instanceof Error) {
-        reject(res)
-      } else {
-        resolve(res)
-      }
-    })
-  })
-}
+module.exports.run = run

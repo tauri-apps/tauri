@@ -21,8 +21,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "main.js",
+  "types": "main.d.ts",
   "napi": {
     "name": "cli",
     "triples": {

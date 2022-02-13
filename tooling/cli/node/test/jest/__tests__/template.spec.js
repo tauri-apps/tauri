@@ -2,7 +2,7 @@ const fixtureSetup = require('../fixtures/app-test-setup.js')
 const { resolve } = require('path')
 const { existsSync, readFileSync, writeFileSync } = require('fs')
 const { move } = require('fs-extra')
-const cli = require('~/index.js')
+const cli = require('~/main.js')
 
 const currentDirName = __dirname
 

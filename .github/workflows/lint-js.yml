@@ -7,7 +7,7 @@ name: eslint check
 on:
   pull_request:
     paths:
-      - '.github/workflows/js-lint.yml'
+      - '.github/workflows/lint-js.yml'
       - 'tooling/cli/node/**'
       - 'tooling/api/**'
       - 'tooling/create-tauri-app/**'

@@ -287,7 +287,7 @@
         "tauri-bundler",
         "tauri-utils"
       ],
-      "postversion": "cargo check ${ pkg.crate || pkg.pkg }",
+      "postversion": "cargo check",
       "assets": [
         {
           "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",

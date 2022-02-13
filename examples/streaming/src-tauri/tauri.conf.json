@@ -3,7 +3,8 @@
     "distDir": ["../index.html"],
     "devPath": ["../index.html"],
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
   },
   "tauri": {
     "bundle": {
@@ -47,7 +48,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: stream: 'unsafe-eval' 'unsafe-inline' 'self'"
+      "csp": "default-src 'self'; media-src stream: https://stream.example"
     },
     "updater": {
       "active": false

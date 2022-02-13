@@ -12,14 +12,14 @@ use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
-  hooks::InvokeResponder,
+  hooks::{InvokePayload, InvokeResponder},
   manager::WindowManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
-    webview::{InvokePayload, WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, PendingWindow, WindowEvent,
+      DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
     Dispatch, Icon, Runtime, UserAttentionType,
   },
@@ -179,6 +179,8 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Creates a new webview window.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
   pub fn create_window<F>(
     &mut self,
     label: String,
@@ -224,9 +226,9 @@ impl<R: Runtime> Window<R> {
   }
 
   /// How to handle this window receiving an [`InvokeMessage`].
-  pub fn on_message(self, command: String, payload: InvokePayload) -> crate::Result<()> {
+  pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
-    match command.as_str() {
+    match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
         manager.run_on_page_load(self, payload);
@@ -235,25 +237,19 @@ impl<R: Runtime> Window<R> {
         let message = InvokeMessage::new(
           self.clone(),
           manager.state(),
-          command.to_string(),
+          payload.cmd.to_string(),
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+
         let invoke = Invoke { message, resolver };
-        if manager.verify_invoke_key(payload.key) {
-          if let Some(module) = &payload.tauri_module {
-            let module = module.to_string();
-            crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
-          } else if command.starts_with("plugin:") {
-            manager.extend_api(invoke);
-          } else {
-            manager.run_invoke_handler(invoke);
-          }
+        if let Some(module) = &payload.tauri_module {
+          let module = module.to_string();
+          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+        } else if payload.cmd.starts_with("plugin:") {
+          manager.extend_api(invoke);
         } else {
-          panic!(
-            r#"The invoke key "{}" is invalid. This means that an external, possible malicious script is trying to access the system interface."#,
-            payload.key
-          );
+          manager.run_invoke_handler(invoke);
         }
       }
     }
@@ -267,29 +263,41 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Emits an event to both the JavaScript and the Rust listeners.
-  pub fn emit_and_trigger<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+  pub fn emit_and_trigger<S: Serialize + Clone>(
+    &self,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
     self.trigger(event, Some(serde_json::to_string(&payload)?));
     self.emit(event, payload)
   }
 
-  /// Emits an event to the JavaScript listeners on the current window.
-  ///
-  /// The event is only delivered to listeners that used the `appWindow.listen` method on the @tauri-apps/api `window` module.
-  pub fn emit<S: Serialize>(&self, event: &str, payload: S) -> crate::Result<()> {
+  pub(crate) fn emit_internal<S: Serialize>(
+    &self,
+    event: &str,
+    source_window_label: Option<&str>,
+    payload: S,
+  ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, payload: {}}})",
+      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
+      serde_json::to_string(&source_window_label)?,
       serde_json::to_value(payload)?,
     ))?;
     Ok(())
   }
 
-  /// Emits an event to the JavaScript listeners on all windows except this one.
+  /// Emits an event to the JavaScript listeners on the current window.
   ///
-  /// The event is only delivered to listeners that used the `appWindow.listen` function from the `@tauri-apps/api `window` module.
-  pub fn emit_others<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager.emit_filter(event, payload, |w| w != self)
+  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager
+      .emit_filter(event, Some(self.label()), payload, |w| {
+        w.has_js_listener(None, event) || w.has_js_listener(Some(self.label().into()), event)
+      })?;
+    Ok(())
   }
 
   /// Listen to an event on this window.
@@ -313,7 +321,7 @@ impl<R: Runtime> Window<R> {
   /// Listen to an event on this window a single time.
   pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
-    F: Fn(Event) + Send + 'static,
+    F: FnOnce(Event) + Send + 'static,
   {
     let label = self.window.label.clone();
     self.manager.once(event.into(), Some(label), handler)
@@ -352,13 +360,16 @@ impl<R: Runtime> Window<R> {
     })
   }
 
-  pub(crate) fn register_js_listener(&self, event: String, id: u64) {
+  pub(crate) fn register_js_listener(&self, window_label: Option<String>, event: String, id: u64) {
     self
       .window
       .js_event_listeners
       .lock()
       .unwrap()
-      .entry(event)
+      .entry(JsEventListenerKey {
+        window_label,
+        event,
+      })
       .or_insert_with(Default::default)
       .insert(id);
   }
@@ -366,28 +377,57 @@ impl<R: Runtime> Window<R> {
   pub(crate) fn unregister_js_listener(&self, id: u64) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
-    for (event, ids) in js_listeners.iter_mut() {
+    for (key, ids) in js_listeners.iter_mut() {
       if ids.contains(&id) {
         ids.remove(&id);
         if ids.is_empty() {
-          empty.replace(event.clone());
+          empty.replace(key.clone());
         }
         break;
       }
     }
 
-    if let Some(event) = empty {
-      js_listeners.remove(&event);
+    if let Some(key) = empty {
+      js_listeners.remove(&key);
     }
   }
 
-  pub(crate) fn has_js_listener(&self, event: &str) -> bool {
+  /// Whether this window registered a listener to an event from the given window and event name.
+  pub(crate) fn has_js_listener(&self, window_label: Option<String>, event: &str) -> bool {
     self
       .window
       .js_event_listeners
       .lock()
       .unwrap()
-      .contains_key(event)
+      .contains_key(&JsEventListenerKey {
+        window_label,
+        event: event.into(),
+      })
+  }
+
+  /// Opens the developer tools window (Web Inspector).
+  /// The devtools is only enabled on debug builds or with the `devtools` feature flag.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: This is a private API on macOS,
+  /// so you cannot use this if your application will be published on the App Store.
+  ///
+  /// # Example
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     app.get_window("main").unwrap().open_devtools();
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  pub fn open_devtools(&self) {
+    self.window.dispatcher.open_devtools();
   }
 
   // Getters
@@ -457,10 +497,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn current_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -473,10 +509,6 @@ impl<R: Runtime> Window<R> {
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self
       .window
@@ -487,10 +519,6 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Returns the list of all the monitors available on the system.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux:** Unsupported
   pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
     self
       .window
@@ -512,7 +540,7 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd as *mut _)
+      .map(|hwnd| hwnd.0 as *mut _)
       .map_err(Into::into)
   }
 
@@ -547,6 +575,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** `None` has no effect.
+  /// - **Linux:** Urgency levels have the same effect.
   pub fn request_user_attention(
     &self,
     request_type: Option<UserAttentionType>,
@@ -718,7 +747,7 @@ impl<R: Runtime> Window<R> {
 mod tests {
   #[test]
   fn window_is_send_sync() {
-    crate::test::assert_send::<super::Window>();
-    crate::test::assert_sync::<super::Window>();
+    crate::test_utils::assert_send::<super::Window>();
+    crate::test_utils::assert_sync::<super::Window>();
   }
 }

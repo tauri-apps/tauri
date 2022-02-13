@@ -1,4 +1,6 @@
 [advisories]
 ignore = [
-  "RUSTSEC-2020-0095" # difference is unmaintained (used by `mockito`)
+  "RUSTSEC-2020-0095", # difference is unmaintained (used by `mockito`)
+  "RUSTSEC-2020-0071", # potential segfault in the time crate (not fixed on `zip` and `mac-notification-sys`)
+  "RUSTSEC-2020-0159" # potential segfault in `localtime_r` invocations on the chrono crate (not fixed on `mac-notification-sys`)
 ]

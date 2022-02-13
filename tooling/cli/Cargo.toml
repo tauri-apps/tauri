@@ -1,0 +1,84 @@
+[workspace]
+members = [ "node" ]
+
+[package]
+name = "tauri-cli"
+version = "1.0.0-rc.4"
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+edition = "2021"
+rust-version = "1.57"
+categories = [ "gui", "web-programming" ]
+license = "Apache-2.0 OR MIT"
+homepage = "https://tauri.studio"
+repository = "https://github.com/tauri-apps/tauri"
+description = "Command line interface for building Tauri apps"
+include = [
+  "src/",
+  "/templates",
+  "MergeModules/",
+  "*.json",
+  "*.rs",
+  "vswhere.exe",
+  "tauri.gitignore"
+]
+
+[[bin]]
+name = "cargo-tauri"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "3", features = [ "derive" ] }
+anyhow = "1.0"
+tauri-bundler = { version = "1.0.0-rc.1", path = "../bundler" }
+colored = "2.0"
+once_cell = "1.9"
+serde = { version = "1.0", features = [ "derive" ] }
+serde_json = "1.0"
+serde_with = "1.12"
+notify = "4.0"
+shared_child = "1.0"
+toml_edit = "0.13"
+json-patch = "0.2"
+tauri-utils = { version = "1.0.0-rc.1", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
+toml = "0.5"
+valico = "3.6"
+handlebars = "4.2"
+include_dir = "0.7"
+minisign = "0.7"
+base64 = "0.13.0"
+ureq = "2.4"
+os_info = "3.2"
+semver = "1.0"
+regex = "1.5"
+lazy_static = "1"
+libc = "0.2"
+terminal_size = "0.1"
+unicode-width = "0.1"
+tempfile = "3"
+zeroize = "1.5"
+glob = "0.3"
+heck = "0.4"
+dialoguer = "0.9"
+url = { version = "2.2", features = [ "serde" ] }
+os_pipe = "1"
+ignore = "0.4"
+
+[target."cfg(windows)".dependencies]
+encode_unicode = "0.3"
+
+[target."cfg(not(windows))".dependencies]
+humansize = "1.1"
+
+[target."cfg(target_os = \"linux\")".build-dependencies]
+heck = "0.4"
+
+[build-dependencies]
+tauri-utils = { version = "1.0.0-rc.0", features = [ "schema", "isolation" ], path = "../../core/tauri-utils" }
+schemars = { version = "0.8", features = [ "url" ] }
+serde = { version = "1.0", features = [ "derive" ] }
+serde_json = "1.0"
+serde_with = "1.12"
+url = { version = "2.2", features = [ "serde" ] }
+
+[profile.release]
+lto = true

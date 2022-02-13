@@ -25,26 +25,26 @@ jobs:
       - uses: actions/setup-node@v2
         with:
           node-version: 14
-          registry-url: "https://registry.npmjs.org"
+          registry-url: 'https://registry.npmjs.org'
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
-      
+
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.rs/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ubuntu-latest-stable-cargo-cli-
 
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli.rs/Cargo.toml
+          args: --manifest-path ./tooling/cli/Cargo.toml
 
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
@@ -60,7 +60,7 @@ jobs:
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          command: "version-or-publish"
+          command: 'version-or-publish'
           createRelease: true
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
@@ -69,125 +69,24 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
           title: Apply Version Updates From Current Changes
-          commit-message: "apply version updates"
-          labels: "version updates"
+          commit-message: 'apply version updates'
+          labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}
 
-  update-docs:
-    needs: version-or-publish
-    if: needs.version-or-publish.outputs.successfulPublish == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      # Setup
-      - name: checkout tauri
-        uses: actions/checkout@v2
-        with:
-          path: tauri
-      - name: checkout tauri-docs
-        uses: actions/checkout@v2
-        with:
-          repository: tauri-apps/tauri-docs
-          path: tauri-docs
-      - name: checkout tauri-search-bot
-        uses: actions/checkout@v2
-        with:
-          repository: tauri-apps/tauri-search-bot
-          path: tauri-search-bot
-      - name: install webkit2gtk
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-
-      # Rust
-      - name: generate rust docs
-        working-directory: ./tauri/core/tauri
-        run: cargo doc --no-deps
-      - name: run rustdocusaurus
-        uses: tauri-apps/rustdocusaurus/github-action@v1.0.3
-        with:
-          originPath: ./tauri/target/doc/
-          targetPath: ./tauri-docs/docs/en/api/rust/
-          sidebarPath: ./tauri-docs/sidebars/rustdoc.json
-          linksRoot: ""
-          cratesToProcess: "tauri"
-
-      # TypeScript
-      - name: run typedocusaurus
-        uses: tauri-apps/typedocusaurus@v1
-        with:
-          originPath: ./tauri/tooling/api/
-          sidebarFile: ./tauri-docs/sidebars/typedoc.json
-          targetPath: ./tauri-docs/en/api/js/
-          docusaurusPath: ./tauri-docs/
-
-      # Moving docs for Indexation
-      - name: copy docs
-        working-directory: ./tauri
-        run: |
-          mv docs/sidebar.json ${{ github.workspace }}/tauri-docs/sidebars/core.json
-          cp -r docs/!(.templates) ${{ github.workspace }}/tauri-docs/docs/en
-          mv ARCHITECTURE.md ${{ github.workspace }}/tauri-docs/docs/en/about/architecture.md
-
-      # Indexing
-      - name: meilisearch indexation
-        uses: tauri-apps/docusaurus-meilisearch-indexer@v1
-        with:
-          version: ${{ github.event.release.tag_name }}
-          docusaurusPath: ./tauri-docs
-          host: https://search.tauri.studio
-          apiKey: ${{ secrets.MEILISEARCH_APIKEY }}
-          docs: "Getting started,Usage,API"
-
-      # Applying Version
-      - name: set docs' Tauri version
-        working-directory: ./tauri-docs
-        run: echo ${{ github.event.release.tag_name }} > version.txt
-      - name: set bot's Tauri version
-        working-directory: ./tauri-search-bot
-        run: echo ${{ github.event.release.tag_name }} > version.txt
-
-      - uses: iamsauravsharma/create-dotenv@v1.1.0
-        with:
-          directory: "./tauri-search-bot"
-        env:
-          ENV_KEY_DISCORD_BOT_SECRET: ${{ secrets.DISCORD_BOT_SECRET }}
-          ENV_KEY_PREFIX: \!
-          ENV_KEY_SITE: tauri.studio
-          ENV_KEY_ICON: https://i.imgur.com/UzDERvw.png
-          ENV_KEY_LIMIT: 5
-          ENV_KEY_SEARCH_INDEX: ${{ github.event.release.tag_name }}
-          ENV_KEY_MEILISEARCH_PUBLIC_KEY: ea0105f56bb5a2111ed28c7a0c637fc0bed07273f571dc7cb1f73900e44f8e7f
-
-      # Bot Deployment
-      - name: scp bot
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.DISCORD_BOT_HOST }}
-          username: ${{ secrets.DISCORD_BOT_SSH_USER }}
-          key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          source: "./tauri-search-bot"
-          target: "~/tauri-search-bot"
-      - name: restart the bot
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DISCORD_BOT_HOST }}
-          username: ${{ secrets.DISCORD_BOT_SSH_USER }}
-          key: ${{ secrets.DISCORD_BOT_SSH_KEY }}
-          script: cd ~/tauri-search-bot && yarn && forever stopall && forever start ./src/index.js
-
-      # tauri-docs PR
-      - name: git config
-        run: |
-          git config --global user.name "${{ github.event.pusher.name }}"
-          git config --global user.email "${{ github.event.pusher.email }}"
-      - name: create pull request for updated docs
-        uses: tauri-apps/create-pull-request@v3.4.1
+      - name: Trigger doc update
+        if: steps.covector.outputs.successfulPublish == 'true'
+        uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}
-          commit-message: "chore(docs): Update Rust & TS docs"
-          branch: docs/release
-          path: tauri-docs
-          title: Update Docs
-          labels: "new release"
-          body: |
-            These are the updated docs from the most recent release.
+          repository: tauri-apps/tauri-docs
+          event-type: update-docs
+
+      - name: Trigger cli.js publishing workflow
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.TAURI_BOT_PAT }}
+          repository: tauri-apps/tauri
+          event-type: publish-clijs

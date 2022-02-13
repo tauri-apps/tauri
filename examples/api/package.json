@@ -6,7 +6,7 @@
     "dev": "vite --clearScreen false --port 5000",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "node ../../tooling/cli.js/bin/tauri"
+    "tauri": "node ../../tooling/cli/node/tauri.js"
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",

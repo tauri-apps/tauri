@@ -4,7 +4,7 @@ Wrap Rust executables in OS-specific app bundles.
 
 ## About
 
-This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../cli.rs).
+This is a fork of the awesome [cargo-bundle](https://github.com/burtonageo/cargo-bundle), turned into a library used by the [Tauri CLI](../cli).
 
 ## Configuration
 
@@ -76,6 +76,7 @@ These settings are used only when bundling `app` and `dmg` packages.
 * `license`: Path to the license file for the DMG bundle.
 * `exception_domain`: The exception domain to use on the macOS .app bundle. Allows communication to the outside world e.g. a web server you're shipping.
 * `use_bootstrapper`: Enables the bootstrapper script, which allows access to the environment variables.
+* `provider_short_name`: If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. See [Customizing the notarization workflow](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/customizing_the_notarization_workflow) and search for `--list-providers` for more information how to obtain your provider short name.
 
 ### Example `tauri.conf.json`:
 

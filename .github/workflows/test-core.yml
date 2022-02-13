@@ -20,7 +20,7 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  build-tauri-core:
+  test-tauri-core:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -84,6 +84,8 @@ jobs:
       - name: test
         run: |
           cargo test
+          cargo test --features api-all
+          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray
 
   test-tauri-cli:
     runs-on: ${{ matrix.platform }}
@@ -108,7 +110,7 @@ jobs:
       - name: Get current date
         if: matrix.platform == 'windows-latest'
         run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        
+
       - name: Cache cargo registry
         uses: actions/cache@v2.1.4
         with:
@@ -134,19 +136,19 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.rs/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ${{ matrix.platform }}-stable-cargo-cli-
 
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli.rs/Cargo.toml
+          args: --manifest-path ./tooling/cli/Cargo.toml
 
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
@@ -168,7 +170,7 @@ jobs:
         with:
           node-version: 14
           cache: yarn
-          cache-dependency-path: tooling/cli.js/yarn.lock
+          cache-dependency-path: tooling/cli/node/yarn.lock
       - name: install webkit2gtk (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -182,7 +184,7 @@ jobs:
       - name: Get current date
         if: matrix.platform == 'windows-latest'
         run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-        
+
       - name: Cache cargo registry
         uses: actions/cache@v2.1.4
         with:
@@ -208,32 +210,29 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.rs/target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli.rs/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ${{ matrix.platform }}-stable-cargo-cli-
 
       - name: Cache template cargo target
         uses: actions/cache@v2
         with:
-          path: tooling/cli.js/test/jest/fixtures/empty/src-tauri/target
+          path: tooling/cli/node/test/jest/fixtures/empty/src-tauri/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli/templates/app/**') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli.rs/templates/app/**') }}
+            ${{ matrix.platform }}-stable-template-${{ hashFiles('tooling/cli/templates/app/**') }}
             ${{ matrix.platform }}-stable-template-
 
       - name: test
         timeout-minutes: 30
         run: |
-          cd ./tooling/cli.js
+          cd ./tooling/cli/node
           yarn
+          yarn build
           yarn test
-      - name: run release build
-        timeout-minutes: 15
-        working-directory: tooling/cli.js
-        run: yarn build-release

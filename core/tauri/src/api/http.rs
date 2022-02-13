@@ -8,6 +8,7 @@ use http::{header::HeaderName, Method};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use url::Url;
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
@@ -28,12 +29,14 @@ impl ClientBuilder {
   }
 
   /// Sets the maximum number of redirections.
+  #[must_use]
   pub fn max_redirections(mut self, max_redirections: usize) -> Self {
     self.max_redirections = Some(max_redirections);
     self
   }
 
   /// Sets the connection timeout.
+  #[must_use]
   pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
     self.connect_timeout = Some(connect_timeout);
     self
@@ -139,7 +142,7 @@ impl Client {
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
-    let mut request_builder = self.0.request(method, &request.url);
+    let mut request_builder = self.0.request(method, request.url.as_str());
 
     if let Some(query) = request.query {
       request_builder = request_builder.query(&query);
@@ -249,7 +252,7 @@ pub enum Body {
 ///     .max_redirections(3)
 ///     .build()
 ///     .unwrap();
-///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
+///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com").unwrap();
 ///   let request = request_builder.response_type(ResponseType::Text);
 ///
 ///   if let Ok(response) = client.send(request).await {
@@ -265,7 +268,7 @@ pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
   pub method: String,
   /// The request URL
-  pub url: String,
+  pub url: Url,
   /// The request query params
   pub query: Option<HashMap<String, String>>,
   /// The request headers
@@ -280,43 +283,48 @@ pub struct HttpRequestBuilder {
 
 impl HttpRequestBuilder {
   /// Initializes a new instance of the HttpRequestrequest_builder.
-  pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
-    Self {
+  pub fn new(method: impl Into<String>, url: impl AsRef<str>) -> crate::api::Result<Self> {
+    Ok(Self {
       method: method.into(),
-      url: url.into(),
+      url: Url::parse(url.as_ref())?,
       query: None,
       headers: None,
       body: None,
       timeout: None,
       response_type: None,
-    }
+    })
   }
 
   /// Sets the request parameters.
+  #[must_use]
   pub fn query(mut self, query: HashMap<String, String>) -> Self {
     self.query = Some(query);
     self
   }
 
   /// Sets the request headers.
+  #[must_use]
   pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
     self.headers = Some(headers);
     self
   }
 
   /// Sets the request body.
+  #[must_use]
   pub fn body(mut self, body: Body) -> Self {
     self.body = Some(body);
     self
   }
 
   /// Sets the general request timeout.
+  #[must_use]
   pub fn timeout(mut self, timeout: u64) -> Self {
     self.timeout = Some(timeout);
     self
   }
 
   /// Sets the type of the response. Interferes with the way we read the response.
+  #[must_use]
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self
@@ -330,7 +338,7 @@ pub struct Response(ResponseType, reqwest::Response);
 /// The HTTP response.
 #[cfg(not(feature = "reqwest-client"))]
 #[derive(Debug)]
-pub struct Response(ResponseType, attohttpc::Response, String);
+pub struct Response(ResponseType, attohttpc::Response, Url);
 
 impl Response {
   /// Reads the response as raw bytes.
@@ -346,15 +354,26 @@ impl Response {
   /// Reads the response and returns its info.
   pub async fn read(self) -> crate::api::Result<ResponseData> {
     #[cfg(feature = "reqwest-client")]
-    let url = self.1.url().to_string();
+    let url = self.1.url().clone();
     #[cfg(not(feature = "reqwest-client"))]
     let url = self.2;
 
     let mut headers = HashMap::new();
+    let mut raw_headers = HashMap::new();
     for (name, value) in self.1.headers() {
       headers.insert(
         name.as_str().to_string(),
         String::from_utf8(value.as_bytes().to_vec())?,
+      );
+      raw_headers.insert(
+        name.as_str().to_string(),
+        self
+          .1
+          .headers()
+          .get_all(name)
+          .into_iter()
+          .map(|v| String::from_utf8(v.as_bytes().to_vec()).map_err(Into::into))
+          .collect::<crate::api::Result<Vec<String>>>()?,
       );
     }
     let status = self.1.status().as_u16();
@@ -377,6 +396,7 @@ impl Response {
       url,
       status,
       headers,
+      raw_headers,
       data,
     })
   }
@@ -398,11 +418,28 @@ pub struct RawResponse {
 #[non_exhaustive]
 pub struct ResponseData {
   /// Response URL. Useful if it followed redirects.
-  pub url: String,
+  pub url: Url,
   /// Response status code.
   pub status: u16,
   /// Response headers.
   pub headers: HashMap<String, String>,
+  /// Response raw headers.
+  pub raw_headers: HashMap<String, Vec<String>>,
   /// Response data.
   pub data: Value,
+}
+
+#[cfg(test)]
+mod test {
+  use super::ClientBuilder;
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for ClientBuilder {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        max_redirections: Option::arbitrary(g),
+        connect_timeout: Option::arbitrary(g),
+      }
+    }
+  }
 }

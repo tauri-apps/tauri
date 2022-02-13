@@ -71,15 +71,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
-      - name: yarn install for cli
-        working-directory: tauri/tooling/cli.js
-        run: yarn
-      - name: build cli.js
-        working-directory: tauri/tooling/cli.js
-        run: |
-          yarn build-release
-          yarn global add $PWD
-          echo "::add-path::$(yarn global bin)"
+      - name: build and install cli.rs
+        run: cargo install --path tauri/tooling/cli
       - name: install and build assets
         working-directory: "example/${{ github.event.inputs.dir }}"
         run: ${{ github.event.inputs.buildAssets }}
@@ -88,6 +81,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tauriScript: cargo tauri
           includeDebug: true
           projectPath: "example/${{ github.event.inputs.dir }}"
           preferGlobal: true

@@ -2,10 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invokeTauriCommand } from './helpers/tauri'
-import { BaseDirectory } from './fs'
-import { isWindows } from './helpers/os-check'
-
 /**
  * The path module provides utilities for working with file and directory paths.
  *
@@ -26,6 +22,10 @@ import { isWindows } from './helpers/os-check'
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @module
  */
+
+import { invokeTauriCommand } from './helpers/tauri'
+import { BaseDirectory } from './fs'
+import { isWindows } from './helpers/os-check'
 
 /**
  * Returns the path to the suggested directory for your app config files.
@@ -413,22 +413,6 @@ async function videoDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the current working directory.
- *
- * @returns
- */
-async function currentDir(): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Path',
-    message: {
-      cmd: 'resolvePath',
-      path: '',
-      directory: BaseDirectory.Current
-    }
-  })
-}
-
-/**
  * Returns the path to the suggested log directory.
  *
  * ### Platform-specific
@@ -578,7 +562,6 @@ export {
   runtimeDir,
   templateDir,
   videoDir,
-  currentDir,
   logDir,
   BaseDirectory,
   sep,

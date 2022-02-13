@@ -1,4 +1,4 @@
-<img src="docs/splash.png" alt="Tauri" />
+<img src=".github/splash.png" alt="Tauri" />
 
 [![status](https://img.shields.io/badge/Status-Beta-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
@@ -7,7 +7,7 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/intro)
+[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/get-started/intro)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
@@ -15,8 +15,8 @@
 
 | Component                                                                                     | Description                              | Version                                                                                                          | Lin | Win | Mac |
 | --------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --- | --- | --- |
-| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs)                     | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)                         | ✅   | ✅   | ✅   |
-| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js)                     | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)           | ✅   | ✅   | ✅   |
+| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli)                     | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)                         | ✅   | ✅   | ✅   |
+| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node)                     | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)           | ✅   | ✅   | ✅   |
 | [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)                        | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)           | ✅   | ✅   | ✅   |
 | [**create-tauri-app**](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) | Get started with your first Tauri app    | [![](https://img.shields.io/npm/v/create-tauri-app.svg)](https://www.npmjs.com/package/create-tauri-app)         | ✅   | ✅   | ✅   |
 | [**vue-cli-plugin-tauri**](https://github.com/tauri-apps/vue-cli-plugin-tauri/)               | Vue CLI plugin for Tauri                 | [![](https://img.shields.io/npm/v/vue-cli-plugin-tauri.svg)](https://www.npmjs.com/package/vue-cli-plugin-tauri) | ✅   | ✅   | ✅   |

@@ -3,16 +3,16 @@ name = "updater-example"
 version = "0.1.0"
 description = "A very simple Tauri Appplication"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = [ "codegen" ] }
+tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "updater"] }
+tauri = { path = "../../../core/tauri", features = ["updater"] }
 
 [features]
 default = [ "custom-protocol" ]

@@ -69,11 +69,6 @@ package-lock.json
 proptest-regressions/
 TODO.md
 
-
-# Tauri output
-/bundle.json
-/config.json
-
 # rust compiled folders
 target
 
@@ -81,12 +76,6 @@ target
 /Cargo.lock
 /tooling/bench/tests/Cargo.lock
 /yarn.lock
-
-/tooling/cli.js/test/jest/tmp
-
-# doing this because of how our tests currently (naively) drop the tauri.conf.js in that folder
-# todo: needs a proper fic
-/tooling/cli.js/tauri.conf.js
 
 # ignore frida handlers
 __handlers__/

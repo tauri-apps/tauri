@@ -4,12 +4,9 @@
 
 //! Types and functions related to file system path operations.
 
-use std::{
-  env,
-  path::{Component, Path, PathBuf},
-};
+use std::path::{Component, Path, PathBuf};
 
-use crate::{Config, PackageInfo};
+use crate::{Config, Env, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -60,12 +57,97 @@ pub enum BaseDirectory {
   /// The default App config directory.
   /// Resolves to [`BaseDirectory::Config`].
   App,
-  /// The current working directory.
-  Current,
   /// The Log directory.
   /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macOS
   /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
   Log,
+}
+
+impl BaseDirectory {
+  /// Gets the variable that represents this [`BaseDirectory`] for string paths.
+  pub fn variable(self) -> &'static str {
+    match self {
+      Self::Audio => "$AUDIO",
+      Self::Cache => "$CACHE",
+      Self::Config => "$CONFIG",
+      Self::Data => "$DATA",
+      Self::LocalData => "$LOCALDATA",
+      Self::Desktop => "$DESKTOP",
+      Self::Document => "$DOCUMENT",
+      Self::Download => "$DOWNLOAD",
+      Self::Executable => "$EXE",
+      Self::Font => "$FONT",
+      Self::Home => "$HOME",
+      Self::Picture => "$PICTURE",
+      Self::Public => "$PUBLIC",
+      Self::Runtime => "$RUNTIME",
+      Self::Template => "$TEMPLATE",
+      Self::Video => "$VIDEO",
+      Self::Resource => "$RESOURCE",
+      Self::App => "$APP",
+      Self::Log => "$LOG",
+    }
+  }
+
+  /// Gets the [`BaseDirectory`] associated with the given variable, or [`None`] if the variable doesn't match any.
+  pub fn from_variable(variable: &str) -> Option<Self> {
+    let res = match variable {
+      "$AUDIO" => Self::Audio,
+      "$CACHE" => Self::Cache,
+      "$CONFIG" => Self::Config,
+      "$DATA" => Self::Data,
+      "$LOCALDATA" => Self::LocalData,
+      "$DESKTOP" => Self::Desktop,
+      "$DOCUMENT" => Self::Document,
+      "$DOWNLOAD" => Self::Download,
+      "$EXE" => Self::Executable,
+      "$FONT" => Self::Font,
+      "$HOME" => Self::Home,
+      "$PICTURE" => Self::Picture,
+      "$PUBLIC" => Self::Public,
+      "$RUNTIME" => Self::Runtime,
+      "$TEMPLATE" => Self::Template,
+      "$VIDEO" => Self::Video,
+      "$RESOURCE" => Self::Resource,
+      "$APP" => Self::App,
+      "$LOG" => Self::Log,
+      _ => return None,
+    };
+    Some(res)
+  }
+}
+
+/// Parse the given path, resolving a [`BaseDirectory`] variable if the path starts with one.
+pub fn parse<P: AsRef<Path>>(
+  config: &Config,
+  package_info: &PackageInfo,
+  env: &Env,
+  path: P,
+) -> crate::api::Result<PathBuf> {
+  let mut p = PathBuf::new();
+  let mut components = path.as_ref().components();
+  if let Some(Component::Normal(str)) = components.next() {
+    if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
+      p.push(resolve_path(
+        config,
+        package_info,
+        env,
+        "",
+        Some(base_directory),
+      )?);
+    } else {
+      p.push(str);
+    }
+  }
+
+  for component in components {
+    if let Component::ParentDir = component {
+      continue;
+    }
+    p.push(component);
+  }
+
+  Ok(p)
 }
 
 /// Resolves the path with the optional base directory.
@@ -83,6 +165,7 @@ pub enum BaseDirectory {
 ///     authors: "tauri",
 ///     description: "a tauri test",
 ///   },
+///   &Default::default(),
 ///   "path/to/something",
 ///   Some(BaseDirectory::Config)
 ///  ).expect("failed to resolve path");
@@ -91,6 +174,7 @@ pub enum BaseDirectory {
 pub fn resolve_path<P: AsRef<Path>>(
   config: &Config,
   package_info: &PackageInfo,
+  env: &Env,
   path: P,
   dir: Option<BaseDirectory>,
 ) -> crate::api::Result<PathBuf> {
@@ -113,9 +197,8 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Runtime => runtime_dir(),
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
-      BaseDirectory::Resource => resource_dir(package_info),
+      BaseDirectory::Resource => resource_dir(package_info, env),
       BaseDirectory::App => app_dir(config),
-      BaseDirectory::Current => Some(env::current_dir()?),
       BaseDirectory::Log => log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
@@ -229,8 +312,8 @@ pub fn video_dir() -> Option<PathBuf> {
 }
 
 /// Returns the path to the resource directory of this app.
-pub fn resource_dir(package_info: &PackageInfo) -> Option<PathBuf> {
-  crate::utils::platform::resource_dir(package_info).ok()
+pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
+  crate::utils::platform::resource_dir(package_info, env).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.

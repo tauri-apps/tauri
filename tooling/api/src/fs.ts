@@ -14,10 +14,8 @@
  *     "allowlist": {
  *       "fs": {
  *         "all": true, // enable all FS APIs
- *         "readTextFile": true,
- *         "readBinaryFile": true,
+ *         "readFile": true,
  *         "writeFile": true,
- *         "writeBinaryFile": true,
  *         "readDir": true,
  *         "copyFile": true,
  *         "createDir": true,
@@ -30,6 +28,43 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * ## Security
+ *
+ * This module prevents path traversal, not allowing absolute paths or parent dir components
+ * (i.e. "/usr/path/to/file" or "../path/to/file" paths are not allowed).
+ * Paths accessed with this API must be relative to one of the [[BaseDirectory | base directories]]
+ * so if you need access to arbitrary filesystem paths, you must write such logic on the core layer instead.
+ *
+ * The API has a scope configuration that forces you to restrict the paths that can be accessed using glob patterns.
+ *
+ * The scope configuration is an array of glob patterns describing folder paths that are allowed.
+ * For instance, this scope configuration only allows accessing files on the
+ * *databases* folder of the [[path.appDir | $APP directory]]:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "fs": {
+ *         "scope": ["$APP/databases/*"]
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Notice the use of the `$APP` variable. The value is injected at runtime, resolving to the [[path.appDir | app directory]].
+ * The available variables are:
+ * [[path.audioDir | `$AUDIO`]], [[path.cacheDir | `$CACHE`]], [[path.configDir | `$CONFIG`]], [[path.dataDir | `$DATA`]],
+ * [[path.localDataDir | `$LOCALDATA`]], [[path.desktopDir | `$DESKTOP`]], [[path.documentDir | `$DOCUMENT`]],
+ * [[path.downloadDir | `$DOWNLOAD`]], [[path.executableDir | `$EXE`]], [[path.fontDir | `$FONT`]], [[path.homeDir | `$HOME`]],
+ * [[path.pictureDir | `$PICTURE`]], [[path.publicDir | `$PUBLIC`]], [[path.runtimeDir | `$RUNTIME`]],
+ * [[path.templateDir | `$TEMPLATE`]], [[path.videoDir | `$VIDEO`]], [[path.resourceDir | `$RESOURCE`]], [[path.appDir | `$APP`]].
+ *
+ * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
+ *
+ * Note that this scope applies to **all** APIs on this module.
+ *
  * @module
  */
 
@@ -54,7 +89,6 @@ export enum BaseDirectory {
   Video,
   Resource,
   App,
-  Current,
   Log
 }
 
@@ -67,14 +101,20 @@ interface FsDirOptions {
   recursive?: boolean
 }
 
+/** Options object used to write a UTF-8 string to a file. */
 interface FsTextFileOption {
+  /** Path to the file to write. */
   path: string
+  /** The UTF-8 string to write to the file. */
   contents: string
 }
 
+/** Options object used to write a binary data to a file. */
 interface FsBinaryFileOption {
+  /** Path to the file to write. */
   path: string
-  contents: ArrayBuffer
+  /** The byte array contents. */
+  contents: Iterable<number> | ArrayLike<number>
 }
 
 interface FileEntry {
@@ -89,7 +129,7 @@ interface FileEntry {
 }
 
 /**
- * Reads a file as UTF-8 encoded string.
+ * Reads a file as an UTF-8 encoded string.
  *
  * @param filePath Path to the file.
  * @param options Configuration object.
@@ -99,14 +139,14 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return invokeTauriCommand<string>({
+  return invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readTextFile',
+      cmd: 'readFile',
       path: filePath,
       options
     }
-  })
+  }).then((data) => new TextDecoder().decode(new Uint8Array(data)))
 }
 
 /**
@@ -119,19 +159,21 @@ async function readTextFile(
 async function readBinaryFile(
   filePath: string,
   options: FsOptions = {}
-): Promise<number[]> {
-  return invokeTauriCommand<number[]>({
+): Promise<Uint8Array> {
+  const arr = await invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readBinaryFile',
+      cmd: 'readFile',
       path: filePath,
       options
     }
   })
+
+  return Uint8Array.from(arr)
 }
 
 /**
- * Writes a text file.
+ * Writes a UTF-8 text file.
  *
  * @param file File configuration object.
  * @param options Configuration object.
@@ -153,50 +195,14 @@ async function writeFile(
     message: {
       cmd: 'writeFile',
       path: file.path,
-      contents: file.contents,
+      contents: Array.from(new TextEncoder().encode(file.contents)),
       options
     }
   })
 }
 
-/** @ignore */
-const CHUNK_SIZE = 65536
-
 /**
- * Convert an Uint8Array to ascii string.
- *
- * @ignore
- * @param arr
- * @returns An ASCII string.
- */
-function uint8ArrayToString(arr: Uint8Array): string {
-  if (arr.length < CHUNK_SIZE) {
-    return String.fromCharCode.apply(null, Array.from(arr))
-  }
-
-  let result = ''
-  const arrLen = arr.length
-  for (let i = 0; i < arrLen; i++) {
-    const chunk = arr.subarray(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-    result += String.fromCharCode.apply(null, Array.from(chunk))
-  }
-  return result
-}
-
-/**
- * Convert an ArrayBuffer to base64 encoded string.
- *
- * @ignore
- * @param buffer
- * @returns A base64 encoded string.
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  const str = uint8ArrayToString(new Uint8Array(buffer))
-  return btoa(str)
-}
-
-/**
- * Writes a binary file.
+ * Writes a byte array content to a file.
  *
  * @param file Write configuration object.
  * @param options Configuration object.
@@ -216,9 +222,9 @@ async function writeBinaryFile(
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'writeBinaryFile',
+      cmd: 'writeFile',
       path: file.path,
-      contents: arrayBufferToBase64(file.contents),
+      contents: Array.from(file.contents),
       options
     }
   })

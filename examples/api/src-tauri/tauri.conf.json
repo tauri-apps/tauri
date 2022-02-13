@@ -7,9 +7,16 @@
   },
   "package": {
     "productName": "Tauri API",
-    "version": "0.1.0"
+    "version": "../package.json"
   },
   "tauri": {
+    "pattern": {
+      "use": "isolation",
+      "options": {
+        "dir": "../isolation-dist/"
+      }
+    },
+    "macOSPrivateApi": true,
     "cli": {
       "description": "Tauri API example",
       "args": [
@@ -55,7 +62,17 @@
         "../../.icons/128x128@2x.png",
         "../../.icons/icon.icns",
         "../../.icons/icon.ico"
-      ]
+      ],
+      "windows": {
+        "wix": {
+          "language": {
+            "en-US": {},
+            "pt-BR": {
+              "localePath": "locales/pt-BR.wxl"
+            }
+          }
+        }
+      }
     },
     "updater": {
       "active": true,
@@ -66,7 +83,31 @@
       ]
     },
     "allowlist": {
-      "all": true
+      "all": true,
+      "fs": {
+        "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
+      },
+      "shell": {
+        "scope": [
+          {
+            "name": "sh",
+            "cmd": "sh",
+            "args": ["-c", { "validator": "\\S+" }]
+          },
+          {
+            "name": "cmd",
+            "cmd": "cmd",
+            "args": ["/C", { "validator": "\\S+" }]
+          }
+        ]
+      },
+      "protocol": {
+        "asset": true,
+        "assetScope": ["$RESOURCE/**", "$APP/**"]
+      },
+      "http": {
+        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
+      }
     },
     "windows": [
       {
@@ -75,7 +116,8 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: asset: customprotocol: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com",
+      "freezePrototype": true
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

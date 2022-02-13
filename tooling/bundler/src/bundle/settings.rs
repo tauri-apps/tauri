@@ -4,6 +4,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use tauri_utils::resources::{external_binaries, ResourcePaths};
 
 use std::{
   collections::HashMap,
@@ -113,8 +114,8 @@ pub struct UpdaterSettings {
   pub active: bool,
   /// The updater endpoints.
   pub endpoints: Option<Vec<String>>,
-  /// Optional pubkey.
-  pub pubkey: Option<String>,
+  /// Signature public key.
+  pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
 }
@@ -168,17 +169,36 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Provider short name for notarization.
+  pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
   pub entitlements: Option<String>,
   /// Path to the Info.plist file for the bundle.
   pub info_plist_path: Option<PathBuf>,
 }
 
+/// Configuration for a target language for the WiX build.
+#[derive(Debug, Clone, Default)]
+pub struct WixLanguageConfig {
+  /// The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.
+  pub locale_path: Option<PathBuf>,
+}
+
+/// The languages to build using WiX.
+#[derive(Debug, Clone)]
+pub struct WixLanguage(pub Vec<(String, WixLanguageConfig)>);
+
+impl Default for WixLanguage {
+  fn default() -> Self {
+    Self(vec![("en-US".into(), Default::default())])
+  }
+}
+
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
-  /// The app language. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
-  pub language: String,
+  /// The app languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  pub language: WixLanguage,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
   pub template: Option<PathBuf>,
@@ -225,6 +245,8 @@ pub struct WindowsSettings {
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
+  /// Path to the webview fixed runtime to use.
+  pub webview_fixed_runtime_path: Option<PathBuf>,
 }
 
 impl Default for WindowsSettings {
@@ -235,6 +257,7 @@ impl Default for WindowsSettings {
       timestamp_url: None,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
+      webview_fixed_runtime_path: None,
     }
   }
 }
@@ -265,12 +288,18 @@ pub struct BundleSettings {
   pub bin: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
-  /// Note that each binary name will have the target platform's target triple appended,
-  /// so if you're bundling the `sqlite3` app, the bundler will look for e.g.
-  /// `sqlite3-x86_64-unknown-linux-gnu` on linux,
+  /// Note that each binary name should have the target platform's target triple appended,
+  /// as well as `.exe` for Windows.
+  /// For example, if you're bundling a sidecar called `sqlite3`, the bundler expects
+  /// a binary named `sqlite3-x86_64-unknown-linux-gnu` on linux,
   /// and `sqlite3-x86_64-pc-windows-gnu.exe` on windows.
   ///
-  /// The possible target triples can be seen by running `$ rustup target list`.
+  /// Run `tauri build --help` for more info on targets.
+  ///
+  /// If you are building a universal binary for MacOS, the bundler expects
+  /// your external binary to also be universal, and named after the target triple,
+  /// e.g. `sqlite3-universal-apple-darwin`. See
+  /// https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
@@ -305,6 +334,7 @@ impl BundleBinary {
   }
 
   /// Sets the src path of the binary.
+  #[must_use]
   pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
     self.src_path = src_path;
     self
@@ -376,6 +406,7 @@ impl SettingsBuilder {
   }
 
   /// Sets the project output directory. It's used as current working directory.
+  #[must_use]
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
@@ -384,36 +415,42 @@ impl SettingsBuilder {
   }
 
   /// Enables verbose output.
+  #[must_use]
   pub fn verbose(mut self) -> Self {
     self.verbose = true;
     self
   }
 
   /// Sets the package types to create.
+  #[must_use]
   pub fn package_types(mut self, package_types: Vec<PackageType>) -> Self {
     self.package_types = Some(package_types);
     self
   }
 
   /// Sets the package settings.
+  #[must_use]
   pub fn package_settings(mut self, settings: PackageSettings) -> Self {
     self.package_settings.replace(settings);
     self
   }
 
   /// Sets the bundle settings.
+  #[must_use]
   pub fn bundle_settings(mut self, settings: BundleSettings) -> Self {
     self.bundle_settings = settings;
     self
   }
 
   /// Sets the binaries to bundle.
+  #[must_use]
   pub fn binaries(mut self, binaries: Vec<BundleBinary>) -> Self {
     self.binaries = binaries;
     self
   }
 
   /// Sets the target triple.
+  #[must_use]
   pub fn target(mut self, target: String) -> Self {
     self.target.replace(target);
     self
@@ -430,7 +467,6 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
-    let bundle_settings = parse_external_bin(&target, self.bundle_settings)?;
 
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
@@ -440,7 +476,14 @@ impl SettingsBuilder {
         .project_out_directory
         .expect("out directory is required"),
       binaries: self.binaries,
-      bundle_settings,
+      bundle_settings: BundleSettings {
+        external_bin: self
+          .bundle_settings
+          .external_bin
+          .as_ref()
+          .map(|bins| external_binaries(bins, &target)),
+        ..self.bundle_settings
+      },
       target,
     })
   }
@@ -462,6 +505,8 @@ impl Settings {
       "arm"
     } else if self.target.starts_with("aarch64") {
       "aarch64"
+    } else if self.target.starts_with("universal") {
+      "universal"
     } else {
       panic!("Unexpected target triple {}", self.target)
     }
@@ -585,7 +630,9 @@ impl Settings {
       let dest = path.join(
         src
           .file_name()
-          .expect("failed to extract external binary filename"),
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .replace(&format!("-{}", self.target), ""),
       );
       common::copy_file(&src, &dest)?;
     }
@@ -596,7 +643,7 @@ impl Settings {
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
     for src in self.resource_files() {
       let src = src?;
-      let dest = path.join(common::resource_relpath(&src));
+      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
       common::copy_file(&src, &dest)?;
     }
     Ok(())
@@ -674,146 +721,6 @@ impl Settings {
     match &self.bundle_settings.updater {
       Some(val) => val.active,
       None => false,
-    }
-  }
-
-  /// Is pubkey provided?
-  pub fn is_updater_pubkey(&self) -> bool {
-    match &self.bundle_settings.updater {
-      Some(val) => val.pubkey.is_some(),
-      None => false,
-    }
-  }
-
-  /// Get pubkey (mainly for testing)
-  #[cfg(test)]
-  pub fn updater_pubkey(&self) -> Option<&str> {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .expect("Updater is not defined")
-      .pubkey
-      .as_deref()
-  }
-}
-
-/// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-fn parse_external_bin(
-  target_triple: &str,
-  bundle_settings: BundleSettings,
-) -> crate::Result<BundleSettings> {
-  let mut win_paths = Vec::new();
-  let external_bin = match bundle_settings.external_bin {
-    Some(paths) => {
-      for curr_path in paths.iter() {
-        win_paths.push(format!(
-          "{}-{}{}",
-          curr_path,
-          target_triple,
-          if cfg!(windows) { ".exe" } else { "" }
-        ));
-      }
-      Some(win_paths)
-    }
-    None => Some(vec![]),
-  };
-
-  Ok(BundleSettings {
-    external_bin,
-    ..bundle_settings
-  })
-}
-
-/// A helper to iterate through resources.
-pub struct ResourcePaths<'a> {
-  /// the patterns to iterate.
-  pattern_iter: std::slice::Iter<'a, String>,
-  /// the glob iterator if the path from the current iteration is a glob pattern.
-  glob_iter: Option<glob::Paths>,
-  /// the walkdir iterator if the path from the current iteration is a directory.
-  walk_iter: Option<walkdir::IntoIter>,
-  /// whether the resource paths allows directories or not.
-  allow_walk: bool,
-  /// the pattern of the current iteration.
-  current_pattern: Option<String>,
-  /// whether the current pattern is valid or not.
-  current_pattern_is_valid: bool,
-}
-
-impl<'a> ResourcePaths<'a> {
-  /// Creates a new ResourcePaths from a slice of patterns to iterate
-  fn new(patterns: &'a [String], allow_walk: bool) -> ResourcePaths<'a> {
-    ResourcePaths {
-      pattern_iter: patterns.iter(),
-      glob_iter: None,
-      walk_iter: None,
-      allow_walk,
-      current_pattern: None,
-      current_pattern_is_valid: false,
-    }
-  }
-}
-
-impl<'a> Iterator for ResourcePaths<'a> {
-  type Item = crate::Result<PathBuf>;
-
-  fn next(&mut self) -> Option<crate::Result<PathBuf>> {
-    loop {
-      if let Some(ref mut walk_entries) = self.walk_iter {
-        if let Some(entry) = walk_entries.next() {
-          let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          let path = entry.path();
-          if path.is_dir() {
-            continue;
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path.to_path_buf()));
-        }
-      }
-      self.walk_iter = None;
-      if let Some(ref mut glob_paths) = self.glob_iter {
-        if let Some(glob_result) = glob_paths.next() {
-          let path = match glob_result {
-            Ok(path) => path,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          if path.is_dir() {
-            if self.allow_walk {
-              let walk = walkdir::WalkDir::new(path);
-              self.walk_iter = Some(walk.into_iter());
-              continue;
-            } else {
-              let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::GenericError(msg)));
-            }
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path));
-        } else if let Some(current_path) = &self.current_pattern {
-          if !self.current_pattern_is_valid {
-            return Some(Err(crate::Error::GenericError(format!(
-              "Path matching '{}' not found",
-              current_path
-            ))));
-          }
-        }
-      }
-      self.glob_iter = None;
-      if let Some(pattern) = self.pattern_iter.next() {
-        self.current_pattern = Some(pattern.to_string());
-        self.current_pattern_is_valid = false;
-        let glob = match glob::glob(pattern) {
-          Ok(glob) => glob,
-          Err(error) => return Some(Err(crate::Error::from(error))),
-        };
-        self.glob_iter = Some(glob);
-        continue;
-      }
-      return None;
     }
   }
 }

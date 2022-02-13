@@ -23,7 +23,7 @@ will be used that wraps around [wry]._
 
 ## Trying it out
 
-Check out the documentation at https://tauri.studio/en/docs/usage/guides/webdriver/ci to build a small example
+Check out the documentation at https://tauri.studio/en/docs/guides/webdriver/ci to build a small example
 application that had WebDriver tests.
 
 [WebDriver Intermediary Node]: https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes

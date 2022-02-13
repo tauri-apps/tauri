@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::InvokeResponse;
-use crate::PackageInfo;
+use super::InvokeContext;
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::CommandModule;
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 #[allow(clippy::enum_variant_names)]
 pub enum Cmd {
@@ -20,11 +21,15 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self, package_info: PackageInfo) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::GetAppVersion => Ok(package_info.version.into()),
-      Self::GetAppName => Ok(package_info.name.into()),
-      Self::GetTauriVersion => Ok(env!("CARGO_PKG_VERSION").into()),
-    }
+  fn get_app_version<R: Runtime>(context: InvokeContext<R>) -> crate::Result<String> {
+    Ok(context.package_info.version)
+  }
+
+  fn get_app_name<R: Runtime>(context: InvokeContext<R>) -> crate::Result<String> {
+    Ok(context.package_info.name)
+  }
+
+  fn get_tauri_version<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<&'static str> {
+    Ok(env!("CARGO_PKG_VERSION"))
   }
 }

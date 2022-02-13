@@ -1,0 +1,41 @@
+const fixtureSetup = require('../fixtures/app-test-setup.js')
+const { resolve } = require('path')
+const { existsSync, readFileSync, writeFileSync } = require('fs')
+const { move } = require('fs-extra')
+const cli = require('~/index.js')
+
+const currentDirName = __dirname
+
+describe('[CLI] cli.js template', () => {
+  it('init a project and builds it', async () => {
+    const cwd = process.cwd()
+    const fixturePath = resolve(currentDirName, '../fixtures/empty')
+    const tauriFixturePath = resolve(fixturePath, 'src-tauri')
+    const outPath = resolve(tauriFixturePath, 'target')
+    const cacheOutPath = resolve(fixturePath, 'target')
+
+    fixtureSetup.initJest('empty')
+
+    process.chdir(fixturePath)
+
+    const outExists = existsSync(outPath)
+    if (outExists) {
+      await move(outPath, cacheOutPath)
+    }
+
+    cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
+
+    if (outExists) {
+      await move(cacheOutPath, outPath)
+    }
+
+    process.chdir(tauriFixturePath)
+
+    const manifestPath = resolve(tauriFixturePath, 'Cargo.toml')
+    const manifestFile = readFileSync(manifestPath).toString()
+    writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
+
+    cli.run(['build', '--verbose'])
+    process.chdir(cwd)
+  })
+})

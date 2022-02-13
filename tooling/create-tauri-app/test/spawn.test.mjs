@@ -18,8 +18,8 @@ if (nodeVersion === '14') {
 }
 
 const ctaBinary = path.resolve('./bin/create-tauri-app.js')
-const clijs = path.resolve('../cli.js/')
-const api = path.resolve('../api/')
+//const clijs = path.resolve('../cli.js/')
+//const api = path.resolve('../api/')
 
 const manager = process.env.TAURI_RUN_MANAGER || 'yarn'
 const recipes = process.env.TAURI_RECIPE

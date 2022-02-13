@@ -1,7 +1,7 @@
 interface IPCMessage {
-  cmd: string,
-  callback: number,
-  error: number,
+  cmd: string
+  callback: number
+  error: number
   [key: string]: unknown
 }
 
@@ -37,18 +37,25 @@ interface IPCMessage {
  *
  * @param cb
  */
-export function mockIPC(cb: (cmd: string, args: Record<string, unknown>) => any): void {
-  window.__TAURI_IPC__ = async ({ cmd, callback, error, ...args }: IPCMessage) => {
+export function mockIPC(
+  cb: (cmd: string, args: Record<string, unknown>) => any
+): void {
+  window.__TAURI_IPC__ = async ({
+    cmd,
+    callback,
+    error,
+    ...args
+  }: IPCMessage) => {
     try {
       // @ts-expect-error The function key is dynamic and therefore not typed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${callback}`](await cb(cmd, args));
+      window[`_${callback}`](await cb(cmd, args))
     } catch (err) {
       // @ts-expect-error The function key is dynamic and therefore not typed
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      window[`_${error}`](err);
+      window[`_${error}`](err)
     }
-  };
+  }
 }
 
 /**
@@ -97,11 +104,14 @@ export function mockIPC(cb: (cmd: string, args: Record<string, unknown>) => any)
  * @param current Label of window this JavaScript context is running in.
  * @param additionalWindows Label of additional windows the app has.
  */
-export function mockWindows(current: string, ...additionalWindows: string[]): void {
+export function mockWindows(
+  current: string,
+  ...additionalWindows: string[]
+): void {
   window.__TAURI_METADATA__ = {
     __windows: [current, ...additionalWindows].map((label) => ({ label })),
-    __currentWindow: { label: current },
-  };
+    __currentWindow: { label: current }
+  }
 }
 
 /**

@@ -20,7 +20,7 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = {{{  tauri_dep  }}}
 
 [features]
-# by default Tauri runs on production mode
+# by default Tauri runs in production mode
 # when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
 default = [ "custom-protocol" ]
 # this feature is used on production builds and when `devPath` points to the filesystem

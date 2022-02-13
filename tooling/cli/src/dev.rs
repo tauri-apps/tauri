@@ -54,7 +54,7 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   release_mode: bool,
-  /// Args passed to the binary
+  /// Command line arguments passed to the runner
   args: Vec<String>,
 }
 
@@ -315,7 +315,7 @@ fn start_app(
   }
 
   if !options.args.is_empty() {
-    command.arg("--").args(&options.args);
+    command.args(&options.args);
   }
 
   command.pipe().unwrap();

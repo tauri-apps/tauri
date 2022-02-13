@@ -21,7 +21,7 @@ use tauri_bundler::bundle::{bundle_project, PackageType};
 #[derive(Debug, Parser)]
 #[clap(about = "Tauri build")]
 pub struct Options {
-  /// Binary to use to build the application
+  /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
   runner: Option<String>,
   /// Builds with the debug flag
@@ -44,6 +44,8 @@ pub struct Options {
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   config: Option<String>,
+  /// Command line arguments passed to the runner
+  args: Vec<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -136,9 +138,23 @@ pub fn command(options: Options) -> Result<()> {
     .or(runner_from_config)
     .unwrap_or_else(|| "cargo".to_string());
 
-  let mut cargo_features = config_.build.features.clone().unwrap_or_default();
-  if let Some(features) = options.features {
-    cargo_features.extend(features);
+  let mut features = config_.build.features.clone().unwrap_or_default();
+  if let Some(list) = options.features {
+    features.extend(list);
+  }
+
+  let mut args = Vec::new();
+  if !options.args.is_empty() {
+    args.extend(options.args);
+  }
+
+  if !features.is_empty() {
+    args.push("--features".into());
+    args.push(features.join(","));
+  }
+
+  if !options.debug {
+    args.push("--release".into());
   }
 
   let app_settings = crate::interface::rust::AppSettings::new(config_)?;
@@ -166,13 +182,11 @@ pub fn command(options: Options) -> Result<()> {
       .arg("-output")
       .arg(out_dir.join(&bin_name));
     for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
-      crate::interface::rust::build_project(
-        runner.clone(),
-        &Some(triple.into()),
-        cargo_features.clone(),
-        options.debug,
-      )
-      .with_context(|| format!("failed to build {} binary", triple))?;
+      let mut args_ = args.clone();
+      args_.push("--target".into());
+      args_.push(triple.into());
+      crate::interface::rust::build_project(runner.clone(), args_)
+        .with_context(|| format!("failed to build {} binary", triple))?;
       let triple_out_dir = app_settings
         .get_out_dir(Some(triple.into()), options.debug)
         .with_context(|| format!("failed to get {} out dir", triple))?;
@@ -187,8 +201,11 @@ pub fn command(options: Options) -> Result<()> {
       )));
     }
   } else {
-    crate::interface::rust::build_project(runner, &options.target, cargo_features, options.debug)
-      .with_context(|| "failed to build app")?;
+    if let Some(target) = &options.target {
+      args.push("--target".into());
+      args.push(target.clone());
+    }
+    crate::interface::rust::build_project(runner, args).with_context(|| "failed to build app")?;
   }
 
   #[cfg(unix)]

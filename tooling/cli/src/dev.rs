@@ -225,7 +225,7 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  let mut process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone());
+  let mut process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone())?;
 
   let (tx, rx) = channel();
 
@@ -268,7 +268,7 @@ pub fn command(options: Options) -> Result<()> {
               break;
             }
           }
-          process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone());
+          process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone())?;
         }
       }
     }
@@ -298,7 +298,7 @@ fn start_app(
   runner: &str,
   features: &[String],
   child_wait_rx: Arc<Mutex<Receiver<()>>>,
-) -> Arc<SharedChild> {
+) -> Result<Arc<SharedChild>> {
   let mut command = Command::new(runner);
   command.args(&["run", "--no-default-features"]);
 
@@ -321,7 +321,7 @@ fn start_app(
   command.pipe().unwrap();
 
   let child =
-    SharedChild::spawn(&mut command).unwrap_or_else(|_| panic!("failed to run {}", runner));
+    SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;
   let child_arc = Arc::new(child);
 
   let child_clone = child_arc.clone();
@@ -349,5 +349,5 @@ fn start_app(
     }
   });
 
-  child_arc
+  Ok(child_arc)
 }

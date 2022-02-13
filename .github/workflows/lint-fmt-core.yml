@@ -15,6 +15,11 @@ on:
       - 'core/**'
       - 'examples/**'
 
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+
 jobs:
   fmt_check:
     runs-on: ubuntu-latest

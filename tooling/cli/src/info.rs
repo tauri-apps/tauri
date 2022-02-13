@@ -403,6 +403,134 @@ impl VersionBlock {
   }
 }
 
+fn crate_version(
+  tauri_dir: &Path,
+  manifest: Option<&CargoManifest>,
+  lock: Option<&CargoLock>,
+  name: &str,
+) -> (String, Option<String>) {
+  let crate_lock_packages: Vec<CargoLockPackage> = lock
+    .as_ref()
+    .map(|lock| {
+      lock
+        .package
+        .iter()
+        .filter(|p| p.name == name)
+        .cloned()
+        .collect()
+    })
+    .unwrap_or_default();
+  let (crate_version_string, found_crate_versions) =
+    match (&manifest, &lock, crate_lock_packages.len()) {
+      (Some(_manifest), Some(_lock), 1) => {
+        let crate_lock_package = crate_lock_packages.first().unwrap();
+        let version_string = if let Some(s) = &crate_lock_package.source {
+          if s.starts_with("git") {
+            format!("{} ({})", s, crate_lock_package.version)
+          } else {
+            crate_lock_package.version.clone()
+          }
+        } else {
+          crate_lock_package.version.clone()
+        };
+        (version_string, vec![crate_lock_package.version.clone()])
+      }
+      (None, Some(_lock), 1) => {
+        let crate_lock_package = crate_lock_packages.first().unwrap();
+        let version_string = if let Some(s) = &crate_lock_package.source {
+          if s.starts_with("git") {
+            format!("{} ({})", s, crate_lock_package.version)
+          } else {
+            crate_lock_package.version.clone()
+          }
+        } else {
+          crate_lock_package.version.clone()
+        };
+        (
+          format!("{} (no manifest)", version_string),
+          vec![crate_lock_package.version.clone()],
+        )
+      }
+      _ => {
+        let mut found_crate_versions = Vec::new();
+        let mut is_git = false;
+        let manifest_version = match manifest.and_then(|m| m.dependencies.get(name).cloned()) {
+          Some(tauri) => match tauri {
+            CargoManifestDependency::Version(v) => {
+              found_crate_versions.push(v.clone());
+              v
+            }
+            CargoManifestDependency::Package(p) => {
+              if let Some(v) = p.version {
+                found_crate_versions.push(v.clone());
+                v
+              } else if let Some(p) = p.path {
+                let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
+                let v = match read_to_string(&manifest_path)
+                  .map_err(|_| ())
+                  .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
+                {
+                  Ok(manifest) => manifest.package.version,
+                  Err(_) => "unknown version".to_string(),
+                };
+                format!("path:{:?} [{}]", p, v)
+              } else if let Some(g) = p.git {
+                is_git = true;
+                let mut v = format!("git:{}", g);
+                if let Some(branch) = p.branch {
+                  v.push_str(&format!("&branch={}", branch));
+                } else if let Some(rev) = p.rev {
+                  v.push_str(&format!("#{}", rev));
+                }
+                v
+              } else {
+                "unknown manifest".to_string()
+              }
+            }
+          },
+          None => "no manifest".to_string(),
+        };
+
+        let lock_version = match (lock, crate_lock_packages.is_empty()) {
+          (Some(_lock), true) => crate_lock_packages
+            .iter()
+            .map(|p| p.version.clone())
+            .collect::<Vec<String>>()
+            .join(", "),
+          (Some(_lock), false) => "unknown lockfile".to_string(),
+          _ => "no lockfile".to_string(),
+        };
+
+        (
+          format!(
+            "{} {}({})",
+            manifest_version,
+            if is_git { "(git manifest)" } else { "" },
+            lock_version
+          ),
+          found_crate_versions,
+        )
+      }
+    };
+
+  let crate_version = found_crate_versions
+    .into_iter()
+    .map(|v| semver::Version::parse(&v).unwrap())
+    .max();
+  let suffix = match (crate_version, crate_latest_version(name)) {
+    (Some(version), Some(target_version)) => {
+      let target_version = semver::Version::parse(&target_version).unwrap();
+      if version < target_version {
+        Some(format!(" (outdated, latest: {})", target_version))
+      } else {
+        None
+      }
+    }
+    _ => None,
+  };
+  (crate_version_string, suffix)
+}
+
 pub fn command(_options: Options) -> Result<()> {
   let os_info = os_info::get();
   InfoBlock {
@@ -505,26 +633,6 @@ pub fn command(_options: Options) -> Result<()> {
 
   InfoBlock::new("Rust environment").section().display();
   VersionBlock::new(
-    "  rustc",
-    get_version("rustc", &[]).unwrap_or_default().map(|v| {
-      let mut s = v.split(' ');
-      s.next();
-      s.next().unwrap().to_string()
-    }),
-  )
-  .display();
-  VersionBlock::new(
-    "  cargo",
-    get_version("cargo", &[]).unwrap_or_default().map(|v| {
-      let mut s = v.split(' ');
-      s.next();
-      s.next().unwrap().to_string()
-    }),
-  )
-  .display();
-
-  InfoBlock::new("Rust environment").section().display();
-  VersionBlock::new(
     "  rustup",
     get_version("rustup", &[]).unwrap_or_default().map(|v| {
       let mut s = v.split(' ');
@@ -579,129 +687,15 @@ pub fn command(_options: Options) -> Result<()> {
     } else {
       None
     };
-  let tauri_lock_packages: Vec<CargoLockPackage> = lock
-    .as_ref()
-    .map(|lock| {
-      lock
-        .package
-        .iter()
-        .filter(|p| p.name == "tauri")
-        .cloned()
-        .collect()
-    })
-    .unwrap_or_default();
-  let (tauri_version_string, found_tauri_versions) =
-    match (&manifest, &lock, tauri_lock_packages.len()) {
-      (Some(_manifest), Some(_lock), 1) => {
-        let tauri_lock_package = tauri_lock_packages.first().unwrap();
-        let version_string = if let Some(s) = &tauri_lock_package.source {
-          if s.starts_with("git") {
-            format!("{} ({})", s, tauri_lock_package.version)
-          } else {
-            tauri_lock_package.version.clone()
-          }
-        } else {
-          tauri_lock_package.version.clone()
-        };
-        (version_string, vec![tauri_lock_package.version.clone()])
-      }
-      (None, Some(_lock), 1) => {
-        let tauri_lock_package = tauri_lock_packages.first().unwrap();
-        let version_string = if let Some(s) = &tauri_lock_package.source {
-          if s.starts_with("git") {
-            format!("{} ({})", s, tauri_lock_package.version)
-          } else {
-            tauri_lock_package.version.clone()
-          }
-        } else {
-          tauri_lock_package.version.clone()
-        };
-        (
-          format!("{} (no manifest)", version_string),
-          vec![tauri_lock_package.version.clone()],
-        )
-      }
-      _ => {
-        let mut found_tauri_versions = Vec::new();
-        let mut is_git = false;
-        let manifest_version = match manifest.and_then(|m| m.dependencies.get("tauri").cloned()) {
-          Some(tauri) => match tauri {
-            CargoManifestDependency::Version(v) => {
-              found_tauri_versions.push(v.clone());
-              v
-            }
-            CargoManifestDependency::Package(p) => {
-              if let Some(v) = p.version {
-                found_tauri_versions.push(v.clone());
-                v
-              } else if let Some(p) = p.path {
-                let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(&manifest_path)
-                  .map_err(|_| ())
-                  .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
-                {
-                  Ok(manifest) => manifest.package.version,
-                  Err(_) => "unknown version".to_string(),
-                };
-                format!("path:{:?} [{}]", p, v)
-              } else if let Some(g) = p.git {
-                is_git = true;
-                let mut v = format!("git:{}", g);
-                if let Some(branch) = p.branch {
-                  v.push_str(&format!("&branch={}", branch));
-                } else if let Some(rev) = p.rev {
-                  v.push_str(&format!("#{}", rev));
-                }
-                v
-              } else {
-                "unknown manifest".to_string()
-              }
-            }
-          },
-          None => "no manifest".to_string(),
-        };
 
-        let lock_version = match (lock, tauri_lock_packages.is_empty()) {
-          (Some(_lock), true) => tauri_lock_packages
-            .iter()
-            .map(|p| p.version.clone())
-            .collect::<Vec<String>>()
-            .join(", "),
-          (Some(_lock), false) => "unknown lockfile".to_string(),
-          _ => "no lockfile".to_string(),
-        };
-
-        (
-          format!(
-            "{} {}({})",
-            manifest_version,
-            if is_git { "(git manifest)" } else { "" },
-            lock_version
-          ),
-          found_tauri_versions,
-        )
-      }
-    };
-
-  let tauri_version = found_tauri_versions
-    .into_iter()
-    .map(|v| semver::Version::parse(&v).unwrap())
-    .max();
-  let suffix = match (tauri_version, crate_latest_version("tauri")) {
-    (Some(version), Some(target_version)) => {
-      let target_version = semver::Version::parse(&target_version).unwrap();
-      if version < target_version {
-        Some(format!(" (outdated, latest: {})", target_version))
-      } else {
-        None
-      }
-    }
-    _ => None,
-  };
-  InfoBlock::new("  tauri.rs")
-    .value(tauri_version_string)
-    .suffix(suffix)
-    .display();
+  for (dep, label) in [("tauri", "  tauri"), ("tao", "  tao"), ("wry", "  wry")] {
+    let (version_string, version_suffix) =
+      crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
+    InfoBlock::new(label)
+      .value(version_string)
+      .suffix(version_suffix)
+      .display();
+  }
 
   if let Ok(config) = get_config(None) {
     let config_guard = config.lock().unwrap();

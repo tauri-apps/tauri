@@ -3,9 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
-  config::get as get_config,
-  framework::infer_from_package_json as infer_framework,
+  config::get as get_config, framework::infer_from_package_json as infer_framework,
 };
 use crate::Result;
 use clap::Parser;
@@ -582,7 +580,9 @@ pub fn command(_options: Options) -> Result<()> {
   panic::set_hook(Box::new(|_info| {
     // do nothing
   }));
-  let app_dir = panic::catch_unwind(app_dir).map(Some).unwrap_or_default();
+  let app_dir = panic::catch_unwind(crate::helpers::app_paths::app_dir)
+    .map(Some)
+    .unwrap_or_default();
   panic::set_hook(hook);
 
   let mut package_manager = PackageManager::Npm;
@@ -673,78 +673,91 @@ pub fn command(_options: Options) -> Result<()> {
     }
   }
 
-  InfoBlock::new("App").section().display();
-  let tauri_dir = tauri_dir();
-  let manifest: Option<CargoManifest> =
-    if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
-      toml::from_str(&manifest_contents).ok()
-    } else {
-      None
-    };
-  let lock: Option<CargoLock> =
-    if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
-      toml::from_str(&lock_contents).ok()
-    } else {
-      None
-    };
+  let hook = panic::take_hook();
+  panic::set_hook(Box::new(|_info| {
+    // do nothing
+  }));
+  let tauri_dir = panic::catch_unwind(crate::helpers::app_paths::tauri_dir)
+    .map(Some)
+    .unwrap_or_default();
+  panic::set_hook(hook);
 
-  for (dep, label) in [
-    ("tauri", "  tauri"),
-    ("tauri-build", "  tauri-build"),
-    ("tao", "  tao"),
-    ("wry", "  wry"),
-  ] {
-    let (version_string, version_suffix) =
-      crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-    InfoBlock::new(label)
-      .value(version_string)
-      .suffix(version_suffix)
-      .display();
-  }
+  if tauri_dir.is_some() || app_dir.is_some() {
+    InfoBlock::new("App").section().display();
 
-  if let Ok(config) = get_config(None) {
-    let config_guard = config.lock().unwrap();
-    let config = config_guard.as_ref().unwrap();
-    InfoBlock::new("  build-type")
-      .value(if config.tauri.bundle.active {
-        "bundle".to_string()
+    if let Some(tauri_dir) = tauri_dir {
+      let manifest: Option<CargoManifest> =
+        if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
+          toml::from_str(&manifest_contents).ok()
+        } else {
+          None
+        };
+      let lock: Option<CargoLock> =
+        if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
+          toml::from_str(&lock_contents).ok()
+        } else {
+          None
+        };
+
+      for (dep, label) in [
+        ("tauri", "  tauri"),
+        ("tauri-build", "  tauri-build"),
+        ("tao", "  tao"),
+        ("wry", "  wry"),
+      ] {
+        let (version_string, version_suffix) =
+          crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
+        InfoBlock::new(label)
+          .value(version_string)
+          .suffix(version_suffix)
+          .display();
+      }
+
+      if let Ok(config) = get_config(None) {
+        let config_guard = config.lock().unwrap();
+        let config = config_guard.as_ref().unwrap();
+        InfoBlock::new("  build-type")
+          .value(if config.tauri.bundle.active {
+            "bundle".to_string()
+          } else {
+            "build".to_string()
+          })
+          .display();
+        InfoBlock::new("  CSP")
+          .value(
+            config
+              .tauri
+              .security
+              .csp
+              .clone()
+              .unwrap_or_else(|| "unset".to_string()),
+          )
+          .display();
+        InfoBlock::new("  distDir")
+          .value(config.build.dist_dir.to_string())
+          .display();
+        InfoBlock::new("  devPath")
+          .value(config.build.dev_path.to_string())
+          .display();
+      }
+    }
+
+    if let Some(app_dir) = app_dir {
+      if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
+        let (framework, bundler) = infer_framework(&package_json);
+        if let Some(framework) = framework {
+          InfoBlock::new("  framework")
+            .value(framework.to_string())
+            .display();
+        }
+        if let Some(bundler) = bundler {
+          InfoBlock::new("  bundler")
+            .value(bundler.to_string())
+            .display();
+        }
       } else {
-        "build".to_string()
-      })
-      .display();
-    InfoBlock::new("  CSP")
-      .value(
-        config
-          .tauri
-          .security
-          .csp
-          .clone()
-          .unwrap_or_else(|| "unset".to_string()),
-      )
-      .display();
-    InfoBlock::new("  distDir")
-      .value(config.build.dist_dir.to_string())
-      .display();
-    InfoBlock::new("  devPath")
-      .value(config.build.dev_path.to_string())
-      .display();
-  }
-
-  if let Some(app_dir) = app_dir {
-    if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
-      let (framework, bundler) = infer_framework(&package_json);
-      if let Some(framework) = framework {
-        InfoBlock::new("  framework")
-          .value(framework.to_string())
-          .display();
+        println!("package.json not found");
       }
-      if let Some(bundler) = bundler {
-        InfoBlock::new("  bundler")
-          .value(bundler.to_string())
-          .display();
-      }
-    } else {
-      println!("package.json not found");
     }
   }
 

@@ -103,8 +103,8 @@ struct CargoConfig {
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
   let mut command = Command::new(&runner);
   command
-    .args(args)
-    .args(&["build", "--features=custom-protocol"]);
+    .args(&["build", "--features=custom-protocol"])
+    .args(args);
 
   command.pipe()?;
 

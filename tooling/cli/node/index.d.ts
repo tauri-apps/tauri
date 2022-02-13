@@ -9,4 +9,4 @@ export class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export function run(args: Array<string>, binName?: string | undefined | null): void
+export function run(args: Array<string>, binName: string | undefined | null, callback: (...args: any[]) => any): void

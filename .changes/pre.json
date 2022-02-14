@@ -32,6 +32,7 @@
     ".changes/async-runtime-set.md",
     ".changes/async-runtime-spawn-blocking.md",
     ".changes/before-script-envs.md",
+    ".changes/build-rerun-if-resource-sidecar-change.md",
     ".changes/build-specify-win-sdk.md",
     ".changes/bundler-add-provider-short-name.md",
     ".changes/bundler-appimage-fuse.md",

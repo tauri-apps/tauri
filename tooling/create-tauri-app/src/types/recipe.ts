@@ -1,11 +1,11 @@
 import { Answers, QuestionCollection } from 'inquirer'
-import { PackageManager } from '../dependency-manager'
+import { PackageManager } from '../package-manager'
 import { TauriBuildConfig } from './config'
 
 export interface RecipeArgs {
   cwd: string
   cfg: TauriBuildConfig
-  packageManager: PackageManager
+  pm: PackageManager
   ci: boolean
   answers?: Answers
 }

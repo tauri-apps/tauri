@@ -16,25 +16,20 @@ import { ngcli } from './recipes/ng-cli'
 import { svelte } from './recipes/svelte'
 import { solid } from './recipes/solid'
 import { cljs } from './recipes/cljs'
-import {
-  install,
-  checkPackageManager,
-  PackageManager
-} from './dependency-manager'
 import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
-import { pkgManagerFromUserAgent } from './helpers/package-manager'
+import { getPkgManagerFromUA, Npm } from './package-manager'
 
 const allRecipes: Recipe[] = [
   vanillajs,
-  cra,
   vite,
-  vuecli,
-  ngcli,
+  cra,
   svelte,
   solid,
+  ngcli,
+  vuecli,
   dominator,
   cljs
 ]
@@ -120,13 +115,6 @@ export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
   return await runInit(argv as Argv)
 }
 
-interface Responses {
-  appName: string
-  tauri: { window: { title: string } }
-  recipeName: string
-  installApi: boolean
-}
-
 const keypress = async (skip: boolean): Promise<void> => {
   if (skip) return
   process.stdin.setRawMode(true)
@@ -174,7 +162,7 @@ You may find the requirements here: ${cyan(setupLink)}
   }
 
   // prompt initial questions
-  const answers = (await inquirer
+  const answers = await inquirer
     .prompt([
       {
         type: 'input',
@@ -206,17 +194,7 @@ You may find the requirements here: ${cyan(setupLink)}
         when: !argv.ci
       }
     ])
-    .catch((error: { isTtyError: boolean }) => {
-      if (error.isTtyError) {
-        // Prompt couldn't be rendered in the current environment
-        console.warn(
-          'It appears your terminal does not support interactive prompts. Using default values.'
-        )
-      } else {
-        // Something else went wrong
-        console.error('An unknown error occurred:', error)
-      }
-    })) as Responses
+    .catch(handlePromptsErr)
 
   const {
     appName,
@@ -230,7 +208,7 @@ You may find the requirements here: ${cyan(setupLink)}
   let recipe: Recipe | undefined
   if (argv.recipe) {
     recipe = recipeByShortName(argv.recipe)
-  } else if (recipeName !== undefined) {
+  } else if (recipeName) {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
@@ -239,19 +217,21 @@ You may find the requirements here: ${cyan(setupLink)}
     throw new Error('Could not find the recipe specified.')
   }
 
-  const pkgManagerInfo = pkgManagerFromUserAgent(
-    process.env.npm_config_user_agent
-  )
-  const packageManager = (pkgManagerInfo?.name ?? 'npm') as PackageManager
+  const pmInfo = getPkgManagerFromUA(process.env.npm_config_user_agent)
+  const pmName = argv.manager ?? pmInfo?.name ?? 'npm'
+  // TODO: better error handling and use shell to determine version and throw if it doesn't exist
+  const pmVerStr = pmInfo?.version ?? ''
+  const pmVer = parseInt(pmVerStr.split('.')[0])
+  const pm = new Npm(pmVer, { ci: argv.ci, log: argv.log })
 
   const buildConfig = {
     distDir: argv.distDir,
     devPath: argv.devPath,
-    appName: argv.appName || appName,
-    windowTitle: argv.windowTitle || title
+    appName: argv.appName ?? appName,
+    windowTitle: argv.windowTitle ?? title
   }
 
-  const directory = argv.directory || process.cwd()
+  const directory = argv.directory ?? process.cwd()
 
   // prompt additional recipe questions
   let recipeAnswers
@@ -260,29 +240,19 @@ You may find the requirements here: ${cyan(setupLink)}
       .prompt(
         recipe.extraQuestions({
           cfg: buildConfig,
-          packageManager,
+          pm,
           ci: argv.ci,
           cwd: directory
         })
       )
-      .catch((error: { isTtyError: boolean }) => {
-        if (error.isTtyError) {
-          // Prompt couldn't be rendered in the current environment
-          console.warn(
-            'It appears your terminal does not support interactive prompts. Using default values.'
-          )
-        } else {
-          // Something else went wrong
-          console.error('An unknown error occurred:', error)
-        }
-      })
+      .catch(handlePromptsErr)
   }
 
   let updatedConfig
   if (recipe.configUpdate) {
     updatedConfig = recipe.configUpdate({
       cfg: buildConfig,
-      packageManager,
+      pm,
       ci: argv.ci,
       cwd: directory,
       answers: recipeAnswers ?? {}
@@ -298,53 +268,31 @@ You may find the requirements here: ${cyan(setupLink)}
   // TODO: prevent app names with spaces or escape here?
   const appDirectory = join(directory, cfg.appName)
 
-  // this throws an error if we can't run the package manager they requested
-  await checkPackageManager({ cwd: directory, packageManager })
-
   if (recipe.preInit) {
     logStep('Running initial command(s)')
     await recipe.preInit({
       cwd: directory,
       cfg,
-      packageManager,
+      pm,
       ci: argv.ci,
       answers: recipeAnswers ?? {}
     })
   }
 
-  const initArgs = [
-    ['--app-name', cfg.appName],
-    ['--window-title', cfg.windowTitle],
-    ['--dist-dir', cfg.distDir],
-    ['--dev-path', cfg.devPath]
-  ].reduce((final: string[], argSet) => {
-    if (argSet[1]) {
-      return final.concat(argSet)
-    } else {
-      return final
-    }
-  }, [])
-  // TODO: const tauriCLIVersion = !argv.dev ?
-  // 'latest'
-  // :`file:${relative(appDirectory, join(__dirname, '../../cli.js'))}`
-  const tauriCLIVersion = 'latest'
-  const apiVersion = !argv.dev
-    ? 'latest'
-    : `file:${relative(appDirectory, join(__dirname, '../../api/dist'))}`
-
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
-    await install({
-      appDir: appDirectory,
-      dependencies: [installApi ? `@tauri-apps/api@${apiVersion}` : ''].concat(
-        recipe.extraNpmDependencies
-      ),
-      devDependencies: [`@tauri-apps/cli@${tauriCLIVersion}`].concat(
-        recipe.extraNpmDevDependencies
-      ),
-      packageManager
-    })
+    await pm.install(
+      [
+        installApi ? '@tauri-apps/api@latest' : '',
+        ...recipe.extraNpmDependencies
+      ],
+      { cwd: appDirectory }
+    )
+    await pm.install(
+      ['@tauri-apps/cli@latest', ...recipe.extraNpmDevDependencies],
+      { dev: true, cwd: appDirectory }
+    )
 
     logStep(`Updating ${reset(yellow('"package.json"'))}`)
     updatePackageJson((pkg) => {
@@ -359,19 +307,19 @@ You may find the requirements here: ${cyan(setupLink)}
     }, appDirectory)
 
     logStep(`Running ${reset(yellow('"tauri init"'))}`)
-    const binary = !argv.binary
-      ? packageManager
-      : resolve(appDirectory, argv.binary)
-    // "pnpm" is mostly interchangable with "yarn" but due to this bug https://github.com/pnpm/pnpm/issues/2764
-    // we need to pass "--" to pnpm or arguments won't be parsed correctly so we treat "pnpm" here like "npm"
-    const runTauriArgs =
-      packageManager === 'yarn' || argv.binary
-        ? ['tauri', 'init']
-        : ['run', 'tauri', '--', 'init']
-
-    await shell(binary, [...runTauriArgs, ...initArgs, '--ci'], {
-      cwd: appDirectory
-    })
+    // TODO: argv.binary
+    const initArgs = [
+      'init',
+      '--app-name',
+      cfg.appName,
+      '--window-title',
+      cfg.windowTitle,
+      '--dist-dir',
+      cfg.distDir,
+      '--dev-path',
+      cfg.devPath
+    ]
+    pm.run('tauri', initArgs, { cwd: appDirectory })
 
     logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
     updateTauriConf((tauriConf) => {
@@ -391,7 +339,7 @@ You may find the requirements here: ${cyan(setupLink)}
     await recipe.postInit({
       cwd: appDirectory,
       cfg,
-      packageManager,
+      pm,
       ci: argv.ci,
       answers: recipeAnswers ?? {}
     })
@@ -401,4 +349,14 @@ You may find the requirements here: ${cyan(setupLink)}
 function logStep(msg: string): void {
   const out = `${green('>>')} ${bold(cyan(msg))}`
   console.log(out)
+}
+
+function handlePromptsErr(error: { isTtyError: boolean }) {
+  if (error.isTtyError) {
+    console.warn(
+      'It appears your terminal does not support interactive prompts. Using default values.'
+    )
+  } else {
+    console.error('An unknown error occurred:', error)
+  }
 }

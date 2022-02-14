@@ -83,15 +83,17 @@ impl Client {
   /// # Examples
   ///
   /// ```rust,no_run
-  /// use tauri::api::http::ClientBuilder;
-  /// let client = ClientBuilder::new().build().unwrap();
-  /// let response = client.send(
-  ///   HttpRequestBuilder::new("GET", "https://www.rust-lang.org")
-  ///     .unwrap()
-  ///     .response_type(ResponseType::Binary)
-  /// );
-  /// if let Ok(response) = response {
-  ///   let bytes = response.bytes();
+  /// use tauri::api::http::{ClientBuilder, HttpRequestBuilder, ResponseType};
+  /// async fn run_request() {
+  ///   let client = ClientBuilder::new().build().unwrap();
+  ///   let response = client.send(
+  ///     HttpRequestBuilder::new("GET", "https://www.rust-lang.org")
+  ///       .unwrap()
+  ///       .response_type(ResponseType::Binary)
+  ///   ).await;
+  ///   if let Ok(response) = response {
+  ///     let bytes = response.bytes();
+  ///   }
   /// }
   /// ```
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
@@ -257,7 +259,7 @@ pub enum Body {
 ///
 /// # Examples
 /// ```rust,no_run
-/// use tauri::api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// use tauri::api::http::{HttpRequestBuilder, ResponseType, ClientBuilder};
 /// async fn run() {
 ///   let client = ClientBuilder::new()
 ///     .max_redirections(3)

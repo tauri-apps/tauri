@@ -91,7 +91,7 @@ jobs:
             ${{ matrix.platform }}-stable-cargo-cli-
 
       - name: build and install cli.rs
-        run: cargo install --path tooling/cli
+        run: cargo install --path tooling/cli --force
       - name: Check whether code signing should be enabled
         id: enablecodesigning
         env:

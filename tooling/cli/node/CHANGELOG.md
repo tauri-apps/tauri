@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.0.0-rc.4]
+
+- Change the `run` function to take a callback and run asynchronously instead of blocking the event loop.
+  - [cd9a20b9](https://www.github.com/tauri-apps/tauri/commit/cd9a20b9ab013759b4bdb742f358988022450795) refactor(cli.js): run on separate thread ([#3436](https://www.github.com/tauri-apps/tauri/pull/3436)) on 2022-02-13
+- Improve error message when the dev runner command fails.
+  - [759d1afb](https://www.github.com/tauri-apps/tauri/commit/759d1afb86f3657f6071a2ae39c9be21e20ed22c) feat(cli): improve error message when dev runner command fails ([#3447](https://www.github.com/tauri-apps/tauri/pull/3447)) on 2022-02-13
+- Show full error message from `cli.rs` instead of just the outermost underlying error message.
+  - [63826010](https://www.github.com/tauri-apps/tauri/commit/63826010d1f38544f36afd3aac67c45d4608d15b) feat(cli.js): show full error message ([#3442](https://www.github.com/tauri-apps/tauri/pull/3442)) on 2022-02-13
+- Increase `tauri.conf.json` directory lookup depth to `3` and allow changing it with the `TAURI_PATH_DEPTH` environment variable.
+  - [c6031c70](https://www.github.com/tauri-apps/tauri/commit/c6031c7070c6bb7539bbfdfe42cb73012829c910) feat(cli): increase lookup depth, add env var option ([#3451](https://www.github.com/tauri-apps/tauri/pull/3451)) on 2022-02-13
+- Added `tauri-build`, `tao` and `wry` version to the `info` command output.
+  - [16f1173f](https://www.github.com/tauri-apps/tauri/commit/16f1173f456b1db543d0160df2c9828708bfc68a) feat(cli): add tao and wry version to the `info` output ([#3443](https://www.github.com/tauri-apps/tauri/pull/3443)) on 2022-02-13
+
 ## \[1.0.0-rc.3]
 
 - Change default value for the `freezePrototype` configuration to `false`.

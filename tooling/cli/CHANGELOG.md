@@ -1,5 +1,20 @@
 # Changelog
 
+## \[1.0.0-rc.5]
+
+- Allow passing arguments to the `build` runner (`tauri build -- <ARGS>...`).
+  - [679fe1fe](https://www.github.com/tauri-apps/tauri/commit/679fe1fedd6ed016ab1140c8087c2d1404504bfb) feat(cli.rs): allow passing arguments to the build runner, closes [#3398](https://www.github.com/tauri-apps/tauri/pull/3398) ([#3431](https://www.github.com/tauri-apps/tauri/pull/3431)) on 2022-02-13
+- Improve error message when the dev runner command fails.
+  - [759d1afb](https://www.github.com/tauri-apps/tauri/commit/759d1afb86f3657f6071a2ae39c9be21e20ed22c) feat(cli): improve error message when dev runner command fails ([#3447](https://www.github.com/tauri-apps/tauri/pull/3447)) on 2022-02-13
+- Increase `tauri.conf.json` directory lookup depth to `3` and allow changing it with the `TAURI_PATH_DEPTH` environment variable.
+  - [c6031c70](https://www.github.com/tauri-apps/tauri/commit/c6031c7070c6bb7539bbfdfe42cb73012829c910) feat(cli): increase lookup depth, add env var option ([#3451](https://www.github.com/tauri-apps/tauri/pull/3451)) on 2022-02-13
+- Added `tauri-build`, `tao` and `wry` version to the `info` command output.
+  - [16f1173f](https://www.github.com/tauri-apps/tauri/commit/16f1173f456b1db543d0160df2c9828708bfc68a) feat(cli): add tao and wry version to the `info` output ([#3443](https://www.github.com/tauri-apps/tauri/pull/3443)) on 2022-02-13
+- **Breaking change:** The extra arguments passed to `tauri dev` using `-- <ARGS>...` are now propagated to the runner (defaults to cargo). To pass arguments to your binary using Cargo, you now need to run `tauri dev -- -- <ARGS-TO-YOUR-BINARY>...` (notice the double `--`).
+  - [679fe1fe](https://www.github.com/tauri-apps/tauri/commit/679fe1fedd6ed016ab1140c8087c2d1404504bfb) feat(cli.rs): allow passing arguments to the build runner, closes [#3398](https://www.github.com/tauri-apps/tauri/pull/3398) ([#3431](https://www.github.com/tauri-apps/tauri/pull/3431)) on 2022-02-13
+- Change the `init` template configuration to disable CSP for better usability for new users.
+  - [102a5e9b](https://www.github.com/tauri-apps/tauri/commit/102a5e9bb83c5d8388dc9aedc7f03cc57bdae8cb) refactor(cli.rs): change template config CSP to null, closes [#3427](https://www.github.com/tauri-apps/tauri/pull/3427) ([#3429](https://www.github.com/tauri-apps/tauri/pull/3429)) on 2022-02-13
+
 ## \[1.0.0-rc.4]
 
 - Change default value for the `freezePrototype` configuration to `false`.

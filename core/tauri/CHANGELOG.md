@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-rc.2]
+
+- Ease the requirements for plugin hooks. `setup` and `setup_with_config` can now be `FnOnce` and `on_webview_ready`, `on_event` and `on_page_load` can be `FnMut`.
+  - [fd557e98](https://www.github.com/tauri-apps/tauri/commit/fd557e984db17335a7c2ff10e6fe9c07065a95ed) Ease plugin hook restrictions ([#3404](https://www.github.com/tauri-apps/tauri/pull/3404)) on 2022-02-13
+- Fixes an issue with the updater when replacing the `{{target}}` and `{{current_version}}` variables due to percent-encoding on the `Url` that is parsed from the configuration.
+  - [20f0477f](https://www.github.com/tauri-apps/tauri/commit/20f0477f95b836cdf03ca66dadd9c0d3c95b198a) fix(core): updater not replacing variables, closes [#3428](https://www.github.com/tauri-apps/tauri/pull/3428) ([#3432](https://www.github.com/tauri-apps/tauri/pull/3432)) on 2022-02-13
+
 ## \[1.0.0-rc.1]
 
 - Change default value for the `freezePrototype` configuration to `false`.

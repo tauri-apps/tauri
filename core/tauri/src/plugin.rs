@@ -161,7 +161,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Defines the JS message handler callback.
   /// It is recommended you use the [tauri::generate_handler] to generate the input to this method, as the input type is not considered stable yet.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -196,7 +196,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -225,7 +225,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// The closure gets called before the [setup_with_config] closure.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime, Manager};
@@ -263,7 +263,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// The closure gets called after the [setup] closure.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// #[derive(serde::Deserialize)]
@@ -295,7 +295,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the webview performs a navigation to a page.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -319,7 +319,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the webview is created.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -343,7 +343,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the event loop receives a new event.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, runtime::Runtime};

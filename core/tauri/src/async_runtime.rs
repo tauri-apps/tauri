@@ -218,7 +218,7 @@ fn default_runtime() -> GlobalRuntime {
 /// For convinience, this method takes a [`TokioHandle`].
 /// Note that you cannot drop the underlying [`TokioRuntime`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// #[tokio::main]

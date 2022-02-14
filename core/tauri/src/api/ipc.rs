@@ -48,7 +48,7 @@ const MIN_JSON_PARSE_LEN: usize = 10_240;
 /// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
 ///     character to end a string that was opened with it.
 ///
-/// # Example
+/// # Examples
 ///
 /// ```
 /// use tauri::api::ipc::{serialize_js_with, SerializeOptions};
@@ -103,7 +103,7 @@ pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
 ///
 /// For usage in functions where performance is more important than code readability, see [`serialize_js_with`].
 ///
-/// # Example
+/// # Examples
 /// ```rust,no_run
 /// use tauri::{Manager, api::ipc::serialize_js};
 /// use serde::Serialize;

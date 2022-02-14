@@ -11,14 +11,23 @@ use std::path::MAIN_SEPARATOR;
 ///
 /// Allows you to construct a Notification data and send it.
 ///
-/// # Example
-/// ```
+/// # Examples
+/// ```rust,no_run
 /// use tauri::api::notification::Notification;
+/// // first we build the application to access the Tauri configuration
+/// let app = tauri::Builder::default()
+///   // on an actual app, remove the string argument
+///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///   .expect("error while building tauri application");
+///
 /// // shows a notification with the given title and body
-/// Notification::new("studio.tauri.example")
+/// Notification::new(&app.config().tauri.bundle.identifier)
 ///   .title("New message")
 ///   .body("You've got a new message.")
 ///   .show();
+///
+/// // run the app
+/// app.run(|_app_handle, _event| {});
 /// ```
 #[allow(dead_code)]
 #[derive(Debug, Default)]

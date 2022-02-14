@@ -34,6 +34,7 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
 fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
   for src in binaries {
     let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(
       src
         .file_name()
@@ -50,6 +51,7 @@ fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Pa
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   for src in resources {
     let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(resource_relpath(&src));
     copy_file(&src, &dest)?;
   }

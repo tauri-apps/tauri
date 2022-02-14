@@ -64,6 +64,17 @@ impl Matches {
 }
 
 /// Gets the argument matches of the CLI definition.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::api::cli::get_matches;
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let matches = get_matches(app.config().tauri.cli.as_ref().unwrap(), app.package_info()).unwrap();
+///     Ok(())
+///   });
+/// ```
 pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::Result<Matches> {
   let about = cli
     .description()

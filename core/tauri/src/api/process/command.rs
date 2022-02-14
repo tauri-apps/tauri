@@ -215,6 +215,30 @@ impl Command {
   }
 
   /// Spawns the command.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::process::{Command, CommandEvent};
+  /// tauri::async_runtime::spawn(async move {
+  ///   let (mut rx, mut child) = Command::new("cargo")
+  ///     .args(["tauri", "dev"])
+  ///     .spawn()
+  ///     .expect("Failed to spawn cargo");
+  ///
+  ///   let mut i = 0;
+  ///   while let Some(event) = rx.recv().await {
+  ///     if let CommandEvent::Stdout(line) = event {
+  ///       println!("got: {}", line);
+  ///       i += 1;
+  ///       if i == 4 {
+  ///         child.write("message from Rust\n".as_bytes()).unwrap();
+  ///         i = 0;
+  ///       }
+  ///     }
+  ///   }
+  /// });
+  /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
@@ -299,6 +323,13 @@ impl Command {
 
   /// Executes a command as a child process, waiting for it to finish and collecting its exit status.
   /// Stdin, stdout and stderr are ignored.
+  ///
+  /// # Examples
+  /// ```rust,no_run
+  /// use tauri::api::process::Command;
+  /// let status = Command::new("which").args(["ls"]).status().unwrap();
+  /// println!("`which` finished with status: {:?}", status.code());
+  /// ```
   pub fn status(self) -> crate::api::Result<ExitStatus> {
     let (mut rx, _child) = self.spawn()?;
     let code = crate::async_runtime::safe_block_on(async move {
@@ -316,6 +347,15 @@ impl Command {
 
   /// Executes the command as a child process, waiting for it to finish and collecting all of its output.
   /// Stdin is ignored.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::process::Command;
+  /// let output = Command::new("echo").args(["TAURI"]).output().unwrap();
+  /// assert!(output.status.success());
+  /// assert_eq!(output.stdout, "TAURI");
+  /// ```
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 

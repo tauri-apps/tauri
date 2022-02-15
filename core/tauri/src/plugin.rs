@@ -54,8 +54,8 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync;
-type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send + Sync;
+type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
+type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;

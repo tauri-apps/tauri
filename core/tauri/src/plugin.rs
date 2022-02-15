@@ -251,7 +251,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -287,7 +287,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + 'static,
   {
     self.setup_with_config.replace(Box::new(setup_with_config));
     self

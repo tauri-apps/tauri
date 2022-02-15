@@ -127,7 +127,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<Vec<u8>> {
+  ) -> super::Result<Vec<u8>> {
     file::read_binary(resolve_path(
       &context.config,
       &context.package_info,
@@ -135,7 +135,7 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?)
-    .map_err(crate::Error::FailedToExecuteApi)
+    .map_err(Into::into)
   }
 
   #[module_command_handler(fs_write_file, "fs > writeFile")]
@@ -144,7 +144,7 @@ impl Cmd {
     path: SafePathBuf,
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     File::create(resolve_path(
       &context.config,
       &context.package_info,
@@ -161,7 +161,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<Vec<dir::DiskEntry>> {
+  ) -> super::Result<Vec<dir::DiskEntry>> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
@@ -177,7 +177,7 @@ impl Cmd {
       )?,
       recursive,
     )
-    .map_err(crate::Error::FailedToExecuteApi)
+    .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file, "fs > copyFile")]
@@ -186,7 +186,7 @@ impl Cmd {
     source: SafePathBuf,
     destination: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (src, dest) = match options.and_then(|o| o.dir) {
       Some(dir) => (
         resolve_path(
@@ -215,7 +215,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
@@ -242,7 +242,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
@@ -269,7 +269,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -287,7 +287,7 @@ impl Cmd {
     old_path: SafePathBuf,
     new_path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (old, new) = match options.and_then(|o| o.dir) {
       Some(dir) => (
         resolve_path(
@@ -307,7 +307,7 @@ impl Cmd {
       ),
       None => (old_path, new_path),
     };
-    fs::rename(old, new).map_err(crate::Error::Io)
+    fs::rename(old, new).map_err(Into::into)
   }
 }
 
@@ -318,14 +318,16 @@ fn resolve_path<R: Runtime>(
   window: &Window<R>,
   path: SafePathBuf,
   dir: Option<BaseDirectory>,
-) -> crate::Result<SafePathBuf> {
+) -> super::Result<SafePathBuf> {
   let env = window.state::<Env>().inner();
   match crate::api::path::resolve_path(config, package_info, env, path, dir) {
     Ok(path) => {
       if window.state::<Scopes>().fs.is_allowed(&path) {
         Ok(SafePathBuf(path))
       } else {
-        Err(crate::Error::PathNotAllowed(path))
+        Err(anyhow::anyhow!(
+          crate::Error::PathNotAllowed(path).to_string()
+        ))
       }
     }
     Err(e) => Err(e.into()),
@@ -381,21 +383,21 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn read_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
   fn write_file(path: SafePathBuf, contents: Vec<u8>, options: Option<FileOperationOptions>) {
     let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, contents, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_read_dir, "fs > readDir")]
   #[quickcheck_macros::quickcheck]
   fn read_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::read_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_copy_file, "fs > copyFile")]
@@ -411,28 +413,28 @@ mod tests {
       destination,
       options,
     );
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_create_dir, "fs > createDir")]
   #[quickcheck_macros::quickcheck]
   fn create_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::create_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_remove_dir, "fs > removeDir")]
   #[quickcheck_macros::quickcheck]
   fn remove_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::remove_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_remove_file, "fs > removeFile")]
   #[quickcheck_macros::quickcheck]
   fn remove_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
     let res = super::Cmd::remove_file(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_rename_file, "fs > renameFile")]
@@ -448,6 +450,6 @@ mod tests {
       new_path,
       options,
     );
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 }

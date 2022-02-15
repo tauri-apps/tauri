@@ -21,15 +21,15 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  fn get_app_version<R: Runtime>(context: InvokeContext<R>) -> crate::Result<String> {
+  fn get_app_version<R: Runtime>(context: InvokeContext<R>) -> super::Result<String> {
     Ok(context.package_info.version)
   }
 
-  fn get_app_name<R: Runtime>(context: InvokeContext<R>) -> crate::Result<String> {
+  fn get_app_name<R: Runtime>(context: InvokeContext<R>) -> super::Result<String> {
     Ok(context.package_info.name)
   }
 
-  fn get_tauri_version<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<&'static str> {
+  fn get_tauri_version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(env!("CARGO_PKG_VERSION"))
   }
 }

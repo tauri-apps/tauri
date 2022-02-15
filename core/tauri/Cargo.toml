@@ -50,6 +50,7 @@ tokio = { version = "1.16", features = [ "rt", "rt-multi-thread", "sync", "fs", 
 futures = "0.3"
 uuid = { version = "0.8", features = [ "v4" ] }
 url = { version = "2.2" }
+anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.9"
 tauri-runtime = { version = "0.3.1", path = "../tauri-runtime" }

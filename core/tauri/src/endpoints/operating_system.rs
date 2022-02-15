@@ -21,27 +21,27 @@ pub enum Cmd {
 
 impl Cmd {
   #[module_command_handler(os_all, "os > all")]
-  fn platform<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<&'static str> {
+  fn platform<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_platform())
   }
 
   #[module_command_handler(os_all, "os > all")]
-  fn version<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<String> {
+  fn version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
     Ok(os_info::get().version().to_string())
   }
 
   #[module_command_handler(os_all, "os > all")]
-  fn os_type<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<&'static str> {
+  fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_type())
   }
 
   #[module_command_handler(os_all, "os > all")]
-  fn arch<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<&'static str> {
+  fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(std::env::consts::ARCH)
   }
 
   #[module_command_handler(os_all, "os > all")]
-  fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> crate::Result<PathBuf> {
+  fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
   }
 }

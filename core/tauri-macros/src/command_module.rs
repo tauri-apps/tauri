@@ -91,7 +91,7 @@ pub fn generate_run_fn(input: DeriveInput) -> TokenStream {
 
   let expanded = quote! {
       impl #impl_generics #name #ty_generics #where_clause {
-        pub #maybe_async fn run<R: crate::Runtime>(self, context: crate::endpoints::InvokeContext<R>) -> crate::Result<crate::endpoints::InvokeResponse> {
+        pub #maybe_async fn run<R: crate::Runtime>(self, context: crate::endpoints::InvokeContext<R>) -> super::Result<crate::endpoints::InvokeResponse> {
           match self {
             #matcher
           }
@@ -160,9 +160,7 @@ pub fn command_handler(attributes: HandlerAttributes, function: ItemFn) -> Token
     #[allow(unused_variables)]
     #[allow(unused_mut)]
     #signature {
-      Err(crate::Error::ApiNotAllowlisted(
-        #error_message.to_string(),
-      ))
+      Err(anyhow::anyhow!(crate::Error::ApiNotAllowlisted(#error_message.to_string()).to_string()))
     }
   )
 }
@@ -198,8 +196,8 @@ pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> Toke
     #[cfg(not(#allowlist))]
     #[quickcheck_macros::quickcheck]
     #signature {
-      if let Err(crate::Error::ApiNotAllowlisted(e)) = #response {
-        assert_eq!(e, #error_message);
+      if let Err(e) = #response {
+        assert!(e.to_string().contains(#error_message));
       } else {
         panic!("unexpected response");
       }

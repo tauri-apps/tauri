@@ -109,6 +109,16 @@ pub enum Error {
   InvalidWindowUrl(&'static str),
 }
 
+pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
+  anyhow::anyhow!(err.to_string())
+}
+
+impl Error {
+  pub(crate) fn into_anyhow(self) -> anyhow::Error {
+    anyhow::anyhow!(self.to_string())
+  }
+}
+
 impl From<serde_json::Error> for Error {
   fn from(error: serde_json::Error) -> Self {
     if error.to_string().contains("unknown variant") {

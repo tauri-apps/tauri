@@ -80,18 +80,21 @@ impl Cmd {
     event: EventId,
     window_label: Option<WindowLabel>,
     handler: CallbackFn,
-  ) -> crate::Result<u64> {
+  ) -> super::Result<u64> {
     let event_id = rand::random();
 
     let window_label = window_label.map(|l| l.0);
 
-    context.window.eval(&listen_js(
-      context.window.manager().event_listeners_object_name(),
-      format!("'{}'", event.0),
-      event_id,
-      window_label.clone(),
-      format!("window['_{}']", handler.0),
-    ))?;
+    context
+      .window
+      .eval(&listen_js(
+        context.window.manager().event_listeners_object_name(),
+        format!("'{}'", event.0),
+        event_id,
+        window_label.clone(),
+        format!("window['_{}']", handler.0),
+      ))
+      .map_err(crate::error::into_anyhow)?;
 
     context
       .window
@@ -100,11 +103,14 @@ impl Cmd {
     Ok(event_id)
   }
 
-  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> crate::Result<()> {
-    context.window.eval(&unlisten_js(
-      context.window.manager().event_listeners_object_name(),
-      event_id,
-    ))?;
+  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> super::Result<()> {
+    context
+      .window
+      .eval(&unlisten_js(
+        context.window.manager().event_listeners_object_name(),
+        event_id,
+      ))
+      .map_err(crate::error::into_anyhow)?;
     context.window.unregister_js_listener(event_id);
     Ok(())
   }
@@ -114,14 +120,20 @@ impl Cmd {
     event: EventId,
     window_label: Option<WindowLabel>,
     payload: Option<String>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     // dispatch the event to Rust listeners
     context.window.trigger(&event.0, payload.clone());
 
     if let Some(target) = window_label {
-      context.window.emit_to(&target.0, &event.0, payload)?;
+      context
+        .window
+        .emit_to(&target.0, &event.0, payload)
+        .map_err(crate::error::into_anyhow)?;
     } else {
-      context.window.emit_all(&event.0, payload)?;
+      context
+        .window
+        .emit_all(&event.0, payload)
+        .map_err(crate::error::into_anyhow)?;
     }
     Ok(())
   }

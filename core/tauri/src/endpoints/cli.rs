@@ -23,7 +23,7 @@ impl Cmd {
         .map(Into::into)
         .map_err(Into::into)
     } else {
-      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()))
+      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()).into_anyhow())
     }
   }
 }
@@ -34,6 +34,6 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn cli_matches() {
     let res = super::Cmd::cli_matches(crate::test::mock_invoke_context());
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 }

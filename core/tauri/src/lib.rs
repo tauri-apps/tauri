@@ -577,6 +577,7 @@ mod test_utils {
   pub fn assert_send<T: Send>() {}
   pub fn assert_sync<T: Sync>() {}
 
+  #[allow(dead_code)]
   pub fn assert_not_allowlist_error<T>(res: anyhow::Result<T>) {
     if let Err(e) = res {
       assert!(!e.to_string().contains("not on the allowlist"));

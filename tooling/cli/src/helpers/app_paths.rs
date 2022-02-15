@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  cmp::Ordering,
   env::current_dir,
   ffi::OsStr,
   path::{Path, PathBuf},
@@ -25,14 +26,24 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
 
   let mut builder = WalkBuilder::new(dir);
   let _ = builder.add_ignore(default_gitignore);
-  builder.require_git(false).ignore(false).max_depth(Some(
-    std::env::var("TAURI_PATH_DEPTH")
-      .map(|d| {
-        d.parse()
-          .expect("`TAURI_PATH_DEPTH` environment variable must be a positive integer")
-      })
-      .unwrap_or(3),
-  ));
+  builder
+    .require_git(false)
+    .ignore(false)
+    .max_depth(Some(
+      std::env::var("TAURI_PATH_DEPTH")
+        .map(|d| {
+          d.parse()
+            .expect("`TAURI_PATH_DEPTH` environment variable must be a positive integer")
+        })
+        .unwrap_or(3),
+    ))
+    .sort_by_file_path(|a, _| {
+      if a.extension().is_some() {
+        Ordering::Less
+      } else {
+        Ordering::Greater
+      }
+    });
 
   for entry in builder.build().flatten() {
     let path = dir.join(entry.path());

@@ -81,14 +81,12 @@ impl Cmd {
 
   #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
   fn is_registered<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> super::Result<bool> {
-    Ok(
-      context
-        .window
-        .app_handle
-        .global_shortcut_manager()
-        .is_registered(&shortcut)
-        .map_err(crate::error::into_anyhow)?,
-    )
+    context
+      .window
+      .app_handle
+      .global_shortcut_manager()
+      .is_registered(&shortcut)
+      .map_err(crate::error::into_anyhow)
   }
 }
 

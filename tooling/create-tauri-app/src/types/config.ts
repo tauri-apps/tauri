@@ -17,10 +17,10 @@ export interface TauriBuildConfig {
   /**
    * a shell command to run before `tauri dev` kicks in
    */
-  beforeDevCommand: string
+  beforeDevCommand?: string
   /**
    * a shell command to run before `tauri build` kicks in
    */
-  beforeBuildCommand: string
+  beforeBuildCommand?: string
   withGlobalTauri?: boolean
 }

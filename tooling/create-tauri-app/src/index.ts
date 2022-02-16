@@ -282,14 +282,14 @@ You may find the requirements here: ${cyan(setupLink)}
   // Vue CLI plugin automatically runs these
   if (recipe.shortName !== 'vuecli') {
     logStep('Installing any additional needed dependencies')
-    await pm.install(
+    await pm.add(
       [
         installApi ? '@tauri-apps/api@latest' : '',
         ...recipe.extraNpmDependencies
       ],
       { cwd: appDirectory }
     )
-    await pm.install(
+    await pm.add(
       ['@tauri-apps/cli@latest', ...recipe.extraNpmDevDependencies],
       { dev: true, cwd: appDirectory }
     )

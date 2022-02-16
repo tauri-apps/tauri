@@ -51,7 +51,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: String,
     directory: Option<BaseDirectory>,
-  ) -> crate::Result<PathBuf> {
+  ) -> super::Result<PathBuf> {
     crate::api::path::resolve_path(
       &context.config,
       &context.package_info,
@@ -63,7 +63,7 @@ impl Cmd {
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn resolve<R: Runtime>(_context: InvokeContext<R>, paths: Vec<String>) -> crate::Result<PathBuf> {
+  fn resolve<R: Runtime>(_context: InvokeContext<R>, paths: Vec<String>) -> super::Result<PathBuf> {
     // Start with current directory then start adding paths from the vector one by one using `PathBuf.push()` which
     // will ensure that if an absolute path is encountered in the iteration, it will be used as the current full path.
     //
@@ -78,7 +78,7 @@ impl Cmd {
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn normalize<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<String> {
+  fn normalize<R: Runtime>(_context: InvokeContext<R>, path: String) -> super::Result<String> {
     let mut p = normalize_path_no_absolute(Path::new(&path))
       .to_string_lossy()
       .to_string();
@@ -102,7 +102,7 @@ impl Cmd {
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn join<R: Runtime>(_context: InvokeContext<R>, mut paths: Vec<String>) -> crate::Result<String> {
+  fn join<R: Runtime>(_context: InvokeContext<R>, mut paths: Vec<String>) -> super::Result<String> {
     let path = PathBuf::from(
       paths
         .iter_mut()
@@ -126,23 +126,23 @@ impl Cmd {
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn dirname<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<PathBuf> {
+  fn dirname<R: Runtime>(_context: InvokeContext<R>, path: String) -> super::Result<PathBuf> {
     match Path::new(&path).parent() {
       Some(p) => Ok(p.to_path_buf()),
-      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+      None => Err(crate::error::into_anyhow(crate::api::Error::Path(
         "Couldn't get the parent directory".into(),
       ))),
     }
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn extname<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<String> {
+  fn extname<R: Runtime>(_context: InvokeContext<R>, path: String) -> super::Result<String> {
     match Path::new(&path)
       .extension()
       .and_then(std::ffi::OsStr::to_str)
     {
       Some(p) => Ok(p.to_string()),
-      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+      None => Err(crate::error::into_anyhow(crate::api::Error::Path(
         "Couldn't get the extension of the file".into(),
       ))),
     }
@@ -153,7 +153,7 @@ impl Cmd {
     _context: InvokeContext<R>,
     path: String,
     ext: Option<String>,
-  ) -> crate::Result<String> {
+  ) -> super::Result<String> {
     match Path::new(&path)
       .file_name()
       .and_then(std::ffi::OsStr::to_str)
@@ -163,14 +163,14 @@ impl Cmd {
       } else {
         p.to_string()
       }),
-      None => Err(crate::Error::FailedToExecuteApi(crate::api::Error::Path(
+      None => Err(crate::error::into_anyhow(crate::api::Error::Path(
         "Couldn't get the basename".into(),
       ))),
     }
   }
 
   #[module_command_handler(path_all, "path > all")]
-  fn is_absolute<R: Runtime>(_context: InvokeContext<R>, path: String) -> crate::Result<bool> {
+  fn is_absolute<R: Runtime>(_context: InvokeContext<R>, path: String) -> super::Result<bool> {
     Ok(Path::new(&path).is_absolute())
   }
 }

@@ -21,19 +21,23 @@ pub enum Cmd {
 
 impl Cmd {
   #[module_command_handler(clipboard_write_text, "clipboard > writeText")]
-  fn write_text<R: Runtime>(context: InvokeContext<R>, text: String) -> crate::Result<()> {
-    Ok(
-      context
-        .window
-        .app_handle
-        .clipboard_manager()
-        .write_text(text)?,
-    )
+  fn write_text<R: Runtime>(context: InvokeContext<R>, text: String) -> super::Result<()> {
+    context
+      .window
+      .app_handle
+      .clipboard_manager()
+      .write_text(text)
+      .map_err(crate::error::into_anyhow)
   }
 
   #[module_command_handler(clipboard_read_text, "clipboard > readText")]
-  fn read_text<R: Runtime>(context: InvokeContext<R>) -> crate::Result<Option<String>> {
-    Ok(context.window.app_handle.clipboard_manager().read_text()?)
+  fn read_text<R: Runtime>(context: InvokeContext<R>) -> super::Result<Option<String>> {
+    context
+      .window
+      .app_handle
+      .clipboard_manager()
+      .read_text()
+      .map_err(crate::error::into_anyhow)
   }
 }
 

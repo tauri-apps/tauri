@@ -151,22 +151,34 @@ impl Cmd {
   async fn create_webview<R: Runtime>(
     context: InvokeContext<R>,
     options: Box<WindowConfig>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let mut window = context.window;
     let label = options.label.clone();
     let url = options.url.clone();
 
-    window.create_window(label, url, |_, webview_attributes| {
-      (
-        <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
-        webview_attributes,
-      )
-    })?;
+    window
+      .create_window(label, url, |_, webview_attributes| {
+        (
+          <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
+          webview_attributes,
+        )
+      })
+      .map_err(crate::error::into_anyhow)?;
 
     Ok(())
   }
 
   async fn manage<R: Runtime>(
+    context: InvokeContext<R>,
+    label: Option<String>,
+    cmd: WindowManagerCmd,
+  ) -> super::Result<InvokeResponse> {
+    Self::_manage(context, label, cmd)
+      .await
+      .map_err(crate::error::into_anyhow)
+  }
+
+  async fn _manage<R: Runtime>(
     context: InvokeContext<R>,
     label: Option<String>,
     cmd: WindowManagerCmd,

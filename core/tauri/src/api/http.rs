@@ -35,7 +35,7 @@ impl ClientBuilder {
     self
   }
 
-  /// Sets the connection timeout.
+  /// Sets the connection timeout in seconds.
   #[must_use]
   pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
     self.connect_timeout = Some(connect_timeout);
@@ -78,10 +78,24 @@ pub struct Client(ClientBuilder);
 
 #[cfg(not(feature = "reqwest-client"))]
 impl Client {
-  /// Executes an HTTP request
+  /// Executes an HTTP request.
   ///
-  /// The response will be transformed to String.
-  /// If reading the response as binary, the byte array will be serialized using [`serde_json`].
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::http::{ClientBuilder, HttpRequestBuilder, ResponseType};
+  /// async fn run_request() {
+  ///   let client = ClientBuilder::new().build().unwrap();
+  ///   let response = client.send(
+  ///     HttpRequestBuilder::new("GET", "https://www.rust-lang.org")
+  ///       .unwrap()
+  ///       .response_type(ResponseType::Binary)
+  ///   ).await;
+  ///   if let Ok(response) = response {
+  ///     let bytes = response.bytes();
+  ///   }
+  /// }
+  /// ```
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
@@ -137,8 +151,7 @@ impl Client {
 impl Client {
   /// Executes an HTTP request
   ///
-  /// The response will be transformed to String.
-  /// If reading the response as binary, the byte array will be serialized using serde_json.
+  /// # Examples
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
@@ -245,16 +258,15 @@ pub enum Body {
 /// The builder for a HTTP request.
 ///
 /// # Examples
-/// ```no_run
-/// use tauri::api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// ```rust,no_run
+/// use tauri::api::http::{HttpRequestBuilder, ResponseType, ClientBuilder};
 /// async fn run() {
 ///   let client = ClientBuilder::new()
 ///     .max_redirections(3)
 ///     .build()
 ///     .unwrap();
-///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com").unwrap();
-///   let request = request_builder.response_type(ResponseType::Text);
-///
+///   let request = HttpRequestBuilder::new("GET", "http://example.com").unwrap()
+///     .response_type(ResponseType::Text);
 ///   if let Ok(response) = client.send(request).await {
 ///     println!("got response");
 ///   } else {
@@ -351,7 +363,9 @@ impl Response {
     Ok(RawResponse { status, data })
   }
 
-  /// Reads the response and returns its info.
+  /// Reads the response.
+  ///
+  /// Note that the body is serialized to a [`Value`].
   pub async fn read(self) -> crate::api::Result<ResponseData> {
     #[cfg(feature = "reqwest-client")]
     let url = self.1.url().clone();

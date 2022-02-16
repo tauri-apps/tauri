@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-rc.4"
+version = "1.0.0-rc.5"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.57"
@@ -58,7 +58,7 @@ tempfile = "3"
 zeroize = "1.5"
 glob = "0.3"
 heck = "0.4"
-dialoguer = "0.9"
+dialoguer = "0.10"
 url = { version = "2.2", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"

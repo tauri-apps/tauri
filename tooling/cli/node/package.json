@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.0.0-rc.3",
+  "version": "1.0.0-rc.4",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -36,7 +36,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.4.2",
+    "@napi-rs/cli": "2.4.4",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.0.0",
     "jest": "27.5.1",

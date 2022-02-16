@@ -188,7 +188,7 @@ impl Menu {
 
   /// Creates a new window menu with the given items.
   ///
-  /// # Example
+  /// # Examples
   /// ```
   /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
   /// Menu::with_items([

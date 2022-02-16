@@ -54,8 +54,8 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync;
-type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send + Sync;
+type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
+type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;
@@ -161,7 +161,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Defines the JS message handler callback.
   /// It is recommended you use the [tauri::generate_handler] to generate the input to this method, as the input type is not considered stable yet.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -196,7 +196,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// It's guaranteed that this script is executed before the page is loaded.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -225,7 +225,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// The closure gets called before the [setup_with_config] closure.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime, Manager};
@@ -251,7 +251,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -263,7 +263,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// The closure gets called after the [setup] closure.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// #[derive(serde::Deserialize)]
@@ -287,7 +287,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + 'static,
   {
     self.setup_with_config.replace(Box::new(setup_with_config));
     self
@@ -295,7 +295,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the webview performs a navigation to a page.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -319,7 +319,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the webview is created.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
@@ -343,7 +343,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 
   /// Callback invoked when the event loop receives a new event.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust
   /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, runtime::Runtime};

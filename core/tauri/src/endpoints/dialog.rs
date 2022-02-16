@@ -83,7 +83,7 @@ impl Cmd {
   fn open_dialog<R: Runtime>(
     context: InvokeContext<R>,
     options: OpenDialogOptions,
-  ) -> crate::Result<InvokeResponse> {
+  ) -> super::Result<InvokeResponse> {
     let mut dialog_builder = FileDialogBuilder::new();
     #[cfg(any(windows, target_os = "macos"))]
     {
@@ -113,7 +113,7 @@ impl Cmd {
   fn save_dialog<R: Runtime>(
     context: InvokeContext<R>,
     options: SaveDialogOptions,
-  ) -> crate::Result<Option<PathBuf>> {
+  ) -> super::Result<Option<PathBuf>> {
     let mut dialog_builder = FileDialogBuilder::new();
     #[cfg(any(windows, target_os = "macos"))]
     {
@@ -131,7 +131,7 @@ impl Cmd {
   }
 
   #[module_command_handler(dialog_message, "dialog > message")]
-  fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> crate::Result<()> {
+  fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> super::Result<()> {
     crate::api::dialog::blocking::message(
       Some(&context.window),
       &context.window.app_handle.package_info().name,
@@ -145,7 +145,7 @@ impl Cmd {
     context: InvokeContext<R>,
     title: Option<String>,
     message: String,
-  ) -> crate::Result<bool> {
+  ) -> super::Result<bool> {
     Ok(crate::api::dialog::blocking::ask(
       Some(&context.window),
       title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
@@ -158,7 +158,7 @@ impl Cmd {
     context: InvokeContext<R>,
     title: Option<String>,
     message: String,
-  ) -> crate::Result<bool> {
+  ) -> super::Result<bool> {
     Ok(crate::api::dialog::blocking::confirm(
       Some(&context.window),
       title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),

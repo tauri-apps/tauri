@@ -496,10 +496,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@napi-rs/cli@2.4.2":
-  version "2.4.2"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.2.tgz#89b32c7d8776004bc9617915605aea769339cf6f"
-  integrity sha512-+yCOuPqernvD8BMphbadF87ElaJ0rjanOZrbnauaEdR07YyoalGw3FTk15HHyflIwQKlYd69gkG5EM4WFkICKw==
+"@napi-rs/cli@2.4.4":
+  version "2.4.4"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.4.tgz#878a38f0fba1709d89d66eba706745ce728a61a5"
+  integrity sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"

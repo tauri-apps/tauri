@@ -115,7 +115,7 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
@@ -134,7 +134,7 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
@@ -153,7 +153,7 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
@@ -172,7 +172,7 @@ pub mod blocking {
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
@@ -193,7 +193,7 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::blocking::ask;
@@ -216,7 +216,7 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::blocking::confirm;
@@ -239,7 +239,7 @@ pub mod blocking {
   /// This is a blocking operation,
   /// and should *NOT* be used when running on the main thread context.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::blocking::message;
@@ -290,7 +290,7 @@ mod nonblocking {
     ///
     /// For usage in other contexts such as commands, prefer [`Self::pick_file`].
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::FileDialogBuilder;
@@ -312,7 +312,7 @@ mod nonblocking {
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::FileDialogBuilder;
@@ -334,7 +334,7 @@ mod nonblocking {
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::FileDialogBuilder;
@@ -357,7 +357,7 @@ mod nonblocking {
     /// This is not a blocking operation,
     /// and should be used when running on the main thread to avoid deadlocks with the event loop.
     ///
-    /// # Example
+    /// # Examples
     ///
     /// ```rust,no_run
     /// use tauri::api::dialog::FileDialogBuilder;
@@ -381,7 +381,7 @@ mod nonblocking {
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::ask;
@@ -406,7 +406,7 @@ mod nonblocking {
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::confirm;
@@ -437,7 +437,7 @@ mod nonblocking {
   /// This is not a blocking operation,
   /// and should be used when running on the main thread to avoid deadlocks with the event loop.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::api::dialog::message;

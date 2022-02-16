@@ -88,12 +88,10 @@ impl Cmd {
     args: ExecuteArgs,
     on_event_fn: CallbackFn,
     options: CommandOptions,
-  ) -> crate::Result<ChildId> {
+  ) -> super::Result<ChildId> {
     let mut command = if options.sidecar {
       #[cfg(not(shell_sidecar))]
-      return Err(crate::Error::ApiNotAllowlisted(
-        "shell > sidecar".to_string(),
-      ));
+      return Err(crate::Error::ApiNotAllowlisted("shell > sidecar".to_string()).into_anyhow());
       #[cfg(shell_sidecar)]
       {
         let program = PathBuf::from(program);
@@ -117,16 +115,14 @@ impl Cmd {
             .state::<Scopes>()
             .shell
             .prepare(&program.to_string_lossy(), args, true)
-            .map_err(Box::new)?
+            .map_err(crate::error::into_anyhow)?
         } else {
-          return Err(crate::Error::SidecarNotAllowed(program));
+          return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());
         }
       }
     } else {
       #[cfg(not(shell_execute))]
-      return Err(crate::Error::ApiNotAllowlisted(
-        "shell > execute".to_string(),
-      ));
+      return Err(crate::Error::ApiNotAllowlisted("shell > execute".to_string()).into_anyhow());
       #[cfg(shell_execute)]
       match context
         .window
@@ -138,7 +134,7 @@ impl Cmd {
         Err(e) => {
           #[cfg(debug_assertions)]
           eprintln!("{}", e);
-          return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)));
+          return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
         }
       }
     };
@@ -178,7 +174,7 @@ impl Cmd {
     _context: InvokeContext<R>,
     pid: ChildId,
     buffer: Buffer,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
       match buffer {
         Buffer::Text(t) => child.write(t.as_bytes())?,
@@ -193,14 +189,12 @@ impl Cmd {
     _context: InvokeContext<R>,
     _pid: ChildId,
     _buffer: Buffer,
-  ) -> crate::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted(
-      "shell > execute or shell > sidecar".into(),
-    ))
+  ) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("shell > execute or shell > sidecar".into()).into_anyhow())
   }
 
   #[cfg(any(shell_execute, shell_sidecar))]
-  fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> crate::Result<()> {
+  fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> super::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
       child.kill()?;
     }
@@ -208,10 +202,8 @@ impl Cmd {
   }
 
   #[cfg(not(any(shell_execute, shell_sidecar)))]
-  fn kill_child<R: Runtime>(_context: InvokeContext<R>, _pid: ChildId) -> crate::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted(
-      "shell > execute or shell > sidecar".into(),
-    ))
+  fn kill_child<R: Runtime>(_context: InvokeContext<R>, _pid: ChildId) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("shell > execute or shell > sidecar".into()).into_anyhow())
   }
 
   /// Open a (url) path with a default or specific browser opening program.
@@ -222,7 +214,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: String,
     with: Option<String>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     use std::str::FromStr;
 
     with

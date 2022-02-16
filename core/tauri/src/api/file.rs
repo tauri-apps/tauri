@@ -12,12 +12,12 @@ use std::{fs, path::Path};
 pub use extract::*;
 pub use file_move::*;
 
-/// Reads a string file.
+/// Reads the entire contents of a file into a string.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {
   fs::read_to_string(file).map_err(Into::into)
 }
 
-/// Reads a binary file.
+/// Reads the entire contents of a file into a bytes vector.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
   fs::read(file).map_err(Into::into)
 }

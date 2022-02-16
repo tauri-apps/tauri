@@ -17,13 +17,13 @@ pub enum Cmd {
 
 impl Cmd {
   #[module_command_handler(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)")]
-  fn cli_matches<R: Runtime>(context: InvokeContext<R>) -> crate::Result<InvokeResponse> {
+  fn cli_matches<R: Runtime>(context: InvokeContext<R>) -> super::Result<InvokeResponse> {
     if let Some(cli) = &context.config.tauri.cli {
       crate::api::cli::get_matches(cli, &context.package_info)
         .map(Into::into)
         .map_err(Into::into)
     } else {
-      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()))
+      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()).into_anyhow())
     }
   }
 }
@@ -34,6 +34,6 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn cli_matches() {
     let res = super::Cmd::cli_matches(crate::test::mock_invoke_context());
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 }

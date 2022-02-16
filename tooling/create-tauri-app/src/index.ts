@@ -217,10 +217,19 @@ You may find the requirements here: ${cyan(setupLink)}
     throw new Error('Could not find the recipe specified.')
   }
 
+  // get package manager info
   const pmInfo = getPkgManagerFromUA(process.env.npm_config_user_agent)
   const pmName = argv.manager ?? pmInfo?.name ?? 'npm'
-  // TODO: better error handling and use shell to determine version and throw if it doesn't exist
-  const pmVerStr = pmInfo?.version ?? ''
+  let pmVerStr: string
+  try {
+    pmVerStr = argv.manager
+      ? (await shell(pmName, ['--version'])).stdout
+      : pmInfo?.version ?? (await shell(pmName, ['--version'])).stdout
+  } catch {
+    throw new Error(
+      `Must have ${pmName} installed to manage dependencies. Is it in your PATH? We tried running it inside ${process.cwd()}`
+    )
+  }
   const pmVer = parseInt(pmVerStr.split('.')[0])
   const pm = new Npm(pmVer, { ci: argv.ci, log: argv.log })
 

@@ -6,16 +6,14 @@ import { join } from 'path'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
-const vuecli: Recipe = {
+export const vuecli: Recipe = {
+  shortName: 'vuecli',
   descriptiveName: {
     name: 'Vue CLI (https://cli.vuejs.org/)',
     value: 'vue-cli'
   },
-  shortName: 'vuecli',
-  extraNpmDevDependencies: [],
-  extraNpmDependencies: [],
   configUpdate: ({ cfg }) => cfg,
-  preInit: async ({ cwd, cfg, ci, packageManager }) => {
+  preInit: async ({ cwd, cfg, ci, pm }) => {
     await shell(
       'npx',
       [
@@ -23,8 +21,8 @@ const vuecli: Recipe = {
         '@vue/cli@latest',
         'create',
         `${cfg.appName}`,
-        '--packageManager',
-        packageManager,
+        '--pm',
+        pm.name,
         ci ? '--default' : ''
       ],
       { cwd }
@@ -46,15 +44,13 @@ const vuecli: Recipe = {
       }
     )
   },
-  postInit: async ({ cfg, packageManager }) => {
+  postInit: async ({ cfg, pm }) => {
     console.log(`
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri:serve
+    $ ${pm.name === 'npm' ? 'npm run' : pm.name} tauri:serve
     `)
     return await Promise.resolve()
   }
 }
-
-export { vuecli }

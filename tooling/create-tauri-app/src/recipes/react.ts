@@ -3,29 +3,65 @@
 // SPDX-License-Identifier: MIT
 
 import { join } from 'path'
-// @ts-expect-error
-import scaffe from 'scaffe'
 import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 import { unlinkSync, existsSync } from 'fs'
 import { emptyDir } from '../helpers/empty-dir'
 import { updatePackageJson } from '../helpers/update-package-json'
 
-const afterCra = async (
-  cwd: string,
-  appName: string,
-  typescript: boolean = false
-): Promise<void> => {
-  const templateDir = join(
-    __dirname,
-    `../src/templates/react/${typescript ? 'react-ts' : 'react'}`
-  )
+export const cra: Recipe = {
+  shortName: 'cra',
+  descriptiveName: {
+    name: 'create-react-app (https://create-react-app.dev/)',
+    value: 'create-react-app'
+  },
+  configUpdate: ({ cfg, pm }) => ({
+    ...cfg,
+    distDir: `../build`,
+    devPath: 'http://localhost:3000',
+    beforeDevCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} start`,
+    beforeBuildCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} build`
+  }),
+  extraNpmDevDependencies: ['cross-env'],
+  extraQuestions: ({ ci }) => [
+    {
+      type: 'list',
+      name: 'template',
+      message: 'Which create-react-app template would you like to use?',
+      choices: [
+        { name: 'create-react-app (JavaScript)', value: 'cra.js' },
+        { name: 'create-react-app (Typescript)', value: 'cra.ts' }
+      ],
+      default: 'cra.js',
+      loop: false,
+      when: !ci
+    }
+  ],
+  preInit: async ({ cwd, cfg, pm, answers }) => {
+    const template = (answers?.template as string) ?? 'cra.js'
+    await pm.create(
+      'react-app',
+      [
+        ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
+        `${cfg.appName}`,
+        pm.name !== 'yarn' ? '--use-npm' : ''
+      ],
+      {
+        cwd
+      }
+    )
 
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-    await scaffe.generate(templateDir, join(cwd, appName), {
-      overwrite: true
-    })
+    // create-react-app doesn't support pnpm, so we remove `node_modules` and any lock files then install them again using pnpm
+    if (pm.name === 'pnpm') {
+      const npmLock = join(cwd, cfg.appName, 'package-lock.json')
+      const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
+      const nodeModules = join(cwd, cfg.appName, 'node_modules')
+      if (existsSync(npmLock)) unlinkSync(npmLock)
+      if (existsSync(yarnLock)) unlinkSync(yarnLock)
+      emptyDir(nodeModules)
+      await pm.install({ cwd: join(cwd, cfg.appName) })
+    }
+
     updatePackageJson((pkg) => {
       return {
         ...pkg,
@@ -34,103 +70,14 @@ const afterCra = async (
           start: `${'cross-env BROWSER=none '}${pkg.scripts?.start as string}`
         }
       }
-    }, join(cwd, appName))
-  } catch (err) {
-    console.log(err)
-  }
-}
-
-export const cra: Recipe = {
-  descriptiveName: {
-    name: 'create-react-app (https://create-react-app.dev/)',
-    value: 'create-react-app'
+    }, join(cwd, cfg.appName))
   },
-  shortName: 'cra',
-  configUpdate: ({ cfg, packageManager }) => ({
-    ...cfg,
-    distDir: `../build`,
-    devPath: 'http://localhost:3000',
-    beforeDevCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } start`,
-    beforeBuildCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } build`
-  }),
-  extraNpmDevDependencies: ['cross-env'],
-  extraNpmDependencies: [],
-  extraQuestions: ({ ci }) => {
-    return [
-      {
-        type: 'list',
-        name: 'template',
-        message: 'Which create-react-app template would you like to use?',
-        choices: [
-          { name: 'create-react-app (JavaScript)', value: 'cra.js' },
-          { name: 'create-react-app (Typescript)', value: 'cra.ts' }
-        ],
-        default: 'cra.js',
-        loop: false,
-        when: !ci
-      }
-    ]
-  },
-  preInit: async ({ cwd, cfg, packageManager, answers, ci }) => {
-    const template = (answers?.template as string) ?? 'cra.js'
-    switch (packageManager) {
-      case 'yarn':
-        await shell(
-          'yarn',
-          [
-            ci ? '--non-interactive' : '',
-            'create',
-            'react-app',
-            ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
-            `${cfg.appName}`
-          ],
-          {
-            cwd
-          }
-        )
-        break
-      case 'npm':
-      case 'pnpm':
-        await shell(
-          'npx',
-          [
-            ci ? '--yes' : '',
-            'create-react-app@latest',
-            ...(template === 'cra.ts' ? ['--template', 'typescript'] : []),
-            `${cfg.appName}`,
-            '--use-npm'
-          ],
-          {
-            cwd
-          }
-        )
-
-        // create-react-app doesn't support pnpm, so we remove `node_modules` and any lock files then install them again using pnpm
-        if (packageManager === 'pnpm') {
-          const npmLock = join(cwd, cfg.appName, 'package-lock.json')
-          const yarnLock = join(cwd, cfg.appName, 'yarn.lock')
-          const nodeModules = join(cwd, cfg.appName, 'node_modules')
-          if (existsSync(npmLock)) unlinkSync(npmLock)
-          if (existsSync(yarnLock)) unlinkSync(yarnLock)
-          emptyDir(nodeModules)
-          await shell('pnpm', ['install'], { cwd: join(cwd, cfg.appName) })
-        }
-
-        break
-    }
-
-    await afterCra(cwd, cfg.appName, template === 'cra.ts')
-  },
-  postInit: async ({ packageManager, cfg }) => {
+  postInit: async ({ pm, cfg }) => {
     console.log(`
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
+    $ ${pm.name === 'npm' ? 'npm run' : pm.name} tauri dev
     `)
     return await Promise.resolve()
   }

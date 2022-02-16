@@ -8,24 +8,18 @@ import scaffe from 'scaffe'
 import { Recipe } from '../types/recipe'
 
 export const dominator: Recipe = {
+  shortName: 'dominator',
   descriptiveName: {
     name: 'Dominator (https://crates.io/crates/dominator/)',
     value: 'Dominator'
   },
-  shortName: 'dominator',
-  configUpdate: ({ cfg, packageManager }) => ({
+  configUpdate: ({ cfg, pm }) => ({
     ...cfg,
     distDir: `../dist`,
     devPath: 'http://localhost:10001/',
-    beforeDevCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } start`,
-    beforeBuildCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } build`
+    beforeDevCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} start`,
+    beforeBuildCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} build`
   }),
-  extraNpmDevDependencies: [],
-  extraNpmDependencies: [],
   preInit: async ({ cwd, cfg }) => {
     const { appName, windowTitle } = cfg
     const templateDir = join(__dirname, '../src/templates/dominator')
@@ -44,13 +38,13 @@ export const dominator: Recipe = {
       console.log(err)
     }
   },
-  postInit: async ({ cfg, packageManager }) => {
+  postInit: async ({ cfg, pm }) => {
     console.log(`
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager} install
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
+    $ ${pm.name} install
+    $ ${pm.name === 'npm' ? 'npm run' : pm.name} tauri dev
     `)
     return await Promise.resolve()
   }

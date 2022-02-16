@@ -6,43 +6,35 @@ import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
 const solid: Recipe = {
+  shortName: 'solid',
   descriptiveName: {
     name: 'Solid (https://github.com/solidjs/templates)',
     value: 'solid'
   },
-  shortName: 'solid',
-  extraNpmDevDependencies: [],
-  extraNpmDependencies: [],
-  extraQuestions: ({ ci }) => {
-    return [
-      {
-        type: 'list',
-        name: 'template',
-        message: 'Which Solid template would you like to use?',
-        choices: [
-          'js',
-          'ts-bootstrap',
-          'ts-minimal',
-          'ts-router',
-          'ts-windicss',
-          'ts'
-        ],
-        default: 'ts',
-        loop: false,
-        when: !ci
-      }
-    ]
-  },
-  configUpdate: ({ cfg, packageManager }) => ({
+  extraQuestions: ({ ci }) => [
+    {
+      type: 'list',
+      name: 'template',
+      message: 'Which Solid template would you like to use?',
+      choices: [
+        'js',
+        'ts-bootstrap',
+        'ts-minimal',
+        'ts-router',
+        'ts-windicss',
+        'ts'
+      ],
+      default: 'ts',
+      loop: false,
+      when: !ci
+    }
+  ],
+  configUpdate: ({ cfg, pm }) => ({
     ...cfg,
     distDir: `../public`,
     devPath: 'http://localhost:3000',
-    beforeDevCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } dev`,
-    beforeBuildCommand: `${
-      packageManager === 'npm' ? 'npm run' : packageManager
-    } build`
+    beforeDevCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} dev`,
+    beforeBuildCommand: `${pm.name === 'npm' ? 'npm run' : pm.name} build`
   }),
   preInit: async ({ cwd, cfg, answers, ci }) => {
     await shell(
@@ -56,13 +48,13 @@ const solid: Recipe = {
       { cwd }
     )
   },
-  postInit: async ({ cfg, packageManager }) => {
+  postInit: async ({ cfg, pm }) => {
     console.log(`
     Your installation completed.
 
     $ cd ${cfg.appName}
-    $ ${packageManager} install
-    $ ${packageManager === 'npm' ? 'npm run' : packageManager} tauri dev
+    $ ${pm.name} install
+    $ ${pm.name === 'npm' ? 'npm run' : pm.name} tauri dev
     `)
 
     return await Promise.resolve()

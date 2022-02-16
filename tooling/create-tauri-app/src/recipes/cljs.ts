@@ -36,7 +36,7 @@ export const cljs: Recipe = {
         break
       case 'npm':
         if (existsSync(yarnLock)) unlinkSync(yarnLock)
-
+        break
       case 'pnpm':
         if (existsSync(npmLock)) unlinkSync(npmLock)
         if (existsSync(yarnLock)) unlinkSync(yarnLock)

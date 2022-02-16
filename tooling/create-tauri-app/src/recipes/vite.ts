@@ -4,7 +4,6 @@
 
 /// import { join } from 'path'
 /// import scaffe from 'scaffe'
-import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 
 const vite: Recipe = {

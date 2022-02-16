@@ -6,7 +6,7 @@ import inquirer from 'inquirer'
 import { program, createOption } from 'commander'
 import { bold, cyan, green, reset, yellow } from 'chalk'
 import { platform } from 'os'
-import { resolve, join, relative } from 'path'
+import { join } from 'path'
 import { cra } from './recipes/react'
 import { vuecli } from './recipes/vue-cli'
 import { vanillajs } from './recipes/vanilla'
@@ -336,7 +336,7 @@ You may find the requirements here: ${cyan(setupLink)}
       '--dev-path',
       cfg.devPath
     ]
-    pm.run('tauri', initArgs, { cwd: appDirectory })
+    await pm.run('tauri', initArgs, { cwd: appDirectory })
 
     logStep(`Updating ${reset(yellow('"tauri.conf.json"'))}`)
     updateTauriConf((tauriConf) => {

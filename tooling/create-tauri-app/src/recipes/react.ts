@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 import { join } from 'path'
-import { shell } from '../shell'
 import { Recipe } from '../types/recipe'
 import { unlinkSync, existsSync } from 'fs'
 import { emptyDir } from '../helpers/empty-dir'

@@ -57,6 +57,13 @@ interface Argv {
   recipe: string
 }
 
+interface Answers {
+  appName: string
+  tauri: { window: { title: string } }
+  recipeName: string
+  installApi: boolean
+}
+
 export const createTauriApp = async (cliArgs: string[]): Promise<any> => {
   program
     .description(
@@ -162,7 +169,7 @@ You may find the requirements here: ${cyan(setupLink)}
   }
 
   // prompt initial questions
-  const answers = await inquirer
+  const answers = (await inquirer
     .prompt([
       {
         type: 'input',
@@ -194,7 +201,7 @@ You may find the requirements here: ${cyan(setupLink)}
         when: !argv.ci
       }
     ])
-    .catch(handlePromptsErr)
+    .catch(handlePromptsErr)) as Answers
 
   const {
     appName,
@@ -208,7 +215,7 @@ You may find the requirements here: ${cyan(setupLink)}
   let recipe: Recipe | undefined
   if (argv.recipe) {
     recipe = recipeByShortName(argv.recipe)
-  } else if (recipeName) {
+  } else if (recipeName !== undefined) {
     recipe = recipeByDescriptiveName(recipeName)
   }
 
@@ -222,9 +229,7 @@ You may find the requirements here: ${cyan(setupLink)}
   const pmName = argv.manager ?? pmInfo?.name ?? 'npm'
   let pmVerStr: string
   try {
-    pmVerStr = argv.manager
-      ? (await shell(pmName, ['--version'])).stdout
-      : pmInfo?.version ?? (await shell(pmName, ['--version'])).stdout
+    pmVerStr = (await shell(pmName, ['--version'])).stdout
   } catch {
     throw new Error(
       `Must have ${pmName} installed to manage dependencies. Is it in your PATH? We tried running it inside ${process.cwd()}`

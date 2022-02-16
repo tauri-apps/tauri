@@ -716,13 +716,21 @@ pub fn build_wix_app_installer(
 fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
+  let tmp_dir = std::env::temp_dir();
   for src in settings.external_binaries() {
     let src = src?;
+    let binary_path = cwd.join(&src);
+    let dest_filename = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", settings.target()), "");
+    let dest = tmp_dir.join(dest_filename);
+    std::fs::copy(binary_path, &dest)?;
 
     binaries.push(Binary {
       guid: Uuid::new_v4().to_string(),
-      path: cwd
-        .join(src)
+      path: dest
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),

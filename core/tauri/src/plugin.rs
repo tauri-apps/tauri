@@ -54,8 +54,8 @@ pub trait Plugin<R: Runtime>: Send {
   fn extend_api(&mut self, invoke: Invoke<R>) {}
 }
 
-type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync;
-type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send + Sync;
+type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
+type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send;
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;
@@ -251,7 +251,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>) -> Result<()> + Send + 'static,
   {
     self.setup.replace(Box::new(setup));
     self
@@ -287,7 +287,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn setup_with_config<F>(mut self, setup_with_config: F) -> Self
   where
-    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + Sync + 'static,
+    F: FnOnce(&AppHandle<R>, C) -> Result<()> + Send + 'static,
   {
     self.setup_with_config.replace(Box::new(setup_with_config));
     self

@@ -28,8 +28,8 @@ const allRecipes: Recipe[] = [
   cra,
   svelte,
   solid,
-  ngcli,
   vuecli,
+  ngcli,
   dominator,
   cljs
 ]

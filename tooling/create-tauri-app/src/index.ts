@@ -20,7 +20,7 @@ import { shell } from './shell'
 import { updatePackageJson } from './helpers/update-package-json'
 import { Recipe } from './types/recipe'
 import { updateTauriConf } from './helpers/update-tauri-conf'
-import { getPkgManagerFromUA, Npm } from './package-manager'
+import { getPkgManagerFromUA, Npm, Pnpm, Yarn } from './package-manager'
 
 const allRecipes: Recipe[] = [
   vanillajs,
@@ -231,7 +231,15 @@ You may find the requirements here: ${cyan(setupLink)}
     )
   }
   const pmVer = parseInt(pmVerStr.split('.')[0])
-  const pm = new Npm(pmVer, { ci: argv.ci, log: argv.log })
+  const pm =
+    pmName === 'npm'
+      ? new Npm(pmVer, { ci: argv.ci, log: argv.log })
+      : pmName === 'yarn'
+      ? new Yarn(pmVer, { ci: argv.ci, log: argv.log })
+      : pmName === 'pnpm'
+      ? new Pnpm(pmVer, { ci: argv.ci, log: argv.log })
+      : null
+  if (!pm) throw new Error(`Unsupported package manager: ${pmName}`)
 
   const buildConfig = {
     distDir: argv.distDir,
@@ -294,12 +302,12 @@ You may find the requirements here: ${cyan(setupLink)}
     await pm.add(
       [
         installApi ? '@tauri-apps/api@latest' : '',
-        ...recipe.extraNpmDependencies
+        ...(recipe.extraNpmDependencies ?? [])
       ],
       { cwd: appDirectory }
     )
     await pm.add(
-      ['@tauri-apps/cli@latest', ...recipe.extraNpmDevDependencies],
+      ['@tauri-apps/cli@latest', ...(recipe.extraNpmDevDependencies ?? [])],
       { dev: true, cwd: appDirectory }
     )
 

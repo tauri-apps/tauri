@@ -97,7 +97,7 @@ glib = "0.15"
 embed_plist = "1.2"
 
 [target."cfg(windows)".dev-dependencies.windows]
-version = "0.30.0"
+version = "0.32.0"
 features = [ "Win32_Foundation" ]
 
 [build-dependencies]

@@ -17,7 +17,7 @@ export function getPkgManagerFromUA(userAgent: string | undefined):
 
 export interface PackageManager {
   version: number
-  name: 'yarn' | 'npm' | 'pnpm'
+  name: 'yarn' | 'npm' | 'pnpm' | string
   log: boolean
   ci: boolean
 

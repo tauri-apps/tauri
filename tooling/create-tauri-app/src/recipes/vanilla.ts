@@ -18,7 +18,8 @@ export const vanillajs: Recipe = {
     distDir: `../dist`,
     devPath: `../dist`,
     beforeDevCommand: '',
-    beforeBuildCommand: ''
+    beforeBuildCommand: '',
+    withGlobalTauri: true
   }),
   preInit: async ({ cwd, cfg }) => {
     const { appName } = cfg

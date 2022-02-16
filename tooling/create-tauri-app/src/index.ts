@@ -161,6 +161,30 @@ You may find the requirements here: ${cyan(setupLink)}
 
   await keypress(argv.ci)
 
+  // get package manager nfo
+  const pmInfo = getPkgManagerFromUA(process.env.npm_config_user_agent)
+  const pmName = argv.manager ?? pmInfo?.name ?? 'npm'
+  let pmVerStr: string
+  try {
+    pmVerStr = (await shell(pmName, ['--version'])).stdout
+  } catch {
+    throw new Error(
+      `Must have ${pmName} installed to manage dependencies. Is it in your PATH? We tried running it inside ${process.cwd()}`
+    )
+  }
+  const pmVer = parseInt(pmVerStr.split('.')[0])
+  const pm =
+    pmName === 'npm'
+      ? new Npm(pmVer, { ci: argv.ci, log: argv.log })
+      : pmName === 'yarn'
+      ? new Yarn(pmVer, { ci: argv.ci, log: argv.log })
+      : pmName === 'pnpm'
+      ? new Pnpm(pmVer, { ci: argv.ci, log: argv.log })
+      : null
+  if (!pm) throw new Error(`Unsupported package manager: ${pmName}`)
+
+  const directory = argv.directory ?? process.cwd()
+
   const defaults = {
     appName: 'tauri-app',
     tauri: { window: { title: 'Tauri App' } },
@@ -192,13 +216,6 @@ You may find the requirements here: ${cyan(setupLink)}
         choices: recipeDescriptiveNames,
         default: defaults.recipeName,
         when: !argv.ci && !argv.recipe
-      },
-      {
-        type: 'confirm',
-        name: 'installApi',
-        message: 'Add "@tauri-apps/api" npm package?',
-        default: true,
-        when: !argv.ci
       }
     ])
     .catch(handlePromptsErr)) as Answers
@@ -212,6 +229,13 @@ You may find the requirements here: ${cyan(setupLink)}
     }
   } = { ...defaults, ...answers }
 
+  const buildConfig = {
+    distDir: argv.distDir,
+    devPath: argv.devPath,
+    appName: argv.appName ?? appName,
+    windowTitle: argv.windowTitle ?? title
+  }
+
   let recipe: Recipe | undefined
   if (argv.recipe) {
     recipe = recipeByShortName(argv.recipe)
@@ -224,36 +248,19 @@ You may find the requirements here: ${cyan(setupLink)}
     throw new Error('Could not find the recipe specified.')
   }
 
-  // get package manager info
-  const pmInfo = getPkgManagerFromUA(process.env.npm_config_user_agent)
-  const pmName = argv.manager ?? pmInfo?.name ?? 'npm'
-  let pmVerStr: string
-  try {
-    pmVerStr = (await shell(pmName, ['--version'])).stdout
-  } catch {
-    throw new Error(
-      `Must have ${pmName} installed to manage dependencies. Is it in your PATH? We tried running it inside ${process.cwd()}`
-    )
-  }
-  const pmVer = parseInt(pmVerStr.split('.')[0])
-  const pm =
-    pmName === 'npm'
-      ? new Npm(pmVer, { ci: argv.ci, log: argv.log })
-      : pmName === 'yarn'
-      ? new Yarn(pmVer, { ci: argv.ci, log: argv.log })
-      : pmName === 'pnpm'
-      ? new Pnpm(pmVer, { ci: argv.ci, log: argv.log })
-      : null
-  if (!pm) throw new Error(`Unsupported package manager: ${pmName}`)
-
-  const buildConfig = {
-    distDir: argv.distDir,
-    devPath: argv.devPath,
-    appName: argv.appName ?? appName,
-    windowTitle: argv.windowTitle ?? title
-  }
-
-  const directory = argv.directory ?? process.cwd()
+  // prompt for "@tauri-apps/api"
+  await inquirer
+    .prompt([
+      {
+        type: 'confirm',
+        name: 'installApi',
+        message: 'Add "@tauri-apps/api" npm package?',
+        default: true,
+        // TODO: for vanillajs, maybe downlosd the package into "distDir"?
+        when: !argv.ci && recipe.shortName !== 'vanillajs'
+      }
+    ])
+    .catch(handlePromptsErr)
 
   // prompt additional recipe questions
   let recipeAnswers

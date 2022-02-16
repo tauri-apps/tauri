@@ -9,6 +9,8 @@ use crate::{
 };
 
 use super::InvokeContext;
+#[allow(unused_imports)]
+use anyhow::Context;
 use serde::{
   de::{Deserializer, Error as DeError},
   Deserialize, Serialize,
@@ -128,14 +130,16 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   ) -> super::Result<Vec<u8>> {
-    file::read_binary(resolve_path(
+    let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
       options.and_then(|o| o.dir),
-    )?)
-    .map_err(Into::into)
+    )?;
+    file::read_binary(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.0.display()))
+      .map_err(Into::into)
   }
 
   #[module_command_handler(fs_write_file, "fs > writeFile")]
@@ -145,15 +149,17 @@ impl Cmd {
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   ) -> super::Result<()> {
-    File::create(resolve_path(
+    let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
       options.and_then(|o| o.dir),
-    )?)
-    .map_err(Into::into)
-    .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
+    )?;
+    File::create(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.0.display()))
+      .map_err(Into::into)
+      .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
   }
 
   #[module_command_handler(fs_read_dir, "fs > readDir")]
@@ -167,17 +173,16 @@ impl Cmd {
     } else {
       (false, None)
     };
-    dir::read_dir(
-      resolve_path(
-        &context.config,
-        &context.package_info,
-        &context.window,
-        path,
-        dir,
-      )?,
-      recursive,
-    )
-    .map_err(Into::into)
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      dir,
+    )?;
+    dir::read_dir(&resolved_path, recursive)
+      .with_context(|| format!("path: {}", resolved_path.0.display()))
+      .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file, "fs > copyFile")]
@@ -194,7 +199,7 @@ impl Cmd {
           &context.package_info,
           &context.window,
           source,
-          Some(dir.clone()),
+          Some(dir),
         )?,
         resolve_path(
           &context.config,
@@ -206,7 +211,8 @@ impl Cmd {
       ),
       None => (source, destination),
     };
-    fs::copy(src, dest)?;
+    fs::copy(src.clone(), dest.clone())
+      .with_context(|| format!("source: {}, dest: {}", src.0.display(), dest.0.display()))?;
     Ok(())
   }
 
@@ -229,9 +235,11 @@ impl Cmd {
       dir,
     )?;
     if recursive {
-      fs::create_dir_all(resolved_path)?;
+      fs::create_dir_all(&resolved_path)
+        .with_context(|| format!("path: {}", resolved_path.0.display()))?;
     } else {
-      fs::create_dir(resolved_path)?;
+      fs::create_dir(&resolved_path)
+        .with_context(|| format!("path: {} (non recursive)", resolved_path.0.display()))?;
     }
 
     Ok(())
@@ -256,9 +264,11 @@ impl Cmd {
       dir,
     )?;
     if recursive {
-      fs::remove_dir_all(resolved_path)?;
+      fs::remove_dir_all(&resolved_path)
+        .with_context(|| format!("path: {}", resolved_path.0.display()))?;
     } else {
-      fs::remove_dir(resolved_path)?;
+      fs::remove_dir(&resolved_path)
+        .with_context(|| format!("path: {} (non recursive)", resolved_path.0.display()))?;
     }
 
     Ok(())
@@ -277,7 +287,8 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?;
-    fs::remove_file(resolved_path)?;
+    fs::remove_file(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.0.display()))?;
     Ok(())
   }
 
@@ -295,7 +306,7 @@ impl Cmd {
           &context.package_info,
           &context.window,
           old_path,
-          Some(dir.clone()),
+          Some(dir),
         )?,
         resolve_path(
           &context.config,
@@ -307,7 +318,9 @@ impl Cmd {
       ),
       None => (old_path, new_path),
     };
-    fs::rename(old, new).map_err(Into::into)
+    fs::rename(&old, &new)
+      .with_context(|| format!("old: {}, new: {}", old.0.display(), new.0.display()))
+      .map_err(Into::into)
   }
 }
 
@@ -320,7 +333,7 @@ fn resolve_path<R: Runtime>(
   dir: Option<BaseDirectory>,
 ) -> super::Result<SafePathBuf> {
   let env = window.state::<Env>().inner();
-  match crate::api::path::resolve_path(config, package_info, env, path, dir) {
+  match crate::api::path::resolve_path(config, package_info, env, &path, dir) {
     Ok(path) => {
       if window.state::<Scopes>().fs.is_allowed(&path) {
         Ok(SafePathBuf(path))
@@ -330,7 +343,8 @@ fn resolve_path<R: Runtime>(
         ))
       }
     }
-    Err(e) => Err(e.into()),
+    Err(e) => super::Result::<SafePathBuf>::Err(e.into())
+      .with_context(|| format!("path: {}, base dir: {:?}", path.0.display(), dir)),
   }
 }
 

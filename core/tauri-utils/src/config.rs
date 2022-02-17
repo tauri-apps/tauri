@@ -104,7 +104,9 @@ pub struct MacConfig {
   ///
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
-  /// A version string indicating the minimum macOS X version that the bundled application supports.
+  /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
+  /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
+  /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
   #[serde(default = "minimum_system_version")]
   pub minimum_system_version: Option<String>,
   /// Allows your application to communicate with the outside world.

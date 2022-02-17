@@ -240,6 +240,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     copy_resources(ResourcePaths::new(paths.as_slice(), true), target_dir)?;
   }
 
+  #[cfg(target_os = "macos")]
+  {
+    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+    }
+  }
+
   #[cfg(windows)]
   {
     use anyhow::Context;

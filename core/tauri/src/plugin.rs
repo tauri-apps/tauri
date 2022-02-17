@@ -56,9 +56,9 @@ pub trait Plugin<R: Runtime>: Send {
 
 type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
 type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Send;
-type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send + Sync;
-type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send + Sync;
-type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send + Sync;
+type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
+type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
+type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 
 /// Builds a [`TauriPlugin`].
 ///

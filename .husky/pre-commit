@@ -22,12 +22,3 @@ else
   yarn format
   cd ../../..
 fi
-
-if [ -z "$(git diff --name-only tooling/create-tauri-app)" ]; then
-  echo "skipping create-tauri-app - no changes detected"
-else
-  cd tooling/create-tauri-app
-  yarn format
-  yarn lint-fix
-  cd ../..
-fi

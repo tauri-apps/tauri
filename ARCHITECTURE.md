@@ -50,7 +50,7 @@ It is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/too
 #### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
 
-#### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]
+#### [create-tauri-app](https://github.com/tauri-apps/create-tauri-app) [JS]
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
 
 # External Crates

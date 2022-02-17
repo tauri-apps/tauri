@@ -8,7 +8,6 @@
 'tauri-codegen': major
 'tauri-macros': major
 'tauri-build': major
-'create-tauri-app': major
 'tauri-driver': patch
 ---
 

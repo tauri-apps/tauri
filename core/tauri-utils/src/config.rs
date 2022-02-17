@@ -105,6 +105,7 @@ pub struct MacConfig {
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
   /// A version string indicating the minimum macOS X version that the bundled application supports.
+  #[serde(default = "minimum_system_version")]
   pub minimum_system_version: Option<String>,
   /// Allows your application to communicate with the outside world.
   /// It should be a lowercase, without port and protocol domain name.
@@ -120,6 +121,25 @@ pub struct MacConfig {
   pub provider_short_name: Option<String>,
   /// Path to the entitlements file.
   pub entitlements: Option<String>,
+}
+
+impl Default for MacConfig {
+  fn default() -> Self {
+    Self {
+      frameworks: None,
+      minimum_system_version: minimum_system_version(),
+      exception_domain: None,
+      license: None,
+      use_bootstrapper: false,
+      signing_identity: None,
+      provider_short_name: None,
+      entitlements: None,
+    }
+  }
+}
+
+fn minimum_system_version() -> Option<String> {
+  Some("10.13".into())
 }
 
 /// Configuration for a target language for the WiX build.

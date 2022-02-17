@@ -2534,8 +2534,9 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
+ "anyhow",
  "bincode",
  "cfg_aliases",
  "dirs-next",

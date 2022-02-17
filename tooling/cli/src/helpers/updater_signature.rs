@@ -146,10 +146,8 @@ where
   P: AsRef<Path>,
 {
   // if no password provided we set empty string
-  let password_string = match var_os("TAURI_KEY_PASSWORD") {
-    Some(value) => Some(String::from(value.to_str().unwrap())),
-    None => None,
-  };
+  let password_string =
+    var_os("TAURI_KEY_PASSWORD").map(|value| value.to_str().unwrap().to_string());
   // get the private key
   if let Some(private_key) = var_os("TAURI_PRIVATE_KEY") {
     // check if this file exist..

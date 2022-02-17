@@ -16,7 +16,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// If informed by the API call, all paths will be relative to the path of the given directory.
 ///
 /// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
-#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
 #[repr(u16)]
 #[non_exhaustive]
 pub enum BaseDirectory {

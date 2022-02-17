@@ -102,7 +102,7 @@ where
 /// Sign files
 pub fn sign_file<P>(
   private_key: String,
-  password: String,
+  password: Option<String>,
   bin_path: P,
 ) -> crate::Result<(PathBuf, String)>
 where
@@ -110,7 +110,7 @@ where
 {
   let decoded_secret = decode_key(private_key)?;
   let sk_box = SecretKeyBox::from_string(&decoded_secret).unwrap();
-  let sk = sk_box.into_secret_key(Some(password)).unwrap();
+  let sk = sk_box.into_secret_key(password).unwrap();
 
   // We need to append .sig at the end it's where the signature will be stored
   let signature_path_string = format!("{}.sig", bin_path.as_ref().display());
@@ -146,10 +146,8 @@ where
   P: AsRef<Path>,
 {
   // if no password provided we set empty string
-  let password_string = match var_os("TAURI_KEY_PASSWORD") {
-    Some(value) => String::from(value.to_str().unwrap()),
-    None => "".into(),
-  };
+  let password_string =
+    var_os("TAURI_KEY_PASSWORD").map(|value| value.to_str().unwrap().to_string());
   // get the private key
   if let Some(private_key) = var_os("TAURI_PRIVATE_KEY") {
     // check if this file exist..

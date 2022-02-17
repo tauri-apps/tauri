@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use base64::{decode, encode};
 use minisign::{sign, KeyPair as KP, SecretKeyBox};
 use std::{
@@ -109,8 +110,11 @@ where
   P: AsRef<Path>,
 {
   let decoded_secret = decode_key(private_key)?;
-  let sk_box = SecretKeyBox::from_string(&decoded_secret).unwrap();
-  let sk = sk_box.into_secret_key(password).unwrap();
+  let sk_box = SecretKeyBox::from_string(&decoded_secret)
+    .with_context(|| "failed to load updater private key")?;
+  let sk = sk_box
+    .into_secret_key(password)
+    .with_context(|| "incorrect updater private key password")?;
 
   // We need to append .sig at the end it's where the signature will be stored
   let signature_path_string = format!("{}.sig", bin_path.as_ref().display());

@@ -146,7 +146,7 @@ pub enum MenuUpdate {
   SetNativeImage(NativeImage),
 }
 
-pub trait TrayHandle: fmt::Debug {
+pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
   fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;

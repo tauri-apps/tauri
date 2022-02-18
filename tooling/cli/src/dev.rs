@@ -210,7 +210,10 @@ pub fn command(options: Options) -> Result<()> {
           break;
         }
         if i % 3 == 0 {
-          logger.warn("Waiting for your dev server to start...");
+          logger.warn(format!(
+            "Waiting for your frontend dev server to start on {}...",
+            dev_server_url
+          ));
         }
         i += 1;
         if i == max_attempts {

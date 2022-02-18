@@ -21,12 +21,3 @@ do
    cargo build
    cd ../..
 done
-
-cd tooling/bench/tests
-cd cpu_intensive/src-tauri
-cargo update
-cargo build
-cd ../../files_transfer/src-tauri
-cargo update
-cargo build
-cd ../../../../..

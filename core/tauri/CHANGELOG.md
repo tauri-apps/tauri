@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- `tauri::plugin::Builder` closures are no longer required to implement `Sync`.
+  - [fb7ee2c9](https://www.github.com/tauri-apps/tauri/commit/fb7ee2c987d9fca23f08bd470789069d9477c66e) drop Sync req from `setup` and `setup_with_config` ([#3471](https://www.github.com/tauri-apps/tauri/pull/3471)) on 2022-02-16
+  - [b8e4d651](https://www.github.com/tauri-apps/tauri/commit/b8e4d651f9866b34bd3afcf2392812a18e1cee53) fix(core): drop all plugin builder Sync requirements ([#3490](https://www.github.com/tauri-apps/tauri/pull/3490)) on 2022-02-17
+- Added context to the file system endpoint errors.
+  - [06053833](https://www.github.com/tauri-apps/tauri/commit/060538331c138473159cf8fee0fcb7904ca33d3b) feat(core): add context to the filesystem APIs errors, closes [#3457](https://www.github.com/tauri-apps/tauri/pull/3457) ([#3480](https://www.github.com/tauri-apps/tauri/pull/3480)) on 2022-02-16
+- Changed the default value for `tauri > bundle > macOS > minimumSystemVersion` to `10.13`.
+  - [fce344b9](https://www.github.com/tauri-apps/tauri/commit/fce344b90b7227f8f5514853c2f885fb24d3648e) feat(core): set default value for `minimum_system_version` to 10.13 ([#3497](https://www.github.com/tauri-apps/tauri/pull/3497)) on 2022-02-17
+
 ## \[1.0.0-rc.2]
 
 - Ease the requirements for plugin hooks. `setup` and `setup_with_config` can now be `FnOnce` and `on_webview_ready`, `on_event` and `on_page_load` can be `FnMut`.

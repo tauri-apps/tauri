@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.3.2]
+
+- Fix requirements for `RuntimeHandle`, `ClipboardManager`, `GlobalShortcutHandle` and `TrayHandle`.
+  - [84895a9c](https://www.github.com/tauri-apps/tauri/commit/84895a9cd270fc743e236d0f4d4cd6210b24a30f) fix(runtime): trait requirements ([#3489](https://www.github.com/tauri-apps/tauri/pull/3489)) on 2022-02-17
+
 ## \[0.3.1]
 
 - Change default value for the `freezePrototype` configuration to `false`.

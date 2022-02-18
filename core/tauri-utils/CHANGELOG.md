@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.2]
+
+- Changed the default value for `tauri > bundle > macOS > minimumSystemVersion` to `10.13`.
+  - [fce344b9](https://www.github.com/tauri-apps/tauri/commit/fce344b90b7227f8f5514853c2f885fb24d3648e) feat(core): set default value for `minimum_system_version` to 10.13 ([#3497](https://www.github.com/tauri-apps/tauri/pull/3497)) on 2022-02-17
+
 ## \[1.0.0-rc.1]
 
 - Change default value for the `freezePrototype` configuration to `false`.

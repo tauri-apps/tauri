@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.2]
+
+- Fixes sidecar bundling on Windows.
+  - [2ecbed8d](https://www.github.com/tauri-apps/tauri/commit/2ecbed8d59d9e1788170aa87b90ed9556a473425) fix(bundler): sidecar on Windows, closes [#3446](https://www.github.com/tauri-apps/tauri/pull/3446) ([#3482](https://www.github.com/tauri-apps/tauri/pull/3482)) on 2022-02-16
+
 ## \[1.0.0-rc.1]
 
 - Change default value for the `freezePrototype` configuration to `false`.

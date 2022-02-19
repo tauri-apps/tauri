@@ -1,5 +1,31 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Improve "waiting for your dev server to start" message.
+  - [5999379f](https://www.github.com/tauri-apps/tauri/commit/5999379fb06052a115f04f99274ab46d1eefd659) chore(cli): improve "waiting for dev server" message, closes [#3491](https://www.github.com/tauri-apps/tauri/pull/3491) ([#3504](https://www.github.com/tauri-apps/tauri/pull/3504)) on 2022-02-18
+- Do not panic if the updater private key password is wrong.
+  - [17f17a80](https://www.github.com/tauri-apps/tauri/commit/17f17a80f818bcc20c387583a6ff00a8e07ec533) fix(cli): do not panic if private key password is wrong, closes [#3449](https://www.github.com/tauri-apps/tauri/pull/3449) ([#3495](https://www.github.com/tauri-apps/tauri/pull/3495)) on 2022-02-17
+- Check the current folder before checking the directories on the app and tauri dir path lookup function.
+  - [a06de376](https://www.github.com/tauri-apps/tauri/commit/a06de3760184caa71acfe7a2fe2189a033b565f5) fix(cli): path lookup should not check subfolder before the current one ([#3465](https://www.github.com/tauri-apps/tauri/pull/3465)) on 2022-02-15
+- Fixes the signature of the `signer sign` command to not have duplicated short flags.
+  - [a9755514](https://www.github.com/tauri-apps/tauri/commit/a975551461f3698db3f3b6afa5101189aaeeada9) fix(cli): duplicated short flag for `signer sign`, closes [#3483](https://www.github.com/tauri-apps/tauri/pull/3483) ([#3492](https://www.github.com/tauri-apps/tauri/pull/3492)) on 2022-02-17
+
+## \[1.0.0-rc.5]
+
+- Allow passing arguments to the `build` runner (`tauri build -- <ARGS>...`).
+  - [679fe1fe](https://www.github.com/tauri-apps/tauri/commit/679fe1fedd6ed016ab1140c8087c2d1404504bfb) feat(cli.rs): allow passing arguments to the build runner, closes [#3398](https://www.github.com/tauri-apps/tauri/pull/3398) ([#3431](https://www.github.com/tauri-apps/tauri/pull/3431)) on 2022-02-13
+- Improve error message when the dev runner command fails.
+  - [759d1afb](https://www.github.com/tauri-apps/tauri/commit/759d1afb86f3657f6071a2ae39c9be21e20ed22c) feat(cli): improve error message when dev runner command fails ([#3447](https://www.github.com/tauri-apps/tauri/pull/3447)) on 2022-02-13
+- Increase `tauri.conf.json` directory lookup depth to `3` and allow changing it with the `TAURI_PATH_DEPTH` environment variable.
+  - [c6031c70](https://www.github.com/tauri-apps/tauri/commit/c6031c7070c6bb7539bbfdfe42cb73012829c910) feat(cli): increase lookup depth, add env var option ([#3451](https://www.github.com/tauri-apps/tauri/pull/3451)) on 2022-02-13
+- Added `tauri-build`, `tao` and `wry` version to the `info` command output.
+  - [16f1173f](https://www.github.com/tauri-apps/tauri/commit/16f1173f456b1db543d0160df2c9828708bfc68a) feat(cli): add tao and wry version to the `info` output ([#3443](https://www.github.com/tauri-apps/tauri/pull/3443)) on 2022-02-13
+- **Breaking change:** The extra arguments passed to `tauri dev` using `-- <ARGS>...` are now propagated to the runner (defaults to cargo). To pass arguments to your binary using Cargo, you now need to run `tauri dev -- -- <ARGS-TO-YOUR-BINARY>...` (notice the double `--`).
+  - [679fe1fe](https://www.github.com/tauri-apps/tauri/commit/679fe1fedd6ed016ab1140c8087c2d1404504bfb) feat(cli.rs): allow passing arguments to the build runner, closes [#3398](https://www.github.com/tauri-apps/tauri/pull/3398) ([#3431](https://www.github.com/tauri-apps/tauri/pull/3431)) on 2022-02-13
+- Change the `init` template configuration to disable CSP for better usability for new users.
+  - [102a5e9b](https://www.github.com/tauri-apps/tauri/commit/102a5e9bb83c5d8388dc9aedc7f03cc57bdae8cb) refactor(cli.rs): change template config CSP to null, closes [#3427](https://www.github.com/tauri-apps/tauri/pull/3427) ([#3429](https://www.github.com/tauri-apps/tauri/pull/3429)) on 2022-02-13
+
 ## \[1.0.0-rc.4]
 
 - Change default value for the `freezePrototype` configuration to `false`.
@@ -82,7 +108,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - Added `$ tauri plugin init` command, which initializes a Tauri plugin.
   - [ac8e69a9](https://www.github.com/tauri-apps/tauri/commit/ac8e69a98ca1d6f646344ffdef1876cc9274323a) feat(cli.rs): add `init plugin` command, bootstraps a plugin project ([#2669](https://www.github.com/tauri-apps/tauri/pull/2669)) on 2021-09-27
   - [db275f0b](https://www.github.com/tauri-apps/tauri/commit/db275f0b633f44fb2f85755d32929dfb7893b1e0) refactor(cli.rs): rename `init plugin` subcommand to `plugin init` ([#2885](https://www.github.com/tauri-apps/tauri/pull/2885)) on 2021-11-13
-- Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
+- **Breaking change:** Add `macos-private-api` feature flag, enabled via `tauri.conf.json > tauri > macOSPrivateApi`.
   - [6ac21b3c](https://www.github.com/tauri-apps/tauri/commit/6ac21b3cef7f14358df38cc69ea3d277011accaf) feat: add private api feature flag ([#7](https://www.github.com/tauri-apps/tauri/pull/7)) on 2022-01-09
 - Move the copying of resources and sidecars from `cli.rs` to `tauri-build` so using the Cargo CLI directly processes the files for the application execution in development.
   - [5eb72c24](https://www.github.com/tauri-apps/tauri/commit/5eb72c24deddf5a01093bea96b90c0d8806afc3f) refactor: copy resources and sidecars on the Cargo build script ([#3357](https://www.github.com/tauri-apps/tauri/pull/3357)) on 2022-02-08

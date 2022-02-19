@@ -146,7 +146,7 @@ pub enum MenuUpdate {
   SetNativeImage(NativeImage),
 }
 
-pub trait TrayHandle: fmt::Debug {
+pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
   fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
@@ -188,7 +188,7 @@ impl Menu {
 
   /// Creates a new window menu with the given items.
   ///
-  /// # Example
+  /// # Examples
   /// ```
   /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
   /// Menu::with_items([

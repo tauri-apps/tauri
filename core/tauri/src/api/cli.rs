@@ -9,7 +9,7 @@ use crate::{
   PackageInfo,
 };
 
-use clap::{App, Arg, ArgMatches, ErrorKind};
+use clap::{Arg, ArgMatches, Command, ErrorKind};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -64,6 +64,17 @@ impl Matches {
 }
 
 /// Gets the argument matches of the CLI definition.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::api::cli::get_matches;
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let matches = get_matches(app.config().tauri.cli.as_ref().unwrap(), app.package_info()).unwrap();
+///     Ok(())
+///   });
+/// ```
 pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::Result<Matches> {
   let about = cli
     .description()
@@ -72,7 +83,7 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
   let app = get_app(package_info, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
-    Err(e) => match e.kind {
+    Err(e) => match e.kind() {
       ErrorKind::DisplayHelp => {
         let mut matches = Matches::default();
         let help_text = e.to_string();
@@ -148,8 +159,8 @@ fn get_app<'a>(
   command_name: &'a str,
   about: Option<&'a String>,
   config: &'a CliConfig,
-) -> App<'a> {
-  let mut app = App::new(command_name)
+) -> Command<'a> {
+  let mut app = Command::new(command_name)
     .author(package_info.authors)
     .version(&*package_info.version);
 

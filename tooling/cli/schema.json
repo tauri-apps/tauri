@@ -140,6 +140,7 @@
           "icon": [],
           "identifier": "",
           "macOS": {
+            "minimumSystemVersion": "10.13",
             "useBootstrapper": false
           },
           "windows": {
@@ -519,6 +520,7 @@
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "minimumSystemVersion": "10.13",
             "useBootstrapper": false
           },
           "allOf": [
@@ -1082,7 +1084,8 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum macOS X version that the bundled application supports.",
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`. Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.",
+          "default": "10.13",
           "type": [
             "string",
             "null"
@@ -1563,6 +1566,7 @@
             "icon": [],
             "identifier": "",
             "macOS": {
+              "minimumSystemVersion": "10.13",
               "useBootstrapper": false
             },
             "windows": {

@@ -72,7 +72,7 @@
       ],
       "assets": [
         {
-          "path": "${ pkg.path }/target/package/${ pkgFile.pkg.name }-${ pkgFile.version }.crate",
+          "path": "${ pkg.path }/target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
           "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
         }
       ]
@@ -213,49 +213,34 @@
     "tauri-bundler": {
       "path": "./tooling/bundler",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils"
-      ]
+      "dependencies": ["tauri-utils"]
     },
     "tauri-runtime": {
       "path": "./core/tauri-runtime",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils"
-      ],
+      "dependencies": ["tauri-utils"],
       "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-runtime-wry": {
       "path": "./core/tauri-runtime-wry",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils",
-        "tauri-runtime"
-      ],
+      "dependencies": ["tauri-utils", "tauri-runtime"],
       "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
       "manager": "rust",
-      "dependencies": [
-        "tauri-utils"
-      ]
+      "dependencies": ["tauri-utils"]
     },
     "tauri-macros": {
       "path": "./core/tauri-macros",
       "manager": "rust",
-      "dependencies": [
-        "tauri-codegen",
-        "tauri-utils"
-      ]
+      "dependencies": ["tauri-codegen", "tauri-utils"]
     },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
-      "dependencies": [
-        "tauri-codegen",
-        "tauri-utils"
-      ],
+      "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
@@ -272,9 +257,7 @@
     "cli.js": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
-      "dependencies": [
-        "cli.rs"
-      ],
+      "dependencies": ["cli.rs"],
       "postversion": "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "prepublish": [],
       "publish": [],
@@ -283,15 +266,14 @@
     "cli.rs": {
       "path": "./tooling/cli",
       "manager": "rust",
-      "dependencies": [
-        "tauri-bundler",
-        "tauri-utils"
-      ],
-      "postversion": "cargo check"
-    },
-    "create-tauri-app": {
-      "path": "./tooling/create-tauri-app",
-      "manager": "javascript"
+      "dependencies": ["tauri-bundler", "tauri-utils"],
+      "postversion": "cargo check",
+      "assets": [
+        {
+          "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",
+          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
+        }
+      ]
     },
     "tauri-driver": {
       "path": "./tooling/webdriver",

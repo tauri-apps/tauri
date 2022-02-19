@@ -24,8 +24,7 @@ pub struct Options {
   #[clap(short, long)]
   password: Option<String>,
   /// Sign the specified file
-  #[clap(short, long)]
-  file: Option<PathBuf>,
+  file: PathBuf,
 }
 
 pub fn command(mut options: Options) -> Result<()> {
@@ -34,22 +33,20 @@ pub fn command(mut options: Options) -> Result<()> {
   } else {
     options.private_key
   };
-  if options.private_key.is_none() {
+  let private_key = if let Some(pk) = options.private_key {
+    pk
+  } else {
     return Err(anyhow::anyhow!(
       "Key generation aborted: Unable to find the private key".to_string(),
     ));
-  }
+  };
 
   if options.password.is_none() {
     println!("Signing without password.");
   }
 
-  let (manifest_dir, signature) = sign_file(
-    options.private_key.unwrap(),
-    options.password.unwrap(),
-    options.file.unwrap(),
-  )
-  .with_context(|| "failed to sign file")?;
+  let (manifest_dir, signature) = sign_file(private_key, options.password, options.file)
+    .with_context(|| "failed to sign file")?;
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",

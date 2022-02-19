@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const cli = require('./index')
+const cli = require('./main')
 const path = require('path')
 
 const [bin, script, ...arguments] = process.argv
@@ -43,8 +43,7 @@ if (binStem === 'node' || binStem === 'nodejs') {
   arguments.unshift(bin)
 }
 
-try {
-  cli.run(arguments, binName)
-} catch (e) {
-  console.log(`Error running CLI: ${e.message}`)
-}
+cli.run(arguments, binName).catch((err) => {
+  console.log(`Error running CLI: ${err.message}`)
+  process.exit(1)
+})

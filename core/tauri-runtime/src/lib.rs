@@ -253,7 +253,7 @@ pub enum ActivationPolicy {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
+pub trait RuntimeHandle: Debug + Clone + Send + Sync + Sized + 'static {
   type Runtime: Runtime<Handle = Self>;
   /// Create a new webview window.
   fn create_window(
@@ -278,7 +278,7 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
 }
 
 /// A global shortcut manager.
-pub trait GlobalShortcutManager: Debug {
+pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   /// Whether the application has registered the given `accelerator`.
   fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
 
@@ -297,7 +297,7 @@ pub trait GlobalShortcutManager: Debug {
 }
 
 /// Clipboard manager.
-pub trait ClipboardManager: Debug {
+pub trait ClipboardManager: Debug + Clone + Send + Sync {
   /// Writes the text into the clipboard as plain text.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
@@ -311,12 +311,12 @@ pub trait Runtime: Sized + 'static {
   /// The runtime handle type.
   type Handle: RuntimeHandle<Runtime = Self>;
   /// The global shortcut manager type.
-  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
-  type ClipboardManager: ClipboardManager + Clone + Send;
+  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
-  type TrayHandler: menu::TrayHandle + Clone + Send;
+  type TrayHandler: menu::TrayHandle;
 
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
@@ -361,7 +361,7 @@ pub trait Runtime: Sized + 'static {
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
+pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime;
 

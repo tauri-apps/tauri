@@ -16,7 +16,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 /// If informed by the API call, all paths will be relative to the path of the given directory.
 ///
 /// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
-#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
 #[repr(u16)]
 #[non_exhaustive]
 pub enum BaseDirectory {
@@ -58,8 +58,8 @@ pub enum BaseDirectory {
   /// Resolves to [`BaseDirectory::Config`].
   App,
   /// The Log directory.
-  /// Resolves to [`BaseDirectory::Home/Library/Logs/{bundle_identifier}`] on macOS
-  /// and [`BaseDirectory::Config/{bundle_identifier}/logs`] on linux and windows.
+  /// Resolves to `BaseDirectory::Home/Library/Logs/{bundle_identifier}` on macOS
+  /// and `BaseDirectory::Config/{bundle_identifier}/logs` on linux and windows.
   Log,
 }
 
@@ -118,6 +118,18 @@ impl BaseDirectory {
 }
 
 /// Parse the given path, resolving a [`BaseDirectory`] variable if the path starts with one.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::Manager;
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let path = tauri::api::path::parse(&app.config(), app.package_info(), &app.env(), "$HOME/.bashrc").unwrap();
+///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.bashrc");
+///     Ok(())
+///   });
+/// ```
 pub fn parse<P: AsRef<Path>>(
   config: &Config,
   package_info: &PackageInfo,
@@ -152,24 +164,44 @@ pub fn parse<P: AsRef<Path>>(
 
 /// Resolves the path with the optional base directory.
 ///
-/// # Example
-/// ```
-/// use tauri::{api::path::{resolve_path, BaseDirectory}, PackageInfo};
-/// // we use the default config and a mock PackageInfo, but in an actual app you should get the
-/// // Config created from `tauri.conf.json` and the app's PackageInfo instance.
+/// This is a low level API. If the application has been built,
+/// prefer the [path resolver API](`crate::AppHandle#method.path_resolver`).
+///
+/// # Examples
+///
+/// ## Before initializing the application
+///
+/// ```rust,no_run
+/// use tauri::{api::path::{BaseDirectory, resolve_path}, Env};
+/// // on an actual app, remove the string argument
+/// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
 /// let path = resolve_path(
-///   &Default::default(),
-///   &PackageInfo {
-///     name: "app".into(),
-///     version: "1.0.0".into(),
-///     authors: "tauri",
-///     description: "a tauri test",
-///   },
-///   &Default::default(),
-///   "path/to/something",
-///   Some(BaseDirectory::Config)
-///  ).expect("failed to resolve path");
-/// // path is equal to "/home/${whoami}/.config/path/to/something" on Linux
+///   context.config(),
+///   context.package_info(),
+///   &Env::default(),
+///   "db/tauri.sqlite",
+///   Some(BaseDirectory::App))
+/// .expect("failed to resolve path");
+/// assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/com.tauri.app/db/tauri.sqlite");
+///
+/// tauri::Builder::default().run(context).expect("error while running tauri application");
+/// ```
+///
+/// ## With an initialized app
+/// ```rust,no_run
+/// use tauri::{api::path::{BaseDirectory, resolve_path}, Manager};
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let path = resolve_path(
+///       &app.config(),
+///       app.package_info(),
+///       &app.env(),
+///       "path/to/something",
+///       Some(BaseDirectory::Config)
+///     ).expect("failed to resolve path");
+///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/path/to/something");
+///     Ok(())
+///   });
 /// ```
 pub fn resolve_path<P: AsRef<Path>>(
   config: &Config,

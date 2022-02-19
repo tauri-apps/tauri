@@ -54,7 +54,7 @@ impl Cmd {
   async fn create_client<R: Runtime>(
     _context: InvokeContext<R>,
     options: Option<ClientBuilder>,
-  ) -> crate::Result<ClientId> {
+  ) -> super::Result<ClientId> {
     let client = options.unwrap_or_default().build()?;
     let mut store = clients().lock().unwrap();
     let id = rand::random::<ClientId>();
@@ -66,7 +66,7 @@ impl Cmd {
   async fn drop_client<R: Runtime>(
     _context: InvokeContext<R>,
     client: ClientId,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let mut store = clients().lock().unwrap();
     store.remove(&client);
     Ok(())
@@ -77,7 +77,7 @@ impl Cmd {
     context: InvokeContext<R>,
     client_id: ClientId,
     options: Box<HttpRequestBuilder>,
-  ) -> crate::Result<ResponseData> {
+  ) -> super::Result<ResponseData> {
     use crate::Manager;
     if context
       .window
@@ -89,12 +89,12 @@ impl Cmd {
         .lock()
         .unwrap()
         .get(&client_id)
-        .ok_or(crate::Error::HttpClientNotInitialized)?
+        .ok_or_else(|| crate::Error::HttpClientNotInitialized.into_anyhow())?
         .clone();
       let response = client.send(*options).await?;
       Ok(response.read().await?)
     } else {
-      Err(crate::Error::UrlNotAllowed(options.url))
+      Err(crate::Error::UrlNotAllowed(options.url).into_anyhow())
     }
   }
 }

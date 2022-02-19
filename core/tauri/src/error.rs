@@ -58,8 +58,8 @@ pub enum Error {
   #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
   /// Invalid args when running a command.
-  #[error("invalid args for command `{0}`: {1}")]
-  InvalidArgs(&'static str, serde_json::Error),
+  #[error("invalid args `{1}` for command `{0}`: {2}")]
+  InvalidArgs(&'static str, &'static str, serde_json::Error),
   /// Encountered an error in the setup hook,
   #[error("error encountered during setup hook: {0}")]
   Setup(Box<dyn std::error::Error + Send>),
@@ -107,6 +107,16 @@ pub enum Error {
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
   InvalidWindowUrl(&'static str),
+}
+
+pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
+  anyhow::anyhow!(err.to_string())
+}
+
+impl Error {
+  pub(crate) fn into_anyhow(self) -> anyhow::Error {
+    anyhow::anyhow!(self.to_string())
+  }
 }
 
 impl From<serde_json::Error> for Error {

@@ -495,6 +495,11 @@ impl Settings {
     &self.project_out_directory
   }
 
+  /// Returns the target triple.
+  pub fn target(&self) -> &str {
+    &self.target
+  }
+
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
   pub fn binary_arch(&self) -> &str {
     if self.target.starts_with("x86_64") {
@@ -634,6 +639,7 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
+      println!("{:?} {:?} {:?}", src, dest, self.target);
       common::copy_file(&src, &dest)?;
     }
     Ok(())

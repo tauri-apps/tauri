@@ -457,7 +457,7 @@ impl<R: Runtime> App<R> {
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -479,7 +479,7 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -517,7 +517,7 @@ impl<R: Runtime> App<R> {
   /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -601,7 +601,7 @@ impl<R: Runtime> App<R> {
 
 /// Builds a Tauri application.
 ///
-/// # Example
+/// # Examples
 /// ```rust,no_run
 /// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
@@ -701,7 +701,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines the JS message handler callback.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// #[tauri::command]
   /// fn command_1() -> String {
@@ -740,7 +740,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines the setup hook.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::Manager;
   /// tauri::Builder::default()
@@ -826,7 +826,7 @@ impl<R: Runtime> Builder<R> {
   ///   .expect("error while running tauri application");
   /// ```
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::State;
@@ -868,7 +868,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Creates a new webview window.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::WindowBuilder;
   /// tauri::Builder::default()
@@ -915,7 +915,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the menu to use on all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
   ///
@@ -939,7 +939,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a menu event handler for all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api, Manager};
   /// tauri::Builder::default()
@@ -979,7 +979,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a window event handler for all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .on_window_event(|event| match event.event() {
@@ -1003,7 +1003,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a system tray event handler.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::Manager;
   /// tauri::Builder::default()

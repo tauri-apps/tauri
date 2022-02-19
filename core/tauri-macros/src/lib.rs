@@ -26,7 +26,7 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
 ///
-/// # Example
+/// # Examples
 /// ```rust,ignore
 /// use tauri_macros::{command, generate_handler};
 /// #[command]

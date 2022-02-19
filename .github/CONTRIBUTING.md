@@ -28,8 +28,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 ## Pull Request Guidelines
 
-- We only accept *signed commits*, so sign your commits! [Here is a great guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits) that walks you through all the required steps.
-  > Note: Despite what the guide claims, GitHub Desktop honors the repo/system wide git config, so after running `git config --global commit.gpgsign true` GitHub Desktop will sign commits as well.
+- You have to [sign your commits](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
 
 - It's OK to have multiple small commits as you work on the PR - we will let GitHub automatically squash it before merging.
 

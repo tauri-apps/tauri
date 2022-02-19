@@ -413,7 +413,7 @@ impl<R: Runtime> Window<R> {
   /// - **macOS**: This is a private API on macOS,
   /// so you cannot use this if your application will be published on the App Store.
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::Manager;

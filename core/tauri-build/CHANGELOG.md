@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Automatically emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET` with the value set on `tauri.conf.json > tauri > bundle > macos > minimumSystemVersion`.
+  - [4bacea5b](https://www.github.com/tauri-apps/tauri/commit/4bacea5bf48ea5ca6c9bdd10e28e85e67a0c6ef9) feat(core): set `MACOSX_DEPLOYMENT_TARGET` environment variable, closes [#2732](https://www.github.com/tauri-apps/tauri/pull/2732) ([#3496](https://www.github.com/tauri-apps/tauri/pull/3496)) on 2022-02-17
+
+## \[1.0.0-rc.2]
+
+- Rerun if sidecar or resource change.
+  - [afcc3ec5](https://www.github.com/tauri-apps/tauri/commit/afcc3ec50148074293350aaa26a05812207716be) fix(build): rerun if resource or sidecar change ([#3460](https://www.github.com/tauri-apps/tauri/pull/3460)) on 2022-02-14
+
 ## \[1.0.0-rc.1]
 
 - Remove `cargo:rerun-if-changed` check for non-existent file that caused projects to *always* rebuild.

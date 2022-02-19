@@ -2,7 +2,7 @@ const fixtureSetup = require('../fixtures/app-test-setup.js')
 const { resolve } = require('path')
 const { existsSync, readFileSync, writeFileSync } = require('fs')
 const { move } = require('fs-extra')
-const cli = require('~/index.js')
+const cli = require('~/main.js')
 
 const currentDirName = __dirname
 
@@ -23,7 +23,11 @@ describe('[CLI] cli.js template', () => {
       await move(outPath, cacheOutPath)
     }
 
-    cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
+    await cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
+      .catch(err => {
+        console.error(err)
+        throw err
+      })
 
     if (outExists) {
       await move(cacheOutPath, outPath)
@@ -35,7 +39,10 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
-    cli.run(['build', '--verbose'])
+    await cli.run(['build', '--verbose']).catch(err => {
+      console.error(err)
+      throw err
+    })
     process.chdir(cwd)
   })
 })

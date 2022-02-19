@@ -62,7 +62,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'"
+      "csp": null
     }
   }
 }

@@ -29,23 +29,6 @@ jobs:
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
 
-      - name: Cache CLI cargo target
-        uses: actions/cache@v2
-        with:
-          path: tooling/cli/target
-          # Add date to the cache to keep it up to date
-          key: ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ubuntu-latest-stable-cargo-cli-${{ hashFiles('tooling/cli/Cargo.lock') }}
-            ubuntu-latest-stable-cargo-cli-
-
-      - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
-
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}
       - name: git config
@@ -53,7 +36,7 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
       - name: covector version or publish (publish when no change files present)
-        uses: jbolda/covector/packages/action@feat/enable-prereleases
+        uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

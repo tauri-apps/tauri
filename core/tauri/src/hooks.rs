@@ -95,6 +95,12 @@ impl InvokeError {
   pub fn from_serde_json(error: serde_json::Error) -> Self {
     Self(JsonValue::String(error.to_string()))
   }
+
+  /// Create an [`InvokeError`] as a string of the [`anyhow::Error`] message.
+  #[inline(always)]
+  pub fn from_anyhow(error: anyhow::Error) -> Self {
+    Self(JsonValue::String(format!("{:#}", error)))
+  }
 }
 
 impl<T: Serialize> From<T> for InvokeError {

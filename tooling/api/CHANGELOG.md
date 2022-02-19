@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-rc.1]
+
+- Provide functions to mock IPC calls during testing and static site generation.
+  - [7e04c072](https://www.github.com/tauri-apps/tauri/commit/7e04c072c4ee2278c648f44575c6c4710ac047f3) feat: add mock functions for testing and SSG ([#3437](https://www.github.com/tauri-apps/tauri/pull/3437)) on 2022-02-14
+  - [6f5ed2e6](https://www.github.com/tauri-apps/tauri/commit/6f5ed2e69cb7ffa0d5c8eb5a744fbf94ed6010d4) fix: change file on 2022-02-14
+
 ## \[1.0.0-rc.0]
 
 - Add `fileDropEnabled` property to `WindowOptions` so you can now disable it when creating windows from js.

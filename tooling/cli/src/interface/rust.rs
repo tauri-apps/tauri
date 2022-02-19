@@ -100,28 +100,11 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(
-  runner: String,
-  target: &Option<String>,
-  features: Vec<String>,
-  debug: bool,
-) -> crate::Result<()> {
+pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
   let mut command = Command::new(&runner);
-  command.args(&["build", "--features=custom-protocol"]);
-
-  if let Some(target) = target {
-    command.arg("--target");
-    command.arg(target);
-  }
-
-  if !features.is_empty() {
-    command.arg("--features");
-    command.arg(features.join(","));
-  }
-
-  if !debug {
-    command.arg("--release");
-  }
+  command
+    .args(&["build", "--features=custom-protocol"])
+    .args(args);
 
   command.pipe()?;
 

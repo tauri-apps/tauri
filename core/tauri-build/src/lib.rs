@@ -34,6 +34,7 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
 fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
   for src in binaries {
     let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(
       src
         .file_name()
@@ -50,6 +51,7 @@ fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Pa
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   for src in resources {
     let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(resource_relpath(&src));
     copy_file(&src, &dest)?;
   }
@@ -236,6 +238,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   if let Some(paths) = config.tauri.bundle.resources {
     copy_resources(ResourcePaths::new(paths.as_slice(), true), target_dir)?;
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+    }
   }
 
   #[cfg(windows)]

@@ -1,5 +1,29 @@
 # Changelog
 
+## \[1.0.0-rc.5]
+
+- Improve "waiting for your dev server to start" message.
+  - [5999379f](https://www.github.com/tauri-apps/tauri/commit/5999379fb06052a115f04f99274ab46d1eefd659) chore(cli): improve "waiting for dev server" message, closes [#3491](https://www.github.com/tauri-apps/tauri/pull/3491) ([#3504](https://www.github.com/tauri-apps/tauri/pull/3504)) on 2022-02-18
+- Do not panic if the updater private key password is wrong.
+  - [17f17a80](https://www.github.com/tauri-apps/tauri/commit/17f17a80f818bcc20c387583a6ff00a8e07ec533) fix(cli): do not panic if private key password is wrong, closes [#3449](https://www.github.com/tauri-apps/tauri/pull/3449) ([#3495](https://www.github.com/tauri-apps/tauri/pull/3495)) on 2022-02-17
+- Check the current folder before checking the directories on the app and tauri dir path lookup function.
+  - [a06de376](https://www.github.com/tauri-apps/tauri/commit/a06de3760184caa71acfe7a2fe2189a033b565f5) fix(cli): path lookup should not check subfolder before the current one ([#3465](https://www.github.com/tauri-apps/tauri/pull/3465)) on 2022-02-15
+- Fixes the signature of the `signer sign` command to not have duplicated short flags.
+  - [a9755514](https://www.github.com/tauri-apps/tauri/commit/a975551461f3698db3f3b6afa5101189aaeeada9) fix(cli): duplicated short flag for `signer sign`, closes [#3483](https://www.github.com/tauri-apps/tauri/pull/3483) ([#3492](https://www.github.com/tauri-apps/tauri/pull/3492)) on 2022-02-17
+
+## \[1.0.0-rc.4]
+
+- Change the `run` function to take a callback and run asynchronously instead of blocking the event loop.
+  - [cd9a20b9](https://www.github.com/tauri-apps/tauri/commit/cd9a20b9ab013759b4bdb742f358988022450795) refactor(cli.js): run on separate thread ([#3436](https://www.github.com/tauri-apps/tauri/pull/3436)) on 2022-02-13
+- Improve error message when the dev runner command fails.
+  - [759d1afb](https://www.github.com/tauri-apps/tauri/commit/759d1afb86f3657f6071a2ae39c9be21e20ed22c) feat(cli): improve error message when dev runner command fails ([#3447](https://www.github.com/tauri-apps/tauri/pull/3447)) on 2022-02-13
+- Show full error message from `cli.rs` instead of just the outermost underlying error message.
+  - [63826010](https://www.github.com/tauri-apps/tauri/commit/63826010d1f38544f36afd3aac67c45d4608d15b) feat(cli.js): show full error message ([#3442](https://www.github.com/tauri-apps/tauri/pull/3442)) on 2022-02-13
+- Increase `tauri.conf.json` directory lookup depth to `3` and allow changing it with the `TAURI_PATH_DEPTH` environment variable.
+  - [c6031c70](https://www.github.com/tauri-apps/tauri/commit/c6031c7070c6bb7539bbfdfe42cb73012829c910) feat(cli): increase lookup depth, add env var option ([#3451](https://www.github.com/tauri-apps/tauri/pull/3451)) on 2022-02-13
+- Added `tauri-build`, `tao` and `wry` version to the `info` command output.
+  - [16f1173f](https://www.github.com/tauri-apps/tauri/commit/16f1173f456b1db543d0160df2c9828708bfc68a) feat(cli): add tao and wry version to the `info` output ([#3443](https://www.github.com/tauri-apps/tauri/pull/3443)) on 2022-02-13
+
 ## \[1.0.0-rc.3]
 
 - Change default value for the `freezePrototype` configuration to `false`.

@@ -2,33 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use glob::Pattern;
 use tauri_utils::config::HttpAllowlistScope;
-use url::Url;
 
 /// Scope for filesystem access.
 #[derive(Debug, Clone)]
 pub struct Scope {
-  allowed_urls: Vec<Url>,
+  allowed_urls: Vec<Pattern>,
 }
 
 impl Scope {
   /// Creates a new scope from the allowlist's `http` scope configuration.
   pub fn for_http_api(scope: &HttpAllowlistScope) -> Self {
     Self {
-      allowed_urls: scope.0.clone(),
+      allowed_urls: scope
+        .0
+        .iter()
+        .map(|url| {
+          glob::Pattern::new(url.as_str())
+            .unwrap_or_else(|_| panic!("scoped URL is not a valid glob pattern: `{}`", url))
+        })
+        .collect(),
     }
   }
 
   /// Determines if the given URL is allowed on this scope.
-  pub fn is_allowed(&self, url: &Url) -> bool {
-    self.allowed_urls.iter().any(|allowed| {
-      let origin_matches = allowed.scheme() == url.scheme()
-        && allowed.host() == url.host()
-        && allowed.port() == url.port();
-      let allowed_path_pattern = glob::Pattern::new(allowed.path())
-        .unwrap_or_else(|_| panic!("invalid glob pattern on URL `{}` path", allowed));
-      origin_matches && allowed_path_pattern.matches(url.path())
-    })
+  pub fn is_allowed(&self, url: &url::Url) -> bool {
+    self
+      .allowed_urls
+      .iter()
+      .any(|allowed| allowed.matches(url.as_str()))
   }
 }
 
@@ -73,5 +76,10 @@ mod tests {
     assert!(scope.is_allowed(&"http://localhost:8080/assets/file.png".parse().unwrap()));
 
     assert!(!scope.is_allowed(&"http://localhost:8080/file.jpeg".parse().unwrap()));
+
+    let scope = super::Scope::for_http_api(&HttpAllowlistScope(vec!["http://*".parse().unwrap()]));
+
+    assert!(scope.is_allowed(&"http://something.else".parse().unwrap()));
+    assert!(!scope.is_allowed(&"https://something.else".parse().unwrap()));
   }
 }

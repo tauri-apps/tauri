@@ -721,6 +721,17 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       window = window.transparent(config.transparent);
     }
+    #[cfg(all(
+      target_os = "macos",
+      not(feature = "macos-private-api"),
+      debug_assertions
+    ))]
+    if config.transparent {
+      eprintln!(
+        "The window is set to be transparent but the `macos-private-api` is not enabled.
+        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.studio/docs/api/config#tauri.macOSPrivateApi>
+      ");
+    }
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);

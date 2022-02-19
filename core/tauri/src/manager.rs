@@ -558,11 +558,18 @@ impl<R: Runtime> WindowManager<R> {
               }
             };
             // parse the range
-            let range = match crate::runtime::http::HttpRange::parse(&range, file_size) {
+            let range = match crate::runtime::http::HttpRange::parse(
+              &if range.ends_with("-*") {
+                range.chars().take(range.len() - 1).collect::<String>()
+              } else {
+                range.clone()
+              },
+              file_size,
+            ) {
               Ok(r) => r,
               Err(e) => {
                 #[cfg(debug_assertions)]
-                eprintln!("Failed to parse range: {:?}", e);
+                eprintln!("Failed to parse range {}: {:?}", range, e);
                 return (headers, 400, buf);
               }
             };

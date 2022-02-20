@@ -410,7 +410,6 @@ pub fn build_wix_app_installer(
     Ok(())
   };
 
-  common::print_info("trying to sign app")?;
   try_sign(&app_exe_source)?;
 
   // ensure that `target/{release, debug}/wix` folder exists

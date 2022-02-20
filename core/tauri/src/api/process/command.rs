@@ -55,11 +55,11 @@ pub struct TerminatedPayload {
 #[serde(tag = "event", content = "payload")]
 #[non_exhaustive]
 pub enum CommandEvent {
-  /// Stderr line.
+  /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
   Stderr(String),
-  /// Stdout line.
+  /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
   Stdout(String),
-  /// An error happened.
+  /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
   Error(String),
   /// Command process terminated.
   Terminated(TerminatedPayload),
@@ -261,9 +261,17 @@ impl Command {
     let guard_ = guard.clone();
     spawn(move || {
       let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stdout_reader);
-      for line in reader.lines() {
+      let mut reader = BufReader::new(stdout_reader);
+
+      let mut buf = Vec::new();
+      loop {
+        buf.clear();
+        let n = read_command_output(&mut reader, &mut buf).unwrap();
+        if n == 0 {
+          break;
+        }
         let tx_ = tx_.clone();
+        let line = String::from_utf8(buf.clone());
         block_on_task(async move {
           let _ = match line {
             Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
@@ -277,9 +285,17 @@ impl Command {
     let guard_ = guard.clone();
     spawn(move || {
       let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stderr_reader);
-      for line in reader.lines() {
+      let mut reader = BufReader::new(stderr_reader);
+
+      let mut buf = Vec::new();
+      loop {
+        buf.clear();
+        let n = read_command_output(&mut reader, &mut buf).unwrap();
+        if n == 0 {
+          break;
+        }
         let tx_ = tx_.clone();
+        let line = String::from_utf8(buf.clone());
         block_on_task(async move {
           let _ = match line {
             Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
@@ -387,6 +403,50 @@ impl Command {
     });
 
     Ok(output)
+  }
+}
+
+// adapted from https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line
+fn read_command_output<R: BufRead + ?Sized>(
+  r: &mut R,
+  buf: &mut Vec<u8>,
+) -> std::io::Result<usize> {
+  let mut read = 0;
+  loop {
+    let (done, used) = {
+      let available = match r.fill_buf() {
+        Ok(n) => n,
+        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+        Err(e) => return Err(e),
+      };
+      match memchr::memchr(b'\n', available) {
+        Some(i) => {
+          buf.extend_from_slice(&available[..=i]);
+          (true, i + 1)
+        }
+        None => match memchr::memchr(b'\r', available) {
+          Some(i) => {
+            buf.extend_from_slice(&available[..=i]);
+            (true, i + 1)
+          }
+          None => {
+            buf.extend_from_slice(available);
+            (false, available.len())
+          }
+        },
+      }
+    };
+    r.consume(used);
+    read += used;
+    if done || used == 0 {
+      if buf.ends_with(&[b'\n']) {
+        buf.pop();
+      }
+      if buf.ends_with(&[b'\r']) {
+        buf.pop();
+      }
+      return Ok(read);
+    }
   }
 }
 

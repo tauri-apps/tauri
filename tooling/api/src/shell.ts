@@ -38,7 +38,7 @@
  * ### Restricting access to the [[`Command`]] APIs
  *
  * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
- * Each CLI is a configuration object `{ name: string, command: string, sidecar?: bool, args?: boolean | Arg[] }`.
+ * Each CLI is a configuration object `{ name: string, cmd: string, sidecar?: bool, args?: boolean | Arg[] }`.
  *
  * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.

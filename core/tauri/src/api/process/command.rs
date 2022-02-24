@@ -384,18 +384,25 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
     let mut buf = Vec::new();
     loop {
       buf.clear();
-      let n = read_command_output(&mut reader, &mut buf).unwrap();
-      if n == 0 {
-        break;
+      match read_command_output(&mut reader, &mut buf) {
+        Ok(n) => {
+          if n == 0 {
+            break;
+          }
+          let tx_ = tx.clone();
+          let line = String::from_utf8(buf.clone());
+          block_on_task(async move {
+            let _ = match line {
+              Ok(line) => tx_.send(wrapper(line)).await,
+              Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+            };
+          });
+        }
+        Err(e) => {
+          let tx_ = tx.clone();
+          let _ = block_on_task(async move { tx_.send(CommandEvent::Error(e.to_string())).await });
+        }
       }
-      let tx_ = tx.clone();
-      let line = String::from_utf8(buf.clone());
-      block_on_task(async move {
-        let _ = match line {
-          Ok(line) => tx_.send(wrapper(line)).await,
-          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-        };
-      });
     }
   });
 }

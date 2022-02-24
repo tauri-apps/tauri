@@ -19,8 +19,8 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::async_runtime::{block_on as block_on_task, channel, Receiver};
-use os_pipe::{pipe, PipeWriter};
+use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
@@ -257,53 +257,18 @@ impl Command {
 
     let (tx, rx) = channel(1);
 
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let mut reader = BufReader::new(stdout_reader);
-
-      let mut buf = Vec::new();
-      loop {
-        buf.clear();
-        let n = read_command_output(&mut reader, &mut buf).unwrap();
-        if n == 0 {
-          break;
-        }
-        let tx_ = tx_.clone();
-        let line = String::from_utf8(buf.clone());
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
-
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let mut reader = BufReader::new(stderr_reader);
-
-      let mut buf = Vec::new();
-      loop {
-        buf.clear();
-        let n = read_command_output(&mut reader, &mut buf).unwrap();
-        if n == 0 {
-          break;
-        }
-        let tx_ = tx_.clone();
-        let line = String::from_utf8(buf.clone());
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stdout_reader,
+      CommandEvent::Stdout,
+    );
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stderr_reader,
+      CommandEvent::Stderr,
+    );
 
     spawn(move || {
       let _ = match child_.wait() {
@@ -404,6 +369,35 @@ impl Command {
 
     Ok(output)
   }
+}
+
+fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
+  tx: Sender<CommandEvent>,
+  guard: Arc<RwLock<()>>,
+  pipe_reader: PipeReader,
+  wrapper: F,
+) {
+  spawn(move || {
+    let _lock = guard.read().unwrap();
+    let mut reader = BufReader::new(pipe_reader);
+
+    let mut buf = Vec::new();
+    loop {
+      buf.clear();
+      let n = read_command_output(&mut reader, &mut buf).unwrap();
+      if n == 0 {
+        break;
+      }
+      let tx_ = tx.clone();
+      let line = String::from_utf8(buf.clone());
+      block_on_task(async move {
+        let _ = match line {
+          Ok(line) => tx_.send(wrapper(line)).await,
+          Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+        };
+      });
+    }
+  });
 }
 
 // adapted from https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line

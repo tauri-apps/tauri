@@ -18,6 +18,7 @@ use std::collections::HashMap;
 mod macros;
 
 mod clapfix {
+  //! Compatibility between `clap` 3.0 and 3.1+ without deprecation errors.
   #![allow(deprecated)]
 
   pub type ClapCommand<'help> = clap::App<'help>;

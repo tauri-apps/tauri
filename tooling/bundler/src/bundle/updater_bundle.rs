@@ -123,35 +123,33 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 #[cfg(target_os = "windows")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   // find our .msi or rebuild
-  let bundle_path = match bundles
+  let mut bundle_paths = bundles
     .iter()
-    .filter(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
-    .find_map(|bundle| {
-      bundle
-        .bundle_paths
-        .iter()
-        .find(|path| path.extension() == Some(OsStr::new("msi")))
-    }) {
-    Some(path) => vec![path.clone()],
-    None => msi::bundle_project(settings)?,
-  };
+    .find(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
+    .map(|bundle| bundle.bundle_paths.clone())
+    .unwrap_or_default();
 
-  // we expect our .msi to be on bundle_path[0]
-  if bundle_path.is_empty() {
-    return Err(crate::Error::UnableToFindProject);
+  // we expect our .msi files to be on `bundle_paths`
+  if bundle_paths.is_empty() {
+    bundle_paths.extend(msi::bundle_project(settings)?);
   }
 
-  let source_path = &bundle_path[0];
+  let mut msi_archived_paths = Vec::new();
 
-  // add .tar.gz to our path
-  let msi_archived = format!("{}.zip", source_path.display());
-  let msi_archived_path = PathBuf::from(&msi_archived);
+  for source_path in bundle_paths {
+    // add .zip to our path
+    let msi_archived = format!("{}.zip", source_path.display());
+    let msi_archived_path = PathBuf::from(&msi_archived);
 
-  // Create our gzip file
-  create_zip(source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+    common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
 
-  common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
-  Ok(vec![msi_archived_path])
+    // Create our gzip file
+    create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+
+    msi_archived_paths.push(msi_archived_path);
+  }
+
+  Ok(msi_archived_paths)
 }
 
 #[cfg(target_os = "windows")]

@@ -9,13 +9,32 @@ use crate::{
   PackageInfo,
 };
 
-use clap::{Arg, ArgMatches, Command, ErrorKind};
+use clap::{Arg, ArgMatches, ErrorKind};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
 #[macro_use]
 mod macros;
+
+mod clapfix {
+  //! Compatibility between `clap` 3.0 and 3.1+ without deprecation errors.
+  #![allow(deprecated)]
+
+  pub type ClapCommand<'help> = clap::App<'help>;
+
+  pub trait ErrorExt {
+    fn kind(&self) -> clap::ErrorKind;
+  }
+
+  impl ErrorExt for clap::Error {
+    fn kind(&self) -> clap::ErrorKind {
+      self.kind
+    }
+  }
+}
+
+use clapfix::{ClapCommand as App, ErrorExt};
 
 /// The resolution of a argument match.
 #[derive(Default, Debug, Serialize)]
@@ -83,7 +102,7 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
   let app = get_app(package_info, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
-    Err(e) => match e.kind() {
+    Err(e) => match ErrorExt::kind(&e) {
       ErrorKind::DisplayHelp => {
         let mut matches = Matches::default();
         let help_text = e.to_string();
@@ -159,8 +178,8 @@ fn get_app<'a>(
   command_name: &'a str,
   about: Option<&'a String>,
   config: &'a CliConfig,
-) -> Command<'a> {
-  let mut app = Command::new(command_name)
+) -> App<'a> {
+  let mut app = App::new(command_name)
     .author(package_info.authors)
     .version(&*package_info.version);
 

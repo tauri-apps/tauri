@@ -19,8 +19,8 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::async_runtime::{block_on as block_on_task, channel, Receiver};
-use os_pipe::{pipe, PipeWriter};
+use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
@@ -55,11 +55,11 @@ pub struct TerminatedPayload {
 #[serde(tag = "event", content = "payload")]
 #[non_exhaustive]
 pub enum CommandEvent {
-  /// Stderr line.
+  /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
   Stderr(String),
-  /// Stdout line.
+  /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
   Stdout(String),
-  /// An error happened.
+  /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
   Error(String),
   /// Command process terminated.
   Terminated(TerminatedPayload),
@@ -257,37 +257,18 @@ impl Command {
 
     let (tx, rx) = channel(1);
 
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stdout_reader);
-      for line in reader.lines() {
-        let tx_ = tx_.clone();
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
-
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stderr_reader);
-      for line in reader.lines() {
-        let tx_ = tx_.clone();
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stdout_reader,
+      CommandEvent::Stdout,
+    );
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stderr_reader,
+      CommandEvent::Stderr,
+    );
 
     spawn(move || {
       let _ = match child_.wait() {
@@ -387,6 +368,88 @@ impl Command {
     });
 
     Ok(output)
+  }
+}
+
+fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
+  tx: Sender<CommandEvent>,
+  guard: Arc<RwLock<()>>,
+  pipe_reader: PipeReader,
+  wrapper: F,
+) {
+  spawn(move || {
+    let _lock = guard.read().unwrap();
+    let mut reader = BufReader::new(pipe_reader);
+
+    let mut buf = Vec::new();
+    loop {
+      buf.clear();
+      match read_command_output(&mut reader, &mut buf) {
+        Ok(n) => {
+          if n == 0 {
+            break;
+          }
+          let tx_ = tx.clone();
+          let line = String::from_utf8(buf.clone());
+          block_on_task(async move {
+            let _ = match line {
+              Ok(line) => tx_.send(wrapper(line)).await,
+              Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+            };
+          });
+        }
+        Err(e) => {
+          let tx_ = tx.clone();
+          let _ = block_on_task(async move { tx_.send(CommandEvent::Error(e.to_string())).await });
+        }
+      }
+    }
+  });
+}
+
+// adapted from https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line
+fn read_command_output<R: BufRead + ?Sized>(
+  r: &mut R,
+  buf: &mut Vec<u8>,
+) -> std::io::Result<usize> {
+  let mut read = 0;
+  loop {
+    let (done, used) = {
+      let available = match r.fill_buf() {
+        Ok(n) => n,
+        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+        Err(e) => return Err(e),
+      };
+      match memchr::memchr(b'\n', available) {
+        Some(i) => {
+          let end = i + 1;
+          buf.extend_from_slice(&available[..end]);
+          (true, end)
+        }
+        None => match memchr::memchr(b'\r', available) {
+          Some(i) => {
+            let end = i + 1;
+            buf.extend_from_slice(&available[..end]);
+            (true, end)
+          }
+          None => {
+            buf.extend_from_slice(available);
+            (false, available.len())
+          }
+        },
+      }
+    };
+    r.consume(used);
+    read += used;
+    if done || used == 0 {
+      if buf.ends_with(&[b'\n']) {
+        buf.pop();
+      }
+      if buf.ends_with(&[b'\r']) {
+        buf.pop();
+      }
+      return Ok(read);
+    }
   }
 }
 

@@ -421,13 +421,15 @@ fn read_command_output<R: BufRead + ?Sized>(
       };
       match memchr::memchr(b'\n', available) {
         Some(i) => {
-          buf.extend_from_slice(&available[..=i]);
-          (true, i + 1)
+          let end = i + 1;
+          buf.extend_from_slice(&available[..end]);
+          (true, end)
         }
         None => match memchr::memchr(b'\r', available) {
           Some(i) => {
-            buf.extend_from_slice(&available[..=i]);
-            (true, i + 1)
+            let end = i + 1;
+            buf.extend_from_slice(&available[..end]);
+            (true, end)
           }
           None => {
             buf.extend_from_slice(available);

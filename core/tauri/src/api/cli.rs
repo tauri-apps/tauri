@@ -4,20 +4,36 @@
 
 //! Types and functions related to CLI arguments.
 
-#![allow(deprecated)]
-
 use crate::{
   utils::config::{CliArg, CliConfig},
   PackageInfo,
 };
 
-use clap::{App, Arg, ArgMatches, ErrorKind};
+use clap::{Arg, ArgMatches, ErrorKind};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
 #[macro_use]
 mod macros;
+
+mod clapfix {
+  #![allow(deprecated)]
+
+  pub type ClapCommand<'help> = clap::App<'help>;
+
+  pub trait ErrorExt {
+    fn kind(&self) -> clap::ErrorKind;
+  }
+
+  impl ErrorExt for clap::Error {
+    fn kind(&self) -> clap::ErrorKind {
+      self.kind
+    }
+  }
+}
+
+use clapfix::{ClapCommand as App, ErrorExt};
 
 /// The resolution of a argument match.
 #[derive(Default, Debug, Serialize)]
@@ -85,7 +101,7 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
   let app = get_app(package_info, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
-    Err(e) => match e.kind {
+    Err(e) => match ErrorExt::kind(&e) {
       ErrorKind::DisplayHelp => {
         let mut matches = Matches::default();
         let help_text = e.to_string();

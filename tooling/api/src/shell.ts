@@ -394,7 +394,7 @@ type CommandEvent =
  * or the one specified with `openWith`.
  *
  * The `openWith` value must be one of `firefox`, `google chrome`, `chromium` `safari`,
- * `open`, `start`, `xdg-open`, `gio`, gnome-open`, `kde-open` or `wslview`.
+ * `open`, `start`, `xdg-open`, `gio`, `gnome-open`, `kde-open` or `wslview`.
  *
  * @example
  * ```typescript

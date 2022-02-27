@@ -258,6 +258,7 @@ impl Default for WindowsSettings {
       digest_algorithm: None,
       certificate_thumbprint: None,
       timestamp_url: None,
+      tsp: None,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_fixed_runtime_path: None,

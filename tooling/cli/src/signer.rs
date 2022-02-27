@@ -3,14 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 mod generate;
 mod sign;
 
 #[derive(Parser)]
-#[clap(author, version, about = "Tauri updater signer")]
-#[clap(setting(AppSettings::SubcommandRequiredElseHelp))]
+#[clap(
+  author,
+  version,
+  about = "Tauri updater signer",
+  subcommand_required(true),
+  arg_required_else_help(true)
+)]
 pub struct Cli {
   #[clap(subcommand)]
   command: Commands,

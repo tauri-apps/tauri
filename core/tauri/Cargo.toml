@@ -19,7 +19,7 @@ repository = "https://github.com/tauri-apps/tauri"
 version = "1.0.0-rc.3"
 
 [package.metadata.docs.rs]
-default-features = false
+no-default-features = true
 features = [
   "wry",
   "__isolation-docs",

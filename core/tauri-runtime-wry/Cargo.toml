@@ -40,3 +40,4 @@ macos-private-api = [
   "wry/transparent",
   "tauri-runtime/macos-private-api"
 ]
+objc-exception = [ "wry/objc-exception" ]

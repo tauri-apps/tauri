@@ -29,7 +29,7 @@ uuid = { version = "0.8", features = [ "v4" ] }
 
 [features]
 default = [ "compression" ]
-compression = [ "tauri-utils/compression" ]
+compression = [ "zstd", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
 __isolation-docs = [ "tauri-utils/__isolation-docs" ]
 shell-scope = [ "regex" ]

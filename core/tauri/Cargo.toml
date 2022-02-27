@@ -115,7 +115,7 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-tauri = { path = "." }
+tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4.2"
 tokio = { version = "1.16", features = [ "full" ] }
 

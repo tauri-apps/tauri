@@ -102,7 +102,7 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
     cmd.args(&["/sha1", &params.certificate_thumbprint]);
 
     if let Some(ref timestamp_url) = params.timestamp_url {
-        if Some(params.tsp) == true {
+        if params.tsp == Some(true) {
             cmd.args(&["/tr", timestamp_url]);
             cmd.args(&["/td", &params.digest_algorithm]);
         } else {

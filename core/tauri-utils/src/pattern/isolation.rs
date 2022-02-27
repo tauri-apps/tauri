@@ -40,8 +40,8 @@ mod ring_impl {
 #[cfg(feature = "isolation")]
 mod ring_impl {
   pub use ring::error::Unspecified;
-  pub use ring::rand::SystemRandom;
   pub use ring::rand::generate as rand_generate;
+  pub use ring::rand::SystemRandom;
 }
 
 use ring_impl::*;

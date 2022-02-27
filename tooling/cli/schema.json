@@ -147,6 +147,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "tsp": null,
             "webviewFixedRuntimePath": null,
             "wix": null
           }
@@ -563,6 +564,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "tsp": null,
             "webviewFixedRuntimePath": null,
             "wix": null
           },
@@ -1573,6 +1575,7 @@
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "timestampUrl": null,
+              "tsp": null,
               "webviewFixedRuntimePath": null,
               "wix": null
             }
@@ -2002,6 +2005,13 @@
           "description": "Server to use during timestamping.",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "tsp": {
+          "description": "Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161). Your code signing provider may use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.",
+          "type": [
+            "boolean",
             "null"
           ]
         },

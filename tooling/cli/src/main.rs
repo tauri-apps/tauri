@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::exit;
 
 fn main() -> tauri_cli::Result<()> {
-  let mut args = args_os();
+  let mut args = args_os().peekable();
   let bin_name = match args
     .next()
     .as_deref()
@@ -17,7 +17,9 @@ fn main() -> tauri_cli::Result<()> {
     .and_then(OsStr::to_str)
   {
     Some("cargo-tauri") => {
-      if args.by_ref().peekable().peek().and_then(|s| s.to_str()) == Some("tauri") {
+      if args.peek().and_then(|s| s.to_str()) == Some("tauri") {
+        // remove the extra cargo subcommand
+        args.next();
         Some("cargo tauri".into())
       } else {
         Some("cargo-tauri".into())

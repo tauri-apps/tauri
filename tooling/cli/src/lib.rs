@@ -13,7 +13,7 @@ mod interface;
 mod plugin;
 mod signer;
 
-use clap::{AppSettings, FromArgMatches, IntoApp, Parser, Subcommand};
+use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
 
 use std::ffi::OsString;
 
@@ -37,11 +37,16 @@ pub struct VersionMetadata {
 }
 
 #[derive(Parser)]
-#[clap(author, version, about, bin_name("cargo-tauri"))]
-#[clap(global_setting(AppSettings::PropagateVersion))]
-#[clap(global_setting(AppSettings::UseLongFormatForHelpSubcommand))]
-#[clap(global_setting(AppSettings::NoBinaryName))]
-#[clap(setting(AppSettings::SubcommandRequiredElseHelp))]
+#[clap(
+  author,
+  version,
+  about,
+  bin_name("cargo-tauri"),
+  subcommand_required(true),
+  arg_required_else_help(true),
+  propagate_version(true),
+  no_binary_name(true)
+)]
 struct Cli {
   #[clap(subcommand)]
   command: Commands,
@@ -58,7 +63,7 @@ enum Commands {
 }
 
 fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
-  let mut app = I::into_app();
+  let mut app = I::command();
   err.format(&mut app)
 }
 
@@ -80,8 +85,8 @@ where
   A: Into<OsString> + Clone,
 {
   let matches = match bin_name {
-    Some(bin_name) => Cli::into_app().bin_name(bin_name),
-    None => Cli::into_app(),
+    Some(bin_name) => Cli::command().bin_name(bin_name),
+    None => Cli::command(),
   }
   .get_matches_from(args);
 

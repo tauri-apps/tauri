@@ -23,9 +23,9 @@
     svelte-hmr "^0.14.7"
 
 "@tauri-apps/api@../../tooling/api/dist":
-  version "1.0.0-rc.0"
+  version "1.0.0-rc.1"
   dependencies:
-    type-fest "2.8.0"
+    type-fest "2.12.0"
 
 debug@^4.3.2:
   version "4.3.3"
@@ -262,10 +262,10 @@ svelte@3.35.0:
   resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.35.0.tgz#e0d0ba60c4852181c2b4fd851194be6fda493e65"
   integrity sha512-gknlZkR2sXheu/X+B7dDImwANVvK1R0QGQLd8CNIfxxGPeXBmePnxfzb6fWwTQRsYQG7lYkZXvpXJvxvpsoB7g==
 
-type-fest@2.8.0:
-  version "2.8.0"
-  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.8.0.tgz#39d7c9f9c508df8d6ce1cf5a966b0e6568dcc50d"
-  integrity sha512-O+V9pAshf9C6loGaH0idwsmugI2LxVNR7DtS40gVo2EXZVYFgz9OuNtOhgHLdHdapOEWNdvz9Ob/eeuaWwwlxA==
+type-fest@2.12.0:
+  version "2.12.0"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.12.0.tgz#ce342f58cab9114912f54b493d60ab39c3fc82b6"
+  integrity sha512-Qe5GRT+n/4GoqCNGGVp5Snapg1Omq3V7irBJB3EaKsp7HWDo5Gv2d/67gfNyV+d5EXD+x/RF5l1h4yJ7qNkcGA==
 
 vite@^2.6.4:
   version "2.6.14"

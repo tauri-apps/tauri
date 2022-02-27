@@ -21,7 +21,6 @@ version = "1.0.0-rc.3"
 [package.metadata.docs.rs]
 default-features = false
 features = [
-  "compression",
   "wry",
   "__isolation-docs",
   "custom-protocol",

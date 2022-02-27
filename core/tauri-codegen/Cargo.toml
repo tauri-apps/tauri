@@ -31,5 +31,6 @@ uuid = { version = "0.8", features = [ "v4" ] }
 default = [ "compression" ]
 compression = [ "zstd", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
+__isolation-docs = [ "tauri-utils/__isolation-docs" ]
 shell-scope = [ "regex" ]
 config-json5 = [ "tauri-utils/config-json5" ]

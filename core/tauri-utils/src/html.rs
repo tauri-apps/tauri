@@ -10,11 +10,11 @@ use html5ever::{interface::QualName, namespace_url, ns, tendril::TendrilSink, Lo
 pub use kuchiki::NodeRef;
 use kuchiki::{Attribute, ExpandedName};
 use serde::Serialize;
-#[cfg(feature = "isolation")]
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
 use serialize_to_javascript::DefaultTemplate;
 
 use crate::config::PatternKind;
-#[cfg(feature = "isolation")]
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
 
 /// The token used on the CSP tag content.
@@ -115,7 +115,7 @@ impl From<&PatternKind> for PatternObject {
   fn from(pattern_kind: &PatternKind) -> Self {
     match pattern_kind {
       PatternKind::Brownfield => Self::Brownfield,
-      #[cfg(feature = "isolation")]
+      #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
       PatternKind::Isolation { .. } => Self::Isolation {
         side: IsolationSide::default(),
       },
@@ -142,7 +142,7 @@ impl Default for IsolationSide {
 /// Injects the Isolation JavaScript to a codegen time document.
 ///
 /// Note: This function is not considered part of the stable API.
-#[cfg(feature = "isolation")]
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
 pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
   with_head(document, |head| {
     let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);

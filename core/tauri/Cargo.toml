@@ -23,7 +23,7 @@ default-features = false
 features = [
   "compression",
   "wry",
-  "isolation",
+  "__isolation-docs",
   "custom-protocol",
   "api-all",
   "cli",
@@ -121,6 +121,7 @@ default = [ "wry", "compression" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
+__isolation-docs = [ "tauri-utils/__isolation-docs", "tauri-macros/__isolation-docs" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 updater = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]

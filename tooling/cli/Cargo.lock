@@ -2632,6 +2632,7 @@ dependencies = [
  "libflate",
  "md5",
  "os_pipe",
+ "png 0.17.3",
  "regex",
  "serde",
  "serde_json",

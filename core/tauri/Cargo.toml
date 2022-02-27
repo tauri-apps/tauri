@@ -52,10 +52,6 @@ url = { version = "2.2" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.9"
-#tauri-runtime = { version = "0.3.2", git = "https://github.com/lucasfernog/tauri/", branch = "fix/docs" }
-#tauri-macros = { version = "1.0.0-rc.2", git = "https://github.com/lucasfernog/tauri/", branch = "fix/docs" }
-#tauri-utils = { version = "1.0.0-rc.2", git = "https://github.com/lucasfernog/tauri/", branch = "fix/docs" }
-#tauri-runtime-wry = { version = "0.3.2", git = "https://github.com/lucasfernog/tauri/", branch = "fix/docs", optional = true }
 tauri-runtime = { version = "0.3.2", path = "../tauri-runtime" }
 tauri-macros = { version = "1.0.0-rc.2", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-rc.2", path = "../tauri-utils" }

@@ -1095,7 +1095,7 @@ impl Allowlist for DialogAllowlistConfig {
 ///
 /// # Examples
 ///
-/// - "https://*": allows all HTTPS urls
+/// - "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]

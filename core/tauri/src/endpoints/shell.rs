@@ -114,7 +114,7 @@ impl Cmd {
             .window
             .state::<Scopes>()
             .shell
-            .prepare_sidecar(&program.to_string_lossy(), &sidecar, args)
+            .prepare_sidecar(&program.to_string_lossy(), sidecar, args)
             .map_err(crate::error::into_anyhow)?
         } else {
           return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());

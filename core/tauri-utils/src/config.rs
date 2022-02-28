@@ -877,7 +877,7 @@ impl Allowlist for WindowAllowlistConfig {
 }
 
 /// A command allowed to be executed by the webview API.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ShellAllowedCommand {
   /// The name for this allowed shell command configuration.
@@ -891,7 +891,6 @@ pub struct ShellAllowedCommand {
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
   /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
-  #[serde(rename = "cmd")]
   pub command: PathBuf,
 
   /// The allowed arguments for the command execution.
@@ -901,6 +900,39 @@ pub struct ShellAllowedCommand {
   /// If this command is a sidecar command.
   #[serde(default)]
   pub sidecar: bool,
+}
+
+impl<'de> Deserialize<'de> for ShellAllowedCommand {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerShellAllowedCommand {
+      name: String,
+      #[serde(rename = "cmd")]
+      command: Option<PathBuf>,
+      #[serde(default)]
+      args: ShellAllowedArgs,
+      #[serde(default)]
+      sidecar: bool,
+    }
+
+    let config = InnerShellAllowedCommand::deserialize(deserializer)?;
+
+    if !config.sidecar && config.command.is_none() {
+      return Err(DeError::custom(
+        "The shell scope `command` value is required.",
+      ));
+    }
+
+    Ok(ShellAllowedCommand {
+      name: config.name,
+      command: config.command.unwrap_or_default(),
+      args: config.args,
+      sidecar: config.sidecar,
+    })
+  }
 }
 
 /// A set of command arguments allowed to be executed by the webview API.

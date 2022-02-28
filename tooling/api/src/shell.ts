@@ -42,7 +42,7 @@
  *
  * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
- * - `cmd`: the program that is executed on this configuration. If it's a sidecar, it must be the same as `name`.
+ * - `cmd`: the program that is executed on this configuration. If it's a sidecar, this value is ignored.
  * - `sidecar`: whether the object configures a sidecar or a system program.
  * - `args`: the arguments that can be passed to the program. By default no arguments are allowed.
  *   - `true` means that any argument list is allowed.

@@ -3,7 +3,7 @@ name = "splashscreen"
 version = "0.1.0"
 description = "An example Tauri Application with a splashscreen"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.58"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]

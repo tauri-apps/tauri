@@ -8,7 +8,7 @@ homepage = "https://tauri.studio"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.58"
 exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 

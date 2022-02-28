@@ -1157,13 +1157,24 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(
-  window.__TAURI_METADATA__.__currentWindow.label,
-  {
+let appWindow
+if ('__TAURI_METADATA__' in window) {
+  appWindow = new WebviewWindow(
+    window.__TAURI_METADATA__.__currentWindow.label,
+    {
+      // @ts-expect-error
+      skip: true
+    }
+  )
+} else {
+  console.error(
+    'Could not find `window.__TAURI_METADATA__`. The `appWindow` value will reference the `main` window label.'
+  )
+  appWindow = new WebviewWindow('main', {
     // @ts-expect-error
     skip: true
-  }
-)
+  })
+}
 
 /** Configuration for the window to create. */
 interface WindowOptions {

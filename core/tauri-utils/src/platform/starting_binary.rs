@@ -69,6 +69,7 @@ impl StartingBinary {
           .symlink_metadata()
           .as_ref()
           .map(std::fs::Metadata::file_type)
+          .as_ref()
           .map(std::fs::FileType::is_symlink),
         Ok(true)
       )

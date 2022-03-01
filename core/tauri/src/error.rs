@@ -107,6 +107,10 @@ pub enum Error {
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
   InvalidWindowUrl(&'static str),
+  /// Error decoding PNG image.
+  #[cfg(feature = "icon-png")]
+  #[error("failed to decode PNG: {0}")]
+  PngDecode(#[from] png::DecodingError),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

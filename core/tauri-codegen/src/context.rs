@@ -242,7 +242,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .join(system_tray_icon_path)
       .display()
       .to_string();
-    quote!(Some(#root::Icon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
+    quote!(Some(#root::Icon::Raws(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };

@@ -3329,7 +3329,9 @@ dependencies = [
  "glob",
  "gtk",
  "http",
+ "ico",
  "ignore",
+ "infer",
  "minisign-verify",
  "notify-rust",
  "once_cell",
@@ -3337,6 +3339,7 @@ dependencies = [
  "os_info",
  "os_pipe",
  "percent-encoding",
+ "png 0.16.8",
  "rand 0.8.5",
  "raw-window-handle",
  "regex",
@@ -3426,9 +3429,6 @@ name = "tauri-runtime-wry"
 version = "0.3.2"
 dependencies = [
  "gtk",
- "ico",
- "infer",
- "png 0.16.8",
  "tauri-runtime",
  "tauri-utils",
  "uuid",

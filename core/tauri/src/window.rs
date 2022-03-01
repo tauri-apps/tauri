@@ -21,12 +21,12 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
-    Dispatch, Icon, Runtime, UserAttentionType,
+    Dispatch, Runtime, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::WindowUrl,
-  Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
+  Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
 };
 
 use serde::Serialize;
@@ -725,7 +725,11 @@ impl<R: Runtime> Window<R> {
 
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
-    self.window.dispatcher.set_icon(icon).map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .set_icon(icon.try_into()?)
+      .map_err(Into::into)
   }
 
   /// Whether to show the window icon in the task bar or not.

@@ -41,16 +41,7 @@ impl<'de> Deserialize<'de> for SafePathBuf {
     D: Deserializer<'de>,
   {
     let path = std::path::PathBuf::deserialize(deserializer)?;
-    if path.components().any(|x| {
-      matches!(
-        x,
-        Component::ParentDir | Component::RootDir | Component::Prefix(_)
-      )
-    }) {
-      Err(DeError::custom("cannot traverse directory"))
-    } else {
       Ok(SafePathBuf(path))
-    }
   }
 }
 

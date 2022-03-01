@@ -172,7 +172,19 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
+    let bytes = std::fs::read(&icon_path).unwrap().to_vec();
+    let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
+      .expect(&format!("failed to read window icon {}", icon_path));
+    let entry = &icon_dir.entries()[0];
+    let rgba = entry
+      .decode()
+      .expect("failed to decode window ico")
+      .rgba_data()
+      .to_vec();
+    let width = entry.width();
+    let height = entry.height();
+    let rgba_items = rgba.into_iter();
+    quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
   } else if cfg!(target_os = "linux") {
     let icon_path = find_icon(
       &config,
@@ -180,7 +192,19 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       |i| i.ends_with(".png"),
       "icons/icon.png",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
+    let bytes = std::fs::read(&icon_path).unwrap().to_vec();
+    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    let (info, mut reader) = decoder
+      .read_info()
+      .expect(&format!("failed to read window icon {}", icon_path));
+    let mut buffer: Vec<u8> = Vec::new();
+    while let Ok(Some(row)) = reader.next_row() {
+      buffer.extend(row);
+    }
+    let rgba_items = buffer.into_iter();
+    let width = info.width;
+    let height = info.height;
+    quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
   } else {
     quote!(None)
   };

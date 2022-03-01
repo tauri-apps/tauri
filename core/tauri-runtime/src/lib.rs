@@ -174,8 +174,8 @@ impl TrayIcon {
   pub fn into_platform_icon(self) -> PathBuf {
     match self {
       Self::File(path) => path,
-      Self::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      Self::Rgba { .. } => {
+        panic!("linux requires the system menu icon to be a file path, not RGBA bytes.")
       }
     }
   }
@@ -187,7 +187,7 @@ impl TrayIcon {
     match self {
       Self::Rgba { rgba, .. } => rgba,
       Self::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path.")
+        panic!("non-linux system menu icons must be RGBA bytes, not a file path.")
       }
     }
   }

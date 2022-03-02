@@ -15,7 +15,9 @@ use serialize_to_javascript::{default_template, Template};
 #[cfg(not(feature = "isolation"))]
 mod ring_impl {
   #[cfg(not(feature = "__isolation-docs"))]
-  compile_error!("Isolation random number generator was used without enabling the `isolation` feature.");
+  compile_error!(
+    "Isolation random number generator was used without enabling the `isolation` feature."
+  );
 
   pub struct Unspecified;
 

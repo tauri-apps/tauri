@@ -3121,8 +3121,9 @@ checksum = "08cabc9f0066848fef4bc6a1c1668e6efce38b661d2aeec75d18d8617eebb5f1"
 
 [[package]]
 name = "wry"
-version = "0.13.2"
-source = "git+https://github.com/tauri-apps/wry?branch=fix-doc#719a3f6daa2def09e07bdc45e4ab1b0577422189"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9514586e5c964d30cc7123c9aea9880ff7b3cb1c43f6a1dc8703941eb72ac89f"
 dependencies = [
  "cocoa",
  "core-graphics",

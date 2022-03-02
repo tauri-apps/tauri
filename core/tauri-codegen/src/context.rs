@@ -216,12 +216,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .join(system_tray_icon_path)
         .display()
         .to_string();
-      quote!(Some(#root::Icon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
     } else {
       let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
       quote!(
         Some(
-          #root::Icon::File(
+          #root::TrayIcon::File(
             #root::api::path::resolve_path(
               &#config,
               &#package_info,

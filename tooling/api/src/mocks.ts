@@ -40,6 +40,7 @@ interface IPCMessage {
 export function mockIPC(
   cb: (cmd: string, args: Record<string, unknown>) => any
 ): void {
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises
   window.__TAURI_IPC__ = async ({
     cmd,
     callback,

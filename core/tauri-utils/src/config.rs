@@ -891,6 +891,7 @@ pub struct ShellAllowedCommand {
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
   /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
+  #[serde(rename = "cmd")]
   pub command: PathBuf,
 
   /// The allowed arguments for the command execution.

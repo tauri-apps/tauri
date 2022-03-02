@@ -869,7 +869,6 @@ impl<R: Runtime> Builder<R> {
   ///     return (win, webview);
   ///   });
   /// ```
-  #[must_use]
   pub fn create_window<F>(
     mut self,
     label: impl Into<String>,

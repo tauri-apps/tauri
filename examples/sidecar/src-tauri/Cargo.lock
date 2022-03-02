@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -2590,6 +2590,7 @@ dependencies = [
  "gtk",
  "http",
  "ignore",
+ "memchr",
  "once_cell",
  "os_pipe",
  "percent-encoding",
@@ -2618,7 +2619,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -2631,7 +2632,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "base64",
  "blake3",
@@ -2650,7 +2651,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -2662,7 +2663,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "gtk",
  "http",
@@ -2679,7 +2680,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "gtk",
  "ico",
@@ -2695,7 +2696,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 dependencies = [
  "ctor",
  "glob",

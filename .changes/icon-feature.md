@@ -4,4 +4,4 @@
 "tauri-runtime-wry": patch
 ---
 
-Move `ico` and `png` parsing behind `icon-ico` and `icon-png` Cargo features.
+**Breaking change:** Move `ico` and `png` parsing behind `icon-ico` and `icon-png` Cargo features.

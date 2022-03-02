@@ -159,7 +159,7 @@ pub struct WindowIcon {
 pub enum TrayIcon {
   /// Icon from file path.
   File(PathBuf),
-  /// Icon from raw RGBA bytes.
+  /// Icon from raw RGBA bytes. Currently `width` and `height` are ignored.
   Rgba {
     rgba: Vec<u8>,
     width: u32,

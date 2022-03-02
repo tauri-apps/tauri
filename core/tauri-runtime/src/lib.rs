@@ -159,12 +159,8 @@ pub struct WindowIcon {
 pub enum TrayIcon {
   /// Icon from file path.
   File(PathBuf),
-  /// Icon from raw RGBA bytes. Currently `width` and `height` are ignored.
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
+  /// Icon from raw file bytes.
+  Raw(Vec<u8>),
 }
 
 impl TrayIcon {
@@ -174,8 +170,8 @@ impl TrayIcon {
   pub fn into_platform_icon(self) -> PathBuf {
     match self {
       Self::File(path) => path,
-      Self::Rgba { .. } => {
-        panic!("linux requires the system menu icon to be a file path, not RGBA bytes.")
+      Self::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
       }
     }
   }
@@ -185,9 +181,9 @@ impl TrayIcon {
   #[cfg(not(target_os = "linux"))]
   pub fn into_platform_icon(self) -> Vec<u8> {
     match self {
-      Self::Rgba { rgba, .. } => rgba,
+      Self::Raw(r) => r,
       Self::File(_) => {
-        panic!("non-linux system menu icons must be RGBA bytes, not a file path.")
+        panic!("non-linux system menu icons must be raw bytes, not a file path.")
       }
     }
   }

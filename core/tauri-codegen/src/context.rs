@@ -173,7 +173,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    ico_icon(&root, quote!(Icon), icon_path)
+    ico_icon(&root, icon_path)
   };
   #[cfg(target_os = "linux")]
   let default_window_icon = {
@@ -183,7 +183,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       |i| i.ends_with(".png"),
       "icons/icon.png",
     );
-    png_icon(&root, quote!(Icon), icon_path)
+    png_icon(&root, icon_path)
   };
   #[cfg(not(any(windows, target_os = "linux")))]
   let default_window_icon = quote!(None);
@@ -240,24 +240,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(target_os = "linux"))]
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
     let mut system_tray_icon_path = tray.icon_path.clone();
-    #[cfg(windows)]
-    {
-      system_tray_icon_path.set_extension("ico");
-      let system_tray_icon_path = config_parent
-        .join(system_tray_icon_path)
-        .display()
-        .to_string();
-      ico_icon(&root, quote!(TrayIcon), system_tray_icon_path)
-    }
-    #[cfg(not(windows))]
-    {
-      system_tray_icon_path.set_extension("png");
-      let system_tray_icon_path = config_parent
-        .join(system_tray_icon_path)
-        .display()
-        .to_string();
-      png_icon(&root, quote!(TrayIcon), system_tray_icon_path)
-    }
+    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
+    let system_tray_icon_path = config_parent
+      .join(system_tray_icon_path)
+      .display()
+      .to_string();
+    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -353,7 +341,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 }
 
 #[cfg(windows)]
-fn ico_icon<P: AsRef<Path>>(root: &TokenStream, icon_ty: TokenStream, path: P) -> TokenStream {
+fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
     .expect(&format!("failed to read window icon {}", path.display()))
@@ -369,11 +357,11 @@ fn ico_icon<P: AsRef<Path>>(root: &TokenStream, icon_ty: TokenStream, path: P) -
   let width = entry.width();
   let height = entry.height();
   let rgba_items = rgba.into_iter();
-  quote!(Some(#root::#icon_ty::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
+  quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
 }
 
 #[cfg(not(windows))]
-fn png_icon<P: AsRef<Path>>(root: &TokenStream, icon_ty: TokenStream, path: P) -> TokenStream {
+fn png_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
     .expect(&format!("failed to read window icon {}", path.display()))
@@ -389,7 +377,7 @@ fn png_icon<P: AsRef<Path>>(root: &TokenStream, icon_ty: TokenStream, path: P) -
   let rgba_items = buffer.into_iter();
   let width = info.width;
   let height = info.height;
-  quote!(Some(#root::#icon_ty::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
+  quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
 }
 
 fn find_icon<F: Fn(&&String) -> bool>(

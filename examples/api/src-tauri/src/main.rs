@@ -145,11 +145,9 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Rgba {
-                rgba: include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
-                width: 0,
-                height: 0,
-              })
+              .set_icon(tauri::TrayIcon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
+              ))
               .unwrap();
           }
           #[cfg(target_os = "macos")]
@@ -158,11 +156,9 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Rgba {
-                rgba: include_bytes!("../../../.icons/tray_icon_with.png").to_vec(),
-                width: 0,
-                height: 0,
-              })
+              .set_icon(tauri::TrayIcon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with.png").to_vec(),
+              ))
               .unwrap();
           }
           #[cfg(target_os = "linux")]
@@ -182,20 +178,16 @@ fn main() {
           #[cfg(target_os = "windows")]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::TrayIcon::Rgba {
-              rgba: include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
-              width: 0,
-              height: 0,
-            })
+            .set_icon(tauri::TrayIcon::Raw(
+              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
+            ))
             .unwrap(),
           #[cfg(target_os = "windows")]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::TrayIcon::Rgba {
-              rgba: include_bytes!("../../../.icons/icon.ico").to_vec(),
-              width: 0,
-              height: 0,
-            })
+            .set_icon(tauri::TrayIcon::Raw(
+              include_bytes!("../../../.icons/icon.ico").to_vec(),
+            ))
             .unwrap(),
           "switch_menu" => {
             let flag = is_menu1.load(Ordering::Relaxed);

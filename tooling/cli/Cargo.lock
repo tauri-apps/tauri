@@ -1032,7 +1032,7 @@ dependencies = [
  "num-iter",
  "num-rational",
  "num-traits",
- "png 0.17.4",
+ "png 0.17.5",
  "scoped_threadpool",
  "tiff",
 ]
@@ -1908,9 +1908,9 @@ dependencies = [
 
 [[package]]
 name = "png"
-version = "0.17.4"
+version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02cd7d51cea7e2fa6bbcb8af5fbcad15b871451bfc2d20ed72dff2f4ae072a84"
+checksum = "dc38c0ad57efb786dd57b9864e5b18bae478c00c824dc55a38bbc9da95dde3ba"
 dependencies = [
  "bitflags",
  "crc32fast",
@@ -2632,7 +2632,6 @@ dependencies = [
  "libflate",
  "md5",
  "os_pipe",
- "png 0.17.3",
  "regex",
  "serde",
  "serde_json",

@@ -1059,7 +1059,7 @@ impl<R: Runtime> Builder<R> {
       if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
-        if let Some(TrayIcon::Rgba { .. }) = icon {
+        if let Some(TrayIcon::Raw(..)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on linux must be a file path",
@@ -1070,7 +1070,7 @@ impl<R: Runtime> Builder<R> {
         if let Some(TrayIcon::File(_)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
-            "system tray icons on non-linux platforms must be the raw RGBA bytes",
+            "system tray icons on non-linux platforms must be the raw bytes",
           ))));
         }
       }

@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{InvokeContext, InvokeResponse};
-#[cfg(any(dialog_open, dialog_save))]
-use crate::api::dialog::blocking::FileDialogBuilder;
 use crate::Runtime;
+#[cfg(any(dialog_open, dialog_save))]
+use crate::{api::dialog::blocking::FileDialogBuilder, Manager, Scopes};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
@@ -97,12 +97,28 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
+    let scopes = context.window.state::<Scopes>();
+
     let res = if options.directory {
-      dialog_builder.pick_folder().into()
+      let folder = dialog_builder.pick_folder();
+      if let Some(path) = &folder {
+        scopes.allow_directory(path);
+      }
+      folder.into()
     } else if options.multiple {
-      dialog_builder.pick_files().into()
+      let files = dialog_builder.pick_files();
+      if let Some(files) = &files {
+        for file in files {
+          scopes.allow_file(file);
+        }
+      }
+      files.into()
     } else {
-      dialog_builder.pick_file().into()
+      let file = dialog_builder.pick_file();
+      if let Some(file) = &file {
+        scopes.allow_file(file);
+      }
+      file.into()
     };
 
     Ok(res)
@@ -127,7 +143,14 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
-    Ok(dialog_builder.save_file())
+    let scopes = context.window.state::<Scopes>();
+
+    let path = dialog_builder.save_file();
+    if let Some(p) = &path {
+      scopes.allow_file(p);
+    }
+
+    Ok(path)
   }
 
   #[module_command_handler(dialog_message, "dialog > message")]

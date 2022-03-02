@@ -70,7 +70,11 @@ interface SaveDialogOptions {
 }
 
 /**
- * Open a file/directory selection dialog
+ * Open a file/directory selection dialog.
+ *
+ * The selected paths are added to the filesystem and asset protocol allowlist scopes.
+ * When security is more important than the easy of use of this API,
+ * prefer writing a dedicated command instead.
  *
  * @returns A promise resolving to the selected path(s)
  */
@@ -92,6 +96,10 @@ async function open(
 
 /**
  * Open a file/directory save dialog.
+ *
+ * The selected path is added to the filesystem and asset protocol allowlist scopes.
+ * When security is more important than the easy of use of this API,
+ * prefer writing a dedicated command instead.
  *
  * @returns A promise resolving to the selected path.
  */

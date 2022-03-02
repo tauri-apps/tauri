@@ -14,13 +14,16 @@ use serialize_to_javascript::{default_template, Template};
 
 #[cfg(not(feature = "isolation"))]
 mod ring_impl {
+  #[cfg(not(feature = "__isolation-docs"))]
+  compile_error!("Isolation random number generator was used without enabling the `isolation` feature.");
+
   pub struct Unspecified;
 
   pub struct SystemRandom;
 
   impl SystemRandom {
     pub fn new() -> Self {
-      Self {}
+      unimplemented!()
     }
   }
 
@@ -28,12 +31,12 @@ mod ring_impl {
 
   impl Random {
     pub fn expose(self) -> [u8; 32] {
-      [0; 32]
+      unimplemented!()
     }
   }
 
   pub fn rand_generate(_rng: &SystemRandom) -> Result<Random, super::Error> {
-    Ok(Random {})
+    unimplemented!()
   }
 }
 

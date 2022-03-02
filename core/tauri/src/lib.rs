@@ -158,7 +158,7 @@ pub use tauri_runtime as runtime;
 pub mod scope;
 pub mod settings;
 mod state;
-#[cfg(feature = "updater")]
+#[cfg(any(feature = "updater", feature = "__updater-docs"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 

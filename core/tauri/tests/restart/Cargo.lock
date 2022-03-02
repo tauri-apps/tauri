@@ -2585,6 +2585,8 @@ version = "1.0.0-rc.2"
 dependencies = [
  "base64",
  "blake3",
+ "ico",
+ "png 0.16.8",
  "proc-macro2",
  "quote",
  "serde",
@@ -2631,9 +2633,6 @@ name = "tauri-runtime-wry"
 version = "0.3.2"
 dependencies = [
  "gtk",
- "ico",
- "infer",
- "png 0.16.8",
  "tauri-runtime",
  "tauri-utils",
  "uuid",

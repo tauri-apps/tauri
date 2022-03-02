@@ -298,11 +298,11 @@ impl TryFrom<Icon> for runtime::WindowIcon {
       height,
     } = icon
     {
-      return Ok(Self {
+      Ok(Self {
         rgba,
         width,
         height,
-      });
+      })
     } else {
       #[cfg(not(any(feature = "icon-ico", feature = "icon-png")))]
       panic!("unexpected Icon variant");

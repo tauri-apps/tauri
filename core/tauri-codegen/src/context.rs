@@ -344,14 +344,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .expect(&format!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .expect(&format!("failed to parse window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .expect(&format!("failed to decode window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
     .rgba_data()
     .to_vec();
   let width = entry.width();
@@ -364,12 +364,12 @@ fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
 fn png_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .expect(&format!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let (info, mut reader) = decoder
     .read_info()
-    .expect(&format!("failed to read window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row);

@@ -83,3 +83,7 @@ __handlers__/
 # benches
 gh-pages
 test_video.mp4
+
+# old cli directories
+/tooling/cli.js
+/tooling/cli.rs

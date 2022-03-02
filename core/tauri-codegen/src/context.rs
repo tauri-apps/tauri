@@ -50,7 +50,7 @@ fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) 
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
-  #[cfg(feature = "isolation")]
+  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
   move |key, path, input, csp_hashes| {
@@ -60,7 +60,7 @@ fn map_core_assets(
       if csp {
         load_csp(&mut document, key, csp_hashes);
 
-        #[cfg(feature = "isolation")]
+        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
         if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
           // create the csp for the isolation iframe styling now, to make the runtime less complex
           let mut hasher = Sha256::new();
@@ -78,7 +78,7 @@ fn map_core_assets(
   }
 }
 
-#[cfg(feature = "isolation")]
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
@@ -268,7 +268,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
-    #[cfg(feature = "isolation")]
+    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {

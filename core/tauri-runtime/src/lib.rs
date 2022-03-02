@@ -102,6 +102,9 @@ pub enum Error {
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// The given window label is invalid.
+  #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
+  InvalidWindowLabel,
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
@@ -135,8 +138,6 @@ pub enum Error {
   InvalidStatusCode(#[from] InvalidStatusCode),
   #[error("Invalid method: {0}")]
   InvalidMethod(#[from] InvalidMethod),
-  #[error("Infallible error, something went really wrong: {0}")]
-  Infallible(#[from] std::convert::Infallible),
 }
 
 /// Result type.

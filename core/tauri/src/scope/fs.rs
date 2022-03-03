@@ -4,7 +4,7 @@
 
 use std::{
   fmt,
-  path::Path,
+  path::{Path, PathBuf},
   sync::{Arc, Mutex},
 };
 
@@ -40,7 +40,7 @@ impl fmt::Debug for Scope {
 }
 
 fn push_pattern<P: AsRef<Path>>(list: &mut Vec<Pattern>, pattern: P) {
-  let pattern = pattern.as_ref();
+  let pattern: PathBuf = pattern.as_ref().components().collect();
   list.push(Pattern::new(&pattern.to_string_lossy()).expect("invalid glob pattern"));
   #[cfg(windows)]
   {
@@ -99,6 +99,7 @@ impl Scope {
     };
 
     if let Ok(path) = path {
+      let path: PathBuf = path.components().collect();
       let allowed = self
         .allow_patterns
         .lock()

@@ -204,7 +204,7 @@ impl<R: Runtime> Window<R> {
       window_builder,
       webview_attributes,
       label,
-    ))
+    )?)
   }
 
   pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {

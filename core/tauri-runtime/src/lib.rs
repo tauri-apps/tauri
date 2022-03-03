@@ -138,6 +138,8 @@ pub enum Error {
   InvalidStatusCode(#[from] InvalidStatusCode),
   #[error("Invalid method: {0}")]
   InvalidMethod(#[from] InvalidMethod),
+  #[error("Infallible error, something went really wrong: {0}")]
+  Infallible(#[from] std::convert::Infallible),
 }
 
 /// Result type.

@@ -729,7 +729,8 @@ pub fn command(_options: Options) -> Result<()> {
               .tauri
               .security
               .csp
-              .clone()
+              .as_ref()
+              .map(|c| c.to_string())
               .unwrap_or_else(|| "unset".to_string()),
           )
           .display();

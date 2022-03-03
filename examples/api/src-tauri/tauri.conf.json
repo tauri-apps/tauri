@@ -116,7 +116,12 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com",
+      "csp": {
+        "default-src": ["'self'", "customprotocol:"],
+        "font-src": ["https://fonts.gstatic.com"],
+        "img-src": "'self' asset: https://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+      },
       "freezePrototype": true
     },
     "systemTray": {

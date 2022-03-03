@@ -20,6 +20,7 @@ use tauri_macros::default_runtime;
 use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
+  config::{Csp, CspDirectiveSources},
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
@@ -67,8 +68,8 @@ const MENU_EVENT: &str = "tauri://menu";
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
 struct CspHashStrings {
-  script: String,
-  style: String,
+  script: Vec<String>,
+  style: Vec<String>,
 }
 
 /// Sets the CSP value to the asset HTML if needed (on Linux).
@@ -78,20 +79,19 @@ fn set_csp<R: Runtime>(
   assets: Arc<dyn Assets>,
   asset_path: &AssetKey,
   #[allow(unused_variables)] manager: &WindowManager<R>,
-  mut csp: String,
+  csp: Csp,
 ) -> String {
+  let mut csp = csp.into();
   let hash_strings =
     assets
       .csp_hashes(asset_path)
       .fold(CspHashStrings::default(), |mut acc, hash| {
         match hash {
           CspHash::Script(hash) => {
-            acc.script.push(' ');
-            acc.script.push_str(hash);
+            acc.script.push(hash.into());
           }
           CspHash::Style(hash) => {
-            acc.style.push(' ');
-            acc.style.push_str(hash);
+            acc.style.push(hash.into());
           }
           _csp_hash => {
             #[cfg(debug_assertions)]
@@ -120,15 +120,13 @@ fn set_csp<R: Runtime>(
 
   #[cfg(feature = "isolation")]
   if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
-    let default_src = format!("default-src {}", format_real_schema(schema));
-    if csp.contains("default-src") {
-      csp = csp.replace("default-src", &default_src);
-    } else {
-      csp.push_str("; ");
-      csp.push_str(&default_src);
-    }
+    let default_src = csp
+      .entry("default-src".into())
+      .or_insert_with(Default::default);
+    default_src.push(format_real_schema(schema));
   }
 
+  let csp = Csp::DirectiveMap(csp).to_string();
   #[cfg(target_os = "linux")]
   {
     *asset = asset.replacen(tauri_utils::html::CSP_TOKEN, &csp, 1);
@@ -156,9 +154,9 @@ fn replace_with_callback<F: FnMut() -> String>(
 fn replace_csp_nonce(
   asset: &mut String,
   token: &str,
-  csp: &mut String,
-  csp_attr: &str,
-  hashes: String,
+  csp: &mut HashMap<String, CspDirectiveSources>,
+  directive: &str,
+  hashes: Vec<String>,
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
@@ -168,29 +166,17 @@ fn replace_csp_nonce(
   });
 
   if !(nonces.is_empty() && hashes.is_empty()) {
-    let attr = format!(
-      "{} 'self'{}{}",
-      csp_attr,
-      if nonces.is_empty() {
-        "".into()
-      } else {
-        format!(
-          " {}",
-          nonces
-            .into_iter()
-            .map(|n| format!("'nonce-{}'", n))
-            .collect::<Vec<String>>()
-            .join(" ")
-        )
-      },
-      hashes
-    );
-    if csp.contains(csp_attr) {
-      *csp = csp.replace(csp_attr, &attr);
-    } else {
-      csp.push_str("; ");
-      csp.push_str(&attr);
+    let nonce_sources = nonces
+      .into_iter()
+      .map(|n| format!("'nonce-{}'", n))
+      .collect::<Vec<String>>();
+    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let self_source = "'self'".to_string();
+    if !sources.contains(&self_source) {
+      sources.push(self_source);
     }
+    sources.extend(nonce_sources);
+    sources.extend(hashes);
   }
 }
 
@@ -376,7 +362,7 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  fn csp(&self) -> Option<String> {
+  fn csp(&self) -> Option<Csp> {
     if cfg!(feature = "custom-protocol") {
       self.inner.config.tauri.security.csp.clone()
     } else {

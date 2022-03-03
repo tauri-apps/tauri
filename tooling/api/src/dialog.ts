@@ -53,6 +53,11 @@ interface OpenDialogOptions {
   multiple?: boolean
   /** Whether the dialog is a directory selection or not. */
   directory?: boolean
+  /**
+   * If `directory` is true, indicates that it will be read recursively later.
+   * Defines whether subdirectories will be allowed on the scope or not.
+   */
+  recursive?: boolean
 }
 
 /** Options for the save dialog. */

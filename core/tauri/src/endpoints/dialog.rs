@@ -36,6 +36,10 @@ pub struct OpenDialogOptions {
   pub directory: bool,
   /// The initial path of the dialog.
   pub default_path: Option<PathBuf>,
+  /// If [`Self::directory`] is true, indicates that it will be read recursively later.
+  /// Defines whether subdirectories will be allowed on the scope or not.
+  #[serde(default)]
+  pub recursive: bool,
 }
 
 /// The options for the save dialog API.
@@ -102,7 +106,7 @@ impl Cmd {
     let res = if options.directory {
       let folder = dialog_builder.pick_folder();
       if let Some(path) = &folder {
-        scopes.allow_directory(path);
+        scopes.allow_directory(path, options.recursive);
       }
       folder.into()
     } else if options.multiple {
@@ -221,6 +225,7 @@ mod tests {
         directory: bool::arbitrary(g),
         default_path: Option::arbitrary(g),
         title: Option::arbitrary(g),
+        recursive: bool::arbitrary(g),
       }
     }
   }

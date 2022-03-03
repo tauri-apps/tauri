@@ -834,7 +834,7 @@ impl<R: Runtime> WindowManager<R> {
             if path.is_file() {
               scopes.allow_file(path);
             } else {
-              scopes.allow_directory(path);
+              scopes.allow_directory(path, false);
             }
           }
           window.emit_and_trigger("tauri://file-drop", paths)

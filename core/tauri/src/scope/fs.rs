@@ -72,14 +72,14 @@ impl Scope {
   ///
   /// After this function has been called, the frontend will be able to use the Tauri API to read
   /// the directory and all of its files and subdirectories.
-  pub fn allow_directory<P: AsRef<Path>>(&self, path: P) {
+  pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) {
     let path = path.as_ref().to_path_buf();
     let mut list = self.allow_patterns.lock().unwrap();
 
     // allow the directory to be read
     push_pattern(&mut list, &path);
     // allow its files and subdirectories to be read
-    push_pattern(&mut list, path.join("**"));
+    push_pattern(&mut list, path.join(if recursive { "**" } else { "*" }));
   }
 
   /// Extend the allowed patterns with the given file path.

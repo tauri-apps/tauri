@@ -286,7 +286,7 @@ impl<R: Runtime> WindowBuilder<R> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn parent_window(self, parent: HWND) -> Self {
+  pub fn parent_window(mut self, parent: HWND) -> Self {
     self.window_builder = self.window_builder.parent_window(parent);
     self
   }
@@ -301,7 +301,7 @@ impl<R: Runtime> WindowBuilder<R> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   #[must_use]
-  pub fn owner_window(self, owner: HWND) -> Self {
+  pub fn owner_window(mut self, owner: HWND) -> Self {
     self.window_builder = self.window_builder.owner_window(owner);
     self
   }

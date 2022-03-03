@@ -10,5 +10,4 @@ exclude = ["/examples", "/webview-dist", "/webview-src", "node_modules"]
 [dependencies]
 tauri = {{{  tauri_dep }}}
 serde = "1.0"
-serde_json = "1.0"
 thiserror = "1.0"

@@ -138,18 +138,22 @@ pub fn parse<P: AsRef<Path>>(
 ) -> crate::api::Result<PathBuf> {
   let mut p = PathBuf::new();
   let mut components = path.as_ref().components();
-  if let Some(Component::Normal(str)) = components.next() {
-    if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
-      p.push(resolve_path(
-        config,
-        package_info,
-        env,
-        "",
-        Some(base_directory),
-      )?);
-    } else {
-      p.push(str);
+  match components.next() {
+    Some(Component::Normal(str)) => {
+      if let Some(base_directory) = BaseDirectory::from_variable(&str.to_string_lossy()) {
+        p.push(resolve_path(
+          config,
+          package_info,
+          env,
+          "",
+          Some(base_directory),
+        )?);
+      } else {
+        p.push(str);
+      }
     }
+    Some(component) => p.push(component),
+    None => (),
   }
 
   for component in components {

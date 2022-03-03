@@ -1021,7 +1021,7 @@ impl<R: Runtime> WindowManager<R> {
           // naive way to check if it's an html
           if html.contains('<') && html.contains('>') {
             let mut document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&mut document, &csp);
+            tauri_utils::html::inject_csp(&mut document, &csp.to_string());
             url.set_path(&format!("text/html,{}", document.to_string()));
           }
         }

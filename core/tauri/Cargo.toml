@@ -97,7 +97,7 @@ glib = "0.15"
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
 
-[target."cfg(windows)".dev-dependencies.windows]
+[target."cfg(windows)".dependencies.windows]
 version = "0.30.0"
 features = [ "Win32_Foundation" ]
 

@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use tauri::{
   api::dialog::ask, http::ResponseBuilder, CustomMenuItem, GlobalShortcutManager, Manager,
-  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
@@ -130,13 +130,9 @@ fn main() {
           }
           "new" => {
             app
-              .create_window(
-                "new",
-                WindowUrl::App("index.html".into()),
-                |window_builder, webview_attributes| {
-                  (window_builder.title("Tauri"), webview_attributes)
-                },
-              )
+              .window_builder("new", WindowUrl::App("index.html".into()))
+              .title("Tauri")
+              .build()
               .unwrap();
           }
           #[cfg(target_os = "macos")]

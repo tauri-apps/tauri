@@ -15,7 +15,7 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
@@ -23,6 +23,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
+  window::{RuntimeHandleOrDispatch, WindowBuilder},
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
@@ -204,6 +205,21 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
+impl<R: Runtime> AppHandle<R> {
+  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
+  pub fn window_builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
+    WindowBuilder::<R>::new(
+      self.manager.clone(),
+      RuntimeHandleOrDispatch::RuntimeHandle(self.runtime_handle.clone()),
+      self.clone(),
+      label.into(),
+      url,
+    )
+  }
+}
+
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -353,12 +369,33 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
+impl<R: Runtime> App<R> {
+  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
+  pub fn window_builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
+    WindowBuilder::<R>::new(
+      self.manager.clone(),
+      RuntimeHandleOrDispatch::RuntimeHandle(self.handle.runtime_handle.clone()),
+      self.handle.clone(),
+      label.into(),
+      url,
+    )
+  }
+}
+
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
+      ///
+      /// See [`Self::window_builder`] for an API with extended functionality.
+      #[deprecated(
+        since = "1.0.0-rc.4",
+        note = "The `window_builder` function offers an easier API with extended functionality"
+      )]
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,

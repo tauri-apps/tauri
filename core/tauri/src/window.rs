@@ -15,8 +15,9 @@ use crate::{
   hooks::{InvokePayload, InvokeResponder},
   manager::WindowManager,
   runtime::{
+    menu::Menu,
     monitor::Monitor as RuntimeMonitor,
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
@@ -30,11 +31,14 @@ use crate::{
 };
 
 use serde::Serialize;
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
 
 use tauri_macros::default_runtime;
 
 use std::{
   hash::{Hash, Hasher},
+  path::PathBuf,
   sync::Arc,
 };
 
@@ -79,6 +83,266 @@ impl Monitor {
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> f64 {
     self.scale_factor
+  }
+}
+
+/// A runtime handle or dispatch used to create new windows.
+#[derive(Debug, Clone)]
+pub enum RuntimeHandleOrDispatch<R: Runtime> {
+  /// Handle to the running [`Runtime`].
+  RuntimeHandle(R::Handle),
+
+  /// A dispatcher to the running [`Runtime`].
+  Dispatch(R::Dispatcher),
+}
+
+/// A builder for a webview window managed by Tauri.
+#[default_runtime(crate::Wry, wry)]
+#[derive(Debug)]
+pub struct WindowBuilder<R: Runtime> {
+  manager: WindowManager<R>,
+  runtime: RuntimeHandleOrDispatch<R>,
+  app_handle: AppHandle<R>,
+  label: String,
+  pub(crate) window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+  webview_attributes: WebviewAttributes,
+}
+
+impl<R: Runtime> ManagerBase<R> for WindowBuilder<R> {
+  fn manager(&self) -> &WindowManager<R> {
+    &self.manager
+  }
+
+  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
+    match &self.runtime {
+      RuntimeHandleOrDispatch::RuntimeHandle(r) => RuntimeOrDispatch::RuntimeHandle(r.clone()),
+      RuntimeHandleOrDispatch::Dispatch(d) => RuntimeOrDispatch::Dispatch(d.clone()),
+    }
+  }
+
+  fn app_handle(&self) -> AppHandle<R> {
+    self.app_handle.clone()
+  }
+}
+
+impl<R: Runtime> WindowBuilder<R> {
+  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  pub fn new(
+    manager: WindowManager<R>,
+    runtime: RuntimeHandleOrDispatch<R>,
+    app_handle: AppHandle<R>,
+    label: String,
+    url: WindowUrl,
+  ) -> Self {
+    Self {
+      manager,
+      runtime,
+      app_handle,
+      label,
+      window_builder: <R::Dispatcher as Dispatch>::WindowBuilder::new(),
+      webview_attributes: WebviewAttributes::new(url),
+    }
+  }
+
+  /// Creates a new webview window.
+  pub fn build(self) -> crate::Result<Window<R>> {
+    self.create_new_window(PendingWindow::new(
+      self.window_builder.clone(),
+      self.webview_attributes.clone(),
+      self.label.clone(),
+    ))
+  }
+
+  // --------------------------------------------- Window builder ---------------------------------------------
+
+  /// Sets the menu for the window.
+  #[must_use]
+  pub fn menu(mut self, menu: Menu) -> Self {
+    self.window_builder = self.window_builder.menu(menu);
+    self
+  }
+
+  /// Show window in the center of the screen.
+  #[must_use]
+  pub fn center(mut self) -> Self {
+    self.window_builder = self.window_builder.center();
+    self
+  }
+
+  /// The initial position of the window's.
+  #[must_use]
+  pub fn position(mut self, x: f64, y: f64) -> Self {
+    self.window_builder = self.window_builder.position(x, y);
+    self
+  }
+
+  /// Window size.
+  #[must_use]
+  pub fn inner_size(mut self, width: f64, height: f64) -> Self {
+    self.window_builder = self.window_builder.inner_size(width, height);
+    self
+  }
+
+  /// Window min inner size.
+  #[must_use]
+  pub fn min_inner_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.window_builder = self.window_builder.min_inner_size(min_width, min_height);
+    self
+  }
+
+  /// Window max inner size.
+  #[must_use]
+  pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Whether the window is resizable or not.
+  #[must_use]
+  pub fn resizable(mut self, resizable: bool) -> Self {
+    self.window_builder = self.window_builder.resizable(resizable);
+    self
+  }
+
+  /// The title of the window in the title bar.
+  #[must_use]
+  pub fn title<S: Into<String>>(mut self, title: S) -> Self {
+    self.window_builder = self.window_builder.title(title);
+    self
+  }
+
+  /// Whether to start the window in fullscreen or not.
+  #[must_use]
+  pub fn fullscreen(mut self, fullscreen: bool) -> Self {
+    self.window_builder = self.window_builder.fullscreen(fullscreen);
+    self
+  }
+
+  /// Whether the window will be initially hidden or focused.
+  #[must_use]
+  pub fn focus(mut self) -> Self {
+    self.window_builder = self.window_builder.focus();
+    self
+  }
+
+  /// Whether the window should be maximized upon creation.
+  #[must_use]
+  pub fn maximized(mut self, maximized: bool) -> Self {
+    self.window_builder = self.window_builder.maximized(maximized);
+    self
+  }
+
+  /// Whether the window should be immediately visible upon creation.
+  #[must_use]
+  pub fn visible(mut self, visible: bool) -> Self {
+    self.window_builder = self.window_builder.visible(visible);
+    self
+  }
+
+  /// Whether the the window should be transparent. If this is true, writing colors
+  /// with alpha values different than `1.0` will produce a transparent window.
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+  )]
+  #[must_use]
+  pub fn transparent(mut self, transparent: bool) -> Self {
+    self.window_builder = self.window_builder.transparent(transparent);
+    self
+  }
+
+  /// Whether the window should have borders and bars.
+  #[must_use]
+  pub fn decorations(mut self, decorations: bool) -> Self {
+    self.window_builder = self.window_builder.decorations(decorations);
+    self
+  }
+
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn always_on_top(mut self, always_on_top: bool) -> Self {
+    self.window_builder = self.window_builder.always_on_top(always_on_top);
+    self
+  }
+
+  /// Sets the window icon.
+  pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.icon(icon)?;
+    Ok(self)
+  }
+
+  /// Sets whether or not the window icon should be added to the taskbar.
+  #[must_use]
+  pub fn skip_taskbar(mut self, skip: bool) -> Self {
+    self.window_builder = self.window_builder.skip_taskbar(skip);
+    self
+  }
+
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn parent_window(self, parent: HWND) -> Self {
+    self.window_builder = self.window_builder.parent_window(parent);
+    self
+  }
+
+  /// Set an owner to the window to be created.
+  ///
+  /// From MSDN:
+  /// - An owned window is always above its owner in the z-order.
+  /// - The system automatically destroys an owned window when its owner is destroyed.
+  /// - An owned window is hidden when its owner is minimized.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
+  #[cfg(windows)]
+  #[must_use]
+  pub fn owner_window(self, owner: HWND) -> Self {
+    self.window_builder = self.window_builder.owner_window(owner);
+    self
+  }
+
+  // ------------------------------------------- Webview attributes -------------------------------------------
+
+  /// Sets the init script.
+  #[must_use]
+  pub fn initialization_script(mut self, script: &str) -> Self {
+    self
+      .webview_attributes
+      .initialization_scripts
+      .push(script.to_string());
+    self
+  }
+
+  /// Data directory for the webview.
+  #[must_use]
+  pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
+    self
+      .webview_attributes
+      .data_directory
+      .replace(data_directory);
+    self
+  }
+
+  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  #[must_use]
+  pub fn disable_file_drop_handler(mut self) -> Self {
+    self.webview_attributes.file_drop_handler_enabled = false;
+    self
+  }
+
+  /// Enables clipboard access for the page rendered on **Linux** and **Windows**.
+  ///
+  /// **macOS** doesn't provide such method and is always enabled by default,
+  /// but you still need to add menu item accelerators to use shortcuts.
+  #[must_use]
+  pub fn enable_clipboard_access(mut self) -> Self {
+    self.webview_attributes.clipboard = true;
+    self
   }
 }
 
@@ -178,9 +442,28 @@ impl<R: Runtime> Window<R> {
     }
   }
 
+  /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// Data URLs are only supported with the `window-data-url` feature flag.
+  pub fn builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
+    WindowBuilder::<R>::new(
+      self.manager.clone(),
+      RuntimeHandleOrDispatch::Dispatch(self.dispatcher()),
+      self.app_handle(),
+      label.into(),
+      url,
+    )
+  }
+
   /// Creates a new webview window.
   ///
   /// Data URLs are only supported with the `window-data-url` feature flag.
+  ///
+  /// See [`Self::builder`] for an API with extended functionality.
+  #[deprecated(
+    since = "1.0.0-rc.4",
+    note = "The `builder` function offers an easier API with extended functionality"
+  )]
   pub fn create_window<F>(
     &mut self,
     label: String,
@@ -196,15 +479,18 @@ impl<R: Runtime> Window<R> {
       WebviewAttributes,
     ),
   {
-    let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.create_new_window(PendingWindow::new(
-      window_builder,
-      webview_attributes,
+    let mut builder = WindowBuilder::<R>::new(
+      self.manager.clone(),
+      RuntimeHandleOrDispatch::Dispatch(self.dispatcher()),
+      self.app_handle(),
       label,
-    ))
+      url,
+    );
+    let (window_builder, webview_attributes) =
+      setup(builder.window_builder, builder.webview_attributes);
+    builder.window_builder = window_builder;
+    builder.webview_attributes = webview_attributes;
+    builder.build()
   }
 
   pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {

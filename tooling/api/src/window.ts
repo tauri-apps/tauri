@@ -879,12 +879,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -921,12 +921,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1157,13 +1157,24 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(
-  window.__TAURI_METADATA__.__currentWindow.label,
-  {
+let appWindow
+if ('__TAURI_METADATA__' in window) {
+  appWindow = new WebviewWindow(
+    window.__TAURI_METADATA__.__currentWindow.label,
+    {
+      // @ts-expect-error
+      skip: true
+    }
+  )
+} else {
+  console.warn(
+    `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
+  )
+  appWindow = new WebviewWindow('main', {
     // @ts-expect-error
     skip: true
-  }
-)
+  })
+}
 
 /** Configuration for the window to create. */
 interface WindowOptions {

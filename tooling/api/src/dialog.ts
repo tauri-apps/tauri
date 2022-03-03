@@ -81,6 +81,9 @@ interface SaveDialogOptions {
  * When security is more important than the easy of use of this API,
  * prefer writing a dedicated command instead.
  *
+ * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
+ *
  * @returns A promise resolving to the selected path(s)
  */
 async function open(
@@ -105,6 +108,9 @@ async function open(
  * The selected path is added to the filesystem and asset protocol allowlist scopes.
  * When security is more important than the easy of use of this API,
  * prefer writing a dedicated command instead.
+ *
+ * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
  *
  * @returns A promise resolving to the selected path.
  */

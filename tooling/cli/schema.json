@@ -997,10 +997,37 @@
     },
     "FsAllowlistScope": {
       "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "anyOf": [
+        {
+          "description": "A list of paths that are allowed by this scope.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A complete scope configuration.",
+          "type": "object",
+          "properties": {
+            "allow": {
+              "description": "A list of paths that are allowed by this scope.",
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "deny": {
+              "description": "A list of paths that are not allowed by this scope. This gets precedence over the [`Self::allow`] list.",
+              "default": [],
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
     },
     "GlobalShortcutAllowlistConfig": {
       "description": "Allowlist for the global shortcut APIs.",

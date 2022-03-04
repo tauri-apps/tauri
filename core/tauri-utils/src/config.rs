@@ -638,9 +638,47 @@ macro_rules! check_feature {
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct FsAllowlistScope(pub Vec<PathBuf>);
+#[serde(untagged)]
+pub enum FsAllowlistScope {
+  /// A list of paths that are allowed by this scope.
+  AllowedPaths(Vec<PathBuf>),
+  /// A complete scope configuration.
+  Scope {
+    /// A list of paths that are allowed by this scope.
+    #[serde(default)]
+    allow: Vec<PathBuf>,
+    /// A list of paths that are not allowed by this scope.
+    /// This gets precedence over the [`Self::allow`] list.
+    #[serde(default)]
+    deny: Vec<PathBuf>,
+  },
+}
+
+impl Default for FsAllowlistScope {
+  fn default() -> Self {
+    Self::AllowedPaths(Vec::new())
+  }
+}
+
+impl FsAllowlistScope {
+  /// The list of allowed paths.
+  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
+    match self {
+      Self::AllowedPaths(p) => p,
+      Self::Scope { allow, .. } => allow,
+    }
+  }
+
+  /// The list of forbidden paths.
+  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
+    match self {
+      Self::AllowedPaths(_) => None,
+      Self::Scope { deny, .. } => Some(deny),
+    }
+  }
+}
 
 /// Allowlist for the file system APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
@@ -877,7 +915,7 @@ impl Allowlist for WindowAllowlistConfig {
 }
 
 /// A command allowed to be executed by the webview API.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct ShellAllowedCommand {
   /// The name for this allowed shell command configuration.
@@ -901,6 +939,39 @@ pub struct ShellAllowedCommand {
   /// If this command is a sidecar command.
   #[serde(default)]
   pub sidecar: bool,
+}
+
+impl<'de> Deserialize<'de> for ShellAllowedCommand {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerShellAllowedCommand {
+      name: String,
+      #[serde(rename = "cmd")]
+      command: Option<PathBuf>,
+      #[serde(default)]
+      args: ShellAllowedArgs,
+      #[serde(default)]
+      sidecar: bool,
+    }
+
+    let config = InnerShellAllowedCommand::deserialize(deserializer)?;
+
+    if !config.sidecar && config.command.is_none() {
+      return Err(DeError::custom(
+        "The shell scope `command` value is required.",
+      ));
+    }
+
+    Ok(ShellAllowedCommand {
+      name: config.name,
+      command: config.command.unwrap_or_default(),
+      args: config.args,
+      sidecar: config.sidecar,
+    })
+  }
 }
 
 /// A set of command arguments allowed to be executed by the webview API.
@@ -1476,7 +1547,7 @@ pub enum PatternKind {
   /// Brownfield pattern.
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
-  #[cfg(feature = "isolation")]
+  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
@@ -1553,7 +1624,7 @@ impl TauriConfig {
     if self.macos_private_api {
       features.push("macos-private-api");
     }
-    #[cfg(feature = "isolation")]
+    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
@@ -2205,7 +2276,7 @@ mod build {
 
       tokens.append_all(match self {
         Self::Brownfield => quote! { #prefix::Brownfield },
-        #[cfg(feature = "isolation")]
+        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
         Self::Isolation { dir } => {
           let dir = path_buf_lit(dir);
           quote! { #prefix::Isolation { dir: #dir } }
@@ -2348,8 +2419,19 @@ mod build {
 
   impl ToTokens for FsAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allowed_paths = vec_lit(&self.0, path_buf_lit);
-      tokens.append_all(quote! { ::tauri::utils::config::FsAllowlistScope(#allowed_paths) })
+      let prefix = quote! { ::tauri::utils::config::FsAllowlistScope };
+
+      tokens.append_all(match self {
+        Self::AllowedPaths(allow) => {
+          let allowed_paths = vec_lit(allow, path_buf_lit);
+          quote! { #prefix::AllowedPaths(#allowed_paths) }
+        }
+        Self::Scope { allow, deny } => {
+          let allow = vec_lit(allow, path_buf_lit);
+          let deny = vec_lit(deny, path_buf_lit);
+          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+        }
+      });
     }
   }
 

@@ -19,15 +19,14 @@ repository = "https://github.com/tauri-apps/tauri"
 version = "1.0.0-rc.3"
 
 [package.metadata.docs.rs]
-default-features = false
+no-default-features = true
 features = [
-  "compression",
   "wry",
-  "isolation",
+  "__isolation-docs",
   "custom-protocol",
   "api-all",
   "cli",
-  "updater",
+  "__updater-docs",
   "system-tray",
   "devtools",
   "dox"
@@ -63,7 +62,7 @@ serde_repr = "0.1"
 state = "0.5"
 tar = "0.4"
 tempfile = "3"
-zip = "0.5"
+zip = { version = "0.5", optional = true }
 ignore = "0.4"
 either = "1.6"
 flate2 = "1.0"
@@ -112,21 +111,25 @@ quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-tauri = { path = "." }
+tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4.2"
 tokio = { version = "1.16", features = [ "full" ] }
 
 [features]
-default = [ "wry", "compression" ]
+default = [ "wry", "compression", "objc-exception" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
+objc-exception = [ "tauri-runtime-wry/objc-exception" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
+__isolation-docs = [ "tauri-utils/__isolation-docs", "tauri-macros/__isolation-docs" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
-updater = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
+updater = [ "minisign-verify", "base64", "http-api", "dialog-ask", "fs-extract-api" ]
+__updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
+fs-extract-api = [ "zip" ]
 reqwest-client = [ "reqwest", "bytes" ]
-command = [ "shared_child", "os_pipe", "memchr" ]
+process-command-api = [ "shared_child", "os_pipe", "memchr" ]
 dialog = [ "rfd" ]
 notification = [ "notify-rust" ]
 cli = [ "clap" ]
@@ -192,8 +195,8 @@ process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch
 protocol-all = [ "protocol-asset" ]
 protocol-asset = [ ]
 shell-all = [ "shell-execute", "shell-sidecar", "shell-open" ]
-shell-execute = [ "command", "regex", "tauri-macros/shell-scope" ]
-shell-sidecar = [ "command", "regex", "tauri-macros/shell-scope" ]
+shell-execute = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
+shell-sidecar = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
 shell-open = [ "shell-open-api" ]
 window-all = [
   "window-create",

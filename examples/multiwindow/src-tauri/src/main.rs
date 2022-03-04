@@ -24,6 +24,7 @@ fn main() {
         (window_builder.title("Tauri - Rust"), webview_attributes)
       },
     )
+    .unwrap() // safe to unwrap: window label is valid
     .run(tauri::generate_context!(
       "../../examples/multiwindow/src-tauri/tauri.conf.json"
     ))

@@ -94,6 +94,8 @@ use std::{
   thread::{current as current_thread, ThreadId},
 };
 
+type WebviewId = u64;
+
 #[cfg(feature = "system-tray")]
 mod system_tray;
 #[cfg(feature = "system-tray")]
@@ -103,13 +105,26 @@ type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
 type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
-type WindowEventListeners = Arc<Mutex<HashMap<WindowId, WindowEventListenersMap>>>;
+type WindowEventListeners = Arc<Mutex<HashMap<WebviewId, WindowEventListenersMap>>>;
 // global shortcut
 type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
 // menu
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
-pub type MenuEventListeners = Arc<Mutex<HashMap<WindowId, WindowMenuEventListeners>>>;
+pub type MenuEventListeners = Arc<Mutex<HashMap<WebviewId, WindowMenuEventListeners>>>;
 pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
+
+#[derive(Debug, Clone, Default)]
+struct WebviewIdStore(Arc<Mutex<HashMap<WindowId, WebviewId>>>);
+
+impl WebviewIdStore {
+  fn insert(&self, w: WindowId, id: WebviewId) {
+    self.0.lock().unwrap().insert(w, id);
+  }
+
+  fn get(&self, w: WindowId) -> WebviewId {
+    *self.0.lock().unwrap().get(&w).unwrap()
+  }
+}
 
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
@@ -152,6 +167,7 @@ fn send_user_message(context: &Context, message: Message) -> Result<()> {
 
 #[derive(Clone)]
 struct Context {
+  webview_id_map: WebviewIdStore,
   main_thread_id: ThreadId,
   proxy: EventLoopProxy<Message>,
   window_event_listeners: WindowEventListeners,
@@ -165,7 +181,7 @@ struct DispatcherMainThreadContext {
   web_context: WebContextStore,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(feature = "system-tray")]
   tray_context: TrayContext,
 }
@@ -1023,17 +1039,18 @@ pub enum ClipboardMessage {
 
 pub enum Message {
   Task(Box<dyn FnOnce() + Send>),
-  Window(WindowId, WindowMessage),
-  Webview(WindowId, WebviewMessage),
+  Window(WebviewId, WindowMessage),
+  Webview(WebviewId, WebviewMessage),
   #[cfg(feature = "system-tray")]
   Tray(TrayMessage),
   CreateWebview(
+    WebviewId,
     Box<
       dyn FnOnce(&EventLoopWindowTarget<Message>, &WebContextStore) -> Result<WindowWrapper> + Send,
     >,
-    Sender<WindowId>,
   ),
   CreateWindow(
+    WebviewId,
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
@@ -1058,7 +1075,7 @@ impl Clone for Message {
 /// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryDispatcher {
-  window_id: WindowId,
+  window_id: WebviewId,
   context: Context,
 }
 
@@ -1228,22 +1245,21 @@ impl Dispatch for WryDispatcher {
     &mut self,
     pending: PendingWindow<Self::Runtime>,
   ) -> Result<DetachedWindow<Self::Runtime>> {
-    let (tx, rx) = channel();
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.context.clone();
+    let window_id = rand::random();
 
     send_user_message(
       &self.context,
       Message::CreateWebview(
+        window_id,
         Box::new(move |event_loop, web_context| {
-          create_webview(event_loop, web_context, context, pending)
+          create_webview(window_id, event_loop, web_context, context, pending)
         }),
-        tx,
       ),
     )?;
-    let window_id = rx.recv().unwrap();
 
     let dispatcher = WryDispatcher {
       window_id,
@@ -1493,7 +1509,8 @@ pub struct Wry {
   clipboard_manager: Arc<Mutex<Clipboard>>,
   clipboard_manager_handle: ClipboardManagerWrapper,
   event_loop: EventLoop<Message>,
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  webview_id_map: WebviewIdStore,
   web_context: WebContextStore,
   window_event_listeners: WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
@@ -1518,7 +1535,10 @@ impl WryHandle {
     f: F,
   ) -> Result<Weak<Window>> {
     let (tx, rx) = channel();
-    send_user_message(&self.context, Message::CreateWindow(Box::new(f), tx))?;
+    send_user_message(
+      &self.context,
+      Message::CreateWindow(rand::random(), Box::new(f), tx),
+    )?;
     rx.recv().unwrap()
   }
 
@@ -1542,21 +1562,20 @@ impl RuntimeHandle for WryHandle {
     &self,
     pending: PendingWindow<Self::Runtime>,
   ) -> Result<DetachedWindow<Self::Runtime>> {
-    let (tx, rx) = channel();
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.context.clone();
+    let window_id = rand::random();
     send_user_message(
       &self.context,
       Message::CreateWebview(
+        window_id,
         Box::new(move |event_loop, web_context| {
-          create_webview(event_loop, web_context, context, pending)
+          create_webview(window_id, event_loop, web_context, context, pending)
         }),
-        tx,
       ),
     )?;
-    let window_id = rx.recv().unwrap();
 
     let dispatcher = WryDispatcher {
       window_id,
@@ -1589,6 +1608,7 @@ impl Wry {
     let global_shortcut_manager = Arc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
     let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
     let windows = Arc::new(Mutex::new(HashMap::default()));
+    let webview_id_map = WebviewIdStore::default();
     let window_event_listeners = WindowEventListeners::default();
     let menu_event_listeners = MenuEventListeners::default();
 
@@ -1596,6 +1616,7 @@ impl Wry {
     let tray_context = TrayContext::default();
 
     let event_loop_context = Context {
+      webview_id_map: webview_id_map.clone(),
       main_thread_id,
       proxy,
       window_event_listeners: window_event_listeners.clone(),
@@ -1628,6 +1649,7 @@ impl Wry {
       clipboard_manager_handle,
       event_loop,
       windows,
+      webview_id_map,
       web_context,
       window_event_listeners,
       menu_event_listeners,
@@ -1663,6 +1685,7 @@ impl Runtime for Wry {
   fn handle(&self) -> Self::Handle {
     WryHandle {
       context: Context {
+        webview_id_map: self.webview_id_map.clone(),
         main_thread_id: self.main_thread_id,
         proxy: self.event_loop.create_proxy(),
         window_event_listeners: self.window_event_listeners.clone(),
@@ -1693,10 +1716,13 @@ impl Runtime for Wry {
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let proxy = self.event_loop.create_proxy();
+    let window_id = rand::random();
     let webview = create_webview(
+      window_id,
       &self.event_loop,
       &self.web_context,
       Context {
+        webview_id_map: self.webview_id_map.clone(),
         main_thread_id: self.main_thread_id,
         proxy: proxy.clone(),
         window_event_listeners: self.window_event_listeners.clone(),
@@ -1752,9 +1778,14 @@ impl Runtime for Wry {
       }
     }
 
+    self
+      .webview_id_map
+      .insert(webview.inner.window().id(), window_id);
+
     let dispatcher = WryDispatcher {
-      window_id: webview.inner.window().id(),
+      window_id,
       context: Context {
+        webview_id_map: self.webview_id_map.clone(),
         main_thread_id: self.main_thread_id,
         proxy,
         window_event_listeners: self.window_event_listeners.clone(),
@@ -1771,11 +1802,7 @@ impl Runtime for Wry {
       },
     };
 
-    self
-      .windows
-      .lock()
-      .unwrap()
-      .insert(webview.inner.window().id(), webview);
+    self.windows.lock().unwrap().insert(window_id, webview);
 
     Ok(DetachedWindow {
       label,
@@ -1850,6 +1877,7 @@ impl Runtime for Wry {
   fn run_iteration<F: FnMut(RunEvent) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.windows.clone();
+    let webview_id_map = self.webview_id_map.clone();
     let web_context = &self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1875,6 +1903,7 @@ impl Runtime for Wry {
           EventLoopIterationContext {
             callback: &mut callback,
             windows: windows.clone(),
+            webview_id_map: webview_id_map.clone(),
             window_event_listeners: &window_event_listeners,
             global_shortcut_manager: global_shortcut_manager.clone(),
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
@@ -1892,6 +1921,7 @@ impl Runtime for Wry {
 
   fn run<F: FnMut(RunEvent) + 'static>(self, mut callback: F) {
     let windows = self.windows.clone();
+    let webview_id_map = self.webview_id_map.clone();
     let web_context = self.web_context;
     let window_event_listeners = self.window_event_listeners.clone();
     let menu_event_listeners = self.menu_event_listeners.clone();
@@ -1908,6 +1938,7 @@ impl Runtime for Wry {
         control_flow,
         EventLoopIterationContext {
           callback: &mut callback,
+          webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
           window_event_listeners: &window_event_listeners,
           global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1925,7 +1956,8 @@ impl Runtime for Wry {
 
 pub struct EventLoopIterationContext<'a> {
   callback: &'a mut (dyn FnMut(RunEvent) + 'static),
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  webview_id_map: WebviewIdStore,
+  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle,
@@ -1940,7 +1972,7 @@ struct UserMessageContext<'a> {
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
   menu_event_listeners: &'a MenuEventListeners,
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(feature = "system-tray")]
   tray_context: &'a TrayContext,
 }
@@ -2136,34 +2168,30 @@ fn handle_user_message(
         }
       }
     },
-    Message::CreateWebview(handler, sender) => match handler(event_loop, web_context) {
+    Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
-        let window_id = webview.inner.window().id();
         windows
           .lock()
           .expect("poisoned webview collection")
           .insert(window_id, webview);
-        sender.send(window_id).unwrap();
       }
       Err(e) => {
         #[cfg(debug_assertions)]
         eprintln!("{}", e);
       }
     },
-    Message::CreateWindow(handler, sender) => {
+    Message::CreateWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
       if let Ok(window) = builder.build(event_loop) {
-        let window_id = window.id();
-
         window_event_listeners
           .lock()
           .unwrap()
-          .insert(window.id(), WindowEventListenersMap::default());
+          .insert(window_id, WindowEventListenersMap::default());
 
         menu_event_listeners
           .lock()
           .unwrap()
-          .insert(window.id(), WindowMenuEventListeners::default());
+          .insert(window_id, WindowMenuEventListeners::default());
 
         let w = Arc::new(window);
 
@@ -2287,6 +2315,7 @@ fn handle_event_loop(
 ) -> RunIteration {
   let EventLoopIterationContext {
     callback,
+    webview_id_map,
     windows,
     window_event_listeners,
     global_shortcut_manager,
@@ -2335,6 +2364,7 @@ fn handle_event_loop(
         menu_item_id: menu_id.0,
       };
       let window_menu_event_listeners = {
+        let window_id = webview_id_map.get(window_id);
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };
@@ -2378,6 +2408,7 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
+      let window_id = webview_id_map.get(window_id);
       // NOTE(amrbashir): we handle this event here instead of `match` statement below because
       // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
@@ -2477,8 +2508,8 @@ fn handle_event_loop(
 
 fn on_close_requested<'a>(
   callback: &'a mut (dyn FnMut(RunEvent) + 'static),
-  window_id: WindowId,
-  windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
+  window_id: WebviewId,
+  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   control_flow: &mut ControlFlow,
   window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
@@ -2526,8 +2557,8 @@ fn on_close_requested<'a>(
 
 fn on_window_close<'a>(
   callback: &'a mut (dyn FnMut(RunEvent) + 'static),
-  window_id: WindowId,
-  mut windows: MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
+  window_id: WebviewId,
+  mut windows: MutexGuard<'a, HashMap<WebviewId, WindowWrapper>>,
   control_flow: &mut ControlFlow,
   #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
@@ -2622,6 +2653,7 @@ fn to_wry_menu(
 }
 
 fn create_webview(
+  window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message>,
   web_context: &WebContextStore,
   context: Context,
@@ -2656,13 +2688,13 @@ fn create_webview(
     .window_event_listeners
     .lock()
     .unwrap()
-    .insert(window.id(), WindowEventListenersMap::default());
+    .insert(window_id, WindowEventListenersMap::default());
 
   context
     .menu_event_listeners
     .lock()
     .unwrap()
-    .insert(window.id(), WindowMenuEventListeners::default());
+    .insert(window_id, WindowMenuEventListeners::default());
 
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
@@ -2760,7 +2792,7 @@ fn create_ipc_handler(
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {
-          window_id: window.id(),
+          window_id: context.webview_id_map.get(window.id()),
           context: context.clone(),
         },
         label: label.clone(),
@@ -2785,7 +2817,7 @@ fn create_file_drop_handler(
       FileDropEventWrapper(event).into(),
       DetachedWindow {
         dispatcher: WryDispatcher {
-          window_id: window.id(),
+          window_id: context.webview_id_map.get(window.id()),
           context: context.clone(),
         },
         label: label.clone(),

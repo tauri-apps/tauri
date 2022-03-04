@@ -85,7 +85,10 @@
     "allowlist": {
       "all": true,
       "fs": {
-        "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
+        "scope": {
+          "allow": ["$APP/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
+        }
       },
       "shell": {
         "scope": [
@@ -103,7 +106,10 @@
       },
       "protocol": {
         "asset": true,
-        "assetScope": ["$RESOURCE/**", "$APP/**"]
+        "assetScope": {
+          "allow": ["$APP/db/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
+        }
       },
       "http": {
         "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
@@ -116,7 +122,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com",
+      "csp": "default-src 'self' customprotocol: asset: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com",
       "freezePrototype": true
     },
     "systemTray": {

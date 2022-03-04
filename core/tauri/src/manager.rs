@@ -47,7 +47,7 @@ use crate::{
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, Icon, Invoke, Pattern, StateManager, Window,
+  Context, Icon, Invoke, Manager, Pattern, Scopes, StateManager, Window,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -829,7 +829,17 @@ impl<R: Runtime> WindowManager<R> {
       let window = Window::new(manager.clone(), window, app_handle.clone());
       let _ = match event {
         FileDropEvent::Hovered(paths) => window.emit_and_trigger("tauri://file-drop-hover", paths),
-        FileDropEvent::Dropped(paths) => window.emit_and_trigger("tauri://file-drop", paths),
+        FileDropEvent::Dropped(paths) => {
+          let scopes = window.state::<Scopes>();
+          for path in &paths {
+            if path.is_file() {
+              scopes.allow_file(path);
+            } else {
+              scopes.allow_directory(path, false);
+            }
+          }
+          window.emit_and_trigger("tauri://file-drop", paths)
+        }
         FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
         _ => unimplemented!(),
       };

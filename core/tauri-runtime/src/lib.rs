@@ -102,6 +102,9 @@ pub enum Error {
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// The given window label is invalid.
+  #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
+  InvalidWindowLabel,
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,

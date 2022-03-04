@@ -382,7 +382,7 @@ macro_rules! shared_app_impl {
           window_builder,
           webview_attributes,
           label,
-        ))
+        )?)
       }
 
       #[cfg(feature = "system-tray")]
@@ -869,8 +869,12 @@ impl<R: Runtime> Builder<R> {
   ///     return (win, webview);
   ///   });
   /// ```
-  #[must_use]
-  pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
+  pub fn create_window<F>(
+    mut self,
+    label: impl Into<String>,
+    url: WindowUrl,
+    setup: F,
+  ) -> crate::Result<Self>
   where
     F: FnOnce(
       <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -888,8 +892,8 @@ impl<R: Runtime> Builder<R> {
       window_builder,
       webview_attributes,
       label,
-    ));
-    self
+    )?);
+    Ok(self)
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
@@ -1117,7 +1121,7 @@ impl<R: Runtime> Builder<R> {
         config,
         webview_attributes,
         label,
-      ));
+      )?);
     }
 
     #[cfg(any(windows, target_os = "linux"))]

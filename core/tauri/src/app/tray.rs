@@ -12,7 +12,10 @@ pub use crate::runtime::{
 
 use tauri_macros::default_runtime;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+  collections::HashMap,
+  sync::{Arc, Mutex},
+};
 
 pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTrayMenu) {
   for item in &menu.items {
@@ -80,7 +83,7 @@ pub enum SystemTrayEvent {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct SystemTrayHandle<R: Runtime> {
-  pub(crate) ids: Arc<HashMap<MenuHash, MenuId>>,
+  pub(crate) ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   pub(crate) inner: R::TrayHandler,
 }
 
@@ -113,7 +116,7 @@ impl<R: Runtime> Clone for SystemTrayMenuItemHandle<R> {
 impl<R: Runtime> SystemTrayHandle<R> {
   /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: MenuIdRef<'_>) -> SystemTrayMenuItemHandle<R> {
-    for (raw, item_id) in self.ids.iter() {
+    for (raw, item_id) in self.ids.lock().unwrap().iter() {
       if item_id == id {
         return SystemTrayMenuItemHandle {
           id: *raw,
@@ -131,7 +134,11 @@ impl<R: Runtime> SystemTrayHandle<R> {
 
   /// Updates the tray menu.
   pub fn set_menu(&self, menu: SystemTrayMenu) -> crate::Result<()> {
-    self.inner.set_menu(menu).map_err(Into::into)
+    let mut ids = HashMap::new();
+    get_menu_ids(&mut ids, &menu);
+    self.inner.set_menu(menu)?;
+    *self.ids.lock().unwrap() = ids;
+    Ok(())
   }
 
   /// Support [macOS tray icon template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) to adjust automatically based on taskbar color.

@@ -1241,9 +1241,10 @@ impl<R: Runtime> Builder<R> {
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(ids.clone()),
+        ids: Arc::new(std::sync::Mutex::new(ids)),
         inner: tray_handler,
       };
+      let ids = tray_handle.ids.clone();
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
@@ -1258,7 +1259,7 @@ impl<R: Runtime> Builder<R> {
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(id).unwrap().clone(),
+                id: ids.lock().unwrap().get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {

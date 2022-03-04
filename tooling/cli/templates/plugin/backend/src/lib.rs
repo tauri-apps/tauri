@@ -1,13 +1,9 @@
 {{#if license_header}}
 {{ license_header }}
 {{/if}}
-use tauri::{plugin::Plugin, Runtime};
+use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
 
-#[derive(Default)]
-pub struct YourPlugin {}
-
-impl<R: Runtime> Plugin<R> for YourPlugin {
-  fn name(&self) -> &'static str {
-    "{{ plugin_name }}"
-  }
+/// Initializes the plugin.
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("{{ plugin_name }}").build()
 }

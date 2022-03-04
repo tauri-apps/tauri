@@ -758,9 +758,47 @@ macro_rules! check_feature {
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
 /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub struct FsAllowlistScope(pub Vec<PathBuf>);
+#[serde(untagged)]
+pub enum FsAllowlistScope {
+  /// A list of paths that are allowed by this scope.
+  AllowedPaths(Vec<PathBuf>),
+  /// A complete scope configuration.
+  Scope {
+    /// A list of paths that are allowed by this scope.
+    #[serde(default)]
+    allow: Vec<PathBuf>,
+    /// A list of paths that are not allowed by this scope.
+    /// This gets precedence over the [`Self::allow`] list.
+    #[serde(default)]
+    deny: Vec<PathBuf>,
+  },
+}
+
+impl Default for FsAllowlistScope {
+  fn default() -> Self {
+    Self::AllowedPaths(Vec::new())
+  }
+}
+
+impl FsAllowlistScope {
+  /// The list of allowed paths.
+  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
+    match self {
+      Self::AllowedPaths(p) => p,
+      Self::Scope { allow, .. } => allow,
+    }
+  }
+
+  /// The list of forbidden paths.
+  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
+    match self {
+      Self::AllowedPaths(_) => None,
+      Self::Scope { deny, .. } => Some(deny),
+    }
+  }
+}
 
 /// Allowlist for the file system APIs.
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
@@ -2540,8 +2578,19 @@ mod build {
 
   impl ToTokens for FsAllowlistScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let allowed_paths = vec_lit(&self.0, path_buf_lit);
-      tokens.append_all(quote! { ::tauri::utils::config::FsAllowlistScope(#allowed_paths) })
+      let prefix = quote! { ::tauri::utils::config::FsAllowlistScope };
+
+      tokens.append_all(match self {
+        Self::AllowedPaths(allow) => {
+          let allowed_paths = vec_lit(allow, path_buf_lit);
+          quote! { #prefix::AllowedPaths(#allowed_paths) }
+        }
+        Self::Scope { allow, deny } => {
+          let allow = vec_lit(allow, path_buf_lit);
+          let deny = vec_lit(deny, path_buf_lit);
+          quote! { #prefix::Scope { allow: #allow, deny: #deny } }
+        }
+      });
     }
   }
 

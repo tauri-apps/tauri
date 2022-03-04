@@ -23,7 +23,6 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
-  window::{RuntimeHandleOrDispatch, WindowBuilder},
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
@@ -205,21 +204,6 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
-impl<R: Runtime> AppHandle<R> {
-  /// Initializes a webview window builder with the given window label and URL to load on the webview.
-  ///
-  /// Data URLs are only supported with the `window-data-url` feature flag.
-  pub fn window_builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
-    WindowBuilder::<R>::new(
-      self.manager.clone(),
-      RuntimeHandleOrDispatch::RuntimeHandle(self.runtime_handle.clone()),
-      self.clone(),
-      label.into(),
-      url,
-    )
-  }
-}
-
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -366,21 +350,6 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 
   fn app_handle(&self) -> AppHandle<R> {
     self.handle()
-  }
-}
-
-impl<R: Runtime> App<R> {
-  /// Initializes a webview window builder with the given window label and URL to load on the webview.
-  ///
-  /// Data URLs are only supported with the `window-data-url` feature flag.
-  pub fn window_builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
-    WindowBuilder::<R>::new(
-      self.manager.clone(),
-      RuntimeHandleOrDispatch::RuntimeHandle(self.handle.runtime_handle.clone()),
-      self.handle.clone(),
-      label.into(),
-      url,
-    )
   }
 }
 

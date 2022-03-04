@@ -127,18 +127,18 @@ impl<R: Runtime> ManagerBase<R> for WindowBuilder<R> {
 
 impl<R: Runtime> WindowBuilder<R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
-  pub fn new(
-    manager: WindowManager<R>,
-    runtime: RuntimeHandleOrDispatch<R>,
-    app_handle: AppHandle<R>,
-    label: String,
-    url: WindowUrl,
-  ) -> Self {
+  pub fn new<M: Manager<R>, L: Into<String>>(manager: &M, label: L, url: WindowUrl) -> Self {
+    let runtime = match manager.runtime() {
+      RuntimeOrDispatch::Runtime(r) => RuntimeHandleOrDispatch::RuntimeHandle(r.handle()),
+      RuntimeOrDispatch::RuntimeHandle(h) => RuntimeHandleOrDispatch::RuntimeHandle(h),
+      RuntimeOrDispatch::Dispatch(d) => RuntimeHandleOrDispatch::Dispatch(d),
+    };
+    let app_handle = manager.app_handle();
     Self {
-      manager,
+      manager: manager.manager().clone(),
       runtime,
       app_handle,
-      label,
+      label: label.into(),
       window_builder: <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
     }
@@ -446,13 +446,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// Data URLs are only supported with the `window-data-url` feature flag.
   pub fn builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
-    WindowBuilder::<R>::new(
-      self.manager.clone(),
-      RuntimeHandleOrDispatch::Dispatch(self.dispatcher()),
-      self.app_handle(),
-      label.into(),
-      url,
-    )
+    WindowBuilder::<R>::new(self, label.into(), url)
   }
 
   /// Creates a new webview window.
@@ -479,13 +473,7 @@ impl<R: Runtime> Window<R> {
       WebviewAttributes,
     ),
   {
-    let mut builder = WindowBuilder::<R>::new(
-      self.manager.clone(),
-      RuntimeHandleOrDispatch::Dispatch(self.dispatcher()),
-      self.app_handle(),
-      label,
-      url,
-    );
+    let mut builder = WindowBuilder::<R>::new(self, label, url);
     let (window_builder, webview_attributes) =
       setup(builder.window_builder, builder.webview_attributes);
     builder.window_builder = window_builder;

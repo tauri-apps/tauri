@@ -16,8 +16,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, GlobalShortcutManager, Manager,
-  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, window::WindowBuilder, CustomMenuItem,
+  GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
@@ -129,8 +129,7 @@ fn main() {
             item_handle.set_title(new_title).unwrap();
           }
           "new" => {
-            app
-              .window_builder("new", WindowUrl::App("index.html".into()))
+            WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
               .title("Tauri")
               .build()
               .unwrap();

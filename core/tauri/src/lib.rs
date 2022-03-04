@@ -399,6 +399,11 @@ impl<A: Assets> Context<A> {
 // TODO: expand these docs
 /// Manages a running application.
 pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
+  /// The application handle associated with this manager.
+  fn app_handle(&self) -> AppHandle<R> {
+    sealed::ManagerBase::app_handle(self)
+  }
+
   /// The [`Config`] the manager was created with.
   fn config(&self) -> Arc<Config> {
     self.manager().config()

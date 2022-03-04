@@ -150,7 +150,7 @@ impl<R: Runtime> WindowBuilder<R> {
       self.window_builder.clone(),
       self.webview_attributes.clone(),
       self.label.clone(),
-    ))
+    )?)
   }
 
   // --------------------------------------------- Window builder ---------------------------------------------

@@ -112,7 +112,7 @@ pub struct WindowBuilder<R: Runtime> {
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
-  request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+  web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
 }
 
 impl<R: Runtime> fmt::Debug for WindowBuilder<R> {
@@ -161,13 +161,13 @@ impl<R: Runtime> WindowBuilder<R> {
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
-      request_handler: None,
+      web_resource_request_handler: None,
     }
   }
 
-  /// Defines a closure to be executed when the webview requests an asset, allowing you to modify the response body and headers.
+  /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
   ///
-  /// Currently only implemented for the `tauri` custom protocol.
+  /// Currently only implemented for the `tauri` URI protocol.
   ///
   /// **NOTE:** Currently this is **not** executed when using external URLs such as a development server,
   /// but it might be implemented in the future. **Always** check the request URL.
@@ -184,7 +184,7 @@ impl<R: Runtime> WindowBuilder<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
-  ///       .on_request(|request, response| {
+  ///       .on_web_resource_request(|request, response| {
   ///         if request.uri().starts_with("tauri://") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
   ///           //  on this exampl, let's dynamically change the CSP
@@ -203,17 +203,17 @@ impl<R: Runtime> WindowBuilder<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn on_request<F: Fn(&HttpRequest, &mut HttpResponse) + Send + Sync + 'static>(
+  pub fn on_web_resource_request<F: Fn(&HttpRequest, &mut HttpResponse) + Send + Sync + 'static>(
     mut self,
     f: F,
   ) -> Self {
-    self.request_handler.replace(Box::new(f));
+    self.web_resource_request_handler.replace(Box::new(f));
     self
   }
 
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
-    let request_handler = self.request_handler.take();
+    let web_resource_request_handler = self.web_resource_request_handler.take();
     let pending = PendingWindow::new(
       self.window_builder.clone(),
       self.webview_attributes.clone(),
@@ -224,7 +224,7 @@ impl<R: Runtime> WindowBuilder<R> {
       self.managed_app_handle(),
       pending,
       &labels,
-      request_handler,
+      web_resource_request_handler,
     )?;
     let window = match self.runtime() {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),

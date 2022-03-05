@@ -388,7 +388,9 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-    request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -476,8 +478,10 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
-      pending
-        .register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol(request_handler));
+      pending.register_uri_scheme_protocol(
+        "tauri",
+        self.prepare_uri_scheme_protocol(web_resource_request_handler),
+      );
       registered_scheme_protocols.push("tauri".into());
     }
 
@@ -795,7 +799,9 @@ impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
-    request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     let manager = self.clone();
@@ -815,7 +821,7 @@ impl<R: Runtime> WindowManager<R> {
       }
       match builder.body(asset.bytes) {
         Ok(mut response) => {
-          if let Some(handler) = &request_handler {
+          if let Some(handler) = &web_resource_request_handler {
             handler(request, &mut response);
 
             // if it's an HTML file, we need to set the CSP meta tag on Linux
@@ -1019,7 +1025,9 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<R>,
     window_labels: &[String],
-    request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> crate::Result<PendingWindow<R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -1078,7 +1086,7 @@ impl<R: Runtime> WindowManager<R> {
         &label,
         window_labels,
         app_handle.clone(),
-        request_handler,
+        web_resource_request_handler,
       )?;
       pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
     }

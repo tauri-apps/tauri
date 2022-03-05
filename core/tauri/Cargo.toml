@@ -89,6 +89,9 @@ regex = { version = "1.5", optional = true }
 glob = "0.3"
 data-url = { version = "0.1", optional = true }
 serialize-to-javascript = "=0.1.1"
+infer = { version = "0.4", optional = true }
+png = { version = "0.16", optional = true }
+ico = { version = "0.1", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
@@ -249,6 +252,8 @@ window-set-skip-taskbar = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
+icon-ico = [ "infer", "ico" ]
+icon-png = [ "infer", "png" ]
 
 [[example]]
 name = "commands"

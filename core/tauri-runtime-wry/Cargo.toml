@@ -17,10 +17,8 @@ wry = { version = "0.13.3", default-features = false, features = [ "file-drop", 
 tauri-runtime = { version = "0.3.2", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.2", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
-infer = "0.4"
 
 [target."cfg(windows)".dependencies]
-ico = "0.1"
 webview2-com = "0.13.0"
 
   [target."cfg(windows)".dependencies.windows]
@@ -28,7 +26,6 @@ webview2-com = "0.13.0"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-png = "0.16"
 gtk = { version = "0.15", features = [ "v3_20" ] }
 
 [features]

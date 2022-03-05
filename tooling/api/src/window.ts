@@ -1022,6 +1022,13 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * Sets the window icon.
    *
+   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * ```
+   *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */

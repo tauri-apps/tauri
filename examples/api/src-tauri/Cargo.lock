@@ -3319,7 +3319,9 @@ dependencies = [
  "glob",
  "gtk",
  "http",
+ "ico",
  "ignore",
+ "infer",
  "memchr",
  "minisign-verify",
  "notify-rust",
@@ -3328,6 +3330,7 @@ dependencies = [
  "os_info",
  "os_pipe",
  "percent-encoding",
+ "png 0.16.8",
  "rand 0.8.5",
  "raw-window-handle",
  "regex",
@@ -3371,6 +3374,8 @@ version = "1.0.0-rc.2"
 dependencies = [
  "base64",
  "blake3",
+ "ico",
+ "png 0.16.8",
  "proc-macro2",
  "quote",
  "regex",
@@ -3418,9 +3423,6 @@ name = "tauri-runtime-wry"
 version = "0.3.2"
 dependencies = [
  "gtk",
- "ico",
- "infer",
- "png 0.16.8",
  "tauri-runtime",
  "tauri-utils",
  "uuid",

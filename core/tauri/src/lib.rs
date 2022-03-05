@@ -216,7 +216,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       WindowEvent,
     },
-    ClipboardManager, GlobalShortcutManager, Icon, RunIteration, Runtime, UserAttentionType,
+    ClipboardManager, GlobalShortcutManager, RunIteration, Runtime, TrayIcon, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -264,6 +264,93 @@ macro_rules! tauri_build_context {
 
 pub use pattern::Pattern;
 
+/// A icon definition.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum Icon {
+  /// Icon from file path.
+  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
+  File(std::path::PathBuf),
+  /// Icon from raw RGBA bytes. Width and height is parsed at runtime.
+  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
+  Raw(Vec<u8>),
+  /// Icon from raw RGBA bytes.
+  Rgba {
+    /// RGBA byes of the icon image.
+    rgba: Vec<u8>,
+    /// Icon width.
+    width: u32,
+    /// Icon height.
+    height: u32,
+  },
+}
+
+impl TryFrom<Icon> for runtime::WindowIcon {
+  type Error = Error;
+
+  fn try_from(icon: Icon) -> Result<Self> {
+    #[allow(irrefutable_let_patterns)]
+    if let Icon::Rgba {
+      rgba,
+      width,
+      height,
+    } = icon
+    {
+      Ok(Self {
+        rgba,
+        width,
+        height,
+      })
+    } else {
+      #[cfg(not(any(feature = "icon-ico", feature = "icon-png")))]
+      panic!("unexpected Icon variant");
+      #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
+      {
+        let bytes = match icon {
+          Icon::File(p) => std::fs::read(p)?,
+          Icon::Raw(r) => r,
+          Icon::Rgba { .. } => unreachable!(),
+        };
+        let extension = infer::get(&bytes)
+          .expect("could not determine icon extension")
+          .extension();
+        match extension {
+        #[cfg(feature = "icon-ico")]
+        "ico" => {
+          let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))?;
+          let entry = &icon_dir.entries()[0];
+          Ok(Self {
+            rgba: entry.decode()?.rgba_data().to_vec(),
+            width: entry.width(),
+            height: entry.height(),
+          })
+        }
+        #[cfg(feature = "icon-png")]
+        "png" => {
+          let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+          let (info, mut reader) = decoder.read_info()?;
+          let mut buffer = Vec::new();
+          while let Ok(Some(row)) = reader.next_row() {
+            buffer.extend(row);
+          }
+          Ok(Self {
+            rgba: buffer,
+            width: info.width,
+            height: info.height,
+          })
+        }
+        _ => panic!(
+          "image `{}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags",
+          extension
+        ),
+      }
+      }
+    }
+  }
+}
+
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
@@ -272,8 +359,8 @@ pub use pattern::Pattern;
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
-  pub(crate) default_window_icon: Option<Vec<u8>>,
-  pub(crate) system_tray_icon: Option<Icon>,
+  pub(crate) default_window_icon: Option<Icon>,
+  pub(crate) system_tray_icon: Option<TrayIcon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -322,25 +409,25 @@ impl<A: Assets> Context<A> {
 
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon(&self) -> Option<&[u8]> {
-    self.default_window_icon.as_deref()
+  pub fn default_window_icon(&self) -> Option<&Icon> {
+    self.default_window_icon.as_ref()
   }
 
   /// A mutable reference to the default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon_mut(&mut self) -> &mut Option<Vec<u8>> {
+  pub fn default_window_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.default_window_icon
   }
 
   /// The icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&Icon> {
+  pub fn system_tray_icon(&self) -> Option<&TrayIcon> {
     self.system_tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
+  pub fn system_tray_icon_mut(&mut self) -> &mut Option<TrayIcon> {
     &mut self.system_tray_icon
   }
 
@@ -375,8 +462,8 @@ impl<A: Assets> Context<A> {
   pub fn new(
     config: Config,
     assets: Arc<A>,
-    default_window_icon: Option<Vec<u8>>,
-    system_tray_icon: Option<Icon>,
+    default_window_icon: Option<Icon>,
+    system_tray_icon: Option<TrayIcon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,

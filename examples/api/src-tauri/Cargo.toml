@@ -12,7 +12,7 @@ tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "isolation", "macos-private-api", "system-tray", "updater"] }
+tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "icon-ico", "icon-png", "isolation", "macos-private-api", "system-tray", "updater"] }
 
 [features]
 default = [ "custom-protocol" ]

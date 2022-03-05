@@ -41,14 +41,14 @@ use crate::{
     },
     webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder},
     window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, Runtime,
+    Runtime,
   },
   utils::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, Invoke, Manager, Pattern, Scopes, StateManager, Window,
+  Context, Icon, Invoke, Manager, Pattern, Scopes, StateManager, Window,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -195,7 +195,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   config: Arc<Config>,
   assets: Arc<dyn Assets>,
-  default_window_icon: Option<Vec<u8>>,
+  default_window_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
@@ -445,9 +445,10 @@ impl<R: Runtime> WindowManager<R> {
     pending.webview_attributes = webview_attributes;
 
     if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = &self.inner.default_window_icon {
-        let icon = Icon::Raw(default_window_icon.clone());
-        pending.window_builder = pending.window_builder.icon(icon)?;
+      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
+        pending.window_builder = pending
+          .window_builder
+          .icon(default_window_icon.try_into()?)?;
       }
     }
 

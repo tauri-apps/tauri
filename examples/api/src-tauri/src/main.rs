@@ -140,7 +140,7 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::Icon::Raw(
+              .set_icon(tauri::TrayIcon::Raw(
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
@@ -151,36 +151,36 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::Icon::Raw(
-                include_bytes!("../../../.icons/tray_icon.png").to_vec(),
+              .set_icon(tauri::TrayIcon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with.png").to_vec(),
               ))
               .unwrap();
           }
           #[cfg(target_os = "linux")]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::Icon::File(PathBuf::from(
+            .set_icon(tauri::TrayIcon::File(PathBuf::from(
               "../../../.icons/tray_icon_with_transparency.png",
             )))
             .unwrap(),
           #[cfg(target_os = "linux")]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::Icon::File(PathBuf::from(
+            .set_icon(tauri::TrayIcon::File(PathBuf::from(
               "../../../.icons/tray_icon.png",
             )))
             .unwrap(),
           #[cfg(target_os = "windows")]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::Icon::Raw(
+            .set_icon(tauri::TrayIcon::Raw(
               include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
             ))
             .unwrap(),
           #[cfg(target_os = "windows")]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::Icon::Raw(
+            .set_icon(tauri::TrayIcon::Raw(
               include_bytes!("../../../.icons/icon.ico").to_vec(),
             ))
             .unwrap(),

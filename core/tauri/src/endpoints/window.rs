@@ -167,18 +167,12 @@ impl Cmd {
     context: InvokeContext<R>,
     options: Box<WindowConfig>,
   ) -> super::Result<()> {
-    let mut window = context.window;
     let label = options.label.clone();
     let url = options.url.clone();
 
-    window
-      .create_window(label, url, |_, webview_attributes| {
-        (
-          <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
-          webview_attributes,
-        )
-      })
-      .map_err(crate::error::into_anyhow)?;
+    let mut builder = context.window.builder(label, url);
+    builder.window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options);
+    builder.build().map_err(crate::error::into_anyhow)?;
 
     Ok(())
   }

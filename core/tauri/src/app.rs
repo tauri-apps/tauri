@@ -15,7 +15,7 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
@@ -359,6 +359,12 @@ macro_rules! shared_app_impl {
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
+      ///
+      /// See [`Self::window_builder`] for an API with extended functionality.
+      #[deprecated(
+        since = "1.0.0-rc.4",
+        note = "The `window_builder` function offers an easier API with extended functionality"
+      )]
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,
@@ -1161,14 +1167,14 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
-      ),
+      )?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
-      ),
+      )?,
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
@@ -1241,9 +1247,10 @@ impl<R: Runtime> Builder<R> {
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(ids.clone()),
+        ids: Arc::new(std::sync::Mutex::new(ids)),
         inner: tray_handler,
       };
+      let ids = tray_handle.ids.clone();
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
@@ -1258,7 +1265,7 @@ impl<R: Runtime> Builder<R> {
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(id).unwrap().clone(),
+                id: ids.lock().unwrap().get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {

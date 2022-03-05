@@ -107,6 +107,9 @@ pub enum Error {
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
   InvalidWindowUrl(&'static str),
+  /// Invalid glob pattern.
+  #[error("invalid glob pattern: {0}")]
+  GlobPattern(#[from] glob::PatternError),
   /// Error decoding PNG image.
   #[cfg(feature = "icon-png")]
   #[error("failed to decode PNG: {0}")]

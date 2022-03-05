@@ -324,7 +324,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.clone()
   }
 }
@@ -354,7 +354,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.handle()
   }
 }

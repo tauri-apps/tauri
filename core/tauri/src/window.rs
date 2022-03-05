@@ -120,7 +120,7 @@ impl<R: Runtime> ManagerBase<R> for WindowBuilder<R> {
     }
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.app_handle.clone()
   }
 }
@@ -416,7 +416,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
     RuntimeOrDispatch::Dispatch(self.dispatcher())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.app_handle.clone()
   }
 }

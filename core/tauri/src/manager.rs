@@ -819,28 +819,24 @@ impl<R: Runtime> WindowManager<R> {
       if let Some(csp) = &asset.csp_header {
         builder = builder.header("Content-Security-Policy", csp);
       }
-      match builder.body(asset.bytes) {
-        Ok(mut response) => {
-          if let Some(handler) = &web_resource_request_handler {
-            handler(request, &mut response);
+      let mut response = builder.body(asset.bytes)?;
+      if let Some(handler) = &web_resource_request_handler {
+        handler(request, &mut response);
 
-            // if it's an HTML file, we need to set the CSP meta tag on Linux
-            #[cfg(target_os = "linux")]
-            if let (Some(original_csp), Some(response_csp)) = (
-              asset.csp_header,
-              response.headers().get("Content-Security_Policy"),
-            ) {
-              let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-              if response_csp != original_csp {
-                let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
-                *response.body_mut() = body.as_bytes().to_vec();
-              }
-            }
+        // if it's an HTML file, we need to set the CSP meta tag on Linux
+        #[cfg(target_os = "linux")]
+        if let (Some(original_csp), Some(response_csp)) = (
+          asset.csp_header,
+          response.headers().get("Content-Security_Policy"),
+        ) {
+          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
+          if response_csp != original_csp {
+            let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
+            *response.body_mut() = body.as_bytes().to_vec();
           }
-          Ok(response)
         }
-        Err(e) => Err(e),
       }
+      Ok(response)
     })
   }
 

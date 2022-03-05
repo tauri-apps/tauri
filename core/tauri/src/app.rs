@@ -15,7 +15,7 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
@@ -359,6 +359,12 @@ macro_rules! shared_app_impl {
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
+      ///
+      /// See [`Self::window_builder`] for an API with extended functionality.
+      #[deprecated(
+        since = "1.0.0-rc.4",
+        note = "The `window_builder` function offers an easier API with extended functionality"
+      )]
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,

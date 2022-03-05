@@ -361,7 +361,7 @@ pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
   type Runtime: Runtime;
 
   /// The winoow builder type.
-  type WindowBuilder: WindowBuilder + Clone;
+  type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;

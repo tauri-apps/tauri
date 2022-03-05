@@ -3349,6 +3349,7 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "windows 0.30.0",
  "zip",
 ]
 

@@ -14,7 +14,7 @@ use windows::Win32::Foundation::HWND;
 use std::{fmt, path::PathBuf};
 
 /// The attributes used to create an webview.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
   pub initialization_scripts: Vec<String>,
@@ -70,7 +70,7 @@ impl WebviewAttributes {
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
-pub trait WindowBuilderBase: fmt::Debug + Sized {}
+pub trait WindowBuilderBase: fmt::Debug + Clone + Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
@@ -97,7 +97,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Window size.
   #[must_use]
-  fn inner_size(self, min_width: f64, min_height: f64) -> Self;
+  fn inner_size(self, width: f64, height: f64) -> Self;
 
   /// Window min inner size.
   #[must_use]

@@ -489,6 +489,7 @@ impl TrayHandle for MockTrayHandler {
   }
 }
 
+#[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
   global_shortcut_manager: MockGlobalShortcutManager,

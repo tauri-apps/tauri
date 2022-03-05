@@ -17,8 +17,8 @@ use super::{
 ///
 /// - **Linux:** Headers are not exposed.
 pub struct Request {
-  pub head: RequestParts,
-  pub body: Vec<u8>,
+  head: RequestParts,
+  body: Vec<u8>,
 }
 
 /// Component parts of an HTTP `Request`
@@ -47,6 +47,17 @@ impl Request {
     }
   }
 
+  /// Creates a new `Request` with the given head and body.
+  ///
+  /// # Stability
+  ///
+  /// This API is used internally. It may have breaking changes in the future.
+  #[inline]
+  #[doc(hidden)]
+  pub fn new_internal(head: RequestParts, body: Vec<u8>) -> Request {
+    Request { head, body }
+  }
+
   /// Returns a reference to the associated HTTP method.
   #[inline]
   pub fn method(&self) -> &Method {
@@ -72,6 +83,10 @@ impl Request {
   }
 
   /// Consumes the request returning the head and body RequestParts.
+  ///
+  /// # Stability
+  ///
+  /// This API is used internally. It may have breaking changes in the future.
   #[inline]
   pub fn into_parts(self) -> (RequestParts, Vec<u8>) {
     (self.head, self.body)

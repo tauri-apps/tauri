@@ -187,7 +187,7 @@ impl<R: Runtime> WindowBuilder<R> {
   ///       .on_request(|request, response| {
   ///         if request.uri().starts_with("tauri://") {
   ///           // if we have a CSP header, Tauri is loading an HTML file
-  ///           //  on this exampl, let's dynamically change the CSP
+  ///           //  for this example, let's dynamically change the CSP
   ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
   ///             // use the tauri helper to parse the CSP policy to a map
   ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();

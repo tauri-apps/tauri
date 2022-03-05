@@ -1551,6 +1551,18 @@ impl WryHandle {
     rx.recv().unwrap()
   }
 
+  /// Gets the [`WebviewId'] associated with the given [`WindowId`].
+  pub fn window_id(&self, window_id: WindowId) -> WebviewId {
+    *self
+      .context
+      .webview_id_map
+      .0
+      .lock()
+      .unwrap()
+      .get(&window_id)
+      .unwrap()
+  }
+
   /// Send a message to the event loop.
   pub fn send_event(&self, message: Message) -> Result<()> {
     self

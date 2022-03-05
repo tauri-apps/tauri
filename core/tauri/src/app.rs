@@ -215,6 +215,18 @@ impl AppHandle<crate::Wry> {
   ) -> crate::Result<Weak<tauri_runtime_wry::Window>> {
     self.runtime_handle.create_tao_window(f).map_err(Into::into)
   }
+
+  /// Sends a window message to the event loop.
+  pub fn send_tao_window_event(
+    &self,
+    window_id: tauri_runtime_wry::WindowId,
+    message: tauri_runtime_wry::WindowMessage,
+  ) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .send_event(tauri_runtime_wry::Message::Window(self.runtime_handle.window_id(window_id), message))
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Clone for AppHandle<R> {

@@ -2373,7 +2373,12 @@ fn handle_event_loop(
           .get(&window_id)
           .map(|w| &w.inner)
         {
-          webview.focus();
+          // only focus the webview if the window is visible
+          // somehow tao is sending a Focused(true) event even when the window is invisible,
+          // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
+          if webview.window().is_visible() {
+            webview.focus();
+          }
         }
       }
 

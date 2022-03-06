@@ -541,8 +541,12 @@ impl<R: Runtime> Window<R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
   ///
   /// Data URLs are only supported with the `window-data-url` feature flag.
-  pub fn builder<L: Into<String>>(&self, label: L, url: WindowUrl) -> WindowBuilder<R> {
-    WindowBuilder::<R>::new(self, label.into(), url)
+  pub fn builder<M: Manager<R>, L: Into<String>>(
+    manager: &M,
+    label: L,
+    url: WindowUrl,
+  ) -> WindowBuilder<R> {
+    WindowBuilder::<R>::new(manager, label.into(), url)
   }
 
   /// Creates a new webview window.

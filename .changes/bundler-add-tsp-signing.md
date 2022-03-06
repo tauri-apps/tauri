@@ -1,7 +1,8 @@
 ---
 "tauri-bundler": patch
-"tauri-cli": patch
-"tauri-core": patch
+"cli.rs": patch
+"cli.js": patch
+"tauri": patch
 ---
 
 Added `tsp` config option under `tauri > bundle > windows`, which enables Time-Stamp Protocol (RFC 3161) for the timestamping

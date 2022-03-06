@@ -1050,7 +1050,7 @@
               }
             },
             "deny": {
-              "description": "A list of paths that are not allowed by this scope. This gets precedence over the [`Self::allow`] list.",
+              "description": "A list of paths that are not allowed by this scope. This gets precedence over the [`Self::Scope::allow`] list.",
               "default": [],
               "type": "array",
               "items": {

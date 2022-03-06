@@ -170,7 +170,7 @@ impl Cmd {
     let label = options.label.clone();
     let url = options.url.clone();
 
-    let mut builder = context.window.builder(label, url);
+    let mut builder = crate::window::Window::builder(&context.window, label, url);
     builder.window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options);
     builder.build().map_err(crate::error::into_anyhow)?;
 

@@ -367,7 +367,7 @@ macro_rules! shared_app_impl {
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
       ///
-      /// See [`Self::window_builder`] for an API with extended functionality.
+      /// See [`crate::window::WindowBuilder::new`] for an API with extended functionality.
       #[deprecated(
         since = "1.0.0-rc.4",
         note = "The `window_builder` function offers an easier API with extended functionality"

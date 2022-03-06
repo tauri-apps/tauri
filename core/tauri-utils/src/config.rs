@@ -770,7 +770,7 @@ pub enum FsAllowlistScope {
     #[serde(default)]
     allow: Vec<PathBuf>,
     /// A list of paths that are not allowed by this scope.
-    /// This gets precedence over the [`Self::allow`] list.
+    /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
   },
@@ -1289,6 +1289,7 @@ impl Allowlist for DialogAllowlistConfig {
 /// - "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
+#[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);

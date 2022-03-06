@@ -2373,7 +2373,9 @@ fn handle_event_loop(
           .get(&window_id)
           .map(|w| &w.inner)
         {
-          webview.focus();
+          if webview.window().is_visible() {
+            webview.focus();
+          }
         }
       }
 

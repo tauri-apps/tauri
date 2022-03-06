@@ -404,9 +404,7 @@ pub fn build_wix_app_installer(
             .timestamp_url
             .as_ref()
             .map(|url| url.to_string()),
-          tsp: settings
-              .windows()
-              .tsp
+          tsp: settings.windows().tsp,
         },
       )?;
     }

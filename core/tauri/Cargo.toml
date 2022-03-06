@@ -62,7 +62,7 @@ serde_repr = "0.1"
 state = "0.5"
 tar = "0.4"
 tempfile = "3"
-zip = { version = "0.5", optional = true }
+zip = { version = "0.5", default-features = false, optional = true }
 ignore = "0.4"
 either = "1.6"
 flate2 = "1.0"

@@ -15,6 +15,7 @@ use crate::{
   hooks::{InvokePayload, InvokeResponder},
   manager::WindowManager,
   runtime::{
+    http::{Request as HttpRequest, Response as HttpResponse},
     menu::Menu,
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
@@ -22,7 +23,7 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
-    Dispatch, Runtime, UserAttentionType,
+    Dispatch, Runtime, RuntimeHandle, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -37,10 +38,16 @@ use windows::Win32::Foundation::HWND;
 use tauri_macros::default_runtime;
 
 use std::{
+  fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::Arc,
 };
+
+#[derive(Clone, Serialize)]
+struct WindowCreatedEvent {
+  label: String,
+}
 
 /// Monitor descriptor.
 #[derive(Debug, Clone, Serialize)]
@@ -98,14 +105,27 @@ pub enum RuntimeHandleOrDispatch<R: Runtime> {
 
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct WindowBuilder<R: Runtime> {
   manager: WindowManager<R>,
   runtime: RuntimeHandleOrDispatch<R>,
   app_handle: AppHandle<R>,
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
-  webview_attributes: WebviewAttributes,
+  pub(crate) webview_attributes: WebviewAttributes,
+  web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+}
+
+impl<R: Runtime> fmt::Debug for WindowBuilder<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowBuilder")
+      .field("manager", &self.manager)
+      .field("runtime", &self.runtime)
+      .field("app_handle", &self.app_handle)
+      .field("label", &self.label)
+      .field("window_builder", &self.window_builder)
+      .field("webview_attributes", &self.webview_attributes)
+      .finish()
+  }
 }
 
 impl<R: Runtime> ManagerBase<R> for WindowBuilder<R> {
@@ -141,16 +161,92 @@ impl<R: Runtime> WindowBuilder<R> {
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
+      web_resource_request_handler: None,
     }
   }
 
+  /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.
+  ///
+  /// Currently only implemented for the `tauri` URI protocol.
+  ///
+  /// **NOTE:** Currently this is **not** executed when using external URLs such as a development server,
+  /// but it might be implemented in the future. **Always** check the request URL.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   runtime::http::header::HeaderValue,
+  ///   window::WindowBuilder,
+  /// };
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_web_resource_request(|request, response| {
+  ///         if request.uri().starts_with("tauri://") {
+  ///           // if we have a CSP header, Tauri is loading an HTML file
+  ///           //  for this example, let's dynamically change the CSP
+  ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
+  ///             // use the tauri helper to parse the CSP policy to a map
+  ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+  ///             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
+  ///             // use the tauri helper to get a CSP string from the map
+  ///             let csp_string = Csp::from(csp_map).to_string();
+  ///             *csp = HeaderValue::from_str(&csp_string).unwrap();
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()
+  ///       .unwrap();
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn on_web_resource_request<F: Fn(&HttpRequest, &mut HttpResponse) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.web_resource_request_handler.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
-  pub fn build(self) -> crate::Result<Window<R>> {
-    self.create_new_window(PendingWindow::new(
+  pub fn build(mut self) -> crate::Result<Window<R>> {
+    let web_resource_request_handler = self.web_resource_request_handler.take();
+    let pending = PendingWindow::new(
       self.window_builder.clone(),
       self.webview_attributes.clone(),
       self.label.clone(),
-    )?)
+    )?;
+    let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
+    let pending = self.manager().prepare_window(
+      self.managed_app_handle(),
+      pending,
+      &labels,
+      web_resource_request_handler,
+    )?;
+    let window = match self.runtime() {
+      RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
+      RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
+      RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
+    }
+    .map(|window| {
+      self
+        .manager()
+        .attach_window(self.managed_app_handle(), window)
+    })?;
+
+    self.manager().emit_filter(
+      "tauri://window-created",
+      None,
+      Some(WindowCreatedEvent {
+        label: window.label().into(),
+      }),
+      |w| w != &window,
+    )?;
+
+    Ok(window)
   }
 
   // --------------------------------------------- Window builder ---------------------------------------------

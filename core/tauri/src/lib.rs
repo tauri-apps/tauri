@@ -174,7 +174,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use crate::runtime::window::PendingWindow;
 use serde::Serialize;
 use std::{collections::HashMap, fmt, sync::Arc};
 
@@ -600,7 +599,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
   use crate::{app::AppHandle, manager::WindowManager};
-  use tauri_runtime::{Runtime, RuntimeHandle};
+  use tauri_runtime::Runtime;
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, R: Runtime> {
@@ -614,51 +613,12 @@ pub(crate) mod sealed {
     Dispatch(R::Dispatcher),
   }
 
-  #[derive(Clone, serde::Serialize)]
-  struct WindowCreatedEvent {
-    label: String,
-  }
-
   /// Managed handle to the application runtime.
   pub trait ManagerBase<R: Runtime> {
     /// The manager behind the [`Managed`] item.
     fn manager(&self) -> &WindowManager<R>;
-
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> AppHandle<R>;
-
-    /// Creates a new [`Window`] on the [`Runtime`] and attaches it to the [`Manager`].
-    fn create_new_window(
-      &self,
-      pending: crate::PendingWindow<R>,
-    ) -> crate::Result<crate::Window<R>> {
-      use crate::runtime::Dispatch;
-      let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-      let pending = self
-        .manager()
-        .prepare_window(self.managed_app_handle(), pending, &labels)?;
-      let window = match self.runtime() {
-        RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
-        RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
-        RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
-      }
-      .map(|window| {
-        self
-          .manager()
-          .attach_window(self.managed_app_handle(), window)
-      })?;
-
-      self.manager().emit_filter(
-        "tauri://window-created",
-        None,
-        Some(WindowCreatedEvent {
-          label: window.label().into(),
-        }),
-        |w| w != &window,
-      )?;
-
-      Ok(window)
-    }
   }
 }
 

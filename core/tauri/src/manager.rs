@@ -129,9 +129,14 @@ fn set_csp<R: Runtime>(
   let csp = Csp::DirectiveMap(csp).to_string();
   #[cfg(target_os = "linux")]
   {
-    *asset = asset.replacen(tauri_utils::html::CSP_TOKEN, &csp, 1);
+    *asset = set_html_csp(asset, &csp);
   }
   csp
+}
+
+#[cfg(target_os = "linux")]
+fn set_html_csp(html: &str, csp: &str) -> String {
+  html.replacen(tauri_utils::html::CSP_TOKEN, csp, 1)
 }
 
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
@@ -383,6 +388,9 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> crate::Result<PendingWindow<R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -470,7 +478,10 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
-      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol());
+      pending.register_uri_scheme_protocol(
+        "tauri",
+        self.prepare_uri_scheme_protocol(web_resource_request_handler),
+      );
       registered_scheme_protocols.push("tauri".into());
     }
 
@@ -788,6 +799,9 @@ impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     let manager = self.clone();
@@ -801,11 +815,28 @@ impl<R: Runtime> WindowManager<R> {
         .to_string()
         .replace("tauri://localhost", "");
       let asset = manager.get_asset(path)?;
-      let mut response = HttpResponseBuilder::new().mimetype(&asset.mime_type);
-      if let Some(csp) = asset.csp_header {
-        response = response.header("Content-Security-Policy", csp);
+      let mut builder = HttpResponseBuilder::new().mimetype(&asset.mime_type);
+      if let Some(csp) = &asset.csp_header {
+        builder = builder.header("Content-Security-Policy", csp);
       }
-      response.body(asset.bytes)
+      let mut response = builder.body(asset.bytes)?;
+      if let Some(handler) = &web_resource_request_handler {
+        handler(request, &mut response);
+
+        // if it's an HTML file, we need to set the CSP meta tag on Linux
+        #[cfg(target_os = "linux")]
+        if let (Some(original_csp), Some(response_csp)) = (
+          asset.csp_header,
+          response.headers().get("Content-Security_Policy"),
+        ) {
+          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
+          if response_csp != original_csp {
+            let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
+            *response.body_mut() = body.as_bytes().to_vec();
+          }
+        }
+      }
+      Ok(response)
     })
   }
 
@@ -990,6 +1021,9 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<R>,
     window_labels: &[String],
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> crate::Result<PendingWindow<R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
@@ -1043,7 +1077,13 @@ impl<R: Runtime> WindowManager<R> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
+      pending = self.prepare_pending_window(
+        pending,
+        &label,
+        window_labels,
+        app_handle.clone(),
+        web_resource_request_handler,
+      )?;
       pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
     }
 

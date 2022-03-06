@@ -23,6 +23,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
+  window::WindowBuilder,
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
@@ -386,15 +387,12 @@ macro_rules! shared_app_impl {
           WebviewAttributes,
         ),
       {
-        let (window_builder, webview_attributes) = setup(
-          <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-          WebviewAttributes::new(url),
-        );
-        self.create_new_window(PendingWindow::new(
-          window_builder,
-          webview_attributes,
-          label,
-        )?)
+        let mut builder = WindowBuilder::<R>::new(self, label, url);
+        let (window_builder, webview_attributes) =
+          setup(builder.window_builder, builder.webview_attributes);
+        builder.window_builder = window_builder;
+        builder.webview_attributes = webview_attributes;
+        builder.build()
       }
 
       #[cfg(feature = "system-tray")]
@@ -1310,9 +1308,10 @@ impl<R: Runtime> Builder<R> {
     let mut main_window = None;
 
     for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
       #[cfg(feature = "updater")]

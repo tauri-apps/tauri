@@ -311,7 +311,7 @@ pub trait ClipboardManager: Debug + Clone + Send + Sync {
 }
 
 /// The webview runtime interface.
-pub trait Runtime: Sized + 'static {
+pub trait Runtime: Debug + Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.

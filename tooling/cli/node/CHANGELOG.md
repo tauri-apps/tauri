@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Added `tsp` config option under `tauri > bundle > windows`, which enables Time-Stamp Protocol (RFC 3161) for the timestamping
+  server under code signing on Windows if set to `true`.
+  - [bdd5f7c2](https://www.github.com/tauri-apps/tauri/commit/bdd5f7c2f03af4af8b60a9527e55bb18525d989b) fix: add support for Time-Stamping Protocol for Windows codesigning (fix [#3563](https://www.github.com/tauri-apps/tauri/pull/3563)) ([#3570](https://www.github.com/tauri-apps/tauri/pull/3570)) on 2022-03-07
+- Added `i686-pc-windows-msvc` to the prebuilt targets.
+  - [fb6744da](https://www.github.com/tauri-apps/tauri/commit/fb6744daa45165c7e00e5c01f7df0880d69ca509) feat(cli.js): add 32bit cli for windows ([#3540](https://www.github.com/tauri-apps/tauri/pull/3540)) on 2022-02-24
+- Change the `plugin init` templates to use the new `tauri::plugin::Builder` syntax.
+  - [f7acb061](https://www.github.com/tauri-apps/tauri/commit/f7acb061e4d1ecdbfe182793587632d7ba6d8eff) feat(cli): use plugin::Builder syntax on the plugin template ([#3606](https://www.github.com/tauri-apps/tauri/pull/3606)) on 2022-03-03
+
 ## \[1.0.0-rc.5]
 
 - Improve "waiting for your dev server to start" message.

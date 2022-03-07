@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macros"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "os", "filesystem", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -20,8 +20,8 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"
-tauri-codegen = { version = "1.0.0-rc.2", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "1.0.0-rc.2", path = "../tauri-utils" }
+tauri-codegen = { version = "1.0.0-rc.3", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]

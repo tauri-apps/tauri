@@ -16,7 +16,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -52,10 +52,10 @@ url = { version = "2.2" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.9"
-tauri-runtime = { version = "0.3.2", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-rc.2", path = "../tauri-macros" }
-tauri-utils = { version = "1.0.0-rc.2", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.3.2", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.3.3", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0-rc.3", path = "../tauri-macros" }
+tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.3.3", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = "1.0"
 serde_repr = "0.1"
@@ -124,9 +124,18 @@ compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
-__isolation-docs = [ "tauri-utils/__isolation-docs", "tauri-macros/__isolation-docs" ]
+__isolation-docs = [
+  "tauri-utils/__isolation-docs",
+  "tauri-macros/__isolation-docs"
+]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
-updater = [ "minisign-verify", "base64", "http-api", "dialog-ask", "fs-extract-api" ]
+updater = [
+  "minisign-verify",
+  "base64",
+  "http-api",
+  "dialog-ask",
+  "fs-extract-api"
+]
 __updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]

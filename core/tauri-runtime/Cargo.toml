@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "0.3.2"
+version = "0.3.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -26,7 +26,7 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "1.0.0-rc.2", path = "../tauri-utils" }
+tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"
@@ -35,9 +35,9 @@ infer = "0.4"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.13.0"
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.30.0"
-features = [ "Win32_Foundation" ]
+  [target."cfg(windows)".dependencies.windows]
+  version = "0.30.0"
+  features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }

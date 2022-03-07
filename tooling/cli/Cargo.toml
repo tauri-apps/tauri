@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "1.0.0-rc.6"
+version = "1.0.0-rc.7"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.57"
@@ -29,7 +29,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.1", features = [ "derive" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "1.0.0-rc.2", path = "../bundler" }
+tauri-bundler = { version = "1.0.0-rc.3", path = "../bundler" }
 colored = "2.0"
 once_cell = "1.9"
 serde = { version = "1.0", features = [ "derive" ] }
@@ -39,7 +39,7 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.13"
 json-patch = "0.2"
-tauri-utils = { version = "1.0.0-rc.2", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
+tauri-utils = { version = "1.0.0-rc.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
 toml = "0.5"
 valico = "3.6"
 handlebars = "4.2"

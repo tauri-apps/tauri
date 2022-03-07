@@ -142,7 +142,7 @@ async function readTextFile(
   return invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readFile',
+      cmd: 'readTextFile',
       path: filePath,
       options
     }

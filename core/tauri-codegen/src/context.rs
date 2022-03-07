@@ -360,7 +360,7 @@ fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
 }
 
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 fn png_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
@@ -380,6 +380,7 @@ fn png_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
   quote!(Some(#root::Icon::Rgba { rgba: vec![#(#rgba_items),*], width: #width, height: #height }))
 }
 
+#[cfg(any(windows, target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,

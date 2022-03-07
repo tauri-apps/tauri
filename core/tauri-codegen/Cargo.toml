@@ -30,7 +30,7 @@ uuid = { version = "0.8", features = [ "v4" ] }
 [target."cfg(windows)".dependencies]
 ico = "0.1"
 
-[target."cfg(not(windows))".dependencies]
+[target."cfg(target_os = \"linux\")".dependencies]
 png = "0.16"
 
 [features]

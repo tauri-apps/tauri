@@ -126,6 +126,7 @@ fn set_csp<R: Runtime>(
     default_src.push(format_real_schema(schema));
   }
 
+  #[allow(clippy::let_and_return)]
   let csp = Csp::DirectiveMap(csp).to_string();
   #[cfg(target_os = "linux")]
   {

@@ -354,7 +354,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 }
 
 #[cfg(windows)]
-fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
+fn ico_icon<P: AsRef<Path>>(
+  root: &TokenStream,
+  out_dir: &Path,
+  path: P,
+) -> Result<TokenStream, EmbeddedAssetsError> {
   use std::fs::File;
   use std::io::Write;
 
@@ -388,9 +392,7 @@ fn ico_icon<P: AsRef<Path>>(root: &TokenStream, path: P) -> TokenStream {
 
   let out_path = out_path.display().to_string();
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes(#out_path), width: #width, height: #height }));
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
   Ok(icon)
 }
 
@@ -433,7 +435,7 @@ fn png_icon<P: AsRef<Path>>(
 
   let out_path = out_path.display().to_string();
 
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes(#out_path), width: #width, height: #height }));
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
   Ok(icon)
 }
 

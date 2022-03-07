@@ -23,7 +23,7 @@ pub enum Cmd {
 impl Cmd {
   #[module_command_handler(process_relaunch, "process > relaunch")]
   fn relaunch<R: Runtime>(context: InvokeContext<R>) -> super::Result<()> {
-    crate::api::process::restart(&context.window.state());
+    context.window.app_handle().restart();
     Ok(())
   }
 

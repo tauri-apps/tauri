@@ -733,7 +733,6 @@ impl<R: Runtime> WindowManager<R> {
       // skip leading `/`
       path.chars().skip(1).collect::<String>()
     };
-    let is_html = path.ends_with(".html");
 
     let mut asset_path = AssetKey::from(path.as_str());
 
@@ -757,6 +756,7 @@ impl<R: Runtime> WindowManager<R> {
       .map(Cow::into_owned);
 
     let mut csp_header = None;
+    let is_html = asset_path.as_ref().ends_with(".html");
 
     match asset_response {
       Ok(asset) => {

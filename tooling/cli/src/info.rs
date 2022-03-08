@@ -561,9 +561,9 @@ pub fn command(_options: Options) -> Result<()> {
       .unwrap_or_default();
 
     if build_tools.is_empty() {
-      VersionBlock::new("Visual Studio Build Tools", "").display();
+      InfoBlock::new("Visual Studio Build Tools", "").display();
     } else {
-      VersionBlock::new("Visual Studio Build Tools", " ").display();
+      InfoBlock::new("Visual Studio Build Tools", "").display();
       for i in build_tools {
         indent(6);
         println!("{}", format!("{} {}", "-".cyan(), i));
@@ -651,7 +651,7 @@ pub fn command(_options: Options) -> Result<()> {
       .unwrap_or_default(),
   )
   .display();
-  VersionBlock::new(
+  InfoBlock::new(
     "Rust toolchain",
     active_rust_toolchain()
       .unwrap_or_default()

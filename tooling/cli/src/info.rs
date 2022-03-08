@@ -561,9 +561,9 @@ pub fn command(_options: Options) -> Result<()> {
       .unwrap_or_default();
 
     if build_tools.is_empty() {
-      InfoBlock::new("Visual Studio Build Tools", "").display();
+      InfoBlock::new("MSVC", "").display();
     } else {
-      InfoBlock::new("Visual Studio Build Tools", "").display();
+      InfoBlock::new("MSVC", "").display();
       for i in build_tools {
         indent(6);
         println!("{}", format!("{} {}", "-".cyan(), i));

@@ -455,29 +455,6 @@ impl Section {
   }
 }
 
-struct InfoBlock {
-  info: String,
-  indentation: usize,
-}
-impl InfoBlock {
-  fn new(info: impl Into<String>) -> Self {
-    Self {
-      info: info.into(),
-      indentation: 0,
-    }
-  }
-
-  fn indent(mut self, spaces: usize) -> Self {
-    self.indentation = spaces;
-    self
-  }
-
-  fn display(&self) {
-    indent(self.indentation);
-    println!("{}", self.info);
-  }
-}
-
 struct VersionBlock {
   key: String,
   version: String,
@@ -563,9 +540,8 @@ pub fn command(_options: Options) -> Result<()> {
     } else {
       VersionBlock::new("Visual Studio Build Tools", " ").display();
       for i in build_tools {
-        InfoBlock::new(format!("{} {}", "-".cyan(), i))
-          .indent(6)
-          .display();
+        indent(6);
+        println!("{}", format!("{} {}", "-".cyan(), i));
       }
     }
   }

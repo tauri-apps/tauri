@@ -7,6 +7,7 @@ use crate::helpers::{
 };
 use crate::Result;
 use clap::Parser;
+use colored::Colorize;
 use serde::Deserialize;
 
 use std::{
@@ -311,96 +312,6 @@ fn active_rust_toolchain() -> crate::Result<Option<String>> {
   Ok(toolchain)
 }
 
-struct InfoBlock {
-  section: bool,
-  key: &'static str,
-  value: Option<String>,
-  suffix: Option<String>,
-}
-
-impl InfoBlock {
-  fn new(key: &'static str) -> Self {
-    Self {
-      section: false,
-      key,
-      value: None,
-      suffix: None,
-    }
-  }
-
-  fn section(mut self) -> Self {
-    self.section = true;
-    self
-  }
-
-  fn value<V: Into<Option<String>>>(mut self, value: V) -> Self {
-    self.value = value.into();
-    self
-  }
-
-  fn suffix<S: Into<Option<String>>>(mut self, suffix: S) -> Self {
-    self.suffix = suffix.into();
-    self
-  }
-
-  fn display(&self) {
-    if self.section {
-      println!();
-    }
-    print!("{}", self.key);
-    if let Some(value) = &self.value {
-      print!(" - {}", value);
-    }
-    if let Some(suffix) = &self.suffix {
-      print!("{}", suffix);
-    }
-    println!();
-  }
-}
-
-struct VersionBlock {
-  section: bool,
-  key: &'static str,
-  version: Option<String>,
-  target_version: Option<String>,
-}
-
-impl VersionBlock {
-  fn new<V: Into<Option<String>>>(key: &'static str, version: V) -> Self {
-    Self {
-      section: false,
-      key,
-      version: version.into(),
-      target_version: None,
-    }
-  }
-
-  fn target_version<V: Into<Option<String>>>(mut self, version: V) -> Self {
-    self.target_version = version.into();
-    self
-  }
-
-  fn display(&self) {
-    if self.section {
-      println!();
-    }
-    print!("{}", self.key);
-    if let Some(version) = &self.version {
-      print!(" - {}", version);
-    } else {
-      print!(" - Not installed");
-    }
-    if let (Some(version), Some(target_version)) = (&self.version, &self.target_version) {
-      let version = semver::Version::parse(version).unwrap();
-      let target_version = semver::Version::parse(target_version).unwrap();
-      if version < target_version {
-        print!(" (outdated, latest: {})", target_version);
-      }
-    }
-    println!();
-  }
-}
-
 fn crate_version(
   tauri_dir: &Path,
   manifest: Option<&CargoManifest>,
@@ -529,23 +440,117 @@ fn crate_version(
   (crate_version_string, suffix)
 }
 
+fn indent(spaces: usize) {
+  print!(
+    "{}",
+    vec![0; spaces].iter().map(|_| " ").collect::<String>()
+  );
+}
+
+struct Section(&'static str);
+impl Section {
+  fn display(&self) {
+    println!();
+    println!("{}", self.0.yellow().bold());
+  }
+}
+
+struct InfoBlock {
+  info: String,
+  indentation: usize,
+}
+impl InfoBlock {
+  fn new(info: impl Into<String>) -> Self {
+    Self {
+      info: info.into(),
+      indentation: 0,
+    }
+  }
+
+  fn indent(mut self, spaces: usize) -> Self {
+    self.indentation = spaces;
+    self
+  }
+
+  fn display(&self) {
+    indent(self.indentation);
+    println!("{}", self.info);
+  }
+}
+
+struct VersionBlock {
+  key: String,
+  version: String,
+  target_version: String,
+  indentation: usize,
+  skip_update: bool,
+}
+
+impl VersionBlock {
+  fn new(key: impl Into<String>, version: impl Into<String>) -> Self {
+    Self {
+      key: key.into(),
+      version: version.into(),
+      target_version: "".into(),
+      indentation: 2,
+      skip_update: false,
+    }
+  }
+
+  fn skip_update(mut self) -> Self {
+    self.skip_update = true;
+    self
+  }
+  fn target_version(mut self, version: impl Into<String>) -> Self {
+    self.target_version = version.into();
+    self
+  }
+
+  fn display(&self) {
+    indent(self.indentation);
+    print!("{} ", "›".cyan());
+    print!("{}", self.key.bold());
+    print!(": ");
+    print!(
+      "{}",
+      if self.version.is_empty() {
+        "Not installed!".red().to_string()
+      } else {
+        self.version.clone()
+      }
+    );
+    if !self.target_version.is_empty() && !self.skip_update {
+      print!(
+        "({}, latest: {})",
+        "outdated".red(),
+        self.target_version.green()
+      );
+    }
+    println!();
+  }
+}
+
 pub fn command(_options: Options) -> Result<()> {
+  Section("Environment").display();
+
   let os_info = os_info::get();
-  InfoBlock {
-    section: true,
-    key: "Operating System",
-    value: Some(format!(
-      "{}, version {} {:?}",
+  VersionBlock::new(
+    "OS",
+    format!(
+      "{} {} {:?}",
       os_info.os_type(),
       os_info.version(),
       os_info.bitness()
-    )),
-    suffix: None,
-  }
+    ),
+  )
   .display();
 
   #[cfg(windows)]
-  VersionBlock::new("Webview2", webview2_version().unwrap_or_default()).display();
+  VersionBlock::new(
+    "Webview2",
+    webview2_version().unwrap_or_default().unwrap_or_default(),
+  )
+  .display();
 
   #[cfg(windows)]
   {
@@ -554,24 +559,13 @@ pub fn command(_options: Options) -> Result<()> {
       .unwrap_or_default();
 
     if build_tools.is_empty() {
-      InfoBlock {
-        section: false,
-        key: "Visual Studio Build Tools - Not installed",
-        value: None,
-        suffix: None,
-      }
-      .display();
+      VersionBlock::new("Visual Studio Build Tools", "").display();
     } else {
-      InfoBlock {
-        section: false,
-        key: "Visual Studio Build Tools:",
-        value: None,
-        suffix: None,
-      }
-      .display();
-
+      VersionBlock::new("Visual Studio Build Tools", " ").display();
       for i in build_tools {
-        VersionBlock::new("  ", i).display();
+        InfoBlock::new(format!("{} {}", "-".cyan(), i))
+          .indent(6)
+          .display();
       }
     }
   }
@@ -584,6 +578,87 @@ pub fn command(_options: Options) -> Result<()> {
     .map(Some)
     .unwrap_or_default();
   panic::set_hook(hook);
+
+  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  VersionBlock::new(
+    "Node.js",
+    get_version("node", &[])
+      .unwrap_or_default()
+      .unwrap_or_default()
+      .chars()
+      .skip(1)
+      .collect::<String>(),
+  )
+  .target_version(metadata.js_cli.node.replace(">= ", ""))
+  .skip_update()
+  .display();
+
+  VersionBlock::new(
+    "npm",
+    get_version("npm", &[])
+      .unwrap_or_default()
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "pnpm",
+    get_version("pnpm", &[])
+      .unwrap_or_default()
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "yarn",
+    get_version("yarn", &[])
+      .unwrap_or_default()
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "rustup",
+    get_version("rustup", &[])
+      .unwrap_or_default()
+      .map(|v| {
+        let mut s = v.split(' ');
+        s.next();
+        s.next().unwrap().to_string()
+      })
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "rustc",
+    get_version("rustc", &[])
+      .unwrap_or_default()
+      .map(|v| {
+        let mut s = v.split(' ');
+        s.next();
+        s.next().unwrap().to_string()
+      })
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "cargo",
+    get_version("cargo", &[])
+      .unwrap_or_default()
+      .map(|v| {
+        let mut s = v.split(' ');
+        s.next();
+        s.next().unwrap().to_string()
+      })
+      .unwrap_or_default(),
+  )
+  .display();
+  VersionBlock::new(
+    "Rust toolchain",
+    active_rust_toolchain()
+      .unwrap_or_default()
+      .unwrap_or_default(),
+  )
+  .display();
+
+  Section("Packages").display();
 
   let mut package_manager = PackageManager::Npm;
   if let Some(app_dir) = &app_dir {
@@ -601,76 +676,29 @@ pub fn command(_options: Options) -> Result<()> {
       .collect::<Vec<String>>();
     package_manager = get_package_manager(&file_names)?;
   }
-
-  if let Some(node_version) = get_version("node", &[]).unwrap_or_default() {
-    InfoBlock::new("Node.js environment").section().display();
-    let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  VersionBlock::new(
+    format!("{} {}", "@tauri-apps/cli", "[NPM]".dimmed()),
+    metadata.js_cli.version,
+  )
+  .target_version(
+    npm_latest_version(&package_manager, "@tauri-apps/cli")
+      .unwrap_or_default()
+      .unwrap_or_default(),
+  )
+  .display();
+  if let Some(app_dir) = &app_dir {
     VersionBlock::new(
-      "  Node.js",
-      node_version.chars().skip(1).collect::<String>(),
+      format!("{} {}", "@tauri-apps/api", "[NPM]".dimmed()),
+      npm_package_version(&package_manager, "@tauri-apps/api", app_dir)
+        .unwrap_or_default()
+        .unwrap_or_default(),
     )
-    .target_version(metadata.js_cli.node.replace(">= ", ""))
+    .target_version(
+      npm_latest_version(&package_manager, "@tauri-apps/api")
+        .unwrap_or_default()
+        .unwrap_or_default(),
+    )
     .display();
-
-    VersionBlock::new("  @tauri-apps/cli", metadata.js_cli.version)
-      .target_version(npm_latest_version(&package_manager, "@tauri-apps/cli").unwrap_or_default())
-      .display();
-    if let Some(app_dir) = &app_dir {
-      VersionBlock::new(
-        "  @tauri-apps/api",
-        npm_package_version(&package_manager, "@tauri-apps/api", app_dir).unwrap_or_default(),
-      )
-      .target_version(npm_latest_version(&package_manager, "@tauri-apps/api").unwrap_or_default())
-      .display();
-    }
-
-    InfoBlock::new("Global packages").section().display();
-
-    VersionBlock::new("  npm", get_version("npm", &[]).unwrap_or_default()).display();
-    VersionBlock::new("  pnpm", get_version("pnpm", &[]).unwrap_or_default()).display();
-    VersionBlock::new("  yarn", get_version("yarn", &[]).unwrap_or_default()).display();
-  }
-
-  InfoBlock::new("Rust environment").section().display();
-  VersionBlock::new(
-    "  rustup",
-    get_version("rustup", &[]).unwrap_or_default().map(|v| {
-      let mut s = v.split(' ');
-      s.next();
-      s.next().unwrap().to_string()
-    }),
-  )
-  .display();
-  VersionBlock::new(
-    "  rustc",
-    get_version("rustc", &[]).unwrap_or_default().map(|v| {
-      let mut s = v.split(' ');
-      s.next();
-      s.next().unwrap().to_string()
-    }),
-  )
-  .display();
-  VersionBlock::new(
-    "  cargo",
-    get_version("cargo", &[]).unwrap_or_default().map(|v| {
-      let mut s = v.split(' ');
-      s.next();
-      s.next().unwrap().to_string()
-    }),
-  )
-  .display();
-  VersionBlock::new("  toolchain", active_rust_toolchain().unwrap_or_default()).display();
-
-  if let Some(app_dir) = app_dir {
-    InfoBlock::new("App directory structure")
-      .section()
-      .display();
-    for entry in read_dir(app_dir)? {
-      let entry = entry?;
-      if entry.path().is_dir() {
-        println!("/{}", entry.path().file_name().unwrap().to_string_lossy());
-      }
-    }
   }
 
   let hook = panic::take_hook();
@@ -683,9 +711,7 @@ pub fn command(_options: Options) -> Result<()> {
   panic::set_hook(hook);
 
   if tauri_dir.is_some() || app_dir.is_some() {
-    InfoBlock::new("App").section().display();
-
-    if let Some(tauri_dir) = tauri_dir {
+    if let Some(tauri_dir) = tauri_dir.clone() {
       let manifest: Option<CargoManifest> =
         if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {
           toml::from_str(&manifest_contents).ok()
@@ -700,46 +726,53 @@ pub fn command(_options: Options) -> Result<()> {
         };
 
       for (dep, label) in [
-        ("tauri", "  tauri"),
-        ("tauri-build", "  tauri-build"),
-        ("tao", "  tao"),
-        ("wry", "  wry"),
+        ("tauri", format!("{} {}", "tauri", "[RUST]".dimmed())),
+        (
+          "tauri-build",
+          format!("{} {}", "tauri-build", "[RUST]".dimmed()),
+        ),
+        ("tao", format!("{} {}", "tao", "[RUST]".dimmed())),
+        ("wry", format!("{} {}", "wry", "[RUST]".dimmed())),
       ] {
         let (version_string, version_suffix) =
           crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-        InfoBlock::new(label)
-          .value(version_string)
-          .suffix(version_suffix)
-          .display();
+        VersionBlock::new(
+          label,
+          format!("{},{}", version_string, version_suffix.unwrap_or("".into())),
+        )
+        .display();
       }
+    }
+  }
 
+  if tauri_dir.is_some() || app_dir.is_some() {
+    Section("App").display();
+    if tauri_dir.is_some() {
       if let Ok(config) = get_config(None) {
         let config_guard = config.lock().unwrap();
         let config = config_guard.as_ref().unwrap();
-        InfoBlock::new("  build-type")
-          .value(if config.tauri.bundle.active {
+        VersionBlock::new(
+          "build-type",
+          if config.tauri.bundle.active {
             "bundle".to_string()
           } else {
             "build".to_string()
-          })
-          .display();
-        InfoBlock::new("  CSP")
-          .value(
-            config
-              .tauri
-              .security
-              .csp
-              .as_ref()
-              .map(|c| c.to_string())
-              .unwrap_or_else(|| "unset".to_string()),
-          )
-          .display();
-        InfoBlock::new("  distDir")
-          .value(config.build.dist_dir.to_string())
-          .display();
-        InfoBlock::new("  devPath")
-          .value(config.build.dev_path.to_string())
-          .display();
+          },
+        )
+        .display();
+        VersionBlock::new(
+          "CSP",
+          config
+            .tauri
+            .security
+            .csp
+            .clone()
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "unset".to_string()),
+        )
+        .display();
+        VersionBlock::new("distDir", config.build.dist_dir.to_string()).display();
+        VersionBlock::new("devPath", config.build.dev_path.to_string()).display();
       }
     }
 
@@ -747,18 +780,37 @@ pub fn command(_options: Options) -> Result<()> {
       if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
         let (framework, bundler) = infer_framework(&package_json);
         if let Some(framework) = framework {
-          InfoBlock::new("  framework")
-            .value(framework.to_string())
-            .display();
+          VersionBlock::new("framework", framework.to_string()).display();
         }
         if let Some(bundler) = bundler {
-          InfoBlock::new("  bundler")
-            .value(bundler.to_string())
-            .display();
+          VersionBlock::new("bundler", bundler.to_string()).display();
         }
       } else {
         println!("package.json not found");
       }
+    }
+  }
+
+  if let Some(app_dir) = app_dir {
+    Section("App directory structure").display();
+    let dirs = read_dir(app_dir)?
+      .filter(|p| p.is_ok() && p.as_ref().unwrap().path().is_dir())
+      .collect::<Vec<Result<std::fs::DirEntry, _>>>();
+    let dirs_len = dirs.len();
+    let mut i = 0;
+    for entry in dirs {
+      let entry = entry?;
+      let prefix = if i + 1 == dirs_len {
+        "└─".cyan()
+      } else {
+        "├─".cyan()
+      };
+      println!(
+        "  {} {}",
+        prefix,
+        entry.path().file_name().unwrap().to_string_lossy()
+      );
+      i = i + 1;
     }
   }
 

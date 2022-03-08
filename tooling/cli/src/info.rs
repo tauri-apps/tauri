@@ -456,7 +456,7 @@ impl Section {
 }
 
 struct VersionBlock {
-  key: String,
+  name: String,
   version: String,
   target_version: String,
   indentation: usize,
@@ -464,9 +464,9 @@ struct VersionBlock {
 }
 
 impl VersionBlock {
-  fn new(key: impl Into<String>, version: impl Into<String>) -> Self {
+  fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
     Self {
-      key: key.into(),
+      name: name.into(),
       version: version.into(),
       target_version: "".into(),
       indentation: 2,
@@ -486,7 +486,7 @@ impl VersionBlock {
   fn display(&self) {
     indent(self.indentation);
     print!("{} ", "›".cyan());
-    print!("{}", self.key.bold());
+    print!("{}", self.name.bold());
     print!(": ");
     print!(
       "{}",
@@ -503,6 +503,31 @@ impl VersionBlock {
         self.target_version.green()
       );
     }
+    println!();
+  }
+}
+
+struct InfoBlock {
+  key: String,
+  value: String,
+  indentation: usize,
+}
+
+impl InfoBlock {
+  fn new(key: impl Into<String>, val: impl Into<String>) -> Self {
+    Self {
+      key: key.into(),
+      value: val.into(),
+      indentation: 2,
+    }
+  }
+
+  fn display(&self) {
+    indent(self.indentation);
+    print!("{} ", "›".cyan());
+    print!("{}", self.key.bold());
+    print!(": ");
+    print!("{}", self.value.clone());
     println!();
   }
 }
@@ -731,7 +756,7 @@ pub fn command(_options: Options) -> Result<()> {
       if let Ok(config) = get_config(None) {
         let config_guard = config.lock().unwrap();
         let config = config_guard.as_ref().unwrap();
-        VersionBlock::new(
+        InfoBlock::new(
           "build-type",
           if config.tauri.bundle.active {
             "bundle".to_string()
@@ -740,7 +765,7 @@ pub fn command(_options: Options) -> Result<()> {
           },
         )
         .display();
-        VersionBlock::new(
+        InfoBlock::new(
           "CSP",
           config
             .tauri
@@ -751,8 +776,8 @@ pub fn command(_options: Options) -> Result<()> {
             .unwrap_or_else(|| "unset".to_string()),
         )
         .display();
-        VersionBlock::new("distDir", config.build.dist_dir.to_string()).display();
-        VersionBlock::new("devPath", config.build.dev_path.to_string()).display();
+        InfoBlock::new("distDir", config.build.dist_dir.to_string()).display();
+        InfoBlock::new("devPath", config.build.dev_path.to_string()).display();
       }
     }
 
@@ -760,10 +785,10 @@ pub fn command(_options: Options) -> Result<()> {
       if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
         let (framework, bundler) = infer_framework(&package_json);
         if let Some(framework) = framework {
-          VersionBlock::new("framework", framework.to_string()).display();
+          InfoBlock::new("framework", framework.to_string()).display();
         }
         if let Some(bundler) = bundler {
-          VersionBlock::new("bundler", bundler.to_string()).display();
+          InfoBlock::new("bundler", bundler.to_string()).display();
         }
       } else {
         println!("package.json not found");

@@ -738,7 +738,11 @@ pub fn command(_options: Options) -> Result<()> {
           crate_version(&tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
         VersionBlock::new(
           label,
-          format!("{},{}", version_string, version_suffix.unwrap_or("".into())),
+          format!(
+            "{},{}",
+            version_string,
+            version_suffix.unwrap_or_else(|| "".into())
+          ),
         )
         .display();
       }
@@ -797,8 +801,7 @@ pub fn command(_options: Options) -> Result<()> {
       .filter(|p| p.is_ok() && p.as_ref().unwrap().path().is_dir())
       .collect::<Vec<Result<std::fs::DirEntry, _>>>();
     let dirs_len = dirs.len();
-    let mut i = 0;
-    for entry in dirs {
+    for (i, entry) in dirs.into_iter().enumerate() {
       let entry = entry?;
       let prefix = if i + 1 == dirs_len {
         "└─".cyan()
@@ -810,7 +813,6 @@ pub fn command(_options: Options) -> Result<()> {
         prefix,
         entry.path().file_name().unwrap().to_string_lossy()
       );
-      i = i + 1;
     }
   }
 

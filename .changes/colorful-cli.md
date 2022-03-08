@@ -3,4 +3,4 @@
 "cli.js": "patch"
 ---
 
-Colorful CLI
+Improve readability of the `info` subcommand output.

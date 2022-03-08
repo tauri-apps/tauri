@@ -478,6 +478,7 @@ impl VersionBlock {
     self.skip_update = true;
     self
   }
+
   fn target_version(mut self, version: impl Into<String>) -> Self {
     self.target_version = version.into();
     self

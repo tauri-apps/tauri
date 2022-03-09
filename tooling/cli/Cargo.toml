@@ -31,7 +31,7 @@ clap = { version = "3.1", features = [ "derive" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.0-rc.3", path = "../bundler" }
 colored = "2.0"
-once_cell = "1.9"
+once_cell = "1.10"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 serde_with = "1.12"

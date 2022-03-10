@@ -410,15 +410,15 @@ fn png_icon<P: AsRef<Path>>(
     .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-  let (info, mut reader) = decoder
+  let mut reader = decoder
     .read_info()
     .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row);
+    buffer.extend(row.data());
   }
-  let width = info.width;
-  let height = info.height;
+  let width = reader.info().width;
+  let height = reader.info().height;
 
   let out_path = out_dir.join(path.file_name().unwrap());
   let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {

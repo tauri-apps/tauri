@@ -143,7 +143,7 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    panic!("error found during tauri-build: {}", error);
+    panic!("error found during tauri-build: {:#?}", error);
   }
 }
 

@@ -31,7 +31,7 @@ uuid = { version = "0.8", features = [ "v4" ] }
 ico = "0.1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
-png = "0.16"
+png = "0.17"
 
 [features]
 default = [ "compression" ]

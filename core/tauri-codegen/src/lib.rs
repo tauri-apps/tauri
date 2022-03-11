@@ -11,6 +11,7 @@ pub use tauri_utils::config::{parse::ConfigError, Config};
 
 mod context;
 pub mod embedded_assets;
+mod vendor;
 
 /// Represents all the errors that can happen while reading the config during codegen.
 #[derive(Debug, thiserror::Error)]

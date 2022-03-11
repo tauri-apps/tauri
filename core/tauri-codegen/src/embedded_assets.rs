@@ -7,6 +7,7 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
+  fmt::Write,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -17,9 +18,6 @@ use walkdir::{DirEntry, WalkDir};
 
 /// The subdirectory inside the target directory we want to place assets.
 const TARGET_PATH: &str = "tauri-codegen-assets";
-
-/// The minimum size needed for the hasher to use multiple threads.
-const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
 
 /// (key, (original filepath, compressed bytes))
 type Asset = (AssetKey, (PathBuf, PathBuf));
@@ -39,6 +37,9 @@ pub enum EmbeddedAssetsError {
     path: PathBuf,
     error: std::io::Error,
   },
+
+  #[error("failed to create hex from bytes because {0}")]
+  Hex(std::fmt::Error),
 
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
@@ -291,20 +292,24 @@ impl EmbeddedAssets {
 
     // get a hash of the input - allows for caching existing files
     let hash = {
-      let mut hasher = blake3::Hasher::new();
-      if input.len() < MULTI_HASH_SIZE_LIMIT {
-        hasher.update(&input);
-      } else {
-        hasher.update_rayon(&input);
+      let mut hasher = crate::vendor::blake3_reference::Hasher::new();
+      hasher.update(&input);
+
+      let mut bytes = [0u8; 32];
+      hasher.finalize(&mut bytes);
+
+      let mut hex = String::with_capacity(2 * bytes.len());
+      for b in bytes {
+        write!(hex, "{:02x}", b).map_err(EmbeddedAssetsError::Hex)?;
       }
-      hasher.finalize().to_hex()
+      hex
     };
 
     // use the content hash to determine filename, keep extensions that exist
     let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
       out_dir.join(format!("{}.{}", hash, ext))
     } else {
-      out_dir.join(hash.to_string())
+      out_dir.join(hash)
     };
 
     // only compress and write to the file if it doesn't already exist.

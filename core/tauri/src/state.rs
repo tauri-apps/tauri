@@ -37,11 +37,9 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
-impl<T: Send + Sync + Debug + 'static> Debug for State<'_, T> {
-  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-    f.debug_tuple("State")
-      .field(&self.0)
-      .finish()
+impl<'r, T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'r, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_tuple("State").field(&self.0).finish()
   }
 }
 

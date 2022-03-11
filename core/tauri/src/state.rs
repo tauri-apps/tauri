@@ -37,6 +37,14 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
+impl<T: Send + Sync + Debug + 'static> Debug for State<'_, T> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    f.debug_tuple("State")
+      .field(&self.0)
+      .finish()
+  }
+}
+
 impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {

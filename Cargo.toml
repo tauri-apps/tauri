@@ -7,8 +7,12 @@ members = [
   "core/tauri-macros",
   "core/tauri-utils",
   "core/tauri-build",
-  "core/tauri-codegen"
+  "core/tauri-codegen",
+
+  # integration tests
+  "core/tauri/tests/restart"
 ]
+
 exclude = [
   # examples that can be compiled with the tauri CLI
   "examples/api/src-tauri",

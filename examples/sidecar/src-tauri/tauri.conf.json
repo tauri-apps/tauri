@@ -38,7 +38,13 @@
     "allowlist": {
       "all": false,
       "shell": {
-        "execute": true
+        "sidecar": true,
+        "scope": [
+          {
+            "name": "binaries/app",
+            "sidecar": true
+          }
+        ]
       }
     },
     "windows": [

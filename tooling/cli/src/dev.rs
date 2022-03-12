@@ -12,7 +12,7 @@ use crate::{
   },
   CommandExt, Result,
 };
-use clap::{AppSettings, Parser};
+use clap::Parser;
 
 use anyhow::Context;
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
@@ -33,8 +33,7 @@ use std::{
 static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
 
 #[derive(Debug, Parser)]
-#[clap(about = "Tauri dev")]
-#[clap(setting(AppSettings::TrailingVarArg))]
+#[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
   /// Binary to use to run the application
   #[clap(short, long)]

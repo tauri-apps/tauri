@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{InvokeContext, InvokeResponse};
-#[cfg(any(dialog_open, dialog_save))]
-use crate::api::dialog::blocking::FileDialogBuilder;
 use crate::Runtime;
+#[cfg(any(dialog_open, dialog_save))]
+use crate::{api::dialog::blocking::FileDialogBuilder, Manager, Scopes};
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
@@ -36,6 +36,10 @@ pub struct OpenDialogOptions {
   pub directory: bool,
   /// The initial path of the dialog.
   pub default_path: Option<PathBuf>,
+  /// If [`Self::directory`] is true, indicates that it will be read recursively later.
+  /// Defines whether subdirectories will be allowed on the scope or not.
+  #[serde(default)]
+  pub recursive: bool,
 }
 
 /// The options for the save dialog API.
@@ -97,12 +101,30 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
+    let scopes = context.window.state::<Scopes>();
+
     let res = if options.directory {
-      dialog_builder.pick_folder().into()
+      let folder = dialog_builder.pick_folder();
+      if let Some(path) = &folder {
+        scopes
+          .allow_directory(path, options.recursive)
+          .map_err(crate::error::into_anyhow)?;
+      }
+      folder.into()
     } else if options.multiple {
-      dialog_builder.pick_files().into()
+      let files = dialog_builder.pick_files();
+      if let Some(files) = &files {
+        for file in files {
+          scopes.allow_file(file).map_err(crate::error::into_anyhow)?;
+        }
+      }
+      files.into()
     } else {
-      dialog_builder.pick_file().into()
+      let file = dialog_builder.pick_file();
+      if let Some(file) = &file {
+        scopes.allow_file(file).map_err(crate::error::into_anyhow)?;
+      }
+      file.into()
     };
 
     Ok(res)
@@ -127,7 +149,14 @@ impl Cmd {
       dialog_builder = dialog_builder.add_filter(filter.name, &extensions);
     }
 
-    Ok(dialog_builder.save_file())
+    let scopes = context.window.state::<Scopes>();
+
+    let path = dialog_builder.save_file();
+    if let Some(p) = &path {
+      scopes.allow_file(p).map_err(crate::error::into_anyhow)?;
+    }
+
+    Ok(path)
   }
 
   #[module_command_handler(dialog_message, "dialog > message")]
@@ -198,6 +227,7 @@ mod tests {
         directory: bool::arbitrary(g),
         default_path: Option::arbitrary(g),
         title: Option::arbitrary(g),
+        recursive: bool::arbitrary(g),
       }
     }
   }

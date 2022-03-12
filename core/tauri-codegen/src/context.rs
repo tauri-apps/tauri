@@ -50,7 +50,7 @@ fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) 
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
-  #[cfg(feature = "isolation")]
+  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
   move |key, path, input, csp_hashes| {
@@ -60,7 +60,7 @@ fn map_core_assets(
       if csp {
         load_csp(&mut document, key, csp_hashes);
 
-        #[cfg(feature = "isolation")]
+        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
         if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
           // create the csp for the isolation iframe styling now, to make the runtime less complex
           let mut hasher = Sha256::new();
@@ -78,7 +78,7 @@ fn map_core_assets(
   }
 }
 
-#[cfg(feature = "isolation")]
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
@@ -164,26 +164,42 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     _ => unimplemented!(),
   };
 
+  #[cfg(any(windows, target_os = "linux"))]
+  let out_dir = {
+    let out_dir = std::env::var("OUT_DIR")
+      .map_err(|_| EmbeddedAssetsError::OutDir)
+      .map(PathBuf::from)
+      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
+
+    // make sure that our output directory is created
+    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
+
+    out_dir
+  };
+
   // handle default window icons for Windows targets
-  let default_window_icon = if cfg!(windows) {
+  #[cfg(windows)]
+  let default_window_icon = {
     let icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
-  } else if cfg!(target_os = "linux") {
+    ico_icon(&root, &out_dir, icon_path)?
+  };
+  #[cfg(target_os = "linux")]
+  let default_window_icon = {
     let icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".png"),
       "icons/icon.png",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
-  } else {
-    quote!(None)
+    png_icon(&root, &out_dir, icon_path)?
   };
+  #[cfg(not(any(windows, target_os = "linux")))]
+  let default_window_icon = quote!(None);
 
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
@@ -213,12 +229,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .join(system_tray_icon_path)
         .display()
         .to_string();
-      quote!(Some(#root::Icon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
     } else {
       let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
       quote!(
         Some(
-          #root::Icon::File(
+          #root::TrayIcon::File(
             #root::api::path::resolve_path(
               &#config,
               &#package_info,
@@ -242,7 +258,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .join(system_tray_icon_path)
       .display()
       .to_string();
-    quote!(Some(#root::Icon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
+    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -268,7 +284,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
-    #[cfg(feature = "isolation")]
+    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
@@ -337,6 +353,93 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   )))
 }
 
+#[cfg(windows)]
+fn ico_icon<P: AsRef<Path>>(
+  root: &TokenStream,
+  out_dir: &Path,
+  path: P,
+) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .to_vec();
+  let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
+    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
+  let entry = &icon_dir.entries()[0];
+  let rgba = entry
+    .decode()
+    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
+    .rgba_data()
+    .to_vec();
+  let width = entry.width();
+  let height = entry.height();
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&rgba)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  Ok(icon)
+}
+
+#[cfg(target_os = "linux")]
+fn png_icon<P: AsRef<Path>>(
+  root: &TokenStream,
+  out_dir: &Path,
+  path: P,
+) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .to_vec();
+  let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+  let (info, mut reader) = decoder
+    .read_info()
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
+  let mut buffer: Vec<u8> = Vec::new();
+  while let Ok(Some(row)) = reader.next_row() {
+    buffer.extend(row);
+  }
+  let width = info.width;
+  let height = info.height;
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&buffer)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  Ok(icon)
+}
+
+#[cfg(any(windows, target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,

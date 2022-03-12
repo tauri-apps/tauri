@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.3.3]
+
+- Fixes a deadlock on the `Focused` event when the window is not visible.
+  - [c08cc6d5](https://www.github.com/tauri-apps/tauri/commit/c08cc6d50041ec887d3070c41bb2c793dbac5155) fix(core): deadlock on focus events with invisible window,[#3534](https://www.github.com/tauri-apps/tauri/pull/3534) ([#3622](https://www.github.com/tauri-apps/tauri/pull/3622)) on 2022-03-06
+- **Breaking change:** Move `ico` and `png` parsing behind `icon-ico` and `icon-png` Cargo features.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+- Print a warning to stderr if the window transparency has been set to true but `macos-private-api` is not enabled.
+  - [080755b5](https://www.github.com/tauri-apps/tauri/commit/080755b5377a3c0a17adf1d03e63555350422f0a) feat(core): warn if private APIs are not enabled, closes [#3481](https://www.github.com/tauri-apps/tauri/pull/3481) ([#3511](https://www.github.com/tauri-apps/tauri/pull/3511)) on 2022-02-19
+
 ## \[0.3.2]
 
 - Fix requirements for `RuntimeHandle`, `ClipboardManager`, `GlobalShortcutHandle` and `TrayHandle`.

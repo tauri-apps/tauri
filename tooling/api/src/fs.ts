@@ -139,14 +139,14 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return invokeTauriCommand<number[]>({
+  return invokeTauriCommand<string>({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'readFile',
+      cmd: 'readTextFile',
       path: filePath,
       options
     }
-  }).then((data) => new TextDecoder().decode(new Uint8Array(data)))
+  })
 }
 
 /**

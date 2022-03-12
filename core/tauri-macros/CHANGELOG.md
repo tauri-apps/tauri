@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Parse window icons at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+
 ## \[1.0.0-rc.2]
 
 - Changed the default value for `tauri > bundle > macOS > minimumSystemVersion` to `10.13`.

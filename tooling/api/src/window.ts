@@ -1022,6 +1022,13 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * Sets the window icon.
    *
+   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * ```
+   *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -1157,13 +1164,24 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(
-  window.__TAURI_METADATA__.__currentWindow.label,
-  {
+let appWindow
+if ('__TAURI_METADATA__' in window) {
+  appWindow = new WebviewWindow(
+    window.__TAURI_METADATA__.__currentWindow.label,
+    {
+      // @ts-expect-error
+      skip: true
+    }
+  )
+} else {
+  console.warn(
+    `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
+  )
+  appWindow = new WebviewWindow('main', {
     // @ts-expect-error
     skip: true
-  }
-)
+  })
+}
 
 /** Configuration for the window to create. */
 interface WindowOptions {

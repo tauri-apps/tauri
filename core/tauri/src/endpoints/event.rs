@@ -63,7 +63,7 @@ pub enum Cmd {
   },
   /// Unlisten to an event.
   #[serde(rename_all = "camelCase")]
-  Unlisten { event_id: u64 },
+  Unlisten { event: EventId, event_id: u64 },
   /// Emit an event to the webview associated with the given window.
   /// If the window_label is omitted, the event will be triggered on all listeners.
   #[serde(rename_all = "camelCase")]
@@ -103,11 +103,16 @@ impl Cmd {
     Ok(event_id)
   }
 
-  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> super::Result<()> {
+  fn unlisten<R: Runtime>(
+    context: InvokeContext<R>,
+    event: EventId,
+    event_id: u64,
+  ) -> super::Result<()> {
     context
       .window
       .eval(&unlisten_js(
         context.window.manager().event_listeners_object_name(),
+        event.0,
         event_id,
       ))
       .map_err(crate::error::into_anyhow)?;

@@ -193,24 +193,41 @@ pub enum ScopeError {
 
 impl Scope {
   /// Creates a new shell scope.
-  pub fn new(scope: ScopeConfig) -> Self {
+  pub(crate) fn new(scope: ScopeConfig) -> Self {
     Self(scope)
+  }
+
+  /// Validates argument inputs and creates a Tauri sidecar [`Command`].
+  #[cfg(shell_sidecar)]
+  pub fn prepare_sidecar(
+    &self,
+    command_name: &str,
+    command_script: &str,
+    args: ExecuteArgs,
+  ) -> Result<Command, ScopeError> {
+    self._prepare(command_name, args, Some(command_script))
+  }
+
+  /// Validates argument inputs and creates a Tauri [`Command`].
+  #[cfg(shell_execute)]
+  pub fn prepare(&self, command_name: &str, args: ExecuteArgs) -> Result<Command, ScopeError> {
+    self._prepare(command_name, args, None)
   }
 
   /// Validates argument inputs and creates a Tauri [`Command`].
   #[cfg(any(shell_execute, shell_sidecar))]
-  pub fn prepare(
+  pub fn _prepare(
     &self,
     command_name: &str,
     args: ExecuteArgs,
-    sidecar: bool,
+    sidecar: Option<&str>,
   ) -> Result<Command, ScopeError> {
     let command = match self.0.scopes.get(command_name) {
       Some(command) => command,
       None => return Err(ScopeError::NotFound(command_name.into())),
     };
 
-    if command.sidecar != sidecar {
+    if command.sidecar != sidecar.is_some() {
       return Err(ScopeError::BadSidecarFlag);
     }
 
@@ -250,7 +267,17 @@ impl Scope {
       (Some(_), _) => Err(ScopeError::InvalidInput(command_name.into())),
     }?;
 
-    let command_s = command.command.to_string_lossy();
+    let command_s = sidecar
+      .map(|s| {
+        std::path::PathBuf::from(s)
+          .components()
+          .last()
+          .unwrap()
+          .as_os_str()
+          .to_string_lossy()
+          .into_owned()
+      })
+      .unwrap_or_else(|| command.command.to_string_lossy().into_owned());
     let command = if command.sidecar {
       Command::new_sidecar(command_s).map_err(ScopeError::Sidecar)?
     } else {

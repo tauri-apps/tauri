@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-rc.2]
+
+- Do not crash if `__TAURI_METADATA__` is not set, log an error instead.
+  - [9cb1059a](https://www.github.com/tauri-apps/tauri/commit/9cb1059aa3f81521ccc6da655243acfe0327cd98) fix(api): do not throw an exception if **TAURI_METADATA** is not set, fixes [#3554](https://www.github.com/tauri-apps/tauri/pull/3554) ([#3572](https://www.github.com/tauri-apps/tauri/pull/3572)) on 2022-03-03
+- Reimplement endpoint to read file as string for performance.
+  - [834ccc51](https://www.github.com/tauri-apps/tauri/commit/834ccc51539401d36a7dfa1c0982623c9c446a4c) feat(core): reimplement `readTextFile` for performance ([#3631](https://www.github.com/tauri-apps/tauri/pull/3631)) on 2022-03-07
+- Fixes a regression on the `unlisten` command.
+  - [76c791bd](https://www.github.com/tauri-apps/tauri/commit/76c791bd2b836d2055410e37e71716172a3f81ef) fix(core): regression on the unlisten function ([#3623](https://www.github.com/tauri-apps/tauri/pull/3623)) on 2022-03-06
+
 ## \[1.0.0-rc.1]
 
 - Provide functions to mock IPC calls during testing and static site generation.

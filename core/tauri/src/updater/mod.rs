@@ -333,10 +333,7 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::{dialog::blocking::ask, process::restart},
-  runtime::Runtime,
-  utils::config::UpdaterConfig,
-  Env, Manager, Window,
+  api::dialog::blocking::ask, runtime::Runtime, utils::config::UpdaterConfig, Env, Manager, Window,
 };
 
 /// Check for new updates
@@ -560,14 +557,13 @@ Release Notes:
     updater.download_and_install(pubkey.clone()).await?;
 
     // Ask user if we need to restart the application
-    let env = window.state::<Env>().inner().clone();
     let should_exit = ask(
       Some(&window),
       "Ready to Restart",
       "The installation was successful, do you want to restart the application now?",
     );
     if should_exit {
-      restart(&env);
+      window.app_handle().restart();
     }
   }
 

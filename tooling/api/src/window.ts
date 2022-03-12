@@ -1166,7 +1166,7 @@ class WebviewWindow extends WindowManager {
 /**
  * The WebviewWindow for the current window.
  *
- * @deprecated since version 1.0
+ * @deprecated Will be removed in the next major version (v2). Please use `getCurrent` instead. 
  */
 let appWindow
 if ('__TAURI_METADATA__' in window) {

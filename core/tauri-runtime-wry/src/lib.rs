@@ -170,6 +170,53 @@ struct Context {
   main_thread: DispatcherMainThreadContext,
 }
 
+impl Context {
+  fn prepare_window(&self, window_id: u64) {
+    self
+      .window_event_listeners
+      .lock()
+      .unwrap()
+      .insert(window_id, WindowEventListenersMap::default());
+
+    self
+      .menu_event_listeners
+      .lock()
+      .unwrap()
+      .insert(window_id, WindowMenuEventListeners::default());
+  }
+
+  fn create_webview(&self, pending: PendingWindow<Wry>) -> Result<DetachedWindow<Wry>> {
+    let label = pending.label.clone();
+    let menu_ids = pending.menu_ids.clone();
+    let js_event_listeners = pending.js_event_listeners.clone();
+    let context = self.clone();
+    let window_id = rand::random();
+
+    self.prepare_window(window_id);
+
+    self
+      .proxy
+      .send_event(Message::CreateWebview(
+        window_id,
+        Box::new(move |event_loop, web_context| {
+          create_webview(window_id, event_loop, web_context, context, pending)
+        }),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)?;
+
+    let dispatcher = WryDispatcher {
+      window_id,
+      context: self.clone(),
+    };
+    Ok(DetachedWindow {
+      label,
+      dispatcher,
+      menu_ids,
+      js_event_listeners,
+    })
+  }
+}
+
 #[derive(Debug, Clone)]
 struct DispatcherMainThreadContext {
   window_target: EventLoopWindowTarget<Message>,
@@ -1207,45 +1254,7 @@ impl Dispatch for WryDispatcher {
     &mut self,
     pending: PendingWindow<Self::Runtime>,
   ) -> Result<DetachedWindow<Self::Runtime>> {
-    let label = pending.label.clone();
-    let menu_ids = pending.menu_ids.clone();
-    let js_event_listeners = pending.js_event_listeners.clone();
-    let context = self.context.clone();
-    let window_id = rand::random();
-
-    context
-      .window_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowEventListenersMap::default());
-
-    context
-      .menu_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowMenuEventListeners::default());
-
-    self
-      .context
-      .proxy
-      .send_event(Message::CreateWebview(
-        window_id,
-        Box::new(move |event_loop, web_context| {
-          create_webview(window_id, event_loop, web_context, context, pending)
-        }),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
-
-    let dispatcher = WryDispatcher {
-      window_id,
-      context: self.context.clone(),
-    };
-    Ok(DetachedWindow {
-      label,
-      dispatcher,
-      menu_ids,
-      js_event_listeners,
-    })
+    self.context.create_webview(pending)
   }
 
   fn set_resizable(&self, resizable: bool) -> Result<()> {
@@ -1569,45 +1578,7 @@ impl RuntimeHandle for WryHandle {
     &self,
     pending: PendingWindow<Self::Runtime>,
   ) -> Result<DetachedWindow<Self::Runtime>> {
-    let label = pending.label.clone();
-    let menu_ids = pending.menu_ids.clone();
-    let js_event_listeners = pending.js_event_listeners.clone();
-    let context = self.context.clone();
-    let window_id = rand::random();
-
-    context
-      .window_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowEventListenersMap::default());
-
-    context
-      .menu_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowMenuEventListeners::default());
-
-    self
-      .context
-      .proxy
-      .send_event(Message::CreateWebview(
-        window_id,
-        Box::new(move |event_loop, web_context| {
-          create_webview(window_id, event_loop, web_context, context, pending)
-        }),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
-
-    let dispatcher = WryDispatcher {
-      window_id,
-      context: self.context.clone(),
-    };
-    Ok(DetachedWindow {
-      label,
-      dispatcher,
-      menu_ids,
-      js_event_listeners,
-    })
+    self.context.create_webview(pending)
   }
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
@@ -1739,101 +1710,38 @@ impl Runtime for Wry {
     let proxy = self.event_loop.create_proxy();
     let window_id = rand::random();
 
-    self
-      .window_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowEventListenersMap::default());
+    let context = Context {
+      webview_id_map: self.webview_id_map.clone(),
+      main_thread_id: self.main_thread_id,
+      proxy,
+      window_event_listeners: self.window_event_listeners.clone(),
+      menu_event_listeners: self.menu_event_listeners.clone(),
+      main_thread: DispatcherMainThreadContext {
+        window_target: self.event_loop.deref().clone(),
+        web_context: self.web_context.clone(),
+        global_shortcut_manager: self.global_shortcut_manager.clone(),
+        clipboard_manager: self.clipboard_manager.clone(),
+        windows: self.windows.clone(),
+        #[cfg(feature = "system-tray")]
+        tray_context: self.tray_context.clone(),
+      },
+    };
 
-    self
-      .menu_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowMenuEventListeners::default());
+    context.prepare_window(window_id);
 
     let webview = create_webview(
       window_id,
       &self.event_loop,
       &self.web_context,
-      Context {
-        webview_id_map: self.webview_id_map.clone(),
-        main_thread_id: self.main_thread_id,
-        proxy: proxy.clone(),
-        window_event_listeners: self.window_event_listeners.clone(),
-        menu_event_listeners: self.menu_event_listeners.clone(),
-        main_thread: DispatcherMainThreadContext {
-          window_target: self.event_loop.deref().clone(),
-          web_context: self.web_context.clone(),
-          global_shortcut_manager: self.global_shortcut_manager.clone(),
-          clipboard_manager: self.clipboard_manager.clone(),
-          windows: self.windows.clone(),
-          #[cfg(feature = "system-tray")]
-          tray_context: self.tray_context.clone(),
-        },
-      },
+      context.clone(),
       pending,
     )?;
-
-    #[cfg(target_os = "windows")]
-    {
-      if let WindowHandle::Webview(ref webview) = webview.inner {
-        if let Some(controller) = webview.controller() {
-          let proxy = self.event_loop.create_proxy();
-          let mut token = EventRegistrationToken::default();
-          unsafe {
-            controller.GotFocus(
-              FocusChangedEventHandler::create(Box::new(move |_, _| {
-                let _ = proxy.send_event(Message::Webview(
-                  window_id,
-                  WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
-                ));
-                Ok(())
-              })),
-              &mut token,
-            )
-          }
-          .unwrap();
-          let proxy = self.event_loop.create_proxy();
-          unsafe {
-            controller.LostFocus(
-              FocusChangedEventHandler::create(Box::new(move |_, _| {
-                let _ = proxy.send_event(Message::Webview(
-                  window_id,
-                  WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
-                ));
-                Ok(())
-              })),
-              &mut token,
-            )
-          }
-          .unwrap();
-        }
-      }
-    }
 
     self
       .webview_id_map
       .insert(webview.inner.window().id(), window_id);
 
-    let dispatcher = WryDispatcher {
-      window_id,
-      context: Context {
-        webview_id_map: self.webview_id_map.clone(),
-        main_thread_id: self.main_thread_id,
-        proxy,
-        window_event_listeners: self.window_event_listeners.clone(),
-        menu_event_listeners: self.menu_event_listeners.clone(),
-        main_thread: DispatcherMainThreadContext {
-          window_target: self.event_loop.deref().clone(),
-          web_context: self.web_context.clone(),
-          global_shortcut_manager: self.global_shortcut_manager.clone(),
-          clipboard_manager: self.clipboard_manager.clone(),
-          windows: self.windows.clone(),
-          #[cfg(feature = "system-tray")]
-          tray_context: self.tray_context.clone(),
-        },
-      },
-    };
+    let dispatcher = WryDispatcher { window_id, context };
 
     self.windows.lock().unwrap().insert(window_id, webview);
 
@@ -2801,6 +2709,41 @@ fn create_webview(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   webview_id_map.insert(webview.window().id(), window_id);
+
+  #[cfg(target_os = "windows")]
+  {
+    if let Some(controller) = webview.controller() {
+      let proxy = self.event_loop.create_proxy();
+      let mut token = EventRegistrationToken::default();
+      unsafe {
+        controller.GotFocus(
+          FocusChangedEventHandler::create(Box::new(move |_, _| {
+            let _ = proxy.send_event(Message::Webview(
+              window_id,
+              WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
+            ));
+            Ok(())
+          })),
+          &mut token,
+        )
+      }
+      .unwrap();
+      let proxy = self.event_loop.create_proxy();
+      unsafe {
+        controller.LostFocus(
+          FocusChangedEventHandler::create(Box::new(move |_, _| {
+            let _ = proxy.send_event(Message::Webview(
+              window_id,
+              WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
+            ));
+            Ok(())
+          })),
+          &mut token,
+        )
+      }
+      .unwrap();
+    }
+  }
 
   Ok(WindowWrapper {
     label,

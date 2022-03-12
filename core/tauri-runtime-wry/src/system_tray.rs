@@ -28,6 +28,7 @@ use uuid::Uuid;
 
 use std::{
   collections::HashMap,
+  fmt,
   sync::{Arc, Mutex},
 };
 
@@ -36,11 +37,11 @@ pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandl
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Debug, Clone)]
-pub struct SystemTrayHandle {
-  pub(crate) proxy: EventLoopProxy<super::Message>,
+pub struct SystemTrayHandle<T: fmt::Debug + Clone + Send + 'static> {
+  pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
 
-impl TrayHandle for SystemTrayHandle {
+impl<T: fmt::Debug + Clone + Send + 'static> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: TrayIcon) -> Result<()> {
     self
       .proxy

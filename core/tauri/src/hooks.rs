@@ -5,8 +5,7 @@
 use crate::{
   api::ipc::{format_callback, format_callback_result, CallbackFn},
   app::App,
-  runtime::Runtime,
-  StateManager, Window,
+  Runtime, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

@@ -164,9 +164,10 @@ pub mod updater;
 
 pub use tauri_utils as utils;
 
+/// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
-pub use tauri_runtime_wry::Wry;
+pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
@@ -215,7 +216,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       FileDropEvent, WindowEvent,
     },
-    ClipboardManager, GlobalShortcutManager, RunIteration, Runtime, TrayIcon, UserAttentionType,
+    ClipboardManager, GlobalShortcutManager, RunIteration, TrayIcon, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -226,6 +227,50 @@ pub use {
   self::window::{Monitor, Window},
   scope::*,
 };
+
+/// Updater events.
+#[cfg(feature = "updater")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+#[derive(Debug, Clone)]
+pub enum UpdaterEvent {
+  /// An update is available.
+  UpdateAvailable,
+  /// The update is pending.
+  Pending,
+  /// The update has been applied and the app is now up to date.
+  Updated,
+  /// The app is already up to date.
+  AlreadyUpToDate,
+  /// An error occurred while updating.
+  Error(String),
+}
+
+#[cfg(feature = "updater")]
+impl UpdaterEvent {
+  pub(crate) fn status_message(self) -> &'static str {
+    match self {
+      Self::Pending => updater::EVENT_STATUS_PENDING,
+      Self::Updated => updater::EVENT_STATUS_SUCCESS,
+      Self::AlreadyUpToDate => updater::EVENT_STATUS_UPTODATE,
+      Self::Error(_) => updater::EVENT_STATUS_ERROR,
+      _ => unreachable!(),
+    }
+  }
+}
+
+/// The user event type.
+#[derive(Debug, Clone)]
+pub enum EventLoopMessage {
+  /// Updater event.
+  #[cfg(feature = "updater")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+  Updater(UpdaterEvent),
+}
+
+/// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
+pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
+
+impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
@@ -598,8 +643,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
+  use super::Runtime;
   use crate::{app::AppHandle, manager::WindowManager};
-  use tauri_runtime::Runtime;
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, R: Runtime> {

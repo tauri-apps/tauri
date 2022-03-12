@@ -7,7 +7,7 @@ pub use tauri_runtime::{
     Menu, MenuEntry, MenuItem, MenuUpdate, Submenu, SystemTrayMenu, SystemTrayMenuEntry,
     SystemTrayMenuItem, TrayHandle,
   },
-  Icon, SystemTrayEvent,
+  SystemTrayEvent, TrayIcon,
 };
 pub use wry::application::{
   event::TrayEvent,
@@ -41,7 +41,7 @@ pub struct SystemTrayHandle {
 }
 
 impl TrayHandle for SystemTrayHandle {
-  fn set_icon(&self, icon: Icon) -> Result<()> {
+  fn set_icon(&self, icon: TrayIcon) -> Result<()> {
     self
       .proxy
       .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))

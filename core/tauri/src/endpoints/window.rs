@@ -11,26 +11,41 @@ use crate::{
     Runtime, UserAttentionType,
   },
   utils::config::WindowConfig,
-  Manager,
+  Icon, Manager,
 };
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
 
-use crate::runtime::Icon;
-use std::path::PathBuf;
-
 #[derive(Deserialize)]
 #[serde(untagged)]
 pub enum IconDto {
-  File(PathBuf),
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
+  File(std::path::PathBuf),
+  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
   Raw(Vec<u8>),
+  Rgba {
+    rgba: Vec<u8>,
+    width: u32,
+    height: u32,
+  },
 }
 
 impl From<IconDto> for Icon {
   fn from(icon: IconDto) -> Self {
     match icon {
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
       IconDto::File(path) => Self::File(path),
+      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
       IconDto::Raw(raw) => Self::Raw(raw),
+      IconDto::Rgba {
+        rgba,
+        width,
+        height,
+      } => Self::Rgba {
+        rgba,
+        width,
+        height,
+      },
     }
   }
 }
@@ -152,18 +167,12 @@ impl Cmd {
     context: InvokeContext<R>,
     options: Box<WindowConfig>,
   ) -> super::Result<()> {
-    let mut window = context.window;
     let label = options.label.clone();
     let url = options.url.clone();
 
-    window
-      .create_window(label, url, |_, webview_attributes| {
-        (
-          <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options),
-          webview_attributes,
-        )
-      })
-      .map_err(crate::error::into_anyhow)?;
+    let mut builder = crate::window::Window::builder(&context.window, label, url);
+    builder.window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(*options);
+    builder.build().map_err(crate::error::into_anyhow)?;
 
     Ok(())
   }

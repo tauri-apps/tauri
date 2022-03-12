@@ -193,7 +193,7 @@ pub enum ScopeError {
 
 impl Scope {
   /// Creates a new shell scope.
-  pub fn new(scope: ScopeConfig) -> Self {
+  pub(crate) fn new(scope: ScopeConfig) -> Self {
     Self(scope)
   }
 

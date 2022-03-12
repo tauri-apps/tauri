@@ -16,8 +16,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, Error, ExitRequestedEventAction, GlobalShortcutManager, Icon, Result,
-  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
+  ClipboardManager, Dispatch, Error, ExitRequestedEventAction, GlobalShortcutManager, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, WindowIcon,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -56,7 +56,7 @@ use wry::{
       MenuItemAttributes as WryMenuItemAttributes, MenuType,
     },
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WindowIcon, UserAttentionType as WryUserAttentionType},
+    window::{Fullscreen, Icon as WryWindowIcon, UserAttentionType as WryUserAttentionType},
   },
   http::{
     Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
@@ -84,7 +84,6 @@ use std::{
     HashMap, HashSet,
   },
   fmt,
-  fs::read,
   ops::Deref,
   path::PathBuf,
   sync::{
@@ -232,10 +231,10 @@ struct HttpRequestWrapper(HttpRequest);
 
 impl From<&WryHttpRequest> for HttpRequestWrapper {
   fn from(req: &WryHttpRequest) -> Self {
-    Self(HttpRequest {
-      body: req.body.clone(),
-      head: HttpRequestPartsWrapper::from(req.head.clone()).0,
-    })
+    Self(HttpRequest::new_internal(
+      HttpRequestPartsWrapper::from(req.head.clone()).0,
+      req.body.clone(),
+    ))
   }
 }
 
@@ -255,9 +254,10 @@ impl From<HttpResponseParts> for HttpResponsePartsWrapper {
 struct HttpResponseWrapper(WryHttpResponse);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
+    let (parts, body) = response.into_parts();
     Self(WryHttpResponse {
-      body: response.body,
-      head: HttpResponsePartsWrapper::from(response.head).0,
+      body,
+      head: HttpResponsePartsWrapper::from(parts).0,
     })
   }
 }
@@ -493,53 +493,19 @@ impl ClipboardManager for ClipboardManagerWrapper {
   }
 }
 
-/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
-pub struct WryIcon(WindowIcon);
+/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`WindowIcon`].
+pub struct WryIcon(WryWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 
-impl TryFrom<Icon> for WryIcon {
+impl TryFrom<WindowIcon> for WryIcon {
   type Error = Error;
-  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
-    let image_bytes = match icon {
-      Icon::File(path) => read(path).map_err(icon_err)?,
-      Icon::Raw(raw) => raw,
-      _ => unimplemented!(),
-    };
-    let extension = infer::get(&image_bytes)
-      .expect("could not determine icon extension")
-      .extension();
-    match extension {
-      #[cfg(windows)]
-      "ico" => {
-        let icon_dir = ico::IconDir::read(std::io::Cursor::new(image_bytes)).map_err(icon_err)?;
-        let entry = &icon_dir.entries()[0];
-        let icon = WindowIcon::from_rgba(
-          entry.decode().map_err(icon_err)?.rgba_data().to_vec(),
-          entry.width(),
-          entry.height(),
-        )
-        .map_err(icon_err)?;
-        Ok(Self(icon))
-      }
-      #[cfg(target_os = "linux")]
-      "png" => {
-        let decoder = png::Decoder::new(std::io::Cursor::new(image_bytes));
-        let (info, mut reader) = decoder.read_info().map_err(icon_err)?;
-        let mut buffer = Vec::new();
-        while let Ok(Some(row)) = reader.next_row() {
-          buffer.extend(row);
-        }
-        let icon = WindowIcon::from_rgba(buffer, info.width, info.height).map_err(icon_err)?;
-        Ok(Self(icon))
-      }
-      _ => panic!(
-        "image `{}` extension not supported; please file a Tauri feature request",
-        extension
-      ),
-    }
+  fn try_from(icon: WindowIcon) -> std::result::Result<Self, Self::Error> {
+    WryWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
+      .map(Self)
+      .map_err(icon_err)
   }
 }
 
@@ -863,7 +829,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn icon(mut self, icon: Icon) -> Result<Self> {
+  fn icon(mut self, icon: WindowIcon) -> Result<Self> {
     self.inner = self
       .inner
       .with_window_icon(Some(WryIcon::try_from(icon)?.0));
@@ -987,7 +953,7 @@ pub enum WindowMessage {
   SetPosition(Position),
   SetFullscreen(bool),
   SetFocus,
-  SetIcon(WindowIcon),
+  SetIcon(WryWindowIcon),
   SetSkipTaskbar(bool),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
@@ -1013,7 +979,7 @@ pub enum WebviewEvent {
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
   UpdateMenu(SystemTrayMenu),
-  UpdateIcon(Icon),
+  UpdateIcon(TrayIcon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Close,
@@ -1417,7 +1383,7 @@ impl Dispatch for WryDispatcher {
     )
   }
 
-  fn set_icon(&self, icon: Icon) -> Result<()> {
+  fn set_icon(&self, icon: WindowIcon) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(
@@ -1525,6 +1491,26 @@ pub struct Wry {
   menu_event_listeners: MenuEventListeners,
   #[cfg(feature = "system-tray")]
   tray_context: TrayContext,
+}
+
+impl fmt::Debug for Wry {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("Wry");
+    d.field("main_thread_id", &self.main_thread_id)
+      .field("global_shortcut_manager", &self.global_shortcut_manager)
+      .field(
+        "global_shortcut_manager_handle",
+        &self.global_shortcut_manager_handle,
+      )
+      .field("clipboard_manager", &self.clipboard_manager)
+      .field("clipboard_manager_handle", &self.clipboard_manager_handle)
+      .field("event_loop", &self.event_loop)
+      .field("windows", &self.windows)
+      .field("web_context", &self.web_context);
+    #[cfg(feature = "system-tray")]
+    d.field("tray_context", &self.tray_context);
+    d.finish()
+  }
 }
 
 /// A handle to the Wry runtime.
@@ -1864,7 +1850,7 @@ impl Runtime for Wry {
     let icon = system_tray
       .icon
       .expect("tray icon not set")
-      .into_tray_icon();
+      .into_platform_icon();
 
     let mut items = HashMap::new();
 
@@ -2283,7 +2269,7 @@ fn handle_user_message(
       }
       TrayMessage::UpdateIcon(icon) => {
         if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon(icon.into_tray_icon());
+          tray.lock().unwrap().set_icon(icon.into_platform_icon());
         }
       }
       #[cfg(target_os = "macos")]
@@ -2465,7 +2451,12 @@ fn handle_event_loop(
           .get(&window_id)
           .map(|w| &w.inner)
         {
-          webview.focus();
+          // only focus the webview if the window is visible
+          // somehow tao is sending a Focused(true) event even when the window is invisible,
+          // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
+          if webview.window().is_visible() {
+            webview.focus();
+          }
         }
       }
 

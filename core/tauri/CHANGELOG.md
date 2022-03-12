@@ -1,5 +1,65 @@
 # Changelog
 
+## \[1.0.0-rc.4]
+
+- Run `AppHandle` cleanup code before restarting the application on the `process > relaunch` API.
+  - [9c65abce](https://www.github.com/tauri-apps/tauri/commit/9c65abce1bd3895b7f8d9d4d8a449ac4802fce24) feat(core): run cleanup code on the relaunch API ([#3629](https://www.github.com/tauri-apps/tauri/pull/3629)) on 2022-03-07
+- **Breaking change:** The `Builder#create_window` API now returns a Result validating the window label.
+  - [64e00542](https://www.github.com/tauri-apps/tauri/commit/64e0054299c95f10ef5a1a9d3f914bbaeff3d73f) refactor(core): do not panic on invalid window labels,[#3544](https://www.github.com/tauri-apps/tauri/pull/3544) ([#3596](https://www.github.com/tauri-apps/tauri/pull/3596)) on 2022-03-03
+- Added `tsp` config option under `tauri > bundle > windows`, which enables Time-Stamp Protocol (RFC 3161) for the timestamping
+  server under code signing on Windows if set to `true`.
+  - [bdd5f7c2](https://www.github.com/tauri-apps/tauri/commit/bdd5f7c2f03af4af8b60a9527e55bb18525d989b) fix: add support for Time-Stamping Protocol for Windows codesigning (fix [#3563](https://www.github.com/tauri-apps/tauri/pull/3563)) ([#3570](https://www.github.com/tauri-apps/tauri/pull/3570)) on 2022-03-07
+- Revert the `clap` usage back to the version 3.0 API.
+  - [2b554c38](https://www.github.com/tauri-apps/tauri/commit/2b554c38a5181b948d7674b6ef33e4049ca7d327) fix(core): revert to clap 3.0 API, allow deprecations, closes [#3549](https://www.github.com/tauri-apps/tauri/pull/3549) ([#3552](https://www.github.com/tauri-apps/tauri/pull/3552)) on 2022-02-24
+- The `tauri::api::process::Command` API now properly reads stdout and stderr messages that ends with a carriage return (`\r`) instead of just a newline (`\n`).
+  - [0a0de8ab](https://www.github.com/tauri-apps/tauri/commit/0a0de8ab6ed80b7722012e83636dff41a813b770) fix: read Command output ending with a carriage return, closes [#3508](https://www.github.com/tauri-apps/tauri/pull/3508) ([#3523](https://www.github.com/tauri-apps/tauri/pull/3523)) on 2022-02-24
+- Fixes filesystem and asset scope stripping the first component of the allowed path.
+  - [4d0e2ecc](https://www.github.com/tauri-apps/tauri/commit/4d0e2eccd9e0e1db16e6cc20613ffdc3dbe0474e) fix(core): scope should not strip the first path component, closes [#3592](https://www.github.com/tauri-apps/tauri/pull/3592) ([#3602](https://www.github.com/tauri-apps/tauri/pull/3602)) on 2022-03-03
+- Ignore trailing slashes on path scope validation.
+  - [929a83dd](https://www.github.com/tauri-apps/tauri/commit/929a83dd4d2614a119ab05122663669648e8c701) fix(core): ignore trailing slashes on scope validation, closes [#3580](https://www.github.com/tauri-apps/tauri/pull/3580) ([#3601](https://www.github.com/tauri-apps/tauri/pull/3601)) on 2022-03-03
+- Fixes `Command::output` and `Command::status` deadlock when running on async commands.
+  - [0163489e](https://www.github.com/tauri-apps/tauri/commit/0163489ed60ec0fe9486b5556ec0234499852a16) fix(core): `safe_block_on` usage on async contexts, closes [#3505](https://www.github.com/tauri-apps/tauri/pull/3505) ([#3513](https://www.github.com/tauri-apps/tauri/pull/3513)) on 2022-02-24
+- Update tray menu id map when `SystemTrayHandle::set_menu` is called.
+  - [da882431](https://www.github.com/tauri-apps/tauri/commit/da8824318affb50475f28b9c78c56da3fb048708) fix(core): update tray menu ids on `set_menu`, closes [#3608](https://www.github.com/tauri-apps/tauri/pull/3608) ([#3611](https://www.github.com/tauri-apps/tauri/pull/3611)) on 2022-03-04
+- Allow absolute paths on the filesystem APIs as long as it does not include parent directory components.
+  - [b744cd27](https://www.github.com/tauri-apps/tauri/commit/b744cd2758bbc5da39d6105fd82002dc6536dd16) feat: extend scopes with user selected paths, closes [#3591](https://www.github.com/tauri-apps/tauri/pull/3591) ([#3595](https://www.github.com/tauri-apps/tauri/pull/3595)) on 2022-03-03
+- **Breaking change:** The `tauri::api::file::Extract` API is now available when the `fs-extract-api` feature is enabled.
+  - [0f155898](https://www.github.com/tauri-apps/tauri/commit/0f1558980a0fb1d6c042988e173047f0590b6574) fix(core): docs.rs on Windows and macOS ([#3566](https://www.github.com/tauri-apps/tauri/pull/3566)) on 2022-03-02
+- Allow listening to events on the filesystem and asset scopes.
+  - [58070c1e](https://www.github.com/tauri-apps/tauri/commit/58070c1eb443c29b01638b7fc3f69aacdcc464a6) feat(core): filesystem and asset protocol scope events ([#3609](https://www.github.com/tauri-apps/tauri/pull/3609)) on 2022-03-04
+- Allow configuring forbidden paths on the asset and filesystem scopes.
+  - [983ccb81](https://www.github.com/tauri-apps/tauri/commit/983ccb815b1cb094ac681c2b36c69ec16f123b4e) feat(core): allow denying paths on the fs and asset scopes ([#3607](https://www.github.com/tauri-apps/tauri/pull/3607)) on 2022-03-03
+- Extend the allowed patterns for the filesystem and asset protocol when the user selects a path (dialog open and save commands and file drop on the window).
+  - [b744cd27](https://www.github.com/tauri-apps/tauri/commit/b744cd2758bbc5da39d6105fd82002dc6536dd16) feat: extend scopes with user selected paths, closes [#3591](https://www.github.com/tauri-apps/tauri/pull/3591) ([#3595](https://www.github.com/tauri-apps/tauri/pull/3595)) on 2022-03-03
+- The HTTP scope now matches the entire URL using a glob pattern instead of only its path.
+  - [944b124c](https://www.github.com/tauri-apps/tauri/commit/944b124ce04a15a415fcbb0afdfa78b0e900c97a) feat(core): enhance HTTP scope glob validation, closes [#3507](https://www.github.com/tauri-apps/tauri/pull/3507) ([#3515](https://www.github.com/tauri-apps/tauri/pull/3515)) on 2022-02-24
+- Parse window icons at compile time.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+- **Breaking change:** Move `ico` and `png` parsing behind `icon-ico` and `icon-png` Cargo features.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+- Return an error when creating a window with an invalid label instead of panicking.
+  - [64e00542](https://www.github.com/tauri-apps/tauri/commit/64e0054299c95f10ef5a1a9d3f914bbaeff3d73f) refactor(core): do not panic on invalid window labels,[#3544](https://www.github.com/tauri-apps/tauri/pull/3544) ([#3596](https://www.github.com/tauri-apps/tauri/pull/3596)) on 2022-03-03
+- Allows the configuration CSP to be an object mapping a directive name to its source list.
+  - [3fe0260f](https://www.github.com/tauri-apps/tauri/commit/3fe0260f4c7f47dba28b0d049c741d885bc6d356) feat(core): allow CSP configuration to be an object, ref [#3533](https://www.github.com/tauri-apps/tauri/pull/3533) ([#3603](https://www.github.com/tauri-apps/tauri/pull/3603)) on 2022-03-04
+- Allow range in the form of `bytes=0-*` on the asset protocol.
+  - [d06efc77](https://www.github.com/tauri-apps/tauri/commit/d06efc7704092a549c886be701122ad420db5543) fix(core): parse range `bytes=0-*`, closes [#3143](https://www.github.com/tauri-apps/tauri/pull/3143) ([#3516](https://www.github.com/tauri-apps/tauri/pull/3516)) on 2022-02-24
+- Reimplement endpoint to read file as string for performance.
+  - [834ccc51](https://www.github.com/tauri-apps/tauri/commit/834ccc51539401d36a7dfa1c0982623c9c446a4c) feat(core): reimplement `readTextFile` for performance ([#3631](https://www.github.com/tauri-apps/tauri/pull/3631)) on 2022-03-07
+- **Breaking change:** Renamed the `command` Cargo feature to `process-command-api`.
+  - [4e1af005](https://www.github.com/tauri-apps/tauri/commit/4e1af005a1fc80e911299b5fd6d6b0f3eb44f8e7) refactor(core): rename `command` feature to `process-command-api` ([#3594](https://www.github.com/tauri-apps/tauri/pull/3594)) on 2022-03-03
+- Disabled the default features for the `zip` crate.
+  - [5293445f](https://www.github.com/tauri-apps/tauri/commit/5293445f08f1484639ad9f56c45aad53039ba579) refactor(core): disable default features for the zip crate ([#3624](https://www.github.com/tauri-apps/tauri/pull/3624)) on 2022-03-06
+- The `cmd` field is no longer required on the shell scope for sidecars.
+  - [9b3b163b](https://www.github.com/tauri-apps/tauri/commit/9b3b163baa9b8eb2ef0bbc53f6303cc7a59a01af) feat(core): simplify scope definition for sidecars ([#3574](https://www.github.com/tauri-apps/tauri/pull/3574)) on 2022-03-02
+- Fixes a regression on the `unlisten` command.
+  - [76c791bd](https://www.github.com/tauri-apps/tauri/commit/76c791bd2b836d2055410e37e71716172a3f81ef) fix(core): regression on the unlisten function ([#3623](https://www.github.com/tauri-apps/tauri/pull/3623)) on 2022-03-06
+- Run `AppHandle` cleanup code before restarting the application when a new update is installed.
+  - [fce7d3bb](https://www.github.com/tauri-apps/tauri/commit/fce7d3bbae8d9e7e928a31b04a0a87dcaf4cd65f) feat(core): run app cleanup code before updater restart, closes [#3605](https://www.github.com/tauri-apps/tauri/pull/3605) ([#3616](https://www.github.com/tauri-apps/tauri/pull/3616)) on 2022-03-04
+- Added a `WindowBuilder` type.
+  - [141133a4](https://www.github.com/tauri-apps/tauri/commit/141133a414154631d42a0873c6abe2d76391b87d) feat(core): add WindowBuilder type ([#3598](https://www.github.com/tauri-apps/tauri/pull/3598)) on 2022-03-04
+- Added `WindowBuilder::on_web_resource_request`, which allows customizing the tauri custom protocol response.
+  - [3b13fda5](https://www.github.com/tauri-apps/tauri/commit/3b13fda56f515c708014c0396ed5ca295faaef84) feat(core): add `WindowBuilder::on_request`, closes [#3533](https://www.github.com/tauri-apps/tauri/pull/3533) ([#3618](https://www.github.com/tauri-apps/tauri/pull/3618)) on 2022-03-06
+
 ## \[1.0.0-rc.3]
 
 - `tauri::plugin::Builder` closures are no longer required to implement `Sync`.

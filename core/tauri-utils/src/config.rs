@@ -22,7 +22,12 @@ use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
 use url::Url;
 
-use std::{collections::HashMap, fmt, fs::read_to_string, path::PathBuf};
+use std::{
+  collections::HashMap,
+  fmt::{self, Display},
+  fs::read_to_string,
+  path::PathBuf,
+};
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -234,6 +239,9 @@ pub struct WindowsConfig {
   pub certificate_thumbprint: Option<String>,
   /// Server to use during timestamping.
   pub timestamp_url: Option<String>,
+  /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
+  /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
+  pub tsp: Option<bool>,
   /// Path to the webview fixed runtime to use.
   ///
   /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
@@ -593,6 +601,121 @@ fn default_file_drop_enabled() -> bool {
   true
 }
 
+/// A Content-Security-Policy directive source list.
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources#sources>.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum CspDirectiveSources {
+  /// An inline list of CSP sources. Same as [`Self::List`], but concatenated with a space separator.
+  Inline(String),
+  /// A list of CSP sources. The collection will be concatenated with a space separator for the CSP string.
+  List(Vec<String>),
+}
+
+impl Default for CspDirectiveSources {
+  fn default() -> Self {
+    Self::List(Vec::new())
+  }
+}
+
+impl From<CspDirectiveSources> for Vec<String> {
+  fn from(sources: CspDirectiveSources) -> Self {
+    match sources {
+      CspDirectiveSources::Inline(source) => source.split(' ').map(|s| s.to_string()).collect(),
+      CspDirectiveSources::List(l) => l,
+    }
+  }
+}
+
+impl CspDirectiveSources {
+  /// Whether the given source is configured on this directive or not.
+  pub fn contains(&self, source: &str) -> bool {
+    match self {
+      Self::Inline(s) => s.contains(&format!("{} ", source)) || s.contains(&format!(" {}", source)),
+      Self::List(l) => l.contains(&source.into()),
+    }
+  }
+
+  /// Appends the given source to this directive.
+  pub fn push<S: AsRef<str>>(&mut self, source: S) {
+    match self {
+      Self::Inline(s) => {
+        s.push(' ');
+        s.push_str(source.as_ref());
+      }
+      Self::List(l) => {
+        l.push(source.as_ref().to_string());
+      }
+    }
+  }
+
+  /// Extends this CSP directive source list with the given array of sources.
+  pub fn extend(&mut self, sources: Vec<String>) {
+    for s in sources {
+      self.push(s);
+    }
+  }
+}
+
+/// A Content-Security-Policy definition.
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum Csp {
+  /// The entire CSP policy in a single text string.
+  Policy(String),
+  /// An object mapping a directive with its sources values as a list of strings.
+  DirectiveMap(HashMap<String, CspDirectiveSources>),
+}
+
+impl From<HashMap<String, CspDirectiveSources>> for Csp {
+  fn from(map: HashMap<String, CspDirectiveSources>) -> Self {
+    Self::DirectiveMap(map)
+  }
+}
+
+impl From<Csp> for HashMap<String, CspDirectiveSources> {
+  fn from(csp: Csp) -> Self {
+    match csp {
+      Csp::Policy(policy) => {
+        let mut map = HashMap::new();
+        for directive in policy.split(';') {
+          let mut tokens = directive.trim().split(' ');
+          if let Some(directive) = tokens.next() {
+            let sources = tokens.map(|s| s.to_string()).collect::<Vec<String>>();
+            map.insert(directive.to_string(), CspDirectiveSources::List(sources));
+          }
+        }
+        map
+      }
+      Csp::DirectiveMap(m) => m,
+    }
+  }
+}
+
+impl Display for Csp {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Policy(s) => write!(f, "{}", s),
+      Self::DirectiveMap(m) => {
+        let len = m.len();
+        let mut i = 0;
+        for (directive, sources) in m {
+          let sources: Vec<String> = sources.clone().into();
+          write!(f, "{} {}", directive, sources.join(" "))?;
+          i += 1;
+          if i != len {
+            write!(f, "; ")?;
+          }
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
 /// Security configuration.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
@@ -604,12 +727,12 @@ pub struct SecurityConfig {
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-  pub csp: Option<String>,
+  pub csp: Option<Csp>,
   /// The Content Security Policy that will be injected on all HTML files on development.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-  pub dev_csp: Option<String>,
+  pub dev_csp: Option<Csp>,
   /// Freeze the `Object.prototype` when using the custom protocol.
   #[serde(default)]
   pub freeze_prototype: bool,
@@ -650,7 +773,7 @@ pub enum FsAllowlistScope {
     #[serde(default)]
     allow: Vec<PathBuf>,
     /// A list of paths that are not allowed by this scope.
-    /// This gets precedence over the [`Self::allow`] list.
+    /// This gets precedence over the [`Self::Scope::allow`] list.
     #[serde(default)]
     deny: Vec<PathBuf>,
   },
@@ -1169,6 +1292,7 @@ impl Allowlist for DialogAllowlistConfig {
 /// - "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
+#[allow(rustdoc::bare_urls)]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct HttpAllowlistScope(pub Vec<Url>);
@@ -2399,10 +2523,49 @@ mod build {
     }
   }
 
+  impl ToTokens for CspDirectiveSources {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::CspDirectiveSources };
+
+      tokens.append_all(match self {
+        Self::Inline(sources) => {
+          let sources = sources.as_str();
+          quote!(#prefix::Inline(#sources.into()))
+        }
+        Self::List(list) => {
+          let list = vec_lit(list, str_lit);
+          quote!(#prefix::List(#list))
+        }
+      })
+    }
+  }
+
+  impl ToTokens for Csp {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::Csp };
+
+      tokens.append_all(match self {
+        Self::Policy(policy) => {
+          let policy = policy.as_str();
+          quote!(#prefix::Policy(#policy.into()))
+        }
+        Self::DirectiveMap(list) => {
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            list,
+            str_lit,
+            identity,
+          );
+          quote!(#prefix::DirectiveMap(#map))
+        }
+      })
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let csp = opt_str_lit(self.csp.as_ref());
-      let dev_csp = opt_str_lit(self.dev_csp.as_ref());
+      let csp = opt_lit(self.csp.as_ref());
+      let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
 
       literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype);

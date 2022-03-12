@@ -1,6 +1,9 @@
 {
   "name": "@tauri-apps/cli-win32-ia32-msvc",
   "version": "0.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "os": [
     "win32"
   ],

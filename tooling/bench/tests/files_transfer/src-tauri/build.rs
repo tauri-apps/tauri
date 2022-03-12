@@ -8,6 +8,6 @@ fn main() {
   if let Err(error) = try_build(Attributes::new().windows_attributes(
     WindowsAttributes::new().window_icon_path("../../../../../examples/.icons/icon.ico"),
   )) {
-    panic!("error found during tauri-build: {}", error);
+    panic!("error found during tauri-build: {:#?}", error);
   }
 }

@@ -39,7 +39,7 @@ use crate::http::{
 #[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct SystemTray {
-  pub icon: Option<Icon>,
+  pub icon: Option<TrayIcon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
@@ -56,9 +56,9 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
   #[must_use]
-  pub fn with_icon(mut self, icon: Icon) -> Self {
+  pub fn with_icon(mut self, icon: TrayIcon) -> Self {
     self.icon.replace(icon);
     self
   }
@@ -145,25 +145,36 @@ pub enum Error {
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Window icon.
+#[derive(Debug, Clone)]
+pub struct WindowIcon {
+  /// RGBA bytes of the icon.
+  pub rgba: Vec<u8>,
+  /// Icon width.
+  pub width: u32,
+  /// Icon height.
+  pub height: u32,
+}
+
 /// A icon definition.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum Icon {
+pub enum TrayIcon {
   /// Icon from file path.
   File(PathBuf),
-  /// Icon from raw bytes.
+  /// Icon from raw file bytes.
   Raw(Vec<u8>),
 }
 
-impl Icon {
+impl TrayIcon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(target_os = "linux")]
-  pub fn into_tray_icon(self) -> PathBuf {
+  pub fn into_platform_icon(self) -> PathBuf {
     match self {
-      Icon::File(path) => path,
-      Icon::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      Self::File(path) => path,
+      Self::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
       }
     }
   }
@@ -171,11 +182,11 @@ impl Icon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(not(target_os = "linux"))]
-  pub fn into_tray_icon(self) -> Vec<u8> {
+  pub fn into_platform_icon(self) -> Vec<u8> {
     match self {
-      Icon::Raw(bytes) => bytes,
-      Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path.")
+      Self::Raw(r) => r,
+      Self::File(_) => {
+        panic!("non-linux system menu icons must be raw bytes, not a file path.")
       }
     }
   }
@@ -300,7 +311,7 @@ pub trait ClipboardManager: Debug + Clone + Send + Sync {
 }
 
 /// The webview runtime interface.
-pub trait Runtime: Sized + 'static {
+pub trait Runtime: Debug + Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<Runtime = Self>;
   /// The runtime handle type.
@@ -361,7 +372,7 @@ pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
   type Runtime: Runtime;
 
   /// The winoow builder type.
-  type WindowBuilder: WindowBuilder + Clone;
+  type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
@@ -522,7 +533,7 @@ pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
   fn set_focus(&self) -> crate::Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+  fn set_icon(&self, icon: WindowIcon) -> crate::Result<()>;
 
   /// Whether to show the window icon in the task bar or not.
   fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()>;

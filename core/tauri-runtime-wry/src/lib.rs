@@ -2618,6 +2618,7 @@ fn create_webview(
     js_event_listeners,
     ..
   } = pending;
+  let proxy = context.proxy.clone();
 
   let is_window_transparent = window_builder.inner.window.transparent;
   let menu_items = if let Some(menu) = window_builder.menu {
@@ -2713,12 +2714,12 @@ fn create_webview(
   #[cfg(target_os = "windows")]
   {
     if let Some(controller) = webview.controller() {
-      let proxy = self.event_loop.create_proxy();
+      let proxy_ = proxy.clone();
       let mut token = EventRegistrationToken::default();
       unsafe {
         controller.GotFocus(
           FocusChangedEventHandler::create(Box::new(move |_, _| {
-            let _ = proxy.send_event(Message::Webview(
+            let _ = proxy_.send_event(Message::Webview(
               window_id,
               WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
             ));
@@ -2728,7 +2729,6 @@ fn create_webview(
         )
       }
       .unwrap();
-      let proxy = self.event_loop.create_proxy();
       unsafe {
         controller.LostFocus(
           FocusChangedEventHandler::create(Box::new(move |_, _| {

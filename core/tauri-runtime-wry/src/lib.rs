@@ -171,7 +171,7 @@ struct Context {
 }
 
 impl Context {
-  fn prepare_window(&self, window_id: u64) {
+  fn prepare_window(&self, window_id: WebviewId) {
     self
       .window_event_listeners
       .lock()

@@ -496,10 +496,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@napi-rs/cli@2.4.4":
-  version "2.4.4"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.4.tgz#878a38f0fba1709d89d66eba706745ce728a61a5"
-  integrity sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==
+"@napi-rs/cli@2.4.5":
+  version "2.4.5"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.5.tgz#0f33e54e08c2e875c729697eb81f1c36342f0205"
+  integrity sha512-CLa3PSHh4Y760OXkHidzfHavVtfbQyfMhj3sWpta3SZjbWMk0tbdPhRez9y8KVApVVWjBxz5agEeFMfxxr+KTg==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
@@ -1134,10 +1134,10 @@ form-data@^3.0.0:
     combined-stream "^1.0.8"
     mime-types "^2.1.12"
 
-fs-extra@10.0.0:
-  version "10.0.0"
-  resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-10.0.0.tgz#9ff61b655dde53fb34a82df84bb214ce802e17c1"
-  integrity sha512-C5owb14u9eJwizKGdchcDUQeFtlSHHthBk8pbX9Vc1PFZrLombudjDnNns88aYslCyF6IY5SUw3Roz6xShcEIQ==
+fs-extra@10.0.1:
+  version "10.0.1"
+  resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-10.0.1.tgz#27de43b4320e833f6867cc044bfce29fdf0ef3b8"
+  integrity sha512-NbdoVMZso2Lsrn/QwLXOy6rm0ufY2zEOKCDzJR/0kBsb0E6qed0P3iYK+Ath3BfvXEeu4JhEtXLgILx5psUfag==
   dependencies:
     graceful-fs "^4.2.0"
     jsonfile "^6.0.1"

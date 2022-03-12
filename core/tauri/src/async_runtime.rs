@@ -285,10 +285,11 @@ where
   F: Future + Send + 'static,
   F::Output: Send + 'static,
 {
-  if tokio::runtime::Handle::try_current().is_ok() {
+  if let Ok(handle) = tokio::runtime::Handle::try_current() {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    spawn(async move {
-      tx.send(task.await).unwrap();
+    let handle_ = handle.clone();
+    handle.spawn_blocking(move || {
+      tx.send(handle_.block_on(task)).unwrap();
     });
     rx.recv().unwrap()
   } else {

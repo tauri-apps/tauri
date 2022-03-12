@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.studio"
@@ -26,7 +26,7 @@ schemars = { version = "0.8", features = [ "url" ], optional = true }
 serde_with = "1.12"
 aes-gcm = { version = "0.9", optional = true }
 ring = { version = "0.16", optional = true, features = [ "std" ] }
-once_cell = { version = "1.9", optional = true }
+once_cell = { version = "1.10", optional = true }
 serialize-to-javascript = "=0.1.1"
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
@@ -42,6 +42,7 @@ build = [ "proc-macro2", "quote" ]
 compression = [ "zstd" ]
 schema = [ "schemars" ]
 isolation = [ "aes-gcm", "ring", "once_cell" ]
+__isolation-docs = [ "aes-gcm", "once_cell" ]
 process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
 resources = [ "glob", "walkdir" ]

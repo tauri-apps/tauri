@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
+#[cfg(feature = "updater")]
+use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::api::{
-  file::{ArchiveFormat, Extract, Move},
   http::{ClientBuilder, HttpRequestBuilder},
   version,
 };
@@ -13,18 +14,21 @@ use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
 use tauri_utils::{platform::current_exe, Env};
 
+#[cfg(feature = "updater")]
+use std::io::Seek;
 use std::{
   collections::HashMap,
   env,
-  io::{Cursor, Read, Seek},
+  io::{Cursor, Read},
   path::{Path, PathBuf},
   str::from_utf8,
 };
 
+#[cfg(feature = "updater")]
 #[cfg(not(target_os = "macos"))]
 use std::ffi::OsStr;
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(feature = "updater", not(target_os = "windows")))]
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
@@ -471,13 +475,16 @@ impl Update {
       return Err(Error::MissingUpdaterSignature);
     }
 
-    // we copy the files depending of the operating system
-    // we run the setup, appimage re-install or overwrite the
-    // macos .app
-    #[cfg(target_os = "windows")]
-    copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
-    #[cfg(not(target_os = "windows"))]
-    copy_files_and_run(archive_buffer, extract_path)?;
+    #[cfg(feature = "updater")]
+    {
+      // we copy the files depending of the operating system
+      // we run the setup, appimage re-install or overwrite the
+      // macos .app
+      #[cfg(target_os = "windows")]
+      copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
+      #[cfg(not(target_os = "windows"))]
+      copy_files_and_run(archive_buffer, extract_path)?;
+    }
     // We are done!
     Ok(())
   }
@@ -493,6 +500,7 @@ impl Update {
 // We should have an AppImage already installed to be able to copy and install
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
+#[cfg(feature = "updater")]
 #[cfg(target_os = "linux")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let tmp_dir = tempfile::Builder::new()
@@ -538,6 +546,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
+#[cfg(feature = "updater")]
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run<R: Read + Seek>(
@@ -639,6 +648,7 @@ fn copy_files_and_run<R: Read + Seek>(
 // │      └── Contents                          # Application contents...
 // │          └── ...
 // └── ...
+#[cfg(feature = "updater")]
 #[cfg(target_os = "macos")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let mut extracted_files: Vec<PathBuf> = Vec::new();

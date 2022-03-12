@@ -10,9 +10,46 @@ use std::string::FromUtf8Error;
 use aes_gcm::aead::Aead;
 use aes_gcm::{aead::NewAead, Aes256Gcm, Nonce};
 use once_cell::sync::OnceCell;
-use ring::error::Unspecified;
-use ring::rand::SystemRandom;
 use serialize_to_javascript::{default_template, Template};
+
+#[cfg(not(feature = "isolation"))]
+mod ring_impl {
+  #[cfg(not(feature = "__isolation-docs"))]
+  compile_error!(
+    "Isolation random number generator was used without enabling the `isolation` feature."
+  );
+
+  pub struct Unspecified;
+
+  pub struct SystemRandom;
+
+  impl SystemRandom {
+    pub fn new() -> Self {
+      unimplemented!()
+    }
+  }
+
+  pub struct Random;
+
+  impl Random {
+    pub fn expose(self) -> [u8; 32] {
+      unimplemented!()
+    }
+  }
+
+  pub fn rand_generate(_rng: &SystemRandom) -> Result<Random, super::Error> {
+    unimplemented!()
+  }
+}
+
+#[cfg(feature = "isolation")]
+mod ring_impl {
+  pub use ring::error::Unspecified;
+  pub use ring::rand::generate as rand_generate;
+  pub use ring::rand::SystemRandom;
+}
+
+use ring_impl::*;
 
 /// Cryptographically secure pseudo-random number generator.
 static RNG: OnceCell<SystemRandom> = OnceCell::new();
@@ -67,7 +104,7 @@ impl Debug for AesGcmPair {
 impl AesGcmPair {
   fn new() -> Result<Self, Error> {
     let rng = RNG.get_or_init(SystemRandom::new);
-    let raw: [u8; 32] = ring::rand::generate(rng)?.expose();
+    let raw: [u8; 32] = ring_impl::rand_generate(rng)?.expose();
     let key = aes_gcm::Key::from_slice(&raw);
     Ok(Self {
       raw,

@@ -52,7 +52,7 @@
 
         <!-- launch app checkbox -->
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
-        <Property Id="WixShellExecTarget" Value="{{{app_exe_source}}}" />
+        <Property Id="WixShellExecTarget" Value="[!Path]" />
         <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
         <UI>

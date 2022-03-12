@@ -8,7 +8,7 @@ use crate::{
   VersionMetadata,
 };
 use anyhow::Context;
-use clap::{ArgSettings, Parser};
+use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
@@ -28,7 +28,6 @@ pub struct Options {
   api: bool,
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
-  #[clap(setting(ArgSettings::Hidden))]
   tauri: bool,
   /// Set target directory for init
   #[clap(short, long)]

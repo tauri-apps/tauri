@@ -2,15 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 use crate::Result;
 
 mod init;
 
 #[derive(Parser)]
-#[clap(author, version, about = "Manage Tauri plugins")]
-#[clap(setting(AppSettings::SubcommandRequiredElseHelp))]
+#[clap(
+  author,
+  version,
+  about = "Manage Tauri plugins",
+  subcommand_required(true),
+  arg_required_else_help(true)
+)]
 pub struct Cli {
   #[clap(subcommand)]
   command: Commands,

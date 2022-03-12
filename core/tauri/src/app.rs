@@ -15,7 +15,7 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
   },
@@ -23,6 +23,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
+  window::WindowBuilder,
   Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
 };
 
@@ -42,7 +43,7 @@ use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
+use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
 #[cfg(feature = "updater")]
 use crate::updater;
@@ -289,7 +290,7 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-  /// Exits the app
+  /// Exits the app. This is the same as [`std::process::exit`], but it performs cleanup on this application.
   pub fn exit(&self, exit_code: i32) {
     self.cleanup_before_exit();
     std::process::exit(exit_code);
@@ -305,6 +306,11 @@ impl<R: Runtime> AppHandle<R> {
   #[cfg(target_os = "macos")]
   pub fn hide(&self) -> crate::Result<()> {
     self.runtime_handle.hide().map_err(Into::into)
+
+  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  pub fn restart(&self) {
+    self.cleanup_before_exit();
+    crate::api::process::restart(&self.env());
   }
 
   /// Runs necessary cleanup tasks before exiting the process
@@ -330,7 +336,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.clone()
   }
 }
@@ -360,7 +366,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.handle()
   }
 }
@@ -371,6 +377,12 @@ macro_rules! shared_app_impl {
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
+      ///
+      /// See [`crate::window::WindowBuilder::new`] for an API with extended functionality.
+      #[deprecated(
+        since = "1.0.0-rc.4",
+        note = "The `window_builder` function offers an easier API with extended functionality"
+      )]
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,
@@ -386,15 +398,12 @@ macro_rules! shared_app_impl {
           WebviewAttributes,
         ),
       {
-        let (window_builder, webview_attributes) = setup(
-          <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-          WebviewAttributes::new(url),
-        );
-        self.create_new_window(PendingWindow::new(
-          window_builder,
-          webview_attributes,
-          label,
-        ))
+        let mut builder = WindowBuilder::<R>::new(self, label, url);
+        let (window_builder, webview_attributes) =
+          setup(builder.window_builder, builder.webview_attributes);
+        builder.window_builder = window_builder;
+        builder.webview_attributes = webview_attributes;
+        builder.build()
       }
 
       #[cfg(feature = "system-tray")]
@@ -881,8 +890,12 @@ impl<R: Runtime> Builder<R> {
   ///     return (win, webview);
   ///   });
   /// ```
-  #[must_use]
-  pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
+  pub fn create_window<F>(
+    mut self,
+    label: impl Into<String>,
+    url: WindowUrl,
+    setup: F,
+  ) -> crate::Result<Self>
   where
     F: FnOnce(
       <R::Dispatcher as Dispatch>::WindowBuilder,
@@ -900,8 +913,8 @@ impl<R: Runtime> Builder<R> {
       window_builder,
       webview_attributes,
       label,
-    ));
-    self
+    )?);
+    Ok(self)
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
@@ -1071,7 +1084,7 @@ impl<R: Runtime> Builder<R> {
       if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
-        if let Some(Icon::Raw(_)) = icon {
+        if let Some(TrayIcon::Raw(..)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on linux must be a file path",
@@ -1079,7 +1092,7 @@ impl<R: Runtime> Builder<R> {
         }
 
         #[cfg(not(target_os = "linux"))]
-        if let Some(Icon::File(_)) = icon {
+        if let Some(TrayIcon::File(_)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",
@@ -1129,7 +1142,7 @@ impl<R: Runtime> Builder<R> {
         config,
         webview_attributes,
         label,
-      ));
+      )?);
     }
 
     #[cfg(any(windows, target_os = "linux"))]
@@ -1169,14 +1182,14 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
-      ),
+      )?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
-      ),
+      )?,
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
@@ -1249,9 +1262,10 @@ impl<R: Runtime> Builder<R> {
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(ids.clone()),
+        ids: Arc::new(std::sync::Mutex::new(ids)),
         inner: tray_handler,
       };
+      let ids = tray_handle.ids.clone();
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
@@ -1266,7 +1280,7 @@ impl<R: Runtime> Builder<R> {
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(id).unwrap().clone(),
+                id: ids.lock().unwrap().get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {
@@ -1305,9 +1319,10 @@ impl<R: Runtime> Builder<R> {
     let mut main_window = None;
 
     for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
       #[cfg(feature = "updater")]

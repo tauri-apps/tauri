@@ -3,8 +3,11 @@
 {{/if}}
 
 use serde::{ser::Serializer, Serialize};
-use serde_json::Value as JsonValue;
-use tauri::{command, plugin::Plugin, AppHandle, Invoke, Manager, Runtime, State, Window};
+use tauri::{
+  command,
+  plugin::{Builder, TauriPlugin},
+  AppHandle, Manager, Runtime, State, Window,
+};
 
 use std::{collections::HashMap, sync::Mutex};
 
@@ -38,30 +41,13 @@ async fn execute<R: Runtime>(
   Ok("success".to_string())
 }
 
-/// Tauri plugin.
-pub struct YourPlugin<R: Runtime> {
-  invoke_handler: Box<dyn Fn(Invoke<R>) + Send + Sync>,
-}
-
-impl<R: Runtime> Default for YourPlugin<R> {
-  fn default() -> Self {
-    Self {
-      invoke_handler: Box::new(tauri::generate_handler![execute]),
-    }
-  }
-}
-
-impl<R: Runtime> Plugin<R> for YourPlugin<R> {
-  fn name(&self) -> &'static str {
-    "{{ plugin_name }}"
-  }
-
-  fn initialize(&mut self, app: &AppHandle<R>, _config: JsonValue) -> tauri::plugin::Result<()> {
-    app.manage(MyState::default());
-    Ok(())
-  }
-
-  fn extend_api(&mut self, message: Invoke<R>) {
-    (self.invoke_handler)(message)
-  }
+/// Initializes the plugin.
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("{{ plugin_name }}")
+    .invoke_handler(tauri::generate_handler![execute])
+    .setup(|app| {
+      app.manage(MyState::default());
+      Ok(())
+    })
+    .build()
 }

@@ -2756,7 +2756,7 @@ fn create_ipc_handler(
   })
 }
 
-/// Create a wry file drop handler from a tauri file drop handler.
+/// Create a wry file drop handler.
 fn create_file_drop_handler(
   context: &Context,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {

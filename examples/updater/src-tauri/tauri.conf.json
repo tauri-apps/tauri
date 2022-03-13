@@ -31,7 +31,6 @@
         "signingIdentity": null,
         "entitlements": "../entitlements.plist",
         "frameworks": [],
-        "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
       },

@@ -2789,7 +2789,7 @@ fn create_ipc_handler<T: fmt::Debug + Clone + Send + 'static>(
   })
 }
 
-/// Create a wry file drop handler from a tauri file drop handler.
+/// Create a wry file drop handler.
 fn create_file_drop_handler<T: fmt::Debug + Clone + Send + 'static>(
   context: &Context<T>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {

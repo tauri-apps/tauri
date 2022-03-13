@@ -785,10 +785,10 @@ impl<R: Runtime> Builder<R> {
   /// This method can be called any number of times as long as each call
   /// refers to a different `T`.
   ///
-  /// Managed state can be retrieved by any request handler via the
-  /// [`State`](crate::State) request guard. In particular, if a value of type `T`
+  /// Managed state can be retrieved by any command handler via the
+  /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
-  /// request handler instructs Tauri to retrieve the managed value.
+  /// command handler instructs Tauri to retrieve the managed value.
   ///
   /// # Panics
   ///
@@ -802,25 +802,29 @@ impl<R: Runtime> Builder<R> {
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
-  /// struct Storage(Mutex<HashMap<u64, String>>);
+  /// struct Storage {
+  ///   store: Mutex<HashMap<u64, String>>,
+  /// }
   /// struct Connection;
-  /// struct DbConnection(Mutex<Option<Connection>>);
+  /// struct DbConnection {
+  ///   db: Mutex<Option<Connection>>,
+  /// }
   ///
   /// #[tauri::command]
   /// fn connect(connection: State<DbConnection>) {
   ///   // initialize the connection, mutating the state with interior mutability
-  ///   *connection.0.lock().unwrap() = Some(Connection {});
+  ///   *connection.db.lock().unwrap() = Some(Connection {});
   /// }
   ///
   /// #[tauri::command]
   /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
   ///   // mutate the storage behind the Mutex
-  ///   storage.0.lock().unwrap().insert(key, value);
+  ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
   /// tauri::Builder::default()
-  ///   .manage(Storage(Default::default()))
-  ///   .manage(DbConnection(Default::default()))
+  ///   .manage(Storage { store: Default::default() })
+  ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
   ///   // on an actual app, remove the string argument
   ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))

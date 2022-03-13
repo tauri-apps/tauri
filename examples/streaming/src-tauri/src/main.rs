@@ -43,6 +43,9 @@ fn main() {
       // prepare our response
       let mut response = ResponseBuilder::new();
       // get the wanted path
+      #[cfg(target_os = "windows")]
+      let path = request.uri().replace("stream://localhost/", "");
+      #[cfg(not(target_os = "windows"))]
       let path = request.uri().replace("stream://", "");
 
       if path != "example/test_video.mp4" {

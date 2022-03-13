@@ -1145,7 +1145,7 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`. Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.",
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
           "type": [
             "string",

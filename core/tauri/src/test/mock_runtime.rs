@@ -13,7 +13,7 @@ use tauri_runtime::{
     DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
-  RuntimeHandle, UserAttentionType, WindowIcon,
+  RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{
@@ -53,7 +53,7 @@ pub struct MockRuntimeHandle {
   context: RuntimeContext,
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> RuntimeHandle<T> for MockRuntimeHandle {
+impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
 
   fn create_proxy(&self) -> EventProxy {
@@ -252,7 +252,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> Dispatch<T> for MockDispatcher {
+impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   type Runtime = MockRuntime;
 
   type WindowBuilder = MockWindowBuilder;
@@ -497,7 +497,7 @@ impl TrayHandle for MockTrayHandler {
 #[derive(Debug, Clone)]
 pub struct EventProxy {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> EventLoopProxy<T> for EventProxy {
+impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
   fn send_event(&self, event: T) -> Result<()> {
     Ok(())
   }
@@ -534,7 +534,7 @@ impl MockRuntime {
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> Runtime<T> for MockRuntime {
+impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
   type GlobalShortcutManager = MockGlobalShortcutManager;

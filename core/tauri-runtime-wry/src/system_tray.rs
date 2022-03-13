@@ -37,11 +37,11 @@ pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandl
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Debug, Clone)]
-pub struct SystemTrayHandle<T: fmt::Debug + Clone + Send + 'static> {
+pub struct SystemTrayHandle<T: UserEvent> {
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> TrayHandle for SystemTrayHandle<T> {
+impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: TrayIcon) -> Result<()> {
     self
       .proxy

@@ -194,9 +194,14 @@ impl TrayIcon {
   }
 }
 
+/// A type that can be used as an user event.
+pub trait UserEvent: Debug + Clone + Send + 'static {}
+
+impl<T: Debug + Clone + Send + 'static> UserEvent for T {}
+
 /// Event triggered on the event loop run.
 #[non_exhaustive]
-pub enum RunEvent<T: Debug + Clone + Send + 'static> {
+pub enum RunEvent<T: UserEvent> {
   /// Event loop is exiting.
   Exit,
   /// Event loop is about to exit
@@ -271,9 +276,7 @@ pub enum ActivationPolicy {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle<T: Debug + Clone + Send + 'static>:
-  Debug + Clone + Send + Sync + Sized + 'static
-{
+pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   type Runtime: Runtime<T, Handle = Self>;
 
   /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
@@ -320,12 +323,12 @@ pub trait ClipboardManager: Debug + Clone + Send + Sync {
   fn read_text(&self) -> Result<Option<String>>;
 }
 
-pub trait EventLoopProxy<T: Debug + Clone + Send + 'static>: Debug + Clone + Send + Sync {
+pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
   fn send_event(&self, event: T) -> Result<()>;
 }
 
 /// The webview runtime interface.
-pub trait Runtime<T: Debug + Clone + Send + 'static>: Debug + Sized + 'static {
+pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The message dispatcher.
   type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
@@ -389,9 +392,7 @@ pub trait Runtime<T: Debug + Clone + Send + 'static>: Debug + Sized + 'static {
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch<T: Debug + Clone + Send + 'static>:
-  Debug + Clone + Send + Sync + Sized + 'static
-{
+pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime<T>;
 

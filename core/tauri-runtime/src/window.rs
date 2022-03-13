@@ -8,14 +8,13 @@ use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
   webview::{WebviewAttributes, WebviewIpcHandler},
-  Dispatch, Runtime, WindowBuilder,
+  Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 use serde::Serialize;
 use tauri_utils::config::WindowConfig;
 
 use std::{
   collections::{HashMap, HashSet},
-  fmt,
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::{mpsc::Sender, Arc, Mutex},
@@ -97,7 +96,7 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
 }
 
 /// A webview window that has yet to be built.
-pub struct PendingWindow<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> {
+pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// The label that the window will be named.
   pub label: String,
 
@@ -135,7 +134,7 @@ pub fn assert_label_is_valid(label: &str) {
   );
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> PendingWindow<T, R> {
+impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
     window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
@@ -227,7 +226,7 @@ pub struct JsEventListenerKey {
 
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
-pub struct DetachedWindow<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> {
+pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
@@ -241,7 +240,7 @@ pub struct DetachedWindow<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>>
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> Clone for DetachedWindow<T, R> {
+impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -252,15 +251,15 @@ impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> Clone for DetachedWi
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> Hash for DetachedWindow<T, R> {
+impl<T: UserEvent, R: Runtime<T>> Hash for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> Eq for DetachedWindow<T, R> {}
-impl<T: fmt::Debug + Clone + Send + 'static, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
+impl<T: UserEvent, R: Runtime<T>> Eq for DetachedWindow<T, R> {}
+impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)

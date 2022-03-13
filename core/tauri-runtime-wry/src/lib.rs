@@ -18,7 +18,7 @@ use tauri_runtime::{
   },
   ClipboardManager, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction,
   GlobalShortcutManager, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
-  WindowIcon,
+  UserEvent, WindowIcon,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -127,10 +127,7 @@ macro_rules! window_getter {
   }};
 }
 
-fn send_user_message<T: fmt::Debug + Clone + Send + 'static>(
-  context: &Context<T>,
-  message: Message<T>,
-) -> Result<()> {
+fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) -> Result<()> {
   if current_thread().id() == context.main_thread_id {
     handle_user_message(
       &context.main_thread.window_target,
@@ -156,7 +153,7 @@ fn send_user_message<T: fmt::Debug + Clone + Send + 'static>(
 }
 
 #[derive(Clone)]
-struct Context<T: fmt::Debug + Clone + Send + 'static> {
+struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   proxy: WryEventLoopProxy<Message<T>>,
   window_event_listeners: WindowEventListeners,
@@ -165,7 +162,7 @@ struct Context<T: fmt::Debug + Clone + Send + 'static> {
 }
 
 #[derive(Debug, Clone)]
-struct DispatcherMainThreadContext<T: fmt::Debug + Clone + Send + 'static> {
+struct DispatcherMainThreadContext<T: UserEvent> {
   window_target: EventLoopWindowTarget<Message<T>>,
   web_context: WebContextStore,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
@@ -177,9 +174,9 @@ struct DispatcherMainThreadContext<T: fmt::Debug + Clone + Send + 'static> {
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: fmt::Debug + Clone + Send + 'static> Send for DispatcherMainThreadContext<T> {}
+unsafe impl<T: UserEvent> Send for DispatcherMainThreadContext<T> {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> fmt::Debug for Context<T> {
+impl<T: UserEvent> fmt::Debug for Context<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Context")
       .field("main_thread_id", &self.main_thread_id)
@@ -383,7 +380,7 @@ unsafe impl Send for GlobalShortcutWrapper {}
 
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
-pub struct GlobalShortcutManagerHandle<T: fmt::Debug + Clone + Send + 'static> {
+pub struct GlobalShortcutManagerHandle<T: UserEvent> {
   context: Context<T>,
   shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   listeners: GlobalShortcutListeners,
@@ -391,9 +388,9 @@ pub struct GlobalShortcutManagerHandle<T: fmt::Debug + Clone + Send + 'static> {
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: fmt::Debug + Clone + Send + 'static> Sync for GlobalShortcutManagerHandle<T> {}
+unsafe impl<T: UserEvent> Sync for GlobalShortcutManagerHandle<T> {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> fmt::Debug for GlobalShortcutManagerHandle<T> {
+impl<T: UserEvent> fmt::Debug for GlobalShortcutManagerHandle<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("GlobalShortcutManagerHandle")
       .field("context", &self.context)
@@ -402,9 +399,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> fmt::Debug for GlobalShortcutManage
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> GlobalShortcutManager
-  for GlobalShortcutManagerHandle<T>
-{
+impl<T: UserEvent> GlobalShortcutManager for GlobalShortcutManagerHandle<T> {
   fn is_registered(&self, accelerator: &str) -> Result<bool> {
     let (tx, rx) = channel();
     getter!(
@@ -464,15 +459,15 @@ impl<T: fmt::Debug + Clone + Send + 'static> GlobalShortcutManager
 }
 
 #[derive(Debug, Clone)]
-pub struct ClipboardManagerWrapper<T: fmt::Debug + Clone + Send + 'static> {
+pub struct ClipboardManagerWrapper<T: UserEvent> {
   context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: fmt::Debug + Clone + Send + 'static> Sync for ClipboardManagerWrapper<T> {}
+unsafe impl<T: UserEvent> Sync for ClipboardManagerWrapper<T> {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> ClipboardManager for ClipboardManagerWrapper<T> {
+impl<T: UserEvent> ClipboardManager for ClipboardManagerWrapper<T> {
   fn read_text(&self) -> Result<Option<String>> {
     let (tx, rx) = channel();
     getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
@@ -1015,7 +1010,7 @@ pub enum Message<T: 'static> {
   UserEvent(T),
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> Clone for Message<T> {
+impl<T: UserEvent> Clone for Message<T> {
   fn clone(&self) -> Self {
     match self {
       Self::Window(i, m) => Self::Window(*i, m.clone()),
@@ -1032,16 +1027,16 @@ impl<T: fmt::Debug + Clone + Send + 'static> Clone for Message<T> {
 
 /// The Tauri [`Dispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
-pub struct WryDispatcher<T: fmt::Debug + Clone + Send + 'static> {
+pub struct WryDispatcher<T: UserEvent> {
   window_id: WindowId,
   context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: fmt::Debug + Clone + Send + 'static> Sync for WryDispatcher<T> {}
+unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> Dispatch<T> for WryDispatcher<T> {
+impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
 
@@ -1461,9 +1456,9 @@ pub struct WindowWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub struct EventProxy<T: fmt::Debug + Clone + Send + 'static>(WryEventLoopProxy<Message<T>>);
+pub struct EventProxy<T: UserEvent>(WryEventLoopProxy<Message<T>>);
 
-impl<T: fmt::Debug + Clone + Send + 'static> EventLoopProxy<T> for EventProxy<T> {
+impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   fn send_event(&self, event: T) -> Result<()> {
     self
       .0
@@ -1473,7 +1468,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> EventLoopProxy<T> for EventProxy<T>
 }
 
 /// A Tauri [`Runtime`] wrapper around wry.
-pub struct Wry<T: fmt::Debug + Clone + Send + 'static> {
+pub struct Wry<T: UserEvent> {
   main_thread_id: ThreadId,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
@@ -1488,7 +1483,7 @@ pub struct Wry<T: fmt::Debug + Clone + Send + 'static> {
   tray_context: TrayContext,
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> fmt::Debug for Wry<T> {
+impl<T: UserEvent> fmt::Debug for Wry<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Wry");
     d.field("main_thread_id", &self.main_thread_id)
@@ -1510,15 +1505,15 @@ impl<T: fmt::Debug + Clone + Send + 'static> fmt::Debug for Wry<T> {
 
 /// A handle to the Wry runtime.
 #[derive(Debug, Clone)]
-pub struct WryHandle<T: fmt::Debug + Clone + Send + 'static> {
+pub struct WryHandle<T: UserEvent> {
   context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
 #[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: fmt::Debug + Clone + Send + 'static> Sync for WryHandle<T> {}
+unsafe impl<T: UserEvent> Sync for WryHandle<T> {}
 
-impl<T: fmt::Debug + Clone + Send + 'static> WryHandle<T> {
+impl<T: UserEvent> WryHandle<T> {
   /// Creates a new tao window using a callback, and returns its window id.
   pub fn create_tao_window<F: FnOnce() -> (String, WryWindowBuilder) + Send + 'static>(
     &self,
@@ -1540,7 +1535,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> WryHandle<T> {
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> RuntimeHandle<T> for WryHandle<T> {
+impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   type Runtime = Wry<T>;
 
   fn create_proxy(&self) -> EventProxy<T> {
@@ -1592,7 +1587,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> RuntimeHandle<T> for WryHandle<T> {
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> Wry<T> {
+impl<T: UserEvent> Wry<T> {
   fn init(event_loop: EventLoop<Message<T>>) -> Result<Self> {
     let proxy = event_loop.create_proxy();
     let main_thread_id = current_thread().id();
@@ -1648,7 +1643,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> Wry<T> {
   }
 }
 
-impl<T: fmt::Debug + Clone + Send + 'static> Runtime<T> for Wry<T> {
+impl<T: UserEvent> Runtime<T> for Wry<T> {
   type Dispatcher = WryDispatcher<T>;
   type Handle = WryHandle<T>;
   type GlobalShortcutManager = GlobalShortcutManagerHandle<T>;
@@ -1939,7 +1934,7 @@ impl<T: fmt::Debug + Clone + Send + 'static> Runtime<T> for Wry<T> {
   }
 }
 
-pub struct EventLoopIterationContext<'a, T: fmt::Debug + Clone + Send + 'static> {
+pub struct EventLoopIterationContext<'a, T: UserEvent> {
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
   window_event_listeners: &'a WindowEventListeners,
@@ -1961,7 +1956,7 @@ struct UserMessageContext<'a> {
   tray_context: &'a TrayContext,
 }
 
-fn handle_user_message<T: fmt::Debug + Clone + Send + 'static>(
+fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
   context: UserMessageContext<'_>,
@@ -2295,7 +2290,7 @@ fn handle_user_message<T: fmt::Debug + Clone + Send + 'static>(
   it
 }
 
-fn handle_event_loop<T: fmt::Debug + Clone + Send + 'static>(
+fn handle_event_loop<T: UserEvent>(
   event: Event<'_, Message<T>>,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   control_flow: &mut ControlFlow,
@@ -2499,7 +2494,7 @@ fn handle_event_loop<T: fmt::Debug + Clone + Send + 'static>(
   it
 }
 
-fn on_close_requested<'a, T: fmt::Debug + Clone + Send + 'static>(
+fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WindowId,
   windows: Arc<Mutex<HashMap<WindowId, WindowWrapper>>>,
@@ -2548,7 +2543,7 @@ fn on_close_requested<'a, T: fmt::Debug + Clone + Send + 'static>(
   }
 }
 
-fn on_window_close<'a, T: fmt::Debug + Clone + Send + 'static>(
+fn on_window_close<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WindowId,
   mut windows: MutexGuard<'a, HashMap<WindowId, WindowWrapper>>,
@@ -2645,7 +2640,7 @@ fn to_wry_menu(
   wry_menu
 }
 
-fn create_webview<T: fmt::Debug + Clone + Send + 'static>(
+fn create_webview<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context: &WebContextStore,
   context: Context<T>,
@@ -2766,7 +2761,7 @@ fn create_webview<T: fmt::Debug + Clone + Send + 'static>(
 }
 
 /// Create a wry ipc handler from a tauri ipc handler.
-fn create_ipc_handler<T: fmt::Debug + Clone + Send + 'static>(
+fn create_ipc_handler<T: UserEvent>(
   context: Context<T>,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
@@ -2790,7 +2785,7 @@ fn create_ipc_handler<T: fmt::Debug + Clone + Send + 'static>(
 }
 
 /// Create a wry file drop handler.
-fn create_file_drop_handler<T: fmt::Debug + Clone + Send + 'static>(
+fn create_file_drop_handler<T: UserEvent>(
   context: &Context<T>,
 ) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
   let window_event_listeners = context.window_event_listeners.clone();

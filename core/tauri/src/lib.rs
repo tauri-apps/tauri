@@ -213,7 +213,7 @@ pub use {
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      WindowEvent,
+      FileDropEvent, WindowEvent,
     },
     ClipboardManager, GlobalShortcutManager, RunIteration, Runtime, TrayIcon, UserAttentionType,
   },

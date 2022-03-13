@@ -2,4 +2,4 @@
 "tauri-runtime": patch
 ---
 
-**Breaking change:** Move the `FileDropEvent` to the `window` module.
+**Breaking change:** Move the `FileDropEvent` struct to the `window` module.

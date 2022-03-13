@@ -119,6 +119,10 @@ impl WebviewIdStore {
   fn insert(&self, w: WindowId, id: WebviewId) {
     self.0.lock().unwrap().insert(w, id);
   }
+
+  fn get(&self, w: &WindowId) -> WebviewId {
+    *self.0.lock().unwrap().get(w).unwrap()
+  }
 }
 
 macro_rules! getter {
@@ -2301,7 +2305,7 @@ fn handle_event_loop(
         menu_item_id: menu_id.0,
       };
       let window_menu_event_listeners = {
-        let window_id = *webview_id_map.0.lock().unwrap().get(&window_id).unwrap();
+        let window_id = webview_id_map.get(&window_id);
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };
@@ -2345,7 +2349,7 @@ fn handle_event_loop(
     Event::WindowEvent {
       event, window_id, ..
     } => {
-      let window_id = *webview_id_map.0.lock().unwrap().get(&window_id).unwrap();
+      let window_id = webview_id_map.get(&window_id);
       // NOTE(amrbashir): we handle this event here instead of `match` statement below because
       // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
@@ -2780,9 +2784,7 @@ fn create_file_drop_handler(
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
     let listeners = window_event_listeners.lock().unwrap();
-    if let Some(window_listeners) =
-      listeners.get(webview_id_map.0.lock().unwrap().get(&window.id()).unwrap())
-    {
+    if let Some(window_listeners) = listeners.get(&webview_id_map.get(&window.id())) {
       let listeners_map = window_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
       for listener in listeners_map.values() {

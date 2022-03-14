@@ -67,7 +67,7 @@ use wry::{
 
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 
-#[cfg(target_os = "windows")]
+#[cfg(windows)]
 use wry::webview::WebviewExtWindows;
 
 #[cfg(target_os = "macos")]
@@ -887,7 +887,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
-  #[cfg(any(target_os = "windows", target_os = "linux"))]
+  #[cfg(any(windows, target_os = "linux"))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
     self
@@ -2043,7 +2043,7 @@ fn handle_user_message(
             window.set_window_icon(Some(icon));
           }
           WindowMessage::SetSkipTaskbar(_skip) => {
-            #[cfg(any(target_os = "windows", target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux"))]
             window.set_skip_taskbar(_skip);
           }
           WindowMessage::DragWindow => {
@@ -2618,6 +2618,8 @@ fn create_webview(
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
+  #[cfg(windows)]
+  let proxy = context.proxy.clone();
 
   let is_window_transparent = window_builder.inner.window.transparent;
   let menu_items = if let Some(menu) = window_builder.menu {
@@ -2703,7 +2705,7 @@ fn create_webview(
 
   webview_id_map.insert(webview.window().id(), window_id);
 
-  #[cfg(target_os = "windows")]
+  #[cfg(windows)]
   {
     if let Some(controller) = webview.controller() {
       let proxy_ = proxy.clone();

@@ -22,13 +22,12 @@ pub use wry::application::platform::macos::CustomMenuItemExtMacOS;
 
 use crate::{Error, Message, Result, TrayMessage};
 
-use tauri_runtime::menu::MenuHash;
+use tauri_runtime::{menu::MenuHash, UserEvent};
 
 use uuid::Uuid;
 
 use std::{
   collections::HashMap,
-  fmt,
   sync::{Arc, Mutex},
 };
 

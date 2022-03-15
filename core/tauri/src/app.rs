@@ -17,14 +17,15 @@ use crate::{
     http::{Request as HttpRequest, Response as HttpResponse},
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
   window::WindowBuilder,
-  Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
+  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
+  StateManager, Window,
 };
 
 #[cfg(shell_scope)]
@@ -111,6 +112,19 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Updater event.
+  #[cfg(feature = "updater")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+  Updater(crate::UpdaterEvent),
+}
+
+impl From<EventLoopMessage> for RunEvent {
+  fn from(event: EventLoopMessage) -> Self {
+    match event {
+      #[cfg(feature = "updater")]
+      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
+    }
+  }
 }
 
 /// A menu event that was triggered on a window.
@@ -203,6 +217,14 @@ pub struct AppHandle<R: Runtime> {
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
+}
+
+impl<R: Runtime> AppHandle<R> {
+  // currently only used on the updater
+  #[allow(dead_code)]
+  pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
+    self.runtime_handle.create_proxy()
+  }
 }
 
 #[cfg(feature = "wry")]
@@ -380,10 +402,10 @@ macro_rules! shared_app_impl {
       ) -> crate::Result<Window<R>>
       where
         F: FnOnce(
-          <R::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
           WebviewAttributes,
         ) -> (
-          <R::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
           WebviewAttributes,
         ),
       {
@@ -629,7 +651,7 @@ pub struct Builder<R: Runtime> {
   on_page_load: Box<OnPageLoad<R>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<R>>,
+  pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -891,15 +913,15 @@ impl<R: Runtime> Builder<R> {
   ) -> crate::Result<Self>
   where
     F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ),
   {
     let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.pending_windows.push(PendingWindow::new(
@@ -1341,7 +1363,7 @@ impl<R: Runtime> Builder<R> {
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
-  event: RuntimeRunEvent,
+  event: RuntimeRunEvent<EventLoopMessage>,
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
@@ -1363,6 +1385,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Ready => RunEvent::Ready,
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
+    RuntimeRunEvent::UserEvent(t) => t.into(),
     _ => unimplemented!(),
   };
 

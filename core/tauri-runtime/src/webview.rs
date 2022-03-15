@@ -185,4 +185,4 @@ pub trait WindowBuilder: WindowBuilderBase {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, String) + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWindow<T, R>, String) + Send>;

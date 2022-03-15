@@ -5,8 +5,8 @@
 //! The Tauri plugin extension to expand Tauri functionality.
 
 use crate::{
-  runtime::Runtime, utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, PageLoadPayload,
-  RunEvent, Window,
+  utils::config::PluginConfig, AppHandle, Invoke, InvokeHandler, PageLoadPayload, RunEvent,
+  Runtime, Window,
 };
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
@@ -71,7 +71,7 @@ type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 /// sticking to the `init` function convention helps users to quickly identify the correct function to call.
 ///
 /// ```rust
-/// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+/// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
 ///
 /// pub fn init<R: Runtime>() -> TauriPlugin<R> {
 ///   Builder::new("example")
@@ -82,7 +82,7 @@ type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
 /// When plugins expose more complex configuration options, it can be helpful to provide a Builder instead:
 ///
 /// ```rust
-/// use tauri::{plugin::{Builder as PluginBuilder, TauriPlugin}, runtime::Runtime};
+/// use tauri::{plugin::{Builder as PluginBuilder, TauriPlugin}, Runtime};
 ///
 /// pub struct Builder {
 ///   option_a: String,
@@ -164,7 +164,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// #[tauri::command]
   /// async fn foobar<R: Runtime>(app: tauri::AppHandle<R>, window: tauri::Window<R>) -> Result<(), String> {
@@ -199,7 +199,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// const INIT_SCRIPT: &str = r#"
   ///    console.log("hello world from js init script");
@@ -228,7 +228,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime, Manager};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime, Manager};
   /// use std::path::PathBuf;
   ///
   /// #[derive(Debug, Default)]
@@ -298,7 +298,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
@@ -322,7 +322,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
@@ -346,7 +346,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, runtime::Runtime};
+  /// use tauri::{plugin::{Builder, TauriPlugin}, RunEvent, Runtime};
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")

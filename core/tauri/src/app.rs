@@ -247,7 +247,10 @@ impl AppHandle<crate::Wry> {
   ) -> crate::Result<()> {
     self
       .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(window_id, message))
+      .send_event(tauri_runtime_wry::Message::Window(
+        self.runtime_handle.window_id(window_id),
+        message,
+      ))
       .map_err(Into::into)
   }
 }

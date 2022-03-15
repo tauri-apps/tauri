@@ -234,7 +234,14 @@ pub use {
 #[derive(Debug, Clone)]
 pub enum UpdaterEvent {
   /// An update is available.
-  UpdateAvailable,
+  UpdateAvailable {
+    /// The update body.
+    body: String,
+    /// The update release date.
+    date: String,
+    /// The update version.
+    version: String,
+  },
   /// The update is pending.
   Pending,
   /// The update has been applied and the app is now up to date.

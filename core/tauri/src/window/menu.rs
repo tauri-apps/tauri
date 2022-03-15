@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::runtime::{
-  menu::{MenuHash, MenuId, MenuIdRef, MenuUpdate},
-  Dispatch, Runtime,
+use crate::{
+  runtime::{
+    menu::{MenuHash, MenuId, MenuIdRef, MenuUpdate},
+    Dispatch,
+  },
+  Runtime,
 };
 
 use tauri_macros::default_runtime;

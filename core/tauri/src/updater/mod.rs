@@ -333,7 +333,8 @@ mod error;
 pub use self::error::Error;
 
 use crate::{
-  api::dialog::blocking::ask, runtime::Runtime, utils::config::UpdaterConfig, Env, Manager, AppHandle,
+  api::dialog::blocking::ask, runtime::EventLoopProxy, utils::config::UpdaterConfig, AppHandle,
+  Env, EventLoopMessage, Manager, Runtime, UpdaterEvent,
 };
 
 /// Check for new updates
@@ -404,17 +405,13 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
           )
           .await;
 
-          if dialog.is_err() {
-            send_status_update(
-              &handle,
-              EVENT_STATUS_ERROR,
-              Some(dialog.err().unwrap().to_string()),
-            );
+          if let Err(e) = dialog {
+            send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
           }
         }
       }
       Err(e) => {
-        send_status_update(&handle, EVENT_STATUS_ERROR, Some(e.to_string()));
+        send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
       }
     }
   }
@@ -472,6 +469,9 @@ pub(crate) fn listener<R: Runtime>(
                 version: updater.version.clone(),
               },
             );
+            let _ = handle
+              .create_proxy()
+              .send_event(EventLoopMessage::Updater(UpdaterEvent::UpdateAvailable));
 
             // Listen for `tauri://update-install`
             handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
@@ -481,7 +481,7 @@ pub(crate) fn listener<R: Runtime>(
               // Start installation
               crate::async_runtime::spawn(async move {
                 // emit {"status": "PENDING"}
-                send_status_update(&handle, EVENT_STATUS_PENDING, None);
+                send_status_update(&handle, UpdaterEvent::Pending);
 
                 // Launch updater download process
                 // macOS we display the `Ready to restart dialog` asking to restart
@@ -491,19 +491,19 @@ pub(crate) fn listener<R: Runtime>(
 
                 if let Err(err) = update_result {
                   // emit {"status": "ERROR", "error": "The error message"}
-                  send_status_update(&handle, EVENT_STATUS_ERROR, Some(err.to_string()));
+                  send_status_update(&handle, UpdaterEvent::Error(err.to_string()));
                 } else {
                   // emit {"status": "DONE"}
-                  send_status_update(&handle, EVENT_STATUS_SUCCESS, None);
+                  send_status_update(&handle, UpdaterEvent::Updated);
                 }
               });
             });
           } else {
-            send_status_update(&handle, EVENT_STATUS_UPTODATE, None);
+            send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
           }
         }
         Err(e) => {
-          send_status_update(&handle, EVENT_STATUS_ERROR, Some(e.to_string()));
+          send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
         }
       }
     });
@@ -511,14 +511,24 @@ pub(crate) fn listener<R: Runtime>(
 }
 
 // Send a status update via `tauri://update-status` event.
-fn send_status_update<R: Runtime>(handle: &AppHandle<R>, status: &str, error: Option<String>) {
+fn send_status_update<R: Runtime>(handle: &AppHandle<R>, message: UpdaterEvent) {
   let _ = handle.emit_all(
     EVENT_STATUS_UPDATE,
-    StatusEvent {
-      error,
-      status: String::from(status),
+    if let UpdaterEvent::Error(error) = &message {
+      StatusEvent {
+        error: Some(error.clone()),
+        status: message.clone().status_message().into(),
+      }
+    } else {
+      StatusEvent {
+        error: None,
+        status: message.clone().status_message().into(),
+      }
     },
   );
+  let _ = handle
+    .create_proxy()
+    .send_event(EventLoopMessage::Updater(message));
 }
 
 // Prompt a dialog asking if the user want to install the new version

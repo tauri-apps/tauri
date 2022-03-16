@@ -229,7 +229,7 @@ pub use {
 };
 
 /// Updater events.
-#[cfg(feature = "updater")]
+#[cfg(any(feature = "updater", feature = "__updater-docs"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 #[derive(Debug, Clone)]
 pub enum UpdaterEvent {

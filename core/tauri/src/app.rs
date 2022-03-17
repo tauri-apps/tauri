@@ -46,7 +46,7 @@ use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 use crate::updater;
 
 #[cfg(target_os = "macos")]
@@ -113,7 +113,7 @@ pub enum RunEvent {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
   /// Updater event.
-  #[cfg(feature = "updater")]
+  #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   Updater(crate::UpdaterEvent),
 }
@@ -121,7 +121,7 @@ pub enum RunEvent {
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
     match event {
-      #[cfg(feature = "updater")]
+      #[cfg(updater)]
       EventLoopMessage::Updater(event) => RunEvent::Updater(event),
     }
   }
@@ -388,7 +388,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      #[cfg(feature = "updater")]
+      #[cfg(updater)]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
       /// Runs the updater to check if there is a new app version.
       /// It is the same as triggering the `tauri://update` event.
@@ -575,7 +575,7 @@ impl<R: Runtime> App<R> {
   }
 }
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
   fn run_updater_dialog(&self) {
@@ -1348,7 +1348,7 @@ impl<R: Runtime> Builder<R> {
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
-    #[cfg(feature = "updater")]
+    #[cfg(updater)]
     app.run_updater();
 
     Ok(app)

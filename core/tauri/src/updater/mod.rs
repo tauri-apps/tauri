@@ -331,6 +331,8 @@ mod core;
 mod error;
 
 pub use self::error::Error;
+/// Alias for [`std::result::Result`] using our own [`Error`].
+pub type Result<T> = std::result::Result<T, Error>;
 
 use crate::{
   api::dialog::blocking::ask, runtime::EventLoopProxy, utils::config::UpdaterConfig, AppHandle,
@@ -368,6 +370,43 @@ struct UpdateManifest {
   version: String,
   date: String,
   body: String,
+}
+
+/// The response of an updater [`check`].
+pub struct UpdateResponse<R: Runtime> {
+  update: core::Update,
+  handle: AppHandle<R>,
+}
+
+impl<R: Runtime> Clone for UpdateResponse<R> {
+  fn clone(&self) -> Self {
+    Self {
+      update: self.update.clone(),
+      handle: self.handle.clone(),
+    }
+  }
+}
+
+impl<R: Runtime> UpdateResponse<R> {
+  /// Whether the updater found a newer release or not.
+  pub fn is_update_available(&self) -> bool {
+    self.update.should_update
+  }
+
+  /// The current version of the application as read by the updater.
+  pub fn current_version(&self) -> &str {
+    &self.update.current_version
+  }
+
+  /// The latest version of the application found by the updater.
+  pub fn latest_version(&self) -> &str {
+    &self.update.version
+  }
+
+  /// Downloads and installs the update.
+  pub async fn download_and_install(self) -> Result<()> {
+    download_and_install(self.handle, self.update).await
+  }
 }
 
 /// Check if there is any new update with builtin dialog.
@@ -417,101 +456,110 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
   }
 }
 
-/// Experimental listener
+/// Updater listener
 /// This function should be run on the main thread once.
-pub(crate) fn listener<R: Runtime>(
-  updater_config: UpdaterConfig,
-  package_info: crate::PackageInfo,
-  handle: &AppHandle<R>,
-) {
-  let handle_ = handle.clone();
-
+pub(crate) fn listener<R: Runtime>(handle: AppHandle<R>) {
   // Wait to receive the event `"tauri://update"`
+  let handle_ = handle.clone();
   handle.listen_global(EVENT_CHECK_UPDATE, move |_msg| {
-    let handle = handle_.clone();
-    let package_info = package_info.clone();
-
-    // prepare our endpoints
-    let endpoints = updater_config
-      .endpoints
-      .as_ref()
-      .expect("Something wrong with endpoints")
-      .iter()
-      .map(|e| e.to_string())
-      .collect::<Vec<String>>();
-
-    let pubkey = updater_config.pubkey.clone();
-
-    // check updates
+    let handle_ = handle_.clone();
     crate::async_runtime::spawn(async move {
-      let handle = handle.clone();
-      let handle_ = handle.clone();
-      let pubkey = pubkey.clone();
-      let env = handle.state::<Env>().inner().clone();
-
-      match self::core::builder(env)
-        .urls(&endpoints[..])
-        .current_version(&package_info.version)
-        .build()
-        .await
-      {
-        Ok(updater) => {
-          // send notification if we need to update
-          if updater.should_update {
-            let body = updater.body.clone().unwrap_or_else(|| String::from(""));
-
-            // Emit `tauri://update-available`
-            let _ = handle.emit_all(
-              EVENT_UPDATE_AVAILABLE,
-              UpdateManifest {
-                body: body.clone(),
-                date: updater.date.clone(),
-                version: updater.version.clone(),
-              },
-            );
-            let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
-              UpdaterEvent::UpdateAvailable {
-                body,
-                date: updater.date.clone(),
-                version: updater.version.clone(),
-              },
-            ));
-
-            // Listen for `tauri://update-install`
-            handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
-              let handle = handle_.clone();
-              let updater = updater.clone();
-
-              // Start installation
-              crate::async_runtime::spawn(async move {
-                // emit {"status": "PENDING"}
-                send_status_update(&handle, UpdaterEvent::Pending);
-
-                // Launch updater download process
-                // macOS we display the `Ready to restart dialog` asking to restart
-                // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
-                // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-                let update_result = updater.clone().download_and_install(pubkey.clone()).await;
-
-                if let Err(err) = update_result {
-                  // emit {"status": "ERROR", "error": "The error message"}
-                  send_status_update(&handle, UpdaterEvent::Error(err.to_string()));
-                } else {
-                  // emit {"status": "DONE"}
-                  send_status_update(&handle, UpdaterEvent::Updated);
-                }
-              });
-            });
-          } else {
-            send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
-          }
-        }
-        Err(e) => {
-          send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
-        }
-      }
+      let _ = check(handle_.clone()).await;
     });
   });
+}
+
+pub(crate) async fn download_and_install<R: Runtime>(
+  handle: AppHandle<R>,
+  update: core::Update,
+) -> Result<()> {
+  let update = update.clone();
+
+  // Start installation
+  // emit {"status": "PENDING"}
+  send_status_update(&handle, UpdaterEvent::Pending);
+
+  // Launch updater download process
+  // macOS we display the `Ready to restart dialog` asking to restart
+  // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
+  // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
+  let update_result = update
+    .clone()
+    .download_and_install(handle.config().tauri.updater.pubkey.clone())
+    .await;
+
+  if let Err(err) = &update_result {
+    // emit {"status": "ERROR", "error": "The error message"}
+    send_status_update(&handle, UpdaterEvent::Error(err.to_string()));
+  } else {
+    // emit {"status": "DONE"}
+    send_status_update(&handle, UpdaterEvent::Updated);
+  }
+  update_result
+}
+
+pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResponse<R>> {
+  let updater_config = &handle.config().tauri.updater;
+  let package_info = handle.package_info().clone();
+
+  // prepare our endpoints
+  let endpoints = updater_config
+    .endpoints
+    .as_ref()
+    .expect("Something wrong with endpoints")
+    .iter()
+    .map(|e| e.to_string())
+    .collect::<Vec<String>>();
+
+  // check updates
+  let env = handle.state::<Env>().inner().clone();
+
+  match self::core::builder(env)
+    .urls(&endpoints[..])
+    .current_version(&package_info.version)
+    .build()
+    .await
+  {
+    Ok(update) => {
+      // send notification if we need to update
+      if update.should_update {
+        let body = update.body.clone().unwrap_or_else(|| String::from(""));
+
+        // Emit `tauri://update-available`
+        let _ = handle.emit_all(
+          EVENT_UPDATE_AVAILABLE,
+          UpdateManifest {
+            body: body.clone(),
+            date: update.date.clone(),
+            version: update.version.clone(),
+          },
+        );
+        let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
+          UpdaterEvent::UpdateAvailable {
+            body,
+            date: update.date.clone(),
+            version: update.version.clone(),
+          },
+        ));
+
+        // Listen for `tauri://update-install`
+        let handle_ = handle.clone();
+        let update_ = update.clone();
+        handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
+          crate::async_runtime::spawn(async move {
+            let _ = download_and_install(handle_, update_).await;
+          });
+        });
+      } else {
+        send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
+      }
+      Ok(UpdateResponse { update, handle })
+    }
+    Err(e) => {
+      send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
+      Err(e)
+    }
+  }
 }
 
 // Send a status update via `tauri://update-status` event.
@@ -543,7 +591,7 @@ async fn prompt_for_install<R: Runtime>(
   app_name: &str,
   body: &str,
   pubkey: String,
-) -> crate::Result<()> {
+) -> Result<()> {
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
   let windows = handle.windows();

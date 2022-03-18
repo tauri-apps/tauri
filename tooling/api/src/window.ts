@@ -1128,7 +1128,7 @@ class WindowManager extends WebviewWindowHandle {
 class WebviewWindow extends WindowManager {
   /**
    * Creates a new WebviewWindow.
-   * * @param label The webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {

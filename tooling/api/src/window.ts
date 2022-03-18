@@ -1098,7 +1098,7 @@ class WindowManager extends WebviewWindowHandle {
  * Create new webview windows and get a handle to existing ones.
  *
  * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
- * It may only contain alphanumeric characters: `a-zA-Z-/:_`.
+ * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
  *
  * @example
  * ```typescript

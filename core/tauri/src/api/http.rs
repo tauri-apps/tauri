@@ -404,7 +404,7 @@ impl Response {
   ///
   /// # Examples
   ///
-  /// ```
+  /// ```no_run
   /// use futures::StreamExt;
   ///
   /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {

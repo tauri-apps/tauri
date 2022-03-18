@@ -1278,7 +1278,7 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = block!(updater.download_and_install(pubkey));
+    let install_process = block!(updater.download_and_install(pubkey, |_, _| ()));
     assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

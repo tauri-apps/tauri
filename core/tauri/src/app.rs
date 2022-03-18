@@ -579,13 +579,9 @@ impl<R: Runtime> App<R> {
 impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
   fn run_updater_dialog(&self) {
-    let updater_config = self.manager.config().tauri.updater.clone();
-    let package_info = self.manager.package_info().clone();
     let handle = self.handle();
 
-    crate::async_runtime::spawn(async move {
-      updater::check_update_with_dialog(updater_config, package_info, handle).await
-    });
+    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
   }
 
   fn run_updater(&self) {
@@ -597,22 +593,18 @@ impl<R: Runtime> App<R> {
       if updater_config.dialog {
         // if updater dialog is enabled spawn a new task
         self.run_updater_dialog();
-        let config = self.manager.config().tauri.updater.clone();
-        let package_info = self.manager.package_info().clone();
         // When dialog is enabled, if user want to recheck
         // if an update is available after first start
         // invoke the Event `tauri://update` from JS or rust side.
         handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
           let handle = handle_.clone();
-          let package_info = package_info.clone();
-          let config = config.clone();
           // re-spawn task inside tokyo to launch the download
           // we don't need to emit anything as everything is handled
           // by the process (user is asked to restart at the end)
           // and it's handled by the updater
-          crate::async_runtime::spawn(async move {
-            updater::check_update_with_dialog(config, package_info, handle).await
-          });
+          crate::async_runtime::spawn(
+            async move { updater::check_update_with_dialog(handle).await },
+          );
         });
       } else {
         // we only listen for `tauri://update`

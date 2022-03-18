@@ -73,7 +73,7 @@
 //! import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
 //!
 //! try {
-//!     const {shouldUpdate, manifest} = await checkUpdate();
+//!     const { shouldUpdate, manifest } = await checkUpdate();
 //!
 //!     if (shouldUpdate) {
 //!         // display dialog
@@ -93,20 +93,27 @@
 //!
 //! ### Initialize updater and check if a new version is available
 //!
-//! #### If a new version is available, the event `tauri://update-available` is emitted.
-//!
 //! Event : `tauri://update`
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.emit("tauri://update", None);
+//! #### Rust
+//! ```no_run
+//! tauri::Builder::default()
+//!   .setup(|app| {
+//!     let handle = app.handle();
+//!     tauri::async_runtime::spawn(async move {
+//!       let response = handle.check_for_updates().await;
+//!     });
+//!     Ok(())
+//!   });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update");
 //! ```
+//!
+//! **If a new version is available, the event `tauri://update-available` is emitted.**
 //!
 //! ### Listen New Update Available
 //!
@@ -119,14 +126,26 @@
 //! body       Note announced by the server
 //! ```
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.listen("tauri://update-available", move |msg| {
-//!     println("New version available: {:?}", msg);
-//! })
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
+//!         println!("update available {} {} {}", body, date, version);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
 //! listen("tauri://update-available", function (res) {
@@ -140,42 +159,124 @@
 //!
 //! Event : `tauri://update-install`
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.emit("tauri://update-install", None);
+//! #### Rust
+//! ```no_run
+//! tauri::Builder::default()
+//!   .setup(|app| {
+//!     let handle = app.handle();
+//!     tauri::async_runtime::spawn(async move {
+//!       match handle.check_for_updates().await {
+//!         Ok(update) => {
+//!           if update.is_update_available() {
+//!             update.download_and_install().await.unwrap();
+//!           }
+//!         }
+//!         Err(e) => {
+//!           println!("failed to update: {}", e);
+//!         }
+//!       }
+//!     });
+//!     Ok(())
+//!   });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update-install");
 //! ```
 //!
+//! ### Listen Download Progress
+//!
+//! The event payload informs the length of the chunk that was just downloaded, and the total download size if known.
+//!
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::DownloadProgress { chunk_length, content_length } => {
+//!         println!("downloaded {} of {:?}", chunk_length, content_length);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
+//! ```
+//!
+//! #### Javascript
+//!
+//! Event : `tauri://update-download-progress`
+//!
+//! Emitted data:
+//! ```text
+//! chunkLength       number
+//! contentLength     number/null
+//! ```
+//!
+//! ```js
+//! import { listen } from "@tauri-apps/api/event";
+//! listen<{ chunkLength: number, contentLength?: number }>("tauri://update-download-progress", function (event) {
+//!     console.log(`downloaded ${event.payload.chunkLength} of ${event.payload.contentLength}`);
+//! });
+//! ```
+//!
 //! ### Listen Install Progress
 //!
+//! **Pending** is emitted when the download is started and **Done** when the install is complete. You can then ask to restart the application.
+//!
+//! **UpToDate** is emitted when the app already has the latest version installed and an update is not needed.
+//!
+//! **Error** is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
+//!
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
+//!         println!("update available {} {} {}", body, date, version);
+//!       }
+//!       tauri::UpdaterEvent::Pending => {
+//!         println!("update is pending!");
+//!       }
+//!       tauri::UpdaterEvent::Updated => {
+//!         println!("app has been updated");
+//!       }
+//!       tauri::UpdaterEvent::AlreadyUpToDate => {
+//!         println!("app is already up to date");
+//!       }
+//!       tauri::UpdaterEvent::Error(error) => {
+//!         println!("failed to update: {}", error);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
+//! ```
+//!
+//! #### Javascript
 //! Event : `tauri://update-status`
 //!
 //! Emitted data:
 //! ```text
-//! status    [ERROR/PENDING/DONE]
-//! error     String/null
+//! status    ERROR | PENDING | UPTODATE | DONE
+//! error     string/null
 //! ```
 //!
-//! PENDING is emitted when the download is started and DONE when the install is complete. You can then ask to restart the application.
-//!
-//! ERROR is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
-//!
-//! ### Rust
-//! ```ignore
-//! dispatcher.listen("tauri://update-status", move |msg| {
-//!     println("New status: {:?}", msg);
-//! })
-//! ```
-//!
-//! ### Javascript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
-//! listen("tauri://update-status", function (res) {
+//! listen<{ status: string, error?: string }>("tauri://update-status", function (res) {
 //!     console.log("New status: ", res);
 //! });
 //! ```
@@ -381,7 +482,7 @@ struct UpdateManifest {
   body: String,
 }
 
-/// The response of an updater [`check`].
+/// The response of an updater check.
 pub struct UpdateResponse<R: Runtime> {
   update: core::Update<R>,
 }

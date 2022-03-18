@@ -21,6 +21,7 @@ export interface Event<T> {
 export type EventName = LiteralUnion<
   | 'tauri://update'
   | 'tauri://update-available'
+  | 'tauri://update-download-progress'
   | 'tauri://update-install'
   | 'tauri://update-status'
   | 'tauri://resize'

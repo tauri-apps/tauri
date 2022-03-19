@@ -73,7 +73,7 @@
 //! import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
 //!
 //! try {
-//!     const {shouldUpdate, manifest} = await checkUpdate();
+//!     const { shouldUpdate, manifest } = await checkUpdate();
 //!
 //!     if (shouldUpdate) {
 //!         // display dialog
@@ -93,20 +93,27 @@
 //!
 //! ### Initialize updater and check if a new version is available
 //!
-//! #### If a new version is available, the event `tauri://update-available` is emitted.
-//!
 //! Event : `tauri://update`
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.emit("tauri://update", None);
+//! #### Rust
+//! ```no_run
+//! tauri::Builder::default()
+//!   .setup(|app| {
+//!     let handle = app.handle();
+//!     tauri::async_runtime::spawn(async move {
+//!       let response = handle.check_for_updates().await;
+//!     });
+//!     Ok(())
+//!   });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update");
 //! ```
+//!
+//! **If a new version is available, the event `tauri://update-available` is emitted.**
 //!
 //! ### Listen New Update Available
 //!
@@ -119,14 +126,26 @@
 //! body       Note announced by the server
 //! ```
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.listen("tauri://update-available", move |msg| {
-//!     println("New version available: {:?}", msg);
-//! })
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
+//!         println!("update available {} {} {}", body, date, version);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
 //! listen("tauri://update-available", function (res) {
@@ -140,42 +159,124 @@
 //!
 //! Event : `tauri://update-install`
 //!
-//! ### Rust
-//! ```ignore
-//! dispatcher.emit("tauri://update-install", None);
+//! #### Rust
+//! ```no_run
+//! tauri::Builder::default()
+//!   .setup(|app| {
+//!     let handle = app.handle();
+//!     tauri::async_runtime::spawn(async move {
+//!       match handle.check_for_updates().await {
+//!         Ok(update) => {
+//!           if update.is_update_available() {
+//!             update.download_and_install().await.unwrap();
+//!           }
+//!         }
+//!         Err(e) => {
+//!           println!("failed to update: {}", e);
+//!         }
+//!       }
+//!     });
+//!     Ok(())
+//!   });
 //! ```
 //!
-//! ### Javascript
+//! #### Javascript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update-install");
 //! ```
 //!
+//! ### Listen Download Progress
+//!
+//! The event payload informs the length of the chunk that was just downloaded, and the total download size if known.
+//!
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::DownloadProgress { chunk_length, content_length } => {
+//!         println!("downloaded {} of {:?}", chunk_length, content_length);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
+//! ```
+//!
+//! #### Javascript
+//!
+//! Event : `tauri://update-download-progress`
+//!
+//! Emitted data:
+//! ```text
+//! chunkLength       number
+//! contentLength     number/null
+//! ```
+//!
+//! ```js
+//! import { listen } from "@tauri-apps/api/event";
+//! listen<{ chunkLength: number, contentLength?: number }>("tauri://update-download-progress", function (event) {
+//!     console.log(`downloaded ${event.payload.chunkLength} of ${event.payload.contentLength}`);
+//! });
+//! ```
+//!
 //! ### Listen Install Progress
 //!
+//! **Pending** is emitted when the download is started and **Done** when the install is complete. You can then ask to restart the application.
+//!
+//! **UpToDate** is emitted when the app already has the latest version installed and an update is not needed.
+//!
+//! **Error** is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
+//!
+//! #### Rust
+//! ```no_run
+//! let app = tauri::Builder::default()
+//!   // on an actual app, remove the string argument
+//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+//!   .expect("error while building tauri application");
+//! app.run(|_app_handle, event| match event {
+//!   tauri::RunEvent::Updater(updater_event) => {
+//!     match updater_event {
+//!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
+//!         println!("update available {} {} {}", body, date, version);
+//!       }
+//!       tauri::UpdaterEvent::Pending => {
+//!         println!("update is pending!");
+//!       }
+//!       tauri::UpdaterEvent::Updated => {
+//!         println!("app has been updated");
+//!       }
+//!       tauri::UpdaterEvent::AlreadyUpToDate => {
+//!         println!("app is already up to date");
+//!       }
+//!       tauri::UpdaterEvent::Error(error) => {
+//!         println!("failed to update: {}", error);
+//!       }
+//!       _ => (),
+//!     }
+//!   }
+//!   _ => {}
+//! });
+//! ```
+//!
+//! #### Javascript
 //! Event : `tauri://update-status`
 //!
 //! Emitted data:
 //! ```text
-//! status    [ERROR/PENDING/DONE]
-//! error     String/null
+//! status    ERROR | PENDING | UPTODATE | DONE
+//! error     string/null
 //! ```
 //!
-//! PENDING is emitted when the download is started and DONE when the install is complete. You can then ask to restart the application.
-//!
-//! ERROR is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
-//!
-//! ### Rust
-//! ```ignore
-//! dispatcher.listen("tauri://update-status", move |msg| {
-//!     println("New status: {:?}", msg);
-//! })
-//! ```
-//!
-//! ### Javascript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
-//! listen("tauri://update-status", function (res) {
+//! listen<{ status: string, error?: string }>("tauri://update-status", function (res) {
 //!     console.log("New status: ", res);
 //! });
 //! ```
@@ -335,8 +436,8 @@ pub use self::error::Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 use crate::{
-  api::dialog::blocking::ask, runtime::EventLoopProxy, utils::config::UpdaterConfig, AppHandle,
-  Env, EventLoopMessage, Manager, Runtime, UpdaterEvent,
+  api::dialog::blocking::ask, runtime::EventLoopProxy, AppHandle, EventLoopMessage, Manager,
+  Runtime, UpdaterEvent,
 };
 
 /// Check for new updates
@@ -349,6 +450,8 @@ pub const EVENT_INSTALL_UPDATE: &str = "tauri://update-install";
 /// always listen for this event. It'll send you the install progress
 /// and any error triggered during update check and install
 pub const EVENT_STATUS_UPDATE: &str = "tauri://update-status";
+/// The name of the event that is emitted on download progress.
+pub const EVENT_DOWNLOAD_PROGRESS: &str = "tauri://update-download-progress";
 /// this is the status emitted when the download start
 pub const EVENT_STATUS_PENDING: &str = "PENDING";
 /// When you got this status, something went wrong
@@ -366,23 +469,28 @@ struct StatusEvent {
 }
 
 #[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DownloadProgressEvent {
+  chunk_length: usize,
+  content_length: Option<u64>,
+}
+
+#[derive(Clone, serde::Serialize)]
 struct UpdateManifest {
   version: String,
   date: String,
   body: String,
 }
 
-/// The response of an updater [`check`].
+/// The response of an updater check.
 pub struct UpdateResponse<R: Runtime> {
-  update: core::Update,
-  handle: AppHandle<R>,
+  update: core::Update<R>,
 }
 
 impl<R: Runtime> Clone for UpdateResponse<R> {
   fn clone(&self) -> Self {
     Self {
       update: self.update.clone(),
-      handle: self.handle.clone(),
     }
   }
 }
@@ -405,24 +513,21 @@ impl<R: Runtime> UpdateResponse<R> {
 
   /// Downloads and installs the update.
   pub async fn download_and_install(self) -> Result<()> {
-    download_and_install(self.handle, self.update).await
+    download_and_install(self.update).await
   }
 }
 
 /// Check if there is any new update with builtin dialog.
-pub(crate) async fn check_update_with_dialog<R: Runtime>(
-  updater_config: UpdaterConfig,
-  package_info: crate::PackageInfo,
-  handle: AppHandle<R>,
-) {
+pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
+  let updater_config = handle.config().tauri.updater.clone();
+  let package_info = handle.package_info().clone();
   if let Some(endpoints) = updater_config.endpoints.clone() {
     let endpoints = endpoints
       .iter()
       .map(|e| e.to_string())
       .collect::<Vec<String>>();
-    let env = handle.state::<Env>().inner().clone();
     // check updates
-    match self::core::builder(env)
+    match self::core::builder(handle.clone())
       .urls(&endpoints[..])
       .current_version(&package_info.version)
       .build()
@@ -434,15 +539,8 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(
         // if dialog enabled only
         if updater.should_update && updater_config.dialog {
           let body = updater.body.clone().unwrap_or_else(|| String::from(""));
-          let handle_ = handle.clone();
-          let dialog = prompt_for_install(
-            handle_,
-            &updater.clone(),
-            &package_info.name,
-            &body.clone(),
-            pubkey,
-          )
-          .await;
+          let dialog =
+            prompt_for_install(&updater.clone(), &package_info.name, &body.clone(), pubkey).await;
 
           if let Err(e) = dialog {
             send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
@@ -469,31 +567,32 @@ pub(crate) fn listener<R: Runtime>(handle: AppHandle<R>) {
   });
 }
 
-pub(crate) async fn download_and_install<R: Runtime>(
-  handle: AppHandle<R>,
-  update: core::Update,
-) -> Result<()> {
-  let update = update.clone();
-
+pub(crate) async fn download_and_install<R: Runtime>(update: core::Update<R>) -> Result<()> {
   // Start installation
   // emit {"status": "PENDING"}
-  send_status_update(&handle, UpdaterEvent::Pending);
+  send_status_update(&update.app, UpdaterEvent::Pending);
+
+  let handle = update.app.clone();
 
   // Launch updater download process
   // macOS we display the `Ready to restart dialog` asking to restart
   // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
   // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
   let update_result = update
-    .clone()
-    .download_and_install(handle.config().tauri.updater.pubkey.clone())
+    .download_and_install(
+      update.app.config().tauri.updater.pubkey.clone(),
+      move |chunk_length, content_length| {
+        send_download_progress_event(&handle, chunk_length, content_length);
+      },
+    )
     .await;
 
   if let Err(err) = &update_result {
     // emit {"status": "ERROR", "error": "The error message"}
-    send_status_update(&handle, UpdaterEvent::Error(err.to_string()));
+    send_status_update(&update.app, UpdaterEvent::Error(err.to_string()));
   } else {
     // emit {"status": "DONE"}
-    send_status_update(&handle, UpdaterEvent::Updated);
+    send_status_update(&update.app, UpdaterEvent::Updated);
   }
   update_result
 }
@@ -512,9 +611,7 @@ pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResp
     .collect::<Vec<String>>();
 
   // check updates
-  let env = handle.state::<Env>().inner().clone();
-
-  match self::core::builder(env)
+  match self::core::builder(handle.clone())
     .urls(&endpoints[..])
     .current_version(&package_info.version)
     .build()
@@ -543,23 +640,44 @@ pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResp
         ));
 
         // Listen for `tauri://update-install`
-        let handle_ = handle.clone();
         let update_ = update.clone();
         handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
           crate::async_runtime::spawn(async move {
-            let _ = download_and_install(handle_, update_).await;
+            let _ = download_and_install(update_).await;
           });
         });
       } else {
         send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
       }
-      Ok(UpdateResponse { update, handle })
+      Ok(UpdateResponse { update })
     }
     Err(e) => {
       send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
       Err(e)
     }
   }
+}
+
+// Send a status update via `tauri://update-download-progress` event.
+fn send_download_progress_event<R: Runtime>(
+  handle: &AppHandle<R>,
+  chunk_length: usize,
+  content_length: Option<u64>,
+) {
+  let _ = handle.emit_all(
+    EVENT_DOWNLOAD_PROGRESS,
+    DownloadProgressEvent {
+      chunk_length,
+      content_length,
+    },
+  );
+  let _ =
+    handle
+      .create_proxy()
+      .send_event(EventLoopMessage::Updater(UpdaterEvent::DownloadProgress {
+        chunk_length,
+        content_length,
+      }));
 }
 
 // Send a status update via `tauri://update-status` event.
@@ -586,15 +704,14 @@ fn send_status_update<R: Runtime>(handle: &AppHandle<R>, message: UpdaterEvent) 
 // Prompt a dialog asking if the user want to install the new version
 // Maybe we should add an option to customize it in future versions.
 async fn prompt_for_install<R: Runtime>(
-  handle: AppHandle<R>,
-  updater: &self::core::Update,
+  update: &self::core::Update<R>,
   app_name: &str,
   body: &str,
   pubkey: String,
 ) -> Result<()> {
   // remove single & double quote
   let escaped_body = body.replace(&['\"', '\''][..], "");
-  let windows = handle.windows();
+  let windows = update.app.windows();
   let parent_window = windows.values().next();
 
   // todo(lemarier): We should review this and make sure we have
@@ -609,7 +726,7 @@ Would you like to install it now?
 
 Release Notes:
 {}"#,
-      app_name, updater.version, updater.current_version, escaped_body,
+      app_name, update.version, update.current_version, escaped_body,
     ),
   );
 
@@ -618,7 +735,9 @@ Release Notes:
     // macOS we display the `Ready to restart dialog` asking to restart
     // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
-    updater.download_and_install(pubkey.clone()).await?;
+    update
+      .download_and_install(pubkey.clone(), |_, _| ())
+      .await?;
 
     // Ask user if we need to restart the application
     let should_exit = ask(
@@ -627,7 +746,7 @@ Release Notes:
       "The installation was successful, do you want to restart the application now?",
     );
     if should_exit {
-      handle.restart();
+      update.app.restart();
     }
   }
 

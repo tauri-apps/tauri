@@ -371,7 +371,7 @@ impl futures::Stream for AttohttpcByteReader {
         if b == 0 {
           futures::task::Poll::Ready(None)
         } else {
-          futures::task::Poll::Ready(Some(Ok(buf.to_vec().into())))
+          futures::task::Poll::Ready(Some(Ok(buf[0..b].to_vec().into())))
         }
       }
       Err(_) => futures::task::Poll::Ready(None),

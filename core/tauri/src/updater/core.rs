@@ -236,8 +236,7 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
     self
   }
 
-  /// Set the target (os)
-  /// win32, win64, darwin and linux are currently supported
+  /// Set the target name. Represents the string that is looked up on the updater API or response JSON.
   #[allow(dead_code)]
   pub fn target(mut self, target: &str) -> Self {
     self.target = Some(target.to_owned());
@@ -267,8 +266,6 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
     // If no executable path provided, we use current_exe from tauri_utils
     let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
-    // Did the target is provided by the config?
-    // Should be: linux, darwin, win32 or win64
     let target = self
       .target
       .or_else(get_updater_target)
@@ -297,7 +294,7 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
       // this is usefull if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{current_version}}
       // will be transleted into ->
-      // https://releases.myapp.com/update/darwin/1.0.0
+      // https://releases.myapp.com/update/darwin-silicon/1.0.0
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = str::replace(
@@ -730,12 +727,16 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 /// from tauri-utils because this function return `None` if
 /// the updater do not support the platform.
 ///
-/// Available target: `linux, darwin, win32, win64`
+/// Available target: `linux, darwin-silicon, darwin-intel, win32, win64`
 pub fn get_updater_target() -> Option<String> {
   if cfg!(target_os = "linux") {
     Some("linux".into())
   } else if cfg!(target_os = "macos") {
-    Some("darwin".into())
+    if cfg!(target_arch = "aarch64") {
+      Some("darwin-silicon".into())
+    } else {
+      Some("darwin-intel".into())
+    }
   } else if cfg!(target_os = "windows") {
     if cfg!(target_pointer_width = "32") {
       Some("win32".into())
@@ -839,7 +840,7 @@ mod test {
       "notes": "Test version !",
       "pub_date": "2020-06-22T19:25:57Z",
       "platforms": {
-        "darwin": {
+        "darwin-silicon": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
           "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
         },
@@ -993,7 +994,7 @@ mod test {
 
   #[test]
   fn simple_http_updater_without_version() {
-    let _m = mockito::mock("GET", "/darwin/1.0.0")
+    let _m = mockito::mock("GET", "/darwin-silicon/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1007,7 +1008,7 @@ mod test {
     let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-silicon/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());
@@ -1020,7 +1021,7 @@ mod test {
 
   #[test]
   fn simple_http_updater_percent_decode() {
-    let _m = mockito::mock("GET", "/darwin/1.0.0")
+    let _m = mockito::mock("GET", "/darwin-silicon/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1035,7 +1036,7 @@ mod test {
       .current_version("1.0.0")
       .url(
         url::Url::parse(&format!(
-          "{}/darwin/{{{{current_version}}}}",
+          "{}/darwin-silicon/{{{{current_version}}}}",
           mockito::server_url()
         ))
         .unwrap()
@@ -1052,7 +1053,7 @@ mod test {
     let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .urls(&[url::Url::parse(&format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-silicon/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .unwrap()
@@ -1095,7 +1096,7 @@ mod test {
 
   #[test]
   fn http_updater_uptodate() {
-    let _m = mockito::mock("GET", "/darwin/10.0.0")
+    let _m = mockito::mock("GET", "/darwin-silicon/10.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1109,7 +1110,7 @@ mod test {
     let check_update = block!(builder(app.handle())
       .current_version("10.0.0")
       .url(format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-silicon/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());

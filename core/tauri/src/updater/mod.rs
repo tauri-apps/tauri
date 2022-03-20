@@ -526,13 +526,16 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
       .iter()
       .map(|e| e.to_string())
       .collect::<Vec<String>>();
-    // check updates
-    match self::core::builder(handle.clone())
+
+    let mut builder = self::core::builder(handle.clone())
       .urls(&endpoints[..])
-      .current_version(&package_info.version)
-      .build()
-      .await
-    {
+      .current_version(&package_info.version);
+    if let Some(target) = &handle.updater_settings.target {
+      builder = builder.target(target);
+    }
+
+    // check updates
+    match builder.build().await {
       Ok(updater) => {
         let pubkey = updater_config.pubkey.clone();
 
@@ -610,13 +613,15 @@ pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResp
     .map(|e| e.to_string())
     .collect::<Vec<String>>();
 
-  // check updates
-  match self::core::builder(handle.clone())
+  let mut builder = self::core::builder(handle.clone())
     .urls(&endpoints[..])
-    .current_version(&package_info.version)
-    .build()
-    .await
-  {
+    .current_version(&package_info.version);
+  if let Some(target) = &handle.updater_settings.target {
+    builder = builder.target(target);
+  }
+
+  // check updates
+  match builder.build().await {
     Ok(update) => {
       // send notification if we need to update
       if update.should_update {

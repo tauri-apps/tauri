@@ -167,6 +167,12 @@ impl<R: Runtime> GlobalWindowEvent<R> {
   }
 }
 
+#[cfg(updater)]
+#[derive(Debug, Clone, Default)]
+pub(crate) struct UpdaterSettings {
+  pub(crate) target: Option<String>,
+}
+
 /// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
 #[derive(Debug, Clone)]
 pub struct PathResolver {
@@ -217,6 +223,9 @@ pub struct AppHandle<R: Runtime> {
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
+  /// The updater configuration.
+  #[cfg(updater)]
+  pub(crate) updater_settings: UpdaterSettings,
 }
 
 impl<R: Runtime> AppHandle<R> {
@@ -264,6 +273,8 @@ impl<R: Runtime> Clone for AppHandle<R> {
       clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
+      #[cfg(updater)]
+      updater_settings: self.updater_settings.clone(),
     }
   }
 }
@@ -677,6 +688,10 @@ pub struct Builder<R: Runtime> {
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
+
+  /// The updater configuration.
+  #[cfg(updater)]
+  updater_settings: UpdaterSettings,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -702,6 +717,8 @@ impl<R: Runtime> Builder<R> {
       system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
+      #[cfg(updater)]
+      updater_settings: Default::default(),
     }
   }
 
@@ -1087,6 +1104,38 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Sets the current platform's target name for the updater.
+  ///
+  /// By default Tauri looks for one of `linux`, `win32`, `win64`, `darwin-silicon` or `darwin-intel`
+  /// based on the running platform. You can change the target name with this function.
+  ///
+  /// # Examples
+  ///
+  /// - Check for Linux 32-bit and 64-bit architectures and use a macOS Universal binary target name:
+  ///
+  /// ```no_run
+  /// #[cfg(target_os = "macos")]
+  /// let updater_target = "darwin-universal";
+  /// #[cfg(target_os = "linux")]
+  /// let updater_target = if cfg!(target_pointer_width = "32") { "linux32" } else { "linux64" };
+  /// #[cfg(windows)]
+  /// let updater_target = if cfg!(target_pointer_width = "32") { "win32" } else { "win64" };
+  /// tauri::Builder::default()
+  ///   .updater_target(updater_target);
+  /// ```
+  ///
+  /// - Use the platform's target triple:
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .updater_target(tauri::utils::platform::target_triple().unwrap());
+  /// ```
+  #[cfg(updater)]
+  pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
+    self.updater_settings.target.replace(target.into());
+    self
+  }
+
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
@@ -1186,6 +1235,8 @@ impl<R: Runtime> Builder<R> {
         clipboard_manager,
         #[cfg(feature = "system-tray")]
         tray_handle: None,
+        #[cfg(updater)]
+        updater_settings: self.updater_settings,
       },
     };
 

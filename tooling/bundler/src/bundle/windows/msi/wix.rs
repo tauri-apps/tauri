@@ -404,6 +404,7 @@ pub fn build_wix_app_installer(
             .timestamp_url
             .as_ref()
             .map(|url| url.to_string()),
+          tsp: settings.windows().tsp,
         },
       )?;
     }
@@ -836,13 +837,16 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     };
 
     // split the resource path directories
+    let components_count = src.components().count();
     let directories = src
       .components()
       .filter(|component| {
         let comp = component.as_os_str();
         comp != "." && comp != ".."
       })
+      .take(components_count - 1) // the last component is the file
       .collect::<Vec<_>>();
+
     // transform the directory structure to a chained vec structure
     let first_directory = directories
       .first()
@@ -865,9 +869,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .get_mut(&first_directory)
       .expect("Unable to handle resources");
 
-    let last_index = directories.len() - 1;
     let mut path = String::new();
-    for (i, directory) in directories.into_iter().enumerate() {
+    // the first component is already parsed on `first_directory` so we skip(1)
+    for directory in directories.into_iter().skip(1) {
       let directory_name = directory
         .as_os_str()
         .to_os_string()
@@ -876,30 +880,24 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       path.push_str(directory_name.as_str());
       path.push(std::path::MAIN_SEPARATOR);
 
-      if i == last_index {
-        directory_entry.add_file(resource_entry);
-        break;
-      } else if i == 0 {
-        continue;
-      } else {
-        let index = directory_entry
-          .directories
-          .iter()
-          .position(|f| f.path == path);
-        match index {
-          Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
-          None => {
-            directory_entry.directories.push(ResourceDirectory {
-              path: path.clone(),
-              name: directory_name,
-              directories: vec![],
-              files: vec![],
-            });
-            directory_entry = directory_entry.directories.iter_mut().last().unwrap();
-          }
+      let index = directory_entry
+        .directories
+        .iter()
+        .position(|f| f.path == path);
+      match index {
+        Some(i) => directory_entry = directory_entry.directories.get_mut(i).unwrap(),
+        None => {
+          directory_entry.directories.push(ResourceDirectory {
+            path: path.clone(),
+            name: directory_name,
+            directories: vec![],
+            files: vec![],
+          });
+          directory_entry = directory_entry.directories.iter_mut().last().unwrap();
         }
       }
     }
+    directory_entry.add_file(resource_entry);
   }
 
   Ok(resources)

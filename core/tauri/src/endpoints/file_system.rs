@@ -68,8 +68,13 @@ pub struct FileOperationOptions {
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// The read text file API.
+  /// The read binary file API.
   ReadFile {
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  },
+  /// The read binary file API.
+  ReadTextFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
@@ -129,6 +134,24 @@ impl Cmd {
       options.and_then(|o| o.dir),
     )?;
     file::read_binary(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.0.display()))
+      .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_read_file, "fs > readFile")]
+  fn read_text_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  ) -> super::Result<String> {
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.and_then(|o| o.dir),
+    )?;
+    file::read_string(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.0.display()))
       .map_err(Into::into)
   }

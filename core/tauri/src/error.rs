@@ -64,7 +64,7 @@ pub enum Error {
   #[error("error encountered during setup hook: {0}")]
   Setup(Box<dyn std::error::Error + Send>),
   /// Tauri updater error.
-  #[cfg(any(feature = "updater", feature = "__updater-docs"))]
+  #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   #[error("Updater: {0}")]
   TauriUpdater(#[from] crate::updater::Error),
@@ -107,6 +107,13 @@ pub enum Error {
   /// An invalid window URL was provided. Includes details about the error.
   #[error("invalid window url: {0}")]
   InvalidWindowUrl(&'static str),
+  /// Invalid glob pattern.
+  #[error("invalid glob pattern: {0}")]
+  GlobPattern(#[from] glob::PatternError),
+  /// Error decoding PNG image.
+  #[cfg(feature = "icon-png")]
+  #[error("failed to decode PNG: {0}")]
+  PngDecode(#[from] png::DecodingError),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

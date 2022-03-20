@@ -300,17 +300,21 @@ mod test {
   }
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_id: u64) -> String {
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u64) -> String {
   format!(
     "
-      for (var event in (window['{listeners}'] || {{}})) {{
-        var listeners = (window['{listeners}'] || {{}})[event]
+      (function () {{
+        const listeners = (window['{listeners}'] || {{}})['{event_name}']
         if (listeners) {{
-          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
+          const index = window['{listeners}']['{event_name}'].findIndex(e => e.id === {event_id})
+          if (index > -1) {{
+            window['{listeners}']['{event_name}'].splice(index, 1)
+          }}
         }}
-      }}
+      }})()
     ",
     listeners = listeners_object_name,
+    event_name = event_name,
     event_id = event_id,
   )
 }

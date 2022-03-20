@@ -194,17 +194,19 @@ pub fn command(mut options: Options) -> Result<()> {
 
 fn request_input<T>(prompt: &str, default: Option<T>, skip: bool) -> Result<Option<T>>
 where
-  T: Clone + FromStr + Display,
+  T: Clone + FromStr + Display + ToString,
   T::Err: Display + std::fmt::Debug,
 {
   if skip {
     Ok(default)
   } else {
-    let mut builder = Input::new();
+    let theme = dialoguer::theme::ColorfulTheme::default();
+    let mut builder = Input::with_theme(&theme);
     builder.with_prompt(prompt);
 
     if let Some(v) = default {
-      builder.default(v);
+      builder.default(v.clone());
+      builder.with_initial_text(v.to_string());
     }
 
     builder.interact_text().map(Some).map_err(Into::into)

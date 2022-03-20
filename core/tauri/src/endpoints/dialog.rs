@@ -106,21 +106,23 @@ impl Cmd {
     let res = if options.directory {
       let folder = dialog_builder.pick_folder();
       if let Some(path) = &folder {
-        scopes.allow_directory(path, options.recursive);
+        scopes
+          .allow_directory(path, options.recursive)
+          .map_err(crate::error::into_anyhow)?;
       }
       folder.into()
     } else if options.multiple {
       let files = dialog_builder.pick_files();
       if let Some(files) = &files {
         for file in files {
-          scopes.allow_file(file);
+          scopes.allow_file(file).map_err(crate::error::into_anyhow)?;
         }
       }
       files.into()
     } else {
       let file = dialog_builder.pick_file();
       if let Some(file) = &file {
-        scopes.allow_file(file);
+        scopes.allow_file(file).map_err(crate::error::into_anyhow)?;
       }
       file.into()
     };
@@ -151,7 +153,7 @@ impl Cmd {
 
     let path = dialog_builder.save_file();
     if let Some(p) = &path {
-      scopes.allow_file(p);
+      scopes.allow_file(p).map_err(crate::error::into_anyhow)?;
     }
 
     Ok(path)

@@ -15,15 +15,17 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::{WebviewAttributes, WindowBuilder as _},
     window::{PendingWindow, WindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
+    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
-  Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
+  window::WindowBuilder,
+  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
+  StateManager, Window,
 };
 
 #[cfg(shell_scope)]
@@ -42,9 +44,9 @@ use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
+use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 use crate::updater;
 
 #[cfg(target_os = "macos")]
@@ -110,6 +112,19 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Updater event.
+  #[cfg(updater)]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+  Updater(crate::UpdaterEvent),
+}
+
+impl From<EventLoopMessage> for RunEvent {
+  fn from(event: EventLoopMessage) -> Self {
+    match event {
+      #[cfg(updater)]
+      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
+    }
+  }
 }
 
 /// A menu event that was triggered on a window.
@@ -204,6 +219,14 @@ pub struct AppHandle<R: Runtime> {
   tray_handle: Option<tray::SystemTrayHandle<R>>,
 }
 
+impl<R: Runtime> AppHandle<R> {
+  // currently only used on the updater
+  #[allow(dead_code)]
+  pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
+    self.runtime_handle.create_proxy()
+  }
+}
+
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -224,7 +247,10 @@ impl AppHandle<crate::Wry> {
   ) -> crate::Result<()> {
     self
       .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(window_id, message))
+      .send_event(tauri_runtime_wry::Message::Window(
+        self.runtime_handle.window_id(window_id),
+        message,
+      ))
       .map_err(Into::into)
   }
 }
@@ -289,10 +315,16 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-  /// Exits the app
+  /// Exits the app. This is the same as [`std::process::exit`], but it performs cleanup on this application.
   pub fn exit(&self, exit_code: i32) {
     self.cleanup_before_exit();
     std::process::exit(exit_code);
+  }
+
+  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  pub fn restart(&self) {
+    self.cleanup_before_exit();
+    crate::api::process::restart(&self.env());
   }
 
   /// Runs necessary cleanup tasks before exiting the process
@@ -318,7 +350,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.clone()
   }
 }
@@ -348,7 +380,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.handle()
   }
 }
@@ -356,9 +388,23 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
+      #[cfg(updater)]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+      /// Runs the updater to check if there is a new app version.
+      /// It is the same as triggering the `tauri://update` event.
+      pub async fn check_for_updates(&self) -> updater::Result<updater::UpdateResponse<R>> {
+        updater::check(self.app_handle()).await
+      }
+
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
+      ///
+      /// See [`crate::window::WindowBuilder::new`] for an API with extended functionality.
+      #[deprecated(
+        since = "1.0.0-rc.4",
+        note = "The `window_builder` function offers an easier API with extended functionality"
+      )]
       pub fn create_window<F>(
         &self,
         label: impl Into<String>,
@@ -367,22 +413,19 @@ macro_rules! shared_app_impl {
       ) -> crate::Result<Window<R>>
       where
         F: FnOnce(
-          <R::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
           WebviewAttributes,
         ) -> (
-          <R::Dispatcher as Dispatch>::WindowBuilder,
+          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
           WebviewAttributes,
         ),
       {
-        let (window_builder, webview_attributes) = setup(
-          <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-          WebviewAttributes::new(url),
-        );
-        self.create_new_window(PendingWindow::new(
-          window_builder,
-          webview_attributes,
-          label,
-        )?)
+        let mut builder = WindowBuilder::<R>::new(self, label, url);
+        let (window_builder, webview_attributes) =
+          setup(builder.window_builder, builder.webview_attributes);
+        builder.window_builder = window_builder;
+        builder.webview_attributes = webview_attributes;
+        builder.build()
       }
 
       #[cfg(feature = "system-tray")]
@@ -532,56 +575,44 @@ impl<R: Runtime> App<R> {
   }
 }
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self, window: Window<R>) {
-    let updater_config = self.manager.config().tauri.updater.clone();
-    let package_info = self.manager.package_info().clone();
+  fn run_updater_dialog(&self) {
+    let handle = self.handle();
 
-    crate::async_runtime::spawn(async move {
-      updater::check_update_with_dialog(updater_config, package_info, window).await
-    });
+    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
   }
 
-  /// Listen updater events when dialog are disabled.
-  fn listen_updater_events(&self, window: Window<R>) {
+  fn run_updater(&self) {
+    let handle = self.handle();
+    let handle_ = handle.clone();
     let updater_config = self.manager.config().tauri.updater.clone();
-    updater::listener(updater_config, self.manager.package_info().clone(), &window);
-  }
-
-  fn run_updater(&self, main_window: Option<Window<R>>) {
-    if let Some(main_window) = main_window {
-      let event_window = main_window.clone();
-      let updater_config = self.manager.config().tauri.updater.clone();
-      // check if updater is active or not
-      if updater_config.dialog && updater_config.active {
+    // check if updater is active or not
+    if updater_config.active {
+      if updater_config.dialog {
         // if updater dialog is enabled spawn a new task
-        self.run_updater_dialog(main_window.clone());
-        let config = self.manager.config().tauri.updater.clone();
-        let package_info = self.manager.package_info().clone();
+        self.run_updater_dialog();
         // When dialog is enabled, if user want to recheck
         // if an update is available after first start
         // invoke the Event `tauri://update` from JS or rust side.
-        main_window.listen(updater::EVENT_CHECK_UPDATE, move |_msg| {
-          let window = event_window.clone();
-          let package_info = package_info.clone();
-          let config = config.clone();
+        handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
+          let handle = handle_.clone();
           // re-spawn task inside tokyo to launch the download
           // we don't need to emit anything as everything is handled
           // by the process (user is asked to restart at the end)
           // and it's handled by the updater
-          crate::async_runtime::spawn(async move {
-            updater::check_update_with_dialog(config, package_info, window).await
-          });
+          crate::async_runtime::spawn(
+            async move { updater::check_update_with_dialog(handle).await },
+          );
         });
-      } else if updater_config.active {
+      } else {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
         // if there is a new update we emit `tauri://update-available` with details
         // this is the user responsabilities to display dialog and ask if user want to install
         // to install the update you need to invoke the Event `tauri://update-install`
-        self.listen_updater_events(main_window);
+        updater::listener(handle);
       }
     }
   }
@@ -619,7 +650,7 @@ pub struct Builder<R: Runtime> {
   on_page_load: Box<OnPageLoad<R>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<R>>,
+  pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -772,10 +803,10 @@ impl<R: Runtime> Builder<R> {
   /// This method can be called any number of times as long as each call
   /// refers to a different `T`.
   ///
-  /// Managed state can be retrieved by any request handler via the
-  /// [`State`](crate::State) request guard. In particular, if a value of type `T`
+  /// Managed state can be retrieved by any command handler via the
+  /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
-  /// request handler instructs Tauri to retrieve the managed value.
+  /// command handler instructs Tauri to retrieve the managed value.
   ///
   /// # Panics
   ///
@@ -789,25 +820,29 @@ impl<R: Runtime> Builder<R> {
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
-  /// struct Storage(Mutex<HashMap<u64, String>>);
+  /// struct Storage {
+  ///   store: Mutex<HashMap<u64, String>>,
+  /// }
   /// struct Connection;
-  /// struct DbConnection(Mutex<Option<Connection>>);
+  /// struct DbConnection {
+  ///   db: Mutex<Option<Connection>>,
+  /// }
   ///
   /// #[tauri::command]
   /// fn connect(connection: State<DbConnection>) {
   ///   // initialize the connection, mutating the state with interior mutability
-  ///   *connection.0.lock().unwrap() = Some(Connection {});
+  ///   *connection.db.lock().unwrap() = Some(Connection {});
   /// }
   ///
   /// #[tauri::command]
   /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
   ///   // mutate the storage behind the Mutex
-  ///   storage.0.lock().unwrap().insert(key, value);
+  ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
   /// tauri::Builder::default()
-  ///   .manage(Storage(Default::default()))
-  ///   .manage(DbConnection(Default::default()))
+  ///   .manage(Storage { store: Default::default() })
+  ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
   ///   // on an actual app, remove the string argument
   ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
@@ -877,15 +912,15 @@ impl<R: Runtime> Builder<R> {
   ) -> crate::Result<Self>
   where
     F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ),
   {
     let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       WebviewAttributes::new(url),
     );
     self.pending_windows.push(PendingWindow::new(
@@ -1063,7 +1098,7 @@ impl<R: Runtime> Builder<R> {
       if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
-        if let Some(Icon::Raw(_)) = icon {
+        if let Some(TrayIcon::Raw(..)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on linux must be a file path",
@@ -1071,7 +1106,7 @@ impl<R: Runtime> Builder<R> {
         }
 
         #[cfg(not(target_os = "linux"))]
-        if let Some(Icon::File(_)) = icon {
+        if let Some(TrayIcon::File(_)) = icon {
           return Err(crate::Error::InvalidIcon(Box::new(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",
@@ -1161,14 +1196,14 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
-      ),
+      )?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
-      ),
+      )?,
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
@@ -1241,9 +1276,10 @@ impl<R: Runtime> Builder<R> {
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(ids.clone()),
+        ids: Arc::new(std::sync::Mutex::new(ids)),
         inner: tray_handler,
       };
+      let ids = tray_handle.ids.clone();
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
@@ -1258,7 +1294,7 @@ impl<R: Runtime> Builder<R> {
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(id).unwrap().clone(),
+                id: ids.lock().unwrap().get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {
@@ -1293,25 +1329,19 @@ impl<R: Runtime> Builder<R> {
       .map(|p| p.label.clone())
       .collect::<Vec<_>>();
 
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
     for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(_window);
-      }
     }
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
-    #[cfg(feature = "updater")]
-    app.run_updater(main_window);
+    #[cfg(updater)]
+    app.run_updater();
 
     Ok(app)
   }
@@ -1325,7 +1355,7 @@ impl<R: Runtime> Builder<R> {
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
-  event: RuntimeRunEvent,
+  event: RuntimeRunEvent<EventLoopMessage>,
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
@@ -1347,6 +1377,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Ready => RunEvent::Ready,
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
+    RuntimeRunEvent::UserEvent(t) => t.into(),
     _ => unimplemented!(),
   };
 

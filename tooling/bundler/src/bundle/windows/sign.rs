@@ -19,6 +19,7 @@ pub struct SignParams {
   pub digest_algorithm: String,
   pub certificate_thumbprint: String,
   pub timestamp_url: Option<String>,
+  pub tsp: Option<bool>,
 }
 
 // sign code forked from https://github.com/forbjok/rust-codesign
@@ -101,7 +102,12 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   cmd.args(&["/sha1", &params.certificate_thumbprint]);
 
   if let Some(ref timestamp_url) = params.timestamp_url {
-    cmd.args(&["/t", timestamp_url]);
+    if params.tsp == Some(true) {
+      cmd.args(&["/tr", timestamp_url]);
+      cmd.args(&["/td", &params.digest_algorithm]);
+    } else {
+      cmd.args(&["/t", timestamp_url]);
+    }
   }
 
   cmd.arg(path_str);

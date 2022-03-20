@@ -356,27 +356,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
 
 [[package]]
-name = "bzip2"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6afcd980b5f3a45017c57e57a2fcccbb351cc43a356ce117ef760ef8052b89b0"
-dependencies = [
- "bzip2-sys",
- "libc",
-]
-
-[[package]]
-name = "bzip2-sys"
-version = "0.1.11+1.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "736a955f3fa7875102d57c82b8cac37ec45224a07fd32d58f9f7a186b6cd4cdc"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
-]
-
-[[package]]
 name = "cache-padded"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3319,7 +3298,9 @@ dependencies = [
  "glob",
  "gtk",
  "http",
+ "ico",
  "ignore",
+ "infer",
  "memchr",
  "minisign-verify",
  "notify-rust",
@@ -3328,6 +3309,7 @@ dependencies = [
  "os_info",
  "os_pipe",
  "percent-encoding",
+ "png 0.16.8",
  "rand 0.8.5",
  "raw-window-handle",
  "regex",
@@ -3349,6 +3331,7 @@ dependencies = [
  "tokio",
  "url",
  "uuid",
+ "windows 0.30.0",
  "zip",
 ]
 
@@ -3370,6 +3353,8 @@ version = "1.0.0-rc.2"
 dependencies = [
  "base64",
  "blake3",
+ "ico",
+ "png 0.16.8",
  "proc-macro2",
  "quote",
  "regex",
@@ -3417,9 +3402,6 @@ name = "tauri-runtime-wry"
 version = "0.3.2"
 dependencies = [
  "gtk",
- "ico",
- "infer",
- "png 0.16.8",
  "tauri-runtime",
  "tauri-utils",
  "uuid",
@@ -4270,11 +4252,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93ab48844d61251bb3835145c521d88aa4031d7139e8485990f60ca911fa0815"
 dependencies = [
  "byteorder",
- "bzip2",
  "crc32fast",
- "flate2",
  "thiserror",
- "time",
 ]
 
 [[package]]

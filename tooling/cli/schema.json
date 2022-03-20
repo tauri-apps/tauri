@@ -147,6 +147,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "tsp": null,
             "webviewFixedRuntimePath": null,
             "wix": null
           }
@@ -463,7 +464,7 @@
           "type": "boolean"
         },
         "category": {
-          "description": "The application kind.",
+          "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
           "type": [
             "string",
             "null"
@@ -563,6 +564,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
+            "tsp": null,
             "webviewFixedRuntimePath": null,
             "wix": null
           },
@@ -867,6 +869,38 @@
       },
       "additionalProperties": false
     },
+    "Csp": {
+      "description": "A Content-Security-Policy definition. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
+      "anyOf": [
+        {
+          "description": "The entire CSP policy in a single text string.",
+          "type": "string"
+        },
+        {
+          "description": "An object mapping a directive with its sources values as a list of strings.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/CspDirectiveSources"
+          }
+        }
+      ]
+    },
+    "CspDirectiveSources": {
+      "description": "A Content-Security-Policy directive source list. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources#sources>.",
+      "anyOf": [
+        {
+          "description": "An inline list of CSP sources. Same as [`Self::List`], but concatenated with a space separator.",
+          "type": "string"
+        },
+        {
+          "description": "A list of CSP sources. The collection will be concatenated with a space separator for the CSP string.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "DebConfig": {
       "description": "Configuration for Debian (.deb) bundles.",
       "type": "object",
@@ -1018,7 +1052,7 @@
               }
             },
             "deny": {
-              "description": "A list of paths that are not allowed by this scope. This gets precedence over the [`Self::allow`] list.",
+              "description": "A list of paths that are not allowed by this scope. This gets precedence over the [`Self::Scope::allow`] list.",
               "default": [],
               "type": "array",
               "items": {
@@ -1111,7 +1145,7 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`. Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.",
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
           "type": [
             "string",
@@ -1310,16 +1344,24 @@
       "properties": {
         "csp": {
           "description": "The Content Security Policy that will be injected on all HTML files on the built application. If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Csp"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "devCsp": {
           "description": "The Content Security Policy that will be injected on all HTML files on development.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Csp"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "freezePrototype": {
@@ -1600,6 +1642,7 @@
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "timestampUrl": null,
+              "tsp": null,
               "webviewFixedRuntimePath": null,
               "wix": null
             }
@@ -2029,6 +2072,13 @@
           "description": "Server to use during timestamping.",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "tsp": {
+          "description": "Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.",
+          "type": [
+            "boolean",
             "null"
           ]
         },

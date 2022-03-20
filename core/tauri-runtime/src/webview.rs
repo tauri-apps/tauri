@@ -4,7 +4,7 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, Icon};
+use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
 
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
@@ -14,7 +14,7 @@ use windows::Win32::Foundation::HWND;
 use std::{fmt, path::PathBuf};
 
 /// The attributes used to create an webview.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
   pub initialization_scripts: Vec<String>,
@@ -70,7 +70,7 @@ impl WebviewAttributes {
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`](crate::Runtime).
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
-pub trait WindowBuilderBase: fmt::Debug + Sized {}
+pub trait WindowBuilderBase: fmt::Debug + Clone + Sized {}
 
 /// A builder for all attributes related to a single webview.
 ///
@@ -97,7 +97,7 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Window size.
   #[must_use]
-  fn inner_size(self, min_width: f64, min_height: f64) -> Self;
+  fn inner_size(self, width: f64, height: f64) -> Self;
 
   /// Window min inner size.
   #[must_use]
@@ -150,7 +150,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn always_on_top(self, always_on_top: bool) -> Self;
 
   /// Sets the window icon.
-  fn icon(self, icon: Icon) -> crate::Result<Self>;
+  fn icon(self, icon: WindowIcon) -> crate::Result<Self>;
 
   /// Sets whether or not the window icon should be added to the taskbar.
   #[must_use]
@@ -184,21 +184,5 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn get_menu(&self) -> Option<&Menu>;
 }
 
-/// The file drop event payload.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum FileDropEvent {
-  /// The file(s) have been dragged onto the window, but have not been dropped yet.
-  Hovered(Vec<PathBuf>),
-  /// The file(s) have been dropped onto the window.
-  Dropped(Vec<PathBuf>),
-  /// The file drop was aborted.
-  Cancelled,
-}
-
 /// IPC handler.
-pub type WebviewIpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, String) + Send>;
-
-/// File drop handler callback
-/// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bool + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWindow<T, R>, String) + Send>;

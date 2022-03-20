@@ -496,10 +496,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@napi-rs/cli@2.4.4":
-  version "2.4.4"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.4.tgz#878a38f0fba1709d89d66eba706745ce728a61a5"
-  integrity sha512-f+tvwCv1ka24dBqI2DgBhR7Oxl3DKHOp4onxLXwyBFt6iCADnr3YZIr1/2Iq5r3uqxFgaf01bfPsRQZPkEp0kQ==
+"@napi-rs/cli@2.4.5":
+  version "2.4.5"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.4.5.tgz#0f33e54e08c2e875c729697eb81f1c36342f0205"
+  integrity sha512-CLa3PSHh4Y760OXkHidzfHavVtfbQyfMhj3sWpta3SZjbWMk0tbdPhRez9y8KVApVVWjBxz5agEeFMfxxr+KTg==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.3"
@@ -2099,10 +2099,10 @@ prelude-ls@~1.1.2:
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.1.2.tgz#21932a549f5e52ffd9a827f570e04be62a97da54"
   integrity sha1-IZMqVJ9eUv/ZqCf1cOBL5iqX2lQ=
 
-prettier@2.5.1:
-  version "2.5.1"
-  resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.5.1.tgz#fff75fa9d519c54cf0fce328c1017d94546bc56a"
-  integrity sha512-vBZcPRUR5MZJwoyi3ZoyQlc1rXeEck8KgeC9AwwOn+exuxLxq5toTRDTSaVrXHxelDMHy9zlicw8u66yxoSUFg==
+prettier@2.6.0:
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.6.0.tgz#12f8f504c4d8ddb76475f441337542fa799207d4"
+  integrity sha512-m2FgJibYrBGGgQXNzfd0PuDGShJgRavjUoRCw1mZERIWVSXF0iLzLm+aOqTAbLnC3n6JzUhAA8uZnFVghHJ86A==
 
 pretty-format@^27.5.1:
   version "27.5.1"

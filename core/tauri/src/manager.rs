@@ -20,6 +20,7 @@ use tauri_macros::default_runtime;
 use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
+  config::{Csp, CspDirectiveSources},
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
@@ -38,16 +39,15 @@ use crate::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder},
-    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Icon, Runtime,
+    webview::{WebviewIpcHandler, WindowBuilder},
+    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent},
   },
   utils::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, Invoke, Manager, Pattern, Scopes, StateManager, Window,
+  Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -67,8 +67,8 @@ const MENU_EVENT: &str = "tauri://menu";
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
 struct CspHashStrings {
-  script: String,
-  style: String,
+  script: Vec<String>,
+  style: Vec<String>,
 }
 
 /// Sets the CSP value to the asset HTML if needed (on Linux).
@@ -78,20 +78,19 @@ fn set_csp<R: Runtime>(
   assets: Arc<dyn Assets>,
   asset_path: &AssetKey,
   #[allow(unused_variables)] manager: &WindowManager<R>,
-  mut csp: String,
+  csp: Csp,
 ) -> String {
+  let mut csp = csp.into();
   let hash_strings =
     assets
       .csp_hashes(asset_path)
       .fold(CspHashStrings::default(), |mut acc, hash| {
         match hash {
           CspHash::Script(hash) => {
-            acc.script.push(' ');
-            acc.script.push_str(hash);
+            acc.script.push(hash.into());
           }
           CspHash::Style(hash) => {
-            acc.style.push(' ');
-            acc.style.push_str(hash);
+            acc.style.push(hash.into());
           }
           _csp_hash => {
             #[cfg(debug_assertions)]
@@ -120,20 +119,18 @@ fn set_csp<R: Runtime>(
 
   #[cfg(feature = "isolation")]
   if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
-    let default_src = format!("default-src {}", format_real_schema(schema));
-    if csp.contains("default-src") {
-      csp = csp.replace("default-src", &default_src);
-    } else {
-      csp.push_str("; ");
-      csp.push_str(&default_src);
-    }
+    let default_src = csp
+      .entry("default-src".into())
+      .or_insert_with(Default::default);
+    default_src.push(format_real_schema(schema));
   }
 
-  #[cfg(target_os = "linux")]
-  {
-    *asset = asset.replacen(tauri_utils::html::CSP_TOKEN, &csp, 1);
-  }
-  csp
+  Csp::DirectiveMap(csp).to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn set_html_csp(html: &str, csp: &str) -> String {
+  html.replacen(tauri_utils::html::CSP_TOKEN, csp, 1)
 }
 
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
@@ -156,9 +153,9 @@ fn replace_with_callback<F: FnMut() -> String>(
 fn replace_csp_nonce(
   asset: &mut String,
   token: &str,
-  csp: &mut String,
-  csp_attr: &str,
-  hashes: String,
+  csp: &mut HashMap<String, CspDirectiveSources>,
+  directive: &str,
+  hashes: Vec<String>,
 ) {
   let mut nonces = Vec::new();
   *asset = replace_with_callback(asset, token, || {
@@ -168,29 +165,17 @@ fn replace_csp_nonce(
   });
 
   if !(nonces.is_empty() && hashes.is_empty()) {
-    let attr = format!(
-      "{} 'self'{}{}",
-      csp_attr,
-      if nonces.is_empty() {
-        "".into()
-      } else {
-        format!(
-          " {}",
-          nonces
-            .into_iter()
-            .map(|n| format!("'nonce-{}'", n))
-            .collect::<Vec<String>>()
-            .join(" ")
-        )
-      },
-      hashes
-    );
-    if csp.contains(csp_attr) {
-      *csp = csp.replace(csp_attr, &attr);
-    } else {
-      csp.push_str("; ");
-      csp.push_str(&attr);
+    let nonce_sources = nonces
+      .into_iter()
+      .map(|n| format!("'nonce-{}'", n))
+      .collect::<Vec<String>>();
+    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let self_source = "'self'".to_string();
+    if !sources.contains(&self_source) {
+      sources.push(self_source);
     }
+    sources.extend(nonce_sources);
+    sources.extend(hashes);
   }
 }
 
@@ -209,7 +194,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   config: Arc<Config>,
   assets: Arc<dyn Assets>,
-  default_window_icon: Option<Vec<u8>>,
+  default_window_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
@@ -376,7 +361,7 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
-  fn csp(&self) -> Option<String> {
+  fn csp(&self) -> Option<Csp> {
     if cfg!(feature = "custom-protocol") {
       self.inner.config.tauri.security.csp.clone()
     } else {
@@ -393,11 +378,14 @@ impl<R: Runtime> WindowManager<R> {
 
   fn prepare_pending_window(
     &self,
-    mut pending: PendingWindow<R>,
+    mut pending: PendingWindow<EventLoopMessage, R>,
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-  ) -> crate::Result<PendingWindow<R>> {
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
+  ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -459,9 +447,10 @@ impl<R: Runtime> WindowManager<R> {
     pending.webview_attributes = webview_attributes;
 
     if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = &self.inner.default_window_icon {
-        let icon = Icon::Raw(default_window_icon.clone());
-        pending.window_builder = pending.window_builder.icon(icon)?;
+      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
+        pending.window_builder = pending
+          .window_builder
+          .icon(default_window_icon.try_into()?)?;
       }
     }
 
@@ -483,7 +472,10 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
-      pending.register_uri_scheme_protocol("tauri", self.prepare_uri_scheme_protocol());
+      pending.register_uri_scheme_protocol(
+        "tauri",
+        self.prepare_uri_scheme_protocol(web_resource_request_handler),
+      );
       registered_scheme_protocols.push("tauri".into());
     }
 
@@ -688,7 +680,10 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(&self, app_handle: AppHandle<R>) -> WebviewIpcHandler<R> {
+  fn prepare_ipc_handler(
+    &self,
+    app_handle: AppHandle<R>,
+  ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
@@ -740,7 +735,6 @@ impl<R: Runtime> WindowManager<R> {
       // skip leading `/`
       path.chars().skip(1).collect::<String>()
     };
-    let is_html = path.ends_with(".html");
 
     let mut asset_path = AssetKey::from(path.as_str());
 
@@ -764,6 +758,7 @@ impl<R: Runtime> WindowManager<R> {
       .map(Cow::into_owned);
 
     let mut csp_header = None;
+    let is_html = asset_path.as_ref().ends_with(".html");
 
     match asset_response {
       Ok(asset) => {
@@ -801,6 +796,9 @@ impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     let manager = self.clone();
@@ -814,35 +812,31 @@ impl<R: Runtime> WindowManager<R> {
         .to_string()
         .replace("tauri://localhost", "");
       let asset = manager.get_asset(path)?;
-      let mut response = HttpResponseBuilder::new().mimetype(&asset.mime_type);
-      if let Some(csp) = asset.csp_header {
-        response = response.header("Content-Security-Policy", csp);
+      let mut builder = HttpResponseBuilder::new().mimetype(&asset.mime_type);
+      if let Some(csp) = &asset.csp_header {
+        builder = builder.header("Content-Security-Policy", csp);
       }
-      response.body(asset.bytes)
-    })
-  }
+      let mut response = builder.body(asset.bytes)?;
+      if let Some(handler) = &web_resource_request_handler {
+        handler(request, &mut response);
 
-  fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
-    let manager = self.clone();
-    Box::new(move |event, window| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
-      let _ = match event {
-        FileDropEvent::Hovered(paths) => window.emit_and_trigger("tauri://file-drop-hover", paths),
-        FileDropEvent::Dropped(paths) => {
-          let scopes = window.state::<Scopes>();
-          for path in &paths {
-            if path.is_file() {
-              scopes.allow_file(path);
-            } else {
-              scopes.allow_directory(path, false);
-            }
-          }
-          window.emit_and_trigger("tauri://file-drop", paths)
+        // if it's an HTML file, we need to set the CSP meta tag on Linux
+        #[cfg(target_os = "linux")]
+        if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
+          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
+          let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
+          *response.body_mut() = body.as_bytes().to_vec();
         }
-        FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
-        _ => unimplemented!(),
-      };
-      true
+      } else {
+        #[cfg(target_os = "linux")]
+        {
+          if let Some(csp) = &asset.csp_header {
+            let body = set_html_csp(&String::from_utf8_lossy(response.body()), csp);
+            *response.body_mut() = body.as_bytes().to_vec();
+          }
+        }
+      }
+      Ok(response)
     })
   }
 
@@ -1001,9 +995,12 @@ impl<R: Runtime> WindowManager<R> {
   pub fn prepare_window(
     &self,
     app_handle: AppHandle<R>,
-    mut pending: PendingWindow<R>,
+    mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-  ) -> crate::Result<PendingWindow<R>> {
+    web_resource_request_handler: Option<
+      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
+    >,
+  ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
@@ -1045,7 +1042,7 @@ impl<R: Runtime> WindowManager<R> {
           // naive way to check if it's an html
           if html.contains('<') && html.contains('>') {
             let mut document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&mut document, &csp);
+            tauri_utils::html::inject_csp(&mut document, &csp.to_string());
             url.set_path(&format!("text/html,{}", document.to_string()));
           }
         }
@@ -1056,12 +1053,14 @@ impl<R: Runtime> WindowManager<R> {
 
     if is_local {
       let label = pending.label.clone();
-      pending = self.prepare_pending_window(pending, &label, window_labels, app_handle.clone())?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
-    }
-
-    if pending.webview_attributes.file_drop_handler_enabled {
-      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+      pending = self.prepare_pending_window(
+        pending,
+        &label,
+        window_labels,
+        app_handle.clone(),
+        web_resource_request_handler,
+      )?;
+      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
     }
 
     // in `Windows`, we need to force a data_directory
@@ -1090,7 +1089,11 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  pub fn attach_window(&self, app_handle: AppHandle<R>, window: DetachedWindow<R>) -> Window<R> {
+  pub fn attach_window(
+    &self,
+    app_handle: AppHandle<R>,
+    window: DetachedWindow<EventLoopMessage, R>,
+  ) -> Window<R> {
     let window = Window::new(self.clone(), window, app_handle);
 
     let window_ = window.clone();
@@ -1226,8 +1229,8 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit_and_trigger(WINDOW_RESIZED_EVENT, size)?,
-    WindowEvent::Moved(position) => window.emit_and_trigger(WINDOW_MOVED_EVENT, position)?,
+    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested {
       label: _,
       signal_tx,
@@ -1235,10 +1238,10 @@ fn on_window_event<R: Runtime>(
       if window.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT) {
         signal_tx.send(true).unwrap();
       }
-      window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit_and_trigger(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -1247,7 +1250,7 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit_and_trigger(
+    WindowEvent::Focused(focused) => window.emit(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
@@ -1259,13 +1262,29 @@ fn on_window_event<R: Runtime>(
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit_and_trigger(
+    } => window.emit(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
       },
     )?,
+    WindowEvent::FileDrop(event) => match event {
+      FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", paths)?,
+      FileDropEvent::Dropped(paths) => {
+        let scopes = window.state::<Scopes>();
+        for path in paths {
+          if path.is_file() {
+            let _ = scopes.allow_file(path);
+          } else {
+            let _ = scopes.allow_directory(path, false);
+          }
+        }
+        window.emit("tauri://file-drop", paths)?
+      }
+      FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
+      _ => unimplemented!(),
+    },
     _ => unimplemented!(),
   }
   Ok(())
@@ -1279,7 +1298,7 @@ struct ScaleFactorChanged {
 }
 
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit_and_trigger(MENU_EVENT, event.menu_item_id.clone())
+  window.emit(MENU_EVENT, event.menu_item_id.clone())
 }
 
 #[cfg(feature = "isolation")]

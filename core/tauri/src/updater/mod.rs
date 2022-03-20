@@ -319,17 +319,25 @@
 //!   "notes":"Test version",
 //!   "pub_date":"2020-06-22T19:25:57Z",
 //!   "platforms": {
-//!     "darwin": {
+//!     "darwin-aarch64": {
 //!       "signature":"",
-//!       "url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app-aarch64.app.tar.gz"
 //!     },
-//!      "linux": {
+//!     "darwin-intel": {
 //!       "signature":"",
-//!       "url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
+//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app-x86_64.app.tar.gz"
 //!     },
-//!     "win64": {
+//!     "linux-x86_64": {
 //!       "signature":"",
-//!       "url":"https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
+//!     },
+//!     "windows-x86_64": {
+//!       "signature":"",
+//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+//!     },
+//!     "windows-i686": {
+//!       "signature":"",
+//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.x86.msi.zip"
 //!     }
 //!   }
 //! }

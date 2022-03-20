@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-**Breaking change:** The updater on macOS now checks for `darwin-intel` and `darwin-silicon` instead of `darwin` by default.
+**Breaking change:** The updater default targets have been renamed to include better support for different architectures.

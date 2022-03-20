@@ -1741,7 +1741,7 @@
           "type": "boolean"
         },
         "endpoints": {
-          "description": "The updater endpoints. TLS is enforced on production.",
+          "description": "The updater endpoints. TLS is enforced on production.\n\nThe updater URL can contain the following variables: - {{current_version}}: The version of the app that is requesting the update - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`). - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).",
           "type": [
             "array",
             "null"

@@ -1096,6 +1096,10 @@ class WindowManager extends WebviewWindowHandle {
 
 /**
  * Create new webview windows and get a handle to existing ones.
+ *
+ * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
+ * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
+ *
  * @example
  * ```typescript
  * // loading embedded asset:
@@ -1124,7 +1128,7 @@ class WindowManager extends WebviewWindowHandle {
 class WebviewWindow extends WindowManager {
   /**
    * Creates a new WebviewWindow.
-   * * @param label The webview window label, a unique identifier that can be used to reference it later. It must be alphanumeric.
+   * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
   constructor(label: WindowLabel, options: WindowOptions = {}) {

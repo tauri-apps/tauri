@@ -47,15 +47,6 @@
       createWindowButton.innerHTML = 'Create child window '+windowNumber
     })
     container.appendChild(createWindowButton)
-
-    var allWindows = window.__TAURI__.window.getAll()
-    for (var index in allWindows) {
-      var label = allWindows[index].label
-      if (label === windowLabel) {
-        continue
-      }
-      createWindowMessageBtn(label)
-    }
   </script>
 </body>
 

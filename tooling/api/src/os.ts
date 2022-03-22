@@ -24,7 +24,7 @@
  */
 
 import { LiteralUnion } from 'type-fest'
-import { isWindows } from './helpers/os-check'
+import { isWindows } from './helpers/env-check'
 import { invokeTauriCommand } from './helpers/tauri'
 
 /**

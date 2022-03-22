@@ -101,7 +101,7 @@ impl Program {
 /// tauri::Builder::default()
 ///   .setup(|app| {
 ///     // open the given URL on the system default browser
-///     open(&app.shell_scope(), "https://github.com/tauri-apps/tauri", None).unwrap();
+///     open(&app.shell_scope(), "https://github.com/tauri-apps/tauri", None)?;
 ///     Ok(())
 ///   });
 /// ```

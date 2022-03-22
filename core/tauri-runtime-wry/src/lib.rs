@@ -550,7 +550,7 @@ impl<T: UserEvent> ClipboardManager for ClipboardManagerWrapper<T> {
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`WindowIcon`].
 pub struct WryIcon(WryWindowIcon);
 
-fn icon_err<E: std::error::Error + Send + 'static>(e: E) -> Error {
+fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 

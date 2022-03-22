@@ -125,7 +125,7 @@ impl BaseDirectory {
 /// use tauri::Manager;
 /// tauri::Builder::default()
 ///   .setup(|app| {
-///     let path = tauri::api::path::parse(&app.config(), app.package_info(), &app.env(), "$HOME/.bashrc").unwrap();
+///     let path = tauri::api::path::parse(&app.config(), app.package_info(), &app.env(), "$HOME/.bashrc")?;
 ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.bashrc");
 ///     Ok(())
 ///   });
@@ -202,7 +202,7 @@ pub fn parse<P: AsRef<Path>>(
 ///       &app.env(),
 ///       "path/to/something",
 ///       Some(BaseDirectory::Config)
-///     ).expect("failed to resolve path");
+///     )?;
 ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/path/to/something");
 ///     Ok(())
 ///   });

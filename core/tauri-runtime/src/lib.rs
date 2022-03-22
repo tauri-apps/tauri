@@ -98,7 +98,7 @@ pub enum UserAttentionType {
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(Box<dyn std::error::Error + Send>),
+  CreateWebview(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -118,16 +118,16 @@ pub enum Error {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
-  SystemTray(Box<dyn std::error::Error + Send>),
+  SystemTray(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(Box<dyn std::error::Error + Send>),
+  InvalidIcon(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
   #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send>),
+  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]

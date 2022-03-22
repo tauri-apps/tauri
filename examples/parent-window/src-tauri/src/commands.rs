@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri::{command, window, AppHandle, Manager, WindowBuilder, WindowUrl};
+use tauri::{command, window, AppHandle, Manager, WindowUrl};
 
 #[command]
 pub fn create_child_window(id: String, app: AppHandle) {
@@ -17,5 +17,5 @@ pub fn create_child_window(id: String, app: AppHandle) {
   #[cfg(target_os = "windows")]
   let child = child.parent_window(main.hwnd().unwrap());
 
-  child.build();
+  child.build().unwrap();
 }

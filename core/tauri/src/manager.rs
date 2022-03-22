@@ -471,10 +471,27 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
+    let window_url = Url::parse(&pending.url).unwrap();
+    let window_origin =
+      if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+        format!("https://{}.localhost", window_url.scheme())
+      } else {
+        format!(
+          "{}://{}{}",
+          window_url.scheme(),
+          window_url.host().unwrap(),
+          if let Some(port) = window_url.port() {
+            format!(":{}", port)
+          } else {
+            "".into()
+          }
+        )
+      };
+
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       pending.register_uri_scheme_protocol(
         "tauri",
-        self.prepare_uri_scheme_protocol(web_resource_request_handler),
+        self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
       );
       registered_scheme_protocols.push("tauri".into());
     }
@@ -484,22 +501,6 @@ impl<R: Runtime> WindowManager<R> {
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
-      let window_url = Url::parse(&pending.url).unwrap();
-      let window_origin =
-        if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-          format!("https://{}.localhost", window_url.scheme())
-        } else {
-          format!(
-            "{}://{}{}",
-            window_url.scheme(),
-            window_url.host().unwrap(),
-            if let Some(port) = window_url.port() {
-              format!(":{}", port)
-            } else {
-              "".into()
-            }
-          )
-        };
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -796,12 +797,14 @@ impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
+    window_origin: &str,
     web_resource_request_handler: Option<
       Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
     >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     let manager = self.clone();
+    let window_origin = window_origin.to_string();
     Box::new(move |request| {
       let path = request
         .uri()
@@ -812,7 +815,9 @@ impl<R: Runtime> WindowManager<R> {
         .to_string()
         .replace("tauri://localhost", "");
       let asset = manager.get_asset(path)?;
-      let mut builder = HttpResponseBuilder::new().mimetype(&asset.mime_type);
+      let mut builder = HttpResponseBuilder::new()
+        .header("Access-Control-Allow-Origin", &window_origin)
+        .mimetype(&asset.mime_type);
       if let Some(csp) = &asset.csp_header {
         builder = builder.header("Content-Security-Policy", csp);
       }

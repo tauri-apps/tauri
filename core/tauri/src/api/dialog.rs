@@ -34,8 +34,8 @@ macro_rules! run_dialog {
 }
 
 #[cfg(not(target_os = "linux"))]
-macro_rules! run_async_dialog {
-  ($e:expr, $h: expr) => {{
+macro_rules! run_file_dialog {
+  ($e:expr, $h: ident) => {{
     std::thread::spawn(move || {
       let response = crate::async_runtime::block_on($e);
       $h(response);
@@ -44,12 +44,12 @@ macro_rules! run_async_dialog {
 }
 
 #[cfg(target_os = "linux")]
-macro_rules! run_async_dialog {
-  ($e:expr, $h: expr) => {{
+macro_rules! run_file_dialog {
+  ($e:expr, $h: ident) => {{
     std::thread::spawn(move || {
       let context = glib::MainContext::default();
       context.invoke_with_priority(glib::PRIORITY_HIGH, move || {
-        let response = crate::async_runtime::block_on($e);
+        let response = $e;
         $h(response);
       });
     });
@@ -62,18 +62,23 @@ macro_rules! run_dialog_sync {
     let cb = move |response| {
       tx.send(response).unwrap();
     };
-    run_async_dialog!($e, cb);
+    run_file_dialog!($e, cb);
     rx.recv().unwrap()
   }};
 }
 
 macro_rules! file_dialog_builder {
   () => {
+    #[cfg(target_os = "linux")]
+    type FileDialog = rfd::FileDialog;
+    #[cfg(not(target_os = "linux"))]
+    type FileDialog = rfd::AsyncFileDialog;
+
     /// The file dialog builder.
     ///
     /// Constructs file picker dialogs that can select single/multiple files or directories.
     #[derive(Debug, Default)]
-    pub struct FileDialogBuilder(rfd::AsyncFileDialog);
+    pub struct FileDialogBuilder(FileDialog);
 
     impl FileDialogBuilder {
       /// Gets the default file dialog builder.
@@ -150,7 +155,11 @@ pub mod blocking {
     /// }
     /// ```
     pub fn pick_file(self) -> Option<PathBuf> {
-      run_dialog_sync!(self.0.pick_file()).map(|p| p.path().to_path_buf())
+      #[allow(clippy::let_and_return)]
+      let response = run_dialog_sync!(self.0.pick_file());
+      #[cfg(not(target_os = "linux"))]
+      let response = response.map(|p| p.path().to_path_buf());
+      response
     }
 
     /// Shows the dialog to select multiple files.
@@ -169,8 +178,12 @@ pub mod blocking {
     /// }
     /// ```
     pub fn pick_files(self) -> Option<Vec<PathBuf>> {
-      run_dialog_sync!(self.0.pick_files())
-        .map(|paths| paths.into_iter().map(|p| p.path().to_path_buf()).collect())
+      #[allow(clippy::let_and_return)]
+      let response = run_dialog_sync!(self.0.pick_files());
+      #[cfg(not(target_os = "linux"))]
+      let response =
+        response.map(|paths| paths.into_iter().map(|p| p.path().to_path_buf()).collect());
+      response
     }
 
     /// Shows the dialog to select a single folder.
@@ -189,7 +202,11 @@ pub mod blocking {
     /// }
     /// ```
     pub fn pick_folder(self) -> Option<PathBuf> {
-      run_dialog_sync!(self.0.pick_folder()).map(|p| p.path().to_path_buf())
+      #[allow(clippy::let_and_return)]
+      let response = run_dialog_sync!(self.0.pick_folder());
+      #[cfg(not(target_os = "linux"))]
+      let response = response.map(|p| p.path().to_path_buf());
+      response
     }
 
     /// Shows the dialog to save a file.
@@ -208,7 +225,11 @@ pub mod blocking {
     /// }
     /// ```
     pub fn save_file(self) -> Option<PathBuf> {
-      run_dialog_sync!(self.0.save_file()).map(|p| p.path().to_path_buf())
+      #[allow(clippy::let_and_return)]
+      let response = run_dialog_sync!(self.0.save_file());
+      #[cfg(not(target_os = "linux"))]
+      let response = response.map(|p| p.path().to_path_buf());
+      response
     }
   }
 
@@ -329,9 +350,9 @@ mod nonblocking {
     ///   })
     /// ```
     pub fn pick_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
-      run_async_dialog!(self.0.pick_file(), |path: Option<rfd::FileHandle>| f(
-        path.map(|p| p.path().to_path_buf())
-      ))
+      #[cfg(not(target_os = "linux"))]
+      let f = |path: Option<rfd::FileHandle>| f(path.map(|p| p.path().to_path_buf()));
+      run_file_dialog!(self.0.pick_file(), f)
     }
 
     /// Shows the dialog to select multiple files.
@@ -353,11 +374,11 @@ mod nonblocking {
     ///   })
     /// ```
     pub fn pick_files<F: FnOnce(Option<Vec<PathBuf>>) + Send + 'static>(self, f: F) {
-      run_async_dialog!(self.0.pick_files(), |paths: Option<
-        Vec<rfd::FileHandle>,
-      >| f(
-        paths.map(|list| list.into_iter().map(|p| p.path().to_path_buf()).collect())
-      ))
+      #[cfg(not(target_os = "linux"))]
+      let f = |paths: Option<Vec<rfd::FileHandle>>| {
+        f(paths.map(|list| list.into_iter().map(|p| p.path().to_path_buf()).collect()))
+      };
+      run_file_dialog!(self.0.pick_files(), f)
     }
 
     /// Shows the dialog to select a single folder.
@@ -379,9 +400,9 @@ mod nonblocking {
     ///   })
     /// ```
     pub fn pick_folder<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
-      run_async_dialog!(self.0.pick_folder(), |path: Option<rfd::FileHandle>| f(
-        path.map(|p| p.path().to_path_buf())
-      ))
+      #[cfg(not(target_os = "linux"))]
+      let f = |path: Option<rfd::FileHandle>| f(path.map(|p| p.path().to_path_buf()));
+      run_file_dialog!(self.0.pick_folder(), f)
     }
 
     /// Shows the dialog to save a file.
@@ -404,9 +425,9 @@ mod nonblocking {
     ///   })
     /// ```
     pub fn save_file<F: FnOnce(Option<PathBuf>) + Send + 'static>(self, f: F) {
-      run_async_dialog!(self.0.save_file(), |path: Option<rfd::FileHandle>| f(
-        path.map(|p| p.path().to_path_buf())
-      ))
+      #[cfg(not(target_os = "linux"))]
+      let f = |path: Option<rfd::FileHandle>| f(path.map(|p| p.path().to_path_buf()));
+      run_file_dialog!(self.0.save_file(), f)
     }
   }
 

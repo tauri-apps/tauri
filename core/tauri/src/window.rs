@@ -387,6 +387,14 @@ impl<R: Runtime> WindowBuilder<R> {
     self
   }
 
+  /// Sets a parent to the window to be created.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent_window(parent);
+    self
+  }
+
   /// Set an owner to the window to be created.
   ///
   /// From MSDN:

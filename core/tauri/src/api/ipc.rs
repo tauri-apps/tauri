@@ -125,7 +125,7 @@ pub fn serialize_js_with<T: Serialize, F: FnOnce(&str) -> String>(
 ///       "console.log({}, {})",
 ///       serialize_js(&Foo { bar: "bar".to_string() }).unwrap(),
 ///       serialize_js(&Bar { baz: 0 }).unwrap()),
-///     ).unwrap();
+///     )?;
 ///     Ok(())
 ///   });
 /// ```

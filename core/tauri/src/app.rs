@@ -792,7 +792,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -1148,18 +1148,18 @@ impl<R: Runtime> Builder<R> {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
         if let Some(TrayIcon::Raw(..)) = icon {
-          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+          return Err(crate::Error::InvalidIcon(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on linux must be a file path",
-          ))));
+          )));
         }
 
         #[cfg(not(target_os = "linux"))]
         if let Some(TrayIcon::File(_)) = icon {
-          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+          return Err(crate::Error::InvalidIcon(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",
-          ))));
+          )));
         }
       }
 
@@ -1389,7 +1389,7 @@ impl<R: Runtime> Builder<R> {
       let _window = app.manager.attach_window(app.handle(), detached);
     }
 
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
+    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.into()))?;
 
     #[cfg(updater)]
     app.run_updater();

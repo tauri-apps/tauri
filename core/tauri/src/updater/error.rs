@@ -42,7 +42,7 @@ pub enum Error {
   #[error("Unable to extract the new version: {0}")]
   Extract(String),
   /// Updater is not supported for current operating system or platform.
-  #[error("Unsuported operating system or platform")]
+  #[error("Unsupported operating system or platform")]
   UnsupportedPlatform,
   /// Public key found in `tauri.conf.json` but no signature announced remotely.
   #[error("Signature not available, skipping update")]

@@ -13,7 +13,6 @@ use crate::{
   AppHandle, Manager, Runtime,
 };
 use base64::decode;
-use futures::StreamExt;
 use http::StatusCode;
 use minisign_verify::{PublicKey, Signature};
 use tauri_utils::{platform::current_exe, Env};
@@ -462,16 +461,14 @@ impl<R: Runtime> Update<R> {
     headers.insert("Accept".into(), "application/octet-stream".into());
     headers.insert("User-Agent".into(), "tauri/updater".into());
 
+    let client = ClientBuilder::new().build()?;
     // Create our request
-    let response = ClientBuilder::new()
-      .build()?
-      .send(
-        HttpRequestBuilder::new("GET", self.download_url.as_str())?
-          .headers(headers)
-          // wait 20sec for the firewall
-          .timeout(20),
-      )
-      .await?;
+    let req = HttpRequestBuilder::new("GET", self.download_url.as_str())?
+      .headers(headers)
+      // wait 20sec for the firewall
+      .timeout(20);
+
+    let response = client.send(req).await?;
 
     // make sure it's success
     if !response.status().is_success() {
@@ -488,12 +485,35 @@ impl<R: Runtime> Update<R> {
       .and_then(|value| value.parse().ok());
 
     let mut buffer = Vec::new();
-    let mut stream = response.bytes_stream();
-    while let Some(chunk) = stream.next().await {
-      let chunk = chunk?;
-      let bytes = chunk.as_ref().to_vec();
-      on_chunk(bytes.len(), content_length);
-      buffer.extend(bytes);
+    #[cfg(feature = "reqwest-client")]
+    {
+      use futures::StreamExt;
+      let mut stream = response.bytes_stream();
+      while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let bytes = chunk.as_ref().to_vec();
+        on_chunk(bytes.len(), content_length);
+        buffer.extend(bytes);
+      }
+    }
+    #[cfg(not(feature = "reqwest-client"))]
+    {
+      let mut reader = response.reader();
+      let mut buf = [0; 16384];
+      loop {
+        match reader.read(&mut buf) {
+          Ok(b) => {
+            if b == 0 {
+              break;
+            } else {
+              let bytes = buf[0..b].to_vec();
+              on_chunk(bytes.len(), content_length);
+              buffer.extend(bytes);
+            }
+          }
+          Err(e) => return Err(e.into()),
+        }
+      }
     }
 
     // create memory buffer from our archive (Seek + Read)

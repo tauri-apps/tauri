@@ -496,7 +496,7 @@ impl<R: Runtime> Update<R> {
     #[cfg(not(feature = "reqwest-client"))]
     {
       let mut reader = response.reader();
-      let mut buf = [0; 256];
+      let mut buf = [0; 16384];
       loop {
         match reader.read(&mut buf) {
           Ok(b) => {

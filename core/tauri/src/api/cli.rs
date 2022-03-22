@@ -90,7 +90,7 @@ impl Matches {
 /// use tauri::api::cli::get_matches;
 /// tauri::Builder::default()
 ///   .setup(|app| {
-///     let matches = get_matches(app.config().tauri.cli.as_ref().unwrap(), app.package_info()).unwrap();
+///     let matches = get_matches(app.config().tauri.cli.as_ref().unwrap(), app.package_info())?;
 ///     Ok(())
 ///   });
 /// ```

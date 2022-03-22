@@ -334,8 +334,7 @@ mod tests {
       5
     });
     join.abort();
-    if let crate::Error::JoinError(raw_box) = join.await.unwrap_err() {
-      let raw_error = raw_box.downcast::<tokio::task::JoinError>().unwrap();
+    if let crate::Error::JoinError(raw_error) = join.await.unwrap_err() {
       assert!(raw_error.is_cancelled());
     } else {
       panic!("Abort did not result in the expected `JoinError`");

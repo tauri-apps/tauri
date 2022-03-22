@@ -459,16 +459,14 @@ impl<R: Runtime> Update<R> {
     headers.insert("Accept".into(), "application/octet-stream".into());
     headers.insert("User-Agent".into(), "tauri/updater".into());
 
+    let client = ClientBuilder::new().build()?;
     // Create our request
-    let response = ClientBuilder::new()
-      .build()?
-      .send(
-        HttpRequestBuilder::new("GET", self.download_url.as_str())?
-          .headers(headers)
-          // wait 20sec for the firewall
-          .timeout(20),
-      )
-      .await?;
+    let req = HttpRequestBuilder::new("GET", self.download_url.as_str())?
+      .headers(headers)
+      // wait 20sec for the firewall
+      .timeout(20);
+
+    let response = client.send(req).await?;
 
     // make sure it's success
     if !response.status().is_success() {

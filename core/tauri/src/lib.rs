@@ -389,15 +389,15 @@ impl TryFrom<Icon> for runtime::WindowIcon {
         #[cfg(feature = "icon-png")]
         "png" => {
           let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-          let (info, mut reader) = decoder.read_info()?;
+          let mut reader = decoder.read_info()?;
           let mut buffer = Vec::new();
           while let Ok(Some(row)) = reader.next_row() {
-            buffer.extend(row);
+            buffer.extend(row.data());
           }
           Ok(Self {
             rgba: buffer,
-            width: info.width,
-            height: info.height,
+            width: reader.info().width,
+            height: reader.info().height,
           })
         }
         _ => panic!(

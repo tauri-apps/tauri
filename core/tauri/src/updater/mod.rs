@@ -470,6 +470,15 @@ pub const EVENT_STATUS_SUCCESS: &str = "DONE";
 /// When you receive this status, this is because the application is running last version
 pub const EVENT_STATUS_UPTODATE: &str = "UPTODATE";
 
+/// Gets the target string used on the updater.
+pub fn target() -> Option<String> {
+  if let (Some(target), Some(arch)) = (core::get_updater_target(), core::get_updater_arch()) {
+    Some(format!("{}-{}", target, arch))
+  } else {
+    None
+  }
+}
+
 #[derive(Clone, serde::Serialize)]
 struct StatusEvent {
   status: String,

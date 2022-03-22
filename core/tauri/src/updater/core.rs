@@ -748,7 +748,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Ok(())
 }
 
-fn get_updater_target() -> Option<&'static str> {
+pub(crate) fn get_updater_target() -> Option<&'static str> {
   if cfg!(target_os = "linux") {
     Some("linux")
   } else if cfg!(target_os = "macos") {
@@ -760,7 +760,7 @@ fn get_updater_target() -> Option<&'static str> {
   }
 }
 
-fn get_updater_arch() -> Option<&'static str> {
+pub(crate) fn get_updater_arch() -> Option<&'static str> {
   if cfg!(target_arch = "x86") {
     Some("i686")
   } else if cfg!(target_arch = "x86_64") {

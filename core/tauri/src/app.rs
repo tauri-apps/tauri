@@ -1106,22 +1106,29 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the current platform's target name for the updater.
   ///
-  /// By default Tauri looks for one of `linux`, `win32`, `win64`, `darwin-silicon` or `darwin-intel`
+  /// By default Tauri looks for a target in the format "{target}-{arch}",
+  /// where *target* is one of `darwin`, `linux` and `windows`
+  /// and *arch* is one of `i686`, `x86_64`, `aarch64` and `armv7`
   /// based on the running platform. You can change the target name with this function.
   ///
   /// # Examples
   ///
-  /// - Check for Linux 32-bit and 64-bit architectures and use a macOS Universal binary target name:
+  /// - Use a macOS Universal binary target name:
   ///
   /// ```no_run
+  /// let mut builder = tauri::Builder::default();
   /// #[cfg(target_os = "macos")]
-  /// let updater_target = "darwin-universal";
-  /// #[cfg(target_os = "linux")]
-  /// let updater_target = if cfg!(target_pointer_width = "32") { "linux32" } else { "linux64" };
-  /// #[cfg(windows)]
-  /// let updater_target = if cfg!(target_pointer_width = "32") { "win32" } else { "win64" };
+  /// {
+  ///   builder = builder.updater_target("darwin-universal");
+  /// }
+  /// ```
+  ///
+  /// - Append debug information to the target:
+  ///
+  /// ```no_run
+  /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
   /// tauri::Builder::default()
-  ///   .updater_target(updater_target);
+  ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
   /// ```
   ///
   /// - Use the platform's target triple:

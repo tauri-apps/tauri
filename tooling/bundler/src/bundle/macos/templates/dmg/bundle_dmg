@@ -59,6 +59,8 @@ function usage() {
 	echo "      execute hdiutil in verbose mode"
 	echo "  --hdiutil-quiet"
 	echo "      execute hdiutil in quiet mode"
+	echo "  --bless"
+  echo "      bless the mount folder (deprecated, needs macOS 12.2.1 or older)"
 	echo "  --sandbox-safe"
 	echo "      execute hdiutil with sandbox compatibility, do not bless and do not execute the cosmetic AppleScript"
 	echo "  --version         show tool version number"
@@ -78,6 +80,7 @@ ADD_FILE_TARGETS=()
 IMAGEKEY=""
 HDIUTIL_VERBOSITY=""
 SANDBOX_SAFE=0
+BLESS=0
 SKIP_JENKINS=0
 MAXIMUM_UNMOUNTING_ATTEMPTS=3
 POSITION_CLAUSE=""
@@ -160,6 +163,9 @@ while [[ "${1:0:1}" = "-" ]]; do
 		shift;;
 	--sandbox-safe)
 		SANDBOX_SAFE=1
+		shift;;
+	--bless)
+		BLESS=1
 		shift;;
 	--skip-jenkins)
 		SKIP_JENKINS=1
@@ -285,14 +291,14 @@ MOUNT_DIR="/Volumes/${VOLUME_NAME}"
 # Unmount leftover dmg if it was mounted previously (e.g. developer mounted dmg, installed app and forgot to unmount it)
 if [[ -d "${MOUNT_DIR}" ]]; then
   echo "Unmounting previously mounted disk image..."
-	DEV_NAME=$(hdiutil info | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
+	DEV_NAME=$(hdiutil info | grep -E --color=never '^/dev/' | sed 1q | awk '{print $1}')
   hdiutil detach "${DEV_NAME}"
 fi
 
 echo "Mounting disk image..."
 
 echo "Mount directory: $MOUNT_DIR"
-DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | egrep --color=never '^/dev/' | sed 1q | awk '{print $1}')
+DEV_NAME=$(hdiutil attach -readwrite -noverify -noautoopen "${DMG_TEMP_NAME}" | grep -E --color=never '^/dev/' | sed 1q | awk '{print $1}')
 echo "Device name:     $DEV_NAME"
 
 if [[ -n "$BACKGROUND_FILE" ]]; then
@@ -374,7 +380,7 @@ chmod -Rf go-w "${MOUNT_DIR}" &> /dev/null || true
 echo "Done fixing permissions."
 
 # make the top window open itself on mount:
-if [[ $SANDBOX_SAFE -eq 0 ]]; then
+if [[ $BLESS -eq 1 && $SANDBOX_SAFE -eq 0 ]]; then
 	echo "Blessing started"
 	bless --folder "${MOUNT_DIR}" --openfolder "${MOUNT_DIR}"
 	echo "Blessing finished"

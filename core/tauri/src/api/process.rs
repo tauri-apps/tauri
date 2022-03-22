@@ -46,7 +46,7 @@ pub use command::*;
 ///
 /// tauri::Builder::default()
 ///   .setup(|app| {
-///     let current_binary_path = current_binary(&app.env()).unwrap();
+///     let current_binary_path = current_binary(&app.env())?;
 ///     Ok(())
 ///   });
 /// ```

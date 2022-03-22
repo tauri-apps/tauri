@@ -5,9 +5,12 @@
 use super::error::{Error, Result};
 #[cfg(feature = "updater")]
 use crate::api::file::{ArchiveFormat, Extract, Move};
-use crate::api::{
-  http::{ClientBuilder, HttpRequestBuilder},
-  version,
+use crate::{
+  api::{
+    http::{ClientBuilder, HttpRequestBuilder},
+    version,
+  },
+  AppHandle, Manager, Runtime,
 };
 use base64::decode;
 use http::StatusCode;
@@ -176,9 +179,9 @@ impl RemoteRelease {
 }
 
 #[derive(Debug)]
-pub struct UpdateBuilder<'a> {
-  /// Environment information.
-  pub env: Env,
+pub struct UpdateBuilder<'a, R: Runtime> {
+  /// Application handle.
+  pub app: AppHandle<R>,
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
@@ -190,10 +193,10 @@ pub struct UpdateBuilder<'a> {
 }
 
 // Create new updater instance and return an Update
-impl<'a> UpdateBuilder<'a> {
-  pub fn new(env: Env) -> Self {
+impl<'a, R: Runtime> UpdateBuilder<'a, R> {
+  pub fn new(app: AppHandle<R>) -> Self {
     UpdateBuilder {
-      env,
+      app,
       urls: Vec::new(),
       target: None,
       executable_path: None,
@@ -247,7 +250,7 @@ impl<'a> UpdateBuilder<'a> {
     self
   }
 
-  pub async fn build(self) -> Result<Update> {
+  pub async fn build(self) -> Result<Update<R>> {
     let mut remote_release: Option<RemoteRelease> = None;
 
     // make sure we have at least one url
@@ -271,7 +274,7 @@ impl<'a> UpdateBuilder<'a> {
       .ok_or(Error::UnsupportedPlatform)?;
 
     // Get the extract_path from the provided executable_path
-    let extract_path = extract_path_from_executable(&self.env, &executable_path);
+    let extract_path = extract_path_from_executable(&self.app.state::<Env>(), &executable_path);
 
     // Set SSL certs for linux if they aren't available.
     // We do not require to recheck in the download_and_install as we use
@@ -364,7 +367,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // create our new updater
     Ok(Update {
-      env: self.env,
+      app: self.app,
       target,
       extract_path,
       should_update,
@@ -380,14 +383,14 @@ impl<'a> UpdateBuilder<'a> {
   }
 }
 
-pub fn builder<'a>(env: Env) -> UpdateBuilder<'a> {
-  UpdateBuilder::new(env)
+pub fn builder<'a, R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<'a, R> {
+  UpdateBuilder::new(app)
 }
 
-#[derive(Debug, Clone)]
-pub struct Update {
-  /// Environment information.
-  pub env: Env,
+#[derive(Debug)]
+pub struct Update<R: Runtime> {
+  /// Application handle.
+  pub app: AppHandle<R>,
   /// Update description
   pub body: Option<String>,
   /// Should we update or not
@@ -413,22 +416,40 @@ pub struct Update {
   with_elevated_task: bool,
 }
 
-impl Update {
+impl<R: Runtime> Clone for Update<R> {
+  fn clone(&self) -> Self {
+    Self {
+      app: self.app.clone(),
+      body: self.body.clone(),
+      should_update: self.should_update,
+      version: self.version.clone(),
+      current_version: self.current_version.clone(),
+      date: self.date.clone(),
+      target: self.target.clone(),
+      extract_path: self.extract_path.clone(),
+      download_url: self.download_url.clone(),
+      signature: self.signature.clone(),
+      #[cfg(target_os = "windows")]
+      with_elevated_task: self.with_elevated_task,
+    }
+  }
+}
+
+impl<R: Runtime> Update<R> {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub async fn download_and_install(&self, pub_key: String) -> Result {
-    // download url for selected release
-    let url = self.download_url.as_str();
-    // extract path
-    let extract_path = &self.extract_path;
-
+  pub(crate) async fn download_and_install<F: Fn(usize, Option<u64>)>(
+    &self,
+    pub_key: String,
+    on_chunk: F,
+  ) -> Result {
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
     #[cfg(target_os = "linux")]
-    if self.env.appimage.is_none() {
+    if self.app.state::<Env>().appimage.is_none() {
       return Err(Error::UnsupportedPlatform);
     }
 
@@ -437,32 +458,63 @@ impl Update {
     headers.insert("Accept".into(), "application/octet-stream".into());
     headers.insert("User-Agent".into(), "tauri/updater".into());
 
+    let client = ClientBuilder::new().build()?;
     // Create our request
-    let resp = ClientBuilder::new()
-      .build()?
-      .send(
-        HttpRequestBuilder::new("GET", url)?
-          .headers(headers)
-          // wait 20sec for the firewall
-          .timeout(20),
-      )
-      .await?
-      .bytes()
-      .await?;
+    let req = HttpRequestBuilder::new("GET", self.download_url.as_str())?
+      .headers(headers)
+      // wait 20sec for the firewall
+      .timeout(20);
+
+    let response = client.send(req).await?;
 
     // make sure it's success
-    if !StatusCode::from_u16(resp.status)
-      .map_err(|e| Error::Network(e.to_string()))?
-      .is_success()
-    {
+    if !response.status().is_success() {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
-        resp.status
+        response.status()
       )));
     }
 
+    let content_length: Option<u64> = response
+      .headers()
+      .get("Content-Length")
+      .and_then(|value| value.to_str().ok())
+      .and_then(|value| value.parse().ok());
+
+    let mut buffer = Vec::new();
+    #[cfg(feature = "reqwest-client")]
+    {
+      use futures::StreamExt;
+      let mut stream = response.bytes_stream();
+      while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let bytes = chunk.as_ref().to_vec();
+        on_chunk(bytes.len(), content_length);
+        buffer.extend(bytes);
+      }
+    }
+    #[cfg(not(feature = "reqwest-client"))]
+    {
+      let mut reader = response.reader();
+      let mut buf = [0; 16384];
+      loop {
+        match reader.read(&mut buf) {
+          Ok(b) => {
+            if b == 0 {
+              break;
+            } else {
+              let bytes = buf[0..b].to_vec();
+              on_chunk(bytes.len(), content_length);
+              buffer.extend(bytes);
+            }
+          }
+          Err(e) => return Err(e.into()),
+        }
+      }
+    }
+
     // create memory buffer from our archive (Seek + Read)
-    let mut archive_buffer = Cursor::new(resp.data);
+    let mut archive_buffer = Cursor::new(buffer);
 
     // We need an announced signature by the server
     // if there is no signature, bail out.
@@ -481,9 +533,9 @@ impl Update {
       // we run the setup, appimage re-install or overwrite the
       // macos .app
       #[cfg(target_os = "windows")]
-      copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
+      copy_files_and_run(archive_buffer, &self.extract_path, self.with_elevated_task)?;
       #[cfg(not(target_os = "windows"))]
-      copy_files_and_run(archive_buffer, extract_path)?;
+      copy_files_and_run(archive_buffer, &self.extract_path)?;
     }
     // We are done!
     Ok(())
@@ -880,7 +932,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -899,7 +952,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
@@ -918,7 +972,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
       .target("win64")
       .url(mockito::server_url())
@@ -944,7 +999,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("10.0.0")
       .url(mockito::server_url())
       .build());
@@ -967,7 +1023,8 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -993,7 +1050,8 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(
         url::Url::parse(&format!(
@@ -1010,7 +1068,8 @@ mod test {
 
     assert!(updater.should_update);
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .urls(&[url::Url::parse(&format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1039,7 +1098,8 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(format!(
         "{}/win64/{{{{current_version}}}}",
@@ -1065,7 +1125,8 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("10.0.0")
       .url(format!(
         "{}/darwin/{{{{current_version}}}}",
@@ -1087,7 +1148,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
       .current_version("0.0.1")
@@ -1107,7 +1169,8 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
@@ -1126,7 +1189,8 @@ mod test {
       .with_body(generate_sample_bad_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
@@ -1207,7 +1271,8 @@ mod test {
     let my_executable = &tmp_dir_path.join("my_app.exe");
 
     // configure the updater
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
@@ -1233,7 +1298,7 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = block!(updater.download_and_install(pubkey));
+    let install_process = block!(updater.download_and_install(pubkey, |_, _| ()));
     assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

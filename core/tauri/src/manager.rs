@@ -39,16 +39,15 @@ use crate::{
       MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
-    webview::{FileDropEvent, FileDropHandler, WebviewIpcHandler, WindowBuilder},
-    window::{dpi::PhysicalSize, DetachedWindow, PendingWindow, WindowEvent},
-    Runtime,
+    webview::{WebviewIpcHandler, WindowBuilder},
+    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent},
   },
   utils::{
     assets::Assets,
     config::{AppUrl, Config, WindowUrl},
     PackageInfo,
   },
-  Context, Icon, Invoke, Manager, Pattern, Scopes, StateManager, Window,
+  Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -379,14 +378,14 @@ impl<R: Runtime> WindowManager<R> {
 
   fn prepare_pending_window(
     &self,
-    mut pending: PendingWindow<R>,
+    mut pending: PendingWindow<EventLoopMessage, R>,
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
     web_resource_request_handler: Option<
       Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
     >,
-  ) -> crate::Result<PendingWindow<R>> {
+  ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
       .inner
@@ -472,10 +471,27 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
+    let window_url = Url::parse(&pending.url).unwrap();
+    let window_origin =
+      if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
+        format!("https://{}.localhost", window_url.scheme())
+      } else {
+        format!(
+          "{}://{}{}",
+          window_url.scheme(),
+          window_url.host().unwrap(),
+          if let Some(port) = window_url.port() {
+            format!(":{}", port)
+          } else {
+            "".into()
+          }
+        )
+      };
+
     if !registered_scheme_protocols.contains(&"tauri".into()) {
       pending.register_uri_scheme_protocol(
         "tauri",
-        self.prepare_uri_scheme_protocol(web_resource_request_handler),
+        self.prepare_uri_scheme_protocol(&window_origin, web_resource_request_handler),
       );
       registered_scheme_protocols.push("tauri".into());
     }
@@ -485,22 +501,6 @@ impl<R: Runtime> WindowManager<R> {
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
-      let window_url = Url::parse(&pending.url).unwrap();
-      let window_origin =
-        if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-          format!("https://{}.localhost", window_url.scheme())
-        } else {
-          format!(
-            "{}://{}{}",
-            window_url.scheme(),
-            window_url.host().unwrap(),
-            if let Some(port) = window_url.port() {
-              format!(":{}", port)
-            } else {
-              "".into()
-            }
-          )
-        };
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -681,7 +681,10 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  fn prepare_ipc_handler(&self, app_handle: AppHandle<R>) -> WebviewIpcHandler<R> {
+  fn prepare_ipc_handler(
+    &self,
+    app_handle: AppHandle<R>,
+  ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
       let window = Window::new(manager.clone(), window, app_handle.clone());
@@ -794,12 +797,14 @@ impl<R: Runtime> WindowManager<R> {
   #[allow(clippy::type_complexity)]
   fn prepare_uri_scheme_protocol(
     &self,
+    window_origin: &str,
     web_resource_request_handler: Option<
       Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
     >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     let manager = self.clone();
+    let window_origin = window_origin.to_string();
     Box::new(move |request| {
       let path = request
         .uri()
@@ -810,7 +815,9 @@ impl<R: Runtime> WindowManager<R> {
         .to_string()
         .replace("tauri://localhost", "");
       let asset = manager.get_asset(path)?;
-      let mut builder = HttpResponseBuilder::new().mimetype(&asset.mime_type);
+      let mut builder = HttpResponseBuilder::new()
+        .header("Access-Control-Allow-Origin", &window_origin)
+        .mimetype(&asset.mime_type);
       if let Some(csp) = &asset.csp_header {
         builder = builder.header("Content-Security-Policy", csp);
       }
@@ -835,30 +842,6 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
       Ok(response)
-    })
-  }
-
-  fn prepare_file_drop(&self, app_handle: AppHandle<R>) -> FileDropHandler<R> {
-    let manager = self.clone();
-    Box::new(move |event, window| {
-      let window = Window::new(manager.clone(), window, app_handle.clone());
-      let _ = match event {
-        FileDropEvent::Hovered(paths) => window.emit_and_trigger("tauri://file-drop-hover", paths),
-        FileDropEvent::Dropped(paths) => {
-          let scopes = window.state::<Scopes>();
-          for path in &paths {
-            if path.is_file() {
-              let _ = scopes.allow_file(path);
-            } else {
-              let _ = scopes.allow_directory(path, false);
-            }
-          }
-          window.emit_and_trigger("tauri://file-drop", paths)
-        }
-        FileDropEvent::Cancelled => window.emit_and_trigger("tauri://file-drop-cancelled", ()),
-        _ => unimplemented!(),
-      };
-      true
     })
   }
 
@@ -1017,12 +1000,12 @@ impl<R: Runtime> WindowManager<R> {
   pub fn prepare_window(
     &self,
     app_handle: AppHandle<R>,
-    mut pending: PendingWindow<R>,
+    mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
     web_resource_request_handler: Option<
       Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
     >,
-  ) -> crate::Result<PendingWindow<R>> {
+  ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
@@ -1082,11 +1065,7 @@ impl<R: Runtime> WindowManager<R> {
         app_handle.clone(),
         web_resource_request_handler,
       )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle.clone()));
-    }
-
-    if pending.webview_attributes.file_drop_handler_enabled {
-      pending.file_drop_handler = Some(self.prepare_file_drop(app_handle));
+      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
     }
 
     // in `Windows`, we need to force a data_directory
@@ -1115,7 +1094,11 @@ impl<R: Runtime> WindowManager<R> {
     Ok(pending)
   }
 
-  pub fn attach_window(&self, app_handle: AppHandle<R>, window: DetachedWindow<R>) -> Window<R> {
+  pub fn attach_window(
+    &self,
+    app_handle: AppHandle<R>,
+    window: DetachedWindow<EventLoopMessage, R>,
+  ) -> Window<R> {
     let window = Window::new(self.clone(), window, app_handle);
 
     let window_ = window.clone();
@@ -1251,8 +1234,8 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit_and_trigger(WINDOW_RESIZED_EVENT, size)?,
-    WindowEvent::Moved(position) => window.emit_and_trigger(WINDOW_MOVED_EVENT, position)?,
+    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested {
       label: _,
       signal_tx,
@@ -1260,10 +1243,10 @@ fn on_window_event<R: Runtime>(
       if window.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT) {
         signal_tx.send(true).unwrap();
       }
-      window.emit_and_trigger(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit_and_trigger(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       for window in manager.inner.windows.lock().unwrap().values() {
         window.eval(&format!(
@@ -1272,7 +1255,7 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit_and_trigger(
+    WindowEvent::Focused(focused) => window.emit(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
@@ -1284,13 +1267,29 @@ fn on_window_event<R: Runtime>(
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit_and_trigger(
+    } => window.emit(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
       },
     )?,
+    WindowEvent::FileDrop(event) => match event {
+      FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", paths)?,
+      FileDropEvent::Dropped(paths) => {
+        let scopes = window.state::<Scopes>();
+        for path in paths {
+          if path.is_file() {
+            let _ = scopes.allow_file(path);
+          } else {
+            let _ = scopes.allow_directory(path, false);
+          }
+        }
+        window.emit("tauri://file-drop", paths)?
+      }
+      FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
+      _ => unimplemented!(),
+    },
     _ => unimplemented!(),
   }
   Ok(())
@@ -1304,7 +1303,7 @@ struct ScaleFactorChanged {
 }
 
 fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Result<()> {
-  window.emit_and_trigger(MENU_EVENT, event.menu_item_id.clone())
+  window.emit(MENU_EVENT, event.menu_item_id.clone())
 }
 
 #[cfg(feature = "isolation")]

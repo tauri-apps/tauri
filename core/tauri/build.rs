@@ -8,6 +8,7 @@ fn main() {
   cfg_aliases! {
     custom_protocol: { feature = "custom-protocol" },
     dev: { not(feature = "custom-protocol") },
+    updater: { any(feature = "updater", feature = "__updater-docs") },
 
     api_all: { feature = "api-all" },
 

@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-pub use crate::runtime::{
-  menu::{
-    MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
+pub use crate::{
+  runtime::{
+    menu::{
+      MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
+    },
+    window::dpi::{PhysicalPosition, PhysicalSize},
+    SystemTray, TrayIcon,
   },
-  window::dpi::{PhysicalPosition, PhysicalSize},
-  Runtime, SystemTray, TrayIcon,
+  Runtime,
 };
 
 use tauri_macros::default_runtime;

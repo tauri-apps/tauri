@@ -30,7 +30,6 @@
       },
       "macOS": {
         "frameworks": [],
-        "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
       }
@@ -48,7 +47,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src stream: https://stream.example"
+      "csp": "default-src 'self'; media-src stream: https://stream.localhost"
     },
     "updater": {
       "active": false

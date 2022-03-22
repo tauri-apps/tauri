@@ -23,8 +23,8 @@ serde_json = "1"
 tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-zstd = { version = "0.10", optional = true }
-regex = { version = "1", optional = true }
+zstd = { version = "0.11", optional = true }
+regex = { version = "1.5.5", optional = true }
 uuid = { version = "0.8", features = [ "v4" ] }
 
 [target."cfg(windows)".dependencies]

@@ -12,8 +12,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, GlobalShortcutManager, Result, RunEvent, Runtime, RuntimeHandle,
-  UserAttentionType, WindowIcon,
+  ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
+  RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{
@@ -53,13 +53,18 @@ pub struct MockRuntimeHandle {
   context: RuntimeContext,
 }
 
-impl RuntimeHandle for MockRuntimeHandle {
+impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
+
+  fn create_proxy(&self) -> EventProxy {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window(
     &self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> Result<DetachedWindow<Self::Runtime>> {
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
@@ -247,7 +252,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 }
 
-impl Dispatch for MockDispatcher {
+impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   type Runtime = MockRuntime;
 
   type WindowBuilder = MockWindowBuilder;
@@ -364,8 +369,8 @@ impl Dispatch for MockDispatcher {
 
   fn create_window(
     &mut self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> Result<DetachedWindow<Self::Runtime>> {
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>> {
     unimplemented!()
   }
 
@@ -489,6 +494,15 @@ impl TrayHandle for MockTrayHandler {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct EventProxy {}
+
+impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
+  fn send_event(&self, event: T) -> Result<()> {
+    Ok(())
+  }
+}
+
 #[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
@@ -520,13 +534,14 @@ impl MockRuntime {
   }
 }
 
-impl Runtime for MockRuntime {
+impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
   type GlobalShortcutManager = MockGlobalShortcutManager;
   type ClipboardManager = MockClipboardManager;
   #[cfg(feature = "system-tray")]
   type TrayHandler = MockTrayHandler;
+  type EventLoopProxy = EventProxy;
 
   fn new() -> Result<Self> {
     Ok(Self::init())
@@ -535,6 +550,10 @@ impl Runtime for MockRuntime {
   #[cfg(any(windows, target_os = "linux"))]
   fn new_any_thread() -> Result<Self> {
     Ok(Self::init())
+  }
+
+  fn create_proxy(&self) -> EventProxy {
+    unimplemented!()
   }
 
   fn handle(&self) -> Self::Handle {
@@ -551,7 +570,7 @@ impl Runtime for MockRuntime {
     self.clipboard_manager.clone()
   }
 
-  fn create_window(&self, pending: PendingWindow<Self>) -> Result<DetachedWindow<Self>> {
+  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
@@ -578,14 +597,14 @@ impl Runtime for MockRuntime {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
-  fn run_iteration<F: Fn(RunEvent) + 'static>(
+  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
     &mut self,
     callback: F,
   ) -> tauri_runtime::RunIteration {
     Default::default()
   }
 
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F) {
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
     }

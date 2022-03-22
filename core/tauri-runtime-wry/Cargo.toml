@@ -17,6 +17,7 @@ wry = { version = "0.13.3", default-features = false, features = [ "file-drop", 
 tauri-runtime = { version = "0.3.3", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils" }
 uuid = { version = "0.8.2", features = [ "v4" ] }
+rand = "0.8"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.13.0"

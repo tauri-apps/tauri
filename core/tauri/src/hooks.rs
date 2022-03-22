@@ -5,8 +5,7 @@
 use crate::{
   api::ipc::{format_callback, format_callback_result, CallbackFn},
   app::App,
-  runtime::Runtime,
-  StateManager, Window,
+  Runtime, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -17,7 +16,7 @@ use tauri_macros::default_runtime;
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;

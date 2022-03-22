@@ -7,8 +7,8 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{FileDropHandler, WebviewAttributes, WebviewIpcHandler},
-  Dispatch, Runtime, WindowBuilder,
+  webview::{WebviewAttributes, WebviewIpcHandler},
+  Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 use serde::Serialize;
 use tauri_utils::config::WindowConfig;
@@ -16,6 +16,7 @@ use tauri_utils::config::WindowConfig;
 use std::{
   collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
+  path::PathBuf,
   sync::{mpsc::Sender, Arc, Mutex},
 };
 
@@ -59,6 +60,20 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: dpi::PhysicalSize<u32>,
   },
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+}
+
+/// The file drop event payload.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum FileDropEvent {
+  /// The file(s) have been dragged onto the window, but have not been dropped yet.
+  Hovered(Vec<PathBuf>),
+  /// The file(s) have been dropped onto the window.
+  Dropped(Vec<PathBuf>),
+  /// The file drop was aborted.
+  Cancelled,
 }
 
 /// A menu event.
@@ -81,12 +96,12 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
 }
 
 /// A webview window that has yet to be built.
-pub struct PendingWindow<R: Runtime> {
+pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// The label that the window will be named.
   pub label: String,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+  pub window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
@@ -94,10 +109,7 @@ pub struct PendingWindow<R: Runtime> {
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
   /// How to handle IPC calls on the webview window.
-  pub ipc_handler: Option<WebviewIpcHandler<R>>,
-
-  /// How to handle a file dropping onto the webview window.
-  pub file_drop_handler: Option<FileDropHandler<R>>,
+  pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,
@@ -122,10 +134,10 @@ pub fn assert_label_is_valid(label: &str) {
   );
 }
 
-impl<R: Runtime> PendingWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+    window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
@@ -143,7 +155,6 @@ impl<R: Runtime> PendingWindow<R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        file_drop_handler: None,
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
@@ -157,7 +168,8 @@ impl<R: Runtime> PendingWindow<R> {
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
-    let window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config);
+    let window_builder =
+      <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
     let mut menu_ids = HashMap::new();
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
@@ -172,7 +184,6 @@ impl<R: Runtime> PendingWindow<R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        file_drop_handler: None,
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
@@ -215,7 +226,7 @@ pub struct JsEventListenerKey {
 
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
-pub struct DetachedWindow<R: Runtime> {
+pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
@@ -229,7 +240,7 @@ pub struct DetachedWindow<R: Runtime> {
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
-impl<R: Runtime> Clone for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -240,15 +251,15 @@ impl<R: Runtime> Clone for DetachedWindow<R> {
   }
 }
 
-impl<R: Runtime> Hash for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Hash for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<R: Runtime> Eq for DetachedWindow<R> {}
-impl<R: Runtime> PartialEq for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Eq for DetachedWindow<T, R> {}
+impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)

@@ -184,21 +184,5 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn get_menu(&self) -> Option<&Menu>;
 }
 
-/// The file drop event payload.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum FileDropEvent {
-  /// The file(s) have been dragged onto the window, but have not been dropped yet.
-  Hovered(Vec<PathBuf>),
-  /// The file(s) have been dropped onto the window.
-  Dropped(Vec<PathBuf>),
-  /// The file drop was aborted.
-  Cancelled,
-}
-
 /// IPC handler.
-pub type WebviewIpcHandler<R> = Box<dyn Fn(DetachedWindow<R>, String) + Send>;
-
-/// File drop handler callback
-/// Return `true` in the callback to block the OS' default behavior of handling a file drop.
-pub type FileDropHandler<R> = Box<dyn Fn(FileDropEvent, DetachedWindow<R>) -> bool + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWindow<T, R>, String) + Send>;

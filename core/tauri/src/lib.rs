@@ -153,7 +153,7 @@ mod manager;
 mod pattern;
 pub mod plugin;
 pub mod window;
-pub use tauri_runtime as runtime;
+use tauri_runtime as runtime;
 /// The allowlist scopes.
 pub mod scope;
 pub mod settings;

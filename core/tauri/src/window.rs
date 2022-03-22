@@ -178,7 +178,7 @@ impl<R: Runtime> WindowBuilder<R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   runtime::http::header::HeaderValue,
+  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
   /// use std::collections::HashMap;

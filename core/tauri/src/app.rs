@@ -46,7 +46,7 @@ use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
 use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 use crate::updater;
 
 #[cfg(target_os = "macos")]
@@ -113,7 +113,7 @@ pub enum RunEvent {
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
   /// Updater event.
-  #[cfg(feature = "updater")]
+  #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   Updater(crate::UpdaterEvent),
 }
@@ -121,7 +121,7 @@ pub enum RunEvent {
 impl From<EventLoopMessage> for RunEvent {
   fn from(event: EventLoopMessage) -> Self {
     match event {
-      #[cfg(feature = "updater")]
+      #[cfg(updater)]
       EventLoopMessage::Updater(event) => RunEvent::Updater(event),
     }
   }
@@ -388,6 +388,14 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
+      #[cfg(updater)]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+      /// Runs the updater to check if there is a new app version.
+      /// It is the same as triggering the `tauri://update` event.
+      pub async fn check_for_updates(&self) -> updater::Result<updater::UpdateResponse<R>> {
+        updater::check(self.app_handle()).await
+      }
+
       /// Creates a new webview window.
       ///
       /// Data URLs are only supported with the `window-data-url` feature flag.
@@ -567,23 +575,13 @@ impl<R: Runtime> App<R> {
   }
 }
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
   fn run_updater_dialog(&self) {
-    let updater_config = self.manager.config().tauri.updater.clone();
-    let package_info = self.manager.package_info().clone();
     let handle = self.handle();
 
-    crate::async_runtime::spawn(async move {
-      updater::check_update_with_dialog(updater_config, package_info, handle).await
-    });
-  }
-
-  /// Listen updater events when dialog are disabled.
-  fn listen_updater_events(&self, handle: AppHandle<R>) {
-    let updater_config = self.manager.config().tauri.updater.clone();
-    updater::listener(updater_config, self.manager.package_info().clone(), &handle);
+    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
   }
 
   fn run_updater(&self) {
@@ -591,33 +589,31 @@ impl<R: Runtime> App<R> {
     let handle_ = handle.clone();
     let updater_config = self.manager.config().tauri.updater.clone();
     // check if updater is active or not
-    if updater_config.dialog && updater_config.active {
-      // if updater dialog is enabled spawn a new task
-      self.run_updater_dialog();
-      let config = self.manager.config().tauri.updater.clone();
-      let package_info = self.manager.package_info().clone();
-      // When dialog is enabled, if user want to recheck
-      // if an update is available after first start
-      // invoke the Event `tauri://update` from JS or rust side.
-      handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
-        let handle = handle_.clone();
-        let package_info = package_info.clone();
-        let config = config.clone();
-        // re-spawn task inside tokyo to launch the download
-        // we don't need to emit anything as everything is handled
-        // by the process (user is asked to restart at the end)
-        // and it's handled by the updater
-        crate::async_runtime::spawn(async move {
-          updater::check_update_with_dialog(config, package_info, handle).await
+    if updater_config.active {
+      if updater_config.dialog {
+        // if updater dialog is enabled spawn a new task
+        self.run_updater_dialog();
+        // When dialog is enabled, if user want to recheck
+        // if an update is available after first start
+        // invoke the Event `tauri://update` from JS or rust side.
+        handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
+          let handle = handle_.clone();
+          // re-spawn task inside tokyo to launch the download
+          // we don't need to emit anything as everything is handled
+          // by the process (user is asked to restart at the end)
+          // and it's handled by the updater
+          crate::async_runtime::spawn(
+            async move { updater::check_update_with_dialog(handle).await },
+          );
         });
-      });
-    } else if updater_config.active {
-      // we only listen for `tauri://update`
-      // once we receive the call, we check if an update is available or not
-      // if there is a new update we emit `tauri://update-available` with details
-      // this is the user responsabilities to display dialog and ask if user want to install
-      // to install the update you need to invoke the Event `tauri://update-install`
-      self.listen_updater_events(handle);
+      } else {
+        // we only listen for `tauri://update`
+        // once we receive the call, we check if an update is available or not
+        // if there is a new update we emit `tauri://update-available` with details
+        // this is the user responsabilities to display dialog and ask if user want to install
+        // to install the update you need to invoke the Event `tauri://update-install`
+        updater::listener(handle);
+      }
     }
   }
 }
@@ -1344,7 +1340,7 @@ impl<R: Runtime> Builder<R> {
 
     (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
 
-    #[cfg(feature = "updater")]
+    #[cfg(updater)]
     app.run_updater();
 
     Ok(app)

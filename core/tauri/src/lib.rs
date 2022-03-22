@@ -158,7 +158,7 @@ pub use tauri_runtime as runtime;
 pub mod scope;
 pub mod settings;
 mod state;
-#[cfg(any(feature = "updater", feature = "__updater-docs"))]
+#[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
@@ -229,7 +229,7 @@ pub use {
 };
 
 /// Updater events.
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 #[derive(Debug, Clone)]
 pub enum UpdaterEvent {
@@ -242,8 +242,16 @@ pub enum UpdaterEvent {
     /// The update version.
     version: String,
   },
-  /// The update is pending.
+  /// The update is pending and about to be downloaded.
   Pending,
+  /// The update download received a progress event.
+  DownloadProgress {
+    /// The amount that was downloaded on this iteration.
+    /// Does not accumulate with previous chunks.
+    chunk_length: usize,
+    /// The total
+    content_length: Option<u64>,
+  },
   /// The update has been applied and the app is now up to date.
   Updated,
   /// The app is already up to date.
@@ -252,7 +260,7 @@ pub enum UpdaterEvent {
   Error(String),
 }
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 impl UpdaterEvent {
   pub(crate) fn status_message(self) -> &'static str {
     match self {
@@ -269,7 +277,7 @@ impl UpdaterEvent {
 #[derive(Debug, Clone)]
 pub enum EventLoopMessage {
   /// Updater event.
-  #[cfg(feature = "updater")]
+  #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
   Updater(UpdaterEvent),
 }

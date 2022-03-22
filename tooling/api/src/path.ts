@@ -25,7 +25,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import { BaseDirectory } from './fs'
-import { isWindows } from './helpers/os-check'
+import { isWindows } from './helpers/env-check'
 
 /**
  * Returns the path to the suggested directory for your app config files.

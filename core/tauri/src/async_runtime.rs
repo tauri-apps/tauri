@@ -156,7 +156,7 @@ impl<T> Future for JoinHandle<T> {
   type Output = crate::Result<T>;
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     match self.get_mut() {
-      Self::Tokio(t) => t.poll(cx).map_err(|e| crate::Error::JoinError(Box::new(e))),
+      Self::Tokio(t) => t.poll(cx).map_err(Into::into),
     }
   }
 }

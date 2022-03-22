@@ -137,10 +137,10 @@ updater = [
   "fs-extract-api"
 ]
 __updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
-http-api = [ "attohttpc", "bytes" ]
+http-api = [ "attohttpc" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-reqwest-client = [ "reqwest" ]
+reqwest-client = [ "reqwest", "bytes" ]
 process-command-api = [ "shared_child", "os_pipe", "memchr" ]
 dialog = [ "rfd" ]
 notification = [ "notify-rust" ]

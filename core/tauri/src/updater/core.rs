@@ -945,7 +945,6 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -965,7 +964,6 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -986,7 +984,6 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1012,7 +1009,6 @@ mod test {
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(!updater.should_update);
@@ -1039,7 +1035,6 @@ mod test {
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1070,7 +1065,6 @@ mod test {
       )
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1086,7 +1080,6 @@ mod test {
       .to_string()])
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1114,7 +1107,6 @@ mod test {
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1141,7 +1133,6 @@ mod test {
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(!updater.should_update);
@@ -1162,7 +1153,6 @@ mod test {
       .current_version("0.0.1")
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
     assert!(updater.should_update);
@@ -1182,7 +1172,6 @@ mod test {
       .current_version("0.0.1")
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
     assert!(updater.should_update);
@@ -1292,9 +1281,6 @@ mod test {
     {
       env::set_var("APPIMAGE", my_executable);
     }
-
-    // make sure the process worked
-    assert!(check_update.is_ok());
 
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");

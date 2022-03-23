@@ -37,7 +37,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.5.0",
+    "@napi-rs/cli": "2.4.5",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.0.1",
     "jest": "27.5.1",

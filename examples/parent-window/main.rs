@@ -7,6 +7,8 @@
   windows_subsystem = "windows"
 )]
 
+#[cfg(any(windows, target_os = "macos"))]
+use tauri::Manager;
 use tauri::{command, window, AppHandle, WindowBuilder, WindowUrl};
 
 #[command]

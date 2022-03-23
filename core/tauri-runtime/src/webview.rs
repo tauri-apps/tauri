@@ -165,6 +165,15 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn parent_window(self, parent: HWND) -> Self;
 
+  /// Sets a parent to the window to be created.
+  ///
+  /// A child window has the WS_CHILD style and is confined to the client area of its parent window.
+  ///
+  /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#child-windows>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self;
+
   /// Set an owner to the window to be created.
   ///
   /// From MSDN:

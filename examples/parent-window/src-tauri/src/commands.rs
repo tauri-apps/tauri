@@ -6,6 +6,7 @@ use tauri::{command, window, AppHandle, Manager, WindowUrl};
 
 #[command]
 pub fn create_child_window(id: String, app: AppHandle) {
+  #[cfg(any(windows, target_os = "macos"))]
   let main = app.get_window("main").unwrap();
 
   let child = window::WindowBuilder::new(&app, id, WindowUrl::default())
@@ -14,7 +15,7 @@ pub fn create_child_window(id: String, app: AppHandle) {
 
   #[cfg(target_os = "macos")]
   let child = child.parent_window(main.ns_window().unwrap());
-  #[cfg(target_os = "windows")]
+  #[cfg(windows)]
   let child = child.parent_window(main.hwnd().unwrap());
 
   child.build().unwrap();

@@ -6,4 +6,7 @@ license = "Apache-2.0 OR MIT"
 edition = "2021"
 
 [dependencies.tauri]
-path = "../.."
+path = "../../tauri"
+
+[dev-dependencies]
+tempfile = "3"

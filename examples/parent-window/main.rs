@@ -7,7 +7,7 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::{command, window, AppHandle, WindowUrl, WindowBuilder};
+use tauri::{command, window, AppHandle, WindowBuilder, WindowUrl};
 
 #[command]
 fn create_child_window(id: String, app: AppHandle) {
@@ -25,7 +25,6 @@ fn create_child_window(id: String, app: AppHandle) {
 
   child.build().unwrap();
 }
-
 
 fn main() {
   tauri::Builder::default()

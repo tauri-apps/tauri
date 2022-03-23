@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-**Breaking change:** The `Window::parent_window` method now returns *HWND* instead of *c_void* on Windows.
+**Breaking change:** The `Window::hwnd` method now returns *HWND* from `windows-rs` crate instead of *c_void* on Windows.

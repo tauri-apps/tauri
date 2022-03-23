@@ -278,6 +278,10 @@ path = "../../examples/multiwindow/src-tauri/src/main.rs"
 required-features = [ "window-create" ]
 
 [[example]]
+name = "parent-window"
+path = "../../examples/parent-window/src-tauri/src/main.rs"
+
+[[example]]
 name = "navigation"
 path = "../../examples/navigation/src-tauri/src/main.rs"
 required-features = [ "window-create" ]

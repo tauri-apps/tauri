@@ -238,6 +238,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
   #[cfg(windows)]
   fn owner_window(self, owner: HWND) -> Self {
     self

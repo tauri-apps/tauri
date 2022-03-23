@@ -266,39 +266,39 @@ icon-png = [ "infer", "png" ]
 
 [[example]]
 name = "commands"
-path = "../../examples/commands/src-tauri/src/main.rs"
+path = "../../examples/commands/main.rs"
 
 [[example]]
 name = "helloworld"
-path = "../../examples/helloworld/src-tauri/src/main.rs"
+path = "../../examples/helloworld/main.rs"
 
 [[example]]
 name = "multiwindow"
-path = "../../examples/multiwindow/src-tauri/src/main.rs"
+path = "../../examples/multiwindow/main.rs"
 required-features = [ "window-create" ]
 
 [[example]]
 name = "parent-window"
-path = "../../examples/parent-window/src-tauri/src/main.rs"
+path = "../../examples/parent-window/main.rs"
 
 [[example]]
 name = "navigation"
-path = "../../examples/navigation/src-tauri/src/main.rs"
+path = "../../examples/navigation/main.rs"
 required-features = [ "window-create" ]
 
 [[example]]
 name = "splashscreen"
-path = "../../examples/splashscreen/src-tauri/src/main.rs"
+path = "../../examples/splashscreen/main.rs"
 
 [[example]]
 name = "state"
-path = "../../examples/state/src-tauri/src/main.rs"
+path = "../../examples/state/main.rs"
 
 [[example]]
 name = "streaming"
-path = "../../examples/streaming/src-tauri/src/main.rs"
+path = "../../examples/streaming/main.rs"
 
 [[example]]
 name = "isolation"
-path = "../../examples/isolation/src-tauri/src/main.rs"
+path = "../../examples/isolation/main.rs"
 required-features = [ "isolation" ]

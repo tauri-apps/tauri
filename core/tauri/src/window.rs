@@ -918,11 +918,7 @@ impl<R: Runtime> Window<R> {
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<HWND> {
-    self
-      .window
-      .dispatcher
-      .hwnd()
-      .map_err(Into::into)
+    self.window.dispatcher.hwnd().map_err(Into::into)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.

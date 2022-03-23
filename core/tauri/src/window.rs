@@ -471,7 +471,7 @@ unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
   #[cfg(windows)]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
     let mut handle = raw_window_handle::Win32Handle::empty();
-    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
+    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`").0 as *mut _;
     raw_window_handle::RawWindowHandle::Win32(handle)
   }
 
@@ -917,12 +917,11 @@ impl<R: Runtime> Window<R> {
   }
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
+  pub fn hwnd(&self) -> crate::Result<HWND> {
     self
       .window
       .dispatcher
       .hwnd()
-      .map(|hwnd| hwnd.0 as *mut _)
       .map_err(Into::into)
   }
 

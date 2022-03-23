@@ -23,57 +23,15 @@ enum Symlink {
   Privilege,
 }
 
-/// Compile the nested restart binary so that we have access to it during the test.
-///
-/// This is compiled inside of this test so that we always have a literal binary file we can use
-/// for some filesystem related tests. Because of how integration tests work, the current working
-/// directory should be the same as the manifest of the crate (not workspace) this integration test
-/// is a part of.
-fn compile_restart_test_binary() -> io::Result<PathBuf> {
-  let project = PathBuf::from("tests").join("restart");
-
-  let mut cargo = Command::new("cargo");
-  cargo.arg("build");
-  cargo.arg("--manifest-path");
-  cargo.arg(project.join("Cargo.toml"));
-
-  // enable the dangerous macos flag on tauri if the test runner has the feature enabled
-  if cfg!(feature = "process-relaunch-dangerous-allow-symlink-macos") {
-    cargo.args([
-      "--features",
-      "tauri/process-relaunch-dangerous-allow-symlink-macos",
-    ]);
-  }
-
-  let status = cargo.status()?;
-  if !status.success() {
-    return Err(io::Error::new(
-      io::ErrorKind::Other,
-      "Unable to compile restart test cargo project inside restart integration test",
-    ));
-  }
-
-  let profile = if cfg!(debug_assertions) {
-    "debug"
-  } else {
-    "release"
-  };
-
-  let bin = if cfg!(windows) {
-    "restart.exe"
-  } else {
-    "restart"
-  };
-
-  Ok(project.join("target").join(profile).join(bin))
-}
-
 /// Compile the test binary, run it, and compare it with expected output.
 ///
 /// Failing to create a symlink due to permissions issues is also a success
 /// for the purpose of this runner.
 fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Result {
-  let compiled_binary = compile_restart_test_binary()?;
+  let mut compiled_binary = PathBuf::from(env!("OUT_DIR")).join("../../../restart");
+  if cfg!(windows) {
+    compiled_binary.set_extension("exe");
+  }
 
   // set up all the temporary file paths
   let temp = tempfile::TempDir::new()?;

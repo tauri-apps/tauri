@@ -1741,7 +1741,7 @@
           "type": "boolean"
         },
         "endpoints": {
-          "description": "The updater endpoints. TLS is enforced on production.",
+          "description": "The updater endpoints. TLS is enforced on production.\n\nThe updater URL can contain the following variables: - {{current_version}}: The version of the app that is requesting the update - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`). - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).\n\n# Examples\n\n- \"https://my.cdn.com/latest.json\": a raw JSON endpoint that returns the latest version and download links for each platform. - \"https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}\": a dedicated API with positional and query string arguments.",
           "type": [
             "array",
             "null"

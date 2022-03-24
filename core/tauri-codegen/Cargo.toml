@@ -22,7 +22,7 @@ serde_json = "1"
 tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-zstd = { version = "0.11", optional = true }
+brotli = { version = "3", optional = true, default-features = false, features = ["std"] }
 regex = { version = "1.5.5", optional = true }
 uuid = { version = "0.8", features = [ "v4" ] }
 
@@ -34,7 +34,7 @@ png = "0.17"
 
 [features]
 default = [ "compression" ]
-compression = [ "zstd", "tauri-utils/compression" ]
+compression = [ "brotli", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
 __isolation-docs = [ "tauri-utils/__isolation-docs" ]
 shell-scope = [ "regex" ]

@@ -16,6 +16,9 @@ use tauri_utils::config::PatternKind;
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
+#[cfg(feature = "compression")]
+use brotli::enc::backward_references::BrotliEncoderParams;
+
 /// The subdirectory inside the target directory we want to place assets.
 const TARGET_PATH: &str = "tauri-codegen-assets";
 
@@ -247,13 +250,19 @@ impl EmbeddedAssets {
 
   /// Use highest compression level for release, the fastest one for everything else
   #[cfg(feature = "compression")]
-  fn compression_level() -> i32 {
-    let levels = zstd::compression_level_range();
+  fn compression_settings() -> BrotliEncoderParams {
+    let mut settings = BrotliEncoderParams::default();
+
+    // the following compression levels are hand-picked and are not min-maxed.
+    // they have a good balance of runtime vs size for the respective profile goals.
+    // see the "brotli" section of this comment https://github.com/tauri-apps/tauri/issues/3571#issuecomment-1054847558
     if cfg!(debug_assertions) {
-      *levels.start()
+      settings.quality = 2
     } else {
-      *levels.end()
+      settings.quality = 9
     }
+
+    settings
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
@@ -333,13 +342,16 @@ impl EmbeddedAssets {
       }
 
       #[cfg(feature = "compression")]
-      // entirely write input to the output file path with compression
-      zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
-        EmbeddedAssetsError::AssetWrite {
-          path: path.to_owned(),
-          error,
-        }
-      })?;
+      {
+        let mut input = std::io::Cursor::new(input);
+        // entirely write input to the output file path with compression
+        brotli::BrotliCompress(&mut input, &mut out_file, &Self::compression_settings()).map_err(
+          |error| EmbeddedAssetsError::AssetWrite {
+            path: path.to_owned(),
+            error,
+          },
+        )?;
+      }
     }
 
     Ok((key, (path.into(), out_path)))

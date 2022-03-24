@@ -25,8 +25,7 @@ quote = { version = "1.0", optional = true }
 schemars = { version = "0.8", features = [ "url" ], optional = true }
 serde_with = "1.12"
 aes-gcm = { version = "0.9", optional = true }
-ring = { version = "0.16", optional = true, features = [ "std" ] }
-once_cell = { version = "1.10", optional = true }
+getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = "=0.1.1"
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
@@ -41,8 +40,8 @@ heck = "0.4"
 build = [ "proc-macro2", "quote" ]
 compression = [ "brotli" ]
 schema = [ "schemars" ]
-isolation = [ "aes-gcm", "ring", "once_cell" ]
-__isolation-docs = [ "aes-gcm", "once_cell" ]
+isolation = [ "aes-gcm", "getrandom" ]
+__isolation-docs = [ "aes-gcm" ]
 process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
 resources = [ "glob", "walkdir" ]

@@ -642,7 +642,6 @@ impl<R: Runtime> App<R> {
 pub struct Builder<R: Runtime> {
   /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
   runtime_any_thread: bool,
 
   /// The JS message handler.
@@ -728,7 +727,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// - **macOS**: on macOS the application *must* be executed on the main thread, so this function is not exposed.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
   #[must_use]
   pub fn any_thread(mut self) -> Self {
     self.runtime_any_thread = true;

@@ -301,7 +301,7 @@ impl EmbeddedAssets {
 
     // get a hash of the input - allows for caching existing files
     let hash = {
-      let mut hasher = crate::vendor::blake3_reference::Hasher::new();
+      let mut hasher = crate::vendor::blake3_reference::Hasher::default();
       hasher.update(&input);
 
       let mut bytes = [0u8; 32];

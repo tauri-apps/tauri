@@ -369,3 +369,9 @@ impl Hasher {
     output.root_output_bytes(out_slice);
   }
 }
+
+impl Default for Hasher {
+  fn default() -> Self {
+    Self::new()
+  }
+}

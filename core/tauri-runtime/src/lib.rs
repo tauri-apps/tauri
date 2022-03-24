@@ -98,7 +98,7 @@ pub enum UserAttentionType {
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(Box<dyn std::error::Error + Send>),
+  CreateWebview(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -118,16 +118,16 @@ pub enum Error {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
-  SystemTray(Box<dyn std::error::Error + Send>),
+  SystemTray(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(Box<dyn std::error::Error + Send>),
+  InvalidIcon(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
   #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send>),
+  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -140,6 +140,8 @@ pub enum Error {
   InvalidMethod(#[from] InvalidMethod),
   #[error("Infallible error, something went really wrong: {0}")]
   Infallible(#[from] std::convert::Infallible),
+  #[error("the event loop has been closed")]
+  EventLoopClosed,
 }
 
 /// Result type.
@@ -192,9 +194,14 @@ impl TrayIcon {
   }
 }
 
+/// A type that can be used as an user event.
+pub trait UserEvent: Debug + Clone + Send + 'static {}
+
+impl<T: Debug + Clone + Send + 'static> UserEvent for T {}
+
 /// Event triggered on the event loop run.
 #[non_exhaustive]
-pub enum RunEvent {
+pub enum RunEvent<T: UserEvent> {
   /// Event loop is exiting.
   Exit,
   /// Event loop is about to exit
@@ -220,6 +227,8 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// A custom event defined by the user.
+  UserEvent(T),
 }
 
 /// Action to take when the event loop is about to exit
@@ -267,13 +276,17 @@ pub enum ActivationPolicy {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Debug + Clone + Send + Sync + Sized + 'static {
-  type Runtime: Runtime<Handle = Self>;
+pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  type Runtime: Runtime<T, Handle = Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
+
   /// Create a new webview window.
   fn create_window(
     &self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
@@ -310,12 +323,16 @@ pub trait ClipboardManager: Debug + Clone + Send + Sync {
   fn read_text(&self) -> Result<Option<String>>;
 }
 
+pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
+  fn send_event(&self, event: T) -> Result<()>;
+}
+
 /// The webview runtime interface.
-pub trait Runtime: Debug + Sized + 'static {
+pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The message dispatcher.
-  type Dispatcher: Dispatch<Runtime = Self>;
+  type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
-  type Handle: RuntimeHandle<Runtime = Self>;
+  type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The global shortcut manager type.
   type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
@@ -323,6 +340,8 @@ pub trait Runtime: Debug + Sized + 'static {
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
   type TrayHandler: menu::TrayHandle;
+  /// The proxy type.
+  type EventLoopProxy: EventLoopProxy<T>;
 
   /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
@@ -331,6 +350,9 @@ pub trait Runtime: Debug + Sized + 'static {
   #[cfg(any(windows, target_os = "linux"))]
   #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
   fn new_any_thread() -> crate::Result<Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> Self::EventLoopProxy;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
@@ -342,7 +364,10 @@ pub trait Runtime: Debug + Sized + 'static {
   fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
-  fn create_window(&self, pending: PendingWindow<Self>) -> crate::Result<DetachedWindow<Self>>;
+  fn create_window(
+    &self,
+    pending: PendingWindow<T, Self>,
+  ) -> crate::Result<DetachedWindow<T, Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
@@ -360,16 +385,16 @@ pub trait Runtime: Debug + Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
+pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
-  type Runtime: Runtime;
+  type Runtime: Runtime<T>;
 
   /// The winoow builder type.
   type WindowBuilder: WindowBuilder;
@@ -472,8 +497,8 @@ pub trait Dispatch: Debug + Clone + Send + Sync + Sized + 'static {
   /// Create a new webview window.
   fn create_window(
     &mut self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;

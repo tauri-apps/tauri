@@ -153,20 +153,21 @@ mod manager;
 mod pattern;
 pub mod plugin;
 pub mod window;
-pub use tauri_runtime as runtime;
+use tauri_runtime as runtime;
 /// The allowlist scopes.
 pub mod scope;
 pub mod settings;
 mod state;
-#[cfg(any(feature = "updater", feature = "__updater-docs"))]
+#[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
 pub mod updater;
 
 pub use tauri_utils as utils;
 
+/// A Tauri [`Runtime`] wrapper around wry.
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
-pub use tauri_runtime_wry::Wry;
+pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
@@ -213,9 +214,9 @@ pub use {
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      WindowEvent,
+      FileDropEvent, WindowEvent,
     },
-    ClipboardManager, GlobalShortcutManager, RunIteration, Runtime, TrayIcon, UserAttentionType,
+    ClipboardManager, GlobalShortcutManager, RunIteration, TrayIcon, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -226,6 +227,65 @@ pub use {
   self::window::{Monitor, Window},
   scope::*,
 };
+
+/// Updater events.
+#[cfg(updater)]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+#[derive(Debug, Clone)]
+pub enum UpdaterEvent {
+  /// An update is available.
+  UpdateAvailable {
+    /// The update body.
+    body: String,
+    /// The update release date.
+    date: String,
+    /// The update version.
+    version: String,
+  },
+  /// The update is pending and about to be downloaded.
+  Pending,
+  /// The update download received a progress event.
+  DownloadProgress {
+    /// The amount that was downloaded on this iteration.
+    /// Does not accumulate with previous chunks.
+    chunk_length: usize,
+    /// The total
+    content_length: Option<u64>,
+  },
+  /// The update has been applied and the app is now up to date.
+  Updated,
+  /// The app is already up to date.
+  AlreadyUpToDate,
+  /// An error occurred while updating.
+  Error(String),
+}
+
+#[cfg(updater)]
+impl UpdaterEvent {
+  pub(crate) fn status_message(self) -> &'static str {
+    match self {
+      Self::Pending => updater::EVENT_STATUS_PENDING,
+      Self::Updated => updater::EVENT_STATUS_SUCCESS,
+      Self::AlreadyUpToDate => updater::EVENT_STATUS_UPTODATE,
+      Self::Error(_) => updater::EVENT_STATUS_ERROR,
+      _ => unreachable!(),
+    }
+  }
+}
+
+/// The user event type.
+#[derive(Debug, Clone)]
+pub enum EventLoopMessage {
+  /// Updater event.
+  #[cfg(updater)]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+  Updater(UpdaterEvent),
+}
+
+/// The webview runtime interface. A wrapper around [`runtime::Runtime`] with the proper user event type associated.
+pub trait Runtime: runtime::Runtime<EventLoopMessage> {}
+
+impl<W: runtime::Runtime<EventLoopMessage>> Runtime for W {}
 
 /// Reads the config file at compile time and generates a [`Context`] based on its content.
 ///
@@ -329,15 +389,15 @@ impl TryFrom<Icon> for runtime::WindowIcon {
         #[cfg(feature = "icon-png")]
         "png" => {
           let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-          let (info, mut reader) = decoder.read_info()?;
+          let mut reader = decoder.read_info()?;
           let mut buffer = Vec::new();
           while let Ok(Some(row)) = reader.next_row() {
-            buffer.extend(row);
+            buffer.extend(row.data());
           }
           Ok(Self {
             rgba: buffer,
-            width: info.width,
-            height: info.height,
+            width: reader.info().width,
+            height: reader.info().height,
           })
         }
         _ => panic!(
@@ -544,15 +604,107 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Add `state` to the state managed by the application.
-  /// See [`crate::Builder#manage`] for instructions.
-  fn manage<T>(&self, state: T)
+  ///
+  /// This method can be called any number of times as long as each call
+  /// refers to a different `T`.
+  /// If a state for `T` is already managed, the function returns false and the value is ignored.
+  ///
+  /// Managed state can be retrieved by any command handler via the
+  /// [`State`](crate::State) guard. In particular, if a value of type `T`
+  /// is managed by Tauri, adding `State<T>` to the list of arguments in a
+  /// command handler instructs Tauri to retrieve the managed value.
+  ///
+  /// # Panics
+  ///
+  /// Panics if state of type `T` is already being managed.
+  ///
+  /// # Mutability
+  ///
+  /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
+  ///
+  /// ```rust,no_run
+  /// use std::{collections::HashMap, sync::Mutex};
+  /// use tauri::State;
+  /// // here we use Mutex to achieve interior mutability
+  /// struct Storage {
+  ///   store: Mutex<HashMap<u64, String>>,
+  /// }
+  /// struct Connection;
+  /// struct DbConnection {
+  ///   db: Mutex<Option<Connection>>,
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn connect(connection: State<DbConnection>) {
+  ///   // initialize the connection, mutating the state with interior mutability
+  ///   *connection.db.lock().unwrap() = Some(Connection {});
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
+  ///   // mutate the storage behind the Mutex
+  ///   storage.store.lock().unwrap().insert(key, value);
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .manage(Storage { store: Default::default() })
+  ///   .manage(DbConnection { db: Default::default() })
+  ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
+  ///   // on an actual app, remove the string argument
+  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while running tauri application");
+  /// ```
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{Manager, State};
+  ///
+  /// struct MyInt(isize);
+  /// struct MyString(String);
+  ///
+  /// #[tauri::command]
+  /// fn int_command(state: State<MyInt>) -> String {
+  ///     format!("The stateful int is: {}", state.0)
+  /// }
+  ///
+  /// #[tauri::command]
+  /// fn string_command<'r>(state: State<'r, MyString>) {
+  ///     println!("state: {}", state.inner().0);
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     app.manage(MyInt(0));
+  ///     app.manage(MyString("tauri".into()));
+  ///     // `MyInt` is already managed, so `manage()` returns false
+  ///     assert!(!app.manage(MyInt(1)));
+  ///     // read the `MyInt` managed state with the turbofish syntax
+  ///     let int = app.state::<MyInt>();
+  ///     assert_eq!(int.0, 0);
+  ///     // read the `MyString` managed state with the `State` guard
+  ///     let val: State<MyString> = app.state();
+  ///     assert_eq!(val.0, "tauri");
+  ///     Ok(())
+  ///   })
+  ///   .invoke_handler(tauri::generate_handler![int_command, string_command])
+  ///   // on an actual app, remove the string argument
+  ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while running tauri application");
+  /// ```
+  fn manage<T>(&self, state: T) -> bool
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().set(state);
+    self.manager().state().set(state)
   }
 
-  /// Gets the managed state for the type `T`. Panics if the type is not managed.
+  /// Retrieves the managed state for the type `T`.
+  ///
+  /// # Panics
+  ///
+  /// Panics if the state for the type `T` has not been previously [managed](Self::manage).
+  /// Use [try_state](Self::try_state) for a non-panicking version.
   fn state<T>(&self) -> State<'_, T>
   where
     T: Send + Sync + 'static,
@@ -565,7 +717,9 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .expect("state() called before manage() for given type")
   }
 
-  /// Tries to get the managed state for the type `T`. Returns `None` if the type is not managed.
+  /// Attempts to retrieve the managed state for the type `T`.
+  ///
+  /// Returns `Some` if the state has previously been [managed](Self::manage). Otherwise returns `None`.
   fn try_state<T>(&self) -> Option<State<'_, T>>
   where
     T: Send + Sync + 'static,
@@ -598,8 +752,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
 pub(crate) mod sealed {
+  use super::Runtime;
   use crate::{app::AppHandle, manager::WindowManager};
-  use tauri_runtime::Runtime;
 
   /// A running [`Runtime`] or a dispatcher to it.
   pub enum RuntimeOrDispatch<'r, R: Runtime> {

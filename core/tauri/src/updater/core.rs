@@ -5,9 +5,12 @@
 use super::error::{Error, Result};
 #[cfg(feature = "updater")]
 use crate::api::file::{ArchiveFormat, Extract, Move};
-use crate::api::{
-  http::{ClientBuilder, HttpRequestBuilder},
-  version,
+use crate::{
+  api::{
+    http::{ClientBuilder, HttpRequestBuilder},
+    version,
+  },
+  AppHandle, Manager, Runtime,
 };
 use base64::decode;
 use http::StatusCode;
@@ -176,9 +179,9 @@ impl RemoteRelease {
 }
 
 #[derive(Debug)]
-pub struct UpdateBuilder<'a> {
-  /// Environment information.
-  pub env: Env,
+pub struct UpdateBuilder<'a, R: Runtime> {
+  /// Application handle.
+  pub app: AppHandle<R>,
   /// Current version we are running to compare with announced version
   pub current_version: &'a str,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
@@ -190,10 +193,10 @@ pub struct UpdateBuilder<'a> {
 }
 
 // Create new updater instance and return an Update
-impl<'a> UpdateBuilder<'a> {
-  pub fn new(env: Env) -> Self {
+impl<'a, R: Runtime> UpdateBuilder<'a, R> {
+  pub fn new(app: AppHandle<R>) -> Self {
     UpdateBuilder {
-      env,
+      app,
       urls: Vec::new(),
       target: None,
       executable_path: None,
@@ -232,8 +235,7 @@ impl<'a> UpdateBuilder<'a> {
     self
   }
 
-  /// Set the target (os)
-  /// win32, win64, darwin and linux are currently supported
+  /// Set the target name. Represents the string that is looked up on the updater API or response JSON.
   #[allow(dead_code)]
   pub fn target(mut self, target: &str) -> Self {
     self.target = Some(target.to_owned());
@@ -247,7 +249,7 @@ impl<'a> UpdateBuilder<'a> {
     self
   }
 
-  pub async fn build(self) -> Result<Update> {
+  pub async fn build(self) -> Result<Update<R>> {
     let mut remote_release: Option<RemoteRelease> = None;
 
     // make sure we have at least one url
@@ -263,15 +265,20 @@ impl<'a> UpdateBuilder<'a> {
     // If no executable path provided, we use current_exe from tauri_utils
     let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
-    // Did the target is provided by the config?
-    // Should be: linux, darwin, win32 or win64
+    let has_custom_target = self.target.is_some();
     let target = self
       .target
-      .or_else(get_updater_target)
+      .or_else(|| get_updater_target().map(Into::into))
       .ok_or(Error::UnsupportedPlatform)?;
+    let arch = get_updater_arch().ok_or(Error::UnsupportedPlatform)?;
+    let json_target = if has_custom_target {
+      target.clone()
+    } else {
+      format!("{}-{}", target, arch)
+    };
 
     // Get the extract_path from the provided executable_path
-    let extract_path = extract_path_from_executable(&self.env, &executable_path);
+    let extract_path = extract_path_from_executable(&self.app.state::<Env>(), &executable_path);
 
     // Set SSL certs for linux if they aren't available.
     // We do not require to recheck in the download_and_install as we use
@@ -289,18 +296,17 @@ impl<'a> UpdateBuilder<'a> {
     // Allow fallback if more than 1 urls is provided
     let mut last_error: Option<Error> = None;
     for url in &self.urls {
-      // replace {{current_version}} and {{target}} in the provided URL
+      // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
       // this is usefull if we need to query example
-      // https://releases.myapp.com/update/{{target}}/{{current_version}}
+      // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
       // will be transleted into ->
-      // https://releases.myapp.com/update/darwin/1.0.0
+      // https://releases.myapp.com/update/darwin/aarch64/1.0.0
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
-      let fixed_link = str::replace(
-        &str::replace(url, "{{current_version}}", current_version),
-        "{{target}}",
-        &target,
-      );
+      let fixed_link = url
+        .replace("{{current_version}}", current_version)
+        .replace("{{target}}", &target)
+        .replace("{{arch}}", arch);
 
       // we want JSON only
       let mut headers = HashMap::new();
@@ -332,7 +338,7 @@ impl<'a> UpdateBuilder<'a> {
             return Err(Error::UpToDate);
           };
           // Convert the remote result to our local struct
-          let built_release = RemoteRelease::from_release(&res.data, &target);
+          let built_release = RemoteRelease::from_release(&res.data, &json_target);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -364,7 +370,7 @@ impl<'a> UpdateBuilder<'a> {
 
     // create our new updater
     Ok(Update {
-      env: self.env,
+      app: self.app,
       target,
       extract_path,
       should_update,
@@ -380,14 +386,14 @@ impl<'a> UpdateBuilder<'a> {
   }
 }
 
-pub fn builder<'a>(env: Env) -> UpdateBuilder<'a> {
-  UpdateBuilder::new(env)
+pub fn builder<'a, R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<'a, R> {
+  UpdateBuilder::new(app)
 }
 
-#[derive(Debug, Clone)]
-pub struct Update {
-  /// Environment information.
-  pub env: Env,
+#[derive(Debug)]
+pub struct Update<R: Runtime> {
+  /// Application handle.
+  pub app: AppHandle<R>,
   /// Update description
   pub body: Option<String>,
   /// Should we update or not
@@ -413,22 +419,40 @@ pub struct Update {
   with_elevated_task: bool,
 }
 
-impl Update {
+impl<R: Runtime> Clone for Update<R> {
+  fn clone(&self) -> Self {
+    Self {
+      app: self.app.clone(),
+      body: self.body.clone(),
+      should_update: self.should_update,
+      version: self.version.clone(),
+      current_version: self.current_version.clone(),
+      date: self.date.clone(),
+      target: self.target.clone(),
+      extract_path: self.extract_path.clone(),
+      download_url: self.download_url.clone(),
+      signature: self.signature.clone(),
+      #[cfg(target_os = "windows")]
+      with_elevated_task: self.with_elevated_task,
+    }
+  }
+}
+
+impl<R: Runtime> Update<R> {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub async fn download_and_install(&self, pub_key: String) -> Result {
-    // download url for selected release
-    let url = self.download_url.as_str();
-    // extract path
-    let extract_path = &self.extract_path;
-
+  pub(crate) async fn download_and_install<F: Fn(usize, Option<u64>)>(
+    &self,
+    pub_key: String,
+    on_chunk: F,
+  ) -> Result {
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
     // anythin with it yet
     #[cfg(target_os = "linux")]
-    if self.env.appimage.is_none() {
+    if self.app.state::<Env>().appimage.is_none() {
       return Err(Error::UnsupportedPlatform);
     }
 
@@ -437,32 +461,63 @@ impl Update {
     headers.insert("Accept".into(), "application/octet-stream".into());
     headers.insert("User-Agent".into(), "tauri/updater".into());
 
+    let client = ClientBuilder::new().build()?;
     // Create our request
-    let resp = ClientBuilder::new()
-      .build()?
-      .send(
-        HttpRequestBuilder::new("GET", url)?
-          .headers(headers)
-          // wait 20sec for the firewall
-          .timeout(20),
-      )
-      .await?
-      .bytes()
-      .await?;
+    let req = HttpRequestBuilder::new("GET", self.download_url.as_str())?
+      .headers(headers)
+      // wait 20sec for the firewall
+      .timeout(20);
+
+    let response = client.send(req).await?;
 
     // make sure it's success
-    if !StatusCode::from_u16(resp.status)
-      .map_err(|e| Error::Network(e.to_string()))?
-      .is_success()
-    {
+    if !response.status().is_success() {
       return Err(Error::Network(format!(
         "Download request failed with status: {}",
-        resp.status
+        response.status()
       )));
     }
 
+    let content_length: Option<u64> = response
+      .headers()
+      .get("Content-Length")
+      .and_then(|value| value.to_str().ok())
+      .and_then(|value| value.parse().ok());
+
+    let mut buffer = Vec::new();
+    #[cfg(feature = "reqwest-client")]
+    {
+      use futures::StreamExt;
+      let mut stream = response.bytes_stream();
+      while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        let bytes = chunk.as_ref().to_vec();
+        on_chunk(bytes.len(), content_length);
+        buffer.extend(bytes);
+      }
+    }
+    #[cfg(not(feature = "reqwest-client"))]
+    {
+      let mut reader = response.reader();
+      let mut buf = [0; 16384];
+      loop {
+        match reader.read(&mut buf) {
+          Ok(b) => {
+            if b == 0 {
+              break;
+            } else {
+              let bytes = buf[0..b].to_vec();
+              on_chunk(bytes.len(), content_length);
+              buffer.extend(bytes);
+            }
+          }
+          Err(e) => return Err(e.into()),
+        }
+      }
+    }
+
     // create memory buffer from our archive (Seek + Read)
-    let mut archive_buffer = Cursor::new(resp.data);
+    let mut archive_buffer = Cursor::new(buffer);
 
     // We need an announced signature by the server
     // if there is no signature, bail out.
@@ -481,9 +536,9 @@ impl Update {
       // we run the setup, appimage re-install or overwrite the
       // macos .app
       #[cfg(target_os = "windows")]
-      copy_files_and_run(archive_buffer, extract_path, self.with_elevated_task)?;
+      copy_files_and_run(archive_buffer, &self.extract_path, self.with_elevated_task)?;
       #[cfg(not(target_os = "windows"))]
-      copy_files_and_run(archive_buffer, extract_path)?;
+      copy_files_and_run(archive_buffer, &self.extract_path)?;
     }
     // We are done!
     Ok(())
@@ -693,23 +748,27 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Ok(())
 }
 
-/// Returns a target os
-/// We do not use a helper function like the target_triple
-/// from tauri-utils because this function return `None` if
-/// the updater do not support the platform.
-///
-/// Available target: `linux, darwin, win32, win64`
-pub fn get_updater_target() -> Option<String> {
+pub(crate) fn get_updater_target() -> Option<&'static str> {
   if cfg!(target_os = "linux") {
-    Some("linux".into())
+    Some("linux")
   } else if cfg!(target_os = "macos") {
-    Some("darwin".into())
+    Some("darwin")
   } else if cfg!(target_os = "windows") {
-    if cfg!(target_pointer_width = "32") {
-      Some("win32".into())
-    } else {
-      Some("win64".into())
-    }
+    Some("windows")
+  } else {
+    None
+  }
+}
+
+pub(crate) fn get_updater_arch() -> Option<&'static str> {
+  if cfg!(target_arch = "x86") {
+    Some("i686")
+  } else if cfg!(target_arch = "x86_64") {
+    Some("x86_64")
+  } else if cfg!(target_arch = "arm") {
+    Some("armv7")
+  } else if cfg!(target_arch = "aarch64") {
+    Some("aarch64")
   } else {
     None
   }
@@ -807,15 +866,19 @@ mod test {
       "notes": "Test version !",
       "pub_date": "2020-06-22T19:25:57Z",
       "platforms": {
-        "darwin": {
+        "darwin-aarch64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
           "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
         },
-        "linux": {
+        "darwin-x86_64": {
+          "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
+          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+        },
+        "linux-x86_64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOWZSM29hTFNmUEdXMHRoOC81WDFFVVFRaXdWOUdXUUdwT0NlMldqdXkyaWVieXpoUmdZeXBJaXRqSm1YVmczNXdRL1Brc0tHb1NOTzhrL1hadFcxdmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE3MzQzCWZpbGU6L2hvbWUvcnVubmVyL3dvcmsvdGF1cmkvdGF1cmkvdGF1cmkvZXhhbXBsZXMvY29tbXVuaWNhdGlvbi9zcmMtdGF1cmkvdGFyZ2V0L2RlYnVnL2J1bmRsZS9hcHBpbWFnZS9hcHAuQXBwSW1hZ2UudGFyLmd6CmRUTUM2bWxnbEtTbUhOZGtERUtaZnpUMG5qbVo5TGhtZWE1SFNWMk5OOENaVEZHcnAvVW0zc1A2ajJEbWZUbU0yalRHT0FYYjJNVTVHOHdTQlYwQkF3PT0K",
           "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
         },
-        "win64": {
+        "windows-x86_64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K",
           "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
         }
@@ -880,12 +943,12 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -899,32 +962,32 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
   }
 
   #[test]
-  fn simple_http_updater_raw_json_win64() {
+  fn simple_http_updater_raw_json_windows_x86_64() {
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("0.0.0")
-      .target("win64")
+      .target("windows-x86_64")
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -944,12 +1007,12 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("10.0.0")
       .url(mockito::server_url())
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(!updater.should_update);
@@ -957,7 +1020,7 @@ mod test {
 
   #[test]
   fn simple_http_updater_without_version() {
-    let _m = mockito::mock("GET", "/darwin/1.0.0")
+    let _m = mockito::mock("GET", "/darwin-aarch64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -967,15 +1030,15 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -983,7 +1046,7 @@ mod test {
 
   #[test]
   fn simple_http_updater_percent_decode() {
-    let _m = mockito::mock("GET", "/darwin/1.0.0")
+    let _m = mockito::mock("GET", "/darwin-aarch64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -993,11 +1056,12 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(
         url::Url::parse(&format!(
-          "{}/darwin/{{{{current_version}}}}",
+          "{}/darwin-aarch64/{{{{current_version}}}}",
           mockito::server_url()
         ))
         .unwrap()
@@ -1005,22 +1069,21 @@ mod test {
       )
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .urls(&[url::Url::parse(&format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .unwrap()
       .to_string()])
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1028,7 +1091,7 @@ mod test {
 
   #[test]
   fn simple_http_updater_with_elevated_task() {
-    let _m = mockito::mock("GET", "/win64/1.0.0")
+    let _m = mockito::mock("GET", "/windows-x86_64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_with_elevated_task_platform_json(
@@ -1039,15 +1102,15 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("1.0.0")
       .url(format!(
-        "{}/win64/{{{{current_version}}}}",
+        "{}/windows-x86_64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(updater.should_update);
@@ -1055,7 +1118,7 @@ mod test {
 
   #[test]
   fn http_updater_uptodate() {
-    let _m = mockito::mock("GET", "/darwin/10.0.0")
+    let _m = mockito::mock("GET", "/darwin-aarch64/10.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1065,15 +1128,15 @@ mod test {
       ))
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .current_version("10.0.0")
       .url(format!(
-        "{}/darwin/{{{{current_version}}}}",
+        "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
       ))
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check update");
 
     assert!(!updater.should_update);
@@ -1087,13 +1150,13 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
     assert!(updater.should_update);
@@ -1107,12 +1170,12 @@ mod test {
       .with_body(generate_sample_raw_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
       .current_version("0.0.1")
       .build());
 
-    assert!(check_update.is_ok());
     let updater = check_update.expect("Can't check remote update");
 
     assert!(updater.should_update);
@@ -1126,7 +1189,8 @@ mod test {
       .with_body(generate_sample_bad_json())
       .create();
 
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url(mockito::server_url())
       .current_version("0.0.1")
       .build());
@@ -1207,7 +1271,8 @@ mod test {
     let my_executable = &tmp_dir_path.join("my_app.exe");
 
     // configure the updater
-    let check_update = block!(builder(Default::default())
+    let app = crate::test::mock_app();
+    let check_update = block!(builder(app.handle())
       .url(mockito::server_url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
@@ -1221,9 +1286,6 @@ mod test {
       env::set_var("APPIMAGE", my_executable);
     }
 
-    // make sure the process worked
-    assert!(check_update.is_ok());
-
     // unwrap our results
     let updater = check_update.expect("Can't check remote update");
 
@@ -1233,7 +1295,7 @@ mod test {
     assert_eq!(updater.version, "2.0.1");
 
     // download, install and validate signature
-    let install_process = block!(updater.download_and_install(pubkey));
+    let install_process = block!(updater.download_and_install(pubkey, |_, _| ()));
     assert!(install_process.is_ok());
 
     // make sure the extraction went well (it should have skipped the main app.app folder)

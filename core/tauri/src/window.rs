@@ -23,12 +23,13 @@ use crate::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
       DetachedWindow, JsEventListenerKey, PendingWindow, WindowEvent,
     },
-    Dispatch, Runtime, RuntimeHandle, UserAttentionType,
+    Dispatch, RuntimeHandle, UserAttentionType,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::WindowUrl,
-  Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
+  EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
+  PageLoadPayload, Runtime,
 };
 
 use serde::Serialize;
@@ -110,7 +111,7 @@ pub struct WindowBuilder<R: Runtime> {
   runtime: RuntimeHandleOrDispatch<R>,
   app_handle: AppHandle<R>,
   label: String,
-  pub(crate) window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+  pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
 }
@@ -159,7 +160,7 @@ impl<R: Runtime> WindowBuilder<R> {
       runtime,
       app_handle,
       label: label.into(),
-      window_builder: <R::Dispatcher as Dispatch>::WindowBuilder::new(),
+      window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
     }
@@ -177,7 +178,7 @@ impl<R: Runtime> WindowBuilder<R> {
   /// ```rust,no_run
   /// use tauri::{
   ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
-  ///   runtime::http::header::HeaderValue,
+  ///   http::header::HeaderValue,
   ///   window::WindowBuilder,
   /// };
   /// use std::collections::HashMap;
@@ -198,8 +199,7 @@ impl<R: Runtime> WindowBuilder<R> {
   ///           }
   ///         }
   ///       })
-  ///       .build()
-  ///       .unwrap();
+  ///       .build()?;
   ///     Ok(())
   ///   });
   /// ```
@@ -387,6 +387,14 @@ impl<R: Runtime> WindowBuilder<R> {
     self
   }
 
+  /// Sets a parent to the window to be created.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
+    self.window_builder = self.window_builder.parent_window(parent);
+    self
+  }
+
   /// Set an owner to the window to be created.
   ///
   /// From MSDN:
@@ -451,7 +459,7 @@ impl<R: Runtime> WindowBuilder<R> {
 #[derive(Debug)]
 pub struct Window<R: Runtime> {
   /// The webview window created by the runtime.
-  window: DetachedWindow<R>,
+  window: DetachedWindow<EventLoopMessage, R>,
   /// The manager to associate this webview window with.
   manager: WindowManager<R>,
   pub(crate) app_handle: AppHandle<R>,
@@ -463,7 +471,7 @@ unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
   #[cfg(windows)]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
     let mut handle = raw_window_handle::Win32Handle::empty();
-    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`");
+    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`").0 as *mut _;
     raw_window_handle::RawWindowHandle::Win32(handle)
   }
 
@@ -528,7 +536,7 @@ impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
     manager: WindowManager<R>,
-    window: DetachedWindow<R>,
+    window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
   ) -> Self {
     Self {
@@ -566,10 +574,10 @@ impl<R: Runtime> Window<R> {
   ) -> crate::Result<Window<R>>
   where
     F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ) -> (
-      <R::Dispatcher as Dispatch>::WindowBuilder,
+      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
       WebviewAttributes,
     ),
   {
@@ -909,13 +917,8 @@ impl<R: Runtime> Window<R> {
   }
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  pub fn hwnd(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self
-      .window
-      .dispatcher
-      .hwnd()
-      .map(|hwnd| hwnd.0 as *mut _)
-      .map_err(Into::into)
+  pub fn hwnd(&self) -> crate::Result<HWND> {
+    self.window.dispatcher.hwnd().map_err(Into::into)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.

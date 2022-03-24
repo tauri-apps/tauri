@@ -99,6 +99,17 @@ pub struct DebConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let version = Option::<String>::deserialize(deserializer)?;
+  match version {
+    Some(v) if v.is_empty() => Ok(minimum_system_version()),
+    e => Ok(e),
+  }
+}
+
 /// Configuration for the macOS bundles.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
@@ -110,9 +121,15 @@ pub struct MacConfig {
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
+  ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
   /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
-  #[serde(default = "minimum_system_version")]
+  ///
+  /// An empty string is considered an invalid value so the default value is used.
+  #[serde(
+    deserialize_with = "de_minimum_system_version",
+    default = "minimum_system_version"
+  )]
   pub minimum_system_version: Option<String>,
   /// Allows your application to communicate with the outside world.
   /// It should be a lowercase, without port and protocol domain name.
@@ -274,6 +291,9 @@ pub struct BundleConfig {
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
+  ///
+  /// Should be one of the following:
+  /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
   /// A short description of your application.
   pub short_description: Option<String>,
@@ -760,7 +780,7 @@ macro_rules! check_feature {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
@@ -1051,7 +1071,7 @@ pub struct ShellAllowedCommand {
   /// It can start with a variable that resolves to a system base directory.
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
   #[serde(rename = "cmd")]
   pub command: PathBuf,
 
@@ -1802,6 +1822,17 @@ pub struct UpdaterConfig {
   #[serde(default = "default_dialog")]
   pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
+  ///
+  /// The updater URL can contain the following variables:
+  /// - {{current_version}}: The version of the app that is requesting the update
+  /// - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`).
+  /// - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).
+  ///
+  /// # Examples
+  ///
+  /// - "https://my.cdn.com/latest.json": a raw JSON endpoint that returns the latest version and download links for each platform.
+  /// - "https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}": a dedicated API with positional and query string arguments.
+  #[allow(rustdoc::bare_urls)]
   pub endpoints: Option<Vec<UpdaterEndpoint>>,
   /// Signature public key.
   #[serde(default)] // use default just so the schema doesn't flag it as required

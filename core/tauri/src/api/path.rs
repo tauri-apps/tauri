@@ -4,7 +4,10 @@
 
 //! Types and functions related to file system path operations.
 
-use std::path::{Component, Path, PathBuf};
+use std::{
+  env::temp_dir,
+  path::{Component, Path, PathBuf},
+};
 
 use crate::{Config, Env, PackageInfo};
 
@@ -61,6 +64,9 @@ pub enum BaseDirectory {
   /// Resolves to `BaseDirectory::Home/Library/Logs/{bundle_identifier}` on macOS
   /// and `BaseDirectory::Config/{bundle_identifier}/logs` on linux and windows.
   Log,
+  /// A temporary directory.
+  /// Resolves to [`temp_dir`].
+  Temp,
 }
 
 impl BaseDirectory {
@@ -86,6 +92,7 @@ impl BaseDirectory {
       Self::Resource => "$RESOURCE",
       Self::App => "$APP",
       Self::Log => "$LOG",
+      Self::Temp => "$TEMP",
     }
   }
 
@@ -111,6 +118,7 @@ impl BaseDirectory {
       "$RESOURCE" => Self::Resource,
       "$APP" => Self::App,
       "$LOG" => Self::Log,
+      "$TEMP" => Self::Temp,
       _ => return None,
     };
     Some(res)
@@ -125,7 +133,7 @@ impl BaseDirectory {
 /// use tauri::Manager;
 /// tauri::Builder::default()
 ///   .setup(|app| {
-///     let path = tauri::api::path::parse(&app.config(), app.package_info(), &app.env(), "$HOME/.bashrc").unwrap();
+///     let path = tauri::api::path::parse(&app.config(), app.package_info(), &app.env(), "$HOME/.bashrc")?;
 ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.bashrc");
 ///     Ok(())
 ///   });
@@ -162,6 +170,7 @@ pub fn parse<P: AsRef<Path>>(
     }
     p.push(component);
   }
+  println!("res {:?}", p);
 
   Ok(p)
 }
@@ -202,7 +211,7 @@ pub fn parse<P: AsRef<Path>>(
 ///       &app.env(),
 ///       "path/to/something",
 ///       Some(BaseDirectory::Config)
-///     ).expect("failed to resolve path");
+///     )?;
 ///     assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/path/to/something");
 ///     Ok(())
 ///   });
@@ -236,6 +245,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Resource => resource_dir(package_info, env),
       BaseDirectory::App => app_dir(config),
       BaseDirectory::Log => log_dir(config),
+      BaseDirectory::Temp => Some(temp_dir()),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       // use the same path resolution mechanism as the bundler's resource injection algorithm

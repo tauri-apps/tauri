@@ -8,8 +8,8 @@
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
 use crate::hooks::InvokeError;
-use crate::runtime::Runtime;
 use crate::InvokeMessage;
+use crate::Runtime;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer};
 
@@ -155,7 +155,7 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 /// Nothing in this module is considered stable.
 #[doc(hidden)]
 pub mod private {
-  use crate::{runtime::Runtime, InvokeError, InvokeResolver};
+  use crate::{InvokeError, InvokeResolver, Runtime};
   use futures::{FutureExt, TryFutureExt};
   use serde::Serialize;
   use serde_json::Value;

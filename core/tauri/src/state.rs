@@ -4,8 +4,7 @@
 
 use crate::{
   command::{CommandArg, CommandItem},
-  runtime::Runtime,
-  InvokeError,
+  InvokeError, Runtime,
 };
 use state::Container;
 
@@ -37,6 +36,12 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
+impl<'r, T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'r, T> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_tuple("State").field(&self.0).finish()
+  }
+}
+
 impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
@@ -64,6 +69,7 @@ impl StateManager {
 
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
+    self.0.get::<T>();
     State(
       self
         .0

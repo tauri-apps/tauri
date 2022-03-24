@@ -464,7 +464,7 @@
           "type": "boolean"
         },
         "category": {
-          "description": "The application kind.",
+          "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
           "type": [
             "string",
             "null"
@@ -1030,7 +1030,7 @@
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
       "anyOf": [
         {
           "description": "A list of paths that are allowed by this scope.",
@@ -1145,7 +1145,7 @@
           ]
         },
         "minimumSystemVersion": {
-          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`. Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.",
+          "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
           "type": [
             "string",
@@ -1429,7 +1429,7 @@
           ]
         },
         "cmd": {
-          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.",
+          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
           "type": "string"
         },
         "name": {
@@ -1741,7 +1741,7 @@
           "type": "boolean"
         },
         "endpoints": {
-          "description": "The updater endpoints. TLS is enforced on production.",
+          "description": "The updater endpoints. TLS is enforced on production.\n\nThe updater URL can contain the following variables: - {{current_version}}: The version of the app that is requesting the update - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`). - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).\n\n# Examples\n\n- \"https://my.cdn.com/latest.json\": a raw JSON endpoint that returns the latest version and download links for each platform. - \"https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}\": a dedicated API with positional and query string arguments.",
           "type": [
             "array",
             "null"

@@ -8,9 +8,9 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
-
+  
   # integration tests
-  "core/tauri/tests/restart"
+  "core/tests/restart"
 ]
 
 exclude = [

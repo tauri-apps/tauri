@@ -152,7 +152,7 @@ fn main() {
             app
               .tray_handle()
               .set_icon(tauri::TrayIcon::Raw(
-                include_bytes!("../../../.icons/tray_icon_with.png").to_vec(),
+                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
           }

@@ -36,6 +36,5 @@ png = "0.17"
 default = [ "compression" ]
 compression = [ "brotli", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
-__isolation-docs = [ "tauri-utils/__isolation-docs" ]
 shell-scope = [ "regex" ]
 config-json5 = [ "tauri-utils/config-json5" ]

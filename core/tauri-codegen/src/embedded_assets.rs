@@ -186,7 +186,7 @@ pub struct AssetOptions {
   pub(crate) csp: bool,
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
-  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+  #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
 
@@ -197,7 +197,7 @@ impl AssetOptions {
       csp: false,
       pattern,
       freeze_prototype: false,
-      #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+      #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
   }

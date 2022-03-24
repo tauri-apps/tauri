@@ -108,7 +108,6 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { emit, listen, once } from './helpers/event'
-import { isBrowser } from './helpers/env-check'
 
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
@@ -1170,7 +1169,7 @@ class WebviewWindow extends WindowManager {
 
 /** The WebviewWindow for the current window. */
 let appWindow
-if (isBrowser() && '__TAURI_METADATA__' in window) {
+if ('__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {

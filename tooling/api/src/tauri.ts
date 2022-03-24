@@ -13,23 +13,16 @@
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface Window {
-    rpc: {
-      notify: (command: string, args?: { [key: string]: unknown }) => void
+    __TAURI_IPC__: (message: any) => void
+    ipc: {
+      postMessage: (args: string) => void
     }
   }
 }
 
-// the `__TAURI_INVOKE_KEY__` variable is injected at runtime by Tauri
-// eslint-disable-next-line @typescript-eslint/naming-convention
-declare let __TAURI_INVOKE_KEY__: number
-
 /** @ignore */
-function uid(): string {
-  const length = new Int8Array(1)
-  window.crypto.getRandomValues(length)
-  const array = new Uint8Array(Math.max(16, Math.abs(length[0])))
-  window.crypto.getRandomValues(array)
-  return array.join('')
+function uid(): number {
+  return window.crypto.getRandomValues(new Uint32Array(1))[0]
 }
 
 /**
@@ -41,13 +34,14 @@ function uid(): string {
 function transformCallback(
   callback?: (response: any) => void,
   once = false
-): string {
+): number {
   const identifier = uid()
+  const prop = `_${identifier}`
 
-  Object.defineProperty(window, identifier, {
+  Object.defineProperty(window, prop, {
     value: (result: any) => {
       if (once) {
-        Reflect.deleteProperty(window, identifier)
+        Reflect.deleteProperty(window, prop)
       }
 
       return callback?.(result)
@@ -82,8 +76,8 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
       Reflect.deleteProperty(window, callback)
     }, true)
 
-    window.rpc.notify(cmd, {
-      __invokeKey: __TAURI_INVOKE_KEY__,
+    window.__TAURI_IPC__({
+      cmd,
       callback,
       error,
       ...args
@@ -93,16 +87,36 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
 
 /**
  * Convert a device file path to an URL that can be loaded by the webview.
- * Note that `asset:` must be allowed on the `csp` value configured on `tauri.conf.json`.
+ * Note that `asset:` and `https://asset.localhost` must be allowed on the `csp` value configured on `tauri.conf.json > tauri > security`.
+ * Example CSP value: `"csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"` to use the asset protocol on image sources.
  *
- * @param  filePath the file path. On Windows, the drive name must be omitted, i.e. using `/Users/user/file.png` instead of `C:/Users/user/file.png`.
+ * Additionally, the `asset` must be allowlisted under `tauri.conf.json > tauri > allowlist > protocol`,
+ * and its access scope must be defined on the `assetScope` array on the same `protocol` object.
  *
- * @return the URL that can be used as source on the webview
+ * @param  filePath The file path.
+ * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
+ * @example
+ * ```typescript
+ * import { appDir, join } from '@tauri-apps/api/path'
+ * import { convertFileSrc } from '@tauri-apps/api/tauri'
+ * const appDirPath = await appDir()
+ * const filePath = await join(appDir, 'assets/video.mp4')
+ * const assetUrl = convertFileSrc(filePath)
+ *
+ * const video = document.getElementById('my-video')
+ * const source = document.createElement('source')
+ * source.type = 'video/mp4'
+ * source.src = assetUrl
+ * video.appendChild(source)
+ * video.load()
+ * ```
+ *
+ * @return the URL that can be used as source on the webview.
  */
-function convertFileSrc(filePath: string): string {
+function convertFileSrc(filePath: string, protocol = 'asset'): string {
   return navigator.userAgent.includes('Windows')
-    ? `https://asset.localhost/${filePath}`
-    : `asset://${filePath}`
+    ? `https://${protocol}.localhost/${filePath}`
+    : `${protocol}://${filePath}`
 }
 
 export type { InvokeArgs }

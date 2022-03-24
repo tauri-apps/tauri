@@ -11,14 +11,23 @@ use std::path::MAIN_SEPARATOR;
 ///
 /// Allows you to construct a Notification data and send it.
 ///
-/// # Example
-/// ```
+/// # Examples
+/// ```rust,no_run
 /// use tauri::api::notification::Notification;
+/// // first we build the application to access the Tauri configuration
+/// let app = tauri::Builder::default()
+///   // on an actual app, remove the string argument
+///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///   .expect("error while building tauri application");
+///
 /// // shows a notification with the given title and body
-/// Notification::new("studio.tauri.example")
+/// Notification::new(&app.config().tauri.bundle.identifier)
 ///   .title("New message")
 ///   .body("You've got a new message.")
 ///   .show();
+///
+/// // run the app
+/// app.run(|_app_handle, _event| {});
 /// ```
 #[allow(dead_code)]
 #[derive(Debug, Default)]
@@ -43,18 +52,21 @@ impl Notification {
   }
 
   /// Sets the notification body.
+  #[must_use]
   pub fn body(mut self, body: impl Into<String>) -> Self {
     self.body = Some(body.into());
     self
   }
 
   /// Sets the notification title.
+  #[must_use]
   pub fn title(mut self, title: impl Into<String>) -> Self {
     self.title = Some(title.into());
     self
   }
 
   /// Sets the notification icon.
+  #[must_use]
   pub fn icon(mut self, icon: impl Into<String>) -> Self {
     self.icon = Some(icon.into());
     self
@@ -74,7 +86,7 @@ impl Notification {
     }
     #[cfg(windows)]
     {
-      let exe = std::env::current_exe()?;
+      let exe = tauri_utils::platform::current_exe()?;
       let exe_dir = exe.parent().expect("failed to get exe directory");
       let curr_dir = exe_dir.display().to_string();
       // set the notification's System.AppUserModel.ID only when running the installed app

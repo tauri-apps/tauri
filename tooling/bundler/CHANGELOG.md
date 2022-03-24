@@ -1,5 +1,75 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Added `tsp` config option under `tauri > bundle > windows`, which enables Time-Stamp Protocol (RFC 3161) for the timestamping
+  server under code signing on Windows if set to `true`.
+  - [bdd5f7c2](https://www.github.com/tauri-apps/tauri/commit/bdd5f7c2f03af4af8b60a9527e55bb18525d989b) fix: add support for Time-Stamping Protocol for Windows codesigning (fix [#3563](https://www.github.com/tauri-apps/tauri/pull/3563)) ([#3570](https://www.github.com/tauri-apps/tauri/pull/3570)) on 2022-03-07
+- Properly create the updater bundle for all generated Microsoft Installer files.
+  - [6a6f1e7b](https://www.github.com/tauri-apps/tauri/commit/6a6f1e7bf922bc6fa56db2e8e40affbb0849731d) fix(bundler): build updater bundle for all .msi files ([#3520](https://www.github.com/tauri-apps/tauri/pull/3520)) on 2022-02-24
+- Fixes the Microsoft Installer launch path.
+  - [8d699283](https://www.github.com/tauri-apps/tauri/commit/8d699283a4741c83b476fb079dc0333c7bf4f919) fix(bundler): Auto-launch app from install location, closes [#3547](https://www.github.com/tauri-apps/tauri/pull/3547) ([#3553](https://www.github.com/tauri-apps/tauri/pull/3553)) on 2022-02-24
+
+## \[1.0.0-rc.2]
+
+- Fixes sidecar bundling on Windows.
+  - [2ecbed8d](https://www.github.com/tauri-apps/tauri/commit/2ecbed8d59d9e1788170aa87b90ed9556a473425) fix(bundler): sidecar on Windows, closes [#3446](https://www.github.com/tauri-apps/tauri/pull/3446) ([#3482](https://www.github.com/tauri-apps/tauri/pull/3482)) on 2022-02-16
+
+## \[1.0.0-rc.1]
+
+- Change default value for the `freezePrototype` configuration to `false`.
+  - Bumped due to a bump in tauri-utils.
+  - [3a4c0160](https://www.github.com/tauri-apps/tauri/commit/3a4c01606184be762adee055ddac803de0d28527) fix(core): change default `freezePrototype` to false, closes [#3416](https://www.github.com/tauri-apps/tauri/pull/3416) [#3406](https://www.github.com/tauri-apps/tauri/pull/3406) ([#3423](https://www.github.com/tauri-apps/tauri/pull/3423)) on 2022-02-12
+
+## \[1.0.0-rc.0]
+
+- Provide a provider short name for macOS app notarization if your Apple developer account is connected to more than one team.
+  - [8ab8d529](https://www.github.com/tauri-apps/tauri/commit/8ab8d529426b1ed7926daced16a45b077033bfe2) Fix [#3288](https://www.github.com/tauri-apps/tauri/pull/3288): Add provider_short_name for macOS ([#3289](https://www.github.com/tauri-apps/tauri/pull/3289)) on 2022-01-27
+
+- Allow building AppImages on systems without FUSE setup.
+  - [28dd9adb](https://www.github.com/tauri-apps/tauri/commit/28dd9adb266b97db0bf7179268269f8614ce78e8) feat(bundler): support building AppImage without FUSE ([#3259](https://www.github.com/tauri-apps/tauri/pull/3259)) on 2022-01-21
+
+- Fixes AppImage crashes caused by missing WebKit runtime files.
+  - [bec7833a](https://www.github.com/tauri-apps/tauri/commit/bec7833a6c29ed9d1a5ab53e1c2cdd80e66cd272) fix(bundler): bundle additional webkit files. patch absolute paths in libwebkit\*.so files. fixes [#2805](https://www.github.com/tauri-apps/tauri/pull/2805),[#2689](https://www.github.com/tauri-apps/tauri/pull/2689) ([#2940](https://www.github.com/tauri-apps/tauri/pull/2940)) on 2021-12-09
+
+- Initialize the preselected installation path with the location of the previous installation.
+  - [ac1dfd8c](https://www.github.com/tauri-apps/tauri/commit/ac1dfd8c3039d87bef1fa2d815876903d5cc07ae) feat(bundler): initialize msi install path with previous location ([#3158](https://www.github.com/tauri-apps/tauri/pull/3158)) on 2022-01-07
+
+- Replaces usage of the nightly command `RUSTC_BOOTSTRAP=1 rustc -Z unstable-options --print target-spec-json` with the stable command `rustc --print cfg`, improving target triple detection.
+  - [839daec7](https://www.github.com/tauri-apps/tauri/commit/839daec7ab79c3ff2f552dd7579069bc64e83625) fix(bundler): Use `arch` instead of `llvm_target`. fix [#3285](https://www.github.com/tauri-apps/tauri/pull/3285) ([#3286](https://www.github.com/tauri-apps/tauri/pull/3286)) on 2022-02-05
+
+- Fixes a deadlock on the `ResourcePaths` iterator.
+  - [4c1be451](https://www.github.com/tauri-apps/tauri/commit/4c1be451066612862363bc481910bd6c3da1e185) fix(bundler): deadlock on `ResourcePaths` iterator, closes [#3146](https://www.github.com/tauri-apps/tauri/pull/3146) ([#3152](https://www.github.com/tauri-apps/tauri/pull/3152)) on 2022-01-02
+
+- Move the copying of resources and sidecars from `cli.rs` to `tauri-build` so using the Cargo CLI directly processes the files for the application execution in development.
+  - [5eb72c24](https://www.github.com/tauri-apps/tauri/commit/5eb72c24deddf5a01093bea96b90c0d8806afc3f) refactor: copy resources and sidecars on the Cargo build script ([#3357](https://www.github.com/tauri-apps/tauri/pull/3357)) on 2022-02-08
+
+- The minimum Rust version is now `1.56`.
+  - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
+
+- **Breaking change:** The sidecar's target triple suffix is now removed at build time.
+  - [3035e458](https://www.github.com/tauri-apps/tauri/commit/3035e4581c161ec7f0bd6d9b42e9015cf1dd1d77) Remove target triple from sidecar bin paths, closes [#3355](https://www.github.com/tauri-apps/tauri/pull/3355) ([#3356](https://www.github.com/tauri-apps/tauri/pull/3356)) on 2022-02-07
+
+- When building Universal macOS Binaries through the virtual target `universal-apple-darwin`:
+
+- Expect a universal binary to be created by the user
+
+- Ensure that binary is bundled and accessed correctly at runtime
+
+- [3035e458](https://www.github.com/tauri-apps/tauri/commit/3035e4581c161ec7f0bd6d9b42e9015cf1dd1d77) Remove target triple from sidecar bin paths, closes [#3355](https://www.github.com/tauri-apps/tauri/pull/3355) ([#3356](https://www.github.com/tauri-apps/tauri/pull/3356)) on 2022-02-07
+
+- Allow setting the localization file for WiX.
+  - [af329f27](https://www.github.com/tauri-apps/tauri/commit/af329f2722d6194c6d70e976fc970dc2c9e4de2b) feat(bundler): wix localization, closes [#3174](https://www.github.com/tauri-apps/tauri/pull/3174) ([#3179](https://www.github.com/tauri-apps/tauri/pull/3179)) on 2022-02-05
+
+- Fix registry keys on the WiX template.
+  - [2be1abd1](https://www.github.com/tauri-apps/tauri/commit/2be1abd112cc3d927c235b6d00a508e6d35be49e) fix(bundler) wix template escape character ([#2608](https://www.github.com/tauri-apps/tauri/pull/2608)) on 2021-09-21
+
+- Configure WiX to add an option to launch the application after finishing setup.
+  - [feb3a8f8](https://www.github.com/tauri-apps/tauri/commit/feb3a8f896802ff274333012c3b399beb5c86f41) feat(bundler): configure WiX to add launch option, closes [#3015](https://www.github.com/tauri-apps/tauri/pull/3015) ([#3043](https://www.github.com/tauri-apps/tauri/pull/3043)) on 2021-12-09
+
+- Sign WiX installer in addition to the executable file.
+  - [d801cc89](https://www.github.com/tauri-apps/tauri/commit/d801cc89b8bfa9beba347ebcd48cfccf890ff5bb) wix installer is also signed ([#3266](https://www.github.com/tauri-apps/tauri/pull/3266)) on 2022-01-23
+
 ## \[1.0.0-beta.4]
 
 - Merge Tauri-generated Info.plist with the contents of `src-tauri/Info.plist` if it exists.

@@ -16,11 +16,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-  api::dialog::ask, http::ResponseBuilder, CustomMenuItem, Event, GlobalShortcutManager, Manager,
-  SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowUrl,
+  api::dialog::ask, http::ResponseBuilder, window::WindowBuilder, CustomMenuItem,
+  GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowUrl,
 };
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct Reply {
   data: String,
 }
@@ -59,6 +59,11 @@ fn main() {
 
   #[allow(unused_mut)]
   let mut app = tauri::Builder::default()
+    .setup(|app| {
+      #[cfg(debug_assertions)]
+      app.get_window("main").unwrap().open_devtools();
+      Ok(())
+    })
     .on_page_load(|window, _| {
       let window_ = window.clone();
       window.listen("js-event", move |event| {
@@ -123,22 +128,19 @@ fn main() {
             };
             item_handle.set_title(new_title).unwrap();
           }
-          "new" => app
-            .create_window(
-              "new",
-              WindowUrl::App("index.html".into()),
-              |window_builder, webview_attributes| {
-                (window_builder.title("Tauri"), webview_attributes)
-              },
-            )
-            .unwrap(),
+          "new" => {
+            WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
+              .title("Tauri")
+              .build()
+              .unwrap();
+          }
           #[cfg(target_os = "macos")]
           "icon_1" => {
             app.tray_handle().set_icon_as_template(true).unwrap();
 
             app
               .tray_handle()
-              .set_icon(tauri::Icon::Raw(
+              .set_icon(tauri::TrayIcon::Raw(
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
@@ -149,36 +151,36 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::Icon::Raw(
-                include_bytes!("../../../.icons/tray_icon.png").to_vec(),
+              .set_icon(tauri::TrayIcon::Raw(
+                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
           }
           #[cfg(target_os = "linux")]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::Icon::File(PathBuf::from(
+            .set_icon(tauri::TrayIcon::File(PathBuf::from(
               "../../../.icons/tray_icon_with_transparency.png",
             )))
             .unwrap(),
           #[cfg(target_os = "linux")]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::Icon::File(PathBuf::from(
+            .set_icon(tauri::TrayIcon::File(PathBuf::from(
               "../../../.icons/tray_icon.png",
             )))
             .unwrap(),
           #[cfg(target_os = "windows")]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::Icon::Raw(
+            .set_icon(tauri::TrayIcon::Raw(
               include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
             ))
             .unwrap(),
           #[cfg(target_os = "windows")]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::Icon::Raw(
+            .set_icon(tauri::TrayIcon::Raw(
               include_bytes!("../../../.icons/icon.ico").to_vec(),
             ))
             .unwrap(),
@@ -212,7 +214,7 @@ fn main() {
 
   app.run(|app_handle, e| match e {
     // Application is ready (triggered only once)
-    Event::Ready => {
+    RunEvent::Ready => {
       let app_handle = app_handle.clone();
       app_handle
         .global_shortcut_manager()
@@ -225,7 +227,7 @@ fn main() {
     }
 
     // Triggered when a window is trying to close
-    Event::CloseRequested { label, api, .. } => {
+    RunEvent::CloseRequested { label, api, .. } => {
       let app_handle = app_handle.clone();
       let window = app_handle.get_window(&label).unwrap();
       // use the exposed close api, and prevent the event loop to close
@@ -248,7 +250,7 @@ fn main() {
 
     // Keep the event loop running even if all windows are closed
     // This allow us to catch system tray events when there is no window
-    Event::ExitRequested { api, .. } => {
+    RunEvent::ExitRequested { api, .. } => {
       api.prevent_exit();
     }
     _ => {}

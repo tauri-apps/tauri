@@ -39,7 +39,7 @@ use crate::http::{
 #[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct SystemTray {
-  pub icon: Option<Icon>,
+  pub icon: Option<TrayIcon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
@@ -56,20 +56,23 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
-  pub fn with_icon(mut self, icon: Icon) -> Self {
+  /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
+  #[must_use]
+  pub fn with_icon(mut self, icon: TrayIcon) -> Self {
     self.icon.replace(icon);
     self
   }
 
   /// Sets the tray icon as template.
   #[cfg(target_os = "macos")]
+  #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.icon_as_template = is_template;
     self
   }
 
   /// Sets the menu to show when the system tray is right clicked.
+  #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
@@ -95,13 +98,19 @@ pub enum UserAttentionType {
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(Box<dyn std::error::Error + Send>),
+  CreateWebview(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// The given window label is invalid.
+  #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
+  InvalidWindowLabel,
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
+  /// Failed to receive message from webview.
+  #[error("failed to receive message from webview")]
+  FailedToReceiveMessage,
   /// Failed to serialize/deserialize.
   #[error("JSON error: {0}")]
   Json(#[from] serde_json::Error),
@@ -109,16 +118,16 @@ pub enum Error {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
-  SystemTray(Box<dyn std::error::Error + Send>),
+  SystemTray(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(Box<dyn std::error::Error + Send>),
+  InvalidIcon(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
   #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send>),
+  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -131,30 +140,43 @@ pub enum Error {
   InvalidMethod(#[from] InvalidMethod),
   #[error("Infallible error, something went really wrong: {0}")]
   Infallible(#[from] std::convert::Infallible),
+  #[error("the event loop has been closed")]
+  EventLoopClosed,
 }
 
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Window icon.
+#[derive(Debug, Clone)]
+pub struct WindowIcon {
+  /// RGBA bytes of the icon.
+  pub rgba: Vec<u8>,
+  /// Icon width.
+  pub width: u32,
+  /// Icon height.
+  pub height: u32,
+}
+
 /// A icon definition.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum Icon {
+pub enum TrayIcon {
   /// Icon from file path.
   File(PathBuf),
-  /// Icon from raw bytes.
+  /// Icon from raw file bytes.
   Raw(Vec<u8>),
 }
 
-impl Icon {
+impl TrayIcon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(target_os = "linux")]
-  pub fn into_tray_icon(self) -> PathBuf {
+  pub fn into_platform_icon(self) -> PathBuf {
     match self {
-      Icon::File(path) => path,
-      Icon::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      Self::File(path) => path,
+      Self::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
       }
     }
   }
@@ -162,19 +184,24 @@ impl Icon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(not(target_os = "linux"))]
-  pub fn into_tray_icon(self) -> Vec<u8> {
+  pub fn into_platform_icon(self) -> Vec<u8> {
     match self {
-      Icon::Raw(bytes) => bytes,
-      Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path.")
+      Self::Raw(r) => r,
+      Self::File(_) => {
+        panic!("non-linux system menu icons must be raw bytes, not a file path.")
       }
     }
   }
 }
 
+/// A type that can be used as an user event.
+pub trait UserEvent: Debug + Clone + Send + 'static {}
+
+impl<T: Debug + Clone + Send + 'static> UserEvent for T {}
+
 /// Event triggered on the event loop run.
 #[non_exhaustive]
-pub enum RunEvent {
+pub enum RunEvent<T: UserEvent> {
   /// Event loop is exiting.
   Exit,
   /// Event loop is about to exit
@@ -200,6 +227,8 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// A custom event defined by the user.
+  UserEvent(T),
 }
 
 /// Action to take when the event loop is about to exit
@@ -247,13 +276,17 @@ pub enum ActivationPolicy {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
-  type Runtime: Runtime<Handle = Self>;
+pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  type Runtime: Runtime<T, Handle = Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
+
   /// Create a new webview window.
   fn create_window(
     &self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
@@ -264,7 +297,7 @@ pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
 }
 
 /// A global shortcut manager.
-pub trait GlobalShortcutManager: Debug {
+pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   /// Whether the application has registered the given `accelerator`.
   fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
 
@@ -283,29 +316,43 @@ pub trait GlobalShortcutManager: Debug {
 }
 
 /// Clipboard manager.
-pub trait ClipboardManager: Debug {
+pub trait ClipboardManager: Debug + Clone + Send + Sync {
   /// Writes the text into the clipboard as plain text.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
   fn read_text(&self) -> Result<Option<String>>;
 }
 
+pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
+  fn send_event(&self, event: T) -> Result<()>;
+}
+
 /// The webview runtime interface.
-pub trait Runtime: Sized + 'static {
+pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The message dispatcher.
-  type Dispatcher: Dispatch<Runtime = Self>;
+  type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
-  type Handle: RuntimeHandle<Runtime = Self>;
+  type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The global shortcut manager type.
-  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
-  type ClipboardManager: ClipboardManager + Clone + Send;
+  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
-  type TrayHandler: menu::TrayHandle + Clone + Send;
+  type TrayHandler: menu::TrayHandle;
+  /// The proxy type.
+  type EventLoopProxy: EventLoopProxy<T>;
 
-  /// Creates a new webview runtime.
+  /// Creates a new webview runtime. Must be used on the main thread.
   fn new() -> crate::Result<Self>;
+
+  /// Creates a new webview runtime on any thread.
+  #[cfg(any(windows, target_os = "linux"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  fn new_any_thread() -> crate::Result<Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> Self::EventLoopProxy;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
@@ -317,7 +364,10 @@ pub trait Runtime: Sized + 'static {
   fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
-  fn create_window(&self, pending: PendingWindow<Self>) -> crate::Result<DetachedWindow<Self>>;
+  fn create_window(
+    &self,
+    pending: PendingWindow<T, Self>,
+  ) -> crate::Result<DetachedWindow<T, Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
@@ -335,20 +385,19 @@ pub trait Runtime: Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  #[cfg(any(target_os = "windows", target_os = "macos"))]
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
+pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
-  type Runtime: Runtime;
+  type Runtime: Runtime<T>;
 
   /// The winoow builder type.
-  type WindowBuilder: WindowBuilder + Clone;
+  type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
@@ -358,6 +407,9 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
 
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn open_devtools(&self);
 
   // GETTERS
 
@@ -445,8 +497,8 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// Create a new webview window.
   fn create_window(
     &mut self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> crate::Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
@@ -506,7 +558,7 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   fn set_focus(&self) -> crate::Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+  fn set_icon(&self, icon: WindowIcon) -> crate::Result<()>;
 
   /// Whether to show the window icon in the task bar or not.
   fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()>;

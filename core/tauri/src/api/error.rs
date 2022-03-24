@@ -25,7 +25,7 @@ pub enum Error {
   #[error("user cancelled the dialog")]
   DialogCancelled,
   /// The network error.
-  #[cfg(not(feature = "reqwest-client"))]
+  #[cfg(all(feature = "http-api", not(feature = "reqwest-client")))]
   #[error("Network Error: {0}")]
   Network(#[from] attohttpc::Error),
   /// The network error.
@@ -66,12 +66,16 @@ pub enum Error {
   #[error("failed to walkdir: {0}")]
   Ignore(#[from] ignore::Error),
   /// ZIP error.
+  #[cfg(feature = "fs-extract-api")]
   #[error(transparent)]
   Zip(#[from] zip::result::ZipError),
   /// Notification error.
   #[cfg(notification_all)]
   #[error(transparent)]
   Notification(#[from] notify_rust::error::Error),
+  /// Url error.
+  #[error(transparent)]
+  Url(#[from] url::ParseError),
   /// failed to detect the current platform.
   #[error("failed to detect platform: {0}")]
   FailedToDetectPlatform(String),
@@ -83,6 +87,9 @@ pub enum Error {
   /// Shell error.
   #[error("shell error: {0}")]
   Shell(String),
+  /// Unknown program name.
+  #[error("unknown program name: {0}")]
+  UnknownProgramName(String),
 }
 
 #[cfg(feature = "cli")]

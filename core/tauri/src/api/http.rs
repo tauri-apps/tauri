@@ -5,9 +5,11 @@
 //! Types and functions related to HTTP request.
 
 use http::{header::HeaderName, Method};
+pub use http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use url::Url;
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
@@ -28,12 +30,14 @@ impl ClientBuilder {
   }
 
   /// Sets the maximum number of redirections.
+  #[must_use]
   pub fn max_redirections(mut self, max_redirections: usize) -> Self {
     self.max_redirections = Some(max_redirections);
     self
   }
 
-  /// Sets the connection timeout.
+  /// Sets the connection timeout in seconds.
+  #[must_use]
   pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
     self.connect_timeout = Some(connect_timeout);
     self
@@ -75,10 +79,24 @@ pub struct Client(ClientBuilder);
 
 #[cfg(not(feature = "reqwest-client"))]
 impl Client {
-  /// Executes an HTTP request
+  /// Executes an HTTP request.
   ///
-  /// The response will be transformed to String.
-  /// If reading the response as binary, the byte array will be serialized using [`serde_json`].
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::http::{ClientBuilder, HttpRequestBuilder, ResponseType};
+  /// async fn run_request() {
+  ///   let client = ClientBuilder::new().build().unwrap();
+  ///   let response = client.send(
+  ///     HttpRequestBuilder::new("GET", "https://www.rust-lang.org")
+  ///       .unwrap()
+  ///       .response_type(ResponseType::Binary)
+  ///   ).await;
+  ///   if let Ok(response) = response {
+  ///     let bytes = response.bytes();
+  ///   }
+  /// }
+  /// ```
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
@@ -134,12 +152,11 @@ impl Client {
 impl Client {
   /// Executes an HTTP request
   ///
-  /// The response will be transformed to String.
-  /// If reading the response as binary, the byte array will be serialized using serde_json.
+  /// # Examples
   pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
-    let mut request_builder = self.0.request(method, &request.url);
+    let mut request_builder = self.0.request(method, request.url.as_str());
 
     if let Some(query) = request.query {
       request_builder = request_builder.query(&query);
@@ -242,16 +259,15 @@ pub enum Body {
 /// The builder for a HTTP request.
 ///
 /// # Examples
-/// ```no_run
-/// use tauri::api::http::{ HttpRequestBuilder, ResponseType, ClientBuilder };
+/// ```rust,no_run
+/// use tauri::api::http::{HttpRequestBuilder, ResponseType, ClientBuilder};
 /// async fn run() {
 ///   let client = ClientBuilder::new()
 ///     .max_redirections(3)
 ///     .build()
 ///     .unwrap();
-///   let mut request_builder = HttpRequestBuilder::new("GET", "http://example.com");
-///   let request = request_builder.response_type(ResponseType::Text);
-///
+///   let request = HttpRequestBuilder::new("GET", "http://example.com").unwrap()
+///     .response_type(ResponseType::Text);
 ///   if let Ok(response) = client.send(request).await {
 ///     println!("got response");
 ///   } else {
@@ -265,7 +281,7 @@ pub struct HttpRequestBuilder {
   /// The request method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS, CONNECT or TRACE)
   pub method: String,
   /// The request URL
-  pub url: String,
+  pub url: Url,
   /// The request query params
   pub query: Option<HashMap<String, String>>,
   /// The request headers
@@ -280,43 +296,48 @@ pub struct HttpRequestBuilder {
 
 impl HttpRequestBuilder {
   /// Initializes a new instance of the HttpRequestrequest_builder.
-  pub fn new(method: impl Into<String>, url: impl Into<String>) -> Self {
-    Self {
+  pub fn new(method: impl Into<String>, url: impl AsRef<str>) -> crate::api::Result<Self> {
+    Ok(Self {
       method: method.into(),
-      url: url.into(),
+      url: Url::parse(url.as_ref())?,
       query: None,
       headers: None,
       body: None,
       timeout: None,
       response_type: None,
-    }
+    })
   }
 
   /// Sets the request parameters.
+  #[must_use]
   pub fn query(mut self, query: HashMap<String, String>) -> Self {
     self.query = Some(query);
     self
   }
 
   /// Sets the request headers.
+  #[must_use]
   pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
     self.headers = Some(headers);
     self
   }
 
   /// Sets the request body.
+  #[must_use]
   pub fn body(mut self, body: Body) -> Self {
     self.body = Some(body);
     self
   }
 
   /// Sets the general request timeout.
+  #[must_use]
   pub fn timeout(mut self, timeout: u64) -> Self {
     self.timeout = Some(timeout);
     self
   }
 
   /// Sets the type of the response. Interferes with the way we read the response.
+  #[must_use]
   pub fn response_type(mut self, response_type: ResponseType) -> Self {
     self.response_type = Some(response_type);
     self
@@ -330,12 +351,22 @@ pub struct Response(ResponseType, reqwest::Response);
 /// The HTTP response.
 #[cfg(not(feature = "reqwest-client"))]
 #[derive(Debug)]
-pub struct Response(ResponseType, attohttpc::Response, String);
+pub struct Response(ResponseType, attohttpc::Response, Url);
 
 impl Response {
+  /// Get the [`StatusCode`] of this Response.
+  pub fn status(&self) -> StatusCode {
+    self.1.status()
+  }
+
+  /// Get the headers of this Response.
+  pub fn headers(&self) -> &HeaderMap {
+    self.1.headers()
+  }
+
   /// Reads the response as raw bytes.
   pub async fn bytes(self) -> crate::api::Result<RawResponse> {
-    let status = self.1.status().as_u16();
+    let status = self.status().as_u16();
     #[cfg(feature = "reqwest-client")]
     let data = self.1.bytes().await?.to_vec();
     #[cfg(not(feature = "reqwest-client"))]
@@ -343,18 +374,66 @@ impl Response {
     Ok(RawResponse { status, data })
   }
 
-  /// Reads the response and returns its info.
+  #[cfg(not(feature = "reqwest-client"))]
+  #[allow(dead_code)]
+  pub(crate) fn reader(self) -> attohttpc::ResponseReader {
+    let (_, _, reader) = self.1.split();
+    reader
+  }
+
+  /// Convert the response into a Stream of [`bytes::Bytes`] from the body.
+  ///
+  /// # Examples
+  ///
+  /// ```no_run
+  /// use futures::StreamExt;
+  ///
+  /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+  /// let client = tauri::api::http::ClientBuilder::new().build()?;
+  /// let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
+  ///   .await?
+  ///   .bytes_stream();
+  ///
+  /// while let Some(item) = stream.next().await {
+  ///     println!("Chunk: {:?}", item?);
+  /// }
+  /// # Ok(())
+  /// # }
+  /// ```
+  #[cfg(feature = "reqwest-client")]
+  #[allow(dead_code)]
+  pub(crate) fn bytes_stream(
+    self,
+  ) -> impl futures::Stream<Item = crate::api::Result<bytes::Bytes>> {
+    use futures::StreamExt;
+    self.1.bytes_stream().map(|res| res.map_err(Into::into))
+  }
+
+  /// Reads the response.
+  ///
+  /// Note that the body is serialized to a [`Value`].
   pub async fn read(self) -> crate::api::Result<ResponseData> {
     #[cfg(feature = "reqwest-client")]
-    let url = self.1.url().to_string();
+    let url = self.1.url().clone();
     #[cfg(not(feature = "reqwest-client"))]
     let url = self.2;
 
     let mut headers = HashMap::new();
+    let mut raw_headers = HashMap::new();
     for (name, value) in self.1.headers() {
       headers.insert(
         name.as_str().to_string(),
         String::from_utf8(value.as_bytes().to_vec())?,
+      );
+      raw_headers.insert(
+        name.as_str().to_string(),
+        self
+          .1
+          .headers()
+          .get_all(name)
+          .into_iter()
+          .map(|v| String::from_utf8(v.as_bytes().to_vec()).map_err(Into::into))
+          .collect::<crate::api::Result<Vec<String>>>()?,
       );
     }
     let status = self.1.status().as_u16();
@@ -377,6 +456,7 @@ impl Response {
       url,
       status,
       headers,
+      raw_headers,
       data,
     })
   }
@@ -398,11 +478,28 @@ pub struct RawResponse {
 #[non_exhaustive]
 pub struct ResponseData {
   /// Response URL. Useful if it followed redirects.
-  pub url: String,
+  pub url: Url,
   /// Response status code.
   pub status: u16,
   /// Response headers.
   pub headers: HashMap<String, String>,
+  /// Response raw headers.
+  pub raw_headers: HashMap<String, Vec<String>>,
   /// Response data.
   pub data: Value,
+}
+
+#[cfg(test)]
+mod test {
+  use super::ClientBuilder;
+  use quickcheck::{Arbitrary, Gen};
+
+  impl Arbitrary for ClientBuilder {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        max_redirections: Option::arbitrary(g),
+        connect_timeout: Option::arbitrary(g),
+      }
+    }
+  }
 }

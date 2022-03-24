@@ -1,9 +1,8 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, LogicalPosition, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
+  import { appWindow, WebviewWindow, LogicalSize, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
   import { open as openDialog } from "@tauri-apps/api/dialog";
   import { open } from "@tauri-apps/api/shell";
 
-  window.UserAttentionType = UserAttentionType;
   let selectedWindow = appWindow.label;
   const windowMap = {
     [selectedWindow]: appWindow
@@ -57,11 +56,15 @@
   function getIcon() {
     openDialog({
       multiple: false,
-    }).then(windowMap[selectedWindow].setIcon);
+    }).then(path => {
+      if (typeof path === 'string') {
+        windowMap[selectedWindow].setIcon(path)
+      }
+    });
   }
 
   function createWindow() {
-    const label = Math.random().toString();
+    const label = Math.random().toString().replace('.', '');
     const webview = new WebviewWindow(label);
     windowMap[label] = webview;
     webview.once('tauri://error', function () {
@@ -91,15 +94,15 @@
     });
   }
 
-  function addWindowEventListeners(window) {
+  async function addWindowEventListeners(window) {
     if (resizeEventUnlisten) {
       resizeEventUnlisten();
     }
     if(moveEventUnlisten) {
       moveEventUnlisten();
     }
-    moveEventUnlisten = window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = window.listen('tauri://resize', handleWindowResize);
+    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove);
+    resizeEventUnlisten = await window.listen('tauri://resize', handleWindowResize);
   }
 
   async function requestUserAttention_() {
@@ -115,10 +118,10 @@
   $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop);
   $: windowMap[selectedWindow].setFullscreen(fullscreen);
 
-  $: windowMap[selectedWindow].setSize(new LogicalSize(width, height));
+  $: windowMap[selectedWindow].setSize(new PhysicalSize(width, height));
   $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
   $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
-  $: windowMap[selectedWindow].setPosition(new LogicalPosition(x, y));
+  $: windowMap[selectedWindow].setPosition(new PhysicalPosition(x, y));
   $: windowMap[selectedWindow].scaleFactor().then(factor => scaleFactor = factor);
   $: addWindowEventListeners(windowMap[selectedWindow]);
 </script>
@@ -263,11 +266,11 @@
     </div>
   </div>
 </div>
-<form style="margin-top: 24px" on:submit|preventDefault={setTitle_}>
+<form on:submit|preventDefault={setTitle_}>
   <input id="title" bind:value={windowTitle} />
   <button class="button" type="submit">Set title</button>
 </form>
-<form style="margin-top: 24px" on:submit|preventDefault={openUrl}>
+<form on:submit|preventDefault={openUrl}>
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
@@ -275,6 +278,10 @@
 <button class="button" on:click={createWindow}>New window</button>
 
 <style>
+  form {
+    margin-top: 24px;
+  }
+
   .flex-row {
     flex-direction: row;
   }

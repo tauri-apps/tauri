@@ -4,20 +4,22 @@
 
 //! Types and functions related to file operations.
 
+#[cfg(feature = "fs-extract-api")]
 mod extract;
 mod file_move;
 
 use std::{fs, path::Path};
 
+#[cfg(feature = "fs-extract-api")]
 pub use extract::*;
 pub use file_move::*;
 
-/// Reads a string file.
+/// Reads the entire contents of a file into a string.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {
   fs::read_to_string(file).map_err(Into::into)
 }
 
-/// Reads a binary file.
+/// Reads the entire contents of a file into a bytes vector.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
   fs::read(file).map_err(Into::into)
 }
@@ -48,9 +50,8 @@ mod test {
 
     assert!(res.is_err());
 
+    #[cfg(not(windows))]
     if let Error::Io(e) = res.unwrap_err() {
-      #[cfg(windows)]
-      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
       assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }
@@ -88,9 +89,8 @@ mod test {
 
     assert!(res.is_err());
 
+    #[cfg(not(windows))]
     if let Error::Io(e) = res.unwrap_err() {
-      #[cfg(windows)]
-      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
       assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }

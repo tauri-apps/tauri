@@ -4,17 +4,37 @@
 
 //! Types and functions related to CLI arguments.
 
-use crate::utils::config::{CliArg, CliConfig};
-
-use clap::{
-  crate_authors, crate_description, crate_name, crate_version, App, Arg, ArgMatches, ErrorKind,
+use crate::{
+  utils::config::{CliArg, CliConfig},
+  PackageInfo,
 };
+
+use clap::{Arg, ArgMatches, ErrorKind};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
 #[macro_use]
 mod macros;
+
+mod clapfix {
+  //! Compatibility between `clap` 3.0 and 3.1+ without deprecation errors.
+  #![allow(deprecated)]
+
+  pub type ClapCommand<'help> = clap::App<'help>;
+
+  pub trait ErrorExt {
+    fn kind(&self) -> clap::ErrorKind;
+  }
+
+  impl ErrorExt for clap::Error {
+    fn kind(&self) -> clap::ErrorKind {
+      self.kind
+    }
+  }
+}
+
+use clapfix::{ClapCommand as App, ErrorExt};
 
 /// The resolution of a argument match.
 #[derive(Default, Debug, Serialize)]
@@ -63,15 +83,26 @@ impl Matches {
 }
 
 /// Gets the argument matches of the CLI definition.
-pub fn get_matches(cli: &CliConfig) -> crate::api::Result<Matches> {
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::api::cli::get_matches;
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let matches = get_matches(app.config().tauri.cli.as_ref().unwrap(), app.package_info())?;
+///     Ok(())
+///   });
+/// ```
+pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::Result<Matches> {
   let about = cli
     .description()
-    .unwrap_or(&crate_description!().to_string())
+    .unwrap_or(&package_info.description.to_string())
     .to_string();
-  let app = get_app(crate_name!(), Some(&about), cli);
+  let app = get_app(package_info, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
-    Err(e) => match e.kind {
+    Err(e) => match ErrorExt::kind(&e) {
       ErrorKind::DisplayHelp => {
         let mut matches = Matches::default();
         let help_text = e.to_string();
@@ -142,10 +173,15 @@ fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Match
   }
 }
 
-fn get_app<'a>(name: &str, about: Option<&'a String>, config: &'a CliConfig) -> App<'a> {
-  let mut app = App::new(name)
-    .author(crate_authors!())
-    .version(crate_version!());
+fn get_app<'a>(
+  package_info: &'a PackageInfo,
+  command_name: &'a str,
+  about: Option<&'a String>,
+  config: &'a CliConfig,
+) -> App<'a> {
+  let mut app = App::new(command_name)
+    .author(package_info.authors)
+    .version(&*package_info.version);
 
   if let Some(about) = about {
     app = app.about(&**about);
@@ -169,7 +205,12 @@ fn get_app<'a>(name: &str, about: Option<&'a String>, config: &'a CliConfig) -> 
 
   if let Some(subcommands) = config.subcommands() {
     for (subcommand_name, subcommand) in subcommands {
-      let clap_subcommand = get_app(subcommand_name, subcommand.description(), subcommand);
+      let clap_subcommand = get_app(
+        package_info,
+        subcommand_name,
+        subcommand.description(),
+        subcommand,
+      );
       app = app.subcommand(clap_subcommand);
     }
   }
@@ -187,8 +228,8 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
     }
   }
 
-  clap_arg = bind_string_arg!(arg, clap_arg, description, about);
-  clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_about);
+  clap_arg = bind_string_arg!(arg, clap_arg, description, help);
+  clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_help);
   clap_arg = bind_value_arg!(arg, clap_arg, takes_value);
   if let Some(value) = arg.multiple {
     clap_arg = clap_arg.multiple_values(value);

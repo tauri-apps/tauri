@@ -10,7 +10,7 @@
  * ```typescript
  * import { app, dialog, event, fs, globalShortcut } from '@tauri-apps/api'
  * ```
- * @packageDocumentation
+ * @module
  */
 
 export * from './bundle'

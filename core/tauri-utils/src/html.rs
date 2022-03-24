@@ -4,90 +4,76 @@
 
 //! The module to process HTML in Tauri.
 
-use html5ever::{interface::QualName, namespace_url, ns, LocalName};
-use kuchiki::{Attribute, ExpandedName, NodeRef};
+use std::path::{Path, PathBuf};
 
-/// Injects the invoke key token to each script on the document.
-///
-/// The invoke key token is replaced at runtime with the actual invoke key value.
-pub fn inject_invoke_key_token(document: &mut NodeRef) {
-  let mut targets = vec![];
-  if let Ok(scripts) = document.select("script") {
+use html5ever::{interface::QualName, namespace_url, ns, tendril::TendrilSink, LocalName};
+pub use kuchiki::NodeRef;
+use kuchiki::{Attribute, ExpandedName};
+use serde::Serialize;
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+use serialize_to_javascript::DefaultTemplate;
+
+use crate::config::PatternKind;
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+use crate::pattern::isolation::IsolationJavascriptCodegen;
+
+/// The token used on the CSP tag content.
+pub const CSP_TOKEN: &str = "__TAURI_CSP__";
+/// The token used for script nonces.
+pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
+/// The token used for style nonces.
+pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
+
+/// Parses the given HTML string.
+pub fn parse(html: String) -> NodeRef {
+  kuchiki::parse_html().one(html)
+}
+
+fn with_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
+  if let Ok(ref node) = document.select_first("head") {
+    f(node.as_node())
+  } else {
+    let node = NodeRef::new_element(
+      QualName::new(None, ns!(html), LocalName::from("head")),
+      None,
+    );
+    f(&node);
+    document.prepend(node)
+  }
+}
+
+fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
+  if let Ok(scripts) = document.select(selector) {
     for target in scripts {
-      targets.push(target);
-    }
-    for target in targets {
       let node = target.as_node();
       let element = node.as_element().unwrap();
 
-      let attrs = element.attributes.borrow();
-      // if the script is external (has `src`), we won't inject the token
-      if attrs.get("src").is_some() {
+      let mut attrs = element.attributes.borrow_mut();
+      // if the node already has the `nonce` attribute, skip it
+      if attrs.get("nonce").is_some() {
         continue;
       }
-
-      let replacement_node = match attrs.get("type") {
-        Some("module") | Some("application/ecmascript") => {
-          let replacement_node = NodeRef::new_element(
-            QualName::new(None, ns!(html), "script".into()),
-            element
-              .attributes
-              .borrow()
-              .clone()
-              .map
-              .into_iter()
-              .collect::<Vec<_>>(),
-          );
-          let script = node.text_contents();
-          replacement_node.append(NodeRef::new_text(format!(
-            r#"
-          const __TAURI_INVOKE_KEY__ = __TAURI__INVOKE_KEY_TOKEN__;
-          {}
-        "#,
-            script
-          )));
-          replacement_node
-        }
-        Some("application/javascript") | None => {
-          let replacement_node = NodeRef::new_element(
-            QualName::new(None, ns!(html), "script".into()),
-            element
-              .attributes
-              .borrow()
-              .clone()
-              .map
-              .into_iter()
-              .collect::<Vec<_>>(),
-          );
-          let script = node.text_contents();
-          replacement_node.append(NodeRef::new_text(
-            script.replace("__TAURI_INVOKE_KEY__", "__TAURI__INVOKE_KEY_TOKEN__"),
-          ));
-          replacement_node
-        }
-        _ => {
-          continue;
-        }
-      };
-
-      node.insert_after(replacement_node);
-      node.detach();
+      attrs.insert("nonce", token.into());
     }
   }
 }
 
+/// Inject nonce tokens to all scripts and styles.
+pub fn inject_nonce_token(document: &mut NodeRef) {
+  inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
+  inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+}
+
 /// Injects a content security policy to the HTML.
 pub fn inject_csp(document: &mut NodeRef, csp: &str) {
-  if let Ok(ref head) = document.select_first("head") {
-    head.as_node().append(create_csp_meta_tag(csp));
-  } else {
-    let head = NodeRef::new_element(
-      QualName::new(None, ns!(html), LocalName::from("head")),
-      None,
-    );
+  with_head(document, |head| {
     head.append(create_csp_meta_tag(csp));
-    document.prepend(head);
-  }
+  });
+}
+
+/// Injects a content security policy token to the HTML.
+pub fn inject_csp_token(document: &mut NodeRef) {
+  inject_csp(document, CSP_TOKEN)
 }
 
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
@@ -112,9 +98,102 @@ fn create_csp_meta_tag(csp: &str) -> NodeRef {
   )
 }
 
+/// The shape of the JavaScript Pattern config
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase", tag = "pattern")]
+pub enum PatternObject {
+  /// Brownfield pattern.
+  Brownfield,
+  /// Isolation pattern. Recommended for security purposes.
+  Isolation {
+    /// Which `IsolationSide` this `PatternObject` is getting injected into
+    side: IsolationSide,
+  },
+}
+
+impl From<&PatternKind> for PatternObject {
+  fn from(pattern_kind: &PatternKind) -> Self {
+    match pattern_kind {
+      PatternKind::Brownfield => Self::Brownfield,
+      #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+      PatternKind::Isolation { .. } => Self::Isolation {
+        side: IsolationSide::default(),
+      },
+    }
+  }
+}
+
+/// Where the JavaScript is injected to
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum IsolationSide {
+  /// Original frame, the Brownfield application
+  Original,
+  /// Secure frame, the isolation security application
+  Secure,
+}
+
+impl Default for IsolationSide {
+  fn default() -> Self {
+    Self::Original
+  }
+}
+
+/// Injects the Isolation JavaScript to a codegen time document.
+///
+/// Note: This function is not considered part of the stable API.
+#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
+  with_head(document, |head| {
+    let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+    script.append(NodeRef::new_text(
+      IsolationJavascriptCodegen {}
+        .render_default(&Default::default())
+        .expect("unable to render codegen isolation script template")
+        .into_string(),
+    ));
+
+    head.prepend(script);
+  });
+}
+
+/// Temporary workaround for Windows not allowing requests
+///
+/// Note: this does not prevent path traversal due to the isolation application expectation that it
+/// is secure.
+pub fn inline_isolation(document: &mut NodeRef, dir: &Path) {
+  for script in document
+    .select("script[src]")
+    .expect("unable to parse document for scripts")
+  {
+    let src = {
+      let attributes = script.attributes.borrow();
+      attributes
+        .get(LocalName::from("src"))
+        .expect("script with src attribute has no src value")
+        .to_string()
+    };
+
+    let mut path = PathBuf::from(src);
+    if path.has_root() {
+      path = path
+        .strip_prefix("/")
+        .expect("Tauri \"Isolation\" Pattern only supports relative or absolute (`/`) paths.")
+        .into();
+    }
+
+    let file = std::fs::read_to_string(dir.join(path)).expect("unable to find isolation file");
+    script.as_node().append(NodeRef::new_text(file));
+
+    let mut attributes = script.attributes.borrow_mut();
+    attributes.remove(LocalName::from("src"));
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use kuchiki::traits::*;
+
   #[test]
   fn csp() {
     let htmls = vec![
@@ -123,13 +202,12 @@ mod tests {
     ];
     for html in htmls {
       let mut document = kuchiki::parse_html().one(html);
-      let csp = "default-src 'self'; img-src https://*; child-src 'none';";
-      super::inject_csp(&mut document, csp);
+      super::inject_csp_token(&mut document);
       assert_eq!(
         document.to_string(),
         format!(
           r#"<html><head><meta content="{}" http-equiv="Content-Security-Policy"></head><body></body></html>"#,
-          csp
+          super::CSP_TOKEN
         )
       );
     }

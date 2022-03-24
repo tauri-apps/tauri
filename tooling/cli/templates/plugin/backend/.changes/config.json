@@ -1,0 +1,41 @@
+{
+  "gitSiteUrl": "https://www.github.com/your-org/tauri-plugin-{{ plugin_name }}/",
+  "pkgManagers": {
+    "rust": {
+      "version": true,
+      "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
+      "publish": [
+        {
+          "command": "cargo package --allow-dirty",
+          "dryRunCommand": true
+        },
+        {
+          "command": "echo \"# Cargo Publish\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo publish",
+          "dryRunCommand": "cargo publish --dry-run --allow-dirty",
+          "pipe": true
+        },
+        {
+          "command": "echo \"\\`\\`\\`\"",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ]
+    }
+  },
+  "packages": {
+    "tauri-plugin-{{ plugin_name }}": {
+      "path": ".",
+      "manager": "rust"
+    }
+  }
+}

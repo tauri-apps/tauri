@@ -1,5 +1,45 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Parse window icons at compile time.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+
+## \[1.0.0-rc.2]
+
+- Changed the default value for `tauri > bundle > macOS > minimumSystemVersion` to `10.13`.
+  - Bumped due to a bump in tauri-utils.
+  - [fce344b9](https://www.github.com/tauri-apps/tauri/commit/fce344b90b7227f8f5514853c2f885fb24d3648e) feat(core): set default value for `minimum_system_version` to 10.13 ([#3497](https://www.github.com/tauri-apps/tauri/pull/3497)) on 2022-02-17
+
+## \[1.0.0-rc.1]
+
+- Change default value for the `freezePrototype` configuration to `false`.
+  - Bumped due to a bump in tauri-utils.
+  - [3a4c0160](https://www.github.com/tauri-apps/tauri/commit/3a4c01606184be762adee055ddac803de0d28527) fix(core): change default `freezePrototype` to false, closes [#3416](https://www.github.com/tauri-apps/tauri/pull/3416) [#3406](https://www.github.com/tauri-apps/tauri/pull/3406) ([#3423](https://www.github.com/tauri-apps/tauri/pull/3423)) on 2022-02-12
+
+## \[1.0.0-rc.0]
+
+- Apply `nonce` to `script` and `style` tags and set them on the `CSP` (`script-src` and `style-src` fetch directives).
+  - [cf54dcf9](https://www.github.com/tauri-apps/tauri/commit/cf54dcf9c81730e42c9171daa9c8aa474c95b522) feat: improve `CSP` security with nonces and hashes, add `devCsp` \[TRI-004] ([#8](https://www.github.com/tauri-apps/tauri/pull/8)) on 2022-01-09
+- Added the `isolation` pattern.
+  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.studio> on 2022-01-17
+- Adds support for using JSON5 format for the `tauri.conf.json` file, along with also supporting the `.json5` extension.
+
+Here is the logic flow that determines if JSON or JSON5 will be used to parse the config:
+
+1. Check if `tauri.conf.json` exists
+   a. Parse it with `serde_json`
+   b. Parse it with `json5` if `serde_json` fails
+   c. Return original `serde_json` error if all above steps failed
+2. Check if `tauri.conf.json5` exists
+   a. Parse it with `json5`
+   b. Return error if all above steps failed
+3. Return error if all above steps failed
+
+- [995de57a](https://www.github.com/tauri-apps/tauri/commit/995de57a76cf51215277673e526d7ec32b86b564) Add seamless support for using JSON5 in the config file ([#47](https://www.github.com/tauri-apps/tauri/pull/47)) on 2022-02-03
+- The minimum Rust version is now `1.56`.
+  - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
+
 ## \[1.0.0-beta.4]
 
 - Embed Info.plist file contents on binary on dev.

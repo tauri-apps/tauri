@@ -90,32 +90,35 @@
   let selected = views[0];
 
   let responses = writable([]);
-  let response = ''
 
   function select(view) {
     selected = view;
   }
 
   function onMessage(value) {
-    responses.update(r => [`[${new Date().toLocaleTimeString()}]` + ': ' + (typeof value === "string" ? value : JSON.stringify(value)), ...r])
+    responses.update(r => [{ text: `[${new Date().toLocaleTimeString()}]` + ': ' + (typeof value === "string" ? value : JSON.stringify(value)) }, ...r])
+  }
+
+  // this function is renders HTML without sanitizing it so it's insecure
+  // we only use it with our own input data
+  function insecureRenderHtml(html) {
+    responses.update(r => [{ html }, ...r])
+  }
+
+  function clear() {
+    responses.update(() => []);
   }
 
   function onLogoClick() {
     open("https://tauri.studio/");
   }
-
-  onMount(() => {
-    responses.subscribe(r => {
-      response = r.join('\n')
-    })
-  })
 </script>
 
 <main>
-  <div class="flex row noselect just-around" style="margin=1em;" data-tauri-drag-region>
+  <div class="flex row noselect just-around container" data-tauri-drag-region>
     <img class="logo" src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
-      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/getting-started/intro">
+      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/get-started/intro">
         Documentation
       </a>
       <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">
@@ -127,7 +130,7 @@
     </div>
   </div>
   <div class="flex row">
-    <div style="width:15em; margin-left:0.5em">
+    <div class="view-container">
       {#each views as view}
       <p class="nv noselect {selected === view ? 'nv_selected' : ''}" on:click={()=> select(view)}
         >
@@ -136,16 +139,35 @@
       {/each}
     </div>
     <div class="content">
-      <svelte:component this={selected.component} {onMessage} />
+      <svelte:component this={selected.component} {onMessage} {insecureRenderHtml} />
     </div>
   </div>
-  <div id="response" style="white-space: pre-line">
+  <div id="response">
     <p class="flex row just-around">
       <strong>Tauri Console</strong>
-      <a class="nv" on:click={()=> {
-        responses.update(() => []);
-        }}>clear</a>
+      <span class="nv" on:click={clear}>clear</span>
     </p>
-    {@html response}
+    {#each $responses as r}
+      {#if r.text}
+      <p>{r.text}</p>
+      {:else}
+      {@html r.html}
+      {/if}
+    {/each}
   </div>
 </main>
+
+<style>
+  .container {
+    margin: 1em;
+  }
+
+  .view-container {
+    width:15em;
+    margin-left:0.5em;
+  }
+
+  #response {
+    white-space: pre-line;
+  }
+</style>

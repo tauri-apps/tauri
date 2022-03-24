@@ -9,6 +9,6 @@ fn main() {
     Attributes::new()
       .windows_attributes(WindowsAttributes::new().window_icon_path("../../.icons/icon.ico")),
   ) {
-    panic!("error found during tauri-build: {}", error);
+    panic!("error found during tauri-build: {:#?}", error);
   }
 }

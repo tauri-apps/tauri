@@ -1,0 +1,25 @@
+{
+  "name": "tauri-plugin-{{ plugin_name }}-api",
+  "version": "0.0.0",
+  "author": "{{ author }}",
+  "description": "",
+  "browser": "webview-dist/index.js",
+  "main": "webview-dist/index.js",
+  "types": "webview-dist/index.d.ts",
+  "scripts": {
+    "build": "rollup -c ./webview-src/rollup.config.js",
+    "prepublishOnly": "yarn build",
+    "pretest": "yarn build"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "13.1.3",
+    "@rollup/plugin-typescript": "8.3.1",
+    "rollup": "2.70.1",
+    "rollup-plugin-terser": "7.0.2",
+    "typescript": "4.6.2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "1.0.0-rc.2",
+    "tslib": "^2.1.0"
+  }
+}

@@ -14,7 +14,30 @@
  *     "allowlist": {
  *       "window": {
  *         "all": true, // enable all window APIs
- *         "create": true // enable window creation
+ *         "create": true, // enable window creation
+ *         "center": true,
+ *         "requestUserAttention": true,
+ *         "setResizable": true,
+ *         "setTitle": true,
+ *         "maximize": true,
+ *         "unmaximize": true,
+ *         "minimize": true,
+ *         "unminimize": true,
+ *         "show": true,
+ *         "hide": true,
+ *         "close": true,
+ *         "setDecorations": true,
+ *         "setAlwaysOnTop": true,
+ *         "setSize": true,
+ *         "setMinSize": true,
+ *         "setMaxSize": true,
+ *         "setPosition": true,
+ *         "setFullscreen": true,
+ *         "setFocus": true,
+ *         "setIcon": true,
+ *         "setSkipTaskbar": true,
+ *         "startDragging": true,
+ *         "print": true
  *       }
  *     }
  *   }
@@ -50,9 +73,7 @@
  *
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
- *
- * #### 'tauri://destroyed'
- * Emitted after the window is closed.
+ * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.
@@ -85,8 +106,8 @@
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
-import { EventName, EventCallback, UnlistenFn, listen, once } from './event'
-import { emit } from './helpers/event'
+import type { EventName, EventCallback, UnlistenFn } from './event'
+import { emit, listen, once } from './helpers/event'
 
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
@@ -166,7 +187,7 @@ interface WindowDef {
 /** @ignore */
 declare global {
   interface Window {
-    __TAURI__: {
+    __TAURI_METADATA__: {
       __windows: WindowDef[]
       __currentWindow: WindowDef
     }
@@ -195,7 +216,7 @@ enum UserAttentionType {
  * @return The current WebviewWindow.
  */
 function getCurrent(): WebviewWindow {
-  return new WebviewWindow(window.__TAURI__.__currentWindow.label, {
+  return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
     // @ts-expect-error
     skip: true
   })
@@ -207,7 +228,7 @@ function getCurrent(): WebviewWindow {
  * @return The list of WebviewWindow.
  */
 function getAll(): WebviewWindow[] {
-  return window.__TAURI__.__windows.map(
+  return window.__TAURI_METADATA__.__windows.map(
     (w) =>
       new WebviewWindow(w.label, {
         // @ts-expect-error
@@ -225,17 +246,13 @@ export type WindowLabel = string
  * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
  */
 class WebviewWindowHandle {
-  /** Window label. */
+  /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel | null | undefined) {
-    try {
-      this.label = label ?? window.__TAURI__.__currentWindow.label
-    } catch {
-      this.label = ''
-    }
+  constructor(label: WindowLabel) {
+    this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
   }
@@ -243,7 +260,7 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -258,13 +275,13 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return listen(event, handler)
+    return listen(event, this.label, handler)
   }
 
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
    */
@@ -276,20 +293,20 @@ class WebviewWindowHandle {
         listeners.splice(listeners.indexOf(handler), 1)
       })
     }
-    return once(event, handler)
+    return once(event, this.label, handler)
   }
 
   /**
    * Emits an event to the backend, tied to the webview window.
    *
-   * @param event Event name.
+   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: string): Promise<void> {
+  async emit(event: string, payload?: unknown): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
-        handler({ event, id: -1, payload })
+        handler({ event, id: -1, windowLabel: this.label, payload })
       }
       return Promise.resolve()
     }
@@ -516,6 +533,7 @@ class WindowManager extends WebviewWindowHandle {
    * #### Platform-specific
    *
    * - **macOS:** `null` has no effect.
+   * - **Linux:** Urgency levels have the same effect.
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -1004,10 +1022,17 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * Sets the window icon.
    *
+   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * ```
+   *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | number[]): Promise<void> {
+  async setIcon(icon: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -1017,7 +1042,8 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setIcon',
             payload: {
-              icon
+              // correctly serialize Uint8Arrays
+              icon: typeof icon === 'string' ? icon : Array.from(icon)
             }
           }
         }
@@ -1070,6 +1096,10 @@ class WindowManager extends WebviewWindowHandle {
 
 /**
  * Create new webview windows and get a handle to existing ones.
+ *
+ * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
+ * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
+ *
  * @example
  * ```typescript
  * // loading embedded asset:
@@ -1096,10 +1126,12 @@ class WindowManager extends WebviewWindowHandle {
  * ```
  */
 class WebviewWindow extends WindowManager {
-  constructor(
-    label: WindowLabel | null | undefined,
-    options: WindowOptions = {}
-  ) {
+  /**
+   * Creates a new WebviewWindow.
+   * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @returns The WebviewWindow instance to communicate with the webview.
+   */
+  constructor(label: WindowLabel, options: WindowOptions = {}) {
     super(label)
     // @ts-expect-error
     if (!options?.skip) {
@@ -1136,15 +1168,33 @@ class WebviewWindow extends WindowManager {
 }
 
 /** The WebviewWindow for the current window. */
-const appWindow = new WebviewWindow(null, {
-  // @ts-expect-error
-  skip: true
-})
+let appWindow
+if ('__TAURI_METADATA__' in window) {
+  appWindow = new WebviewWindow(
+    window.__TAURI_METADATA__.__currentWindow.label,
+    {
+      // @ts-expect-error
+      skip: true
+    }
+  )
+} else {
+  console.warn(
+    `Could not find "window.__TAURI_METADATA__". The "appWindow" value will reference the "main" window label.\nNote that this is not an issue if running this frontend on a browser instead of a Tauri window.`
+  )
+  appWindow = new WebviewWindow('main', {
+    // @ts-expect-error
+    skip: true
+  })
+}
 
 /** Configuration for the window to create. */
 interface WindowOptions {
   /**
-   * Remote URL or local file path to open, e.g. `https://github.com/tauri-apps` or `path/to/page.html`.
+   * Remote URL or local file path to open.
+   *
+   * - URL such as `https://github.com/tauri-apps` is opened directly on a Tauri window.
+   * - data: URL such as `data:text/html,<html>...` is only supported with the `window-data-url` Cargo feature for the `tauri` dependency.
+   * - local file path or route such as `/path/to/page.html` or `/users` is appended to the application URL (the devServer URL on development, or `tauri://localhost/` and `https://tauri.localhost/` on production).
    */
   url?: string
   /** Show window in the center of the screen.. */
@@ -1173,7 +1223,11 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially hidden or focused. */
   focus?: boolean
-  /** Whether the window is transparent or not. */
+  /**
+   * Whether the window is transparent or not.
+   * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */
   maximized?: boolean
@@ -1185,6 +1239,12 @@ interface WindowOptions {
   alwaysOnTop?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
+  /**
+   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   *
+   * Disabling it is required to use drag and drop on the frontend on Windows.
+   */
+  fileDropEnabled?: boolean
 }
 
 /**

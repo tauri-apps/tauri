@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::process::exit;
-
-use super::InvokeResponse;
-use crate::api::process::restart;
+use super::InvokeContext;
+#[cfg(process_relaunch)]
+use crate::Manager;
+use crate::Runtime;
 use serde::Deserialize;
+use tauri_macros::{module_command_handler, CommandModule};
 
 /// The API descriptor.
-#[derive(Deserialize)]
+#[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Relaunch application
@@ -20,18 +21,28 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  pub fn run(self) -> crate::Result<InvokeResponse> {
-    match self {
-      Self::Relaunch => Ok({
-        restart();
-        ().into()
-      }),
-      Self::Exit { exit_code } => {
-        // would be great if we can have a handler inside tauri
-        // who close all window and emit an event that user can catch
-        // if they want to process something before closing the app
-        exit(exit_code);
-      }
-    }
+  #[module_command_handler(process_relaunch, "process > relaunch")]
+  fn relaunch<R: Runtime>(context: InvokeContext<R>) -> super::Result<()> {
+    context.window.app_handle().restart();
+    Ok(())
   }
+
+  #[module_command_handler(process_exit, "process > exit")]
+  fn exit<R: Runtime>(_context: InvokeContext<R>, exit_code: i32) -> super::Result<()> {
+    // would be great if we can have a handler inside tauri
+    // who close all window and emit an event that user can catch
+    // if they want to process something before closing the app
+    std::process::exit(exit_code);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch")]
+  #[quickcheck_macros::quickcheck]
+  fn relaunch() {}
+
+  #[tauri_macros::module_command_test(process_exit, "process > exit")]
+  #[quickcheck_macros::quickcheck]
+  fn exit(_exit_code: i32) {}
 }

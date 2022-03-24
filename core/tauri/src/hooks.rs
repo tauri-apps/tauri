@@ -3,26 +3,45 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  api::rpc::{format_callback, format_callback_result},
+  api::ipc::{format_callback, format_callback_result, CallbackFn},
   app::App,
-  runtime::Runtime,
-  StateManager, Window,
+  Runtime, StateManager, Window,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use serialize_to_javascript::{default_template, Template};
 use std::{future::Future, sync::Arc};
 
 use tauri_macros::default_runtime;
 
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
-  Box<dyn Fn(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send>;
+  Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
 /// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
 
+/// A closure that is responsible for respond a JS message.
+pub type InvokeResponder<R> =
+  dyn Fn(Window<R>, InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static;
+
 /// A closure that is run once every time a window is created and loaded.
 pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'static;
+
+// todo: why is this derive broken but the output works manually?
+#[derive(Template)]
+#[default_template("../scripts/ipc.js")]
+pub(crate) struct IpcJavascript<'a> {
+  pub(crate) isolation_origin: &'a str,
+}
+
+#[cfg(feature = "isolation")]
+#[derive(Template)]
+#[default_template("../scripts/isolation.js")]
+pub(crate) struct IsolationJavascript<'a> {
+  pub(crate) isolation_src: &'a str,
+  pub(crate) style: &'a str,
+}
 
 /// The payload for the [`OnPageLoad`] hook.
 #[derive(Debug, Clone, Deserialize)]
@@ -35,6 +54,23 @@ impl PageLoadPayload {
   pub fn url(&self) -> &str {
     &self.url
   }
+}
+
+/// The payload used on the IPC invoke.
+#[derive(Debug, Deserialize)]
+pub struct InvokePayload {
+  /// The invoke command.
+  pub cmd: String,
+  #[serde(rename = "__tauriModule")]
+  #[doc(hidden)]
+  pub tauri_module: Option<String>,
+  /// The success callback.
+  pub callback: CallbackFn,
+  /// The error callback.
+  pub error: CallbackFn,
+  /// The payload of the message.
+  #[serde(flatten)]
+  pub inner: JsonValue,
 }
 
 /// The message and resolver given to a custom command.
@@ -57,6 +93,12 @@ impl InvokeError {
   #[inline(always)]
   pub fn from_serde_json(error: serde_json::Error) -> Self {
     Self(JsonValue::String(error.to_string()))
+  }
+
+  /// Create an [`InvokeError`] as a string of the [`anyhow::Error`] message.
+  #[inline(always)]
+  pub fn from_anyhow(error: anyhow::Error) -> Self {
+    Self(JsonValue::String(format!("{:#}", error)))
   }
 }
 
@@ -120,12 +162,12 @@ impl From<InvokeError> for InvokeResponse {
 #[derive(Debug)]
 pub struct InvokeResolver<R: Runtime> {
   window: Window<R>,
-  pub(crate) callback: String,
-  pub(crate) error: String,
+  pub(crate) callback: CallbackFn,
+  pub(crate) error: CallbackFn,
 }
 
 impl<R: Runtime> InvokeResolver<R> {
-  pub(crate) fn new(window: Window<R>, callback: String, error: String) -> Self {
+  pub(crate) fn new(window: Window<R>, callback: CallbackFn, error: CallbackFn) -> Self {
     Self {
       window,
       callback,
@@ -150,22 +192,13 @@ impl<R: Runtime> InvokeResolver<R> {
     F: Future<Output = Result<JsonValue, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
-      Self::return_result(self.window, task.await.into(), self.callback, self.error);
+      Self::return_result(self.window, task.await.into(), self.callback, self.error)
     });
   }
 
   /// Reply to the invoke promise with a serializable value.
   pub fn respond<T: Serialize>(self, value: Result<T, InvokeError>) {
     Self::return_result(self.window, value.into(), self.callback, self.error)
-  }
-
-  /// Reply to the invoke promise running the given closure.
-  pub fn respond_closure<T, F>(self, f: F)
-  where
-    T: Serialize,
-    F: FnOnce() -> Result<T, InvokeError>,
-  {
-    Self::return_closure(self.window, f, self.callback, self.error)
   }
 
   /// Resolve the invoke promise with a value.
@@ -196,8 +229,8 @@ impl<R: Runtime> InvokeResolver<R> {
   pub async fn return_task<T, F>(
     window: Window<R>,
     task: F,
-    success_callback: String,
-    error_callback: String,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
   ) where
     T: Serialize,
     F: Future<Output = Result<T, InvokeError>> + Send + 'static,
@@ -209,8 +242,8 @@ impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn return_closure<T: Serialize, F: FnOnce() -> Result<T, InvokeError>>(
     window: Window<R>,
     f: F,
-    success_callback: String,
-    error_callback: String,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
   ) {
     Self::return_result(window, f().into(), success_callback, error_callback)
   }
@@ -218,21 +251,27 @@ impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn return_result(
     window: Window<R>,
     response: InvokeResponse,
-    success_callback: String,
-    error_callback: String,
+    success_callback: CallbackFn,
+    error_callback: CallbackFn,
   ) {
-    let callback_string = match format_callback_result(
-      response.into_result(),
-      success_callback,
-      error_callback.clone(),
-    ) {
+    (window.invoke_responder())(window, response, success_callback, error_callback);
+  }
+}
+
+pub fn window_invoke_responder<R: Runtime>(
+  window: Window<R>,
+  response: InvokeResponse,
+  success_callback: CallbackFn,
+  error_callback: CallbackFn,
+) {
+  let callback_string =
+    match format_callback_result(response.into_result(), success_callback, error_callback) {
       Ok(callback_string) => callback_string,
       Err(e) => format_callback(error_callback, &e.to_string())
-        .expect("unable to serialize shortcut string to json"),
+        .expect("unable to serialize response string to json"),
     };
 
-    let _ = window.eval(&callback_string);
-  }
+  let _ = window.eval(&callback_string);
 }
 
 /// An invoke message.
@@ -243,7 +282,7 @@ pub struct InvokeMessage<R: Runtime> {
   pub(crate) window: Window<R>,
   /// Application managed state.
   pub(crate) state: Arc<StateManager>,
-  /// The RPC command.
+  /// The IPC command.
   pub(crate) command: String,
   /// The JSON argument passed on the invoke message.
   pub(crate) payload: JsonValue,

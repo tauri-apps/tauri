@@ -26,8 +26,8 @@ use super::super::common;
 use crate::Settings;
 
 use anyhow::Context;
-use heck::KebabCase;
-use image::{self, png::PngDecoder, GenericImageView, ImageDecoder};
+use heck::ToKebabCase;
+use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
 use std::process::{Command, Stdio};
 use walkdir::WalkDir;
@@ -250,28 +250,22 @@ fn generate_control_file(
   let dest_path = control_dir.join("control");
   let mut file = common::create_file(&dest_path)?;
   writeln!(
-    &mut file,
+    file,
     "Package: {}",
     settings.product_name().to_kebab_case().to_ascii_lowercase()
   )?;
-  writeln!(&mut file, "Version: {}", settings.version_string())?;
-  writeln!(&mut file, "Architecture: {}", arch)?;
+  writeln!(file, "Version: {}", settings.version_string())?;
+  writeln!(file, "Architecture: {}", arch)?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
-  writeln!(
-    &mut file,
-    "Installed-Size: {}",
-    total_dir_size(data_dir)? / 1024
-  )?;
-  let authors = settings
-    .authors_comma_separated()
-    .unwrap_or_else(String::new);
-  writeln!(&mut file, "Maintainer: {}", authors)?;
+  writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
+  let authors = settings.authors_comma_separated().unwrap_or_default();
+  writeln!(file, "Maintainer: {}", authors)?;
   if !settings.homepage_url().is_empty() {
-    writeln!(&mut file, "Homepage: {}", settings.homepage_url())?;
+    writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
-    writeln!(&mut file, "Depends: {}", dependencies.join(", "))?;
+    writeln!(file, "Depends: {}", dependencies.join(", "))?;
   }
   let mut short_description = settings.short_description().trim();
   if short_description.is_empty() {
@@ -281,13 +275,13 @@ fn generate_control_file(
   if long_description.is_empty() {
     long_description = "(none)";
   }
-  writeln!(&mut file, "Description: {}", short_description)?;
+  writeln!(file, "Description: {}", short_description)?;
   for line in long_description.lines() {
     let line = line.trim();
     if line.is_empty() {
-      writeln!(&mut file, " .")?;
+      writeln!(file, " .")?;
     } else {
-      writeln!(&mut file, " {}", line)?;
+      writeln!(file, " {}", line)?;
     }
   }
   file.flush()?;

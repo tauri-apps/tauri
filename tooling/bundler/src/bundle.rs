@@ -22,13 +22,14 @@ pub use self::{
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
-pub use settings::{WindowsSettings, WixSettings};
+pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use common::{print_finished, print_info};
 
 use std::path::PathBuf;
 
 /// Generated bundle metadata.
+#[derive(Debug)]
 pub struct Bundle {
   /// The package type.
   pub package_type: PackageType,

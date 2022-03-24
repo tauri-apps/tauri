@@ -1,31 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-    <video
-      id="video_source"
-      style="width: 100vw; height: 100vh"
-      controls=""
-      autoplay=""
-      name="media"
-    >
-      <source src="stream://example/test_video.mp4" type="video/mp4" />
-    </video>
-    <script>
-      (function () {
-        if (navigator.userAgent.includes("Windows")) {
-          const video = document.getElementById("video_source");
-          const sources = video.getElementsByTagName("source");
-          // on windows the custom protocl should be the host
-          // followed by the complete path
-          sources[0].src = "https://stream.example/test_video.mp4";
-          video.load();
-        }
-      })();
-    </script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    video {
+      width: 100vw;
+      height: 100vh;
+    }
+  </style>
+</head>
+
+<body>
+  <video id="video_source" controls="" autoplay="" name="media">
+    <source type="video/mp4" />
+  </video>
+  <script>
+    const { convertFileSrc } = window.__TAURI__.tauri
+    const video = document.getElementById('video_source')
+    const source = document.createElement('source')
+    source.type = 'video/mp4'
+    source.src = convertFileSrc('example/test_video.mp4', 'stream')
+    video.appendChild(source)
+    video.load()
+  </script>
+</body>
+
 </html>

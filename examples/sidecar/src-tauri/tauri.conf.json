@@ -30,7 +30,6 @@
       },
       "macOS": {
         "frameworks": [],
-        "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
       }
@@ -38,7 +37,13 @@
     "allowlist": {
       "all": false,
       "shell": {
-        "execute": true
+        "sidecar": true,
+        "scope": [
+          {
+            "name": "binaries/app",
+            "sidecar": true
+          }
+        ]
       }
     },
     "windows": [
@@ -51,7 +56,7 @@
       }
     ],
     "security": {
-      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self'"
+      "csp": "default-src 'self'"
     },
     "updater": {
       "active": false

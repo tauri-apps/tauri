@@ -30,7 +30,6 @@
       },
       "macOS": {
         "frameworks": [],
-        "minimumSystemVersion": "",
         "useBootstrapper": false,
         "exceptionDomain": ""
       }
@@ -38,7 +37,7 @@
     "allowlist": {
       "all": false,
       "fs": {
-        "readBinaryFile": true
+        "readFile": true
       }
     },
     "windows": [

@@ -13,8 +13,11 @@ on:
     paths:
       - '.github/workflows/test-bundler.yml'
       - 'tooling/bundler/**'
+
 env:
   RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
+  CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
 jobs:
   build-tauri-bundler:
@@ -32,11 +35,80 @@ jobs:
         with:
           toolchain: stable
 
-      - name: install webkit2gtk (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
+
+      - name: Get current date
+        if: matrix.platform == 'windows-latest'
+        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache cargo state
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo-state
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          restore-keys: |
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
+
+      - name: Cache bundler cargo target
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo-bundler
+        with:
+          path: tooling/bundler/target
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/bundler/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
+
+      - name: test
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+          cd ./tooling/bundler
+          cargo test
+
+  fmt_check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path ./tooling/bundler/Cargo.toml --all -- --check
+
+  clippy-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install minimal stable with clippy and rustfmt
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
 
       - name: Get current date
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
@@ -46,71 +118,40 @@ jobs:
         if: matrix.platform == 'windows-latest'
         run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Cache cargo registry
-        uses: actions/cache@v2.1.4
+      - name: Cache cargo state
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo-state
         with:
-          path: ~/.cargo/registry
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-cargo-registry-
-
-      - name: Cache cargo index
-        uses: actions/cache@v2.1.4
-        with:
-          path: ~/.cargo/git
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-cargo-index-
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
 
       - name: Cache bundler cargo target
         uses: actions/cache@v2
+        env:
+          cache-name: cargo-bundler
         with:
           path: tooling/bundler/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/bundler/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-cargo-bundler-${{ hashFiles('tooling/bundler/Cargo.lock') }}
-            ${{ matrix.platform }}-stable-cargo-bundler-
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/bundler/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
 
-      - name: test
-        run: |
-          cd ./tooling/bundler
-          cargo test
-
-  clippy-fmt-check:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: install minimal nightly with clippy and rustfmt
-        uses: actions-rs/toolchain@v1
-        with:
-            profile: minimal
-            toolchain: nightly
-            override: true
-            components: rustfmt, clippy
-
-      - name: install webkit2gtk (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
       - name: clippy check
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets -- -D warnings
           name: bundler
-
-      - name: fmt check
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path ./tooling/bundler/Cargo.toml --all -- --check

@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for SafePathBuf {
     D: Deserializer<'de>,
   {
     let path = std::path::PathBuf::deserialize(deserializer)?;
-    SafePathBuf::new(path).map_err(|e| DeError::custom(e))
+    SafePathBuf::new(path).map_err(DeError::custom)
   }
 }
 

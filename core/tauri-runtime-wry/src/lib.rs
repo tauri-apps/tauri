@@ -2429,10 +2429,24 @@ fn handle_event_loop<T: UserEvent>(
             callback,
             window_id,
             windows.clone(),
-            control_flow,
             window_event_listeners,
             menu_event_listeners.clone(),
           );
+        }
+        WryWindowEvent::Destroyed => {
+          let is_empty = windows.lock().unwrap().is_empty();
+          if is_empty {
+            let (tx, rx) = channel();
+            callback(RunEvent::ExitRequested { tx });
+
+            let recv = rx.try_recv();
+            let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+            if !should_prevent {
+              *control_flow = ControlFlow::Exit;
+              callback(RunEvent::Exit);
+            }
+          }
         }
         WryWindowEvent::Resized(_) => {
           if let Some(WindowHandle::Webview(webview)) = windows
@@ -2456,9 +2470,6 @@ fn handle_event_loop<T: UserEvent>(
           callback,
           id,
           windows.lock().expect("poisoned webview collection"),
-          control_flow,
-          #[cfg(target_os = "linux")]
-          window_event_listeners,
           menu_event_listeners.clone(),
         );
       }
@@ -2493,7 +2504,6 @@ fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
   windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  control_flow: &mut ControlFlow,
   window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
 ) -> Option<WindowWrapper> {
@@ -2527,9 +2537,6 @@ fn on_close_requested<'a, T: UserEvent>(
         callback,
         window_id,
         windows.lock().expect("poisoned webview collection"),
-        control_flow,
-        #[cfg(target_os = "linux")]
-        window_event_listeners,
         menu_event_listeners,
       )
     }
@@ -2542,51 +2549,17 @@ fn on_window_close<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
   mut windows: MutexGuard<'a, HashMap<WebviewId, WindowWrapper>>,
-  control_flow: &mut ControlFlow,
-  #[cfg(target_os = "linux")] window_event_listeners: &WindowEventListeners,
   menu_event_listeners: MenuEventListeners,
 ) -> Option<WindowWrapper> {
   #[allow(unused_mut)]
   let w = if let Some(mut webview) = windows.remove(&window_id) {
-    let is_empty = windows.is_empty();
     drop(windows);
     menu_event_listeners.lock().unwrap().remove(&window_id);
     callback(RunEvent::WindowClose(webview.label.clone()));
-
-    if is_empty {
-      let (tx, rx) = channel();
-      callback(RunEvent::ExitRequested {
-        window_label: webview.label.clone(),
-        tx,
-      });
-
-      let recv = rx.try_recv();
-      let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
-
-      if !should_prevent {
-        *control_flow = ControlFlow::Exit;
-        callback(RunEvent::Exit);
-      }
-    }
     Some(webview)
   } else {
     None
   };
-  // TODO: tao does not fire the destroyed event properly
-  #[cfg(target_os = "linux")]
-  {
-    for handler in window_event_listeners
-      .lock()
-      .unwrap()
-      .get(&window_id)
-      .unwrap()
-      .lock()
-      .unwrap()
-      .values()
-    {
-      handler(&WindowEvent::Destroyed);
-    }
-  }
   w
 }
 

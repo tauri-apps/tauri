@@ -498,6 +498,7 @@ impl<R: Runtime> WindowManager<R> {
 
     #[cfg(protocol_asset)]
     if !registered_scheme_protocols.contains(&"asset".into()) {
+      use crate::api::file::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
@@ -511,6 +512,12 @@ impl<R: Runtime> WindowManager<R> {
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
+
+        if let Err(e) = SafePathBuf::new(path.clone().into()) {
+          #[cfg(debug_assertions)]
+          eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
+          return HttpResponseBuilder::new().status(403).body(Vec::new());
+        }
 
         if !asset_scope.is_allowed(&path) {
           #[cfg(debug_assertions)]

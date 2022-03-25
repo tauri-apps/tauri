@@ -8,11 +8,56 @@
 mod extract;
 mod file_move;
 
-use std::{fs, path::Path};
+use std::{
+  fs,
+  path::{Display, Path},
+};
 
 #[cfg(feature = "fs-extract-api")]
 pub use extract::*;
 pub use file_move::*;
+
+use serde::{de::Error as DeError, Deserialize, Deserializer};
+
+#[derive(Clone, Debug)]
+pub(crate) struct SafePathBuf(std::path::PathBuf);
+
+impl SafePathBuf {
+  pub fn new(path: std::path::PathBuf) -> Result<Self, &'static str> {
+    if path
+      .components()
+      .any(|x| matches!(x, std::path::Component::ParentDir))
+    {
+      Err("cannot traverse directory, rewrite the path without the use of `../`")
+    } else {
+      Ok(Self(path))
+    }
+  }
+
+  pub unsafe fn new_unchecked(path: std::path::PathBuf) -> Self {
+    Self(path)
+  }
+
+  pub fn display(&self) -> Display<'_> {
+    self.0.display()
+  }
+}
+
+impl AsRef<Path> for SafePathBuf {
+  fn as_ref(&self) -> &Path {
+    self.0.as_ref()
+  }
+}
+
+impl<'de> Deserialize<'de> for SafePathBuf {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let path = std::path::PathBuf::deserialize(deserializer)?;
+    SafePathBuf::new(path).map_err(|e| DeError::custom(e))
+  }
+}
 
 /// Reads the entire contents of a file into a string.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {
@@ -28,6 +73,19 @@ pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
 mod test {
   use super::*;
   use crate::api::Error;
+  use quickcheck::{Arbitrary, Gen};
+
+  use std::path::PathBuf;
+
+  impl Arbitrary for super::SafePathBuf {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self(PathBuf::arbitrary(g))
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+      Box::new(self.0.shrink().map(SafePathBuf))
+    }
+  }
 
   #[test]
   fn check_read_string() {

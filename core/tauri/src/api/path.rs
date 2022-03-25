@@ -170,7 +170,6 @@ pub fn parse<P: AsRef<Path>>(
     }
     p.push(component);
   }
-  println!("res {:?}", p);
 
   Ok(p)
 }

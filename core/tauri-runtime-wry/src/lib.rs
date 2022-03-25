@@ -1832,7 +1832,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .listeners
       .lock()
       .unwrap()
-      .insert(id, Box::new(f));
+      .insert(id, Arc::new(Box::new(f)));
     id
   }
 
@@ -2355,7 +2355,8 @@ fn handle_event_loop<T: UserEvent>(
       ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      for handler in tray_context.listeners.lock().unwrap().values() {
+      let listeners = tray_context.listeners.lock().unwrap().clone();
+      for handler in listeners.values() {
         handler(&event);
       }
     }

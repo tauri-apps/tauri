@@ -32,7 +32,7 @@ use std::{
 };
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
+pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, Arc<SystemTrayEventHandler>>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Debug, Clone)]

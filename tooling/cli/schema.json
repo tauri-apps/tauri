@@ -146,6 +146,7 @@
           "windows": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "disallowDowngrades": false,
             "timestampUrl": null,
             "tsp": null,
             "webviewFixedRuntimePath": null,
@@ -563,6 +564,7 @@
           "default": {
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "disallowDowngrades": false,
             "timestampUrl": null,
             "tsp": null,
             "webviewFixedRuntimePath": null,
@@ -1641,6 +1643,7 @@
             "windows": {
               "certificateThumbprint": null,
               "digestAlgorithm": null,
+              "disallowDowngrades": false,
               "timestampUrl": null,
               "tsp": null,
               "webviewFixedRuntimePath": null,
@@ -2067,6 +2070,11 @@
             "string",
             "null"
           ]
+        },
+        "disallowDowngrades": {
+          "description": "Validates a second app installation, blocking the user from installing an older version.\n\nFor instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.",
+          "default": false,
+          "type": "boolean"
         },
         "timestampUrl": {
           "description": "Server to use during timestamping.",

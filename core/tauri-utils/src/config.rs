@@ -265,7 +265,7 @@ pub struct WindowsConfig {
   /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
   pub webview_fixed_runtime_path: Option<PathBuf>,
   /// Validates a second app installation, blocking the user from installing an older version.
-  /// 
+  ///
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
   #[serde(default)]
   pub disallow_downgrades: bool,

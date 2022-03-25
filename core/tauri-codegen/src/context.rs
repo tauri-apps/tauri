@@ -27,8 +27,6 @@ pub struct ContextData {
 }
 
 fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  #[cfg(target_os = "linux")]
-  ::tauri_utils::html::inject_csp_token(document);
   inject_nonce_token(document);
   if let Ok(inline_script_elements) = document.select("script:not(empty)") {
     let mut scripts = Vec::new();
@@ -53,22 +51,28 @@ fn map_core_assets(
   #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
+  let dangerous_disable_asset_csp = options.dangerous_disable_asset_csp;
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
 
       if csp {
-        load_csp(&mut document, key, csp_hashes);
+        #[cfg(target_os = "linux")]
+        ::tauri_utils::html::inject_csp_token(&mut document);
 
-        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
-        if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
-          // create the csp for the isolation iframe styling now, to make the runtime less complex
-          let mut hasher = Sha256::new();
-          hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
-          let hash = hasher.finalize();
-          csp_hashes
-            .styles
-            .push(format!("'sha256-{}'", base64::encode(&hash)));
+        if !dangerous_disable_asset_csp {
+          load_csp(&mut document, key, csp_hashes);
+
+          #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+          if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
+            // create the csp for the isolation iframe styling now, to make the runtime less complex
+            let mut hasher = Sha256::new();
+            hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
+            let hash = hasher.finalize();
+            csp_hashes
+              .styles
+              .push(format!("'sha256-{}'", base64::encode(&hash)));
+          }
         }
       }
 
@@ -150,7 +154,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(assets_path, map_core_assets(&options))?
+        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
       }
       _ => unimplemented!(),
     },
@@ -159,6 +163,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .iter()
         .map(|p| config_parent.join(p))
         .collect::<Vec<_>>(),
+      &options,
       map_core_assets(&options),
     )?,
     _ => unimplemented!(),

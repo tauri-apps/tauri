@@ -756,6 +756,16 @@ pub struct SecurityConfig {
   /// Freeze the `Object.prototype` when using the custom protocol.
   #[serde(default)]
   pub freeze_prototype: bool,
+  /// Disables the Tauri-injected CSP sources.
+  ///
+  /// At compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy
+  /// to only allow loading of your own scripts and styles by injecting nonce and hash sources.
+  /// This stricts your CSP, which may introduce issues when using along with other flexing sources.
+  /// 
+  /// **WARNING:** Only disable this if you know what you are doing and have properly configured the CSP.
+  /// Your application might be vulnerable to XSS attacks without this Tauri protection.
+  #[serde(default)]
+  pub dangerous_disable_asset_csp: bool,
 }
 
 /// Defines an allowlist type.
@@ -2598,8 +2608,9 @@ mod build {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
+      let dangerous_disable_asset_csp = self.dangerous_disable_asset_csp;
 
-      literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype);
+      literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype, dangerous_disable_asset_csp);
     }
   }
 
@@ -2849,6 +2860,7 @@ mod test {
         csp: None,
         dev_csp: None,
         freeze_prototype: false,
+        dangerous_disable_asset_csp: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

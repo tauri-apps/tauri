@@ -300,7 +300,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
 
       let key = uuid::Uuid::new_v4().to_string();
-      let assets = EmbeddedAssets::new(dir.clone(), map_isolation(&options, dir))?;
+      let assets = EmbeddedAssets::new(dir.clone(), &options, map_isolation(&options, dir))?;
       let schema = options.isolation_schema;
 
       quote!(#root::Pattern::Isolation {

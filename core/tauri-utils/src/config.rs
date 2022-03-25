@@ -761,7 +761,7 @@ pub struct SecurityConfig {
   /// At compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy
   /// to only allow loading of your own scripts and styles by injecting nonce and hash sources.
   /// This stricts your CSP, which may introduce issues when using along with other flexing sources.
-  /// 
+  ///
   /// **WARNING:** Only disable this if you know what you are doing and have properly configured the CSP.
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default)]
@@ -2610,7 +2610,14 @@ mod build {
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp = self.dangerous_disable_asset_csp;
 
-      literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype, dangerous_disable_asset_csp);
+      literal_struct!(
+        tokens,
+        SecurityConfig,
+        csp,
+        dev_csp,
+        freeze_prototype,
+        dangerous_disable_asset_csp
+      );
     }
   }
 

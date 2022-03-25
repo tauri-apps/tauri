@@ -16,9 +16,9 @@ include = [
   "src/",
   "/templates",
   "MergeModules/",
-  "scripts/",
   "*.json",
   "*.rs",
+  "vswhere.exe",
   "tauri.gitignore"
 ]
 

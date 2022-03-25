@@ -34,9 +34,6 @@ use std::{
 static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
 static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
 
-#[cfg(unix)]
-const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
-
 #[derive(Debug, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
@@ -291,7 +288,6 @@ pub fn command(options: Options) -> Result<()> {
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
-
     KILL_BEFORE_DEV_FLAG
       .get()
       .unwrap()
@@ -302,24 +298,11 @@ fn kill_before_dev_process() {
         .arg("-Command")
         .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
         .status();
-    #[cfg(unix)]
-    {
-      let mut kill_children_script_path = std::env::temp_dir();
-      kill_children_script_path.push("kill-children.sh");
-
-      if !kill_children_script_path.exists() {
-        if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::{io::Write, os::unix::fs::PermissionsExt};
-          let _ = file.write_all(KILL_CHILDREN_SCRIPT);
-          let mut permissions = file.metadata().unwrap().permissions();
-          permissions.set_mode(0o770);
-          let _ = file.set_permissions(permissions);
-        }
-      }
-      let _ = Command::new(&kill_children_script_path)
-        .arg(child.id().to_string())
-        .output();
-    }
+    #[cfg(not(windows))]
+    let _ = Command::new("pkill")
+      .args(&["-TERM", "-P"])
+      .arg(child.id().to_string())
+      .status();
     let _ = child.kill();
   }
 }
@@ -365,10 +348,10 @@ fn start_app(
       if (status.success() || status.code() == Some(101))
           // `child_wait_rx` indicates that the process was killed by the file watcher
           && child_wait_rx
-      .lock()
-      .expect("failed to get child_wait_rx lock")
-      .try_recv()
-      .is_err()
+          .lock()
+          .expect("failed to get child_wait_rx lock")
+          .try_recv()
+          .is_err()
       {
         kill_before_dev_process();
         exit(0);

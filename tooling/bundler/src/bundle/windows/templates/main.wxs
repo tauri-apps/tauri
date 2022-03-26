@@ -25,10 +25,10 @@
                  InstallScope="perMachine"
                  SummaryCodepage="!(loc.TauriCodepage)"/>
 
-        {{#if disallow_downgrades}}
-            <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
-        {{else}}
+        {{#if allow_downgrades}}
             <MajorUpgrade AllowDowngrades="yes" />
+        {{else}}
+            <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />

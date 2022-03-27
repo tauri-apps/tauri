@@ -245,7 +245,7 @@ pub struct WixConfig {
 }
 
 /// Windows bundler configuration.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowsConfig {
@@ -269,10 +269,28 @@ pub struct WindowsConfig {
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
   ///
   /// The default value of this flag is `true`.
-  #[serde(default)]
+  #[serde(default = "default_allow_downgrades")]
   pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
+}
+
+impl Default for WindowsConfig {
+  fn default() -> Self {
+    Self {
+      digest_algorithm: None,
+      certificate_thumbprint: None,
+      timestamp_url: None,
+      tsp: None,
+      webview_fixed_runtime_path: None,
+      allow_downgrades: default_allow_downgrades(),
+      wix: None,
+    }
+  }
+}
+
+fn default_allow_downgrades() -> bool {
+  true
 }
 
 /// Configuration for tauri-bundler.

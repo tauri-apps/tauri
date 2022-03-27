@@ -3,5 +3,5 @@
 // SPDX-License-Identifier: MIT
 
 /// Handling the Tauri "Isolation" Pattern.
-#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+#[cfg(feature = "isolation")]
 pub mod isolation;

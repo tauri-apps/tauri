@@ -1691,7 +1691,7 @@ pub enum PatternKind {
   /// Brownfield pattern.
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
-  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+  #[cfg(feature = "isolation")]
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
@@ -1768,7 +1768,7 @@ impl TauriConfig {
     if self.macos_private_api {
       features.push("macos-private-api");
     }
-    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+    #[cfg(feature = "isolation")]
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
@@ -2431,7 +2431,7 @@ mod build {
 
       tokens.append_all(match self {
         Self::Brownfield => quote! { #prefix::Brownfield },
-        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+        #[cfg(feature = "isolation")]
         Self::Isolation { dir } => {
           let dir = path_buf_lit(dir);
           quote! { #prefix::Isolation { dir: #dir } }

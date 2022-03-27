@@ -51,7 +51,7 @@ pub struct RemoteRelease {
   /// Update short description
   pub body: Option<String>,
   /// Optional signature for the current platform
-  pub signature: Option<String>,
+  pub signature: String,
   #[cfg(target_os = "windows")]
   /// Optional: Windows only try to use elevated task
   pub with_elevated_task: bool,
@@ -65,42 +65,47 @@ impl RemoteRelease {
     let version = match release.get("version") {
       Some(version) => version
         .as_str()
-        .ok_or_else(|| {
-          Error::RemoteMetadata("Unable to extract `version` from remote server".into())
-        })?
+        .ok_or_else(|| Error::InvalidResponseType("version", "string", version.clone()))?
         .trim_start_matches('v')
         .to_string(),
-      None => release
-        .get("name")
-        .ok_or_else(|| Error::RemoteMetadata("Release missing `name` and `version`".into()))?
-        .as_str()
-        .ok_or_else(|| {
-          Error::RemoteMetadata("Unable to extract `name` from remote server`".into())
-        })?
-        .trim_start_matches('v')
-        .to_string(),
+      None => {
+        let name = release
+          .get("name")
+          .ok_or(Error::MissingResponseField("version or name"))?;
+        name
+          .as_str()
+          .ok_or_else(|| Error::InvalidResponseType("name", "string", name.clone()))?
+          .trim_start_matches('v')
+          .to_string()
+      }
     };
 
     // pub_date is required default is: `N/A` if not provided by the remote JSON
-    let date = release
-      .get("pub_date")
-      .and_then(|v| v.as_str())
-      .unwrap_or("N/A")
-      .to_string();
+    let date = if let Some(date) = release.get("pub_date") {
+      date
+        .as_str()
+        .map(|d| d.to_string())
+        .ok_or_else(|| Error::InvalidResponseType("pub_date", "string", date.clone()))?
+    } else {
+      "N/A".into()
+    };
 
     // body is optional to build our update
-    let body = release
-      .get("notes")
-      .map(|notes| notes.as_str().unwrap_or("").to_string());
-
-    // signature is optional to build our update
-    let mut signature = release
-      .get("signature")
-      .map(|signature| signature.as_str().unwrap_or("").to_string());
+    let body = if let Some(notes) = release.get("notes") {
+      Some(
+        notes
+          .as_str()
+          .map(|n| n.to_string())
+          .ok_or_else(|| Error::InvalidResponseType("notes", "string", notes.clone()))?,
+      )
+    } else {
+      None
+    };
 
     let download_url;
     #[cfg(target_os = "windows")]
     let with_elevated_task;
+    let signature;
 
     match release.get("platforms") {
       //
@@ -123,38 +128,53 @@ impl RemoteRelease {
           // use provided signature if available
           signature = current_target_data
             .get("signature")
-            .map(|found_signature| found_signature.as_str().unwrap_or("").to_string());
+            .ok_or(Error::MissingResponseField("signature"))
+            .and_then(|signature| {
+              signature
+                .as_str()
+                .ok_or_else(|| Error::InvalidResponseType("signature", "string", signature.clone()))
+            })?;
           // Download URL is required
-          download_url = current_target_data
+          let url = current_target_data
             .get("url")
-            .ok_or_else(|| Error::RemoteMetadata("Release missing `url`".into()))?
+            .ok_or(Error::MissingResponseField("url"))?;
+          download_url = url
             .as_str()
-            .ok_or_else(|| {
-              Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
-            })?
+            .ok_or_else(|| Error::InvalidResponseType("url", "string", url.clone()))?
             .to_string();
           #[cfg(target_os = "windows")]
           {
             with_elevated_task = current_target_data
               .get("with_elevated_task")
-              .and_then(|v| v.as_bool())
-              .unwrap_or_default();
+              .map(|v| {
+                v.as_bool().ok_or_else(|| {
+                  Error::InvalidResponseType("with_elevated_task", "boolean", v.clone())
+                })
+              })
+              .unwrap_or(Ok(false))?;
           }
         } else {
           // make sure we have an available platform from the static
-          return Err(Error::RemoteMetadata("Platform not available".into()));
+          return Err(Error::TargetNotFound(target.into()));
         }
       }
       // We don't have the `platforms` field announced, let's assume our
       // download URL is at the root of the JSON.
       None => {
-        download_url = release
+        signature = release
+          .get("signature")
+          .ok_or(Error::MissingResponseField("signature"))
+          .and_then(|signature| {
+            signature
+              .as_str()
+              .ok_or_else(|| Error::InvalidResponseType("signature", "string", signature.clone()))
+          })?;
+        let url = release
           .get("url")
-          .ok_or_else(|| Error::RemoteMetadata("Release missing `url`".into()))?
+          .ok_or(Error::MissingResponseField("url"))?;
+        download_url = url
           .as_str()
-          .ok_or_else(|| {
-            Error::RemoteMetadata("Unable to extract `url` from remote server`".into())
-          })?
+          .ok_or_else(|| Error::InvalidResponseType("url", "string", url.clone()))?
           .to_string();
         #[cfg(target_os = "windows")]
         {
@@ -171,7 +191,7 @@ impl RemoteRelease {
       date,
       download_url,
       body,
-      signature,
+      signature: signature.to_string(),
       #[cfg(target_os = "windows")]
       with_elevated_task,
     })
@@ -356,13 +376,11 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
     // Last error is cleaned on success -- shouldn't be triggered if
     // we have a successful call
     if let Some(error) = last_error {
-      return Err(Error::Network(error.to_string()));
+      return Err(error);
     }
 
     // Extracted remote metadata
-    let final_release = remote_release.ok_or_else(|| {
-      Error::RemoteMetadata("Unable to extract update metadata from the remote server.".into())
-    })?;
+    let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
     // did the announced version is greated than our current one?
     let should_update =
@@ -412,7 +430,7 @@ pub struct Update<R: Runtime> {
   /// Download URL announced
   download_url: String,
   /// Signature announced
-  signature: Option<String>,
+  signature: String,
   #[cfg(target_os = "windows")]
   /// Optional: Windows only try to use elevated task
   /// Default to false
@@ -521,14 +539,7 @@ impl<R: Runtime> Update<R> {
 
     // We need an announced signature by the server
     // if there is no signature, bail out.
-    if let Some(signature) = &self.signature {
-      // we make sure the archive is valid and signed with the private key linked with the publickey
-      verify_signature(&mut archive_buffer, signature, &pub_key)?;
-    } else {
-      // We have a public key inside our source file, but not announced by the server,
-      // we assume this update is NOT valid.
-      return Err(Error::MissingUpdaterSignature);
-    }
+    verify_signature(&mut archive_buffer, &self.signature, &pub_key)?;
 
     #[cfg(feature = "updater")]
     {
@@ -816,7 +827,9 @@ pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBu
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
   let decoded_string = &decode(base64_string)?;
-  let result = from_utf8(decoded_string)?.to_string();
+  let result = from_utf8(decoded_string)
+    .map_err(|_| Error::SignatureUtf8(base64_string.into()))?
+    .to_string();
   Ok(result)
 }
 
@@ -868,19 +881,19 @@ mod test {
       "platforms": {
         "darwin-aarch64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
-          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.app.tar.gz"
         },
         "darwin-x86_64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJZVGdpKzJmRWZ0SkRvWS9TdFpqTU9xcm1mUmJSSG5OWVlwSklrWkN1SFpWbmh4SDlBcTU3SXpjbm0xMmRjRkphbkpVeGhGcTdrdzlrWGpGVWZQSWdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1MDU3CWZpbGU6L1VzZXJzL3J1bm5lci9ydW5uZXJzLzIuMjYzLjAvd29yay90YXVyaS90YXVyaS90YXVyaS9leGFtcGxlcy9jb21tdW5pY2F0aW9uL3NyYy10YXVyaS90YXJnZXQvZGVidWcvYnVuZGxlL29zeC9hcHAuYXBwLnRhci5negp4ZHFlUkJTVnpGUXdDdEhydTE5TGgvRlVPeVhjTnM5RHdmaGx3c0ZPWjZXWnFwVDRNWEFSbUJTZ1ZkU1IwckJGdmlwSzJPd00zZEZFN2hJOFUvL1FDZz09Cg==",
-          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.app.tar.gz"
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.app.tar.gz"
         },
         "linux-x86_64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOWZSM29hTFNmUEdXMHRoOC81WDFFVVFRaXdWOUdXUUdwT0NlMldqdXkyaWVieXpoUmdZeXBJaXRqSm1YVmczNXdRL1Brc0tHb1NOTzhrL1hadFcxdmdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE3MzQzCWZpbGU6L2hvbWUvcnVubmVyL3dvcmsvdGF1cmkvdGF1cmkvdGF1cmkvZXhhbXBsZXMvY29tbXVuaWNhdGlvbi9zcmMtdGF1cmkvdGFyZ2V0L2RlYnVnL2J1bmRsZS9hcHBpbWFnZS9hcHAuQXBwSW1hZ2UudGFyLmd6CmRUTUM2bWxnbEtTbUhOZGtERUtaZnpUMG5qbVo5TGhtZWE1SFNWMk5OOENaVEZHcnAvVW0zc1A2ajJEbWZUbU0yalRHT0FYYjJNVTVHOHdTQlYwQkF3PT0K",
-          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.AppImage.tar.gz"
         },
         "windows-x86_64": {
           "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K",
-          "url": "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.x64.msi.zip"
         }
       }
     }"#.into()
@@ -924,15 +937,6 @@ mod test {
       "#,
       version, public_signature, download_url, with_elevated_task
     )
-  }
-
-  fn generate_sample_bad_json() -> String {
-    r#"{
-      "version": "v0.0.3",
-      "notes": "Blablaa",
-      "date": "2020-02-20T15:41:00Z",
-      "download_link": "https://github.com/lemarier/tauri-test/releases/download/v0.0.1/update3.tar.gz"
-    }"#.into()
   }
 
   #[test]
@@ -992,10 +996,10 @@ mod test {
 
     assert!(updater.should_update);
     assert_eq!(updater.version, "2.0.0");
-    assert_eq!(updater.signature, Some("dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K".into()));
+    assert_eq!(updater.signature, "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K");
     assert_eq!(
       updater.download_url,
-      "https://github.com/lemarier/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
+      "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.x64.msi.zip"
     );
   }
 
@@ -1182,20 +1186,226 @@ mod test {
   }
 
   #[test]
+  fn http_updater_invalid_remote_data() {
+    let invalid_signature = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": true
+    }"#;
+    let invalid_version = r#"{
+      "version": 5,
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": "x"
+    }"#;
+    let invalid_name = r#"{
+      "name": false,
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": "x"
+    }"#;
+    let invalid_date = r#"{
+      "version": "1.0.0",
+      "notes": "Blablaa",
+      "pub_date": 345645646,
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": "x"
+    }"#;
+    let invalid_notes = r#"{
+      "version": "v0.0.3",
+      "notes": ["bla", "bla"],
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": "x"
+    }"#;
+    let invalid_url = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": ["https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz", "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz"],
+      "signature": "x"
+    }"#;
+    let invalid_platform_signature = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "platforms": {
+        "test-target": {
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+          "signature": {
+            "test-target": "x"
+          }
+        }
+      }
+    }"#;
+    let invalid_platform_url = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "platforms": {
+        "test-target": {
+          "url": {
+            "first": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz"
+          }
+          "signature": "x"
+        }
+      }
+    }"#;
+
+    let test_cases = [
+      (
+        invalid_signature,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("signature", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_version,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("version", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_name,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("name", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_date,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("pub_date", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_notes,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("notes", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_url,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("url", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_platform_signature,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("signature", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+      (
+        invalid_platform_url,
+        Box::new(|e| matches!(e, Error::InvalidResponseType("url", "string", _)))
+          as Box<dyn FnOnce(Error) -> bool>,
+      ),
+    ];
+
+    for (response, validator) in test_cases {
+      let _m = mockito::mock("GET", "/")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(response)
+        .create();
+
+      let app = crate::test::mock_app();
+      let check_update = block!(builder(app.handle())
+        .url(mockito::server_url())
+        .current_version("0.0.1")
+        .target("test-target")
+        .build());
+      if let Err(e) = check_update {
+        validator(e);
+      } else {
+        panic!("unexpected Ok response");
+      }
+    }
+  }
+
+  #[test]
   fn http_updater_missing_remote_data() {
-    let _m = mockito::mock("GET", "/")
-      .with_status(200)
-      .with_header("content-type", "application/json")
-      .with_body(generate_sample_bad_json())
-      .create();
+    let missing_signature = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz"
+    }"#;
+    let missing_version = r#"{
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+      "signature": "x"
+    }"#;
+    let missing_url = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "signature": "x"
+    }"#;
+    let missing_target = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "platforms": {
+        "unknown-target": {
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz",
+          "signature": "x"
+        }
+      }
+    }"#;
+    let missing_platform_signature = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "platforms": {
+        "test-target": {
+          "url": "https://github.com/tauri-apps/updater-test/releases/download/v0.0.1/update3.tar.gz"
+        }
+      }
+    }"#;
+    let missing_platform_url = r#"{
+      "version": "v0.0.3",
+      "notes": "Blablaa",
+      "pub_date": "2020-02-20T15:41:00Z",
+      "platforms": {
+        "test-target": {
+          "signature": "x"
+        }
+      }
+    }"#;
 
-    let app = crate::test::mock_app();
-    let check_update = block!(builder(app.handle())
-      .url(mockito::server_url())
-      .current_version("0.0.1")
-      .build());
+    let test_cases = [
+      (missing_signature, Error::MissingResponseField("signature")),
+      (
+        missing_version,
+        Error::MissingResponseField("version or name"),
+      ),
+      (missing_url, Error::MissingResponseField("url")),
+      (missing_target, Error::TargetNotFound("test-target".into())),
+      (
+        missing_platform_signature,
+        Error::MissingResponseField("signature"),
+      ),
+      (missing_platform_url, Error::MissingResponseField("url")),
+    ];
 
-    assert!(check_update.is_err());
+    for (response, error) in test_cases {
+      let _m = mockito::mock("GET", "/")
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(response)
+        .create();
+
+      let app = crate::test::mock_app();
+      let check_update = block!(builder(app.handle())
+        .url(mockito::server_url())
+        .current_version("0.0.1")
+        .target("test-target")
+        .build());
+      if let Err(e) = check_update {
+        assert_eq!(e.to_string(), error.to_string());
+      } else {
+        panic!("unexpected Ok response");
+      }
+    }
   }
 
   // run complete process on mac only for now as we don't have

@@ -34,19 +34,17 @@ jobs:
             architecture: x64
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
-            architecture: x64
-            docker: |
-              docker pull $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian
-              docker tag $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian builder
-            build: |
-              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build && strip *.node"
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            build: |-
+              set -e &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              cd tooling/cli/node
+              yarn build --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              llvm-strip -x *.node
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-musl
-            architecture: x64
-            docker: |
-              docker pull $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-alpine
-              docker tag $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
-            build: docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build && strip *.node"
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: set -e && cd tooling/cli/node && yarn build && strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
@@ -73,12 +71,13 @@ jobs:
           - host: ubuntu-18.04
             architecture: x64
             target: aarch64-unknown-linux-musl
-            downloadTarget: aarch64-unknown-linux-musl
-            docker: |
-              docker pull ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-              docker tag ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine builder
-            build: |
-              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build --target=aarch64-unknown-linux-musl && /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node"
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: |-
+              set -e &&
+              rustup target add aarch64-unknown-linux-musl &&
+              cd tooling/cli/node &&
+              yarn build --target aarch64-unknown-linux-musl &&
+              /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           #- host: windows-latest
           #  architecture: x64
           #  target: aarch64-pc-windows-msvc
@@ -86,9 +85,10 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
+        if: ${{ !matrix.settings.docker }}
         with:
           node-version: 16
           check-latest: true
@@ -97,24 +97,16 @@ jobs:
           architecture: ${{ matrix.settings.architecture }}
       - name: Install
         uses: actions-rs/toolchain@v1
+        if: ${{ !matrix.settings.docker }}
         with:
           profile: minimal
           override: true
           toolchain: stable
           target: ${{ matrix.settings.target }}
-      #  should be committed
-      #- name: Generate Cargo.lock
-      #  uses: actions-rs/cargo@v1
-      #  with:
-      #    command: generate-lockfile
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}
           working-directory: 'tooling/cli/'
-      - name: Pull latest image
-        run: ${{ matrix.settings.docker }}
-        env:
-          DOCKER_REGISTRY_URL: ghcr.io
         if: ${{ matrix.settings.docker }}
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
@@ -122,11 +114,22 @@ jobs:
         shell: bash
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
+        if: ${{ matrix.settings.docker }}
+        with:
+          image: ${{ matrix.settings.docker }}
+          options: '-v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build'
+          run: ${{ matrix.settings.build }}
+
       - name: Build
         run: ${{ matrix.settings.build }}
+        if: ${{ !matrix.settings.docker }}
         shell: bash
+
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.settings.target }}
           path: tooling/cli/node/${{ env.APP_NAME }}.*.node
@@ -135,10 +138,10 @@ jobs:
   #    runs-on: macos-10.15
   #    name: Build FreeBSD
   #    steps:
-  #      - uses: actions/checkout@v2
+  #      - uses: actions/checkout@v3
   #      - name: Build
   #        id: build
-  #        uses: vmactions/freebsd-vm@v0.1.5
+  #        uses: vmactions/freebsd-vm@v0.1.6
   #        env:
   #          DEBUG: napi:*
   #          RUSTUP_HOME: /usr/local/rustup
@@ -175,7 +178,7 @@ jobs:
   #            rm -rf node_modules
   #            rm -rf ../target
   #      - name: Upload artifact
-  #        uses: actions/upload-artifact@v2
+  #        uses: actions/upload-artifact@v3
   #        with:
   #          name: bindings-freebsd
   #          path: tooling/cli/node/${{ env.APP_NAME }}.*.node
@@ -198,9 +201,9 @@ jobs:
           - '16'
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
@@ -209,7 +212,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: bindings-${{ matrix.settings.target }}
           path: 'tooling/cli/node/'
@@ -231,9 +234,9 @@ jobs:
           - '16'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
@@ -242,7 +245,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-gnu
           path: 'tooling/cli/node/'
@@ -270,9 +273,9 @@ jobs:
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
@@ -281,7 +284,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-musl
           path: 'tooling/cli/node/'
@@ -320,19 +323,19 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: List packages
         run: ls -R .
         shell: bash
       - name: Install dependencies
         run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download aarch64-gnu artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: bindings-aarch64-unknown-linux-gnu
           path: 'tooling/cli/node/'
       - name: Download armv7-gnueabihf artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: 'tooling/cli/node/'
@@ -366,9 +369,9 @@ jobs:
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 16
           check-latest: true
@@ -377,7 +380,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: tooling/cli/node/artifacts
       - name: Move artifacts

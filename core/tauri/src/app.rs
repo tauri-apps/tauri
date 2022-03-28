@@ -16,7 +16,7 @@ use crate::{
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
     webview::{WebviewAttributes, WindowBuilder as _},
-    window::{PendingWindow, WindowEvent},
+    window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
     Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope::FsScope,
@@ -32,6 +32,10 @@ use crate::{
 use crate::scope::ShellScope;
 
 use tauri_macros::default_runtime;
+use tauri_runtime::window::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  FileDropEvent,
+};
 use tauri_utils::PackageInfo;
 
 use std::{
@@ -69,13 +73,73 @@ impl ExitRequestApi {
 }
 
 /// Api exposed on the `CloseRequested` event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CloseRequestApi(Sender<bool>);
 
 impl CloseRequestApi {
   /// Prevents the window from being closed.
   pub fn prevent_close(&self) {
     self.0.send(true).unwrap();
+  }
+}
+
+/// An event from a window.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum WindowEvent {
+  /// The size of the window has changed. Contains the client area's new dimensions.
+  Resized(PhysicalSize<u32>),
+  /// The position of the window has changed. Contains the window's new position.
+  Moved(PhysicalPosition<i32>),
+  /// The window has been requested to close.
+  #[non_exhaustive]
+  CloseRequested {
+    /// An API modify the behavior of the close requested event.
+    api: CloseRequestApi,
+  },
+  /// The window has been destroyed.
+  Destroyed,
+  /// The window gained or lost focus.
+  ///
+  /// The parameter is true if the window has gained focus, and false if it has lost focus.
+  Focused(bool),
+  /// The window's scale factor has changed.
+  ///
+  /// The following user actions can cause DPI changes:
+  ///
+  /// - Changing the display's resolution.
+  /// - Changing the display's scale factor (e.g. in Control Panel on Windows).
+  /// - Moving the window to a display with a different scale factor.
+  #[non_exhaustive]
+  ScaleFactorChanged {
+    /// The new scale factor.
+    scale_factor: f64,
+    /// The window inner size.
+    new_inner_size: PhysicalSize<u32>,
+  },
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+}
+
+impl From<RuntimeWindowEvent> for WindowEvent {
+  fn from(event: RuntimeWindowEvent) -> Self {
+    match event {
+      RuntimeWindowEvent::Resized(size) => Self::Resized(size),
+      RuntimeWindowEvent::Moved(position) => Self::Moved(position),
+      RuntimeWindowEvent::CloseRequested { signal_tx } => Self::CloseRequested {
+        api: CloseRequestApi(signal_tx),
+      },
+      RuntimeWindowEvent::Destroyed => Self::Destroyed,
+      RuntimeWindowEvent::Focused(flag) => Self::Focused(flag),
+      RuntimeWindowEvent::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      } => Self::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      },
+      RuntimeWindowEvent::FileDrop(event) => Self::FileDrop(event),
+    }
   }
 }
 
@@ -91,16 +155,14 @@ pub enum RunEvent {
     /// Event API
     api: ExitRequestApi,
   },
-  /// Window close was requested by the user.
+  /// An event associated with a window.
   #[non_exhaustive]
-  CloseRequested {
+  WindowEvent {
     /// The window label.
     label: String,
-    /// Event API.
-    api: CloseRequestApi,
+    /// The detailed event.
+    event: WindowEvent,
   },
-  /// Window closed.
-  WindowClosed(String),
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.
@@ -1428,7 +1490,11 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
-  if let RuntimeRunEvent::WindowClose(label) = &event {
+  if let RuntimeRunEvent::WindowEvent {
+    label,
+    event: RuntimeWindowEvent::Destroyed,
+  } = &event
+  {
     manager.on_window_close(label);
   }
 
@@ -1437,11 +1503,10 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
       api: ExitRequestApi(tx),
     },
-    RuntimeRunEvent::CloseRequested { label, signal_tx } => RunEvent::CloseRequested {
+    RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,
-      api: CloseRequestApi(signal_tx),
+      event: event.into(),
     },
-    RuntimeRunEvent::WindowClose(label) => RunEvent::WindowClosed(label),
     RuntimeRunEvent::Ready => RunEvent::Ready,
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,

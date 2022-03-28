@@ -203,7 +203,7 @@ pub use {
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, GlobalWindowEvent, PathResolver,
-    RunEvent,
+    RunEvent, WindowEvent,
   },
   self::hooks::{
     Invoke, InvokeError, InvokeHandler, InvokeMessage, InvokePayload, InvokeResolver,
@@ -214,7 +214,7 @@ pub use {
     webview::{WebviewAttributes, WindowBuilder},
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      FileDropEvent, WindowEvent,
+      FileDropEvent,
     },
     ClipboardManager, GlobalShortcutManager, RunIteration, TrayIcon, UserAttentionType,
   },

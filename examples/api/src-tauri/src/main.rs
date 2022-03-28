@@ -17,7 +17,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use tauri::{
   api::dialog::ask, http::ResponseBuilder, window::WindowBuilder, CustomMenuItem,
-  GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowUrl,
+  GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu,
+  WindowEvent, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
@@ -227,7 +228,11 @@ fn main() {
     }
 
     // Triggered when a window is trying to close
-    RunEvent::CloseRequested { label, api, .. } => {
+    RunEvent::WindowEvent {
+      label,
+      event: WindowEvent::CloseRequested { api, .. },
+      ..
+    } => {
       let app_handle = app_handle.clone();
       let window = app_handle.get_window(&label).unwrap();
       // use the exposed close api, and prevent the event loop to close

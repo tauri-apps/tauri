@@ -208,15 +208,13 @@ pub enum RunEvent<T: UserEvent> {
   ExitRequested {
     tx: Sender<ExitRequestedEventAction>,
   },
-  /// Window close was requested by the user.
-  CloseRequested {
+  /// An event associated with a window.
+  WindowEvent {
     /// The window label.
     label: String,
-    /// A signal sender. If a `true` value is emitted, the window won't be closed.
-    signal_tx: Sender<bool>,
+    /// The detailed event.
+    event: WindowEvent,
   },
-  /// Window closed.
-  WindowClose(String),
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.

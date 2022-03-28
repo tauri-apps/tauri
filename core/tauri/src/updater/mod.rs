@@ -101,7 +101,7 @@
 //!   .setup(|app| {
 //!     let handle = app.handle();
 //!     tauri::async_runtime::spawn(async move {
-//!       let response = handle.check_for_updates().await;
+//!       let response = handle.updater().check().await;
 //!     });
 //!     Ok(())
 //!   });
@@ -165,7 +165,7 @@
 //!   .setup(|app| {
 //!     let handle = app.handle();
 //!     tauri::async_runtime::spawn(async move {
-//!       match handle.check_for_updates().await {
+//!       match handle.updater().check().await {
 //!         Ok(update) => {
 //!           if update.is_update_available() {
 //!             update.download_and_install().await.unwrap();
@@ -499,6 +499,115 @@ struct UpdateManifest {
   body: String,
 }
 
+/// An update check builder.
+#[derive(Debug)]
+pub struct UpdateBuilder<R: Runtime> {
+  inner: core::UpdateBuilder<R>,
+  events: bool,
+}
+
+impl<R: Runtime> UpdateBuilder<R> {
+  /// Do not use the event system to emit information or listen to install the update.
+  pub fn skip_events(mut self) -> Self {
+    self.events = false;
+    self
+  }
+
+  /// Set the target name. Represents the string that is looked up on the updater API or response JSON.
+  pub fn target(mut self, target: impl Into<String>) -> Self {
+    self.inner = self.inner.target(target);
+    self
+  }
+
+  /// Sets a closure that is invoked to compare the current version and the latest version returned by the updater server.
+  /// The first argument is the current version, and the second one is the latest version.
+  ///
+  /// The closure must return `true` if the update should be installed.
+  ///
+  /// # Examples
+  ///
+  /// - Always install the version returned by the server:
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::updater::builder(app.handle()).should_install(|_current, _latest| true);
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.inner = self.inner.should_install(f);
+    self
+  }
+
+  /// Check if an update is available.
+  ///
+  /// # Examples
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     tauri::async_runtime::spawn(async move {
+  ///       match tauri::updater::builder(handle).check().await {
+  ///         Ok(update) => {}
+  ///         Err(error) => {}
+  ///       }
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub async fn check(self) -> Result<UpdateResponse<R>> {
+    let handle = self.inner.app.clone();
+    let events = self.events;
+    // check updates
+    match self.inner.build().await {
+      Ok(update) => {
+        if events {
+          // send notification if we need to update
+          if update.should_update {
+            let body = update.body.clone().unwrap_or_else(|| String::from(""));
+
+            // Emit `tauri://update-available`
+            let _ = handle.emit_all(
+              EVENT_UPDATE_AVAILABLE,
+              UpdateManifest {
+                body: body.clone(),
+                date: update.date.clone(),
+                version: update.version.clone(),
+              },
+            );
+            let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
+              UpdaterEvent::UpdateAvailable {
+                body,
+                date: update.date.clone(),
+                version: update.version.clone(),
+              },
+            ));
+
+            // Listen for `tauri://update-install`
+            let update_ = update.clone();
+            handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
+              crate::async_runtime::spawn(async move {
+                let _ = download_and_install(update_).await;
+              });
+            });
+          } else {
+            send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
+          }
+        }
+        Ok(UpdateResponse { update })
+      }
+      Err(e) => {
+        if self.events {
+          send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
+        }
+        Err(e)
+      }
+    }
+  }
+}
+
 /// The response of an updater check.
 pub struct UpdateResponse<R: Runtime> {
   update: core::Update<R>,
@@ -582,7 +691,7 @@ pub(crate) fn listener<R: Runtime>(handle: AppHandle<R>) {
   handle.listen_global(EVENT_CHECK_UPDATE, move |_msg| {
     let handle_ = handle_.clone();
     crate::async_runtime::spawn(async move {
-      let _ = check(handle_.clone()).await;
+      let _ = builder(handle_.clone()).check().await;
     });
   });
 }
@@ -617,7 +726,8 @@ pub(crate) async fn download_and_install<R: Runtime>(update: core::Update<R>) ->
   update_result
 }
 
-pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResponse<R>> {
+/// Initializes the [`UpdateBuilder`] using the app configuration.
+pub fn builder<R: Runtime>(handle: AppHandle<R>) -> UpdateBuilder<R> {
   let updater_config = &handle.config().tauri.updater;
   let package_info = handle.package_info().clone();
 
@@ -636,47 +746,9 @@ pub(crate) async fn check<R: Runtime>(handle: AppHandle<R>) -> Result<UpdateResp
   if let Some(target) = &handle.updater_settings.target {
     builder = builder.target(target);
   }
-
-  // check updates
-  match builder.build().await {
-    Ok(update) => {
-      // send notification if we need to update
-      if update.should_update {
-        let body = update.body.clone().unwrap_or_else(|| String::from(""));
-
-        // Emit `tauri://update-available`
-        let _ = handle.emit_all(
-          EVENT_UPDATE_AVAILABLE,
-          UpdateManifest {
-            body: body.clone(),
-            date: update.date.clone(),
-            version: update.version.clone(),
-          },
-        );
-        let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
-          UpdaterEvent::UpdateAvailable {
-            body,
-            date: update.date.clone(),
-            version: update.version.clone(),
-          },
-        ));
-
-        // Listen for `tauri://update-install`
-        let update_ = update.clone();
-        handle.once_global(EVENT_INSTALL_UPDATE, move |_msg| {
-          crate::async_runtime::spawn(async move {
-            let _ = download_and_install(update_).await;
-          });
-        });
-      } else {
-        send_status_update(&handle, UpdaterEvent::AlreadyUpToDate);
-      }
-      Ok(UpdateResponse { update })
-    }
-    Err(e) => {
-      send_status_update(&handle, UpdaterEvent::Error(e.to_string()));
-      Err(e)
-    }
+  UpdateBuilder {
+    inner: builder,
+    events: true,
   }
 }
 

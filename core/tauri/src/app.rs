@@ -398,10 +398,25 @@ macro_rules! shared_app_impl {
     impl<R: Runtime> $app {
       #[cfg(updater)]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
-      /// Runs the updater to check if there is a new app version.
-      /// It is the same as triggering the `tauri://update` event.
-      pub async fn check_for_updates(&self) -> updater::Result<updater::UpdateResponse<R>> {
-        updater::check(self.app_handle()).await
+      /// Gets the updater builder to manually check if an update is available.
+      ///
+      /// # Examples
+      ///
+      /// ```no_run
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     let handle = app.handle();
+      ///     tauri::async_runtime::spawn(async move {
+      #[cfg_attr(
+        any(feature = "updater", feature = "__updater-docs"),
+        doc = r#"     let response = handle.updater().check().await;"#
+      )]
+      ///     });
+      ///     Ok(())
+      ///   });
+      /// ```
+      pub fn updater(&self) -> updater::UpdateBuilder<R> {
+        updater::builder(self.app_handle())
       }
 
       /// Creates a new webview window.

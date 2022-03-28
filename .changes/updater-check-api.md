@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-Added `check_for_updates` method to `App` and `AppHandle`.
+Added `updater` method to `App` and `AppHandle`, a builder to check for app updates.

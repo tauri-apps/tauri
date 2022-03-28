@@ -21,7 +21,7 @@ use tauri_utils::{platform::current_exe, Env};
 use std::io::Seek;
 use std::{
   collections::HashMap,
-  env,
+  env, fmt,
   io::{Cursor, Read},
   path::{Path, PathBuf},
   str::from_utf8,
@@ -198,29 +198,42 @@ impl RemoteRelease {
   }
 }
 
-#[derive(Debug)]
-pub struct UpdateBuilder<'a, R: Runtime> {
+pub struct UpdateBuilder<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
   /// Current version we are running to compare with announced version
-  pub current_version: &'a str,
+  pub current_version: String,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
   pub urls: Vec<String>,
   /// The platform the updater will check and install the update. Default is from `get_updater_target`
   pub target: Option<String>,
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
+  should_install: Option<Box<dyn FnOnce(&str, &str) -> bool + Send>>,
+}
+
+impl<R: Runtime> fmt::Debug for UpdateBuilder<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("UpdateBuilder")
+      .field("app", &self.app)
+      .field("current_version", &self.current_version)
+      .field("urls", &self.urls)
+      .field("target", &self.target)
+      .field("executable_path", &self.executable_path)
+      .finish()
+  }
 }
 
 // Create new updater instance and return an Update
-impl<'a, R: Runtime> UpdateBuilder<'a, R> {
+impl<R: Runtime> UpdateBuilder<R> {
   pub fn new(app: AppHandle<R>) -> Self {
     UpdateBuilder {
       app,
       urls: Vec::new(),
       target: None,
       executable_path: None,
-      current_version: env!("CARGO_PKG_VERSION"),
+      current_version: env!("CARGO_PKG_VERSION").into(),
+      should_install: None,
     }
   }
 
@@ -250,15 +263,14 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
 
   /// Set the current app version, used to compare against the latest available version.
   /// The `cargo_crate_version!` macro can be used to pull the version from your `Cargo.toml`
-  pub fn current_version(mut self, ver: &'a str) -> Self {
-    self.current_version = ver;
+  pub fn current_version(mut self, ver: impl Into<String>) -> Self {
+    self.current_version = ver.into();
     self
   }
 
   /// Set the target name. Represents the string that is looked up on the updater API or response JSON.
-  #[allow(dead_code)]
-  pub fn target(mut self, target: &str) -> Self {
-    self.target = Some(target.to_owned());
+  pub fn target(mut self, target: impl Into<String>) -> Self {
+    self.target.replace(target.into());
     self
   }
 
@@ -269,7 +281,12 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
     self
   }
 
-  pub async fn build(self) -> Result<Update<R>> {
+  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.should_install.replace(Box::new(f));
+    self
+  }
+
+  pub async fn build(mut self) -> Result<Update<R>> {
     let mut remote_release: Option<RemoteRelease> = None;
 
     // make sure we have at least one url
@@ -278,9 +295,6 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
         "Unable to check update, `url` is required.".into(),
       ));
     };
-
-    // set current version if not set
-    let current_version = self.current_version;
 
     // If no executable path provided, we use current_exe from tauri_utils
     let executable_path = self.executable_path.unwrap_or(current_exe()?);
@@ -324,7 +338,7 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = url
-        .replace("{{current_version}}", current_version)
+        .replace("{{current_version}}", &self.current_version)
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
@@ -383,8 +397,11 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
     let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
     // did the announced version is greated than our current one?
-    let should_update =
-      version::is_greater(current_version, &final_release.version).unwrap_or(false);
+    let should_update = if let Some(comparator) = self.should_install.take() {
+      comparator(&self.current_version, &final_release.version)
+    } else {
+      version::is_greater(&self.current_version, &final_release.version).unwrap_or(false)
+    };
 
     // create our new updater
     Ok(Update {
@@ -404,7 +421,7 @@ impl<'a, R: Runtime> UpdateBuilder<'a, R> {
   }
 }
 
-pub fn builder<'a, R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<'a, R> {
+pub fn builder<R: Runtime>(app: AppHandle<R>) -> UpdateBuilder<R> {
   UpdateBuilder::new(app)
 }
 

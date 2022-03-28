@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.5]
+
+- Print error context on the `build` panic.
+  - [49546c52](https://www.github.com/tauri-apps/tauri/commit/49546c5269080f38d57365788eb2592bff8f6d10) feat(build): print error context ([#3644](https://www.github.com/tauri-apps/tauri/pull/3644)) on 2022-03-09
+
 ## \[1.0.0-rc.4]
 
 - Parse window icons at compile time.

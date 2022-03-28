@@ -1,5 +1,27 @@
 # Changelog
 
+## \[1.0.0-rc.4]
+
+- Added an option to disable the CSP injection of distributable assets nonces and hashes.
+  - [f6e32ee1](https://www.github.com/tauri-apps/tauri/commit/f6e32ee1880eb364ed76beb937c9d12e14d54910) feat(core): add dangerous option to disable compile time CSP injection ([#3775](https://www.github.com/tauri-apps/tauri/pull/3775)) on 2022-03-28
+
+- Use the default value for `MacConfig.minimumSystemVersion` if the value is set to an empty string.
+  - [c81534eb](https://www.github.com/tauri-apps/tauri/commit/c81534ebd873c358e0346c7949aeb171803149a5) feat(cli): use default macOS minimum system version when it is empty ([#3658](https://www.github.com/tauri-apps/tauri/pull/3658)) on 2022-03-13
+
+- Replace multiple dependencies who's C code compiled concurrently and caused
+  the other ones to bloat compile time significantly.
+
+- `zstd` -> `brotli`
+
+- `blake3` -> a vendored version of the blake3 reference
+
+- `ring` -> `getrandom`
+
+See https://github.com/tauri-apps/tauri/pull/3773 for more information about
+these specific choices.
+
+- [8661e3e2](https://www.github.com/tauri-apps/tauri/commit/8661e3e24d96c399bfbcdee5d8e9d6beba2265a7) replace dependencies with long build times when used together (closes [#3571](https://www.github.com/tauri-apps/tauri/pull/3571)) ([#3773](https://www.github.com/tauri-apps/tauri/pull/3773)) on 2022-03-27
+
 ## \[1.0.0-rc.3]
 
 - Use `is_symlink` API compatible with Rust v1.57 instead of std/fs/struct.Metadata.html#method.is_symlink.

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -19,10 +19,10 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils", features = [ "build" ] }
+tauri-utils = { version = "1.0.0-rc.4", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-brotli = { version = "3", optional = true, default-features = false, features = ["std"] }
+brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 regex = { version = "1.5.5", optional = true }
 uuid = { version = "0.8", features = [ "v4" ] }
 

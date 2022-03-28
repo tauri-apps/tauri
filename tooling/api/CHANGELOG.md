@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-rc.3]
+
+- Properly define the `appWindow` type.
+  - [1deeb03e](https://www.github.com/tauri-apps/tauri/commit/1deeb03ef6c7cbea8cf585864424a3d66f184a02) fix(api.js): appWindow shown as type `any`, fixes [#3747](https://www.github.com/tauri-apps/tauri/pull/3747) ([#3772](https://www.github.com/tauri-apps/tauri/pull/3772)) on 2022-03-24
+- Added `Temp` to the `BaseDirectory` enum.
+  - [266156a0](https://www.github.com/tauri-apps/tauri/commit/266156a0b08150b21140dd552c8bc252fe413cdd) feat(core): add `BaseDirectory::Temp` and `$TEMP` variable ([#3763](https://www.github.com/tauri-apps/tauri/pull/3763)) on 2022-03-24
+
 ## \[1.0.0-rc.2]
 
 - Do not crash if `__TAURI_METADATA__` is not set, log an error instead.

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[1.0.0-rc.4]
+
+- Replace multiple dependencies who's C code compiled concurrently and caused
+  the other ones to bloat compile time significantly.
+
+- `zstd` -> `brotli`
+
+- `blake3` -> a vendored version of the blake3 reference
+
+- `ring` -> `getrandom`
+
+See https://github.com/tauri-apps/tauri/pull/3773 for more information about
+these specific choices.
+
+- [8661e3e2](https://www.github.com/tauri-apps/tauri/commit/8661e3e24d96c399bfbcdee5d8e9d6beba2265a7) replace dependencies with long build times when used together (closes [#3571](https://www.github.com/tauri-apps/tauri/pull/3571)) ([#3773](https://www.github.com/tauri-apps/tauri/pull/3773)) on 2022-03-27
+
 ## \[1.0.0-rc.3]
 
 - Parse window icons at compile time.

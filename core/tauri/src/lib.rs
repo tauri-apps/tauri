@@ -197,7 +197,7 @@ pub use {
 pub use {
   self::app::WindowMenuEvent,
   self::event::{Event, EventHandler},
-  self::runtime::menu::{CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
+  self::runtime::menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuItem, Submenu},
   self::window::menu::MenuEvent,
 };
 pub use {

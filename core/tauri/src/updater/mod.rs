@@ -531,15 +531,12 @@ impl<R: Runtime> UpdateBuilder<R> {
   /// ```no_run
   /// tauri::Builder::default()
   ///   .setup(|app| {
-  ///     tauri::updater::builder(app.handle()).should_install_update(|_current, _latest| true);
+  ///     tauri::updater::builder(app.handle()).should_install(|_current, _latest| true);
   ///     Ok(())
   ///   });
   /// ```
-  pub fn should_install_update<F: FnOnce(&str, &str) -> bool + Send + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.inner = self.inner.should_install_update(f);
+  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.inner = self.inner.should_install(f);
     self
   }
 

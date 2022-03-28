@@ -209,7 +209,7 @@ pub struct UpdateBuilder<R: Runtime> {
   pub target: Option<String>,
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
-  should_install_update: Option<Box<dyn FnOnce(&str, &str) -> bool + Send>>,
+  should_install: Option<Box<dyn FnOnce(&str, &str) -> bool + Send>>,
 }
 
 impl<R: Runtime> fmt::Debug for UpdateBuilder<R> {
@@ -233,7 +233,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       target: None,
       executable_path: None,
       current_version: env!("CARGO_PKG_VERSION").into(),
-      should_install_update: None,
+      should_install: None,
     }
   }
 
@@ -281,11 +281,8 @@ impl<R: Runtime> UpdateBuilder<R> {
     self
   }
 
-  pub fn should_install_update<F: FnOnce(&str, &str) -> bool + Send + 'static>(
-    mut self,
-    f: F,
-  ) -> Self {
-    self.should_install_update.replace(Box::new(f));
+  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.should_install.replace(Box::new(f));
     self
   }
 
@@ -400,7 +397,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
     // did the announced version is greated than our current one?
-    let should_update = if let Some(comparator) = self.should_install_update.take() {
+    let should_update = if let Some(comparator) = self.should_install.take() {
       comparator(&self.current_version, &final_release.version)
     } else {
       version::is_greater(&self.current_version, &final_release.version).unwrap_or(false)

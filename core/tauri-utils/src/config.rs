@@ -765,7 +765,7 @@ pub struct SecurityConfig {
   /// **WARNING:** Only disable this if you know what you are doing and have properly configured the CSP.
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default)]
-  pub dangerous_disable_asset_csp_injection: bool,
+  pub dangerous_disable_asset_csp_modification: bool,
 }
 
 /// Defines an allowlist type.
@@ -2608,7 +2608,7 @@ mod build {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
-      let dangerous_disable_asset_csp_injection = self.dangerous_disable_asset_csp_injection;
+      let dangerous_disable_asset_csp_modification = self.dangerous_disable_asset_csp_modification;
 
       literal_struct!(
         tokens,
@@ -2616,7 +2616,7 @@ mod build {
         csp,
         dev_csp,
         freeze_prototype,
-        dangerous_disable_asset_csp_injection
+        dangerous_disable_asset_csp_modification
       );
     }
   }
@@ -2867,7 +2867,7 @@ mod test {
         csp: None,
         dev_csp: None,
         freeze_prototype: false,
-        dangerous_disable_asset_csp_injection: false,
+        dangerous_disable_asset_csp_modification: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

@@ -1832,7 +1832,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .listeners
       .lock()
       .unwrap()
-      .insert(id, Box::new(f));
+      .insert(id, Arc::new(Box::new(f)));
     id
   }
 
@@ -2300,13 +2300,9 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(feature = "system-tray")]
     tray_context,
   } = context;
-  if *control_flow == ControlFlow::Exit {
-    return RunIteration {
-      window_count: windows.lock().expect("poisoned webview collection").len(),
-    };
+  if *control_flow != ControlFlow::Exit {
+    *control_flow = ControlFlow::Wait;
   }
-
-  *control_flow = ControlFlow::Wait;
 
   match event {
     Event::NewEvents(StartCause::Init) => {
@@ -2319,6 +2315,10 @@ fn handle_event_loop<T: UserEvent>(
 
     Event::MainEventsCleared => {
       callback(RunEvent::MainEventsCleared);
+    }
+
+    Event::LoopDestroyed => {
+      callback(RunEvent::Exit);
     }
 
     Event::GlobalShortcutEvent(accelerator_id) => {
@@ -2355,7 +2355,8 @@ fn handle_event_loop<T: UserEvent>(
       ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      for handler in tray_context.listeners.lock().unwrap().values() {
+      let listeners = tray_context.listeners.lock().unwrap().clone();
+      for handler in listeners.values() {
         handler(&event);
       }
     }
@@ -2564,7 +2565,6 @@ fn on_window_close<'a, T: UserEvent>(
 
       if !should_prevent {
         *control_flow = ControlFlow::Exit;
-        callback(RunEvent::Exit);
       }
     }
     Some(webview)

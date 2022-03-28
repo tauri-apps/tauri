@@ -7,6 +7,7 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
+  fmt::Write,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -15,11 +16,11 @@ use tauri_utils::config::PatternKind;
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
+#[cfg(feature = "compression")]
+use brotli::enc::backward_references::BrotliEncoderParams;
+
 /// The subdirectory inside the target directory we want to place assets.
 const TARGET_PATH: &str = "tauri-codegen-assets";
-
-/// The minimum size needed for the hasher to use multiple threads.
-const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
 
 /// (key, (original filepath, compressed bytes))
 type Asset = (AssetKey, (PathBuf, PathBuf));
@@ -39,6 +40,9 @@ pub enum EmbeddedAssetsError {
     path: PathBuf,
     error: std::io::Error,
   },
+
+  #[error("failed to create hex from bytes because {0}")]
+  Hex(std::fmt::Error),
 
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
@@ -185,7 +189,7 @@ pub struct AssetOptions {
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
   pub(crate) dangerous_disable_asset_csp: bool,
-  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+  #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
 
@@ -197,7 +201,7 @@ impl AssetOptions {
       pattern,
       freeze_prototype: false,
       dangerous_disable_asset_csp: false,
-      #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+      #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
   }
@@ -257,13 +261,19 @@ impl EmbeddedAssets {
 
   /// Use highest compression level for release, the fastest one for everything else
   #[cfg(feature = "compression")]
-  fn compression_level() -> i32 {
-    let levels = zstd::compression_level_range();
+  fn compression_settings() -> BrotliEncoderParams {
+    let mut settings = BrotliEncoderParams::default();
+
+    // the following compression levels are hand-picked and are not min-maxed.
+    // they have a good balance of runtime vs size for the respective profile goals.
+    // see the "brotli" section of this comment https://github.com/tauri-apps/tauri/issues/3571#issuecomment-1054847558
     if cfg!(debug_assertions) {
-      *levels.start()
+      settings.quality = 2
     } else {
-      *levels.end()
+      settings.quality = 9
     }
+
+    settings
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
@@ -302,20 +312,24 @@ impl EmbeddedAssets {
 
     // get a hash of the input - allows for caching existing files
     let hash = {
-      let mut hasher = blake3::Hasher::new();
-      if input.len() < MULTI_HASH_SIZE_LIMIT {
-        hasher.update(&input);
-      } else {
-        hasher.update_rayon(&input);
+      let mut hasher = crate::vendor::blake3_reference::Hasher::default();
+      hasher.update(&input);
+
+      let mut bytes = [0u8; 32];
+      hasher.finalize(&mut bytes);
+
+      let mut hex = String::with_capacity(2 * bytes.len());
+      for b in bytes {
+        write!(hex, "{:02x}", b).map_err(EmbeddedAssetsError::Hex)?;
       }
-      hasher.finalize().to_hex()
+      hex
     };
 
     // use the content hash to determine filename, keep extensions that exist
     let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
       out_dir.join(format!("{}.{}", hash, ext))
     } else {
-      out_dir.join(hash.to_string())
+      out_dir.join(hash)
     };
 
     // only compress and write to the file if it doesn't already exist.
@@ -339,13 +353,16 @@ impl EmbeddedAssets {
       }
 
       #[cfg(feature = "compression")]
-      // entirely write input to the output file path with compression
-      zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
-        EmbeddedAssetsError::AssetWrite {
-          path: path.to_owned(),
-          error,
-        }
-      })?;
+      {
+        let mut input = std::io::Cursor::new(input);
+        // entirely write input to the output file path with compression
+        brotli::BrotliCompress(&mut input, &mut out_file, &Self::compression_settings()).map_err(
+          |error| EmbeddedAssetsError::AssetWrite {
+            path: path.to_owned(),
+            error,
+          },
+        )?;
+      }
     }
 
     Ok((key, (path.into(), out_path)))

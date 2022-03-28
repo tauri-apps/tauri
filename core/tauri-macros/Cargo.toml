@@ -27,6 +27,5 @@ tauri-utils = { version = "1.0.0-rc.3", path = "../tauri-utils" }
 custom-protocol = [ ]
 compression = [ "tauri-codegen/compression" ]
 isolation = [ "tauri-codegen/isolation" ]
-__isolation-docs = [ "tauri-codegen/__isolation-docs" ]
 shell-scope = [ "tauri-codegen/shell-scope" ]
 config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]

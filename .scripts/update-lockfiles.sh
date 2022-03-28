@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-declare -a examples=("api" "sidecar" "updater" "resources", "isolation")
+declare -a examples=("api" "sidecar" "updater" "resources")
 declare -a tooling=("bench" "cli" "webdriver")
 
 for example in "${examples[@]}"

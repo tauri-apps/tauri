@@ -34,12 +34,13 @@ jobs:
             architecture: x64
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
-            architecture: x64
-            docker: |
-              docker pull $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian
-              docker tag $DOCKER_REGISTRY_URL/napi-rs/napi-rs/nodejs-rust:lts-debian builder
-            build: |
-              docker run --rm -v ~/.cargo/git:/root/.cargo/git -v ~/.cargo/registry:/root/.cargo/registry -v $(pwd)/../../../:/build -w /build builder sh -c "cd tooling/cli/node && yarn build && strip *.node"
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
+            build: |-
+              set -e &&
+              rustup target add x86_64-unknown-linux-gnu &&
+              cd tooling/cli/node
+              yarn build --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              llvm-strip -x *.node
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-musl
             architecture: x64

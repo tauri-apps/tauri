@@ -277,6 +277,14 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {}
 
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn close_devtools(&self) {}
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn is_devtools_open(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn scale_factor(&self) -> Result<f64> {
     Ok(1.0)
   }

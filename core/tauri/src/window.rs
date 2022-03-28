@@ -812,6 +812,74 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.open_devtools();
   }
 
+  /// Closes the developer tools window (Web Inspector).
+  /// The devtools is only enabled on debug builds or with the `devtools` feature flag.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** This is a private API on macOS,
+  /// so you cannot use this if your application will be published on the App Store.
+  /// - **Windows:** Unsupported.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     {
+  ///       let window = app.get_window("main").unwrap();
+  ///       window.open_devtools();
+  ///       std::thread::spawn(move || {
+  ///         std::thread::sleep(std::time::Duration::from_secs(10));
+  ///         window.close_devtools();
+  ///       });
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  pub fn close_devtools(&self) {
+    self.window.dispatcher.close_devtools();
+  }
+
+  /// Checks if the developer tools window (Web Inspector) is opened.
+  /// The devtools is only enabled on debug builds or with the `devtools` feature flag.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** This is a private API on macOS,
+  /// so you cannot use this if your application will be published on the App Store.
+  /// - **Windows:** Unsupported.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     {
+  ///       let window = app.get_window("main").unwrap();
+  ///       if !window.is_devtools_open() {
+  ///         window.open_devtools();
+  ///       }
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(debug_assertions, feature = "devtools"))))]
+  pub fn is_devtools_open(&self) -> bool {
+    self
+      .window
+      .dispatcher
+      .is_devtools_open()
+      .unwrap_or_default()
+  }
+
   // Getters
 
   /// Gets a handle to the window menu.

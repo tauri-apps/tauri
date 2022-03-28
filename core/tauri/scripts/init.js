@@ -2,6 +2,10 @@
   if (window.location.origin.startsWith(__TEMPLATE_origin__)) {
     __RAW_freeze_prototype__
 
+    ;(function () {
+      __RAW_hotkeys__
+    })()
+
     __RAW_pattern_script__
 
     __RAW_ipc_script__

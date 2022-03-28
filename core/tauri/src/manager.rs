@@ -880,6 +880,8 @@ impl<R: Runtime> WindowManager<R> {
       plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
+      #[raw]
+      hotkeys: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -893,6 +895,34 @@ impl<R: Runtime> WindowManager<R> {
     } else {
       ""
     };
+
+    #[cfg(any(debug_assertions, feature = "devtools"))]
+    let hotkeys = &format!(
+      "
+      {};
+      window.hotkeys('{}', () => {{
+        window.__TAURI_INVOKE__('tauri', {{
+          __tauriModule: 'Window',
+          message: {{
+            cmd: 'manage',
+            data: {{
+              cmd: {{
+                type: '__toggleDevtools'
+              }}
+            }}
+          }}
+        }});
+      }});
+    ",
+      include_str!("../scripts/hotkey.js"),
+      if cfg!(target_os = "macos") {
+        "command+option+i"
+      } else {
+        "ctrl+shift+i"
+      }
+    );
+    #[cfg(not(any(debug_assertions, feature = "devtools")))]
+    let hotkeys = "";
 
     InitJavascript {
       origin: self.get_browser_origin(),
@@ -913,6 +943,7 @@ impl<R: Runtime> WindowManager<R> {
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
+      hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())

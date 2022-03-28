@@ -62,6 +62,7 @@ dialoguer = "0.10"
 url = { version = "2.2", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
+ctrlc = "3.2"
 
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"

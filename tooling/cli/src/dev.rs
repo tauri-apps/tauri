@@ -24,6 +24,7 @@ use std::{
   ffi::OsStr,
   process::{exit, Command},
   sync::{
+    atomic::{AtomicBool, Ordering},
     mpsc::{channel, Receiver},
     Arc, Mutex,
   },
@@ -31,6 +32,7 @@ use std::{
 };
 
 static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
+static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
 
 #[derive(Debug, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
@@ -116,13 +118,19 @@ pub fn command(options: Options) -> Result<()> {
         let status = child_
           .wait()
           .expect("failed to wait on \"beforeDevCommand\"");
-        if !status.success() {
+        if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
           logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
           exit(status.code().unwrap_or(1));
         }
       });
 
       BEFORE_DEV.set(Mutex::new(child)).unwrap();
+      KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
+
+      let _ = ctrlc::set_handler(move || {
+        kill_before_dev_process();
+        exit(130);
+      });
     }
   }
 
@@ -280,11 +288,15 @@ pub fn command(options: Options) -> Result<()> {
 fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
+    KILL_BEFORE_DEV_FLAG
+      .get()
+      .unwrap()
+      .store(true, Ordering::Relaxed);
     #[cfg(windows)]
       let _ = Command::new("powershell")
         .arg("-NoProfile")
         .arg("-Command")
-        .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid }}; Kill-Tree {}", child.id()))
+        .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
         .status();
     #[cfg(not(windows))]
     let _ = Command::new("pkill")

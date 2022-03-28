@@ -94,7 +94,7 @@ struct RawEmbeddedAssets {
 
 impl RawEmbeddedAssets {
   /// Creates a new list of (prefix, entry) from a collection of inputs.
-  fn new(input: EmbeddedAssetsInput) -> Result<Self, EmbeddedAssetsError> {
+  fn new(input: EmbeddedAssetsInput, options: &AssetOptions) -> Result<Self, EmbeddedAssetsError> {
     let mut csp_hashes = CspHashes::default();
 
     input
@@ -123,7 +123,9 @@ impl RawEmbeddedAssets {
 
           // compress all files encountered
           Ok(entry) => {
-            if let Err(error) = csp_hashes.add_if_applicable(&entry) {
+            if options.dangerous_disable_asset_csp_modification {
+              Some(Ok((prefix, entry)))
+            } else if let Err(error) = csp_hashes.add_if_applicable(&entry) {
               Some(Err(error))
             } else {
               Some(Ok((prefix, entry)))
@@ -186,6 +188,7 @@ pub struct AssetOptions {
   pub(crate) csp: bool,
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
+  pub(crate) dangerous_disable_asset_csp_modification: bool,
   #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
@@ -197,12 +200,13 @@ impl AssetOptions {
       csp: false,
       pattern,
       freeze_prototype: false,
+      dangerous_disable_asset_csp_modification: false,
       #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
   }
 
-  /// Instruct the asset handler to inject the CSP token to HTML files.
+  /// Instruct the asset handler to inject the CSP token to HTML files (Linux only) and add asset nonces and hashes to the policy.
   #[must_use]
   pub fn with_csp(mut self) -> Self {
     self.csp = true;
@@ -215,6 +219,15 @@ impl AssetOptions {
     self.freeze_prototype = freeze;
     self
   }
+
+  /// Instruct the asset handler to **NOT** modify the CSP. This is **NOT** recommended.
+  pub fn dangerous_disable_asset_csp_modification(
+    mut self,
+    dangerous_disable_asset_csp_modification: bool,
+  ) -> Self {
+    self.dangerous_disable_asset_csp_modification = dangerous_disable_asset_csp_modification;
+    self
+  }
 }
 
 impl EmbeddedAssets {
@@ -223,10 +236,11 @@ impl EmbeddedAssets {
   /// [`Assets`]: tauri_utils::assets::Assets
   pub fn new(
     input: impl Into<EmbeddedAssetsInput>,
+    options: &AssetOptions,
     map: impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
   ) -> Result<Self, EmbeddedAssetsError> {
     // we need to pre-compute all files now, so that we can inject data from all files into a few
-    let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into())?;
+    let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into(), options)?;
 
     struct CompressState {
       csp_hashes: CspHashes,

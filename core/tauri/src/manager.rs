@@ -1147,7 +1147,7 @@ impl<R: Runtime> WindowManager<R> {
       for handler in window_event_listeners.iter() {
         handler(GlobalWindowEvent {
           window: window_.clone(),
-          event: event.clone(),
+          event: event.clone().into(),
         });
       }
     });
@@ -1274,10 +1274,7 @@ fn on_window_event<R: Runtime>(
   match event {
     WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
-    WindowEvent::CloseRequested {
-      label: _,
-      signal_tx,
-    } => {
+    WindowEvent::CloseRequested { signal_tx } => {
       if window.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT) {
         signal_tx.send(true).unwrap();
       }
@@ -1328,7 +1325,6 @@ fn on_window_event<R: Runtime>(
       FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
       _ => unimplemented!(),
     },
-    _ => unimplemented!(),
   }
   Ok(())
 }

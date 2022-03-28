@@ -51,7 +51,7 @@ fn map_core_assets(
   #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
-  let dangerous_disable_asset_csp = options.dangerous_disable_asset_csp;
+  let dangerous_disable_asset_csp_injection = options.dangerous_disable_asset_csp_injection;
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
@@ -60,7 +60,7 @@ fn map_core_assets(
         #[cfg(target_os = "linux")]
         ::tauri_utils::html::inject_csp_token(&mut document);
 
-        if !dangerous_disable_asset_csp {
+        if !dangerous_disable_asset_csp_injection {
           load_csp(&mut document, key, csp_hashes);
 
           #[cfg(feature = "isolation")]

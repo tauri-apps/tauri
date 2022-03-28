@@ -123,7 +123,7 @@ impl RawEmbeddedAssets {
 
           // compress all files encountered
           Ok(entry) => {
-            if options.dangerous_disable_asset_csp {
+            if options.dangerous_disable_asset_csp_injection {
               Some(Ok((prefix, entry)))
             } else if let Err(error) = csp_hashes.add_if_applicable(&entry) {
               Some(Err(error))
@@ -188,7 +188,7 @@ pub struct AssetOptions {
   pub(crate) csp: bool,
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
-  pub(crate) dangerous_disable_asset_csp: bool,
+  pub(crate) dangerous_disable_asset_csp_injection: bool,
   #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
@@ -200,7 +200,7 @@ impl AssetOptions {
       csp: false,
       pattern,
       freeze_prototype: false,
-      dangerous_disable_asset_csp: false,
+      dangerous_disable_asset_csp_injection: false,
       #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
@@ -221,8 +221,11 @@ impl AssetOptions {
   }
 
   /// Instruct the asset handler to **NOT** modify the CSP. This is **NOT** recommended.
-  pub fn dangerous_disable_asset_csp(mut self, dangerous_disable_asset_csp: bool) -> Self {
-    self.dangerous_disable_asset_csp = dangerous_disable_asset_csp;
+  pub fn dangerous_disable_asset_csp_injection(
+    mut self,
+    dangerous_disable_asset_csp_injection: bool,
+  ) -> Self {
+    self.dangerous_disable_asset_csp_injection = dangerous_disable_asset_csp_injection;
     self
   }
 }

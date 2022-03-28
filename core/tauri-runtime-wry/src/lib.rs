@@ -984,8 +984,13 @@ unsafe impl Send for GtkWindow {}
 
 #[derive(Debug, Clone)]
 pub enum WindowMessage {
+  // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
   OpenDevTools,
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  CloseDevTools,
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  IsDevToolsOpen(Sender<bool>),
   // Getters
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -1172,6 +1177,20 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       &self.context,
       Message::Window(self.window_id, WindowMessage::OpenDevTools),
     );
+  }
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn close_devtools(&self) {
+    let _ = send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::CloseDevTools),
+    );
+  }
+
+  /// Gets the devtools window's current open state.
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn is_devtools_open(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsDevToolsOpen)
   }
 
   // Getters
@@ -2000,6 +2019,20 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::OpenDevTools => {
             if let WindowHandle::Webview(w) = &webview.inner {
               w.open_devtools();
+            }
+          }
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WindowMessage::CloseDevTools => {
+            if let WindowHandle::Webview(w) = &webview.inner {
+              w.close_devtools();
+            }
+          }
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WindowMessage::IsDevToolsOpen(tx) => {
+            if let WindowHandle::Webview(w) = &webview.inner {
+              tx.send(w.is_devtools_open()).unwrap();
+            } else {
+              tx.send(false).unwrap();
             }
           }
           // Getters

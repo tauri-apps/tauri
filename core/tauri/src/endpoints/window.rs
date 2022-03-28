@@ -99,6 +99,9 @@ pub enum WindowManagerCmd {
   // internals
   #[serde(rename = "__toggleMaximize")]
   InternalToggleMaximize,
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  #[serde(rename = "__toggleDevtools")]
+  InternalToggleDevtools,
 }
 
 impl WindowManagerCmd {
@@ -277,6 +280,14 @@ impl Cmd {
             true => window.unmaximize()?,
             false => window.maximize()?,
           }
+        }
+      }
+      #[cfg(any(debug_assertions, feature = "devtools"))]
+      WindowManagerCmd::InternalToggleDevtools => {
+        if window.is_devtools_open() {
+          window.close_devtools();
+        } else {
+          window.open_devtools();
         }
       }
       #[allow(unreachable_patterns)]

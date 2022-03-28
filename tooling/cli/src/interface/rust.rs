@@ -489,6 +489,7 @@ fn tauri_config_to_bundle_settings(
       }),
       icon_path: windows_icon_path,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
+      allow_downgrades: config.windows.allow_downgrades,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

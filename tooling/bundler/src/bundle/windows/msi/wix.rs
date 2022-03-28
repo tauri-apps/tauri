@@ -467,6 +467,10 @@ pub fn build_wix_app_installer(
   .to_string();
 
   data.insert("upgrade_code", to_json(&upgrade_code.as_str()));
+  data.insert(
+    "allow_downgrades",
+    to_json(settings.windows().allow_downgrades),
+  );
 
   let path_guid = generate_package_guid(settings).to_string();
   data.insert("path_component_guid", to_json(&path_guid.as_str()));

@@ -144,6 +144,7 @@
             "useBootstrapper": false
           },
           "windows": {
+            "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
@@ -561,6 +562,7 @@
         "windows": {
           "description": "Configuration for the Windows bundle.",
           "default": {
+            "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
@@ -1639,6 +1641,7 @@
               "useBootstrapper": false
             },
             "windows": {
+              "allowDowngrades": true,
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "timestampUrl": null,
@@ -2054,6 +2057,11 @@
       "description": "Windows bundler configuration.",
       "type": "object",
       "properties": {
+        "allowDowngrades": {
+          "description": "Validates a second app installation, blocking the user from installing an older version if set to `false`.\n\nFor instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.\n\nThe default value of this flag is `true`.",
+          "default": true,
+          "type": "boolean"
+        },
         "certificateThumbprint": {
           "description": "Specifies the SHA1 hash of the signing certificate.",
           "type": [

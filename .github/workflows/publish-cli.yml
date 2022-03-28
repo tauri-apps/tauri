@@ -85,9 +85,10 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
+        if: ${{ !matrix.settings.docker }}
         with:
           node-version: 16
           check-latest: true
@@ -96,16 +97,12 @@ jobs:
           architecture: ${{ matrix.settings.architecture }}
       - name: Install
         uses: actions-rs/toolchain@v1
+        if: ${{ !matrix.settings.docker }}
         with:
           profile: minimal
           override: true
           toolchain: stable
           target: ${{ matrix.settings.target }}
-      #  should be committed
-      #- name: Generate Cargo.lock
-      #  uses: actions-rs/cargo@v1
-      #  with:
-      #    command: generate-lockfile
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}

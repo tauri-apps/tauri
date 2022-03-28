@@ -9,7 +9,7 @@ use tauri_runtime::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
     ResponseParts as HttpResponseParts,
   },
-  menu::{CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
+  menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
@@ -55,8 +55,9 @@ use wry::{
     },
     global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
     menu::{
-      CustomMenuItem as WryCustomMenuItem, MenuBar, MenuId as WryMenuId, MenuItem as WryMenuItem,
-      MenuItemAttributes as WryMenuItemAttributes, MenuType,
+      AboutMetadata as WryAboutMetadata, CustomMenuItem as WryCustomMenuItem, MenuBar,
+      MenuId as WryMenuId, MenuItem as WryMenuItem, MenuItemAttributes as WryMenuItemAttributes,
+      MenuType,
     },
     monitor::MonitorHandle,
     window::{Fullscreen, Icon as WryWindowIcon, UserAttentionType as WryUserAttentionType},
@@ -331,12 +332,31 @@ impl<'a> From<&'a CustomMenuItem> for MenuItemAttributesWrapper<'a> {
   }
 }
 
+pub struct AboutMetadataWrapper(pub WryAboutMetadata);
+
+impl From<AboutMetadata> for AboutMetadataWrapper {
+  fn from(metadata: AboutMetadata) -> Self {
+    Self(WryAboutMetadata {
+      version: metadata.version,
+      authors: metadata.authors,
+      comments: metadata.comments,
+      copyright: metadata.copyright,
+      license: metadata.license,
+      website: metadata.website,
+      website_label: metadata.website_label,
+    })
+  }
+}
+
 pub struct MenuItemWrapper(pub WryMenuItem);
 
 impl From<MenuItem> for MenuItemWrapper {
   fn from(item: MenuItem) -> Self {
     match item {
-      MenuItem::About(v) => Self(WryMenuItem::About(v)),
+      MenuItem::About(name, metadata) => Self(WryMenuItem::About(
+        name,
+        AboutMetadataWrapper::from(metadata).0,
+      )),
       MenuItem::Hide => Self(WryMenuItem::Hide),
       MenuItem::Services => Self(WryMenuItem::Services),
       MenuItem::HideOthers => Self(WryMenuItem::HideOthers),
@@ -1979,7 +1999,7 @@ fn handle_user_message<T: UserEvent>(
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WindowMessage::OpenDevTools => {
             if let WindowHandle::Webview(w) = &webview.inner {
-              w.devtool();
+              w.open_devtools();
             }
           }
           // Getters
@@ -2731,7 +2751,7 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    webview_builder = webview_builder.with_dev_tool(true);
+    webview_builder = webview_builder.with_devtools(true);
   }
 
   let webview = webview_builder
@@ -2743,36 +2763,35 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   {
-    if let Some(controller) = webview.controller() {
-      let proxy_ = proxy.clone();
-      let mut token = EventRegistrationToken::default();
-      unsafe {
-        controller.GotFocus(
-          FocusChangedEventHandler::create(Box::new(move |_, _| {
-            let _ = proxy_.send_event(Message::Webview(
-              window_id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
-            ));
-            Ok(())
-          })),
-          &mut token,
-        )
-      }
-      .unwrap();
-      unsafe {
-        controller.LostFocus(
-          FocusChangedEventHandler::create(Box::new(move |_, _| {
-            let _ = proxy.send_event(Message::Webview(
-              window_id,
-              WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
-            ));
-            Ok(())
-          })),
-          &mut token,
-        )
-      }
-      .unwrap();
+    let controller = webview.controller();
+    let proxy_ = proxy.clone();
+    let mut token = EventRegistrationToken::default();
+    unsafe {
+      controller.GotFocus(
+        FocusChangedEventHandler::create(Box::new(move |_, _| {
+          let _ = proxy_.send_event(Message::Webview(
+            window_id,
+            WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
+          ));
+          Ok(())
+        })),
+        &mut token,
+      )
     }
+    .unwrap();
+    unsafe {
+      controller.LostFocus(
+        FocusChangedEventHandler::create(Box::new(move |_, _| {
+          let _ = proxy.send_event(Message::Webview(
+            window_id,
+            WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
+          ));
+          Ok(())
+        })),
+        &mut token,
+      )
+    }
+    .unwrap();
   }
 
   Ok(WindowWrapper {

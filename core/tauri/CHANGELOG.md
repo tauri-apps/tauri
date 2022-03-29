@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Fixes the `WindowEvent` type used on `Window::on_window_event`.
+  - [06aa87b6](https://www.github.com/tauri-apps/tauri/commit/06aa87b65f4608ded0dc312d526e83065618a1c8) fix(core): `WindowEvent` type used on `Window::on_window_event` ([#3796](https://www.github.com/tauri-apps/tauri/pull/3796)) on 2022-03-28
+- Fixes `WindowEvent::Destroyed` not firing.
+  - [169b5035](https://www.github.com/tauri-apps/tauri/commit/169b5035a93e3f33a420d4b2b0f8943e6404e07f) fix(core): actually fire `WindowEvent::Destroyed` ([#3797](https://www.github.com/tauri-apps/tauri/pull/3797)) on 2022-03-28
+
 ## \[1.0.0-rc.5]
 
 - Added `updater_target` method to the `Builder` struct.

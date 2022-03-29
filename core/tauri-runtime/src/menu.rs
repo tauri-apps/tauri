@@ -427,8 +427,8 @@ impl AboutMetadata {
   }
 
   /// Defines the application version.
-  pub fn version(mut self, version: String) -> Self {
-    self.version.replace(version);
+  pub fn version(mut self, version: impl Into<String>) -> Self {
+    self.version.replace(version.into());
     self
   }
 
@@ -439,32 +439,32 @@ impl AboutMetadata {
   }
 
   /// Defines the application comments.
-  pub fn comments(mut self, comments: String) -> Self {
-    self.comments.replace(comments);
+  pub fn comments(mut self, comments: impl Into<String>) -> Self {
+    self.comments.replace(comments.into());
     self
   }
 
   /// Defines the application copyright.
-  pub fn copyright(mut self, copyright: String) -> Self {
-    self.copyright.replace(copyright);
+  pub fn copyright(mut self, copyright: impl Into<String>) -> Self {
+    self.copyright.replace(copyright.into());
     self
   }
 
   /// Defines the application license.
-  pub fn license(mut self, license: String) -> Self {
-    self.license.replace(license);
+  pub fn license(mut self, license: impl Into<String>) -> Self {
+    self.license.replace(license.into());
     self
   }
 
   /// Defines the application version.
-  pub fn website(mut self, website: String) -> Self {
-    self.website.replace(website);
+  pub fn website(mut self, website: impl Into<String>) -> Self {
+    self.website.replace(website.into());
     self
   }
 
   /// Defines the application version.
-  pub fn website_label(mut self, website_label: String) -> Self {
-    self.website_label.replace(website_label);
+  pub fn website_label(mut self, website_label: impl Into<String>) -> Self {
+    self.website_label.replace(website_label.into());
     self
   }
 }

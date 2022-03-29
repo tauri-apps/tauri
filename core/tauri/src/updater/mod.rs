@@ -637,6 +637,16 @@ impl<R: Runtime> UpdateResponse<R> {
     &self.update.version
   }
 
+  /// The update date.
+  pub fn date(&self) -> &str {
+    &self.update.date
+  }
+
+  /// The update description.
+  pub fn body(&self) -> Option<&String> {
+    self.update.body.as_ref()
+  }
+
   /// Downloads and installs the update.
   pub async fn download_and_install(self) -> Result<()> {
     download_and_install(self.update).await

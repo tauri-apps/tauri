@@ -40,7 +40,7 @@ use crate::{
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::{WebviewIpcHandler, WindowBuilder},
-    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow, WindowEvent},
+    window::{dpi::PhysicalSize, DetachedWindow, FileDropEvent, PendingWindow},
   },
   utils::{
     assets::Assets,
@@ -48,6 +48,7 @@ use crate::{
     PackageInfo,
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
+  WindowEvent,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -1147,7 +1148,7 @@ impl<R: Runtime> WindowManager<R> {
       for handler in window_event_listeners.iter() {
         handler(GlobalWindowEvent {
           window: window_.clone(),
-          event: event.clone().into(),
+          event: event.clone(),
         });
       }
     });
@@ -1274,9 +1275,9 @@ fn on_window_event<R: Runtime>(
   match event {
     WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
-    WindowEvent::CloseRequested { signal_tx } => {
+    WindowEvent::CloseRequested { api } => {
       if window.has_js_listener(Some(window.label().into()), WINDOW_CLOSE_REQUESTED_EVENT) {
-        signal_tx.send(true).unwrap();
+        api.prevent_close();
       }
       window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }

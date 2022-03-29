@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.3.5]
+
+- Fixes `WindowEvent::Destroyed` not firing.
+  - [169b5035](https://www.github.com/tauri-apps/tauri/commit/169b5035a93e3f33a420d4b2b0f8943e6404e07f) fix(core): actually fire `WindowEvent::Destroyed` ([#3797](https://www.github.com/tauri-apps/tauri/pull/3797)) on 2022-03-28
+
 ## \[0.3.4]
 
 - Added `close_devtools` and `is_devtools_open` APIs to the `Dispatch` trait.

@@ -230,6 +230,8 @@
 //!
 //! **Pending** is emitted when the download is started and **Done** when the install is complete. You can then ask to restart the application.
 //!
+//! **Downloaded** is emitted when the download has finished.
+//!
 //! **UpToDate** is emitted when the app already has the latest version installed and an update is not needed.
 //!
 //! **Error** is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
@@ -248,6 +250,9 @@
 //!       }
 //!       tauri::UpdaterEvent::Pending => {
 //!         println!("update is pending!");
+//!       }
+//!       tauri::UpdaterEvent::Downloaded => {
+//!         println!("update has been downloaded!");
 //!       }
 //!       tauri::UpdaterEvent::Updated => {
 //!         println!("app has been updated");
@@ -712,6 +717,7 @@ pub(crate) async fn download_and_install<R: Runtime>(update: core::Update<R>) ->
   send_status_update(&update.app, UpdaterEvent::Pending);
 
   let handle = update.app.clone();
+  let handle_ = handle.clone();
 
   // Launch updater download process
   // macOS we display the `Ready to restart dialog` asking to restart
@@ -722,6 +728,9 @@ pub(crate) async fn download_and_install<R: Runtime>(update: core::Update<R>) ->
       update.app.config().tauri.updater.pubkey.clone(),
       move |chunk_length, content_length| {
         send_download_progress_event(&handle, chunk_length, content_length);
+      },
+      move || {
+        send_status_update(&handle_, UpdaterEvent::Downloaded);
       },
     )
     .await;
@@ -840,7 +849,7 @@ Release Notes:
     // Windows is closing the current App and launch the downloaded MSI when ready (the process stop here)
     // Linux we replace the AppImage by launching a new install, it start a new AppImage instance, so we're closing the previous. (the process stop here)
     update
-      .download_and_install(pubkey.clone(), |_, _| ())
+      .download_and_install(pubkey.clone(), |_, _| (), || ())
       .await?;
 
     // Ask user if we need to restart the application

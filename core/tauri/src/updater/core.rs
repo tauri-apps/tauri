@@ -476,10 +476,11 @@ impl<R: Runtime> Clone for Update<R> {
 impl<R: Runtime> Update<R> {
   // Download and install our update
   // @todo(lemarier): Split into download and install (two step) but need to be thread safe
-  pub(crate) async fn download_and_install<F: Fn(usize, Option<u64>)>(
+  pub(crate) async fn download_and_install<C: Fn(usize, Option<u64>), D: FnOnce()>(
     &self,
     pub_key: String,
-    on_chunk: F,
+    on_chunk: C,
+    on_download_finish: D,
   ) -> Result {
     // make sure we can install the update on linux
     // We fail here because later we can add more linux support
@@ -550,6 +551,8 @@ impl<R: Runtime> Update<R> {
         }
       }
     }
+
+    on_download_finish();
 
     // create memory buffer from our archive (Seek + Read)
     let mut archive_buffer = Cursor::new(buffer);

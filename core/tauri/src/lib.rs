@@ -252,6 +252,8 @@ pub enum UpdaterEvent {
     /// The total
     content_length: Option<u64>,
   },
+  /// The update has been download and is now about to be installed.
+  Downloaded,
   /// The update has been applied and the app is now up to date.
   Updated,
   /// The app is already up to date.

@@ -1148,7 +1148,7 @@ impl<R: Runtime> WindowManager<R> {
       for handler in window_event_listeners.iter() {
         handler(GlobalWindowEvent {
           window: window_.clone(),
-          event: event.clone().into(),
+          event: event.clone(),
         });
       }
     });

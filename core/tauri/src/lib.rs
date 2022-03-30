@@ -267,6 +267,7 @@ impl UpdaterEvent {
   pub(crate) fn status_message(self) -> &'static str {
     match self {
       Self::Pending => updater::EVENT_STATUS_PENDING,
+      Self::Downloaded => updater::EVENT_STATUS_DOWNLOADED,
       Self::Updated => updater::EVENT_STATUS_SUCCESS,
       Self::AlreadyUpToDate => updater::EVENT_STATUS_UPTODATE,
       Self::Error(_) => updater::EVENT_STATUS_ERROR,

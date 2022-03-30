@@ -470,6 +470,8 @@ pub const EVENT_STATUS_PENDING: &str = "PENDING";
 /// When you got this status, something went wrong
 /// you can find the error message inside the `error` field.
 pub const EVENT_STATUS_ERROR: &str = "ERROR";
+/// The update has been downloaded.
+pub const EVENT_STATUS_DOWNLOADED: &str = "DOWNLOADED";
 /// When you receive this status, you should ask the user to restart
 pub const EVENT_STATUS_SUCCESS: &str = "DONE";
 /// When you receive this status, this is because the application is running last version

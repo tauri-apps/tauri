@@ -13,6 +13,7 @@ FLAGS:
 OPTIONS:
   --port NUMBER           Sets the tauri-driver intermediary port
   --native-port NUMBER    Sets the port of the underlying WebDriver
+  --native-host HOST      Sets the host of the underlying WebDriver (Linux only)
   --native-driver PATH    Sets the path to the native WebDriver binary
 ";
 
@@ -20,6 +21,7 @@ OPTIONS:
 pub struct Args {
   pub port: u16,
   pub native_port: u16,
+  pub native_host: String,
   pub native_driver: Option<PathBuf>,
 }
 
@@ -42,6 +44,7 @@ impl From<pico_args::Arguments> for Args {
     let parsed = Args {
       port: args.value_from_str("--port").unwrap_or(4444),
       native_port: args.value_from_str("--native-port").unwrap_or(4445),
+      native_host: args.value_from_str("--native-host").unwrap_or(String::from("127.0.0.1")),
       native_driver,
     };
 

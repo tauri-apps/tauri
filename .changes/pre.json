@@ -1,7 +1,6 @@
 {
   "tag": "rc",
   "changes": [
-    ".changes/about-metadata-into-string.md",
     ".changes/allow-conf-gitignore.md",
     ".changes/allowlist-clipboard.md",
     ".changes/allowlist-dialog.md",
@@ -252,7 +251,6 @@
     ".changes/universal-apple-target.md",
     ".changes/unlisten-fix.md",
     ".changes/unlisten.md",
-    ".changes/update-response-methods.md",
     ".changes/update-wry.md",
     ".changes/updater-check-api.md",
     ".changes/updater-custom-version-checker.md",

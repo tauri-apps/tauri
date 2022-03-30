@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.1.2]
+
+- Expose `native-host` option in tauri-driver and set default to `127.0.0.1`.
+  - [cd9dfc7b](https://www.github.com/tauri-apps/tauri/commit/cd9dfc7b9a3fe0e04e40d9b0f9be674aefd0d725) fix(driver): expose native-host option and set default to 127.0.0.1 ([#3816](https://www.github.com/tauri-apps/tauri/pull/3816)) on 2022-03-31
+
 ## \[0.1.1]
 
 - The minimum Rust version is now `1.56`.

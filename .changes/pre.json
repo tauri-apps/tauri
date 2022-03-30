@@ -267,6 +267,7 @@
     ".changes/wait-dev-server-url.md",
     ".changes/warn-macos-private-api.md",
     ".changes/webdriver-args.md",
+    ".changes/webdriver-native-host.md",
     ".changes/webview-attributes-clipboard.md",
     ".changes/webview2-com.md",
     ".changes/window-builder.md",

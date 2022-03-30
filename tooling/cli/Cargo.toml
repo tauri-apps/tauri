@@ -37,7 +37,7 @@ serde_json = "1.0"
 serde_with = "1.12"
 notify = "4.0"
 shared_child = "1.0"
-toml_edit = "0.13"
+toml_edit = "0.14"
 json-patch = "0.2"
 tauri-utils = { version = "1.0.0-rc.4", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
 toml = "0.5"

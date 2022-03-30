@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "0.3.4"
+version = "0.3.5"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"

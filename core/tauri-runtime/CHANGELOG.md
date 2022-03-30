@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.3.5]
+
+- The `AboutMetadata` string setters now take `impl Into<String>`.
+  - [b14aa896](https://www.github.com/tauri-apps/tauri/commit/b14aa89673c3563522e5c04baf9630fa1c4739b0) feat(core): improve `AboutMetadata` setters on 2022-03-29
+
 ## \[0.3.4]
 
 - Added `close_devtools` and `is_devtools_open` APIs to the `Dispatch` trait.

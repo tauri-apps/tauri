@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.7]
+
+- Added `UpdateResponse::body` and `UpdateResponse::date`.
+  - [c7696f34](https://www.github.com/tauri-apps/tauri/commit/c7696f34ecb7baa0da583736e727f74a01f5996a) feat(updater): add `body` and `date` getters ([#3802](https://www.github.com/tauri-apps/tauri/pull/3802)) on 2022-03-29
+
 ## \[1.0.0-rc.6]
 
 - Fixes the `WindowEvent` type used on `Window::on_window_event`.

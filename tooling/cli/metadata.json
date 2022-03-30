@@ -3,6 +3,6 @@
     "version": "1.0.0-rc.7",
     "node": ">= 12.13.0"
   },
-  "tauri": "1.0.0-rc.6",
+  "tauri": "1.0.0-rc.7",
   "tauri-build": "1.0.0-rc.5"
 }

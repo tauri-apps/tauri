@@ -126,12 +126,6 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
-  /// whether we should use the bootstrap script on debian or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -157,12 +151,6 @@ pub struct MacOsSettings {
   /// The path to the LICENSE file for macOS apps.
   /// Currently only used by the dmg bundle.
   pub license: Option<String>,
-  /// whether we should use the bootstrap script on macOS .app or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.

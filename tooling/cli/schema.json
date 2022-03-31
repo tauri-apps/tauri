@@ -134,14 +134,12 @@
         "bundle": {
           "active": false,
           "deb": {
-            "files": {},
-            "useBootstrapper": false
+            "files": {}
           },
           "icon": [],
           "identifier": "",
           "macOS": {
-            "minimumSystemVersion": "10.13",
-            "useBootstrapper": false
+            "minimumSystemVersion": "10.13"
           },
           "windows": {
             "allowDowngrades": true,
@@ -482,8 +480,7 @@
         "deb": {
           "description": "Configuration for the Debian bundle.",
           "default": {
-            "files": {},
-            "useBootstrapper": false
+            "files": {}
           },
           "allOf": [
             {
@@ -523,8 +520,7 @@
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
-            "minimumSystemVersion": "10.13",
-            "useBootstrapper": false
+            "minimumSystemVersion": "10.13"
           },
           "allOf": [
             {
@@ -925,11 +921,6 @@
           "additionalProperties": {
             "type": "string"
           }
-        },
-        "useBootstrapper": {
-          "description": "Enable the boostrapper script.",
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1168,11 +1159,6 @@
             "string",
             "null"
           ]
-        },
-        "useBootstrapper": {
-          "description": "Enable the boostrapper script.",
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1637,14 +1623,12 @@
           "default": {
             "active": false,
             "deb": {
-              "files": {},
-              "useBootstrapper": false
+              "files": {}
             },
             "icon": [],
             "identifier": "",
             "macOS": {
-              "minimumSystemVersion": "10.13",
-              "useBootstrapper": false
+              "minimumSystemVersion": "10.13"
             },
             "windows": {
               "allowDowngrades": true,

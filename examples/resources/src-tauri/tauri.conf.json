@@ -25,12 +25,10 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "frameworks": [],
-        "useBootstrapper": false,
         "exceptionDomain": ""
       }
     },

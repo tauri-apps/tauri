@@ -24,14 +24,12 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "signingIdentity": null,
         "entitlements": "../entitlements.plist",
         "frameworks": [],
-        "useBootstrapper": false,
         "exceptionDomain": ""
       },
       "windows": {

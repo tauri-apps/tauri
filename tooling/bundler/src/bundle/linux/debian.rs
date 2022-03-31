@@ -29,7 +29,6 @@ use anyhow::Context;
 use heck::ToKebabCase;
 use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
-use std::process::{Command, Stdio};
 use walkdir::WalkDir;
 
 use std::{
@@ -128,78 +127,7 @@ pub fn generate_data(
     generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
   generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
 
-  let use_bootstrapper = settings.deb().use_bootstrapper.unwrap_or_default();
-  if use_bootstrapper {
-    generate_bootstrap_file(settings, &data_dir)
-      .with_context(|| "Failed to generate bootstrap file")?;
-  }
-
   Ok((data_dir, icons))
-}
-
-/// Generates the bootstrap script file.
-fn generate_bootstrap_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.main_binary_name();
-  let bin_dir = data_dir.join("usr/bin");
-
-  let bootstrap_file_name = format!("__{}-bootstrapper", bin_name);
-  let bootstrapper_file_path = bin_dir.join(bootstrap_file_name.clone());
-  let bootstrapper_file = &mut common::create_file(&bootstrapper_file_path)?;
-  write!(
-    bootstrapper_file,
-    "#!/usr/bin/env sh
-# This bootstraps the environment for Tauri, so environments are available.
-export NVM_DIR=\"$([ -z \"${{XDG_CONFIG_HOME-}}\" ] && printf %s \"${{HOME}}/.nvm\" || printf %s \"${{XDG_CONFIG_HOME}}/nvm\")\"
-[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"
-
-if [ -e ~/.bash_profile ]
-then
-    source ~/.bash_profile
-fi
-if [ -e ~/.zprofile ]
-then
-    source ~/.zprofile
-fi
-if [ -e ~/.profile ]
-then
-    source ~/.profile
-fi
-if [ -e ~/.bashrc ]
-then
-    source ~/.bashrc
-fi
-if [ -e ~/.zshrc ]
-then
-    source ~/.zshrc
-fi
-
-echo $PATH
-
-source /etc/profile
-
-if pidof -x \"{}\" >/dev/null; then
-    exit 0
-else
-    Exec=/usr/bin/env /usr/bin/{} $@ & disown
-fi
-exit 0",
-    bootstrap_file_name, bin_name
-  )?;
-  bootstrapper_file.flush()?;
-
-  let status = Command::new("chmod")
-    .arg("+x")
-    .arg(bootstrap_file_name)
-    .current_dir(&bin_dir)
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .status()?;
-
-  if !status.success() {
-    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
-  }
-
-  Ok(())
 }
 
 /// Generate the application desktop file and store it under the `data_dir`.
@@ -221,16 +149,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;
   }
-  let use_bootstrapper = settings.deb().use_bootstrapper.unwrap_or_default();
-  writeln!(
-    file,
-    "Exec={}",
-    if use_bootstrapper {
-      format!("__{}-bootstrapper", bin_name)
-    } else {
-      bin_name.to_string()
-    }
-  )?;
+  writeln!(file, "Exec={}", bin_name)?;
   writeln!(file, "Icon={}", bin_name)?;
   writeln!(file, "Name={}", settings.product_name())?;
   writeln!(file, "Terminal=false")?;

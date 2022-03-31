@@ -80,12 +80,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
-  let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
-  if use_bootstrapper {
-    create_bootstrapper(&bundle_directory, settings)
-      .with_context(|| "Failed to create macOS bootstrapper")?;
-  }
-
   if let Some(identity) = &settings.macos().signing_identity {
     // setup keychain allow you to import your certificate
     // for CI build
@@ -117,63 +111,6 @@ fn copy_binaries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crat
   Ok(())
 }
 
-// Creates the bootstrap script file.
-fn create_bootstrapper(bundle_dir: &Path, settings: &Settings) -> crate::Result<()> {
-  let file = &mut common::create_file(&bundle_dir.join("MacOS/__bootstrapper"))?;
-  // Create a shell script to bootstrap the  $PATH for Tauri, so environments like node are available.
-  write!(
-    file,
-    "#!/usr/bin/env sh
-# This bootstraps the environment for Tauri, so environments are available.
-
-if [ -e ~/.bash_profile ]
-then 
-  . ~/.bash_profile
-fi
-if [ -e ~/.zprofile ]
-then 
-  . ~/.zprofile
-fi
-if [ -e ~/.profile ]
-then 
-  . ~/.profile
-fi
-if [ -e ~/.bashrc ]
-then 
-  . ~/.bashrc
-fi
-
-if [ -e ~/.zshrc ]
-then 
-  . ~/.zshrc
-fi
-
-if pidof \"__bootstrapper\" >/dev/null; then
-    exit 0
-else
-    exec \"`dirname \\\"$0\\\"`/{}\" $@ & disown
-fi
-exit 0",
-    settings.product_name()
-  )?;
-  file.flush()?;
-
-  // We have to make the __bootstrapper executable, or the bundle will not work
-  let status = Command::new("chmod")
-    .arg("+x")
-    .arg("__bootstrapper")
-    .current_dir(&bundle_dir.join("MacOS/"))
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .status()?;
-
-  if !status.success() {
-    return Err(anyhow::anyhow!("failed to make the bootstrapper an executable",).into());
-  }
-
-  Ok(())
-}
-
 // Creates the Info.plist file.
 fn create_info_plist(
   bundle_dir: &Path,
@@ -188,7 +125,6 @@ fn create_info_plist(
 
   let bundle_plist_path = bundle_dir.join("Info.plist");
   let file = &mut common::create_file(&bundle_plist_path)?;
-  let use_bootstrapper = settings.macos().use_bootstrapper.unwrap_or_default();
   write!(
     file,
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
@@ -210,11 +146,7 @@ fn create_info_plist(
   write!(
     file,
     "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    if use_bootstrapper {
-      "__bootstrapper"
-    } else {
-      settings.main_binary_name()
-    }
+    settings.main_binary_name()
   )?;
   if let Some(path) = bundle_icon_file {
     write!(

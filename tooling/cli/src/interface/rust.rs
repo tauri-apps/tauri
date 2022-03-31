@@ -456,14 +456,12 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends)
       },
-      use_bootstrapper: Some(config.deb.use_bootstrapper),
       files: config.deb.files,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,
-      use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
       signing_identity,
       provider_short_name,

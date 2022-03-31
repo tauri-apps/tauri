@@ -48,7 +48,6 @@ These settings are used only when bundling `deb` packages.
 * `depends`: A list of strings indicating other packages (e.g. shared
   libraries) that this package depends on to be installed.  If present, this
   forms the `Depends:` field of the `deb` package control file.
-* `use_bootstrapper`: Enables the bootstrapper script, which allows access to the environment variables.
 
 ### Mac OS X-specific settings
 
@@ -75,7 +74,6 @@ These settings are used only when bundling `app` and `dmg` packages.
   you want) to ensure that the compiled binary has the same minimum version.
 * `license`: Path to the license file for the DMG bundle.
 * `exception_domain`: The exception domain to use on the macOS .app bundle. Allows communication to the outside world e.g. a web server you're shipping.
-* `use_bootstrapper`: Enables the bootstrapper script, which allows access to the environment variables.
 * `provider_short_name`: If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. See [Customizing the notarization workflow](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution/customizing_the_notarization_workflow) and search for `--list-providers` for more information how to obtain your provider short name.
 
 ### Example `tauri.conf.json`:
@@ -102,14 +100,12 @@ These settings are used only when bundling `app` and `dmg` packages.
       ],
       "resources": ["./assets/**/*.png"],
       "deb": {
-        "depends": ["debian-dependency1", "debian-dependency2"],
-        "useBootstrapper": true
+        "depends": ["debian-dependency1", "debian-dependency2"]
       },
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.11",
-        "license": "./LICENSE",
-        "useBootstrapper": true
+        "license": "./LICENSE"
       },
       "externalBin": ["./sidecar-app"]
     }

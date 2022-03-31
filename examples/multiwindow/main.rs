@@ -17,14 +17,16 @@ fn main() {
         println!("got 'clicked' event on window '{}'", label);
       });
     })
-    .create_window(
-      "Rust".to_string(),
-      tauri::WindowUrl::App("index.html".into()),
-      |window_builder, webview_attributes| {
-        (window_builder.title("Tauri - Rust"), webview_attributes)
-      },
-    )
-    .unwrap() // safe to unwrap: window label is valid
+    .setup(|app| {
+      WindowBuilder::new(
+        app,
+        "Rust".to_string(),
+        tauri::WindowUrl::App("index.html".into()),
+      )
+      .title("Tauri - Rust")
+      .build()?;
+      Ok(())
+    })
     .run(tauri::generate_context!(
       "../../examples/multiwindow/tauri.conf.json"
     ))

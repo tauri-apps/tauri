@@ -946,48 +946,6 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Creates a new webview window.
-  ///
-  /// # Examples
-  /// ```rust,no_run
-  /// use tauri::WindowBuilder;
-  /// tauri::Builder::default()
-  ///   .create_window("main", tauri::WindowUrl::default(), |win, webview| {
-  ///     let win = win
-  ///       .title("My Main Window")
-  ///       .resizable(true)
-  ///       .inner_size(800.0, 550.0)
-  ///       .min_inner_size(400.0, 200.0);
-  ///     return (win, webview);
-  ///   });
-  /// ```
-  pub fn create_window<F>(
-    mut self,
-    label: impl Into<String>,
-    url: WindowUrl,
-    setup: F,
-  ) -> crate::Result<Self>
-  where
-    F: FnOnce(
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.pending_windows.push(PendingWindow::new(
-      window_builder,
-      webview_attributes,
-      label,
-    )?);
-    Ok(self)
-  }
-
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]

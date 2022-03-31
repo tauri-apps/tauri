@@ -9,14 +9,14 @@
 
 #[cfg(any(windows, target_os = "macos"))]
 use tauri::Manager;
-use tauri::{command, window, AppHandle, WindowBuilder, WindowUrl};
+use tauri::{command, window::WindowBuilder, AppHandle, WindowUrl};
 
 #[command]
 fn create_child_window(id: String, app: AppHandle) {
   #[cfg(any(windows, target_os = "macos"))]
   let main = app.get_window("main").unwrap();
 
-  let child = window::WindowBuilder::new(&app, id, WindowUrl::default())
+  let child = WindowBuilder::new(&app, id, WindowUrl::default())
     .title("Child")
     .inner_size(400.0, 300.0);
 
@@ -37,17 +37,13 @@ fn main() {
       });
     })
     .invoke_handler(tauri::generate_handler![create_child_window])
-    .create_window(
-      "main".to_string(),
-      WindowUrl::default(),
-      |window_builder, webview_attributes| {
-        (
-          window_builder.title("Main").inner_size(600.0, 400.0),
-          webview_attributes,
-        )
-      },
-    )
-    .unwrap() // safe to unwrap: window label is valid
+    .setup(|app| {
+      WindowBuilder::new(app, "main".to_string(), WindowUrl::default())
+        .title("Main")
+        .inner_size(600.0, 400.0)
+        .build()?;
+      Ok(())
+    }) // safe to unwrap: window label is valid
     .run(tauri::generate_context!(
       "../../examples/parent-window/tauri.conf.json"
     ))

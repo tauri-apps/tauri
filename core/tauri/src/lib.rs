@@ -211,7 +211,7 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
-    webview::{WebviewAttributes, WindowBuilder},
+    webview::WebviewAttributes,
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       FileDropEvent,
@@ -224,7 +224,7 @@ pub use {
     config::{Config, WindowUrl},
     Env, PackageInfo,
   },
-  self::window::{Monitor, Window},
+  self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
 

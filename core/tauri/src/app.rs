@@ -23,7 +23,6 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{Config, WindowUrl},
   utils::{assets::Assets, Env},
-  window::WindowBuilder,
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
   StateManager, Window,
 };
@@ -479,38 +478,6 @@ macro_rules! shared_app_impl {
       /// ```
       pub fn updater(&self) -> updater::UpdateBuilder<R> {
         updater::builder(self.app_handle())
-      }
-
-      /// Creates a new webview window.
-      ///
-      /// Data URLs are only supported with the `window-data-url` feature flag.
-      ///
-      /// See [`crate::window::WindowBuilder::new`] for an API with extended functionality.
-      #[deprecated(
-        since = "1.0.0-rc.4",
-        note = "The `window_builder` function offers an easier API with extended functionality"
-      )]
-      pub fn create_window<F>(
-        &self,
-        label: impl Into<String>,
-        url: WindowUrl,
-        setup: F,
-      ) -> crate::Result<Window<R>>
-      where
-        F: FnOnce(
-          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-          WebviewAttributes,
-        ) -> (
-          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-          WebviewAttributes,
-        ),
-      {
-        let mut builder = WindowBuilder::<R>::new(self, label, url);
-        let (window_builder, webview_attributes) =
-          setup(builder.window_builder, builder.webview_attributes);
-        builder.window_builder = window_builder;
-        builder.webview_attributes = webview_attributes;
-        builder.build()
       }
 
       #[cfg(feature = "system-tray")]

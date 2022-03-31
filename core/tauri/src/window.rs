@@ -557,38 +557,6 @@ impl<R: Runtime> Window<R> {
     WindowBuilder::<R>::new(manager, label.into(), url)
   }
 
-  /// Creates a new webview window.
-  ///
-  /// Data URLs are only supported with the `window-data-url` feature flag.
-  ///
-  /// See [`Self::builder`] for an API with extended functionality.
-  #[deprecated(
-    since = "1.0.0-rc.4",
-    note = "The `builder` function offers an easier API with extended functionality"
-  )]
-  pub fn create_window<F>(
-    &mut self,
-    label: String,
-    url: WindowUrl,
-    setup: F,
-  ) -> crate::Result<Window<R>>
-  where
-    F: FnOnce(
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let mut builder = WindowBuilder::<R>::new(self, label, url);
-    let (window_builder, webview_attributes) =
-      setup(builder.window_builder, builder.webview_attributes);
-    builder.window_builder = window_builder;
-    builder.webview_attributes = webview_attributes;
-    builder.build()
-  }
-
   pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {
     self.manager.invoke_responder()
   }

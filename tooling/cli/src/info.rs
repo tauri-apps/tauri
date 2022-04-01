@@ -441,10 +441,7 @@ fn crate_version(
 }
 
 fn indent(spaces: usize) {
-  print!(
-    "{}",
-    vec![0; spaces].iter().map(|_| " ").collect::<String>()
-  );
+  print!("{}", " ".repeat(spaces));
 }
 
 struct Section(&'static str);
@@ -460,7 +457,7 @@ struct VersionBlock {
   version: String,
   target_version: String,
   indentation: usize,
-  skip_update: bool,
+  skip_update_check: bool,
 }
 
 impl VersionBlock {
@@ -470,12 +467,12 @@ impl VersionBlock {
       version: version.into(),
       target_version: "".into(),
       indentation: 2,
-      skip_update: false,
+      skip_update_check: false,
     }
   }
 
-  fn skip_update(mut self) -> Self {
-    self.skip_update = true;
+  fn skip_update_check(mut self) -> Self {
+    self.skip_update_check = true;
     self
   }
 
@@ -497,12 +494,16 @@ impl VersionBlock {
         self.version.clone()
       }
     );
-    if !self.target_version.is_empty() && !self.skip_update {
-      print!(
-        "({}, latest: {})",
-        "outdated".red(),
-        self.target_version.green()
-      );
+    if !self.target_version.is_empty() && !self.skip_update_check {
+      let version = semver::Version::parse(self.version.as_str()).unwrap();
+      let target_version = semver::Version::parse(self.target_version.as_str()).unwrap();
+      if version < target_version {
+        print!(
+          "({}, latest: {})",
+          "outdated".red(),
+          self.target_version.green()
+        );
+      }
     }
     println!();
   }
@@ -592,7 +593,7 @@ pub fn command(_options: Options) -> Result<()> {
       .collect::<String>(),
   )
   .target_version(metadata.js_cli.node.replace(">= ", ""))
-  .skip_update()
+  .skip_update_check()
   .display();
 
   VersionBlock::new(

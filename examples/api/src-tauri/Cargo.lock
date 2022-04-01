@@ -3171,7 +3171,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.5"
+version = "1.0.0-rc.6"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3289,7 +3289,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "gtk",
  "rand 0.8.5",

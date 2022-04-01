@@ -15,15 +15,14 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder as _},
+    webview::WebviewAttributes,
     window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
+    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::config::{Config, WindowUrl},
+  utils::config::Config,
   utils::{assets::Assets, Env},
-  window::WindowBuilder,
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
   StateManager, Window,
 };
@@ -479,38 +478,6 @@ macro_rules! shared_app_impl {
       /// ```
       pub fn updater(&self) -> updater::UpdateBuilder<R> {
         updater::builder(self.app_handle())
-      }
-
-      /// Creates a new webview window.
-      ///
-      /// Data URLs are only supported with the `window-data-url` feature flag.
-      ///
-      /// See [`crate::window::WindowBuilder::new`] for an API with extended functionality.
-      #[deprecated(
-        since = "1.0.0-rc.4",
-        note = "The `window_builder` function offers an easier API with extended functionality"
-      )]
-      pub fn create_window<F>(
-        &self,
-        label: impl Into<String>,
-        url: WindowUrl,
-        setup: F,
-      ) -> crate::Result<Window<R>>
-      where
-        F: FnOnce(
-          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-          WebviewAttributes,
-        ) -> (
-          <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-          WebviewAttributes,
-        ),
-      {
-        let mut builder = WindowBuilder::<R>::new(self, label, url);
-        let (window_builder, webview_attributes) =
-          setup(builder.window_builder, builder.webview_attributes);
-        builder.window_builder = window_builder;
-        builder.webview_attributes = webview_attributes;
-        builder.build()
       }
 
       #[cfg(feature = "system-tray")]
@@ -977,48 +944,6 @@ impl<R: Runtime> Builder<R> {
       type_name
     );
     self
-  }
-
-  /// Creates a new webview window.
-  ///
-  /// # Examples
-  /// ```rust,no_run
-  /// use tauri::WindowBuilder;
-  /// tauri::Builder::default()
-  ///   .create_window("main", tauri::WindowUrl::default(), |win, webview| {
-  ///     let win = win
-  ///       .title("My Main Window")
-  ///       .resizable(true)
-  ///       .inner_size(800.0, 550.0)
-  ///       .min_inner_size(400.0, 200.0);
-  ///     return (win, webview);
-  ///   });
-  /// ```
-  pub fn create_window<F>(
-    mut self,
-    label: impl Into<String>,
-    url: WindowUrl,
-    setup: F,
-  ) -> crate::Result<Self>
-  where
-    F: FnOnce(
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.pending_windows.push(PendingWindow::new(
-      window_builder,
-      webview_attributes,
-      label,
-    )?);
-    Ok(self)
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.

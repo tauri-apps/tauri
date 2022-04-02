@@ -96,6 +96,14 @@ impl Notification {
         notification.app_id(&self.identifier);
       }
     }
+    #[cfg(target_os = "macos")]
+    {
+      let _ = notify_rust::set_application(if cfg!(feature = "custom-protocol") {
+        &self.identifier
+      } else {
+        "com.apple.Terminal"
+      });
+    }
 
     crate::async_runtime::spawn(async move {
       notification.show().expect("failed to show notification");

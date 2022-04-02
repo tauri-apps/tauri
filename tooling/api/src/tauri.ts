@@ -114,9 +114,10 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * @return the URL that can be used as source on the webview.
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
+  const path = encodeURIComponent(filePath)
   return navigator.userAgent.includes('Windows')
-    ? `https://${protocol}.localhost/${filePath}`
-    : `${protocol}://${filePath}`
+    ? `https://${protocol}.localhost/${path}`
+    : `${protocol}://${path}`
 }
 
 export type { InvokeArgs }

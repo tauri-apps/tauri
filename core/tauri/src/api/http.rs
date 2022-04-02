@@ -19,8 +19,8 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 pub struct ClientBuilder {
   /// Max number of redirections to follow.
   pub max_redirections: Option<usize>,
-  /// Connect timeout in seconds for the request.
-  pub connect_timeout: Option<u64>,
+  /// Connect timeout for the request.
+  pub connect_timeout: Option<Duration>,
 }
 
 impl ClientBuilder {
@@ -36,10 +36,10 @@ impl ClientBuilder {
     self
   }
 
-  /// Sets the connection timeout in seconds.
+  /// Sets the connection timeout.
   #[must_use]
-  pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
-    self.connect_timeout = Some(connect_timeout);
+  pub fn connect_timeout(mut self, connect_timeout: Duration) -> Self {
+    self.connect_timeout.replace(connect_timeout);
     self
   }
 
@@ -59,7 +59,7 @@ impl ClientBuilder {
     }
 
     if let Some(connect_timeout) = self.connect_timeout {
-      client_builder = client_builder.connect_timeout(Duration::from_secs(connect_timeout));
+      client_builder = client_builder.connect_timeout(connect_timeout);
     }
 
     let client = client_builder.build()?;
@@ -116,7 +116,7 @@ impl Client {
     }
 
     if let Some(timeout) = request.timeout {
-      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+      request_builder = request_builder.timeout(timeout);
     }
 
     let response = if let Some(body) = request.body {
@@ -163,7 +163,7 @@ impl Client {
     }
 
     if let Some(timeout) = request.timeout {
-      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+      request_builder = request_builder.timeout(timeout);
     }
 
     if let Some(body) = request.body {
@@ -289,7 +289,7 @@ pub struct HttpRequestBuilder {
   /// The request body
   pub body: Option<Body>,
   /// Timeout for the whole request
-  pub timeout: Option<u64>,
+  pub timeout: Option<Duration>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,
 }
@@ -331,8 +331,8 @@ impl HttpRequestBuilder {
 
   /// Sets the general request timeout.
   #[must_use]
-  pub fn timeout(mut self, timeout: u64) -> Self {
-    self.timeout = Some(timeout);
+  pub fn timeout(mut self, timeout: Duration) -> Self {
+    self.timeout.replace(timeout);
     self
   }
 

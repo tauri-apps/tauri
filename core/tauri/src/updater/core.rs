@@ -25,6 +25,7 @@ use std::{
   io::{Cursor, Read},
   path::{Path, PathBuf},
   str::from_utf8,
+  time::Duration,
 };
 
 #[cfg(feature = "updater")]
@@ -210,6 +211,7 @@ pub struct UpdateBuilder<R: Runtime> {
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
   should_install: Option<Box<dyn FnOnce(&str, &str) -> bool + Send>>,
+  timeout: Option<Duration>,
 }
 
 impl<R: Runtime> fmt::Debug for UpdateBuilder<R> {
@@ -220,6 +222,7 @@ impl<R: Runtime> fmt::Debug for UpdateBuilder<R> {
       .field("urls", &self.urls)
       .field("target", &self.target)
       .field("executable_path", &self.executable_path)
+      .field("timeout", &self.timeout)
       .finish()
   }
 }
@@ -234,6 +237,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       executable_path: None,
       current_version: env!("CARGO_PKG_VERSION").into(),
       should_install: None,
+      timeout: None,
     }
   }
 
@@ -283,6 +287,11 @@ impl<R: Runtime> UpdateBuilder<R> {
 
   pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.should_install.replace(Box::new(f));
+    self
+  }
+
+  pub fn timeout(mut self, timeout: Duration) -> Self {
+    self.timeout.replace(timeout);
     self
   }
 
@@ -346,15 +355,11 @@ impl<R: Runtime> UpdateBuilder<R> {
       let mut headers = HashMap::new();
       headers.insert("Accept".into(), "application/json".into());
 
-      let resp = ClientBuilder::new()
-        .build()?
-        .send(
-          HttpRequestBuilder::new("GET", &fixed_link)?
-            .headers(headers)
-            // wait 20sec for the firewall
-            .timeout(20),
-        )
-        .await;
+      let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers);
+      if let Some(timeout) = self.timeout {
+        request = request.timeout(timeout);
+      }
+      let resp = ClientBuilder::new().build()?.send(request).await;
 
       // If we got a success, we stop the loop
       // and we set our remote_release variable
@@ -417,6 +422,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       signature: final_release.signature,
       #[cfg(target_os = "windows")]
       with_elevated_task: final_release.with_elevated_task,
+      timeout: self.timeout,
     })
   }
 }
@@ -452,6 +458,8 @@ pub struct Update<R: Runtime> {
   /// Optional: Windows only try to use elevated task
   /// Default to false
   with_elevated_task: bool,
+  /// Request timeout
+  timeout: Option<Duration>,
 }
 
 impl<R: Runtime> Clone for Update<R> {
@@ -469,6 +477,7 @@ impl<R: Runtime> Clone for Update<R> {
       signature: self.signature.clone(),
       #[cfg(target_os = "windows")]
       with_elevated_task: self.with_elevated_task,
+      timeout: self.timeout,
     }
   }
 }
@@ -499,10 +508,10 @@ impl<R: Runtime> Update<R> {
 
     let client = ClientBuilder::new().build()?;
     // Create our request
-    let req = HttpRequestBuilder::new("GET", self.download_url.as_str())?
-      .headers(headers)
-      // wait 20sec for the firewall
-      .timeout(20);
+    let mut req = HttpRequestBuilder::new("GET", self.download_url.as_str())?.headers(headers);
+    if let Some(timeout) = self.timeout {
+      req = req.timeout(timeout);
+    }
 
     let response = client.send(req).await?;
 

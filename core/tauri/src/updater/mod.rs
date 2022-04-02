@@ -34,7 +34,7 @@
 //!
 //! "active" must be a boolean. By default, it's set to false.
 //!
-//! "endpoints" must be an array. The string `{{target}}` and `{{current_version}}` are automatically replaced in the URL allowing you determine [server-side](#update-server-json-format) if an update is available. If multiple endpoints are specified, the updater will fallback if a server is not responding within the pre-defined timeout.
+//! "endpoints" must be an array. The string `{{target}}` and `{{current_version}}` are automatically replaced in the URL allowing you determine [server-side](#update-server-json-format) if an update is available. If multiple endpoints are specified, the updater will fallback if a server is not responding within the optional timeout.
 //!
 //! "dialog" if present must be a boolean. By default, it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
 //!
@@ -444,6 +444,8 @@
 mod core;
 mod error;
 
+use std::time::Duration;
+
 pub use self::error::Error;
 /// Alias for [`std::result::Result`] using our own [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
@@ -544,6 +546,12 @@ impl<R: Runtime> UpdateBuilder<R> {
   /// ```
   pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.inner = self.inner.should_install(f);
+    self
+  }
+
+  /// Sets the timeout for the requests to the updater endpoints.
+  pub fn timeout(mut self, timeout: Duration) -> Self {
+    self.inner = self.inner.timeout(timeout);
     self
   }
 

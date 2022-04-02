@@ -34,7 +34,7 @@ use std::{
   fs,
   io::prelude::*,
   path::{Path, PathBuf},
-  process::{Command, Stdio},
+  process::Command,
 };
 
 /// Bundles the project.

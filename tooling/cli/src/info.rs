@@ -252,7 +252,7 @@ struct VsInstanceInfo {
 }
 
 #[cfg(windows)]
-const VSWHERE: &[u8] = include_bytes!("../vswhere.exe");
+const VSWHERE: &[u8] = include_bytes!("../scripts/vswhere.exe");
 
 #[cfg(windows)]
 fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
@@ -260,7 +260,7 @@ fn build_tools_version() -> crate::Result<Option<Vec<String>>> {
   vswhere.push("vswhere.exe");
 
   if !vswhere.exists() {
-    if let Ok(mut file) = std::fs::File::create(vswhere.clone()) {
+    if let Ok(mut file) = std::fs::File::create(&vswhere) {
       use std::io::Write;
       let _ = file.write_all(VSWHERE);
     }

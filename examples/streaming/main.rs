@@ -18,7 +18,7 @@ fn main() {
 
   let video_file = PathBuf::from("test_video.mp4");
   let video_url =
-    "http://distribution.bbb3d.renderfarming.net/video/mp4/bbb_sunflower_1080p_30fps_normal.mp4";
+    "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 
   if !video_file.exists() {
     // Downloading with curl this saves us from adding

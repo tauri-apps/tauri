@@ -312,8 +312,8 @@ impl<R: Runtime> UpdateBuilder<R> {
     let target = self
       .target
       .or_else(|| get_updater_target().map(Into::into))
-      .ok_or(Error::UnsupportedPlatform)?;
-    let arch = get_updater_arch().ok_or(Error::UnsupportedPlatform)?;
+      .ok_or(Error::UnsupportedOs)?;
+    let arch = get_updater_arch().ok_or(Error::UnsupportedArch)?;
     let json_target = if has_custom_target {
       target.clone()
     } else {
@@ -498,7 +498,7 @@ impl<R: Runtime> Update<R> {
     // anythin with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
-      return Err(Error::UnsupportedPlatform);
+      return Err(Error::UnsupportedLinuxPackage);
     }
 
     // set our headers

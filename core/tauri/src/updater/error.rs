@@ -41,9 +41,17 @@ pub enum Error {
   /// Error building updater.
   #[error("Unable to extract the new version: {0}")]
   Extract(String),
-  /// Updater is not supported for current operating system or platform.
-  #[error("Unsupported operating system or platform")]
-  UnsupportedPlatform,
+  /// Updater cannot be executed on this Linux package. Currently the updater is enabled only on AppImages.
+  #[error("Cannot run updater on this Linux package. Currently only an AppImage can be updated.")]
+  UnsupportedLinuxPackage,
+  /// Operating system is not supported.
+  #[error("unsupported OS, expected one of `linux`, `darwin` or `windows`.")]
+  UnsupportedOs,
+  /// Unsupported app architecture.
+  #[error(
+    "Unsupported application architecture, expected one of `x86`, `x86_64`, `arm` or `aarch64`."
+  )]
+  UnsupportedArch,
   /// The platform was not found on the updater JSON response.
   #[error("the platform `{0}` was not found on the response `platforms` object")]
   TargetNotFound(String),

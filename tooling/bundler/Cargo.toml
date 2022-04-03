@@ -26,7 +26,7 @@ tauri-utils = { version = "1.0.0-rc.4", path = "../../core/tauri-utils", feature
 ar = "0.9.0"
 icns = "0.3"
 image = "0.24.1"
-libflate = "1.1"
+libflate = "1.2"
 md5 = "0.7.0"
 anyhow = "1.0"
 thiserror = "1.0"

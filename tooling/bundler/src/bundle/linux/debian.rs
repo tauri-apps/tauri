@@ -203,6 +203,7 @@ fn generate_control_file(
       writeln!(file, " {}", line)?;
     }
   }
+  writeln!(file, "Priority: optional")?;
   file.flush()?;
   Ok(())
 }

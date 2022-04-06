@@ -208,11 +208,6 @@ pub fn command(options: Options) -> Result<()> {
     crate::interface::rust::build_project(runner, args).with_context(|| "failed to build app")?;
   }
 
-  #[cfg(unix)]
-  if !options.debug {
-    strip(&bin_path, &logger)?;
-  }
-
   if let Some(product_name) = config_.package.product_name.clone() {
     #[cfg(windows)]
     let product_path = out_dir.join(format!("{}.exe", product_name));
@@ -362,36 +357,5 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   for path in output_paths {
     println!("        {}", path.display());
   }
-  Ok(())
-}
-
-// TODO: drop this when https://github.com/rust-lang/rust/issues/72110 is stabilized
-#[cfg(unix)]
-fn strip(path: &std::path::Path, logger: &Logger) -> crate::Result<()> {
-  use humansize::{file_size_opts, FileSize};
-
-  let filesize_before = std::fs::metadata(&path)
-    .with_context(|| "failed to get executable file size")?
-    .len();
-
-  // Strip the binary
-  Command::new("strip")
-    .arg(&path)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
-    .status()
-    .with_context(|| "failed to execute strip")?;
-
-  let filesize_after = std::fs::metadata(&path)
-    .with_context(|| "failed to get executable file size")?
-    .len();
-
-  logger.log(format!(
-    "Binary stripped, size reduced by {}",
-    (filesize_before - filesize_after)
-      .file_size(file_size_opts::CONVENTIONAL)
-      .unwrap(),
-  ));
-
   Ok(())
 }

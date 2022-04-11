@@ -82,6 +82,9 @@ pub use wry::application::platform::macos::{
   NativeImage as WryNativeImage, WindowExtMacOS,
 };
 
+pub use wry;
+pub use wry::tao;
+
 use std::{
   collections::{
     hash_map::Entry::{Occupied, Vacant},

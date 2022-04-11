@@ -169,6 +169,10 @@ pub use tauri_utils as utils;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 
+/// Expose wry and tao
+#[cfg(feature = "wry")]
+pub use tauri_runtime_wry::{tao, wry};
+
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;
 

@@ -83,7 +83,7 @@ pub use wry::application::platform::macos::{
 };
 
 pub use wry;
-pub use wry::tao;
+pub use wry::application as tao;
 
 use std::{
   collections::{

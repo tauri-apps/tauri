@@ -202,15 +202,16 @@ impl<T: UserEvent> Context<T> {
 
     self.prepare_window(window_id);
 
-    self
-      .proxy
-      .send_event(Message::CreateWebview(
+    let context_ = context.clone();
+    send_user_message(
+      &context_,
+      Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
           create_webview(window_id, event_loop, web_context, context, pending)
         }),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
+      ),
+    )?;
 
     let dispatcher = WryDispatcher {
       window_id,

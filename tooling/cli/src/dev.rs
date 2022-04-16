@@ -63,6 +63,14 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  let r = command_internal(options);
+  if r.is_err() {
+    kill_before_dev_process();
+  }
+  r
+}
+
+fn command_internal(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
 
   let tauri_path = tauri_dir();

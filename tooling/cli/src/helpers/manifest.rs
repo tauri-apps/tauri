@@ -173,29 +173,3 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
     Err(e) => Err(e),
   }
 }
-
-pub fn get_workspace_members() -> crate::Result<Vec<String>> {
-  let mut manifest = read_manifest(&tauri_dir().join("Cargo.toml"))?;
-  let workspace = manifest
-    .as_table_mut()
-    .entry("workspace")
-    .or_insert(Item::None)
-    .as_table_mut();
-
-  match workspace {
-    Some(workspace) => {
-      let members = workspace
-        .entry("members")
-        .or_insert(Item::None)
-        .as_array()
-        .expect("workspace members aren't an array");
-      Ok(
-        members
-          .iter()
-          .map(|v| v.as_str().unwrap().to_string())
-          .collect(),
-      )
-    }
-    None => Ok(vec![]),
-  }
-}

@@ -3,4 +3,4 @@
 "cli.js": patch
 ---
 
-Kill the `beforeDevCommand` process if the dev command returns an error.
+Kill the `beforeDevCommand` and app processes if the dev command returns an error.

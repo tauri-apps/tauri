@@ -28,6 +28,8 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+#[cfg(target_os = "macos")]
+use wry::application::platform::macos::WindowBuilderExtMacOS;
 #[cfg(all(feature = "system-tray", target_os = "macos"))]
 use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
@@ -906,8 +908,6 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(target_os = "macos")]
   fn parent_window(mut self, parent: *mut std::ffi::c_void) -> Self {
-    use wry::application::platform::macos::WindowBuilderExtMacOS;
-
     self.inner = self.inner.with_parent_window(parent);
     self
   }
@@ -2686,6 +2686,11 @@ fn create_webview<T: UserEvent>(
   let webview_id_map = context.webview_id_map.clone();
   #[cfg(windows)]
   let proxy = context.proxy.clone();
+
+  #[cfg(target_os = "macos")]
+  {
+    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
+  }
 
   let is_window_transparent = window_builder.inner.window.transparent;
   let menu_items = if let Some(menu) = window_builder.menu {

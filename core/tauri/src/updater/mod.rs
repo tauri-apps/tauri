@@ -404,7 +404,7 @@
 //!
 //! The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.conf.json). It's important to save it at a safe place and you can always access it.
 //!
-//! To generate your keys you need to use the Tauri cli. 
+//! To generate your keys you need to use the Tauri cli.
 //!
 //! ```bash
 //! # Generate the keys, follow the instructions

@@ -161,14 +161,14 @@ fn main() {
           "icon_1" => app
             .tray_handle()
             .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../../.icons/tray_icon_with_transparency.png",
+              "../../.icons/tray_icon_with_transparency.png",
             )))
             .unwrap(),
           #[cfg(target_os = "linux")]
           "icon_2" => app
             .tray_handle()
             .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../../.icons/tray_icon.png",
+              "../../.icons/tray_icon.png",
             )))
             .unwrap(),
           #[cfg(target_os = "windows")]

@@ -29,7 +29,7 @@ fn main() {
     window_create: { any(window_all, feature = "window-create") },
     window_center: { any(window_all, feature = "window-center") },
     window_request_user_attention: { any(window_all, feature = "window-request-user-attention") },
-    window_set_resizable: { any(window_all, feature = "window-set-resizable") },
+    window_set_izable: { any(window_all, feature = "window-set-resizable") },
     window_set_title: { any(window_all, feature = "window-set-title") },
     window_maximize: { any(window_all, feature = "window-maximize") },
     window_unmaximize: { any(window_all, feature = "window-unmaximize") },

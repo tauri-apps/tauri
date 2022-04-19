@@ -49,7 +49,10 @@ jobs:
               args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray',
               key: 'all'
             }
-          - { args: '--no-default-features', key: 'no-default' }
+          - {
+              args: '--no-default-features --features ayatana-tray',
+              key: 'no-default'
+            }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
           - { args: '--features api-all', key: 'api-all' }
 
@@ -58,7 +61,7 @@ jobs:
       - name: install webkit2gtk
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - uses: actions-rs/toolchain@v1
         with:

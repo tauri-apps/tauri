@@ -37,7 +37,7 @@ jobs:
             }
           - { path: './core/tauri-utils/Cargo.toml', args: '--all-features' }
           - { path: './core/tauri/Cargo.toml', args: '--all-features' }
-          - { path: '/tooling/bundler/Cargo.toml', args: '--all-features' }
+          - { path: './tooling/bundler/Cargo.toml', args: '--all-features' }
           - { path: './tooling/cli/Cargo.toml', args: '--all-features' }
     steps:
       - uses: actions/checkout@v2

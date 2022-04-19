@@ -106,7 +106,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --all-targets --all-features
+          args: --all-targets --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray
 
       - uses: actions-rs/cargo@v1
         with:

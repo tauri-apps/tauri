@@ -118,10 +118,12 @@ tokio-test = "0.4.2"
 tokio = { version = "1.16", features = [ "full" ] }
 
 [features]
-default = [ "wry", "compression", "objc-exception" ]
+default = [ "wry", "compression", "objc-exception", "ayatana-tray" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
+ayatana-tray = [ "tauri-runtime-wry/ayatana-tray" ]
+gtk-tray = [ "tauri-runtime-wry/gtk-tray" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 updater = [

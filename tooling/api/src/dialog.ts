@@ -88,7 +88,7 @@ interface SaveDialogOptions {
  */
 async function open(
   options: OpenDialogOptions = {}
-): Promise<string | string[]> {
+): Promise<null | string | string[]> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }

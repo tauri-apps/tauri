@@ -236,9 +236,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       target_dir,
     )?;
   }
-  if let Some(paths) = config.tauri.bundle.resources {
-    copy_resources(ResourcePaths::new(paths.as_slice(), true), target_dir)?;
+
+  #[allow(unused_mut)]
+  let mut resources = config.tauri.bundle.resources.unwrap_or_default();
+  #[cfg(target_os = "linux")]
+  if let Some(tray) = config.tauri.system_tray {
+    resources.push(tray.icon_path.display().to_string());
   }
+  copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
   #[cfg(target_os = "macos")]
   {

@@ -407,6 +407,8 @@
 //! To generate your keys you need to use the Tauri cli.
 //!
 //! ```bash
+//! # Generate the keys, follow the instructions
+//! tauri signer generate
 //! tauri signer sign -g -w ~/.tauri/myapp.key
 //! ```
 //!

@@ -7,7 +7,7 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
-    manifest::rewrite_manifest,
+    manifest::{rewrite_manifest, Manifest},
     Logger,
   },
   CommandExt, Result,
@@ -161,17 +161,18 @@ fn command_internal(options: Options) -> Result<()> {
     .or(runner_from_config)
     .unwrap_or_else(|| "cargo".to_string());
 
-  {
+  let manifest = {
     let (tx, rx) = channel();
     let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
-    rewrite_manifest(config.clone())?;
+    let manifest = rewrite_manifest(config.clone())?;
     loop {
       if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
         break;
       }
     }
-  }
+    manifest
+  };
 
   let mut cargo_features = config
     .lock()
@@ -248,7 +249,13 @@ fn command_internal(options: Options) -> Result<()> {
     }
   }
 
-  let process = start_app(&options, &runner, &cargo_features, child_wait_rx.clone())?;
+  let process = start_app(
+    &options,
+    &runner,
+    &manifest,
+    &cargo_features,
+    child_wait_rx.clone(),
+  )?;
   let shared_process = Arc::new(Mutex::new(process));
   if let Err(e) = watch(
     shared_process.clone(),
@@ -259,6 +266,7 @@ fn command_internal(options: Options) -> Result<()> {
     config,
     options,
     runner,
+    manifest,
     cargo_features,
   ) {
     shared_process
@@ -285,6 +293,7 @@ fn lookup<F: FnMut(&OsStr, FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn watch(
   process: Arc<Mutex<Arc<SharedChild>>>,
   child_wait_tx: Sender<()>,
@@ -294,6 +303,7 @@ fn watch(
   config: ConfigHandle,
   options: Options,
   runner: String,
+  mut manifest: Manifest,
   cargo_features: Vec<String>,
 ) -> Result<()> {
   let (tx, rx) = channel();
@@ -325,7 +335,7 @@ fn watch(
       if let Some(event_path) = event_path {
         if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
           reload_config(merge_config.as_deref())?;
-          rewrite_manifest(config.clone())?;
+          manifest = rewrite_manifest(config.clone())?;
         } else {
           // When tauri.conf.json is changed, rewrite_manifest will be called
           // which will trigger the watcher again
@@ -339,7 +349,13 @@ fn watch(
               break;
             }
           }
-          *p = start_app(&options, &runner, &cargo_features, child_wait_rx.clone())?;
+          *p = start_app(
+            &options,
+            &runner,
+            &manifest,
+            &cargo_features,
+            child_wait_rx.clone(),
+          )?;
         }
       }
     }
@@ -384,11 +400,33 @@ fn kill_before_dev_process() {
 fn start_app(
   options: &Options,
   runner: &str,
+  manifest: &Manifest,
   features: &[String],
   child_wait_rx: Arc<Mutex<Receiver<()>>>,
 ) -> Result<Arc<SharedChild>> {
   let mut command = Command::new(runner);
-  command.args(&["run", "--no-default-features"]);
+  command.arg("run");
+
+  if !options.args.contains(&"--no-default-features".into()) {
+    let manifest_features = manifest.features();
+    let enable_features: Vec<String> = manifest_features
+      .get("default")
+      .cloned()
+      .unwrap_or_default()
+      .into_iter()
+      .filter(|feature| {
+        if let Some(manifest_feature) = manifest_features.get(feature) {
+          !manifest_feature.contains(&"tauri/custom-protocol".into())
+        } else {
+          feature != "tauri/custom-protocol"
+        }
+      })
+      .collect();
+    command.arg("--no-default-features");
+    if !enable_features.is_empty() {
+      command.args(&["--features", &enable_features.join(",")]);
+    }
+  }
 
   if options.release_mode {
     command.args(&["--release"]);

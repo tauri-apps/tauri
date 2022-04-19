@@ -67,9 +67,6 @@ ctrlc = "3.2"
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"
 
-[target."cfg(not(windows))".dependencies]
-humansize = "1.1"
-
 [target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.4"
 

@@ -12,11 +12,12 @@ tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "icon-ico", "icon-png", "isolation", "macos-private-api", "system-tray", "updater"] }
+tauri = { path = "../../../core/tauri", default-features = false, features = ["api-all", "cli", "compression", "icon-ico", "icon-png", "isolation", "macos-private-api", "objc-exception", "system-tray", "updater", "wry"] }
 
 [features]
-default = [ "custom-protocol" ]
+default = [ "custom-protocol", "tauri/ayatana-tray" ]
 custom-protocol = [ "tauri/custom-protocol" ]
+gtk-tray = [ "tauri/gtk-tray" ]
 
 # default to small, optimized release binaries
 [profile.release]

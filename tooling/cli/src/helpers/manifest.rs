@@ -66,7 +66,7 @@ impl Manifest {
   }
 }
 
-fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &String) -> Vec<String> {
+fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> Vec<String> {
   let mut f = Vec::new();
 
   if let Some(enabled_features) = list.get(feature) {

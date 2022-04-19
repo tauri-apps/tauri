@@ -9,6 +9,7 @@ use std::path::Path;
 use crate::helpers::{config::Config, manifest::Manifest};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_bundler_settings(
   app_settings: rust::AppSettings,
   target: Option<String>,

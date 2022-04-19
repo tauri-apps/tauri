@@ -20,6 +20,25 @@ env:
 jobs:
   udeps:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        clippy:
+          - {
+              path: './core/tauri/Cargo.toml',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray'
+            }
+          - { path: './core/tauri-build/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-codegen/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-macros/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-runtime/Cargo.toml', args: '--all-features' }
+          - {
+              path: './core/tauri-runtime-wry/Cargo.toml',
+              args: '--features devtools,system-tray,macos-private-api,objc-exception,ayatana-tray'
+            }
+          - { path: './core/tauri-utils/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri/Cargo.toml', args: '--all-features' }
+          - { path: '/tooling/bundler/Cargo.toml', args: '--all-features' }
+          - { path: './tooling/cli/Cargo.toml', args: '--all-features' }
     steps:
       - uses: actions/checkout@v2
 
@@ -106,14 +125,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --all-targets --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: udeps
-          args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets --all-features
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: udeps
-          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features
+          args: --manifest-path ${{ matrix.clippy.path }} --all-targets ${{ matrix.clippy.args }}

@@ -6,8 +6,8 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, WindowUrl},
-    manifest::{get_workspace_members, rewrite_manifest, Manifest},
+    config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
+    manifest::{rewrite_manifest, Manifest},
     Logger,
   },
   CommandExt, Result,
@@ -22,10 +22,12 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
+  fs::FileType,
+  path::{Path, PathBuf},
   process::{exit, Command},
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{channel, Receiver},
+    mpsc::{channel, Receiver, Sender},
     Arc, Mutex,
   },
   time::Duration,
@@ -63,6 +65,14 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  let r = command_internal(options);
+  if r.is_err() {
+    kill_before_dev_process();
+  }
+  r
+}
+
+fn command_internal(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
 
   let tauri_path = tauri_dir();
@@ -151,7 +161,7 @@ pub fn command(options: Options) -> Result<()> {
     .or(runner_from_config)
     .unwrap_or_else(|| "cargo".to_string());
 
-  let mut manifest = {
+  let manifest = {
     let (tx, rx) = channel();
     let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
     watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
@@ -239,26 +249,78 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  let mut process = start_app(
+  let process = start_app(
     &options,
     &runner,
     &manifest,
     &cargo_features,
     child_wait_rx.clone(),
   )?;
+  let shared_process = Arc::new(Mutex::new(process));
+  if let Err(e) = watch(
+    shared_process.clone(),
+    child_wait_tx,
+    child_wait_rx,
+    tauri_path,
+    merge_config,
+    config,
+    options,
+    runner,
+    manifest,
+    cargo_features,
+  ) {
+    shared_process
+      .lock()
+      .unwrap()
+      .kill()
+      .with_context(|| "failed to kill app process")?;
+    Err(e)
+  } else {
+    Ok(())
+  }
+}
 
+fn lookup<F: FnMut(&OsStr, FileType, PathBuf)>(dir: &Path, mut f: F) {
+  let mut builder = ignore::WalkBuilder::new(dir);
+  builder.require_git(false).ignore(false).max_depth(Some(1));
+
+  for entry in builder.build().flatten() {
+    f(
+      entry.file_name(),
+      entry.file_type().unwrap(),
+      dir.join(entry.path()),
+    );
+  }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn watch(
+  process: Arc<Mutex<Arc<SharedChild>>>,
+  child_wait_tx: Sender<()>,
+  child_wait_rx: Arc<Mutex<Receiver<()>>>,
+  tauri_path: PathBuf,
+  merge_config: Option<String>,
+  config: ConfigHandle,
+  options: Options,
+  runner: String,
+  mut manifest: Manifest,
+  cargo_features: Vec<String>,
+) -> Result<()> {
   let (tx, rx) = channel();
 
   let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-  watcher.watch(tauri_path.join("src"), RecursiveMode::Recursive)?;
-  watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
-  watcher.watch(tauri_path.join("tauri.conf.json"), RecursiveMode::Recursive)?;
-
-  for member in get_workspace_members()? {
-    let workspace_path = tauri_path.join(member);
-    watcher.watch(workspace_path.join("src"), RecursiveMode::Recursive)?;
-    watcher.watch(workspace_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
-  }
+  lookup(&tauri_path, |file_name, file_type, path| {
+    if file_name != "target" && file_name != "Cargo.lock" {
+      let _ = watcher.watch(
+        path,
+        if file_type.is_dir() {
+          RecursiveMode::Recursive
+        } else {
+          RecursiveMode::NonRecursive
+        },
+      );
+    }
+  });
 
   loop {
     if let Ok(event) = rx.recv() {
@@ -279,16 +341,15 @@ pub fn command(options: Options) -> Result<()> {
           // which will trigger the watcher again
           // So the app should only be started when a file other than tauri.conf.json is changed
           let _ = child_wait_tx.send(());
-          process
-            .kill()
-            .with_context(|| "failed to kill app process")?;
+          let mut p = process.lock().unwrap();
+          p.kill().with_context(|| "failed to kill app process")?;
           // wait for the process to exit
           loop {
-            if let Ok(Some(_)) = process.try_wait() {
+            if let Ok(Some(_)) = p.try_wait() {
               break;
             }
           }
-          process = start_app(
+          *p = start_app(
             &options,
             &runner,
             &manifest,

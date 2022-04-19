@@ -993,12 +993,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "humansize"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02296996cb8796d7c6e3bc2d9211b7802812d36999a51bb754123ead7d37d026"
-
-[[package]]
 name = "icns"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2728,7 +2722,6 @@ dependencies = [
  "glob",
  "handlebars",
  "heck",
- "humansize",
  "ignore",
  "include_dir",
  "json-patch",

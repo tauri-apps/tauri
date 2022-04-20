@@ -56,7 +56,13 @@ enum ResponseType {
   Binary = 3
 }
 
-type Part = string | Uint8Array
+interface FilePart<T> {
+  value: T,
+  mime?: string,
+  fileName?: string
+}
+
+type Part = string | Uint8Array | FilePart<Uint8Array>
 
 /** The body object to be used on POST and PUT requests. */
 class Body {
@@ -77,12 +83,20 @@ class Body {
    * @return The body object ready to be used on the POST and PUT requests.
    */
   static form(data: Record<string, Part>): Body {
-    const form: Record<string, string | number[]> = {}
+    const form: Record<string, string | number[] | FilePart<number[]>> = {}
     for (const key in data) {
       // eslint-disable-next-line security/detect-object-injection
       const v = data[key]
+      let r
+      if (typeof v === 'string') {
+        r = v
+      } else if (v instanceof Uint8Array || Array.isArray(v)) {
+        r = Array.from(v)
+      } else {
+        r = { value: Array.from(v.value), mime: v.mime, fileName: v.fileName }
+      }
       // eslint-disable-next-line security/detect-object-injection
-      form[key] = typeof v === 'string' ? v : Array.from(v)
+      form[key] = r
     }
     return new Body('Form', form)
   }

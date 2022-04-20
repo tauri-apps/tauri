@@ -106,7 +106,7 @@ impl Client {
       request_builder = request_builder.params(&query);
     }
 
-    if let Some(headers) = request.headers {
+    if let Some(headers) = &request.headers {
       for (header, header_value) in headers.iter() {
         request_builder = request_builder.header(
           HeaderName::from_bytes(header.as_bytes())?,
@@ -125,14 +125,57 @@ impl Client {
         Body::Text(text) => request_builder.body(attohttpc::body::Bytes(text)).send()?,
         Body::Json(json) => request_builder.json(&json)?.send()?,
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: attohttpc::RequestBuilder,
+            headers: &Option<HashMap<String, String>>,
+            form_body: FormBody,
+          ) -> crate::api::Result<attohttpc::Response> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.get("content-type"))
+                .map(|v| v.as_str()),
+              Some("multipart/form-data")
+            ) {
+              let mut multipart = attohttpc::MultipartBuilder::new();
+              for (name, part) in &form_body.0 {
+                multipart = match part {
+                  FormPart::Bytes {
+                    value,
+                    mime,
+                    file_name,
+                  } => {
+                    let mut file = attohttpc::MultipartFile::new(name, value);
+                    if let Some(mime) = mime {
+                      file = file.with_type(mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      file = file.with_filename(file_name);
+                    }
+                    multipart.with_file(file)
+                  }
+                  FormPart::Text(value) => multipart.with_text(name, value),
+                };
+              }
+              return request_builder
+                .body(multipart.build()?)
+                .send()
+                .map_err(Into::into);
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::Bytes { value, .. } => form.push((name, serde_json::to_string(&value)?)),
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            request_builder.form(&form)?.send().map_err(Into::into)
           }
-          request_builder.form(&form)?.send()?
+
+          send_form(request_builder, &request.headers, form_body)?
         }
       }
     } else {
@@ -171,14 +214,57 @@ impl Client {
         Body::Text(text) => request_builder.body(bytes::Bytes::from(text)),
         Body::Json(json) => request_builder.json(&json),
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: reqwest::RequestBuilder,
+            headers: &Option<HashMap<String, String>>,
+            form_body: FormBody,
+          ) -> crate::api::Result<reqwest::RequestBuilder> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.get("content-type"))
+                .map(|v| v.as_str()),
+              Some("multipart/form-data")
+            ) {
+              let mut multipart = reqwest::multipart::Form::new();
+
+              for (name, part) in form_body.0 {
+                let part = match part {
+                  FormPart::Bytes {
+                    value,
+                    mime,
+                    file_name,
+                  } => {
+                    let mut part = reqwest::multipart::Part::bytes(value);
+                    if let Some(mime) = mime {
+                      part = part.mime_str(&mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      part = part.file_name(file_name);
+                    }
+                    part
+                  }
+                  FormPart::Text(value) => reqwest::multipart::Part::text(value),
+                };
+
+                multipart = multipart.part(name, part);
+              }
+
+              return Ok(request_builder.multipart(multipart));
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::Bytes { value, .. } => form.push((name, serde_json::to_string(&value)?)),
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            Ok(request_builder.form(&form))
           }
-          request_builder.form(&form)
+          send_form(request_builder, &request.headers, form_body)?
         }
       };
     }
@@ -223,7 +309,17 @@ pub enum FormPart {
   /// A string value.
   Text(String),
   /// A byte array value.
-  Bytes(Vec<u8>),
+  #[serde(rename_all = "camelCase")]
+  Bytes {
+    /// Bytes content.
+    value: Vec<u8>,
+    /// Mime type of this part.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    mime: Option<String>,
+    /// File name.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    file_name: Option<String>,
+  },
 }
 
 /// Form body definition.
@@ -242,7 +338,7 @@ impl FormBody {
 #[serde(tag = "type", content = "payload")]
 #[non_exhaustive]
 pub enum Body {
-  /// A multipart formdata body.
+  /// A form body.
   Form(FormBody),
   /// A JSON body.
   Json(Value),

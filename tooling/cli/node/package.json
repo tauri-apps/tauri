@@ -39,7 +39,7 @@
   "devDependencies": {
     "@napi-rs/cli": "2.6.2",
     "cross-spawn": "7.0.3",
-    "fs-extra": "10.0.1",
+    "fs-extra": "10.1.0",
     "jest": "27.5.1",
     "jest-transform-toml": "1.0.0",
     "prettier": "2.6.2"

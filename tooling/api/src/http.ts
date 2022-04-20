@@ -57,8 +57,8 @@ enum ResponseType {
 }
 
 interface FilePart<T> {
-  value: string | T,
-  mime?: string,
+  value: string | T
+  mime?: string
   fileName?: string
 }
 
@@ -78,14 +78,14 @@ class Body {
   /**
    * Creates a new form data body. The form data is an object where each key is the entry name,
    * and the value is either a string or a file object.
-   * 
+   *
    * By default it sets the `application/x-www-form-urlencoded` Content-Type header,
    * but you can set it to `multipart/form-data` if the Cargo feature `http-multipart` is enabled.
-   * 
+   *
    * Note that a file path must be allowed in the `fs` allowlist scope.
-   * 
+   *
    * # Examples
-   * 
+   *
    * ```js
    * import { Body } from "@tauri-apps/api/http"
    * Body.form({

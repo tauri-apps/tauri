@@ -2395,7 +2395,18 @@ fn handle_event_loop<T: UserEvent>(
       origin: MenuType::MenuBar,
       ..
     } => {
-      let window_id = window_id.unwrap(); // always Some on MenuBar event
+      #[allow(unused_mut)]
+      let mut window_id = window_id.unwrap(); // always Some on MenuBar event
+
+      #[cfg(target_os = "macos")]
+      {
+        // safety: we're only checking to see if the window_id is 0
+        // which is the value sent by macOS when the window is minimized (NSApplication::sharedApplication::mainWindow is null)
+        if window_id == unsafe { WindowId::dummy() } {
+          window_id = *webview_id_map.0.lock().unwrap().keys().next().unwrap();
+        }
+      }
+
       let event = MenuEvent {
         menu_item_id: menu_id.0,
       };

@@ -44,7 +44,7 @@ os_pipe = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 attohttpc = "0.18"
-uuid = { version = "0.8", features = [ "v4", "v5" ] }
+uuid = { version = "1.0", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"
 sha2 = "0.10"

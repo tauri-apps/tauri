@@ -24,7 +24,7 @@ thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 regex = { version = "1.5.5", optional = true }
-uuid = { version = "0.8", features = [ "v4" ] }
+uuid = { version = "1.0", features = [ "v4" ] }
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"

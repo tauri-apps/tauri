@@ -2756,7 +2756,7 @@ fn create_webview<T: UserEvent>(
       webview_attributes.data_directory.clone()
     } else {
       // random unique key
-      Some(Uuid::new_v4().to_hyphenated().to_string().into())
+      Some(Uuid::new_v4().as_hyphenated().to_string().into())
     },
   ) {
     Occupied(occupied) => occupied.into_mut(),

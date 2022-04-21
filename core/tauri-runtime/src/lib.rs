@@ -26,7 +26,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DetachedWindow, PendingWindow, WindowEvent,
+  CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
 };
 
 use crate::http::{
@@ -564,6 +564,23 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Whether to show the window icon in the task bar or not.
   fn set_skip_taskbar(&self, skip: bool) -> Result<()>;
+
+  /// Grabs the cursor, preventing it from leaving the window.
+  ///
+  /// There's no guarantee that the cursor will be hidden. You should
+  /// hide it by yourself if you want so.
+  fn set_cursor_grab(&self, grab: bool) -> Result<()>;
+
+  /// Modifies the cursor's visibility.
+  ///
+  /// If `false`, this will hide the cursor. If `true`, this will show the cursor.
+  fn set_cursor_visible(&self, visible: bool) -> Result<()>;
+
+  // Modifies the cursor icon of the window.
+  fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()>;
+
+  /// Changes the position of the cursor in window coordinates.
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;

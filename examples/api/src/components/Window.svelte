@@ -1,136 +1,209 @@
 <script>
-  import { appWindow, WebviewWindow, LogicalSize, UserAttentionType, PhysicalSize, PhysicalPosition } from "@tauri-apps/api/window";
-  import { open as openDialog } from "@tauri-apps/api/dialog";
-  import { open } from "@tauri-apps/api/shell";
+  import {
+    appWindow,
+    WebviewWindow,
+    LogicalSize,
+    UserAttentionType,
+    PhysicalSize,
+    PhysicalPosition
+  } from '@tauri-apps/api/window'
+  import { open as openDialog } from '@tauri-apps/api/dialog'
+  import { open } from '@tauri-apps/api/shell'
 
-  let selectedWindow = appWindow.label;
+  let selectedWindow = appWindow.label
   const windowMap = {
     [selectedWindow]: appWindow
   }
+  const cursorIconOptions = [
+    'default',
+    'crosshair',
+    'hand',
+    'arrow',
+    'move',
+    'text',
+    'wait',
+    'help',
+    'progress',
+    // something cannot be done
+    'notAllowed',
+    'contextMenu',
+    'cell',
+    'verticalText',
+    'alias',
+    'copy',
+    'noDrop',
+    // something can be grabbed
+    'grab',
+    /// something is grabbed
+    'grabbing',
+    'allScroll',
+    'zoomIn',
+    'zoomOut',
+    // edge is to be moved
+    'eResize',
+    'nResize',
+    'neResize',
+    'nwResize',
+    'sResize',
+    'seResize',
+    'swResize',
+    'wResize',
+    'ewResize',
+    'nsResize',
+    'neswResize',
+    'nwseResize',
+    'colResize',
+    'rowResize'
+  ]
 
-  export let onMessage;
+  export let onMessage
 
-  let urlValue = "https://tauri.studio";
-  let resizable = true;
-  let maximized = false;
-  let transparent = false;
-  let decorations = true;
-  let alwaysOnTop = false;
-  let fullscreen = false;
-  let width = 900;
-  let height = 700;
-  let minWidth = 600;
-  let minHeight = 600;
-  let maxWidth = null;
-  let maxHeight = null;
-  let x = 100;
-  let y = 100;
-  let scaleFactor = 1;
-  let innerPosition = new PhysicalPosition(x, y);
-  let outerPosition = new PhysicalPosition(x, y);
-  let innerSize = new PhysicalSize(width, height);
-  let outerSize = new PhysicalSize(width, height);
-  let resizeEventUnlisten;
-  let moveEventUnlisten;
+  let urlValue = 'https://tauri.studio'
+  let resizable = true
+  let maximized = false
+  let transparent = false
+  let decorations = true
+  let alwaysOnTop = false
+  let fullscreen = false
+  let width = 900
+  let height = 700
+  let minWidth = 600
+  let minHeight = 600
+  let maxWidth = null
+  let maxHeight = null
+  let x = 100
+  let y = 100
+  let scaleFactor = 1
+  let innerPosition = new PhysicalPosition(x, y)
+  let outerPosition = new PhysicalPosition(x, y)
+  let innerSize = new PhysicalSize(width, height)
+  let outerSize = new PhysicalSize(width, height)
+  let resizeEventUnlisten
+  let moveEventUnlisten
+  let cursorGrab = false
+  let cursorVisible = true
+  let cursorX = 600
+  let cursorY = 800
+  let cursorIcon = 'default'
 
-  let windowTitle = "Awesome Tauri Example!";
+  let windowTitle = 'Awesome Tauri Example!'
 
   function openUrl() {
-    open(urlValue);
+    open(urlValue)
   }
 
   function setTitle_() {
-    windowMap[selectedWindow].setTitle(windowTitle);
+    windowMap[selectedWindow].setTitle(windowTitle)
   }
 
   function hide_() {
-    windowMap[selectedWindow].hide();
-    setTimeout(windowMap[selectedWindow].show, 2000);
+    windowMap[selectedWindow].hide()
+    setTimeout(windowMap[selectedWindow].show, 2000)
   }
 
   function minimize_() {
-    windowMap[selectedWindow].minimize();
-    setTimeout(windowMap[selectedWindow].unminimize, 2000);
+    windowMap[selectedWindow].minimize()
+    setTimeout(windowMap[selectedWindow].unminimize, 2000)
   }
 
   function getIcon() {
     openDialog({
-      multiple: false,
-    }).then(path => {
+      multiple: false
+    }).then((path) => {
       if (typeof path === 'string') {
         windowMap[selectedWindow].setIcon(path)
       }
-    });
+    })
   }
 
   function createWindow() {
-    const label = Math.random().toString().replace('.', '');
-    const webview = new WebviewWindow(label);
-    windowMap[label] = webview;
+    const label = Math.random().toString().replace('.', '')
+    const webview = new WebviewWindow(label)
+    windowMap[label] = webview
     webview.once('tauri://error', function () {
-      onMessage("Error creating new webview")
+      onMessage('Error creating new webview')
     })
   }
 
   function handleWindowResize() {
-    windowMap[selectedWindow].innerSize().then(response => {
+    windowMap[selectedWindow].innerSize().then((response) => {
       innerSize = response
       width = innerSize.width
       height = innerSize.height
-    });
-    windowMap[selectedWindow].outerSize().then(response => {
+    })
+    windowMap[selectedWindow].outerSize().then((response) => {
       outerSize = response
-    });
+    })
   }
 
   function handleWindowMove() {
-    windowMap[selectedWindow].innerPosition().then(response => {
+    windowMap[selectedWindow].innerPosition().then((response) => {
       innerPosition = response
-    });
-    windowMap[selectedWindow].outerPosition().then(response => {
+    })
+    windowMap[selectedWindow].outerPosition().then((response) => {
       outerPosition = response
       x = outerPosition.x
       y = outerPosition.y
-    });
+    })
   }
 
   async function addWindowEventListeners(window) {
     if (resizeEventUnlisten) {
-      resizeEventUnlisten();
+      resizeEventUnlisten()
     }
-    if(moveEventUnlisten) {
-      moveEventUnlisten();
+    if (moveEventUnlisten) {
+      moveEventUnlisten()
     }
-    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove);
-    resizeEventUnlisten = await window.listen('tauri://resize', handleWindowResize);
+    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove)
+    resizeEventUnlisten = await window.listen(
+      'tauri://resize',
+      handleWindowResize
+    )
   }
 
   async function requestUserAttention_() {
-    await windowMap[selectedWindow].minimize();
-    await windowMap[selectedWindow].requestUserAttention(UserAttentionType.Critical);
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    await windowMap[selectedWindow].requestUserAttention(null);
+    await windowMap[selectedWindow].minimize()
+    await windowMap[selectedWindow].requestUserAttention(
+      UserAttentionType.Critical
+    )
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+    await windowMap[selectedWindow].requestUserAttention(null)
   }
 
-  $: windowMap[selectedWindow].setResizable(resizable);
-  $: maximized ? windowMap[selectedWindow].maximize() : windowMap[selectedWindow].unmaximize();
-  $: windowMap[selectedWindow].setDecorations(decorations);
-  $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop);
-  $: windowMap[selectedWindow].setFullscreen(fullscreen);
+  $: windowMap[selectedWindow].setResizable(resizable)
+  $: maximized
+    ? windowMap[selectedWindow].maximize()
+    : windowMap[selectedWindow].unmaximize()
+  $: windowMap[selectedWindow].setDecorations(decorations)
+  $: windowMap[selectedWindow].setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow].setFullscreen(fullscreen)
 
-  $: windowMap[selectedWindow].setSize(new PhysicalSize(width, height));
-  $: minWidth && minHeight ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight)) : windowMap[selectedWindow].setMinSize(null);
-  $: maxWidth && maxHeight ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight)) : windowMap[selectedWindow].setMaxSize(null);
-  $: windowMap[selectedWindow].setPosition(new PhysicalPosition(x, y));
-  $: windowMap[selectedWindow].scaleFactor().then(factor => scaleFactor = factor);
-  $: addWindowEventListeners(windowMap[selectedWindow]);
+  $: windowMap[selectedWindow].setSize(new PhysicalSize(width, height))
+  $: minWidth && minHeight
+    ? windowMap[selectedWindow].setMinSize(new LogicalSize(minWidth, minHeight))
+    : windowMap[selectedWindow].setMinSize(null)
+  $: maxWidth && maxHeight
+    ? windowMap[selectedWindow].setMaxSize(new LogicalSize(maxWidth, maxHeight))
+    : windowMap[selectedWindow].setMaxSize(null)
+  $: windowMap[selectedWindow].setPosition(new PhysicalPosition(x, y))
+  $: windowMap[selectedWindow]
+    .scaleFactor()
+    .then((factor) => (scaleFactor = factor))
+  $: addWindowEventListeners(windowMap[selectedWindow])
+
+  $: windowMap[selectedWindow].setCursorGrab(cursorGrab)
+  $: windowMap[selectedWindow].setCursorVisible(cursorVisible)
+  $: windowMap[selectedWindow].setCursorIcon(cursorIcon)
+  $: windowMap[selectedWindow].setCursorPosition(
+    new PhysicalPosition(cursorX, cursorY)
+  )
 </script>
 
 <div class="flex col">
   <select class="button" bind:value={selectedWindow}>
-      {#each Object.keys(windowMap) as label}
-        <option value={label}>{label}</option>
-      {/each}
+    {#each Object.keys(windowMap) as label}
+      <option value={label}>{label}</option>
+    {/each}
   </select>
   <div>
     <label>
@@ -141,7 +214,10 @@
       <input type="checkbox" bind:checked={maximized} />
       Maximize
     </label>
-    <button title="Unminimizes after 2 seconds" on:click={() => windowMap[selectedWindow].center()}>
+    <button
+      title="Unminimizes after 2 seconds"
+      on:click={() => windowMap[selectedWindow].center()}
+    >
       Center
     </button>
     <button title="Unminimizes after 2 seconds" on:click={minimize_}>
@@ -266,6 +342,32 @@
     </div>
   </div>
 </div>
+<div>
+  <h4>Cursor</h4>
+  <label>
+    <input type="checkbox" bind:checked={cursorGrab} />
+    Grab
+  </label>
+  <label>
+    <input type="checkbox" bind:checked={cursorVisible} />
+    Visible
+  </label>
+  <select class="button" bind:value={cursorIcon}>
+    {#each cursorIconOptions as kind}
+      <option value={kind}>{kind}</option>
+    {/each}
+  </select>
+  <div class="flex col grow">
+    <div>
+      X position
+      <input type="number" bind:value={cursorX} />
+    </div>
+    <div>
+      Y position
+      <input type="number" bind:value={cursorY} />
+    </div>
+  </div>
+</div>
 <form on:submit|preventDefault={setTitle_}>
   <input id="title" bind:value={windowTitle} />
   <button class="button" type="submit">Set title</button>
@@ -274,7 +376,12 @@
   <input id="url" bind:value={urlValue} />
   <button class="button" id="open-url"> Open URL </button>
 </form>
-<button class="button" on:click={requestUserAttention_} title="Minimizes the window, requests attention for 3s and then resets it">Request attention</button>
+<button
+  class="button"
+  on:click={requestUserAttention_}
+  title="Minimizes the window, requests attention for 3s and then resets it"
+  >Request attention</button
+>
 <button class="button" on:click={createWindow}>New window</button>
 
 <style>

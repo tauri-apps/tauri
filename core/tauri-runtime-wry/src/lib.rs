@@ -14,7 +14,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction,
   GlobalShortcutManager, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
@@ -63,7 +63,7 @@ use wry::{
     },
     monitor::MonitorHandle,
     window::{
-      Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
+      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
       UserAttentionType as WryUserAttentionType,
     },
   },
@@ -752,12 +752,60 @@ impl From<Position> for PositionWrapper {
 pub struct UserAttentionTypeWrapper(WryUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
-  fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
+  fn from(request_type: UserAttentionType) -> Self {
     let o = match request_type {
       UserAttentionType::Critical => WryUserAttentionType::Critical,
       UserAttentionType::Informational => WryUserAttentionType::Informational,
     };
     Self(o)
+  }
+}
+
+#[derive(Debug)]
+pub struct CursorIconWrapper(WryCursorIcon);
+
+impl From<CursorIcon> for CursorIconWrapper {
+  fn from(icon: CursorIcon) -> Self {
+    use CursorIcon::*;
+    let i = match icon {
+      Default => WryCursorIcon::Default,
+      Crosshair => WryCursorIcon::Crosshair,
+      Hand => WryCursorIcon::Hand,
+      Arrow => WryCursorIcon::Arrow,
+      Move => WryCursorIcon::Move,
+      Text => WryCursorIcon::Text,
+      Wait => WryCursorIcon::Wait,
+      Help => WryCursorIcon::Help,
+      Progress => WryCursorIcon::Progress,
+      NotAllowed => WryCursorIcon::NotAllowed,
+      ContextMenu => WryCursorIcon::ContextMenu,
+      Cell => WryCursorIcon::Cell,
+      VerticalText => WryCursorIcon::VerticalText,
+      Alias => WryCursorIcon::Alias,
+      Copy => WryCursorIcon::Copy,
+      NoDrop => WryCursorIcon::NoDrop,
+      Grab => WryCursorIcon::Grab,
+      Grabbing => WryCursorIcon::Grabbing,
+      AllScroll => WryCursorIcon::AllScroll,
+      ZoomIn => WryCursorIcon::ZoomIn,
+      ZoomOut => WryCursorIcon::ZoomOut,
+      EResize => WryCursorIcon::EResize,
+      NResize => WryCursorIcon::NResize,
+      NeResize => WryCursorIcon::NeResize,
+      NwResize => WryCursorIcon::NwResize,
+      SResize => WryCursorIcon::SResize,
+      SeResize => WryCursorIcon::SeResize,
+      SwResize => WryCursorIcon::SwResize,
+      WResize => WryCursorIcon::WResize,
+      EwResize => WryCursorIcon::EwResize,
+      NsResize => WryCursorIcon::NsResize,
+      NeswResize => WryCursorIcon::NeswResize,
+      NwseResize => WryCursorIcon::NwseResize,
+      ColResize => WryCursorIcon::ColResize,
+      RowResize => WryCursorIcon::RowResize,
+      _ => WryCursorIcon::Default,
+    };
+    Self(i)
   }
 }
 
@@ -1079,6 +1127,10 @@ pub enum WindowMessage {
   SetFocus,
   SetIcon(WryWindowIcon),
   SetSkipTaskbar(bool),
+  SetCursorGrab(bool),
+  SetCursorVisible(bool),
+  SetCursorIcon(CursorIcon),
+  SetCursorPosition(Position),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1502,6 +1554,37 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip)),
+    )
+  }
+
+  fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorGrab(grab)),
+    )
+  }
+
+  fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorVisible(visible)),
+    )
+  }
+
+  fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorIcon(icon)),
+    )
+  }
+
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetCursorPosition(position.into()),
+      ),
     )
   }
 
@@ -2176,9 +2259,26 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetIcon(icon) => {
             window.set_window_icon(Some(icon));
           }
-          WindowMessage::SetSkipTaskbar(_skip) => {
+          #[allow(unused_variables)]
+          WindowMessage::SetSkipTaskbar(skip) => {
             #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(_skip);
+            window.set_skip_taskbar(skip);
+          }
+          #[allow(unused_variables)]
+          WindowMessage::SetCursorGrab(grab) => {
+            #[cfg(any(windows, target_os = "macos"))]
+            let _ = window.set_cursor_grab(grab);
+          }
+          WindowMessage::SetCursorVisible(visible) => {
+            window.set_cursor_visible(visible);
+          }
+          WindowMessage::SetCursorIcon(icon) => {
+            window.set_cursor_icon(CursorIconWrapper::from(icon).0);
+          }
+          #[allow(unused_variables)]
+          WindowMessage::SetCursorPosition(position) => {
+            #[cfg(any(windows, target_os = "macos"))]
+            let _ = window.set_cursor_position(PositionWrapper::from(position).0);
           }
           WindowMessage::DragWindow => {
             let _ = window.drag_window();

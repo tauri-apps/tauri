@@ -776,7 +776,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: on macOS the application *must* be executed on the main thread, so this function is not exposed.
+  /// - **macOS:** on macOS the application *must* be executed on the main thread, so this function is not exposed.
   #[cfg(any(windows, target_os = "linux"))]
   #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
   #[must_use]

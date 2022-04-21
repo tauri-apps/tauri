@@ -6,7 +6,10 @@
 
 use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
 
-use tauri_utils::config::{WindowConfig, WindowUrl};
+use tauri_utils::{
+  config::{WindowConfig, WindowUrl},
+  Theme,
+};
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -185,6 +188,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg(windows)]
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
+
+  /// Forces a theme or uses the system settings if None was provided.
+  fn theme(self, theme: Option<Theme>) -> Self;
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;

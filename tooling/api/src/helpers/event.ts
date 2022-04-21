@@ -33,7 +33,8 @@ export type EventName = LiteralUnion<
   | 'tauri://menu'
   | 'tauri://file-drop'
   | 'tauri://file-drop-hover'
-  | 'tauri://file-drop-cancelled',
+  | 'tauri://file-drop-cancelled'
+  | 'tauri://theme-changed',
   string
 >
 

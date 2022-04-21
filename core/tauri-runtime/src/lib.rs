@@ -8,6 +8,7 @@
 
 use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
+use tauri_utils::Theme;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -464,6 +465,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND>;
+
+  /// Returns the current window theme.
+  fn theme(&self) -> Result<Theme>;
 
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]

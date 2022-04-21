@@ -68,6 +68,7 @@ pub enum WindowManagerCmd {
   CurrentMonitor,
   PrimaryMonitor,
   AvailableMonitors,
+  Theme,
   // Setters
   Center,
   RequestUserAttention(Option<UserAttentionType>),
@@ -234,6 +235,7 @@ impl Cmd {
       WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
       WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
+      WindowManagerCmd::Theme => return Ok(window.theme()?.into()),
       // Setters
       #[cfg(window_center)]
       WindowManagerCmd::Center => window.center()?,

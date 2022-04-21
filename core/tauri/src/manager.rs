@@ -63,6 +63,7 @@ const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
 const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
+const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
 const MENU_EVENT: &str = "tauri://menu";
 
 #[derive(Default)]
@@ -1326,6 +1327,7 @@ fn on_window_event<R: Runtime>(
       FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
       _ => unimplemented!(),
     },
+    WindowEvent::ThemeChanged(theme) => window.emit(WINDOW_THEME_CHANGED, theme.to_string())?,
   }
   Ok(())
 }

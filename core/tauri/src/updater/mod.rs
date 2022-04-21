@@ -448,6 +448,8 @@ mod error;
 
 use std::time::Duration;
 
+use http::header::{HeaderName, HeaderValue};
+
 pub use self::error::Error;
 /// Alias for [`std::result::Result`] using our own [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
@@ -555,6 +557,18 @@ impl<R: Runtime> UpdateBuilder<R> {
   pub fn timeout(mut self, timeout: Duration) -> Self {
     self.inner = self.inner.timeout(timeout);
     self
+  }
+
+  /// Add a `Header` to the request.
+  pub fn header<K, V>(mut self, key: K, value: V) -> Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    self.inner = self.inner.header(key, value)?;
+    Ok(self)
   }
 
   /// Check if an update is available.

@@ -48,6 +48,10 @@ fn main() {
     window_set_focus: { any(window_all, feature = "window-set-focus") },
     window_set_icon: { any(window_all, feature = "window-set-icon") },
     window_set_skip_taskbar: { any(window_all, feature = "window-set-skip-taskbar") },
+    window_set_cursor_grab: { any(window_all, feature = "window-set-cursor-grab") },
+    window_set_cursor_visible: { any(window_all, feature = "window-set-cursor-visible") },
+    window_set_cursor_icon: { any(window_all, feature = "window-set-cursor-icon") },
+    window_set_cursor_position: { any(window_all, feature = "window-set-cursor-position") },
     window_start_dragging: { any(window_all, feature = "window-start-dragging") },
     window_print: { any(window_all, feature = "window-print") },
 

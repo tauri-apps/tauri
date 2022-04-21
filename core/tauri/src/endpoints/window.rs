@@ -11,7 +11,7 @@ use crate::{
     UserAttentionType,
   },
   utils::config::WindowConfig,
-  Icon, Manager, Runtime,
+  CursorIcon, Icon, Manager, Runtime,
 };
 use serde::Deserialize;
 use tauri_macros::{module_command_handler, CommandModule};
@@ -94,6 +94,10 @@ pub enum WindowManagerCmd {
     icon: IconDto,
   },
   SetSkipTaskbar(bool),
+  SetCursorGrab(bool),
+  SetCursorVisible(bool),
+  SetCursorIcon(CursorIcon),
+  SetCursorPosition(Position),
   StartDragging,
   Print,
   // internals
@@ -139,6 +143,18 @@ impl WindowManagerCmd {
       Self::SetIcon { .. } => crate::Error::ApiNotAllowlisted("window > setIcon".to_string()),
       Self::SetSkipTaskbar(_) => {
         crate::Error::ApiNotAllowlisted("window > setSkipTaskbar".to_string())
+      }
+      Self::SetCursorGrab(_) => {
+        crate::Error::ApiNotAllowlisted("window > setCursorGrab".to_string())
+      }
+      Self::SetCursorVisible(_) => {
+        crate::Error::ApiNotAllowlisted("window > setCursorVisible".to_string())
+      }
+      Self::SetCursorIcon(_) => {
+        crate::Error::ApiNotAllowlisted("window > setCursorIcon".to_string())
+      }
+      Self::SetCursorPosition(_) => {
+        crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
       }
       Self::StartDragging => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
       Self::Print => crate::Error::ApiNotAllowlisted("window > print".to_string()),
@@ -268,6 +284,14 @@ impl Cmd {
       WindowManagerCmd::SetIcon { icon } => window.set_icon(icon.into())?,
       #[cfg(window_set_skip_taskbar)]
       WindowManagerCmd::SetSkipTaskbar(skip) => window.set_skip_taskbar(skip)?,
+      #[cfg(window_set_cursor_grab)]
+      WindowManagerCmd::SetCursorGrab(grab) => window.set_cursor_grab(grab)?,
+      #[cfg(window_set_cursor_visible)]
+      WindowManagerCmd::SetCursorVisible(visible) => window.set_cursor_visible(visible)?,
+      #[cfg(window_set_cursor_icon)]
+      WindowManagerCmd::SetCursorIcon(icon) => window.set_cursor_icon(icon)?,
+      #[cfg(window_set_cursor_position)]
+      WindowManagerCmd::SetCursorPosition(position) => window.set_cursor_position(position)?,
       #[cfg(window_start_dragging)]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
       #[cfg(window_print)]

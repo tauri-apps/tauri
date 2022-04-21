@@ -230,6 +230,10 @@ window-all = [
   "window-set-focus",
   "window-set-icon",
   "window-set-skip-taskbar",
+  "window-set-cursor-grab",
+  "window-set-cursor-visible",
+  "window-set-cursor-icon",
+  "window-set-cursor-position",
   "window-start-dragging",
   "window-print"
 ]
@@ -255,6 +259,10 @@ window-set-fullscreen = [ ]
 window-set-focus = [ ]
 window-set-icon = [ ]
 window-set-skip-taskbar = [ ]
+window-set-cursor-grab = [ ]
+window-set-cursor-visible = [ ]
+window-set-cursor-icon = [ ]
+window-set-cursor-position = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]

@@ -29,7 +29,7 @@ use crate::{
   sealed::RuntimeOrDispatch,
   utils::config::WindowUrl,
   EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, WindowEvent,
+  PageLoadPayload, Runtime, Theme, WindowEvent,
 };
 
 use serde::Serialize;
@@ -332,6 +332,17 @@ impl<R: Runtime> WindowBuilder<R> {
   #[must_use]
   pub fn visible(mut self, visible: bool) -> Self {
     self.window_builder = self.window_builder.visible(visible);
+    self
+  }
+
+  /// Forces a theme or uses the system settings if None was provided.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not implemented, the value is ignored.
+  #[must_use]
+  pub fn theme(mut self, theme: Option<Theme>) -> Self {
+    self.window_builder = self.window_builder.theme(theme);
     self
   }
 
@@ -954,10 +965,20 @@ impl<R: Runtime> Window<R> {
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.ns_window().map_err(Into::into)
   }
+
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<HWND> {
     self.window.dispatcher.hwnd().map_err(Into::into)
+  }
+
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not implemented, always return [`Theme::Light`].
+  pub fn theme(&self) -> crate::Result<Theme> {
+    self.window.dispatcher.theme().map_err(Into::into)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.

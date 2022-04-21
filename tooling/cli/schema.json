@@ -1720,6 +1720,14 @@
       },
       "additionalProperties": false
     },
+    "Theme": {
+      "description": "System theme.",
+      "type": "string",
+      "enum": [
+        "Light",
+        "Dark"
+      ]
+    },
     "UpdaterConfig": {
       "description": "The Updater configuration object.",
       "type": "object",
@@ -1980,6 +1988,17 @@
           "description": "Whether or not the window icon should be added to the taskbar.",
           "default": false,
           "type": "boolean"
+        },
+        "theme": {
+          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Theme"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "title": {
           "description": "The window title.",

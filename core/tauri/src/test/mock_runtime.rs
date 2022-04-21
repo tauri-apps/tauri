@@ -20,7 +20,7 @@ use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
   SystemTray, SystemTrayEvent, TrayIcon,
 };
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -248,6 +248,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn theme(self, theme: Option<Theme>) -> Self {
+    self
+  }
+
   fn has_icon(&self) -> bool {
     false
   }
@@ -350,6 +354,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
     unimplemented!()
+  }
+
+  fn theme(&self) -> Result<Theme> {
+    Ok(Theme::Light)
   }
 
   #[cfg(target_os = "macos")]

@@ -222,7 +222,7 @@ pub use {
   self::utils::{
     assets::Assets,
     config::{Config, WindowUrl},
-    Env, PackageInfo,
+    Env, PackageInfo, Theme,
   },
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,

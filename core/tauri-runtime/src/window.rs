@@ -11,7 +11,7 @@ use crate::{
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
 use serde::Serialize;
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 
 use std::{
   collections::{HashMap, HashSet},
@@ -59,6 +59,12 @@ pub enum WindowEvent {
   },
   /// An event associated with the file drop action.
   FileDrop(FileDropEvent),
+  /// The system window theme has changed.
+  ///
+  /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
+  ///
+  /// At the moment this is only supported on Windows.
+  ThemeChanged(Theme),
 }
 
 /// The file drop event payload.

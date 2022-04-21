@@ -4,13 +4,12 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{
-  menu::Menu,
-  window::{DetachedWindow, Theme},
-  WindowIcon,
-};
+use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
 
-use tauri_utils::config::{WindowConfig, WindowUrl};
+use tauri_utils::{
+  config::{WindowConfig, WindowUrl},
+  Theme,
+};
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;

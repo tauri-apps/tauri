@@ -1263,6 +1263,12 @@ interface WindowOptions {
    * Disabling it is required to use drag and drop on the frontend on Windows.
    */
   fileDropEnabled?: boolean
+  /**
+   *  The initial window theme. Defaults to the system theme.
+   *
+   * Only implemented on Windows.
+   */
+  theme?: Theme
 }
 
 /**

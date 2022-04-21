@@ -214,7 +214,7 @@ pub use {
     webview::WebviewAttributes,
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      FileDropEvent, Theme,
+      FileDropEvent,
     },
     ClipboardManager, GlobalShortcutManager, RunIteration, TrayIcon, UserAttentionType,
   },
@@ -222,7 +222,7 @@ pub use {
   self::utils::{
     assets::Assets,
     config::{Config, WindowUrl},
-    Env, PackageInfo,
+    Env, PackageInfo, Theme,
   },
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,

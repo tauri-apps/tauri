@@ -572,6 +572,8 @@ pub struct WindowConfig {
   /// Whether or not the window icon should be added to the taskbar.
   #[serde(default)]
   pub skip_taskbar: bool,
+  /// The initial window theme. Defaults to the system theme. Only implemented on Windows.
+  pub theme: Option<crate::Theme>,
 }
 
 impl Default for WindowConfig {
@@ -599,6 +601,7 @@ impl Default for WindowConfig {
       decorations: default_decorations(),
       always_on_top: false,
       skip_taskbar: false,
+      theme: None,
     }
   }
 }

@@ -14,7 +14,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, Theme, WindowEvent,
+    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction,
   GlobalShortcutManager, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
@@ -40,7 +40,7 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -788,7 +788,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .decorations(config.decorations)
       .maximized(config.maximized)
       .always_on_top(config.always_on_top)
-      .skip_taskbar(config.skip_taskbar);
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {

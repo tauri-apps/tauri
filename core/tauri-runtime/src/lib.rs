@@ -8,6 +8,7 @@
 
 use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
+use tauri_utils::Theme;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -25,7 +26,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DetachedWindow, PendingWindow, Theme, WindowEvent,
+  DetachedWindow, PendingWindow, WindowEvent,
 };
 
 use crate::http::{

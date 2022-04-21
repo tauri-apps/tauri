@@ -10,12 +10,11 @@ use crate::{
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use tauri_utils::config::WindowConfig;
+use serde::Serialize;
+use tauri_utils::{config::WindowConfig, Theme};
 
 use std::{
   collections::{HashMap, HashSet},
-  fmt::Display,
   hash::{Hash, Hasher},
   path::PathBuf,
   sync::{mpsc::Sender, Arc, Mutex},
@@ -78,51 +77,6 @@ pub enum FileDropEvent {
   Dropped(Vec<PathBuf>),
   /// The file drop was aborted.
   Cancelled,
-}
-
-/// System theme.
-#[derive(Debug, Copy, Clone)]
-#[non_exhaustive]
-pub enum Theme {
-  /// Light theme.
-  Light,
-  /// Dark theme.
-  Dark,
-}
-
-impl Serialize for Theme {
-  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
-  where
-    S: Serializer,
-  {
-    serializer.serialize_str(self.to_string().as_ref())
-  }
-}
-
-impl<'de> Deserialize<'de> for Theme {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let s = String::deserialize(deserializer)?;
-    Ok(match s.to_lowercase().as_str() {
-      "dark" => Self::Dark,
-      _ => Self::Light,
-    })
-  }
-}
-
-impl Display for Theme {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(
-      f,
-      "{}",
-      match self {
-        Self::Light => "light",
-        Self::Dark => "dark",
-      }
-    )
-  }
 }
 
 /// A menu event.

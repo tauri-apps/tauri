@@ -5,6 +5,10 @@
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
+use std::fmt::Display;
+
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -40,6 +44,52 @@ impl PackageInfo {
     }
     #[cfg(not(target_os = "linux"))]
     self.name.clone()
+  }
+}
+
+/// System theme.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[non_exhaustive]
+pub enum Theme {
+  /// Light theme.
+  Light,
+  /// Dark theme.
+  Dark,
+}
+
+impl Serialize for Theme {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for Theme {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "dark" => Self::Dark,
+      _ => Self::Light,
+    })
+  }
+}
+
+impl Display for Theme {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Light => "light",
+        Self::Dark => "dark",
+      }
+    )
   }
 }
 

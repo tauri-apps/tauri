@@ -10,7 +10,7 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, Theme, WindowEvent,
+    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
   RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
@@ -20,7 +20,7 @@ use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
   SystemTray, SystemTrayEvent, TrayIcon,
 };
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
 #[cfg(windows)]

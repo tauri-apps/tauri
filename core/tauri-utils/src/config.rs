@@ -2305,6 +2305,17 @@ mod build {
     }
   }
 
+  impl ToTokens for crate::Theme {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::Theme };
+
+      tokens.append_all(match self {
+        Self::Light => quote! { #prefix::Light },
+        Self::Dark => quote! { #prefix::Dark },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -2329,6 +2340,7 @@ mod build {
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
       let skip_taskbar = self.skip_taskbar;
+      let theme = opt_lit(self.theme.as_ref());
 
       literal_struct!(
         tokens,
@@ -2354,7 +2366,8 @@ mod build {
         visible,
         decorations,
         always_on_top,
-        skip_taskbar
+        skip_taskbar,
+        theme
       );
     }
   }

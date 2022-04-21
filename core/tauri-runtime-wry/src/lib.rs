@@ -2222,11 +2222,14 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetIcon(icon) => {
             window.set_window_icon(Some(icon));
           }
-          WindowMessage::SetSkipTaskbar(_skip) => {
+          #[allow(unused_variables)]
+          WindowMessage::SetSkipTaskbar(skip) => {
             #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(_skip);
+            window.set_skip_taskbar(skip);
           }
+          #[allow(unused_variables)]
           WindowMessage::SetCursorGrab(grab) => {
+            #[cfg(any(windows, target_os = "macos"))]
             let _ = window.set_cursor_grab(grab);
           }
           WindowMessage::SetCursorVisible(visible) => {
@@ -2235,7 +2238,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetCursorIcon(icon) => {
             window.set_cursor_icon(CursorIconWrapper::from(icon).0);
           }
+          #[allow(unused_variables)]
           WindowMessage::SetCursorPosition(position) => {
+            #[cfg(any(windows, target_os = "macos"))]
             let _ = window.set_cursor_position(PositionWrapper::from(position).0);
           }
           WindowMessage::DragWindow => {

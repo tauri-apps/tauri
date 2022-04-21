@@ -1196,6 +1196,14 @@ class WindowManager extends WebviewWindowHandle {
   async setCursorPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
+    if (
+      !position ||
+      (position.type !== 'Logical' && position.type !== 'Physical')
+    ) {
+      throw new Error(
+        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
+      )
+    }
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {
@@ -1204,7 +1212,13 @@ class WindowManager extends WebviewWindowHandle {
           label: this.label,
           cmd: {
             type: 'setCursorPosition',
-            payload: position
+            payload: {
+              type: position.type,
+              data: {
+                x: position.x,
+                y: position.y
+              }
+            }
           }
         }
       }

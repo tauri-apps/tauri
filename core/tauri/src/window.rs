@@ -763,7 +763,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: This is a private API on macOS,
+  /// - **macOS:** This is a private API on macOS,
   /// so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
@@ -1164,6 +1164,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux:** Unsupported.
   /// - **macOS:** This locks the cursor in a fixed location, which looks visually awkward.
   pub fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
     self
@@ -1179,6 +1180,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
+  /// - **Linux:** Unsupported.
   /// - **Windows:** The cursor is only hidden within the confines of the window.
   /// - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
   ///   outside of the window.

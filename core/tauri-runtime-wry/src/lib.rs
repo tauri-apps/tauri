@@ -953,7 +953,14 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn theme(mut self, theme: Option<Theme>) -> Self {
     #[cfg(windows)]
     {
-      self.inner = self.inner.with_theme(theme);
+      self.inner = self.inner.with_theme(if let Some(t) = theme {
+        match t {
+          Theme::Dark => Some(WryTheme::Dark),
+          _ => Some(WryTheme::Light),
+        }
+      } else {
+        None
+      });
     }
     self
   }

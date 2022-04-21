@@ -122,7 +122,10 @@ pub enum WindowEvent {
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
   ///
-  /// At the moment this is only supported on Windows.
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not supported.
+  /// - **Windows**: Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
   ThemeChanged(Theme),
 }
 

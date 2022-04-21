@@ -10,7 +10,7 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
   RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
@@ -468,6 +468,22 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_grab(&self, grab: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_visible(&self, visible: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()> {
     Ok(())
   }
 

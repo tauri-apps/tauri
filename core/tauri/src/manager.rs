@@ -751,6 +751,18 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
+        eprintln!("Asset `{}` not found; fallback to {}.html", path, path);
+        let fallback = format!("{}.html", path.as_str()).into();
+        let asset = assets.get(&fallback);
+        asset_path = fallback;
+        asset
+      })
+      .or_else(|| {
+        #[cfg(debug_assertions)]
+        eprintln!(
+          "Asset `{}` not found; fallback to {}/index.html",
+          path, path
+        );
         let fallback = format!("{}/index.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -758,7 +770,7 @@ impl<R: Runtime> WindowManager<R> {
       })
       .or_else(|| {
         #[cfg(debug_assertions)]
-        eprintln!("Asset `{}` not found; fallback to index.html", path); // TODO log::error!
+        eprintln!("Asset `{}` not found; fallback to index.html", path);
         let fallback = AssetKey::from("index.html");
         let asset = assets.get(&fallback);
         asset_path = fallback;

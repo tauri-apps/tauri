@@ -221,6 +221,11 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       let dest_path = src_path.strip_prefix(&src_dir.parent().unwrap())?;
       if entry.file_type().is_dir() {
         tar_builder.append_dir(dest_path, src_path)?;
+      } else if entry.file_type().is_symlink() {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(tar::EntryType::Symlink);
+        header.set_size(0);
+        tar_builder.append_link(&mut header, dest_path, src_path)?;
       } else {
         let mut src_file = fs::File::open(src_path)?;
         tar_builder.append_file(dest_path, &mut src_file)?;

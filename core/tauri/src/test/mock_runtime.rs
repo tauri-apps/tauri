@@ -248,7 +248,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn theme(self, theme: Theme) -> Self {
+  fn theme(self, theme: Option<Theme>) -> Self {
     self
   }
 

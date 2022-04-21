@@ -4,7 +4,11 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
+use crate::{
+  menu::Menu,
+  window::{DetachedWindow, Theme},
+  WindowIcon,
+};
 
 use tauri_utils::config::{WindowConfig, WindowUrl};
 
@@ -185,6 +189,9 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg(windows)]
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
+
+  /// Forces a theme or uses the system settings if None was provided.
+  fn theme(self, theme: Option<Theme>) -> Self;
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;

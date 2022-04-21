@@ -14,7 +14,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
+    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, Theme, WindowEvent,
   },
   ClipboardManager, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction,
   GlobalShortcutManager, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
@@ -62,7 +62,10 @@ use wry::{
       MenuType,
     },
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WryWindowIcon, UserAttentionType as WryUserAttentionType},
+    window::{
+      Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
+      UserAttentionType as WryUserAttentionType,
+    },
   },
   http::{
     Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
@@ -607,6 +610,14 @@ impl WindowEventWrapper {
   }
 }
 
+fn map_theme(theme: &WryTheme) -> Theme {
+  match theme {
+    WryTheme::Light => Theme::Light,
+    WryTheme::Dark => Theme::Dark,
+    _ => Theme::Light,
+  }
+}
+
 impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
   fn from(event: &WryWindowEvent<'a>) -> Self {
     let event = match event {
@@ -624,6 +635,7 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
       },
       #[cfg(any(target_os = "linux", target_os = "macos"))]
       WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      WryWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
       _ => return Self(None),
     };
     Self(Some(event))
@@ -936,6 +948,15 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[allow(unused_variables, unused_mut)]
+  fn theme(mut self, theme: Option<Theme>) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_theme(theme);
+    }
+    self
+  }
+
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
@@ -1025,6 +1046,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkWindow(Sender<GtkWindow>),
+  Theme(Sender<Theme>),
   // Setters
   Center(Sender<Result<()>>),
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -1273,6 +1295,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
     window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
+  }
+
+  fn theme(&self) -> Result<Theme> {
+    window_getter!(self, WindowMessage::Theme)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -2090,6 +2116,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "openbsd"
           ))]
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::Theme(tx) => {
+            #[cfg(windows)]
+            tx.send(map_theme(&window.theme())).unwrap();
+            #[cfg(not(windows))]
+            tx.send(Theme::Light).unwrap();
+          }
           // Setters
           WindowMessage::Center(tx) => {
             tx.send(center_window(window, window_handle.inner_size()))

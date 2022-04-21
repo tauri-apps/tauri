@@ -10,7 +10,7 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    DetachedWindow, MenuEvent, PendingWindow, Theme, WindowEvent,
   },
   ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
   RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
@@ -248,6 +248,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn theme(self, theme: Theme) -> Self {
+    self
+  }
+
   fn has_icon(&self) -> bool {
     false
   }
@@ -350,6 +354,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
     unimplemented!()
+  }
+
+  fn theme(&self) -> Result<Theme> {
+    Ok(Theme::Light)
   }
 
   #[cfg(target_os = "macos")]

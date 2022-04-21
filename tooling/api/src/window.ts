@@ -109,6 +109,8 @@ import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { emit, listen, once } from './helpers/event'
 
+type Theme = 'light' | 'dark'
+
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
   /** Human-readable name of the monitor */
@@ -493,6 +495,22 @@ class WindowManager extends WebviewWindowHandle {
           label: this.label,
           cmd: {
             type: 'isVisible'
+          }
+        }
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async theme(): Promise<Theme | null> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'theme'
           }
         }
       }
@@ -1315,4 +1333,4 @@ export {
   availableMonitors
 }
 
-export type { Monitor, WindowOptions }
+export type { Theme, Monitor, WindowOptions }

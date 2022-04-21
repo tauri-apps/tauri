@@ -24,7 +24,7 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, Env},
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
-  StateManager, Window,
+  StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
@@ -118,6 +118,12 @@ pub enum WindowEvent {
   },
   /// An event associated with the file drop action.
   FileDrop(FileDropEvent),
+  /// The system window theme has changed.
+  ///
+  /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
+  ///
+  /// At the moment this is only supported on Windows.
+  ThemeChanged(Theme),
 }
 
 impl From<RuntimeWindowEvent> for WindowEvent {
@@ -138,6 +144,7 @@ impl From<RuntimeWindowEvent> for WindowEvent {
         new_inner_size,
       },
       RuntimeWindowEvent::FileDrop(event) => Self::FileDrop(event),
+      RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
     }
   }
 }

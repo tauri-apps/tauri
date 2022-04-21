@@ -25,7 +25,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DetachedWindow, PendingWindow, WindowEvent,
+  DetachedWindow, PendingWindow, Theme, WindowEvent,
 };
 
 use crate::http::{
@@ -464,6 +464,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND>;
+
+  /// Returns the current window theme.
+  fn theme(&self) -> Result<Theme>;
 
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]

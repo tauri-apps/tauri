@@ -23,6 +23,7 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
+  io::{BufRead, BufReader},
   path::{Path, PathBuf},
   process::{exit, Command},
   sync::{
@@ -460,15 +461,15 @@ fn start_app(
   let child =
     SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;
   let child_arc = Arc::new(child);
-  let mut child_stderr = child_arc.take_stderr().unwrap();
+  let child_stderr = child_arc.take_stderr().unwrap();
+  let mut stderr = BufReader::new(child_stderr);
   let stderr_lines = Arc::new(Mutex::new(Vec::new()));
   let stderr_lines_ = stderr_lines.clone();
   std::thread::spawn(move || {
     let mut s = String::new();
     loop {
       s.clear();
-      use std::io::Read;
-      match child_stderr.read_to_string(&mut s) {
+      match stderr.read_line(&mut s) {
         Ok(s) if s == 0 => break,
         _ => (),
       }

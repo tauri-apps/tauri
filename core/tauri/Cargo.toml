@@ -78,7 +78,6 @@ attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
 open = { version = "2.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-memchr = { version = "2.4", optional = true }
 rfd = { version = "0.8", optional = true }
 raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
@@ -138,7 +137,7 @@ http-api = [ "attohttpc" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
 reqwest-client = [ "reqwest", "bytes" ]
-process-command-api = [ "shared_child", "os_pipe", "memchr" ]
+process-command-api = [ "shared_child", "os_pipe" ]
 dialog = [ "rfd" ]
 notification = [ "notify-rust" ]
 cli = [ "clap" ]

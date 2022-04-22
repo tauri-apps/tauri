@@ -23,7 +23,7 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
-  io::{BufRead, BufReader},
+  io::BufReader,
   path::{Path, PathBuf},
   process::{exit, Command},
   sync::{
@@ -413,6 +413,15 @@ fn start_app(
   manually_killed_app: Arc<AtomicBool>,
 ) -> Result<Arc<SharedChild>> {
   let mut command = Command::new(runner);
+  command
+    .env(
+      "CARGO_TERM_PROGRESS_WIDTH",
+      term_size::dimensions_stderr()
+        .map(|(w, _)| w)
+        .unwrap_or(80)
+        .to_string(),
+    )
+    .env("CARGO_TERM_PROGRESS_WHEN", "always");
   command.arg("run").arg("--color").arg("always");
 
   if !options.args.contains(&"--no-default-features".into()) {
@@ -463,16 +472,21 @@ fn start_app(
   let stderr_lines = Arc::new(Mutex::new(Vec::new()));
   let stderr_lines_ = stderr_lines.clone();
   std::thread::spawn(move || {
-    let mut s = String::new();
+    let mut buf = Vec::new();
     let mut lines = stderr_lines_.lock().unwrap();
     loop {
-      s.clear();
-      match stderr.read_line(&mut s) {
+      buf.clear();
+      match tauri_utils::io::read_line(&mut stderr, &mut buf) {
         Ok(s) if s == 0 => break,
         _ => (),
       }
-      eprint!("{}", s);
-      lines.push(s.clone());
+      let line = String::from_utf8_lossy(&buf).into_owned();
+      if line.ends_with('\r') {
+        eprint!("{}", line);
+      } else {
+        eprintln!("{}", line);
+      }
+      lines.push(line);
     }
   });
 

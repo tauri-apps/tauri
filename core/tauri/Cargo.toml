@@ -28,6 +28,7 @@ features = [
   "__updater-docs",
   "system-tray",
   "devtools",
+  "http-multipart",
   "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
@@ -39,7 +40,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "attohttpc" ]
+normal = [ "attohttpc", "reqwest" ]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
@@ -72,7 +73,7 @@ percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
 notify-rust = { version = "4.5", optional = true }
-reqwest = { version = "0.11", features = [ "json", "multipart", "stream" ], optional = true }
+reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
 open = { version = "2.0", optional = true }
@@ -134,6 +135,7 @@ updater = [
 ]
 __updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]
+http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
 reqwest-client = [ "reqwest", "bytes" ]

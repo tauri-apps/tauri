@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart',
               key: 'all'
             }
           - {

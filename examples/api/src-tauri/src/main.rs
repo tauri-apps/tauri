@@ -14,28 +14,15 @@ mod menu;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::{
-  api::dialog::ask, http::ResponseBuilder, window::WindowBuilder, CustomMenuItem,
-  GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu,
-  WindowEvent, WindowUrl,
+  api::dialog::ask, window::WindowBuilder, CustomMenuItem, GlobalShortcutManager, Manager,
+  RunEvent, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowEvent, WindowUrl,
 };
 
 #[derive(Clone, Serialize)]
 struct Reply {
   data: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct HttpPost {
-  foo: String,
-  bar: String,
-}
-
-#[derive(Serialize)]
-struct HttpReply {
-  msg: String,
-  request: HttpPost,
 }
 
 #[tauri::command]
@@ -63,6 +50,31 @@ fn main() {
     .setup(|app| {
       #[cfg(debug_assertions)]
       app.get_window("main").unwrap().open_devtools();
+
+      std::thread::spawn(|| {
+        let server = match tiny_http::Server::http("localhost:3003") {
+          Ok(s) => s,
+          Err(e) => {
+            eprintln!("{}", e);
+            std::process::exit(1);
+          }
+        };
+        loop {
+          if let Ok(mut request) = server.recv() {
+            let mut body = Vec::new();
+            let _ = request.as_reader().read_to_end(&mut body);
+            let response = tiny_http::Response::new(
+              tiny_http::StatusCode(200),
+              request.headers().to_vec(),
+              std::io::Cursor::new(body),
+              request.body_length(),
+              None,
+            );
+            let _ = request.respond(response);
+          }
+        }
+      });
+
       Ok(())
     })
     .on_page_load(|window, _| {
@@ -77,24 +89,6 @@ fn main() {
           .emit("rust-event", Some(reply))
           .expect("failed to emit");
       });
-    })
-    .register_uri_scheme_protocol("customprotocol", move |_app_handle, request| {
-      if request.method() == "POST" {
-        let request: HttpPost = serde_json::from_slice(request.body()).unwrap();
-        return ResponseBuilder::new()
-          .mimetype("application/json")
-          .header("Access-Control-Allow-Origin", "*")
-          .status(200)
-          .body(serde_json::to_vec(&HttpReply {
-            request,
-            msg: "Hello from rust!".to_string(),
-          })?);
-      }
-
-      ResponseBuilder::new()
-        .mimetype("text/html")
-        .status(404)
-        .body(Vec::new())
     })
     .menu(menu::get_menu())
     .on_menu_event(|event| {

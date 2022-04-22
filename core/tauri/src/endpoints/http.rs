@@ -79,19 +79,31 @@ impl Cmd {
     options: Box<HttpRequestBuilder>,
   ) -> super::Result<ResponseData> {
     use crate::Manager;
-    if context
-      .window
-      .state::<crate::Scopes>()
-      .http
-      .is_allowed(&options.url)
-    {
+    let scopes = context.window.state::<crate::Scopes>();
+    if scopes.http.is_allowed(&options.url) {
       let client = clients()
         .lock()
         .unwrap()
         .get(&client_id)
         .ok_or_else(|| crate::Error::HttpClientNotInitialized.into_anyhow())?
         .clone();
-      let response = client.send(*options).await?;
+      let options = *options;
+      if let Some(crate::api::http::Body::Form(form)) = &options.body {
+        for value in form.0.values() {
+          if let crate::api::http::FormPart::File {
+            file: crate::api::http::FilePart::Path(path),
+            ..
+          } = value
+          {
+            if crate::api::file::SafePathBuf::new(path.clone()).is_err()
+              || scopes.fs.is_allowed(&path)
+            {
+              return Err(crate::Error::PathNotAllowed(path.clone()).into_anyhow());
+            }
+          }
+        }
+      }
+      let response = client.send(options).await?;
       Ok(response.read().await?)
     } else {
       Err(crate::Error::UrlNotAllowed(options.url).into_anyhow())

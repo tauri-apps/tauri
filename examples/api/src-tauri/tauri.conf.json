@@ -112,7 +112,7 @@
         }
       },
       "http": {
-        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
+        "scope": ["http://localhost:3003"]
       }
     },
     "windows": [

@@ -11,7 +11,7 @@ use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use url::Url;
 
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 #[cfg(feature = "reqwest-client")]
 pub use reqwest::header;
@@ -114,7 +114,7 @@ impl Client {
       request_builder = request_builder.params(&query);
     }
 
-    if let Some(headers) = request.headers {
+    if let Some(headers) = &request.headers {
       for (name, value) in headers.0.iter() {
         request_builder = request_builder.header(name, value);
       }
@@ -130,14 +130,69 @@ impl Client {
         Body::Text(text) => request_builder.body(attohttpc::body::Bytes(text)).send()?,
         Body::Json(json) => request_builder.json(&json)?.send()?,
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: attohttpc::RequestBuilder,
+            headers: &Option<HeaderMap>,
+            form_body: FormBody,
+          ) -> crate::api::Result<attohttpc::Response> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.0.get("content-type"))
+                .map(|v| v.as_bytes()),
+              Some(b"multipart/form-data")
+            ) {
+              let mut multipart = attohttpc::MultipartBuilder::new();
+              let mut byte_cache: HashMap<String, Vec<u8>> = Default::default();
+
+              for (name, part) in &form_body.0 {
+                if let FormPart::File { file, .. } = part {
+                  byte_cache.insert(name.to_string(), file.clone().try_into()?);
+                }
+              }
+              for (name, part) in &form_body.0 {
+                multipart = match part {
+                  FormPart::File {
+                    file,
+                    mime,
+                    file_name,
+                  } => {
+                    // safe to unwrap: always set by previous loop
+                    let mut file =
+                      attohttpc::MultipartFile::new(name, byte_cache.get(name).unwrap());
+                    if let Some(mime) = mime {
+                      file = file.with_type(mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      file = file.with_filename(file_name);
+                    }
+                    multipart.with_file(file)
+                  }
+                  FormPart::Text(value) => multipart.with_text(name, value),
+                };
+              }
+              return request_builder
+                .body(multipart.build()?)
+                .send()
+                .map_err(Into::into);
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::File { file, .. } => {
+                  let bytes: Vec<u8> = file.try_into()?;
+                  form.push((name, serde_json::to_string(&bytes)?))
+                }
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            request_builder.form(&form)?.send().map_err(Into::into)
           }
-          request_builder.form(&form)?.send()?
+
+          send_form(request_builder, &request.headers, form_body)?
         }
       }
     } else {
@@ -176,14 +231,61 @@ impl Client {
         Body::Text(text) => request_builder.body(bytes::Bytes::from(text)),
         Body::Json(json) => request_builder.json(&json),
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: reqwest::RequestBuilder,
+            headers: &Option<HeaderMap>,
+            form_body: FormBody,
+          ) -> crate::api::Result<reqwest::RequestBuilder> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.0.get("content-type"))
+                .map(|v| v.as_bytes()),
+              Some(b"multipart/form-data")
+            ) {
+              let mut multipart = reqwest::multipart::Form::new();
+
+              for (name, part) in form_body.0 {
+                let part = match part {
+                  FormPart::File {
+                    file,
+                    mime,
+                    file_name,
+                  } => {
+                    let bytes: Vec<u8> = file.try_into()?;
+                    let mut part = reqwest::multipart::Part::bytes(bytes);
+                    if let Some(mime) = mime {
+                      part = part.mime_str(&mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      part = part.file_name(file_name);
+                    }
+                    part
+                  }
+                  FormPart::Text(value) => reqwest::multipart::Part::text(value),
+                };
+
+                multipart = multipart.part(name, part);
+              }
+
+              return Ok(request_builder.multipart(multipart));
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::File { file, .. } => {
+                  let bytes: Vec<u8> = file.try_into()?;
+                  form.push((name, serde_json::to_string(&bytes)?))
+                }
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            Ok(request_builder.form(&form))
           }
-          request_builder.form(&form)
+          send_form(request_builder, &request.headers, form_body)?
         }
       };
     }
@@ -216,6 +318,28 @@ pub enum ResponseType {
   Binary,
 }
 
+/// A file path or contents.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum FilePart {
+  /// File path.
+  Path(PathBuf),
+  /// File contents.
+  Contents(Vec<u8>),
+}
+
+impl TryFrom<FilePart> for Vec<u8> {
+  type Error = crate::api::Error;
+  fn try_from(file: FilePart) -> crate::api::Result<Self> {
+    let bytes = match file {
+      FilePart::Path(path) => std::fs::read(&path)?,
+      FilePart::Contents(bytes) => bytes,
+    };
+    Ok(bytes)
+  }
+}
+
 /// [`FormBody`] data types.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -223,13 +347,23 @@ pub enum ResponseType {
 pub enum FormPart {
   /// A string value.
   Text(String),
-  /// A byte array value.
-  Bytes(Vec<u8>),
+  /// A file value.
+  #[serde(rename_all = "camelCase")]
+  File {
+    /// File path or content.
+    file: FilePart,
+    /// Mime type of this part.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    mime: Option<String>,
+    /// File name.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    file_name: Option<String>,
+  },
 }
 
 /// Form body definition.
 #[derive(Debug, Deserialize)]
-pub struct FormBody(HashMap<String, FormPart>);
+pub struct FormBody(pub(crate) HashMap<String, FormPart>);
 
 impl FormBody {
   /// Creates a new form body.
@@ -243,7 +377,7 @@ impl FormBody {
 #[serde(tag = "type", content = "payload")]
 #[non_exhaustive]
 pub enum Body {
-  /// A multipart formdata body.
+  /// A form body.
   Form(FormBody),
   /// A JSON body.
   Json(Value),

@@ -4,14 +4,22 @@
 
 //! Types and functions related to HTTP request.
 
-use http::{header::HeaderName, Method};
-pub use http::{HeaderMap, StatusCode};
-use serde::{Deserialize, Serialize};
+use http::Method;
+pub use http::StatusCode;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use url::Url;
 
 use std::{collections::HashMap, time::Duration};
+
+#[cfg(feature = "reqwest-client")]
+pub use reqwest::header;
+
+#[cfg(not(feature = "reqwest-client"))]
+pub use attohttpc::header;
+
+use header::{HeaderName, HeaderValue};
 
 /// The builder of [`Client`].
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -107,11 +115,8 @@ impl Client {
     }
 
     if let Some(headers) = request.headers {
-      for (header, header_value) in headers.iter() {
-        request_builder = request_builder.header(
-          HeaderName::from_bytes(header.as_bytes())?,
-          header_value.as_bytes(),
-        );
+      for (name, value) in headers.0.iter() {
+        request_builder = request_builder.header(name, value);
       }
     }
 
@@ -183,15 +188,11 @@ impl Client {
       };
     }
 
-    let mut http_request = request_builder.build()?;
     if let Some(headers) = request.headers {
-      for (header, value) in headers.iter() {
-        http_request.headers_mut().insert(
-          HeaderName::from_bytes(header.as_bytes())?,
-          http::header::HeaderValue::from_bytes(value.as_bytes())?,
-        );
-      }
+      request_builder = request_builder.headers(headers.0);
     }
+
+    let http_request = request_builder.build()?;
 
     let response = self.0.execute(http_request).await?;
 
@@ -252,6 +253,34 @@ pub enum Body {
   Bytes(Vec<u8>),
 }
 
+/// A set of HTTP headers.
+#[derive(Debug, Default)]
+pub struct HeaderMap(header::HeaderMap);
+
+impl<'de> Deserialize<'de> for HeaderMap {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let map = HashMap::<String, String>::deserialize(deserializer)?;
+    let mut headers = header::HeaderMap::default();
+    for (key, value) in map {
+      if let (Ok(key), Ok(value)) = (
+        header::HeaderName::from_bytes(key.as_bytes()),
+        header::HeaderValue::from_str(&value),
+      ) {
+        headers.insert(key, value);
+      } else {
+        return Err(serde::de::Error::custom(format!(
+          "invalid header `{}` `{}`",
+          key, value
+        )));
+      }
+    }
+    Ok(Self(headers))
+  }
+}
+
 /// The builder for a HTTP request.
 ///
 /// # Examples
@@ -281,7 +310,7 @@ pub struct HttpRequestBuilder {
   /// The request query params
   pub query: Option<HashMap<String, String>>,
   /// The request headers
-  pub headers: Option<HashMap<String, String>>,
+  pub headers: Option<HeaderMap>,
   /// The request body
   pub body: Option<Body>,
   /// Timeout for the whole request
@@ -311,10 +340,28 @@ impl HttpRequestBuilder {
     self
   }
 
+  /// Adds a header.
+  pub fn header<K, V>(mut self, key: K, value: V) -> crate::api::Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    let key: Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    let value: Result<HeaderValue, http::Error> = value.try_into().map_err(Into::into);
+    self
+      .headers
+      .get_or_insert_with(Default::default)
+      .0
+      .insert(key?, value?);
+    Ok(self)
+  }
+
   /// Sets the request headers.
   #[must_use]
-  pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
-    self.headers = Some(headers);
+  pub fn headers(mut self, headers: header::HeaderMap) -> Self {
+    self.headers.replace(HeaderMap(headers));
     self
   }
 
@@ -356,7 +403,7 @@ impl Response {
   }
 
   /// Get the headers of this Response.
-  pub fn headers(&self) -> &HeaderMap {
+  pub fn headers(&self) -> &header::HeaderMap {
     self.1.headers()
   }
 

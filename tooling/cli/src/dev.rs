@@ -415,11 +415,7 @@ fn start_app(
   child_wait_rx: Arc<Mutex<Receiver<()>>>,
 ) -> Result<Arc<SharedChild>> {
   let mut command = Command::new(runner);
-  command.arg("run");
-
-  if runner == "cargo" {
-    command.arg("--color").arg("always");
-  }
+  command.arg("run").arg("--color").arg("always");
 
   if !options.args.contains(&"--no-default-features".into()) {
     let manifest_features = manifest.features();

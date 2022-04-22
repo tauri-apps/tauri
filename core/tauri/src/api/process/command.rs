@@ -4,7 +4,7 @@
 
 use std::{
   collections::HashMap,
-  io::{BufRead, BufReader, Write},
+  io::{BufReader, Write},
   path::PathBuf,
   process::{Command as StdCommand, Stdio},
   sync::{Arc, Mutex, RwLock},
@@ -384,7 +384,7 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
     let mut buf = Vec::new();
     loop {
       buf.clear();
-      match read_command_output(&mut reader, &mut buf) {
+      match tauri_utils::io::read_line(&mut reader, &mut buf) {
         Ok(n) => {
           if n == 0 {
             break;
@@ -405,52 +405,6 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
       }
     }
   });
-}
-
-// adapted from https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line
-fn read_command_output<R: BufRead + ?Sized>(
-  r: &mut R,
-  buf: &mut Vec<u8>,
-) -> std::io::Result<usize> {
-  let mut read = 0;
-  loop {
-    let (done, used) = {
-      let available = match r.fill_buf() {
-        Ok(n) => n,
-        Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-        Err(e) => return Err(e),
-      };
-      match memchr::memchr(b'\n', available) {
-        Some(i) => {
-          let end = i + 1;
-          buf.extend_from_slice(&available[..end]);
-          (true, end)
-        }
-        None => match memchr::memchr(b'\r', available) {
-          Some(i) => {
-            let end = i + 1;
-            buf.extend_from_slice(&available[..end]);
-            (true, end)
-          }
-          None => {
-            buf.extend_from_slice(available);
-            (false, available.len())
-          }
-        },
-      }
-    };
-    r.consume(used);
-    read += used;
-    if done || used == 0 {
-      if buf.ends_with(&[b'\n']) {
-        buf.pop();
-      }
-      if buf.ends_with(&[b'\r']) {
-        buf.pop();
-      }
-      return Ok(read);
-    }
-  }
 }
 
 // tests for the commands functions.

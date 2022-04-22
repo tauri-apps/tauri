@@ -64,6 +64,7 @@ url = { version = "2.2", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.2"
+term_size = "0.3"
 
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"

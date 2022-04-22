@@ -12,6 +12,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub mod assets;
 pub mod config;
 pub mod html;
+pub mod io;
 pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]

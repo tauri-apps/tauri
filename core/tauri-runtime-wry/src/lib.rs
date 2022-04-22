@@ -154,6 +154,7 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
       &context.main_thread.window_target,
       message,
       UserMessageContext {
+        webview_id_map: context.webview_id_map.clone(),
         window_event_listeners: &context.window_event_listeners,
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
@@ -2105,6 +2106,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 }
 
 struct UserMessageContext<'a> {
+  webview_id_map: WebviewIdStore,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
@@ -2121,6 +2123,7 @@ fn handle_user_message<T: UserEvent>(
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
+    webview_id_map,
     window_event_listeners,
     menu_event_listeners,
     global_shortcut_manager,
@@ -2367,6 +2370,8 @@ fn handle_user_message<T: UserEvent>(
           .lock()
           .unwrap()
           .insert(window_id, WindowMenuEventListeners::default());
+
+        webview_id_map.insert(window.id(), window_id);
 
         let w = Arc::new(window);
 
@@ -2698,6 +2703,7 @@ fn handle_event_loop<T: UserEvent>(
           event_loop,
           message,
           UserMessageContext {
+            webview_id_map,
             window_event_listeners,
             global_shortcut_manager,
             clipboard_manager,

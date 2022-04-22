@@ -12,7 +12,8 @@ tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", default-features = false, features = ["api-all", "cli", "compression", "icon-ico", "icon-png", "isolation", "macos-private-api", "objc-exception", "system-tray", "updater", "wry"] }
+tauri = { path = "../../../core/tauri", default-features = false, features = ["api-all", "http-multipart", "reqwest-client", "cli", "compression", "icon-ico", "icon-png", "isolation", "macos-private-api", "objc-exception", "system-tray", "updater", "wry"] }
+tiny_http = "0.11"
 
 [features]
 default = [ "custom-protocol", "tauri/ayatana-tray" ]

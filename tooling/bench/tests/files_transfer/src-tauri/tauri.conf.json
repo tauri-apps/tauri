@@ -35,7 +35,8 @@
     "allowlist": {
       "all": false,
       "fs": {
-        "readFile": true
+        "readFile": true,
+        "scope": ["$HOME/.tauri_3mb.json"]
       }
     },
     "windows": [

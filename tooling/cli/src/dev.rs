@@ -417,6 +417,10 @@ fn start_app(
   let mut command = Command::new(runner);
   command.arg("run");
 
+  if runner == "cargo" {
+    command.arg("--color").arg("always");
+  }
+
   if !options.args.contains(&"--no-default-features".into()) {
     let manifest_features = manifest.features();
     let enable_features: Vec<String> = manifest_features
@@ -454,11 +458,28 @@ fn start_app(
     command.args(&options.args);
   }
 
-  command.pipe().unwrap();
+  command.stdout(os_pipe::dup_stdout().unwrap());
+  command.stderr(std::process::Stdio::piped());
 
   let child =
     SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;
   let child_arc = Arc::new(child);
+  let mut child_stderr = child_arc.take_stderr().unwrap();
+  let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+  let stderr_lines_ = stderr_lines.clone();
+  std::thread::spawn(move || {
+    let mut s = String::new();
+    loop {
+      s.clear();
+      use std::io::Read;
+      match child_stderr.read_to_string(&mut s) {
+        Ok(s) if s == 0 => break,
+        _ => (),
+      }
+      eprintln!("{}", s);
+      stderr_lines_.lock().unwrap().push(s.clone());
+    }
+  });
 
   let child_clone = child_arc.clone();
   let exit_on_panic = options.exit_on_panic;
@@ -478,10 +499,23 @@ fn start_app(
         kill_before_dev_process();
         exit(0);
       }
-    } else if status.success() {
-      // if we're no exiting on panic, we only exit if the status is a success code (app closed)
-      kill_before_dev_process();
-      exit(0);
+    } else {
+      let is_cargo_compile_error = stderr_lines
+        .lock()
+        .unwrap()
+        .last()
+        .map(|l| l.contains("could not compile"))
+        .unwrap_or_default();
+      stderr_lines.lock().unwrap().clear();
+
+      // if we're no exiting on panic, we only exit if:
+      // - the status is a success code (app closed)
+      // - status code is not the Cargo error code
+      // - error is not a cargo compilation error (using stderr heuristics)
+      if status.success() || status.code() != Some(101) || !is_cargo_compile_error {
+        kill_before_dev_process();
+        exit(0);
+      }
     }
   });
 

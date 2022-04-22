@@ -39,6 +39,8 @@ static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
 
+const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watcher.gitignore");
+
 #[derive(Debug, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
@@ -280,16 +282,24 @@ fn command_internal(options: Options) -> Result<()> {
   }
 }
 
-fn lookup<F: FnMut(&OsStr, FileType, PathBuf)>(dir: &Path, mut f: F) {
+fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
+  let mut default_gitignore = std::env::temp_dir();
+  default_gitignore.push(".tauri-dev");
+  let _ = std::fs::create_dir_all(&default_gitignore);
+  default_gitignore.push(".gitignore");
+  if !default_gitignore.exists() {
+    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
+      use std::io::Write;
+      let _ = file.write_all(TAURI_DEV_WATCHER_GITIGNORE);
+    }
+  }
+
   let mut builder = ignore::WalkBuilder::new(dir);
+  let _ = builder.add_ignore(default_gitignore);
   builder.require_git(false).ignore(false).max_depth(Some(1));
 
   for entry in builder.build().flatten() {
-    f(
-      entry.file_name(),
-      entry.file_type().unwrap(),
-      dir.join(entry.path()),
-    );
+    f(entry.file_type().unwrap(), dir.join(entry.path()));
   }
 }
 
@@ -309,8 +319,8 @@ fn watch(
   let (tx, rx) = channel();
 
   let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-  lookup(&tauri_path, |file_name, file_type, path| {
-    if file_name != "target" && file_name != "Cargo.lock" {
+  lookup(&tauri_path, |file_type, path| {
+    if path != tauri_path {
       let _ = watcher.watch(
         path,
         if file_type.is_dir() {

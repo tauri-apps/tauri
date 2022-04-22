@@ -28,7 +28,7 @@ use std::{
   process::{exit, Command},
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{channel, Receiver, Sender},
+    mpsc::channel,
     Arc, Mutex,
   },
   time::Duration,
@@ -190,8 +190,7 @@ fn command_internal(options: Options) -> Result<()> {
     cargo_features.extend(features.clone());
   }
 
-  let (child_wait_tx, child_wait_rx) = channel();
-  let child_wait_rx = Arc::new(Mutex::new(child_wait_rx));
+  let manually_killed_app = Arc::new(AtomicBool::default());
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
@@ -257,13 +256,12 @@ fn command_internal(options: Options) -> Result<()> {
     &runner,
     &manifest,
     &cargo_features,
-    child_wait_rx.clone(),
+    manually_killed_app.clone(),
   )?;
   let shared_process = Arc::new(Mutex::new(process));
   if let Err(e) = watch(
     shared_process.clone(),
-    child_wait_tx,
-    child_wait_rx,
+    manually_killed_app,
     tauri_path,
     merge_config,
     config,
@@ -307,8 +305,7 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 #[allow(clippy::too_many_arguments)]
 fn watch(
   process: Arc<Mutex<Arc<SharedChild>>>,
-  child_wait_tx: Sender<()>,
-  child_wait_rx: Arc<Mutex<Receiver<()>>>,
+  manually_killed_app: Arc<AtomicBool>,
   tauri_path: PathBuf,
   merge_config: Option<String>,
   config: ConfigHandle,
@@ -351,7 +348,7 @@ fn watch(
           // When tauri.conf.json is changed, rewrite_manifest will be called
           // which will trigger the watcher again
           // So the app should only be started when a file other than tauri.conf.json is changed
-          let _ = child_wait_tx.send(());
+          manually_killed_app.store(true, Ordering::Relaxed);
           let mut p = process.lock().unwrap();
           p.kill().with_context(|| "failed to kill app process")?;
           // wait for the process to exit
@@ -365,7 +362,7 @@ fn watch(
             &runner,
             &manifest,
             &cargo_features,
-            child_wait_rx.clone(),
+            manually_killed_app.clone(),
           )?;
         }
       }
@@ -413,7 +410,7 @@ fn start_app(
   runner: &str,
   manifest: &Manifest,
   features: &[String],
-  child_wait_rx: Arc<Mutex<Receiver<()>>>,
+  manually_killed_app: Arc<AtomicBool>,
 ) -> Result<Arc<SharedChild>> {
   let mut command = Command::new(runner);
   command.arg("run").arg("--color").arg("always");
@@ -467,14 +464,15 @@ fn start_app(
   let stderr_lines_ = stderr_lines.clone();
   std::thread::spawn(move || {
     let mut s = String::new();
+    let mut lines = stderr_lines_.lock().unwrap();
     loop {
       s.clear();
       match stderr.read_line(&mut s) {
         Ok(s) if s == 0 => break,
         _ => (),
       }
-      eprintln!("{}", s);
-      stderr_lines_.lock().unwrap().push(s.clone());
+      eprint!("{}", s);
+      lines.push(s.clone());
     }
   });
 
@@ -482,19 +480,11 @@ fn start_app(
   let exit_on_panic = options.exit_on_panic;
   std::thread::spawn(move || {
     let status = child_clone.wait().expect("failed to wait on child");
+
     if exit_on_panic {
-      // we exit if the status is a success code (app closed) or code is 101 (compilation error)
-      // if the process wasn't killed by the file watcher
-      if (status.success() || status.code() == Some(101))
-          // `child_wait_rx` indicates that the process was killed by the file watcher
-          && child_wait_rx
-          .lock()
-          .expect("failed to get child_wait_rx lock")
-          .try_recv()
-          .is_err()
-      {
+      if !manually_killed_app.load(Ordering::Relaxed) {
         kill_before_dev_process();
-        exit(0);
+        exit(status.code().unwrap_or(0));
       }
     } else {
       let is_cargo_compile_error = stderr_lines
@@ -507,11 +497,11 @@ fn start_app(
 
       // if we're no exiting on panic, we only exit if:
       // - the status is a success code (app closed)
-      // - status code is not the Cargo error code
-      // - error is not a cargo compilation error (using stderr heuristics)
-      if status.success() || status.code() != Some(101) || !is_cargo_compile_error {
+      // - status code is the Cargo error code
+      //    - and error is not a cargo compilation error (using stderr heuristics)
+      if status.success() || (status.code() == Some(101) && !is_cargo_compile_error) {
         kill_before_dev_process();
-        exit(0);
+        exit(status.code().unwrap_or(1));
       }
     }
   });

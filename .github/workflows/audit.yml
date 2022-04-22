@@ -15,6 +15,10 @@ on:
       - '**/package.json'
       - '**/yarn.lock'
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   audit-rust:
     runs-on: ubuntu-latest

@@ -10,8 +10,8 @@ use crate::{
   webview::{WebviewAttributes, WebviewIpcHandler},
   Dispatch, Runtime, UserEvent, WindowBuilder,
 };
-use serde::Serialize;
-use tauri_utils::config::WindowConfig;
+use serde::{Deserialize, Deserializer, Serialize};
+use tauri_utils::{config::WindowConfig, Theme};
 
 use std::{
   collections::{HashMap, HashSet},
@@ -59,6 +59,12 @@ pub enum WindowEvent {
   },
   /// An event associated with the file drop action.
   FileDrop(FileDropEvent),
+  /// The system window theme has changed.
+  ///
+  /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
+  ///
+  /// At the moment this is only supported on Windows.
+  ThemeChanged(Theme),
 }
 
 /// The file drop event payload.
@@ -89,6 +95,118 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
       MenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
     }
+  }
+}
+
+/// Describes the appearance of the mouse cursor.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CursorIcon {
+  /// The platform-dependent default cursor.
+  Default,
+  /// A simple crosshair.
+  Crosshair,
+  /// A hand (often used to indicate links in web browsers).
+  Hand,
+  /// Self explanatory.
+  Arrow,
+  /// Indicates something is to be moved.
+  Move,
+  /// Indicates text that may be selected or edited.
+  Text,
+  /// Program busy indicator.
+  Wait,
+  /// Help indicator (often rendered as a "?")
+  Help,
+  /// Progress indicator. Shows that processing is being done. But in contrast
+  /// with "Wait" the user may still interact with the program. Often rendered
+  /// as a spinning beach ball, or an arrow with a watch or hourglass.
+  Progress,
+
+  /// Cursor showing that something cannot be done.
+  NotAllowed,
+  ContextMenu,
+  Cell,
+  VerticalText,
+  Alias,
+  Copy,
+  NoDrop,
+  /// Indicates something can be grabbed.
+  Grab,
+  /// Indicates something is grabbed.
+  Grabbing,
+  AllScroll,
+  ZoomIn,
+  ZoomOut,
+
+  /// Indicate that some edge is to be moved. For example, the 'SeResize' cursor
+  /// is used when the movement starts from the south-east corner of the box.
+  EResize,
+  NResize,
+  NeResize,
+  NwResize,
+  SResize,
+  SeResize,
+  SwResize,
+  WResize,
+  EwResize,
+  NsResize,
+  NeswResize,
+  NwseResize,
+  ColResize,
+  RowResize,
+}
+
+impl<'de> Deserialize<'de> for CursorIcon {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "default" => CursorIcon::Default,
+      "crosshair" => CursorIcon::Crosshair,
+      "hand" => CursorIcon::Hand,
+      "arrow" => CursorIcon::Arrow,
+      "move" => CursorIcon::Move,
+      "text" => CursorIcon::Text,
+      "wait" => CursorIcon::Wait,
+      "help" => CursorIcon::Help,
+      "progress" => CursorIcon::Progress,
+      "notallowed" => CursorIcon::NotAllowed,
+      "contextmenu" => CursorIcon::ContextMenu,
+      "cell" => CursorIcon::Cell,
+      "verticaltext" => CursorIcon::VerticalText,
+      "alias" => CursorIcon::Alias,
+      "copy" => CursorIcon::Copy,
+      "nodrop" => CursorIcon::NoDrop,
+      "grab" => CursorIcon::Grab,
+      "grabbing" => CursorIcon::Grabbing,
+      "allscroll" => CursorIcon::AllScroll,
+      "zoomun" => CursorIcon::ZoomIn,
+      "zoomout" => CursorIcon::ZoomOut,
+      "eresize" => CursorIcon::EResize,
+      "nresize" => CursorIcon::NResize,
+      "neresize" => CursorIcon::NeResize,
+      "nwresize" => CursorIcon::NwResize,
+      "sresize" => CursorIcon::SResize,
+      "seresize" => CursorIcon::SeResize,
+      "swresize" => CursorIcon::SwResize,
+      "wresize" => CursorIcon::WResize,
+      "ewresize" => CursorIcon::EwResize,
+      "nsresize" => CursorIcon::NsResize,
+      "neswresize" => CursorIcon::NeswResize,
+      "nwseresize" => CursorIcon::NwseResize,
+      "colresize" => CursorIcon::ColResize,
+      "rowresize" => CursorIcon::RowResize,
+      _ => CursorIcon::Default,
+    })
+  }
+}
+
+impl Default for CursorIcon {
+  fn default() -> Self {
+    CursorIcon::Default
   }
 }
 

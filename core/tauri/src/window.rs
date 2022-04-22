@@ -28,8 +28,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::WindowUrl,
-  EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, WindowEvent,
+  CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
+  PageLoadPayload, Runtime, Theme, WindowEvent,
 };
 
 use serde::Serialize;
@@ -332,6 +332,17 @@ impl<R: Runtime> WindowBuilder<R> {
   #[must_use]
   pub fn visible(mut self, visible: bool) -> Self {
     self.window_builder = self.window_builder.visible(visible);
+    self
+  }
+
+  /// Forces a theme or uses the system settings if None was provided.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not implemented, the value is ignored.
+  #[must_use]
+  pub fn theme(mut self, theme: Option<Theme>) -> Self {
+    self.window_builder = self.window_builder.theme(theme);
     self
   }
 
@@ -763,7 +774,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: This is a private API on macOS,
+  /// - **macOS:** This is a private API on macOS,
   /// so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
@@ -954,10 +965,20 @@ impl<R: Runtime> Window<R> {
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
     self.window.dispatcher.ns_window().map_err(Into::into)
   }
+
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<HWND> {
     self.window.dispatcher.hwnd().map_err(Into::into)
+  }
+
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not implemented, always return [`Theme::Light`].
+  pub fn theme(&self) -> crate::Result<Theme> {
+    self.window.dispatcher.theme().map_err(Into::into)
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -1154,6 +1175,59 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_skip_taskbar(skip)
+      .map_err(Into::into)
+  }
+
+  /// Grabs the cursor, preventing it from leaving the window.
+  ///
+  /// There's no guarantee that the cursor will be hidden. You should
+  /// hide it by yourself if you want so.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported.
+  /// - **macOS:** This locks the cursor in a fixed location, which looks visually awkward.
+  pub fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_cursor_grab(grab)
+      .map_err(Into::into)
+  }
+
+  /// Modifies the cursor's visibility.
+  ///
+  /// If `false`, this will hide the cursor. If `true`, this will show the cursor.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Unsupported.
+  /// - **Windows:** The cursor is only hidden within the confines of the window.
+  /// - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
+  ///   outside of the window.
+  pub fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_cursor_visible(visible)
+      .map_err(Into::into)
+  }
+
+  /// Modifies the cursor icon of the window.
+  pub fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_cursor_icon(icon)
+      .map_err(Into::into)
+  }
+
+  /// Changes the position of the cursor in window coordinates.
+  pub fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_cursor_position(position)
       .map_err(Into::into)
   }
 

@@ -36,6 +36,10 @@
  *         "setFocus": true,
  *         "setIcon": true,
  *         "setSkipTaskbar": true,
+ *         "setCursorGrab": true,
+ *         "setCursorVisible": true,
+ *         "setCursorIcon": true,
+ *         "setCursorPosition": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -108,6 +112,8 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { emit, listen, once } from './helpers/event'
+
+type Theme = 'light' | 'dark'
 
 /** Allows you to retrieve information about a given monitor. */
 interface Monitor {
@@ -209,6 +215,47 @@ enum UserAttentionType {
    */
   Informational
 }
+
+export type CursorIcon =
+  | 'default'
+  | 'crosshair'
+  | 'hand'
+  | 'arrow'
+  | 'move'
+  | 'text'
+  | 'wait'
+  | 'help'
+  | 'progress'
+  // something cannot be done
+  | 'notAllowed'
+  | 'contextMenu'
+  | 'cell'
+  | 'verticalText'
+  | 'alias'
+  | 'copy'
+  | 'noDrop'
+  // something can be grabbed
+  | 'grab'
+  /// something is grabbed
+  | 'grabbing'
+  | 'allScroll'
+  | 'zoomIn'
+  | 'zoomOut'
+  // edge is to be moved
+  | 'eResize'
+  | 'nResize'
+  | 'neResize'
+  | 'nwResize'
+  | 'sResize'
+  | 'seResize'
+  | 'swResize'
+  | 'wResize'
+  | 'ewResize'
+  | 'nsResize'
+  | 'neswResize'
+  | 'nwseResize'
+  | 'colResize'
+  | 'rowResize'
 
 /**
  * Get an instance of `WebviewWindow` for the current webview window.
@@ -493,6 +540,22 @@ class WindowManager extends WebviewWindowHandle {
           label: this.label,
           cmd: {
             type: 'isVisible'
+          }
+        }
+      }
+    })
+  }
+
+  /** Gets the window's current visible state. */
+  async theme(): Promise<Theme | null> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'theme'
           }
         }
       }
@@ -1074,6 +1137,113 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Grabs the cursor, preventing it from leaving the window.
+   *
+   * There's no guarantee that the cursor will be hidden. You should
+   * hide it by yourself if you want so.
+   *
+   * @param grab `true` to grab the cursor icon, `false` to release it.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setCursorGrab(grab: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setCursorGrab',
+            payload: grab
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Modifies the cursor's visibility.
+   *
+   * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setCursorVisible(visible: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setCursorVisible',
+            payload: visible
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Modifies the cursor icon of the window.
+   *
+   * @param icon The new cursor icon.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setCursorIcon(icon: CursorIcon): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setCursorIcon',
+            payload: icon
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Changes the position of the cursor in window coordinates.
+   *
+   * @param position The new cursor position.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setCursorPosition(
+    position: LogicalPosition | PhysicalPosition
+  ): Promise<void> {
+    if (
+      !position ||
+      (position.type !== 'Logical' && position.type !== 'Physical')
+    ) {
+      throw new Error(
+        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
+      )
+    }
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setCursorPosition',
+            payload: {
+              type: position.type,
+              data: {
+                x: position.x,
+                y: position.y
+              }
+            }
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    *
    * @return A promise indicating the success or failure of the operation.
@@ -1245,6 +1415,12 @@ interface WindowOptions {
    * Disabling it is required to use drag and drop on the frontend on Windows.
    */
   fileDropEnabled?: boolean
+  /**
+   *  The initial window theme. Defaults to the system theme.
+   *
+   * Only implemented on Windows.
+   */
+  theme?: Theme
 }
 
 /**
@@ -1315,4 +1491,4 @@ export {
   availableMonitors
 }
 
-export type { Monitor, WindowOptions }
+export type { Theme, Monitor, WindowOptions }

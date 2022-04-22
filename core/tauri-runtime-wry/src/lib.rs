@@ -14,7 +14,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction,
   GlobalShortcutManager, Result, RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType,
@@ -40,7 +40,7 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -62,7 +62,10 @@ use wry::{
       MenuType,
     },
     monitor::MonitorHandle,
-    window::{Fullscreen, Icon as WryWindowIcon, UserAttentionType as WryUserAttentionType},
+    window::{
+      CursorIcon as WryCursorIcon, Fullscreen, Icon as WryWindowIcon, Theme as WryTheme,
+      UserAttentionType as WryUserAttentionType,
+    },
   },
   http::{
     Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
@@ -151,6 +154,7 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
       &context.main_thread.window_target,
       message,
       UserMessageContext {
+        webview_id_map: context.webview_id_map.clone(),
         window_event_listeners: &context.window_event_listeners,
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
@@ -607,6 +611,14 @@ impl WindowEventWrapper {
   }
 }
 
+fn map_theme(theme: &WryTheme) -> Theme {
+  match theme {
+    WryTheme::Light => Theme::Light,
+    WryTheme::Dark => Theme::Dark,
+    _ => Theme::Light,
+  }
+}
+
 impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
   fn from(event: &WryWindowEvent<'a>) -> Self {
     let event = match event {
@@ -624,6 +636,7 @@ impl<'a> From<&WryWindowEvent<'a>> for WindowEventWrapper {
       },
       #[cfg(any(target_os = "linux", target_os = "macos"))]
       WryWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      WryWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
       _ => return Self(None),
     };
     Self(Some(event))
@@ -740,12 +753,60 @@ impl From<Position> for PositionWrapper {
 pub struct UserAttentionTypeWrapper(WryUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
-  fn from(request_type: UserAttentionType) -> UserAttentionTypeWrapper {
+  fn from(request_type: UserAttentionType) -> Self {
     let o = match request_type {
       UserAttentionType::Critical => WryUserAttentionType::Critical,
       UserAttentionType::Informational => WryUserAttentionType::Informational,
     };
     Self(o)
+  }
+}
+
+#[derive(Debug)]
+pub struct CursorIconWrapper(WryCursorIcon);
+
+impl From<CursorIcon> for CursorIconWrapper {
+  fn from(icon: CursorIcon) -> Self {
+    use CursorIcon::*;
+    let i = match icon {
+      Default => WryCursorIcon::Default,
+      Crosshair => WryCursorIcon::Crosshair,
+      Hand => WryCursorIcon::Hand,
+      Arrow => WryCursorIcon::Arrow,
+      Move => WryCursorIcon::Move,
+      Text => WryCursorIcon::Text,
+      Wait => WryCursorIcon::Wait,
+      Help => WryCursorIcon::Help,
+      Progress => WryCursorIcon::Progress,
+      NotAllowed => WryCursorIcon::NotAllowed,
+      ContextMenu => WryCursorIcon::ContextMenu,
+      Cell => WryCursorIcon::Cell,
+      VerticalText => WryCursorIcon::VerticalText,
+      Alias => WryCursorIcon::Alias,
+      Copy => WryCursorIcon::Copy,
+      NoDrop => WryCursorIcon::NoDrop,
+      Grab => WryCursorIcon::Grab,
+      Grabbing => WryCursorIcon::Grabbing,
+      AllScroll => WryCursorIcon::AllScroll,
+      ZoomIn => WryCursorIcon::ZoomIn,
+      ZoomOut => WryCursorIcon::ZoomOut,
+      EResize => WryCursorIcon::EResize,
+      NResize => WryCursorIcon::NResize,
+      NeResize => WryCursorIcon::NeResize,
+      NwResize => WryCursorIcon::NwResize,
+      SResize => WryCursorIcon::SResize,
+      SeResize => WryCursorIcon::SeResize,
+      SwResize => WryCursorIcon::SwResize,
+      WResize => WryCursorIcon::WResize,
+      EwResize => WryCursorIcon::EwResize,
+      NsResize => WryCursorIcon::NsResize,
+      NeswResize => WryCursorIcon::NeswResize,
+      NwseResize => WryCursorIcon::NwseResize,
+      ColResize => WryCursorIcon::ColResize,
+      RowResize => WryCursorIcon::RowResize,
+      _ => WryCursorIcon::Default,
+    };
+    Self(i)
   }
 }
 
@@ -776,7 +837,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       .decorations(config.decorations)
       .maximized(config.maximized)
       .always_on_top(config.always_on_top)
-      .skip_taskbar(config.skip_taskbar);
+      .skip_taskbar(config.skip_taskbar)
+      .theme(config.theme);
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -936,6 +998,22 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[allow(unused_variables, unused_mut)]
+  fn theme(mut self, theme: Option<Theme>) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_theme(if let Some(t) = theme {
+        match t {
+          Theme::Dark => Some(WryTheme::Dark),
+          _ => Some(WryTheme::Light),
+        }
+      } else {
+        None
+      });
+    }
+    self
+  }
+
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
@@ -1025,6 +1103,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkWindow(Sender<GtkWindow>),
+  Theme(Sender<Theme>),
   // Setters
   Center(Sender<Result<()>>),
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -1049,6 +1128,10 @@ pub enum WindowMessage {
   SetFocus,
   SetIcon(WryWindowIcon),
   SetSkipTaskbar(bool),
+  SetCursorGrab(bool),
+  SetCursorVisible(bool),
+  SetCursorIcon(CursorIcon),
+  SetCursorPosition(Position),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1275,6 +1358,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
   }
 
+  fn theme(&self) -> Result<Theme> {
+    window_getter!(self, WindowMessage::Theme)
+  }
+
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
@@ -1468,6 +1555,37 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetSkipTaskbar(skip)),
+    )
+  }
+
+  fn set_cursor_grab(&self, grab: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorGrab(grab)),
+    )
+  }
+
+  fn set_cursor_visible(&self, visible: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorVisible(visible)),
+    )
+  }
+
+  fn set_cursor_icon(&self, icon: CursorIcon) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetCursorIcon(icon)),
+    )
+  }
+
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetCursorPosition(position.into()),
+      ),
     )
   }
 
@@ -1988,6 +2106,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 }
 
 struct UserMessageContext<'a> {
+  webview_id_map: WebviewIdStore,
   window_event_listeners: &'a WindowEventListeners,
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   clipboard_manager: Arc<Mutex<Clipboard>>,
@@ -2004,6 +2123,7 @@ fn handle_user_message<T: UserEvent>(
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
+    webview_id_map,
     window_event_listeners,
     menu_event_listeners,
     global_shortcut_manager,
@@ -2090,6 +2210,12 @@ fn handle_user_message<T: UserEvent>(
             target_os = "openbsd"
           ))]
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
+          WindowMessage::Theme(tx) => {
+            #[cfg(windows)]
+            tx.send(map_theme(&window.theme())).unwrap();
+            #[cfg(not(windows))]
+            tx.send(Theme::Light).unwrap();
+          }
           // Setters
           WindowMessage::Center(tx) => {
             tx.send(center_window(window, window_handle.inner_size()))
@@ -2136,9 +2262,26 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetIcon(icon) => {
             window.set_window_icon(Some(icon));
           }
-          WindowMessage::SetSkipTaskbar(_skip) => {
+          #[allow(unused_variables)]
+          WindowMessage::SetSkipTaskbar(skip) => {
             #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(_skip);
+            window.set_skip_taskbar(skip);
+          }
+          #[allow(unused_variables)]
+          WindowMessage::SetCursorGrab(grab) => {
+            #[cfg(any(windows, target_os = "macos"))]
+            let _ = window.set_cursor_grab(grab);
+          }
+          WindowMessage::SetCursorVisible(visible) => {
+            window.set_cursor_visible(visible);
+          }
+          WindowMessage::SetCursorIcon(icon) => {
+            window.set_cursor_icon(CursorIconWrapper::from(icon).0);
+          }
+          #[allow(unused_variables)]
+          WindowMessage::SetCursorPosition(position) => {
+            #[cfg(any(windows, target_os = "macos"))]
+            let _ = window.set_cursor_position(PositionWrapper::from(position).0);
           }
           WindowMessage::DragWindow => {
             let _ = window.drag_window();
@@ -2227,6 +2370,8 @@ fn handle_user_message<T: UserEvent>(
           .lock()
           .unwrap()
           .insert(window_id, WindowMenuEventListeners::default());
+
+        webview_id_map.insert(window.id(), window_id);
 
         let w = Arc::new(window);
 
@@ -2558,6 +2703,7 @@ fn handle_event_loop<T: UserEvent>(
           event_loop,
           message,
           UserMessageContext {
+            webview_id_map,
             window_event_listeners,
             global_shortcut_manager,
             clipboard_manager,

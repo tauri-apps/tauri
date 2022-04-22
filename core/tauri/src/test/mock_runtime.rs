@@ -10,7 +10,7 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
   ClipboardManager, Dispatch, EventLoopProxy, GlobalShortcutManager, Result, RunEvent, Runtime,
   RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
@@ -20,7 +20,7 @@ use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
   SystemTray, SystemTrayEvent, TrayIcon,
 };
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -248,6 +248,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn theme(self, theme: Option<Theme>) -> Self {
+    self
+  }
+
   fn has_icon(&self) -> bool {
     false
   }
@@ -350,6 +354,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND> {
     unimplemented!()
+  }
+
+  fn theme(&self) -> Result<Theme> {
+    Ok(Theme::Light)
   }
 
   #[cfg(target_os = "macos")]
@@ -468,6 +476,22 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_skip_taskbar(&self, skip: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_grab(&self, grab: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_visible(&self, visible: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()> {
     Ok(())
   }
 

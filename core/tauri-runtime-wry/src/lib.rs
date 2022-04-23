@@ -2267,9 +2267,7 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(any(windows, target_os = "linux"))]
             window.set_skip_taskbar(skip);
           }
-          #[allow(unused_variables)]
           WindowMessage::SetCursorGrab(grab) => {
-            #[cfg(any(windows, target_os = "macos"))]
             let _ = window.set_cursor_grab(grab);
           }
           WindowMessage::SetCursorVisible(visible) => {

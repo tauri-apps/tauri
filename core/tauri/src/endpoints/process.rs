@@ -17,7 +17,6 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Relaunch application
-  #[cmd(process_relaunch, "process > relaunch")]
   Relaunch,
   /// Close application with provided exit_code
   #[cmd(process_exit, "process > exit")]
@@ -32,6 +31,11 @@ impl Cmd {
     Ok(())
   }
 
+  #[cfg(not(process_relaunch))]
+  fn relaunch<R: Runtime>(_: InvokeContext<R>) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("process > relaunch".into()).into_anyhow())
+  }
+
   #[module_command_handler(process_exit)]
   fn exit<R: Runtime>(_context: InvokeContext<R>, exit_code: i32) -> super::Result<()> {
     // would be great if we can have a handler inside tauri
@@ -43,7 +47,7 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch")]
+  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch", call)]
   #[quickcheck_macros::quickcheck]
   fn relaunch() {}
 

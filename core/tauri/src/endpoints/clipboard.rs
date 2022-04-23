@@ -20,7 +20,6 @@ pub enum Cmd {
   #[cmd(clipboard_write_text, "clipboard > writeText")]
   WriteText(String),
   /// Read clipboard content as text.
-  #[cmd(clipboard_read_text, "clipboard > readText")]
   ReadText,
 }
 
@@ -44,6 +43,11 @@ impl Cmd {
       .read_text()
       .map_err(crate::error::into_anyhow)
   }
+
+  #[cfg(not(clipboard_read_text))]
+  fn read_text<R: Runtime>(_: InvokeContext<R>) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("clipboard > readText".into()).into_anyhow())
+  }
 }
 
 #[cfg(test)]
@@ -57,7 +61,7 @@ mod tests {
     assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
   }
 
-  #[tauri_macros::module_command_test(clipboard_read_text, "clipboard > readText")]
+  #[tauri_macros::module_command_test(clipboard_read_text, "clipboard > readText", call)]
   #[quickcheck_macros::quickcheck]
   fn read_text() {
     let ctx = crate::test::mock_invoke_context();

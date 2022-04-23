@@ -15,7 +15,6 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The get CLI matches API.
-  #[cmd(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)")]
   CliMatches,
 }
 
@@ -27,14 +26,19 @@ impl Cmd {
         .map(Into::into)
         .map_err(Into::into)
     } else {
-      Err(crate::Error::ApiNotAllowlisted("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)".into()).into_anyhow())
+      Err(crate::error::into_anyhow("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)"))
     }
+  }
+
+  #[cfg(not(cli))]
+  fn cli_matches<R: Runtime>(_: InvokeContext<R>) -> super::Result<InvokeResponse> {
+    Err(crate::error::into_anyhow("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)"))
   }
 }
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)")]
+  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)", call)]
   #[quickcheck_macros::quickcheck]
   fn cli_matches() {
     let res = super::Cmd::cli_matches(crate::test::mock_invoke_context());

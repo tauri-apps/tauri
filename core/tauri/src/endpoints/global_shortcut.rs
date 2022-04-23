@@ -33,7 +33,6 @@ pub enum Cmd {
   #[cmd(global_shortcut_all, "globalShortcut > all")]
   Unregister { shortcut: String },
   /// Unregisters all registered shortcuts.
-  #[cmd(global_shortcut_all, "globalShortcut > all")]
   UnregisterAll,
   /// Determines whether the given hotkey is registered or not.
   #[cmd(global_shortcut_all, "globalShortcut > all")]
@@ -85,6 +84,11 @@ impl Cmd {
       .unregister_all()
       .map_err(crate::error::into_anyhow)?;
     Ok(())
+  }
+
+  #[cfg(not(global_shortcut_all))]
+  fn unregister_all<R: Runtime>(_: InvokeContext<R>) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("globalShortcut > all".into()).into_anyhow())
   }
 
   #[module_command_handler(global_shortcut_all)]
@@ -147,7 +151,7 @@ mod tests {
     assert!(!super::Cmd::is_registered(ctx, shortcut).unwrap());
   }
 
-  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all", call)]
   #[quickcheck_macros::quickcheck]
   fn unregister_all() {
     let shortcuts = vec!["CTRL+X".to_string(), "SUPER+C".to_string(), "D".to_string()];

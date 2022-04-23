@@ -15,42 +15,56 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  #[cmd(os_all, "os > all")]
   Platform,
-  #[cmd(os_all, "os > all")]
   Version,
-  #[cmd(os_all, "os > all")]
   OsType,
-  #[cmd(os_all, "os > all")]
   Arch,
-  #[cmd(os_all, "os > all")]
   Tempdir,
 }
 
+#[cfg(os_all)]
 impl Cmd {
-  #[module_command_handler(os_all)]
   fn platform<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_platform())
   }
 
-  #[module_command_handler(os_all)]
   fn version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
     Ok(os_info::get().version().to_string())
   }
 
-  #[module_command_handler(os_all)]
   fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_type())
   }
 
-  #[module_command_handler(os_all)]
   fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(std::env::consts::ARCH)
   }
 
-  #[module_command_handler(os_all)]
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+}
+
+#[cfg(not(os_all))]
+impl Cmd {
+  fn platform<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
+
+  fn version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
+
+  fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
+
+  fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
+
+  fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
 }
 
@@ -63,6 +77,7 @@ fn os_type() -> &'static str {
   #[cfg(target_os = "macos")]
   return "Darwin";
 }
+
 #[cfg(os_all)]
 fn os_platform() -> &'static str {
   match std::env::consts::OS {
@@ -74,23 +89,23 @@ fn os_platform() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[tauri_macros::module_command_test(os_all, "os > all", call)]
   #[quickcheck_macros::quickcheck]
   fn platform() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[tauri_macros::module_command_test(os_all, "os > all", call)]
   #[quickcheck_macros::quickcheck]
   fn version() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[tauri_macros::module_command_test(os_all, "os > all", call)]
   #[quickcheck_macros::quickcheck]
   fn os_type() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[tauri_macros::module_command_test(os_all, "os > all", call)]
   #[quickcheck_macros::quickcheck]
   fn arch() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all")]
+  #[tauri_macros::module_command_test(os_all, "os > all", call)]
   #[quickcheck_macros::quickcheck]
   fn tempdir() {}
 }

@@ -182,7 +182,7 @@ pub(crate) fn generate_run_fn(input: DeriveInput) -> TokenStream {
       }
 
       matcher.extend(quote! {
-        _ => unreachable!(),
+        _ => Err(crate::error::into_anyhow("API not in the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")),
       });
     }
     _ => {
@@ -227,6 +227,7 @@ impl Parse for HandlerAttributes {
 pub struct HandlerTestAttributes {
   allowlist: Ident,
   error_message: String,
+  function_call: bool,
 }
 
 impl Parse for HandlerTestAttributes {
@@ -235,10 +236,17 @@ impl Parse for HandlerTestAttributes {
     input.parse::<Token![,]>()?;
     let error_message_raw: LitStr = input.parse()?;
     let error_message = error_message_raw.value();
+    let function_call = if let (Ok(_), Ok(i)) = (input.parse::<Token![,]>(), input.parse::<Ident>())
+    {
+      i == "call"
+    } else {
+      false
+    };
 
     Ok(Self {
       allowlist,
       error_message,
+      function_call,
     })
   }
 }
@@ -258,8 +266,13 @@ pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> Toke
   let signature = function.sig.clone();
 
   let enum_variant_name = function.sig.ident.to_string().to_lower_camel_case();
-  let response = quote! {
-    serde_json::from_str::<super::Cmd>(&format!(r#"{{ "cmd": "{}", "data": null }}"#, #enum_variant_name))
+  let response = if attributes.function_call {
+    let test_name = function.sig.ident.clone();
+    quote!(super::Cmd::#test_name(crate::test::mock_invoke_context()))
+  } else {
+    quote! {
+      serde_json::from_str::<super::Cmd>(&format!(r#"{{ "cmd": "{}", "data": null }}"#, #enum_variant_name))
+    }
   };
 
   quote!(
@@ -271,7 +284,6 @@ pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> Toke
     #[quickcheck_macros::quickcheck]
     #signature {
       if let Err(e) = #response {
-        println!("{} {}", e.to_string(), #error_message);
         assert!(e.to_string().contains(#error_message));
       } else {
         panic!("unexpected response");

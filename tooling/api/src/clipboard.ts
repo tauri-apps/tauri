@@ -35,7 +35,8 @@ async function readText(): Promise<string | null> {
   return invokeTauriCommand({
     __tauriModule: 'Clipboard',
     message: {
-      cmd: 'readText'
+      cmd: 'readText',
+      data: null
     }
   })
 }

@@ -138,6 +138,7 @@ pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
 }
 
 impl Error {
+  #[allow(dead_code)]
   pub(crate) fn into_anyhow(self) -> anyhow::Error {
     anyhow::anyhow!(self.to_string())
   }

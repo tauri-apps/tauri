@@ -53,6 +53,7 @@ mod tests {
   fn write_text(text: String) {
     let ctx = crate::test::mock_invoke_context();
     super::Cmd::write_text(ctx.clone(), text.clone()).unwrap();
+    #[cfg(clipboard_read_text)]
     assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
   }
 
@@ -61,8 +62,11 @@ mod tests {
   fn read_text() {
     let ctx = crate::test::mock_invoke_context();
     assert_eq!(super::Cmd::read_text(ctx.clone()).unwrap(), None);
-    let text = "Tauri!".to_string();
-    super::Cmd::write_text(ctx.clone(), text.clone()).unwrap();
-    assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
+    #[cfg(clipboard_write_text)]
+    {
+      let text = "Tauri!".to_string();
+      super::Cmd::write_text(ctx.clone(), text.clone()).unwrap();
+      assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
+    }
   }
 }

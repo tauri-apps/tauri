@@ -60,6 +60,8 @@ fn main() {
     shell_execute: { any(shell_all, feature = "shell-execute") },
     shell_sidecar: { any(shell_all, feature = "shell-sidecar") },
     shell_open: { any(shell_all, feature = "shell-open") },
+    // helper for the command module macro
+    shell_script: { any(shell_execute, shell_sidecar) },
     // helper for the shell scope functionality
     shell_scope: { any(shell_execute, shell_sidecar, feature = "shell-open-api") },
 

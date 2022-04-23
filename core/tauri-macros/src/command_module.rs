@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use heck::ToSnakeCase;
+use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 
@@ -11,7 +11,7 @@ use syn::{
   parse::{Parse, ParseStream},
   parse_quote,
   spanned::Spanned,
-  Data, DeriveInput, Error, Fields, FnArg, Ident, ItemFn, LitStr, Pat, Token,
+  Data, DeriveInput, Error, Fields, Ident, ItemFn, LitStr, Token,
 };
 
 pub(crate) fn generate_command_enum(mut input: DeriveInput) -> TokenStream {
@@ -227,7 +227,6 @@ impl Parse for HandlerAttributes {
 pub struct HandlerTestAttributes {
   allowlist: Ident,
   error_message: String,
-  is_async: bool,
 }
 
 impl Parse for HandlerTestAttributes {
@@ -236,16 +235,10 @@ impl Parse for HandlerTestAttributes {
     input.parse::<Token![,]>()?;
     let error_message_raw: LitStr = input.parse()?;
     let error_message = error_message_raw.value();
-    let _ = input.parse::<Token![,]>();
-    let is_async = input
-      .parse::<Ident>()
-      .map(|i| i == "async")
-      .unwrap_or_default();
 
     Ok(Self {
       allowlist,
       error_message,
-      is_async,
     })
   }
 }
@@ -261,26 +254,12 @@ pub fn command_handler(attributes: HandlerAttributes, function: ItemFn) -> Token
 
 pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> TokenStream2 {
   let allowlist = attributes.allowlist;
-  let is_async = attributes.is_async;
   let error_message = attributes.error_message.as_str();
   let signature = function.sig.clone();
-  let test_name = function.sig.ident.clone();
-  let mut args = quote!();
-  for arg in &function.sig.inputs {
-    if let FnArg::Typed(t) = arg {
-      if let Pat::Ident(i) = &*t.pat {
-        let ident = &i.ident;
-        args.extend(quote!(#ident,))
-      }
-    }
-  }
 
-  let response = if is_async {
-    quote!(crate::async_runtime::block_on(
-      super::Cmd::#test_name(crate::test::mock_invoke_context(), #args)
-    ))
-  } else {
-    quote!(super::Cmd::#test_name(crate::test::mock_invoke_context(), #args))
+  let enum_variant_name = function.sig.ident.to_string().to_lower_camel_case();
+  let response = quote! {
+    serde_json::from_str::<super::Cmd>(&format!(r#"{{ "cmd": "{}", "data": null }}"#, #enum_variant_name))
   };
 
   quote!(
@@ -288,9 +267,11 @@ pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> Toke
     #function
 
     #[cfg(not(#allowlist))]
+    #[allow(unused_variables)]
     #[quickcheck_macros::quickcheck]
     #signature {
       if let Err(e) = #response {
+        println!("{} {}", e.to_string(), #error_message);
         assert!(e.to_string().contains(#error_message));
       } else {
         panic!("unexpected response");

@@ -1142,6 +1142,11 @@ class WindowManager extends WebviewWindowHandle {
    * There's no guarantee that the cursor will be hidden. You should
    * hide it by yourself if you want so.
    *
+   * #### Platform-specific
+   *
+   * - **Linux:** Unsupported.
+   * - **macOS:** This locks the cursor in a fixed location, which looks visually awkward.
+   *
    * @param grab `true` to grab the cursor icon, `false` to release it.
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -1163,6 +1168,13 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Modifies the cursor's visibility.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux:** Unsupported.
+   * - **Windows:** The cursor is only hidden within the confines of the window.
+   * - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
+   *   outside of the window.
    *
    * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
    * @returns A promise indicating the success or failure of the operation.

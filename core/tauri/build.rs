@@ -97,7 +97,6 @@ fn main() {
     // process
     process_all: { any(api_all, feature = "process-all") },
     process_relaunch: { any(protocol_all, feature = "process-relaunch") },
-    process_relaunch_dangerous_allow_symlink_macos: { feature = "process-relaunch-dangerous-allow-symlink-macos" },
     process_exit: { any(protocol_all, feature = "process-exit") },
 
     // clipboard

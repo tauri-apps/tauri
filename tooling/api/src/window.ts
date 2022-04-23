@@ -1171,7 +1171,6 @@ class WindowManager extends WebviewWindowHandle {
    *
    * #### Platform-specific
    *
-   * - **Linux:** Unsupported.
    * - **Windows:** The cursor is only hidden within the confines of the window.
    * - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
    *   outside of the window.

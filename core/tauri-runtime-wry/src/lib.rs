@@ -2278,9 +2278,7 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetCursorIcon(icon) => {
             window.set_cursor_icon(CursorIconWrapper::from(icon).0);
           }
-          #[allow(unused_variables)]
           WindowMessage::SetCursorPosition(position) => {
-            #[cfg(any(windows, target_os = "macos"))]
             let _ = window.set_cursor_position(PositionWrapper::from(position).0);
           }
           WindowMessage::DragWindow => {

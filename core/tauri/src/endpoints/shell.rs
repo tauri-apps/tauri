@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(shell_scope)]
 use crate::ExecuteArgs;
@@ -55,6 +57,7 @@ pub struct CommandOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
@@ -74,6 +77,7 @@ pub enum Cmd {
   KillChild {
     pid: ChildId,
   },
+  #[cmd(shell_open, "shell > open")]
   Open {
     path: String,
     with: Option<String>,
@@ -209,7 +213,7 @@ impl Cmd {
   /// Open a (url) path with a default or specific browser opening program.
   ///
   /// See [`crate::api::shell::open`] for how it handles security-related measures.
-  #[module_command_handler(shell_open, "shell > open")]
+  #[module_command_handler(shell_open)]
   fn open<R: Runtime>(
     context: InvokeContext<R>,
     path: String,

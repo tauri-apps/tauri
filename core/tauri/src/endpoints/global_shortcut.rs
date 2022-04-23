@@ -2,38 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(global_shortcut_all)]
 use crate::runtime::GlobalShortcutManager;
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Register a global shortcut.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   Register {
     shortcut: String,
     handler: CallbackFn,
   },
   /// Register a list of global shortcuts.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   RegisterAll {
     shortcuts: Vec<String>,
     handler: CallbackFn,
   },
   /// Unregister a global shortcut.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   Unregister { shortcut: String },
   /// Unregisters all registered shortcuts.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   UnregisterAll,
   /// Determines whether the given hotkey is registered or not.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   IsRegistered { shortcut: String },
 }
 
 impl Cmd {
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn register<R: Runtime>(
     context: InvokeContext<R>,
     shortcut: String,
@@ -44,7 +52,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn register_all<R: Runtime>(
     context: InvokeContext<R>,
     shortcuts: Vec<String>,
@@ -57,7 +65,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn unregister<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> super::Result<()> {
     context
       .window
@@ -68,7 +76,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn unregister_all<R: Runtime>(context: InvokeContext<R>) -> super::Result<()> {
     context
       .window
@@ -79,7 +87,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn is_registered<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> super::Result<bool> {
     context
       .window

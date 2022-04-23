@@ -2,25 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 #[cfg(any(clipboard_write_text, clipboard_read_text))]
 use crate::runtime::ClipboardManager;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   /// Write a text string to the clipboard.
+  #[cmd(clipboard_write_text, "clipboard > writeText")]
   WriteText(String),
   /// Read clipboard content as text.
+  #[cmd(clipboard_read_text, "clipboard > readText")]
   ReadText,
 }
 
 impl Cmd {
-  #[module_command_handler(clipboard_write_text, "clipboard > writeText")]
+  #[module_command_handler(clipboard_write_text)]
   fn write_text<R: Runtime>(context: InvokeContext<R>, text: String) -> super::Result<()> {
     context
       .window
@@ -30,7 +35,7 @@ impl Cmd {
       .map_err(crate::error::into_anyhow)
   }
 
-  #[module_command_handler(clipboard_read_text, "clipboard > readText")]
+  #[module_command_handler(clipboard_read_text)]
   fn read_text<R: Runtime>(context: InvokeContext<R>) -> super::Result<Option<String>> {
     context
       .window

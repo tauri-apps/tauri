@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::{InvokeContext, InvokeResponse};
 use crate::Runtime;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::{api::dialog::blocking::FileDialogBuilder, Manager, Scopes};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::path::PathBuf;
 
@@ -56,25 +58,25 @@ pub struct SaveDialogOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 #[allow(clippy::enum_variant_names)]
 pub enum Cmd {
   /// The open dialog API.
-  OpenDialog {
-    options: OpenDialogOptions,
-  },
+  #[cmd(dialog_open, "dialog > open")]
+  OpenDialog { options: OpenDialogOptions },
   /// The save dialog API.
-  SaveDialog {
-    options: SaveDialogOptions,
-  },
-  MessageDialog {
-    message: String,
-  },
+  #[cmd(dialog_save, "dialog > save")]
+  SaveDialog { options: SaveDialogOptions },
+  #[cmd(dialog_message, "dialog > message")]
+  MessageDialog { message: String },
+  #[cmd(dialog_ask, "dialog > ask")]
   AskDialog {
     title: Option<String>,
     message: String,
   },
+  #[cmd(dialog_confirm, "dialog > confirm")]
   ConfirmDialog {
     title: Option<String>,
     message: String,
@@ -82,7 +84,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(dialog_open, "dialog > open")]
+  #[module_command_handler(dialog_open)]
   #[allow(unused_variables)]
   fn open_dialog<R: Runtime>(
     context: InvokeContext<R>,
@@ -130,7 +132,7 @@ impl Cmd {
     Ok(res)
   }
 
-  #[module_command_handler(dialog_save, "dialog > save")]
+  #[module_command_handler(dialog_save)]
   #[allow(unused_variables)]
   fn save_dialog<R: Runtime>(
     context: InvokeContext<R>,
@@ -159,7 +161,7 @@ impl Cmd {
     Ok(path)
   }
 
-  #[module_command_handler(dialog_message, "dialog > message")]
+  #[module_command_handler(dialog_message)]
   fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> super::Result<()> {
     crate::api::dialog::blocking::message(
       Some(&context.window),
@@ -169,7 +171,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(dialog_ask, "dialog > ask")]
+  #[module_command_handler(dialog_ask)]
   fn ask_dialog<R: Runtime>(
     context: InvokeContext<R>,
     title: Option<String>,
@@ -182,7 +184,7 @@ impl Cmd {
     ))
   }
 
-  #[module_command_handler(dialog_confirm, "dialog > confirm")]
+  #[module_command_handler(dialog_confirm)]
   fn confirm_dialog<R: Runtime>(
     context: InvokeContext<R>,
     title: Option<String>,

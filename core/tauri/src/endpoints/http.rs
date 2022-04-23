@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(http_request)]
 use std::{
@@ -20,6 +22,7 @@ type ClientBuilder = ();
 #[cfg(not(http_request))]
 type HttpRequestBuilder = ();
 #[cfg(not(http_request))]
+#[allow(dead_code)]
 type ResponseData = ();
 
 type ClientId = u32;
@@ -34,15 +37,19 @@ fn clients() -> &'static ClientStore {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[cmd(async)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Create a new HTTP client.
+  #[cmd(http_request, "http > request")]
   CreateClient { options: Option<ClientBuilder> },
   /// Drop a HTTP client.
+  #[cmd(http_request, "http > request")]
   DropClient { client: ClientId },
   /// The HTTP request API.
+  #[cmd(http_request, "http > request")]
   HttpRequest {
     client: ClientId,
     options: Box<HttpRequestBuilder>,
@@ -50,7 +57,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn create_client<R: Runtime>(
     _context: InvokeContext<R>,
     options: Option<ClientBuilder>,
@@ -62,7 +69,7 @@ impl Cmd {
     Ok(id)
   }
 
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn drop_client<R: Runtime>(
     _context: InvokeContext<R>,
     client: ClientId,
@@ -72,7 +79,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn http_request<R: Runtime>(
     context: InvokeContext<R>,
     client_id: ClientId,

@@ -2,45 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
 use std::path::PathBuf;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
+  #[cmd(os_all, "os > all")]
   Platform,
+  #[cmd(os_all, "os > all")]
   Version,
+  #[cmd(os_all, "os > all")]
   OsType,
+  #[cmd(os_all, "os > all")]
   Arch,
+  #[cmd(os_all, "os > all")]
   Tempdir,
 }
 
 impl Cmd {
-  #[module_command_handler(os_all, "os > all")]
+  #[module_command_handler(os_all)]
   fn platform<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_platform())
   }
 
-  #[module_command_handler(os_all, "os > all")]
+  #[module_command_handler(os_all)]
   fn version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
     Ok(os_info::get().version().to_string())
   }
 
-  #[module_command_handler(os_all, "os > all")]
+  #[module_command_handler(os_all)]
   fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(os_type())
   }
 
-  #[module_command_handler(os_all, "os > all")]
+  #[module_command_handler(os_all)]
   fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Ok(std::env::consts::ARCH)
   }
 
-  #[module_command_handler(os_all, "os > all")]
+  #[module_command_handler(os_all)]
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
   }

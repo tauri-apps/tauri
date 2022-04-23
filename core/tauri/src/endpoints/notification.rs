@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(notification_all)]
 use crate::{api::notification::Notification, Env, Manager};
@@ -28,10 +30,12 @@ pub struct NotificationOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The show notification API.
+  #[cmd(notification_all, "notification > all")]
   Notification { options: NotificationOptions },
   /// The request notification permission API.
   RequestNotificationPermission,
@@ -40,7 +44,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(notification_all, "notification > all")]
+  #[module_command_handler(notification_all)]
   fn notification<R: Runtime>(
     context: InvokeContext<R>,
     options: NotificationOptions,

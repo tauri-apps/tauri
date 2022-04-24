@@ -813,9 +813,7 @@ mod tests {
   fn get_manifest() -> &'static Manifest {
     MANIFEST.get_or_init(|| {
       let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
-      let manifest = Manifest::from_path(manifest_dir.join("Cargo.toml"))
-        .expect("failed to parse Cargo manifest");
-      manifest
+      Manifest::from_path(manifest_dir.join("Cargo.toml")).expect("failed to parse Cargo manifest")
     })
   }
 
@@ -824,7 +822,7 @@ mod tests {
     let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
-    for (f, _) in &get_manifest().features {
+    for f in get_manifest().features.keys() {
       if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
         panic!("Feature {} is not documented", f);
       }

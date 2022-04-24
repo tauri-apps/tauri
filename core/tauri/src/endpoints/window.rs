@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::{InvokeContext, InvokeResponse};
 #[cfg(window_create)]
 use crate::runtime::{webview::WindowBuilder, Dispatch};
@@ -14,7 +16,7 @@ use crate::{
   CursorIcon, Icon, Manager, Runtime,
 };
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -168,13 +170,13 @@ impl WindowManagerCmd {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[cmd(async)]
 #[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
-  CreateWebview {
-    options: Box<WindowConfig>,
-  },
+  #[cmd(window_create, "window > create")]
+  CreateWebview { options: Box<WindowConfig> },
   Manage {
     label: Option<String>,
     cmd: WindowManagerCmd,
@@ -182,7 +184,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(window_create, "window > create")]
+  #[module_command_handler(window_create)]
   async fn create_webview<R: Runtime>(
     context: InvokeContext<R>,
     options: Box<WindowConfig>,

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{
   api::ipc::CallbackFn,
@@ -12,7 +14,7 @@ use crate::{
   Manager, Runtime,
 };
 use serde::{de::Deserializer, Deserialize};
-use tauri_macros::CommandModule;
+use tauri_macros::{command_enum, CommandModule};
 
 pub struct EventId(String);
 
@@ -51,6 +53,7 @@ impl<'de> Deserialize<'de> for WindowLabel {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {

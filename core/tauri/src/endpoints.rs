@@ -225,7 +225,7 @@ pub(crate) fn handle<R: Runtime>(
   } = message;
 
   if let JsonValue::Object(ref mut obj) = payload {
-    obj.insert("module".to_string(), JsonValue::String(module));
+    obj.insert("module".to_string(), JsonValue::String(module.clone()));
   }
 
   match serde_json::from_value::<Module>(payload) {
@@ -235,17 +235,18 @@ pub(crate) fn handle<R: Runtime>(
       if message.starts_with("unknown variant") {
         let mut s = message.split('`');
         s.next();
-        if let Some(module) = s.next() {
-          resolver.reject(format!(
-            "The `{}` module is not enabled. You must enable one of its APIs in the allowlist.",
-            module.to_lowercase()
-          ))
-        } else {
-          resolver.reject(message)
+        if let Some(unknown_variant_name) = s.next() {
+          if unknown_variant_name == module {
+            return resolver.reject(format!(
+              "The `{}` module is not enabled. You must enable one of its APIs in the allowlist.",
+              module
+            ));
+          } else if module == "Window" {
+            return resolver.reject(window::into_allowlist_error(unknown_variant_name).to_string());
+          }
         }
-      } else {
-        resolver.reject(message)
       }
+      resolver.reject(message);
     }
   }
 }

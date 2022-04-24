@@ -140,6 +140,48 @@ pub enum WindowManagerCmd {
   InternalToggleDevtools,
 }
 
+pub fn into_allowlist_error(variant: &str) -> crate::Error {
+  match variant {
+    "center" => crate::Error::ApiNotAllowlisted("window > center".to_string()),
+    "requestUserAttention" => {
+      crate::Error::ApiNotAllowlisted("window > requestUserAttention".to_string())
+    }
+    "setResizable" => crate::Error::ApiNotAllowlisted("window > setResizable".to_string()),
+    "setTitle" => crate::Error::ApiNotAllowlisted("window > setTitle".to_string()),
+    "maximize" => crate::Error::ApiNotAllowlisted("window > maximize".to_string()),
+    "unmaximize" => crate::Error::ApiNotAllowlisted("window > unmaximize".to_string()),
+    "toggleMaximize" => {
+      crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
+    }
+    "minimize" => crate::Error::ApiNotAllowlisted("window > minimize".to_string()),
+    "nnminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
+    "show" => crate::Error::ApiNotAllowlisted("window > show".to_string()),
+    "hide" => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
+    "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
+    "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
+    "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
+    "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
+    "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
+    "setPosition" => crate::Error::ApiNotAllowlisted("window > setPosition".to_string()),
+    "setFullscreen" => crate::Error::ApiNotAllowlisted("window > setFullscreen".to_string()),
+    "setIcon" => crate::Error::ApiNotAllowlisted("window > setIcon".to_string()),
+    "setSkipTaskbar" => crate::Error::ApiNotAllowlisted("window > setSkipTaskbar".to_string()),
+    "setCursorGrab" => crate::Error::ApiNotAllowlisted("window > setCursorGrab".to_string()),
+    "setCursorVisible" => crate::Error::ApiNotAllowlisted("window > setCursorVisible".to_string()),
+    "setCursorIcon" => crate::Error::ApiNotAllowlisted("window > setCursorIcon".to_string()),
+    "setCursorPosition" => {
+      crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
+    }
+    "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
+    "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
+    "internalToggleMaximize" => {
+      crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
+    }
+    _ => crate::Error::ApiNotAllowlisted("window".to_string()),
+  }
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]

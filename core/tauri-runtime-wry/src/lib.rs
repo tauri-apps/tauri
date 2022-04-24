@@ -141,8 +141,8 @@ impl WebviewIdStore {
 #[macro_export]
 macro_rules! getter {
   ($self: ident, $rx: expr, $message: expr) => {{
-    crate::send_user_message(&$self.context, $message)?;
-    $rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage)
+    $crate::send_user_message(&$self.context, $message)?;
+    $rx.recv().map_err(|_| $crate::Error::FailedToReceiveMessage)
   }};
 }
 

@@ -3,8 +3,7 @@
     "distDir": ["index.html"],
     "devPath": ["index.html"],
     "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "withGlobalTauri": true
+    "beforeBuildCommand": ""
   },
   "tauri": {
     "bundle": {

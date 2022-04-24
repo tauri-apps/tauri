@@ -4,15 +4,20 @@
 
 use heck::ToSnakeCase;
 
+// checks if the given Cargo feature is enabled.
 fn has_feature(feature: &str) -> bool {
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
   std::env::var(format!(
     "CARGO_FEATURE_{}",
-    feature.to_uppercase().replace('-', "_").replace('"', "")
+    feature.to_uppercase().to_snake_case()
   ))
   .map(|x| x == "1")
   .unwrap_or(false)
 }
 
+// creates a cfg alias if `has_feature` is true.
+// `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
   if has_feature {
     println!("cargo:rustc-cfg={}", alias);
@@ -126,6 +131,15 @@ fn main() {
   alias("api_any", api_any);
 }
 
+// create aliases for the given module with its apis.
+// each api is translated into a feature flag in the format of `<module>-<api>`
+// and aliased as `<module_snake_case>_<api_snake_case>`.
+//
+// The `<module>-all` feature is also aliased to `<module>_all`.
+//
+// If any of the features is enabled, the `<module_snake_case>_any` alias is created.
+//
+// Note that both `module` and `apis` strings must be written in kebab case.
 fn alias_module(module: &str, apis: &[&str], api_all: bool) -> bool {
   let all_feature_name = format!("{}-all", module);
   let all = api_all || has_feature(&all_feature_name);

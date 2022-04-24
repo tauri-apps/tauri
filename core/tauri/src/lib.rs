@@ -803,20 +803,43 @@ pub mod test;
 
 #[cfg(test)]
 mod tests {
+  use cargo_toml::Manifest;
+  use once_cell::sync::OnceCell;
+  use std::{env::var, fs::read_to_string, path::PathBuf};
+
+  static MANIFEST: OnceCell<Manifest> = OnceCell::new();
+
+  fn get_manifest() -> &'static Manifest {
+    MANIFEST.get_or_init(|| {
+      let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
+      let manifest = Manifest::from_path(manifest_dir.join("Cargo.toml"))
+        .expect("failed to parse Cargo manifest");
+      manifest
+    })
+  }
+
   #[test]
   fn features_are_documented() {
-    use cargo_toml::Manifest;
-    use std::{env::var, fs::read_to_string, path::PathBuf};
-    // this env var is always set by Cargo
     let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
-    let manifest =
-      Manifest::from_path(manifest_dir.join("Cargo.toml")).expect("failed to parse Cargo manifest");
-
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
-    for (f, _) in manifest.features {
+    for (f, _) in &get_manifest().features {
       if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
         panic!("Feature {} is not documented", f);
+      }
+    }
+  }
+
+  #[test]
+  fn aliased_features_exist() {
+    let checked_features = include_str!(concat!(env!("OUT_DIR"), "/checked_features")).split(',');
+    let manifest = get_manifest();
+    for checked_feature in checked_features {
+      if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
+        panic!(
+          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
+          checked_feature
+        );
       }
     }
   }

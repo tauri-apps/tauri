@@ -3,9 +3,20 @@
 // SPDX-License-Identifier: MIT
 
 use heck::ToSnakeCase;
+use once_cell::sync::OnceCell;
+
+use std::{path::Path, sync::Mutex};
+
+static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
 
 // checks if the given Cargo feature is enabled.
 fn has_feature(feature: &str) -> bool {
+  CHECKED_FEATURES
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .push(feature.to_string());
+
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
   std::env::var(format!(
@@ -40,7 +51,6 @@ fn main() {
     &[
       "read-file",
       "write-file",
-      "write-binary-file",
       "read-dir",
       "copy-file",
       "create-dir",
@@ -112,6 +122,14 @@ fn main() {
   alias_module("process", &["relaunch", "exit"], api_all);
 
   alias_module("clipboard", &["write-text", "read-text"], api_all);
+
+  let checked_features_out_path =
+    Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
+  std::fs::write(
+    &checked_features_out_path,
+    &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
+  )
+  .expect("failed to write checked_features file");
 }
 
 // create aliases for the given module with its apis.

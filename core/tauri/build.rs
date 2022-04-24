@@ -21,7 +21,7 @@ fn has_feature(feature: &str) -> bool {
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
   std::env::var(format!(
     "CARGO_FEATURE_{}",
-    feature.to_uppercase().to_snake_case()
+    feature.to_snake_case().to_uppercase()
   ))
   .map(|x| x == "1")
   .unwrap_or(false)

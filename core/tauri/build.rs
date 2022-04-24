@@ -100,7 +100,7 @@ fn main() {
   // helper for the command module macro
   let shell_script = has_feature("shell-execute") || has_feature("shell-sidecar");
   alias("shell_script", shell_script);
-  alias("shell_scope", shell_script || has_feature("shell-open-api"));
+  alias("shell_scope", has_feature("shell-open-api") || shell_script);
 
   alias_module(
     "dialog",
@@ -143,13 +143,13 @@ fn main() {
 // Note that both `module` and `apis` strings must be written in kebab case.
 fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   let all_feature_name = format!("{}-all", module);
-  let all = api_all || has_feature(&all_feature_name);
+  let all = has_feature(&all_feature_name) || api_all;
   alias(&all_feature_name.to_snake_case(), all);
 
   let mut any = all;
 
   for api in apis {
-    let has = all || has_feature(&format!("{}-{}", module, api));
+    let has = has_feature(&format!("{}-{}", module, api)) || all;
     alias(
       &format!("{}_{}", module.to_snake_case(), api.to_snake_case()),
       has,

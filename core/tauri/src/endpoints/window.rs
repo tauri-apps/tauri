@@ -72,38 +72,67 @@ pub enum WindowManagerCmd {
   AvailableMonitors,
   Theme,
   // Setters
+  #[cfg(window_center)]
   Center,
+  #[cfg(window_request_user_attention)]
   RequestUserAttention(Option<UserAttentionType>),
+  #[cfg(window_set_resizable)]
   SetResizable(bool),
+  #[cfg(window_set_title)]
   SetTitle(String),
+  #[cfg(window_maximize)]
   Maximize,
+  #[cfg(window_unmaximize)]
   Unmaximize,
+  #[cfg(all(window_maximize, window_unmaximize))]
   ToggleMaximize,
+  #[cfg(window_minimize)]
   Minimize,
+  #[cfg(window_unminimize)]
   Unminimize,
+  #[cfg(window_show)]
   Show,
+  #[cfg(window_hide)]
   Hide,
+  #[cfg(window_close)]
   Close,
+  #[cfg(window_set_decorations)]
   SetDecorations(bool),
+  #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
+  #[cfg(window_set_size)]
   SetSize(Size),
+  #[cfg(window_set_min_size)]
   SetMinSize(Option<Size>),
+  #[cfg(window_set_max_size)]
   SetMaxSize(Option<Size>),
+  #[cfg(window_set_position)]
   SetPosition(Position),
+  #[cfg(window_set_fullscreen)]
   SetFullscreen(bool),
+  #[cfg(window_set_focus)]
   SetFocus,
+  #[cfg(window_set_icon)]
   SetIcon {
     icon: IconDto,
   },
+  #[cfg(window_set_skip_taskbar)]
   SetSkipTaskbar(bool),
+  #[cfg(window_set_cursor_grab)]
   SetCursorGrab(bool),
+  #[cfg(window_set_cursor_visible)]
   SetCursorVisible(bool),
+  #[cfg(window_set_cursor_icon)]
   SetCursorIcon(CursorIcon),
+  #[cfg(window_set_cursor_position)]
   SetCursorPosition(Position),
+  #[cfg(window_start_dragging)]
   StartDragging,
+  #[cfg(window_print)]
   Print,
   // internals
+  #[cfg(all(window_maximize, window_unmaximize))]
   #[serde(rename = "__toggleMaximize")]
   InternalToggleMaximize,
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -111,61 +140,45 @@ pub enum WindowManagerCmd {
   InternalToggleDevtools,
 }
 
-impl WindowManagerCmd {
-  fn into_allowlist_error(self) -> crate::Error {
-    match self {
-      Self::Center => crate::Error::ApiNotAllowlisted("window > center".to_string()),
-      Self::RequestUserAttention(_) => {
-        crate::Error::ApiNotAllowlisted("window > requestUserAttention".to_string())
-      }
-      Self::SetResizable(_) => crate::Error::ApiNotAllowlisted("window > setResizable".to_string()),
-      Self::SetTitle(_) => crate::Error::ApiNotAllowlisted("window > setTitle".to_string()),
-      Self::Maximize => crate::Error::ApiNotAllowlisted("window > maximize".to_string()),
-      Self::Unmaximize => crate::Error::ApiNotAllowlisted("window > unmaximize".to_string()),
-      Self::ToggleMaximize => {
-        crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
-      }
-      Self::Minimize => crate::Error::ApiNotAllowlisted("window > minimize".to_string()),
-      Self::Unminimize => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
-      Self::Show => crate::Error::ApiNotAllowlisted("window > show".to_string()),
-      Self::Hide => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
-      Self::Close => crate::Error::ApiNotAllowlisted("window > close".to_string()),
-      Self::SetDecorations(_) => {
-        crate::Error::ApiNotAllowlisted("window > setDecorations".to_string())
-      }
-      Self::SetAlwaysOnTop(_) => {
-        crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string())
-      }
-      Self::SetSize(_) => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
-      Self::SetMinSize(_) => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
-      Self::SetMaxSize(_) => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
-      Self::SetPosition(_) => crate::Error::ApiNotAllowlisted("window > setPosition".to_string()),
-      Self::SetFullscreen(_) => {
-        crate::Error::ApiNotAllowlisted("window > setFullscreen".to_string())
-      }
-      Self::SetIcon { .. } => crate::Error::ApiNotAllowlisted("window > setIcon".to_string()),
-      Self::SetSkipTaskbar(_) => {
-        crate::Error::ApiNotAllowlisted("window > setSkipTaskbar".to_string())
-      }
-      Self::SetCursorGrab(_) => {
-        crate::Error::ApiNotAllowlisted("window > setCursorGrab".to_string())
-      }
-      Self::SetCursorVisible(_) => {
-        crate::Error::ApiNotAllowlisted("window > setCursorVisible".to_string())
-      }
-      Self::SetCursorIcon(_) => {
-        crate::Error::ApiNotAllowlisted("window > setCursorIcon".to_string())
-      }
-      Self::SetCursorPosition(_) => {
-        crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
-      }
-      Self::StartDragging => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
-      Self::Print => crate::Error::ApiNotAllowlisted("window > print".to_string()),
-      Self::InternalToggleMaximize => {
-        crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
-      }
-      _ => crate::Error::ApiNotAllowlisted("window > all".to_string()),
+pub fn into_allowlist_error(variant: &str) -> crate::Error {
+  match variant {
+    "center" => crate::Error::ApiNotAllowlisted("window > center".to_string()),
+    "requestUserAttention" => {
+      crate::Error::ApiNotAllowlisted("window > requestUserAttention".to_string())
     }
+    "setResizable" => crate::Error::ApiNotAllowlisted("window > setResizable".to_string()),
+    "setTitle" => crate::Error::ApiNotAllowlisted("window > setTitle".to_string()),
+    "maximize" => crate::Error::ApiNotAllowlisted("window > maximize".to_string()),
+    "unmaximize" => crate::Error::ApiNotAllowlisted("window > unmaximize".to_string()),
+    "toggleMaximize" => {
+      crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
+    }
+    "minimize" => crate::Error::ApiNotAllowlisted("window > minimize".to_string()),
+    "nnminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
+    "show" => crate::Error::ApiNotAllowlisted("window > show".to_string()),
+    "hide" => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
+    "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
+    "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
+    "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
+    "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
+    "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
+    "setPosition" => crate::Error::ApiNotAllowlisted("window > setPosition".to_string()),
+    "setFullscreen" => crate::Error::ApiNotAllowlisted("window > setFullscreen".to_string()),
+    "setIcon" => crate::Error::ApiNotAllowlisted("window > setIcon".to_string()),
+    "setSkipTaskbar" => crate::Error::ApiNotAllowlisted("window > setSkipTaskbar".to_string()),
+    "setCursorGrab" => crate::Error::ApiNotAllowlisted("window > setCursorGrab".to_string()),
+    "setCursorVisible" => crate::Error::ApiNotAllowlisted("window > setCursorVisible".to_string()),
+    "setCursorIcon" => crate::Error::ApiNotAllowlisted("window > setCursorIcon".to_string()),
+    "setCursorPosition" => {
+      crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
+    }
+    "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
+    "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
+    "internalToggleMaximize" => {
+      crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
+    }
+    _ => crate::Error::ApiNotAllowlisted("window".to_string()),
   }
 }
 
@@ -318,8 +331,6 @@ impl Cmd {
           window.open_devtools();
         }
       }
-      #[allow(unreachable_patterns)]
-      _ => return Err(cmd.into_allowlist_error()),
     }
     #[allow(unreachable_code)]
     Ok(().into())

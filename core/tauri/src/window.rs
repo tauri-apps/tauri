@@ -605,8 +605,12 @@ impl<R: Runtime> Window<R> {
 
         let invoke = Invoke { message, resolver };
         if let Some(module) = &payload.tauri_module {
-          let module = module.to_string();
-          crate::endpoints::handle(module, invoke, manager.config(), manager.package_info());
+          crate::endpoints::handle(
+            module.to_string(),
+            invoke,
+            manager.config(),
+            manager.package_info(),
+          );
         } else if payload.cmd.starts_with("plugin:") {
           manager.extend_api(invoke);
         } else {

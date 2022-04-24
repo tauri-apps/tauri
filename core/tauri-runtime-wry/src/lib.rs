@@ -1740,6 +1740,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "global-shortcut")]
     let global_shortcut_listeners = GlobalShortcutListeners::default();
 
+    #[allow(clippy::redundant_clone)]
     let clipboard_manager_handle = ClipboardManagerWrapper {
       context: event_loop_context.clone(),
     };

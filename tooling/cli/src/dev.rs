@@ -416,8 +416,8 @@ fn start_app(
   command
     .env(
       "CARGO_TERM_PROGRESS_WIDTH",
-      term_size::dimensions_stderr()
-        .map(|(w, _)| w)
+      terminal_size::terminal_size()
+        .map(|(w, _)| w.0)
         .unwrap_or(80)
         .to_string(),
     )

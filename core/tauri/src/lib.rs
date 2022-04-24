@@ -23,6 +23,7 @@
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
+//! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
 //! - **notification**: Enables the [`api::notification`] module.

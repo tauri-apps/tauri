@@ -35,7 +35,7 @@ fn main() {
   let api_all = has_feature("api-all");
   alias("api_all", api_all);
 
-  let fs_any = alias_module(
+  alias_module(
     "fs",
     &[
       "read-file",
@@ -51,7 +51,7 @@ fn main() {
     api_all,
   );
 
-  let window_any = alias_module(
+  alias_module(
     "window",
     &[
       "create",
@@ -86,49 +86,32 @@ fn main() {
     api_all,
   );
 
-  let shell_any = alias_module("shell", &["execute", "sidecar", "open"], api_all);
+  alias_module("shell", &["execute", "sidecar", "open"], api_all);
   // helper for the command module macro
   let shell_script = has_feature("shell-execute") || has_feature("shell-sidecar");
   alias("shell_script", shell_script);
   alias("shell_scope", shell_script || has_feature("shell-open-api"));
 
-  let dialog_any = alias_module(
+  alias_module(
     "dialog",
     &["open", "save", "message", "ask", "confirm"],
     api_all,
   );
 
-  let http_any = alias_module("http", &["request"], api_all);
+  alias_module("http", &["request"], api_all);
 
-  let cli = has_feature("cli");
-  alias("cli", cli);
+  alias("cli", has_feature("cli"));
 
-  let notification_any = alias_module("notification", &[], api_all);
-  let global_shortcut_any = alias_module("global-shortcut", &[], api_all);
-  let os_any = alias_module("os", &[], api_all);
-  let path_any = alias_module("path", &[], api_all);
+  alias_module("notification", &[], api_all);
+  alias_module("global-shortcut", &[], api_all);
+  alias_module("os", &[], api_all);
+  alias_module("path", &[], api_all);
 
-  let protocol_any = alias_module("protocol", &["asset"], api_all);
+  alias_module("protocol", &["asset"], api_all);
 
-  let process_any = alias_module("process", &["relaunch", "exit"], api_all);
+  alias_module("process", &["relaunch", "exit"], api_all);
 
-  let clipboard_any = alias_module("clipboard", &["write-text", "read-text"], api_all);
-
-  let api_any = fs_any
-    || window_any
-    || shell_any
-    || dialog_any
-    || http_any
-    || cli
-    || notification_any
-    || global_shortcut_any
-    || os_any
-    || path_any
-    || protocol_any
-    || process_any
-    || clipboard_any;
-
-  alias("api_any", api_any);
+  alias_module("clipboard", &["write-text", "read-text"], api_all);
 }
 
 // create aliases for the given module with its apis.
@@ -140,7 +123,7 @@ fn main() {
 // If any of the features is enabled, the `<module_snake_case>_any` alias is created.
 //
 // Note that both `module` and `apis` strings must be written in kebab case.
-fn alias_module(module: &str, apis: &[&str], api_all: bool) -> bool {
+fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   let all_feature_name = format!("{}-all", module);
   let all = api_all || has_feature(&all_feature_name);
   alias(&all_feature_name.to_snake_case(), all);
@@ -157,6 +140,4 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) -> bool {
   }
 
   alias(&format!("{}_any", module.to_snake_case()), any);
-
-  any
 }

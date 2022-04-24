@@ -12,8 +12,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, EventLoopProxy, Result, RunEvent, Runtime, RuntimeHandle,
-  UserAttentionType, UserEvent, WindowIcon,
+  Dispatch, EventLoopProxy, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  WindowIcon,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{
@@ -132,12 +132,14 @@ impl tauri_runtime::GlobalShortcutManager for MockGlobalShortcutManager {
   }
 }
 
+#[cfg(feature = "clipboard")]
 #[derive(Debug, Clone)]
 pub struct MockClipboardManager {
   context: RuntimeContext,
 }
 
-impl ClipboardManager for MockClipboardManager {
+#[cfg(feature = "clipboard")]
+impl tauri_runtime::ClipboardManager for MockClipboardManager {
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
     self.context.clipboard.lock().unwrap().replace(text.into());
     Ok(())
@@ -547,6 +549,7 @@ pub struct MockRuntime {
   pub context: RuntimeContext,
   #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: MockGlobalShortcutManager,
+  #[cfg(feature = "clipboard")]
   clipboard_manager: MockClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handler: MockTrayHandler,
@@ -563,6 +566,7 @@ impl MockRuntime {
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
       },
+      #[cfg(feature = "clipboard")]
       clipboard_manager: MockClipboardManager {
         context: context.clone(),
       },
@@ -580,6 +584,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Handle = MockRuntimeHandle;
   #[cfg(feature = "global-shortcut")]
   type GlobalShortcutManager = MockGlobalShortcutManager;
+  #[cfg(feature = "clipboard")]
   type ClipboardManager = MockClipboardManager;
   #[cfg(feature = "system-tray")]
   type TrayHandler = MockTrayHandler;
@@ -609,6 +614,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     self.global_shortcut_manager.clone()
   }
 
+  #[cfg(feature = "clipboard")]
   fn clipboard_manager(&self) -> Self::ClipboardManager {
     self.clipboard_manager.clone()
   }

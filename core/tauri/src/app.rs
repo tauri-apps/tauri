@@ -287,6 +287,7 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
+  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
@@ -337,6 +338,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      #[cfg(feature = "global-shortcut")]
       global_shortcut_manager: self.global_shortcut_manager.clone(),
       clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
@@ -442,6 +444,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,
+  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
@@ -510,6 +513,8 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a copy of the global shortcut manager instance.
+      #[cfg(feature = "global-shortcut")]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
       pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
         self.global_shortcut_manager.clone()
       }
@@ -1233,12 +1238,16 @@ impl<R: Runtime> Builder<R> {
     let runtime = R::new()?;
 
     let runtime_handle = runtime.handle();
+
+    #[cfg(feature = "global-shortcut")]
     let global_shortcut_manager = runtime.global_shortcut_manager();
+
     let clipboard_manager = runtime.clipboard_manager();
 
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
+      #[cfg(feature = "global-shortcut")]
       global_shortcut_manager: global_shortcut_manager.clone(),
       clipboard_manager: clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
@@ -1246,6 +1255,7 @@ impl<R: Runtime> Builder<R> {
       handle: AppHandle {
         runtime_handle,
         manager,
+        #[cfg(feature = "global-shortcut")]
         global_shortcut_manager,
         clipboard_manager,
         #[cfg(feature = "system-tray")]

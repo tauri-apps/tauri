@@ -127,6 +127,7 @@ pub enum Error {
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
+  #[cfg(feature = "global-shortcut")]
   #[error(transparent)]
   GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
@@ -294,6 +295,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 }
 
 /// A global shortcut manager.
+#[cfg(feature = "global-shortcut")]
 pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   /// Whether the application has registered the given `accelerator`.
   fn is_registered(&self, accelerator: &str) -> Result<bool>;
@@ -327,6 +329,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The runtime handle type.
   type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The global shortcut manager type.
+  #[cfg(feature = "global-shortcut")]
   type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
   type ClipboardManager: ClipboardManager;
@@ -351,6 +354,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn handle(&self) -> Self::Handle;
 
   /// Gets the global shortcut manager.
+  #[cfg(feature = "global-shortcut")]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
 
   /// Gets the clipboard manager.

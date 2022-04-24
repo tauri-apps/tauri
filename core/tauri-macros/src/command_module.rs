@@ -224,10 +224,15 @@ impl Parse for HandlerAttributes {
   }
 }
 
+pub enum AllowlistCheckKind {
+  Runtime,
+  Serde,
+}
+
 pub struct HandlerTestAttributes {
   allowlist: Ident,
   error_message: String,
-  function_call: bool,
+  allowlist_check_kind: AllowlistCheckKind,
 }
 
 impl Parse for HandlerTestAttributes {
@@ -236,17 +241,21 @@ impl Parse for HandlerTestAttributes {
     input.parse::<Token![,]>()?;
     let error_message_raw: LitStr = input.parse()?;
     let error_message = error_message_raw.value();
-    let function_call = if let (Ok(_), Ok(i)) = (input.parse::<Token![,]>(), input.parse::<Ident>())
-    {
-      i == "call"
-    } else {
-      false
-    };
+    let allowlist_check_kind =
+      if let (Ok(_), Ok(i)) = (input.parse::<Token![,]>(), input.parse::<Ident>()) {
+        if i == "runtime" {
+          AllowlistCheckKind::Runtime
+        } else {
+          AllowlistCheckKind::Serde
+        }
+      } else {
+        AllowlistCheckKind::Serde
+      };
 
     Ok(Self {
       allowlist,
       error_message,
-      function_call,
+      allowlist_check_kind,
     })
   }
 }
@@ -266,13 +275,14 @@ pub fn command_test(attributes: HandlerTestAttributes, function: ItemFn) -> Toke
   let signature = function.sig.clone();
 
   let enum_variant_name = function.sig.ident.to_string().to_lower_camel_case();
-  let response = if attributes.function_call {
-    let test_name = function.sig.ident.clone();
-    quote!(super::Cmd::#test_name(crate::test::mock_invoke_context()))
-  } else {
-    quote! {
-      serde_json::from_str::<super::Cmd>(&format!(r#"{{ "cmd": "{}", "data": null }}"#, #enum_variant_name))
+  let response = match attributes.allowlist_check_kind {
+    AllowlistCheckKind::Runtime => {
+      let test_name = function.sig.ident.clone();
+      quote!(super::Cmd::#test_name(crate::test::mock_invoke_context()))
     }
+    AllowlistCheckKind::Serde => quote! {
+      serde_json::from_str::<super::Cmd>(&format!(r#"{{ "cmd": "{}", "data": null }}"#, #enum_variant_name))
+    },
   };
 
   quote!(

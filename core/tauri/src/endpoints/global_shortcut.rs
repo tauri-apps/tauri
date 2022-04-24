@@ -151,7 +151,7 @@ mod tests {
     assert!(!super::Cmd::is_registered(ctx, shortcut).unwrap());
   }
 
-  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all", call)]
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn unregister_all() {
     let shortcuts = vec!["CTRL+X".to_string(), "SUPER+C".to_string(), "D".to_string()];

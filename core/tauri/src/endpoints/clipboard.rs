@@ -61,7 +61,7 @@ mod tests {
     assert_eq!(super::Cmd::read_text(ctx).unwrap(), Some(text));
   }
 
-  #[tauri_macros::module_command_test(clipboard_read_text, "clipboard > readText", call)]
+  #[tauri_macros::module_command_test(clipboard_read_text, "clipboard > readText", runtime)]
   #[quickcheck_macros::quickcheck]
   fn read_text() {
     let ctx = crate::test::mock_invoke_context();

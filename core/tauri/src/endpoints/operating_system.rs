@@ -89,23 +89,23 @@ fn os_platform() -> &'static str {
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(os_all, "os > all", call)]
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn platform() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all", call)]
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn version() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all", call)]
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn os_type() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all", call)]
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn arch() {}
 
-  #[tauri_macros::module_command_test(os_all, "os > all", call)]
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn tempdir() {}
 }

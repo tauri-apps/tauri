@@ -47,7 +47,7 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch", call)]
+  #[tauri_macros::module_command_test(process_relaunch, "process > relaunch", runtime)]
   #[quickcheck_macros::quickcheck]
   fn relaunch() {}
 

@@ -38,7 +38,7 @@ impl Cmd {
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)", call)]
+  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)", runtime)]
   #[quickcheck_macros::quickcheck]
   fn cli_matches() {
     let res = super::Cmd::cli_matches(crate::test::mock_invoke_context());

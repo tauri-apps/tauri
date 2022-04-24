@@ -808,6 +808,7 @@ mod tests {
   use std::{env::var, fs::read_to_string, path::PathBuf};
 
   static MANIFEST: OnceCell<Manifest> = OnceCell::new();
+  const CHECKED_FEATURES: &str = include_str!(concat!(env!("OUT_DIR"), "/checked_features"));
 
   fn get_manifest() -> &'static Manifest {
     MANIFEST.get_or_init(|| {
@@ -832,13 +833,66 @@ mod tests {
 
   #[test]
   fn aliased_features_exist() {
-    let checked_features = include_str!(concat!(env!("OUT_DIR"), "/checked_features")).split(',');
+    let checked_features = CHECKED_FEATURES.split(',');
     let manifest = get_manifest();
     for checked_feature in checked_features {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
           "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
           checked_feature
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn all_allowlist_features_are_aliased() {
+    let manifest = get_manifest();
+    let all_modules = manifest
+      .features
+      .iter()
+      .find(|(f, _)| f.as_str() == "api-all")
+      .map(|(_, enabled)| enabled)
+      .expect("api-all feature must exist");
+
+    let checked_features = CHECKED_FEATURES.split(',').collect::<Vec<&str>>();
+    assert!(
+      checked_features.contains(&"api-all"),
+      "`api-all` is not aliased"
+    );
+
+    // features that look like an allowlist feature, but are not
+    let allowed = [
+      "fs-extract-api",
+      "http-api",
+      "http-multipart",
+      "process-command-api",
+      "process-relaunch-dangerous-allow-symlink-macos",
+      "window-data-url",
+    ];
+
+    for module_all_feature in all_modules {
+      let module = module_all_feature.replace("-all", "");
+      assert!(
+        checked_features.contains(&module_all_feature.as_str()),
+        "`{}` is not aliased",
+        module
+      );
+
+      let module_prefix = format!("{}-", module);
+      // we assume that module features are the ones that start with `<module>-`
+      // though it's not 100% accurate, we have an allowed list to fix it
+      let module_features = manifest
+        .features
+        .iter()
+        .map(|(f, _)| f)
+        .filter(|f| f.starts_with(&module_prefix));
+      for module_feature in module_features {
+        assert!(
+          allowed.contains(&module_feature.as_str())
+            || checked_features.contains(&module_feature.as_str()),
+          "`{}` is not aliased",
+          module_feature
         );
       }
     }

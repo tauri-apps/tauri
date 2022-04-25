@@ -246,6 +246,10 @@ pub use {
   scope::*,
 };
 
+#[cfg(feature = "clipboard")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
+pub use self::runtime::ClipboardManager;
+
 /// Updater events.
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]

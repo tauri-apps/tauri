@@ -85,9 +85,12 @@ enum PackageManager {
 #[clap(about = "Shows information about Tauri dependencies and project configuration")]
 pub struct Options;
 
+fn version_metadata() -> Result<VersionMetadata> {
+  serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json")).map_err(Into::into)
+}
+
 pub(crate) fn cli_current_version() -> Result<String> {
-  let meta = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
-  Ok(meta.js_cli.version)
+  version_metadata().map(|meta| meta.js_cli.version)
 }
 
 pub(crate) fn cli_upstream_version() -> Result<String> {
@@ -614,7 +617,7 @@ pub fn command(_options: Options) -> Result<()> {
     .unwrap_or_default();
   panic::set_hook(hook);
 
-  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  let metadata = version_metadata()?;
   VersionBlock::new(
     "Node.js",
     get_version("node", &[])

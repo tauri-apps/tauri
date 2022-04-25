@@ -22,14 +22,14 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
             build: |
-              yarn build
+              yarn build:release
               strip -x *.node
           - host: windows-latest
-            build: yarn build
+            build: yarn build:release
             target: x86_64-pc-windows-msvc
             architecture: x64
           - host: windows-latest
-            build: yarn build --target i686-pc-windows-msvc
+            build: yarn build:release --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
             architecture: x64
           - host: ubuntu-18.04
@@ -39,16 +39,16 @@ jobs:
               set -e &&
               rustup target add x86_64-unknown-linux-gnu &&
               cd tooling/cli/node
-              yarn build --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
+              yarn build:release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
               llvm-strip -x *.node
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: set -e && cd tooling/cli/node && yarn build && strip *.node
+            build: set -e && cd tooling/cli/node && yarn build:release && strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
-              yarn build --target=aarch64-apple-darwin
+              yarn build:release --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-18.04
             architecture: x64
@@ -57,7 +57,7 @@ jobs:
               sudo apt-get update
               sudo apt-get install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu -y
             build: |
-              yarn build --target=aarch64-unknown-linux-gnu
+              yarn build:release --target=aarch64-unknown-linux-gnu
               aarch64-linux-gnu-strip *.node
           - host: ubuntu-18.04
             architecture: x64
@@ -66,7 +66,7 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              yarn build --target=armv7-unknown-linux-gnueabihf
+              yarn build:release --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
           - host: ubuntu-18.04
             architecture: x64
@@ -76,12 +76,12 @@ jobs:
               set -e &&
               rustup target add aarch64-unknown-linux-musl &&
               cd tooling/cli/node &&
-              yarn build --target aarch64-unknown-linux-musl &&
+              yarn build:release --target aarch64-unknown-linux-musl &&
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           #- host: windows-latest
           #  architecture: x64
           #  target: aarch64-pc-windows-msvc
-          #  build: yarn build --target aarch64-pc-windows-msvc
+          #  build: yarn build:release --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -173,7 +173,7 @@ jobs:
   #            freebsd-version
   #            cd ./tooling/cli/node/
   #            yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #            yarn build
+  #            yarn build:release
   #            strip -x *.node
   #            rm -rf node_modules
   #            rm -rf ../target

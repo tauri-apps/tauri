@@ -78,6 +78,21 @@ pub fn command(options: Options) -> Result<()> {
 fn command_internal(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
 
+  #[cfg(not(debug_assertions))]
+  match check_for_updates() {
+    Ok((msg, sleep)) => {
+      if sleep {
+        logger.log(msg);
+        std::thread::sleep(std::time::Duration::from_secs(3));
+      } else {
+        logger.log(msg);
+      }
+    }
+    Err(e) => {
+      logger.log(e.to_string());
+    }
+  };
+
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
   let merge_config = if let Some(config) = &options.config {
@@ -279,6 +294,23 @@ fn command_internal(options: Options) -> Result<()> {
   } else {
     Ok(())
   }
+}
+
+#[cfg(not(debug_assertions))]
+fn check_for_updates() -> Result<(String, bool)> {
+  let current_version = crate::info::cli_current_version()?;
+  let current = semver::Version::parse(&current_version)?;
+
+  let upstream_version = crate::info::cli_upstream_version()?;
+  let upstream = semver::Version::parse(&upstream_version)?;
+  if upstream.gt(&current) {
+    let message = format!(
+      "🚀 A new version of Tauri CLI is avaliable! [{}]",
+      upstream.to_string()
+    );
+    return Ok((message, true));
+  }
+  Ok(("🎉 Tauri CLI is up-to-date!".into(), false))
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {

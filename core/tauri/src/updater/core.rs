@@ -643,10 +643,11 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   let mut extractor =
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
 
-  for file in extractor.files()? {
-    if file.extension() == Some(OsStr::new("AppImage")) {
+  for entry in extractor.files()? {
+    let path = entry.path()?;
+    if path.extension() == Some(OsStr::new("AppImage")) {
       // if something went wrong during the extraction, we should restore previous app
-      if let Err(err) = extractor.extract_file(extract_path, &file) {
+      if let Err(err) = entry.extract(extract_path) {
         Move::from_source(tmp_app_image).to_dest(extract_path)?;
         return Err(Error::Extract(err.to_string()));
       }
@@ -785,7 +786,6 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
   // the first file in the tar.gz will always be
   // <app_name>/Contents
-  let all_files = extractor.files()?;
   let tmp_dir = tempfile::Builder::new()
     .prefix("tauri_current_app")
     .tempdir()?;
@@ -794,13 +794,14 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Move::from_source(extract_path).to_dest(tmp_dir.path())?;
 
   // extract all the files
-  for file in all_files {
+  for entry in extractor.files()? {
+    let path = entry.path()?;
     // skip the first folder (should be the app name)
-    let collected_path: PathBuf = file.iter().skip(1).collect();
+    let collected_path: PathBuf = path.iter().skip(1).collect();
     let extraction_path = extract_path.join(collected_path);
 
     // if something went wrong during the extraction, we should restore previous app
-    if let Err(err) = extractor.extract_file(&extraction_path, &file) {
+    if let Err(err) = entry.extract(&extraction_path) {
       for file in extracted_files {
         // delete all the files we extracted
         if file.is_dir() {

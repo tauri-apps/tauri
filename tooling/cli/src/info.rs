@@ -89,10 +89,12 @@ fn version_metadata() -> Result<VersionMetadata> {
   serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json")).map_err(Into::into)
 }
 
+#[cfg(not(debug_assertions))]
 pub(crate) fn cli_current_version() -> Result<String> {
   version_metadata().map(|meta| meta.js_cli.version)
 }
 
+#[cfg(not(debug_assertions))]
 pub(crate) fn cli_upstream_version() -> Result<String> {
   let upstream_metadata = match ureq::get(
     "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",

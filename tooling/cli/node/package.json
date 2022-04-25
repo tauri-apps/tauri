@@ -52,8 +52,8 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build:release": "napi build --platform --release",
+    "build": "napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",

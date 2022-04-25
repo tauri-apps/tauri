@@ -78,6 +78,7 @@ pub fn command(options: Options) -> Result<()> {
 fn command_internal(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
 
+  #[cfg(not(debug_assertions))]
   match check_for_updates() {
     Ok((msg, sleep)) => {
       if sleep {
@@ -295,6 +296,7 @@ fn command_internal(options: Options) -> Result<()> {
   }
 }
 
+#[cfg(not(debug_assertions))]
 fn check_for_updates() -> Result<(String, bool)> {
   let current_version = crate::info::cli_current_version()?;
   let current = semver::Version::parse(&current_version)?;

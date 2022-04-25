@@ -46,3 +46,5 @@ gtk = { version = "0.15", features = [ "v3_20" ] }
 devtools = [ ]
 system-tray = [ ]
 macos-private-api = [ ]
+global-shortcut = [ ]
+clipboard = [ ]

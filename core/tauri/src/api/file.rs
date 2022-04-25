@@ -34,10 +34,12 @@ impl SafePathBuf {
     }
   }
 
+  #[allow(dead_code)]
   pub unsafe fn new_unchecked(path: std::path::PathBuf) -> Self {
     Self(path)
   }
 
+  #[allow(dead_code)]
   pub fn display(&self) -> Display<'_> {
     self.0.display()
   }

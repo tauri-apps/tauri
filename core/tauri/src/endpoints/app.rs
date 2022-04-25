@@ -5,9 +5,10 @@
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::CommandModule;
+use tauri_macros::{command_enum, CommandModule};
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 #[allow(clippy::enum_variant_names)]

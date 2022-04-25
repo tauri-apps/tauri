@@ -41,3 +41,5 @@ macos-private-api = [
 objc-exception = [ "wry/objc-exception" ]
 gtk-tray = [ "wry/gtk-tray" ]
 ayatana-tray = [ "wry/ayatana-tray" ]
+global-shortcut = [ "tauri-runtime/global-shortcut" ]
+clipboard = [ "tauri-runtime/clipboard" ]

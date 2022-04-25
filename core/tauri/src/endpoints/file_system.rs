@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use crate::{
   api::{
     dir,
@@ -19,7 +21,7 @@ use serde::{
   de::{Deserializer, Error as DeError},
   Deserialize, Serialize,
 };
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::fmt::{Debug, Formatter};
 use std::{
@@ -50,52 +52,62 @@ pub struct FileOperationOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub(crate) enum Cmd {
   /// The read binary file API.
+  #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The read binary file API.
+  #[cmd(fs_read_file, "fs > readFile")]
   ReadTextFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The write file API.
+  #[cmd(fs_write_file, "fs > writeFile")]
   WriteFile {
     path: SafePathBuf,
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   },
   /// The read dir API.
+  #[cmd(fs_read_dir, "fs > readDir")]
   ReadDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The copy file API.
+  #[cmd(fs_copy_file, "fs > copyFile")]
   CopyFile {
     source: SafePathBuf,
     destination: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The create dir API.
+  #[cmd(fs_create_dir, "fs > createDir")]
   CreateDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The remove dir API.
+  #[cmd(fs_remove_dir, "fs > removeDir")]
   RemoveDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The remove file API.
+  #[cmd(fs_remove_file, "fs > removeFile")]
   RemoveFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The rename file API.
+  #[cmd(fs_rename_file, "fs > renameFile")]
   #[serde(rename_all = "camelCase")]
   RenameFile {
     old_path: SafePathBuf,
@@ -105,7 +117,7 @@ pub(crate) enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(fs_read_file, "fs > readFile")]
+  #[module_command_handler(fs_read_file)]
   fn read_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -123,7 +135,7 @@ impl Cmd {
       .map_err(Into::into)
   }
 
-  #[module_command_handler(fs_read_file, "fs > readFile")]
+  #[module_command_handler(fs_read_file)]
   fn read_text_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -141,7 +153,7 @@ impl Cmd {
       .map_err(Into::into)
   }
 
-  #[module_command_handler(fs_write_file, "fs > writeFile")]
+  #[module_command_handler(fs_write_file)]
   fn write_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -161,7 +173,7 @@ impl Cmd {
       .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
   }
 
-  #[module_command_handler(fs_read_dir, "fs > readDir")]
+  #[module_command_handler(fs_read_dir)]
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -184,7 +196,7 @@ impl Cmd {
       .map_err(Into::into)
   }
 
-  #[module_command_handler(fs_copy_file, "fs > copyFile")]
+  #[module_command_handler(fs_copy_file)]
   fn copy_file<R: Runtime>(
     context: InvokeContext<R>,
     source: SafePathBuf,
@@ -215,7 +227,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_create_dir, "fs > createDir")]
+  #[module_command_handler(fs_create_dir)]
   fn create_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -244,7 +256,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_remove_dir, "fs > removeDir")]
+  #[module_command_handler(fs_remove_dir)]
   fn remove_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -273,7 +285,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_remove_file, "fs > removeFile")]
+  #[module_command_handler(fs_remove_file)]
   fn remove_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -291,7 +303,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_rename_file, "fs > renameFile")]
+  #[module_command_handler(fs_rename_file)]
   fn rename_file<R: Runtime>(
     context: InvokeContext<R>,
     old_path: SafePathBuf,

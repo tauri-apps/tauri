@@ -1390,6 +1390,7 @@ mod tests {
   #[test]
   fn string_replace_with_callback() {
     let mut tauri_index = 0;
+    #[allow(clippy::single_element_loop)]
     for (src, pattern, replacement, result) in [(
       "tauri is awesome, tauri is amazing",
       "tauri",

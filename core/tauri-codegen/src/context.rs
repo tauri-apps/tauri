@@ -56,6 +56,7 @@ fn map_core_assets(
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
 
+      #[allow(clippy::collapsible_if)]
       if csp {
         #[cfg(target_os = "linux")]
         ::tauri_utils::html::inject_csp_token(&mut document);

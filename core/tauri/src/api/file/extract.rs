@@ -2,12 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use either::{self, Either};
 use std::{
+  borrow::Cow,
   fs,
-  io::{self, Read, Seek},
+  io::{self, Cursor, Read, Seek},
   path::{self, Path, PathBuf},
 };
+
+/// The archive reader.
+#[derive(Debug)]
+pub enum ArchiveReader<R: Read + Seek> {
+  /// A plain reader.
+  Plain(R),
+  /// A GZ- compressed reader (decoder).
+  GzCompressed(flate2::read::GzDecoder<R>),
+}
+
+impl<R: Read + Seek> Read for ArchiveReader<R> {
+  fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    match self {
+      Self::Plain(r) => r.read(buf),
+      Self::GzCompressed(decoder) => decoder.read(buf),
+    }
+  }
+}
+
+impl<R: Read + Seek> ArchiveReader<R> {
+  fn get_mut(&mut self) -> &mut R {
+    match self {
+      Self::Plain(r) => r,
+      Self::GzCompressed(decoder) => decoder.get_mut(),
+    }
+  }
+}
 
 /// The supported archive formats.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -15,8 +42,6 @@ use std::{
 pub enum ArchiveFormat {
   /// Tar archive.
   Tar(Option<Compression>),
-  /// Plain archive.
-  Plain(Option<Compression>),
   /// Zip archive.
   Zip,
 }
@@ -29,112 +54,182 @@ pub enum Compression {
   Gz,
 }
 
-/// The extract manager to retrieve files from archives.
-#[derive(Debug)]
-pub struct Extract<R> {
-  reader: R,
-  archive_format: ArchiveFormat,
+/// The zip entry.
+pub struct ZipEntry {
+  path: PathBuf,
+  is_dir: bool,
+  file_contents: Vec<u8>,
 }
 
-impl<R: Read + Seek> Extract<R> {
-  /// Create archive from reader.
-  pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<R> {
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      #[cfg(debug_assertions)]
-      eprintln!("Could not seek to start of the file");
-    }
-    Extract {
-      reader,
-      archive_format,
+/// A read-only view into an entry of an archive.
+#[non_exhaustive]
+pub enum Entry<'a, R: Read> {
+  /// An entry of a tar archive.
+  #[non_exhaustive]
+  Tar(Box<tar::Entry<'a, R>>),
+  /// An entry of a zip archive.
+  #[non_exhaustive]
+  Zip(ZipEntry),
+}
+
+impl<'a, R: Read> Entry<'a, R> {
+  /// The entry path.
+  pub fn path(&self) -> crate::api::Result<Cow<'_, Path>> {
+    match self {
+      Self::Tar(e) => e.path().map_err(Into::into),
+      Self::Zip(e) => Ok(Cow::Borrowed(&e.path)),
     }
   }
 
-  /// Get the archive content.
-  pub fn files(&mut self) -> crate::api::Result<Vec<PathBuf>> {
-    let reader = &mut self.reader;
-    let mut all_files = Vec::new();
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      #[cfg(debug_assertions)]
-      eprintln!("Could not seek to start of the file");
-    }
-    match self.archive_format {
-      ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
-        let reader = Self::get_archive_reader(reader, compression);
-        match self.archive_format {
-          ArchiveFormat::Tar(_) => {
-            let mut archive = tar::Archive::new(reader);
-            for entry in archive.entries()?.flatten() {
-              if let Ok(path) = entry.path() {
-                all_files.push(path.to_path_buf());
+  /// Extract this entry into `into_path`.
+  /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
+  /// Note: You need to include the complete path, with file name and extension.
+  pub fn extract(self, into_path: &path::Path) -> crate::api::Result<()> {
+    match self {
+      Self::Tar(mut entry) => {
+        // determine if it's a file or a directory
+        if entry.header().entry_type() == tar::EntryType::Directory {
+          // this is a directory, lets create it
+          match fs::create_dir_all(into_path) {
+            Ok(_) => (),
+            Err(e) => {
+              if e.kind() != io::ErrorKind::AlreadyExists {
+                return Err(e.into());
               }
             }
           }
-          _ => unreachable!(),
-        };
-      }
+        } else {
+          let mut out_file = fs::File::create(into_path)?;
+          io::copy(&mut entry, &mut out_file)?;
 
-      ArchiveFormat::Zip => {
-        let archive = zip::ZipArchive::new(reader)?;
-        for entry in archive.file_names() {
-          all_files.push(PathBuf::from(entry));
+          // make sure we set permissions
+          if let Ok(mode) = entry.header().mode() {
+            set_perms(into_path, Some(&mut out_file), mode, true)?;
+          }
+        }
+      }
+      Self::Zip(entry) => {
+        if entry.is_dir {
+          // this is a directory, lets create it
+          match fs::create_dir_all(into_path) {
+            Ok(_) => (),
+            Err(e) => {
+              if e.kind() != io::ErrorKind::AlreadyExists {
+                return Err(e.into());
+              }
+            }
+          }
+        } else {
+          let mut out_file = fs::File::create(into_path)?;
+          io::copy(&mut Cursor::new(entry.file_contents), &mut out_file)?;
         }
       }
     }
 
-    Ok(all_files)
+    Ok(())
   }
+}
 
-  // Get the reader based on the compression type.
-  fn get_archive_reader(
-    source: &mut R,
-    compression: Option<Compression>,
-  ) -> Either<&mut R, flate2::read::GzDecoder<&mut R>> {
-    if source.seek(io::SeekFrom::Start(0)).is_err() {
+/// The extract manager to retrieve files from archives.
+pub struct Extract<'a, R: Read + Seek> {
+  reader: ArchiveReader<R>,
+  archive_format: ArchiveFormat,
+  tar_archive: Option<tar::Archive<&'a mut ArchiveReader<R>>>,
+}
+
+impl<'a, R: std::fmt::Debug + Read + Seek> std::fmt::Debug for Extract<'a, R> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("Extract")
+      .field("reader", &self.reader)
+      .field("archive_format", &self.archive_format)
+      .finish()
+  }
+}
+
+impl<'a, R: Read + Seek> Extract<'a, R> {
+  /// Create archive from reader.
+  pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<'a, R> {
+    if reader.seek(io::SeekFrom::Start(0)).is_err() {
       #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }
-    match compression {
-      Some(Compression::Gz) => Either::Right(flate2::read::GzDecoder::new(source)),
-      None => Either::Left(source),
+    let compression = if let ArchiveFormat::Tar(compression) = archive_format {
+      compression
+    } else {
+      None
+    };
+    Extract {
+      reader: match compression {
+        Some(Compression::Gz) => ArchiveReader::GzCompressed(flate2::read::GzDecoder::new(reader)),
+        _ => ArchiveReader::Plain(reader),
+      },
+      archive_format,
+      tar_archive: None,
     }
+  }
+
+  /// Reads the archive content.
+  pub fn with_files<
+    E: Into<crate::api::Error>,
+    F: FnMut(Entry<'_, &mut ArchiveReader<R>>) -> std::result::Result<bool, E>,
+  >(
+    &'a mut self,
+    mut f: F,
+  ) -> crate::api::Result<()> {
+    match self.archive_format {
+      ArchiveFormat::Tar(_) => {
+        let archive = tar::Archive::new(&mut self.reader);
+        self.tar_archive.replace(archive);
+        for entry in self.tar_archive.as_mut().unwrap().entries()? {
+          let entry = entry?;
+          if entry.path().is_ok() {
+            let stop = f(Entry::Tar(Box::new(entry))).map_err(Into::into)?;
+            if stop {
+              break;
+            }
+          }
+        }
+      }
+
+      ArchiveFormat::Zip => {
+        let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
+        let file_names = archive
+          .file_names()
+          .map(|f| f.to_string())
+          .collect::<Vec<String>>();
+        for path in file_names {
+          let mut zip_file = archive.by_name(&path)?;
+          let is_dir = zip_file.is_dir();
+          let mut file_contents = Vec::new();
+          zip_file.read_to_end(&mut file_contents)?;
+          let stop = f(Entry::Zip(ZipEntry {
+            path: path.into(),
+            is_dir,
+            file_contents,
+          }))
+          .map_err(Into::into)?;
+          if stop {
+            break;
+          }
+        }
+      }
+    }
+
+    Ok(())
   }
 
   /// Extract an entire source archive into a specified path. If the source is a single compressed
   /// file and not an archive, it will be extracted into a file with the same name inside of
   /// `into_dir`.
   pub fn extract_into(&mut self, into_dir: &path::Path) -> crate::api::Result<()> {
-    let reader = &mut self.reader;
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
-      #[cfg(debug_assertions)]
-      eprintln!("Could not seek to start of the file");
-    }
     match self.archive_format {
-      ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
-        let mut reader = Self::get_archive_reader(reader, compression);
-        match self.archive_format {
-          ArchiveFormat::Plain(_) => {
-            match fs::create_dir_all(into_dir) {
-              Ok(_) => (),
-              Err(e) => {
-                if e.kind() != io::ErrorKind::AlreadyExists {
-                  return Err(e.into());
-                }
-              }
-            }
-
-            let mut out_file = fs::File::create(&into_dir)?;
-            io::copy(&mut reader, &mut out_file)?;
-          }
-          ArchiveFormat::Tar(_) => {
-            let mut archive = tar::Archive::new(reader);
-            archive.unpack(into_dir)?;
-          }
-          _ => unreachable!(),
-        };
+      ArchiveFormat::Tar(_) => {
+        let mut archive = tar::Archive::new(&mut self.reader);
+        archive.unpack(into_dir)?;
       }
 
       ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(reader)?;
+        let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
         for i in 0..archive.len() {
           let mut file = archive.by_index(i)?;
           // Decode the file name from raw bytes instead of using file.name() directly.
@@ -163,100 +258,6 @@ impl<R: Read + Seek> Extract<R> {
         }
       }
     }
-    Ok(())
-  }
-
-  /// Extract a single file from a source and extract it `into_path`.
-  /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
-  /// Note: You need to include the complete path, with file name and extension.
-  pub fn extract_file<T: AsRef<path::Path>>(
-    &mut self,
-    into_path: &path::Path,
-    file_to_extract: T,
-  ) -> crate::api::Result<()> {
-    let file_to_extract = file_to_extract.as_ref();
-    let reader = &mut self.reader;
-
-    match self.archive_format {
-      ArchiveFormat::Plain(compression) | ArchiveFormat::Tar(compression) => {
-        let mut reader = Self::get_archive_reader(reader, compression);
-        match self.archive_format {
-          ArchiveFormat::Plain(_) => {
-            match fs::create_dir_all(into_path) {
-              Ok(_) => (),
-              Err(e) => {
-                if e.kind() != io::ErrorKind::AlreadyExists {
-                  return Err(e.into());
-                }
-              }
-            }
-            let mut out_file = fs::File::create(into_path)?;
-            io::copy(&mut reader, &mut out_file)?;
-          }
-          ArchiveFormat::Tar(_) => {
-            let mut archive = tar::Archive::new(reader);
-            let mut entry = archive
-              .entries()?
-              .filter_map(|e| e.ok())
-              .find(|e| e.path().ok().filter(|p| p == file_to_extract).is_some())
-              .ok_or_else(|| {
-                crate::api::Error::Extract(format!(
-                  "Could not find the required path in the archive: {:?}",
-                  file_to_extract
-                ))
-              })?;
-
-            // determine if it's a file or a directory
-            if entry.header().entry_type() == tar::EntryType::Directory {
-              // this is a directory, lets create it
-              match fs::create_dir_all(into_path) {
-                Ok(_) => (),
-                Err(e) => {
-                  if e.kind() != io::ErrorKind::AlreadyExists {
-                    return Err(e.into());
-                  }
-                }
-              }
-            } else {
-              let mut out_file = fs::File::create(into_path)?;
-              io::copy(&mut entry, &mut out_file)?;
-
-              // make sure we set permissions
-              if let Ok(mode) = entry.header().mode() {
-                set_perms(into_path, Some(&mut out_file), mode, true)?;
-              }
-            }
-          }
-          _ => {
-            panic!("Unreasonable code");
-          }
-        };
-      }
-      ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(reader)?;
-        let mut file = archive.by_name(
-          file_to_extract
-            .to_str()
-            .expect("Could not convert file to str"),
-        )?;
-
-        if file.is_dir() {
-          // this is a directory, lets create it
-          match fs::create_dir_all(into_path) {
-            Ok(_) => (),
-            Err(e) => {
-              if e.kind() != io::ErrorKind::AlreadyExists {
-                return Err(e.into());
-              }
-            }
-          }
-        } else {
-          let mut out_file = fs::File::create(into_path)?;
-          io::copy(&mut file, &mut out_file)?;
-        }
-      }
-    }
-
     Ok(())
   }
 }

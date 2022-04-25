@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Copy system tray icon resource to the target directory on Linux.
+  - [f2a30d8b](https://www.github.com/tauri-apps/tauri/commit/f2a30d8bc54fc3ba49e16f69a413eca5f61a9b1f) refactor(core): use ayatana appindicator by default, keep option to use gtk ([#3916](https://www.github.com/tauri-apps/tauri/pull/3916)) on 2022-04-19
+
 ## \[1.0.0-rc.5]
 
 - Print error context on the `build` panic.

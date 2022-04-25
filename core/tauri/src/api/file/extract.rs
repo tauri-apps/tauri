@@ -165,10 +165,14 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
     }
   }
 
-  /// Get the archive content.
-  pub fn files(&'a mut self) -> crate::api::Result<Vec<Entry<'_, &mut ArchiveReader<R>>>> {
-    let mut all_files = Vec::new();
-
+  /// Reads the archive content.
+  pub fn with_files<
+    E: Into<crate::api::Error>,
+    F: FnMut(Entry<'_, &mut ArchiveReader<R>>) -> std::result::Result<bool, E>,
+  >(
+    &'a mut self,
+    mut f: F,
+  ) -> crate::api::Result<()> {
     match self.archive_format {
       ArchiveFormat::Tar(_) => {
         let archive = tar::Archive::new(&mut self.reader);
@@ -176,7 +180,10 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
         for entry in self.tar_archive.as_mut().unwrap().entries()? {
           let entry = entry?;
           if entry.path().is_ok() {
-            all_files.push(Entry::Tar(Box::new(entry)));
+            let stop = f(Entry::Tar(Box::new(entry))).map_err(Into::into)?;
+            if stop {
+              break;
+            }
           }
         }
       }
@@ -192,16 +199,20 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
           let is_dir = zip_file.is_dir();
           let mut file_contents = Vec::new();
           zip_file.read_to_end(&mut file_contents)?;
-          all_files.push(Entry::Zip(ZipEntry {
+          let stop = f(Entry::Zip(ZipEntry {
             path: path.into(),
             is_dir,
             file_contents,
-          }));
+          }))
+          .map_err(Into::into)?;
+          if stop {
+            break;
+          }
         }
       }
     }
 
-    Ok(all_files)
+    Ok(())
   }
 
   /// Extract an entire source archive into a specified path. If the source is a single compressed

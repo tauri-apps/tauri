@@ -9,9 +9,6 @@ pub enum Error {
   /// Command error.
   #[error("Command Error: {0}")]
   Command(String),
-  /// The extract archive error.
-  #[error("Extract Error: {0}")]
-  Extract(String),
   /// The path operation error.
   #[error("Path Error: {0}")]
   Path(String),
@@ -69,6 +66,10 @@ pub enum Error {
   #[cfg(feature = "fs-extract-api")]
   #[error(transparent)]
   Zip(#[from] zip::result::ZipError),
+  /// Extract error.
+  #[cfg(feature = "fs-extract-api")]
+  #[error("Failed to extract: {0}")]
+  Extract(String),
   /// Notification error.
   #[cfg(notification_all)]
   #[error(transparent)]

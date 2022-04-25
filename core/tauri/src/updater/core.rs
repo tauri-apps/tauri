@@ -643,18 +643,19 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   let mut extractor =
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
 
-  for entry in extractor.files()? {
+  extractor.with_files(|entry| {
     let path = entry.path()?;
     if path.extension() == Some(OsStr::new("AppImage")) {
       // if something went wrong during the extraction, we should restore previous app
       if let Err(err) = entry.extract(extract_path) {
         Move::from_source(tmp_app_image).to_dest(extract_path)?;
-        return Err(Error::Extract(err.to_string()));
+        return Err(crate::api::Error::Extract(err.to_string()));
       }
       // early finish we have everything we need here
-      return Ok(());
+      return Ok(true);
     }
-  }
+    Ok(false)
+  })?;
 
   Ok(())
 }
@@ -794,7 +795,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Move::from_source(extract_path).to_dest(tmp_dir.path())?;
 
   // extract all the files
-  for entry in extractor.files()? {
+  extractor.with_files(|entry| {
     let path = entry.path()?;
     // skip the first folder (should be the app name)
     let collected_path: PathBuf = path.iter().skip(1).collect();
@@ -802,7 +803,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
     // if something went wrong during the extraction, we should restore previous app
     if let Err(err) = entry.extract(&extraction_path) {
-      for file in extracted_files {
+      for file in &extracted_files {
         // delete all the files we extracted
         if file.is_dir() {
           std::fs::remove_dir(file)?;
@@ -811,11 +812,13 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
         }
       }
       Move::from_source(tmp_dir.path()).to_dest(extract_path)?;
-      return Err(Error::Extract(err.to_string()));
+      return Err(crate::api::Error::Extract(err.to_string()));
     }
 
     extracted_files.push(extraction_path);
-  }
+
+    Ok(false)
+  })?;
 
   Ok(())
 }

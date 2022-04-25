@@ -85,6 +85,38 @@ enum PackageManager {
 #[clap(about = "Shows information about Tauri dependencies and project configuration")]
 pub struct Options;
 
+pub(crate) fn cli_current_version() -> Result<String> {
+  let meta = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  Ok(meta.js_cli.version)
+}
+
+pub(crate) fn cli_upstream_version() -> Result<String> {
+  let upstream_metadata = match ureq::get(
+    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",
+  )
+  .call()
+  {
+    Ok(r) => r,
+    Err(ureq::Error::Status(code, _response)) => {
+      let message = format!("Unable to find updates at the moment. Code: {}", code);
+      return Err(anyhow::Error::msg(message));
+    }
+    Err(ureq::Error::Transport(transport)) => {
+      let message = format!(
+        "Unable to find updates at the moment. Error: {:?}",
+        transport.kind()
+      );
+      return Err(anyhow::Error::msg(message));
+    }
+  };
+
+  upstream_metadata
+    .into_string()
+    .and_then(|meta_str| Ok(serde_json::from_str::<VersionMetadata>(&meta_str)))
+    .and_then(|json| Ok(json.unwrap().js_cli.version))
+    .map_err(|e| anyhow::Error::new(e))
+}
+
 fn crate_latest_version(name: &str) -> Option<String> {
   let url = format!("https://docs.rs/crate/{}/", name);
   match ureq::get(&url).call() {

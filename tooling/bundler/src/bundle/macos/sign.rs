@@ -202,12 +202,17 @@ pub fn sign(
     args.push("--deep");
   }
 
-  let status = Command::new("codesign")
+  let output = Command::new("codesign")
     .args(args)
     .arg(path_to_sign.to_string_lossy().to_string())
-    .status()?;
+    .output()?;
 
-  if !status.success() {
+  if settings.is_verbose() {
+    std::io::stdout().write_all(&output.stdout).unwrap();
+    std::io::stderr().write_all(&output.stderr).unwrap();
+  }
+
+  if !output.status.success() {
     return Err(anyhow::anyhow!("failed to sign app").into());
   }
 
@@ -247,9 +252,14 @@ pub fn notarize(
   let zip_app = Command::new("ditto")
     .args(zip_args)
     .stderr(Stdio::inherit())
-    .status()?;
+    .output()?;
 
-  if !zip_app.success() {
+  if settings.is_verbose() {
+    std::io::stdout().write_all(&zip_app.stdout).unwrap();
+    std::io::stderr().write_all(&zip_app.stderr).unwrap();
+  }
+
+  if !zip_app.status.success() {
     return Err(anyhow::anyhow!("failed to zip app with ditto").into());
   }
 
@@ -281,6 +291,11 @@ pub fn notarize(
     .stderr(Stdio::inherit())
     .output()?;
 
+  if settings.is_verbose() {
+    std::io::stdout().write_all(&output.stdout).unwrap();
+    std::io::stderr().write_all(&output.stderr).unwrap();
+  }
+
   if !output.status.success() {
     return Err(
       anyhow::anyhow!(format!(
@@ -298,8 +313,8 @@ pub fn notarize(
   {
     common::print_info("notarization started; waiting for Apple response...")?;
     let uuid = uuid[1].to_string();
-    get_notarization_status(uuid, auth_args)?;
-    staple_app(app_bundle_path.clone())?;
+    get_notarization_status(uuid, auth_args, settings)?;
+    staple_app(app_bundle_path.clone(), settings)?;
   } else {
     return Err(
       anyhow::anyhow!(format!(
@@ -313,7 +328,7 @@ pub fn notarize(
   Ok(())
 }
 
-fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
+fn staple_app(mut app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
   let app_bundle_path_clone = app_bundle_path.clone();
   let filename = app_bundle_path_clone
     .file_name()
@@ -329,6 +344,11 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
     .stderr(Stdio::inherit())
     .output()?;
 
+  if settings.is_verbose() {
+    std::io::stdout().write_all(&output.stdout).unwrap();
+    std::io::stderr().write_all(&output.stderr).unwrap();
+  }
+
   if !output.status.success() {
     Err(
       anyhow::anyhow!(format!(
@@ -342,7 +362,7 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   }
 }
 
-fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Result<()> {
+fn get_notarization_status(uuid: String, auth_args: Vec<String>, settings: &Settings,) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
   let output = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
@@ -350,8 +370,13 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
     .stderr(Stdio::inherit())
     .output()?;
 
+  if settings.is_verbose() {
+    std::io::stdout().write_all(&output.stdout).unwrap();
+    std::io::stderr().write_all(&output.stderr).unwrap();
+  }
+
   if !output.status.success() {
-    get_notarization_status(uuid, auth_args)
+    get_notarization_status(uuid, auth_args, settings)
   } else {
     let stdout = std::str::from_utf8(&output.stdout)?;
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
@@ -360,7 +385,7 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
     {
       let status = status[1].to_string();
       if status == "in progress" {
-        get_notarization_status(uuid, auth_args)
+        get_notarization_status(uuid, auth_args, settings)
       } else if status == "invalid" {
         Err(
           anyhow::anyhow!(format!(
@@ -382,7 +407,7 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>) -> crate::Resul
         Ok(())
       }
     } else {
-      get_notarization_status(uuid, auth_args)
+      get_notarization_status(uuid, auth_args, settings)
     }
   }
 }

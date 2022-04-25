@@ -421,6 +421,14 @@ impl<R: Runtime> WindowBuilder<R> {
     self
   }
 
+  /// Hides the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn transparent_titlebar(mut self, transparent: bool) -> Self {
+    self.window_builder = self.window_builder.transparent_titlebar(transparent);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Sets the init script.

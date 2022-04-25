@@ -878,6 +878,14 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn transparent_titlebar(mut self, transparent: bool) -> Self {
+    self.inner = self.inner.with_title_hidden(true);
+    self.inner = self.inner.with_fullsize_content_view(true);
+    self.inner = self.inner.with_titlebar_transparent(transparent);
+    self
+  }
+
   fn icon(mut self, icon: WindowIcon) -> Result<Self> {
     self.inner = self
       .inner

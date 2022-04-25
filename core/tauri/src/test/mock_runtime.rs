@@ -252,6 +252,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn transparent_titlebar(self, transparent: bool) -> Self {
+    self
+  }
+
   fn theme(self, theme: Option<Theme>) -> Self {
     self
   }

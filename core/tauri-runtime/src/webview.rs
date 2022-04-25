@@ -189,6 +189,11 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
 
+  /// Hides the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn transparent_titlebar(self, transparent: bool) -> Self;
+
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;
 

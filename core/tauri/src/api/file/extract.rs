@@ -62,10 +62,13 @@ pub struct ZipEntry {
 }
 
 /// A read-only view into an entry of an archive.
+#[non_exhaustive]
 pub enum Entry<'a, R: Read> {
   /// An entry of a tar archive.
+  #[non_exhaustive]
   Tar(Box<tar::Entry<'a, R>>),
   /// An entry of a zip archive.
+  #[non_exhaustive]
   Zip(ZipEntry),
 }
 

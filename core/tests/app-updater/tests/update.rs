@@ -209,17 +209,22 @@ fn update_app() {
   // bundle initial app version
   build_app(&cli_bin_path, &manifest_dir, &config, false);
 
-  let binary_path = if cfg!(windows) {
-    root_dir.join("target/debug/app-updater.exe")
+  let mut binary_cmd = if cfg!(windows) {
+    Command::new(root_dir.join("target/debug/app-updater.exe"))
   } else if cfg!(target_os = "macos") {
-    bundle_path(&root_dir, "0.1.0").join("Contents/MacOS/app-updater")
+    Command::new(bundle_path(&root_dir, "0.1.0").join("Contents/MacOS/app-updater"))
   } else {
-    bundle_path(&root_dir, "0.1.0")
+    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+      let mut c = Command::new("xvfb-run");
+      c.arg("--auto-servernum")
+        .arg(bundle_path(&root_dir, "0.1.0"));
+      c
+    } else {
+      Command::new(bundle_path(&root_dir, "0.1.0"))
+    }
   };
 
-  let status = Command::new(&binary_path)
-    .status()
-    .expect("failed to run app");
+  let status = binary_cmd.status().expect("failed to run app");
 
   if !status.success() {
     panic!("failed to run app");

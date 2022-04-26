@@ -31,7 +31,8 @@
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
-//! - **ayatana-tray** *(enabled by default)*: Use libayatana-appindicator for system tray on Linux.
+//! Note that you must select one of `ayatana-tray` and `gtk-tray` features on Linux.
+//! - **ayatana-tray**: Use libayatana-appindicator for system tray on Linux.
 //! - **gtk-tray**: Use libappindicator3-1 for system tray on Linux. To enable this, you need to disable the default features.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.

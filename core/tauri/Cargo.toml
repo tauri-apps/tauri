@@ -122,7 +122,7 @@ tokio = { version = "1.16", features = [ "full" ] }
 cargo_toml = "0.11"
 
 [features]
-default = [ "wry", "compression", "objc-exception", "ayatana-tray" ]
+default = [ "wry", "compression", "objc-exception" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]

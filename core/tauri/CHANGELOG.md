@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.0.0-rc.8]
+
+- **Breaking change:** Removed the `ayatana-tray` from the default features. You must select one of `ayatana-tray` and `gtk-tray` to use system tray on Linux.
+  - [62cdb2b3](https://www.github.com/tauri-apps/tauri/commit/62cdb2b307534cf1cb69fdb8688f7c0f3176f41b) refactor(tauri): remove ayatana-tray from the default features ([#3976](https://www.github.com/tauri-apps/tauri/pull/3976)) on 2022-04-26
+- Re-export the `GlobalShortcutManager` when the `global-shortcut` feature is enabled.
+  - [62cdb2b3](https://www.github.com/tauri-apps/tauri/commit/62cdb2b307534cf1cb69fdb8688f7c0f3176f41b) refactor(tauri): remove ayatana-tray from the default features ([#3976](https://www.github.com/tauri-apps/tauri/pull/3976)) on 2022-04-26
+- Fixes `docs.rs` documentation build.
+  - [dd94917b](https://www.github.com/tauri-apps/tauri/commit/dd94917b619f22849a7487805315c5306e4847b8) fix(tauri): docs.rs build error ([#3974](https://www.github.com/tauri-apps/tauri/pull/3974)) on 2022-04-26
+
 ## \[1.0.0-rc.7]
 
 - **Breaking change:** Removed `tauri::api::file::ArchiveFormat::Plain`.

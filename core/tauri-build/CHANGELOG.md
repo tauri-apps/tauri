@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.7]
+
+- Rerun build script if `TAURI_CONFIG` environment variable change.
+  - [7ae9e252](https://www.github.com/tauri-apps/tauri/commit/7ae9e25262376529637cd3b47b1cf84809efaec9) fix(tauri-build): rerun if `TAURI_CONFIG` env var changes on 2022-04-26
+
 ## \[1.0.0-rc.6]
 
 - Copy system tray icon resource to the target directory on Linux.

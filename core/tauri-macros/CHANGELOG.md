@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.0-rc.5]
+
+- Read platform-specific configuration files when generating code without the `TAURI_CONFIG` env var.
+  - Bumped due to a bump in tauri-codegen.
+  - [edf85bc1](https://www.github.com/tauri-apps/tauri/commit/edf85bc1d18450c92aee17f7f99c163abe432ebd) fix(codegen): read platform-specific config file ([#3966](https://www.github.com/tauri-apps/tauri/pull/3966)) on 2022-04-25
+
 ## \[1.0.0-rc.4]
 
 - Replace multiple dependencies who's C code compiled concurrently and caused

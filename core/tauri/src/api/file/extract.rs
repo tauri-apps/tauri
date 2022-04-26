@@ -28,6 +28,7 @@ impl<R: Read + Seek> Read for ArchiveReader<R> {
 }
 
 impl<R: Read + Seek> ArchiveReader<R> {
+  #[allow(dead_code)]
   fn get_mut(&mut self) -> &mut R {
     match self {
       Self::Plain(r) => r,
@@ -192,24 +193,27 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
       }
 
       ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
-        let file_names = archive
-          .file_names()
-          .map(|f| f.to_string())
-          .collect::<Vec<String>>();
-        for path in file_names {
-          let mut zip_file = archive.by_name(&path)?;
-          let is_dir = zip_file.is_dir();
-          let mut file_contents = Vec::new();
-          zip_file.read_to_end(&mut file_contents)?;
-          let stop = f(Entry::Zip(ZipEntry {
-            path: path.into(),
-            is_dir,
-            file_contents,
-          }))
-          .map_err(Into::into)?;
-          if stop {
-            break;
+        #[cfg(feature = "fs-extract-api")]
+        {
+          let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
+          let file_names = archive
+            .file_names()
+            .map(|f| f.to_string())
+            .collect::<Vec<String>>();
+          for path in file_names {
+            let mut zip_file = archive.by_name(&path)?;
+            let is_dir = zip_file.is_dir();
+            let mut file_contents = Vec::new();
+            zip_file.read_to_end(&mut file_contents)?;
+            let stop = f(Entry::Zip(ZipEntry {
+              path: path.into(),
+              is_dir,
+              file_contents,
+            }))
+            .map_err(Into::into)?;
+            if stop {
+              break;
+            }
           }
         }
       }
@@ -229,30 +233,33 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
       }
 
       ArchiveFormat::Zip => {
-        let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
-        for i in 0..archive.len() {
-          let mut file = archive.by_index(i)?;
-          // Decode the file name from raw bytes instead of using file.name() directly.
-          // file.name() uses String::from_utf8_lossy() which may return messy characters
-          // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
-          // Here we require the file name must be a valid UTF-8.
-          let file_name = String::from_utf8(file.name_raw().to_vec())?;
-          let out_path = into_dir.join(&file_name);
-          if file.is_dir() {
-            fs::create_dir_all(&out_path)?;
-          } else {
-            if let Some(out_path_parent) = out_path.parent() {
-              fs::create_dir_all(&out_path_parent)?;
+        #[cfg(feature = "fs-extract-api")]
+        {
+          let mut archive = zip::ZipArchive::new(self.reader.get_mut())?;
+          for i in 0..archive.len() {
+            let mut file = archive.by_index(i)?;
+            // Decode the file name from raw bytes instead of using file.name() directly.
+            // file.name() uses String::from_utf8_lossy() which may return messy characters
+            // such as: τê▒Σ║ñµÿô.app/, that does not work as expected.
+            // Here we require the file name must be a valid UTF-8.
+            let file_name = String::from_utf8(file.name_raw().to_vec())?;
+            let out_path = into_dir.join(&file_name);
+            if file.is_dir() {
+              fs::create_dir_all(&out_path)?;
+            } else {
+              if let Some(out_path_parent) = out_path.parent() {
+                fs::create_dir_all(&out_path_parent)?;
+              }
+              let mut out_file = fs::File::create(&out_path)?;
+              io::copy(&mut file, &mut out_file)?;
             }
-            let mut out_file = fs::File::create(&out_path)?;
-            io::copy(&mut file, &mut out_file)?;
-          }
-          // Get and Set permissions
-          #[cfg(unix)]
-          {
-            use std::os::unix::fs::PermissionsExt;
-            if let Some(mode) = file.unix_mode() {
-              fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
+            // Get and Set permissions
+            #[cfg(unix)]
+            {
+              use std::os::unix::fs::PermissionsExt;
+              if let Some(mode) = file.unix_mode() {
+                fs::set_permissions(&out_path, fs::Permissions::from_mode(mode))?;
+              }
             }
           }
         }

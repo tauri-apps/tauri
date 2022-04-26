@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(dead_code, unused_imports)]
+
 use std::{
   collections::HashMap,
   fs::File,
@@ -77,8 +79,8 @@ fn build_app(cli_bin_path: &Path, cwd: &Path, config: &Config, bundle_updater: b
     .status()
     .expect("failed to run Tauri CLI to bundle app");
 
-  if !status.success() {
-    panic!("failed to bundle app {:?}", status);
+  if !status.code().map(|c| c == 0).unwrap_or(true) {
+    panic!("failed to bundle app {:?}", status.code());
   }
 }
 
@@ -103,6 +105,7 @@ fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
   ))
 }
 
+#[cfg(not(windows))]
 #[test]
 fn update_app() {
   let target = tauri::updater::target().expect("running updater test in an unsupported platform");

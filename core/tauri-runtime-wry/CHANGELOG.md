@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.3.6]
+## \[0.4.0]
 
 - \**Breaking change::* Added the `clipboard` Cargo feature.
   - [24e4ff20](https://www.github.com/tauri-apps/tauri/commit/24e4ff208ee0fe1a4cc5b10667ea0922ac63dfb5) refactor(core): add clipboard Cargo feature, enhancing binary size ([#3957](https://www.github.com/tauri-apps/tauri/pull/3957)) on 2022-04-24

@@ -67,7 +67,6 @@ tar = "0.4.36"
 tempfile = "3"
 zip = { version = "0.6", default-features = false, optional = true }
 ignore = "0.4"
-either = "1.6"
 flate2 = "1.0"
 http = "0.2"
 bincode = "1.3"

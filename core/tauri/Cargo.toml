@@ -26,9 +26,12 @@ features = [
   "api-all",
   "cli",
   "__updater-docs",
+  "__fs-extract-api-docs",
   "system-tray",
   "devtools",
   "http-multipart",
+  "gtk-tray",
+  "icon-png",
   "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
@@ -140,6 +143,7 @@ http-api = [ "attohttpc" ]
 http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
+__fs-extract-api-docs = [ ]
 reqwest-client = [ "reqwest", "bytes" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [

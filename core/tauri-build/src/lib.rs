@@ -154,6 +154,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   use cargo_toml::{Dependency, Manifest};
   use tauri_utils::config::{Config, TauriConfig};
 
+  println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");

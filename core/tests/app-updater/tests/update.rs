@@ -78,7 +78,7 @@ fn build_app(cli_bin_path: &Path, cwd: &Path, config: &Config, bundle_updater: b
     .expect("failed to run Tauri CLI to bundle app");
 
   if !status.success() {
-    panic!("failed to bundle app");
+    panic!("failed to bundle app {:?}", status);
   }
 }
 
@@ -92,10 +92,7 @@ fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
 
 #[cfg(target_os = "macos")]
 fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
-  root_dir.join(format!(
-    "target/debug/bundle/macos/app-updater.app",
-    version
-  ))
+  root_dir.join(format!("target/debug/bundle/macos/app-updater.app"))
 }
 
 #[cfg(windows)]
@@ -108,6 +105,7 @@ fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
 
 #[test]
 fn update_app() {
+  let target = tauri::updater::target().expect("running updater test in an unsupported platform");
   let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
   let root_dir = manifest_dir.join("../../..");
   let cli_dir = root_dir.join("tooling/cli");
@@ -115,8 +113,7 @@ fn update_app() {
   let cli_bin_path = if let Some(p) = get_cli_bin_path(&cli_dir, false) {
     p
   } else {
-    let p = get_cli_bin_path(&cli_dir, true);
-    if let Some(p) = p {
+    if let Some(p) = get_cli_bin_path(&cli_dir, true) {
       p
     } else {
       let status = Command::new("cargo")
@@ -127,7 +124,7 @@ fn update_app() {
       if !status.success() {
         panic!("failed to build CLI");
       }
-      p.expect("cargo did not build the Tauri CLI")
+      get_cli_bin_path(&cli_dir, true).expect("cargo did not build the Tauri CLI")
     }
   };
 
@@ -159,27 +156,18 @@ fn update_app() {
   ));
   std::fs::rename(&out_updater_path, &updater_path).expect("failed to rename bundle");
 
-  config.package.version = "0.1.0";
-
   std::thread::spawn(move || {
     // start the updater server
     let server = tiny_http::Server::http("localhost:3007").expect("failed to start updater server");
 
     loop {
       if let Ok(request) = server.recv() {
-        println!("got req {}", request.url());
         match request.url() {
           "/" => {
             let mut platforms = HashMap::new();
-            let platform = if cfg!(windows) {
-              "windows-x86_64"
-            } else if cfg!(target_os = "macos") {
-              "darwin-x86_64"
-            } else {
-              "linux-x86_64"
-            };
+
             platforms.insert(
-              platform.into(),
+              target.clone(),
               PlatformUpdate {
                 signature: signature.clone(),
                 url: "http://localhost:3007/download",
@@ -202,7 +190,9 @@ fn update_app() {
           }
           "/download" => {
             let _ = request.respond(tiny_http::Response::from_file(
-              File::open(&updater_path).expect("failed to open updater bundle"),
+              File::open(&updater_path).unwrap_or_else(|_| {
+                panic!("failed to open updater bundle {}", updater_path.display())
+              }),
             ));
           }
           _ => (),
@@ -211,20 +201,24 @@ fn update_app() {
     }
   });
 
+  config.package.version = "0.1.0";
+
   // bundle initial app version
   build_app(&cli_bin_path, &manifest_dir, &config, false);
 
   let binary_path = if cfg!(windows) {
     root_dir.join("target/debug/app-updater.exe")
+  } else if cfg!(target_os = "macos") {
+    bundle_path(&root_dir, "0.1.0").join("Contents/MacOS/app-updater")
   } else {
     bundle_path(&root_dir, "0.1.0")
   };
 
-  let o = Command::new(&binary_path)
-    .output()
+  let status = Command::new(&binary_path)
+    .status()
     .expect("failed to run app");
 
-  if !o.status.success() {
-    panic!("{}", String::from_utf8_lossy(&o.stdout));
+  if !status.success() {
+    panic!("failed to run app");
   }
 }

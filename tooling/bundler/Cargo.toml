@@ -25,7 +25,7 @@ exclude = [
 tauri-utils = { version = "1.0.0-rc.5", path = "../../core/tauri-utils", features = [ "resources" ] }
 ar = "0.9.0"
 icns = "0.3"
-image = "0.24.1"
+image = "0.24.2"
 libflate = "1.2"
 md5 = "0.7.0"
 anyhow = "1.0"

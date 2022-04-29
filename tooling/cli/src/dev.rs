@@ -25,7 +25,7 @@ use std::{
   fs::FileType,
   io::{BufReader, Write},
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::channel,
@@ -126,6 +126,7 @@ fn command_internal(options: Options) -> Result<()> {
           .pipe()?; // development build always includes debug information
         command
       };
+      command.stdin(Stdio::piped());
 
       let child = SharedChild::spawn(&mut command)
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
@@ -489,7 +490,7 @@ fn start_app(
   }
 
   command.stdout(os_pipe::dup_stdout().unwrap());
-  command.stderr(std::process::Stdio::piped());
+  command.stderr(Stdio::piped());
 
   let child =
     SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;

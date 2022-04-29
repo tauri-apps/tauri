@@ -23,7 +23,7 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
-  io::BufReader,
+  io::{BufReader, Write},
   path::{Path, PathBuf},
   process::{exit, Command},
   sync::{
@@ -320,7 +320,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      use std::io::Write;
       let _ = file.write_all(TAURI_DEV_WATCHER_GITIGNORE);
     }
   }
@@ -422,7 +421,7 @@ fn kill_before_dev_process() {
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::{io::Write, os::unix::fs::PermissionsExt};
+          use std::os::unix::fs::PermissionsExt;
           let _ = file.write_all(KILL_CHILDREN_SCRIPT);
           let mut permissions = file.metadata().unwrap().permissions();
           permissions.set_mode(0o770);
@@ -448,9 +447,15 @@ fn start_app(
   command
     .env(
       "CARGO_TERM_PROGRESS_WIDTH",
-      terminal_size::terminal_size()
-        .map(|(w, _)| w.0)
-        .unwrap_or(80)
+      terminal::stderr_width()
+        .map(|width| {
+          if cfg!(windows) {
+            std::cmp::min(60, width)
+          } else {
+            width
+          }
+        })
+        .unwrap_or(if cfg!(windows) { 60 } else { 80 })
         .to_string(),
     )
     .env("CARGO_TERM_PROGRESS_WHEN", "always");
@@ -506,19 +511,18 @@ fn start_app(
   std::thread::spawn(move || {
     let mut buf = Vec::new();
     let mut lines = stderr_lines_.lock().unwrap();
+    let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
       match tauri_utils::io::read_line(&mut stderr, &mut buf) {
         Ok(s) if s == 0 => break,
         _ => (),
       }
-      let line = String::from_utf8_lossy(&buf).into_owned();
-      if line.ends_with('\r') {
-        eprint!("{}", line);
-      } else {
-        eprintln!("{}", line);
+      let _ = io_stderr.write_all(&buf);
+      if !buf.ends_with(&[b'\r']) {
+        let _ = io_stderr.write_all(b"\n");
       }
-      lines.push(line);
+      lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });
 
@@ -553,4 +557,83 @@ fn start_app(
   });
 
   Ok(child_arc)
+}
+
+// taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L514
+#[cfg(unix)]
+mod terminal {
+  use std::mem;
+
+  pub fn stderr_width() -> Option<usize> {
+    unsafe {
+      let mut winsize: libc::winsize = mem::zeroed();
+      // The .into() here is needed for FreeBSD which defines TIOCGWINSZ
+      // as c_uint but ioctl wants c_ulong.
+      #[allow(clippy::useless_conversion)]
+      if libc::ioctl(libc::STDERR_FILENO, libc::TIOCGWINSZ.into(), &mut winsize) < 0 {
+        return None;
+      }
+      if winsize.ws_col > 0 {
+        Some(winsize.ws_col as usize)
+      } else {
+        None
+      }
+    }
+  }
+}
+
+// taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L543
+#[cfg(windows)]
+mod terminal {
+  use std::{cmp, mem, ptr};
+  use winapi::um::fileapi::*;
+  use winapi::um::handleapi::*;
+  use winapi::um::processenv::*;
+  use winapi::um::winbase::*;
+  use winapi::um::wincon::*;
+  use winapi::um::winnt::*;
+
+  pub fn stderr_width() -> Option<usize> {
+    unsafe {
+      let stdout = GetStdHandle(STD_ERROR_HANDLE);
+      let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = mem::zeroed();
+      if GetConsoleScreenBufferInfo(stdout, &mut csbi) != 0 {
+        return Some((csbi.srWindow.Right - csbi.srWindow.Left) as usize);
+      }
+
+      // On mintty/msys/cygwin based terminals, the above fails with
+      // INVALID_HANDLE_VALUE. Use an alternate method which works
+      // in that case as well.
+      let h = CreateFileA(
+        "CONOUT$\0".as_ptr() as *const CHAR,
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        ptr::null_mut(),
+        OPEN_EXISTING,
+        0,
+        ptr::null_mut(),
+      );
+      if h == INVALID_HANDLE_VALUE {
+        return None;
+      }
+
+      let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = mem::zeroed();
+      let rc = GetConsoleScreenBufferInfo(h, &mut csbi);
+      CloseHandle(h);
+      if rc != 0 {
+        let width = (csbi.srWindow.Right - csbi.srWindow.Left) as usize;
+        // Unfortunately cygwin/mintty does not set the size of the
+        // backing console to match the actual window size. This
+        // always reports a size of 80 or 120 (not sure what
+        // determines that). Use a conservative max of 60 which should
+        // work in most circumstances. ConEmu does some magic to
+        // resize the console correctly, but there's no reasonable way
+        // to detect which kind of terminal we are running in, or if
+        // GetConsoleScreenBufferInfo returns accurate information.
+        return Some(cmp::min(60, width));
+      }
+
+      None
+    }
+  }
 }

@@ -52,7 +52,6 @@ os_info = "3.2"
 semver = "1.0"
 regex = "1.5.5"
 lazy_static = "1"
-libc = "0.2"
 terminal_size = "0.1"
 unicode-width = "0.1"
 tempfile = "3"
@@ -67,9 +66,13 @@ ctrlc = "3.2"
 
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"
+winapi = { version = "0.3", features = ["handleapi", "processenv", "winbase", "wincon", "winnt"] }
 
 [target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.4"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2"
 
 [build-dependencies]
 tauri-utils = { version = "1.0.0-rc.0", features = [ "schema", "isolation" ], path = "../../core/tauri-utils" }

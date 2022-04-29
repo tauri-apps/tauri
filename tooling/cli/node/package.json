@@ -40,7 +40,7 @@
     "@napi-rs/cli": "2.7.0",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.1.0",
-    "jest": "27.5.1",
+    "jest": "28.0.3",
     "jest-transform-toml": "1.0.0",
     "prettier": "2.6.2"
   },

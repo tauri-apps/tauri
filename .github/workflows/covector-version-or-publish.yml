@@ -35,6 +35,7 @@ jobs:
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
+
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
@@ -45,6 +46,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
+
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
         uses: tauri-apps/create-pull-request@v3.4.1

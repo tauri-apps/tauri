@@ -107,6 +107,7 @@ fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
 
 #[cfg(not(windows))]
 #[test]
+#[ignore]
 fn update_app() {
   let target = tauri::updater::target().expect("running updater test in an unsupported platform");
   let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

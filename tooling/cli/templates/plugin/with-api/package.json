@@ -19,7 +19,7 @@
     "typescript": "4.6.3"
   },
   "dependencies": {
-    "@tauri-apps/api": "1.0.0-rc.3",
+    "@tauri-apps/api": "1.0.0-rc.4",
     "tslib": "^2.1.0"
   }
 }

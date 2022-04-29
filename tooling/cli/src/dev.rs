@@ -25,7 +25,7 @@ use std::{
   fs::FileType,
   io::{BufReader, Write},
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::channel,
@@ -126,6 +126,7 @@ fn command_internal(options: Options) -> Result<()> {
           .pipe()?; // development build always includes debug information
         command
       };
+      command.stdin(Stdio::piped());
 
       let child = SharedChild::spawn(&mut command)
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
@@ -146,6 +147,12 @@ fn command_internal(options: Options) -> Result<()> {
       KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
 
       let _ = ctrlc::set_handler(move || {
+        if let Some(child) = BEFORE_DEV.get() {
+          let c = child.lock().unwrap();
+          let mut stdin = c.take_stdin().unwrap();
+          let _ = stdin.write_all(b"Y\n").unwrap();
+        }
+        #[cfg(not(windows))]
         kill_before_dev_process();
         #[cfg(not(debug_assertions))]
         let _ = check_for_updates();
@@ -489,7 +496,7 @@ fn start_app(
   }
 
   command.stdout(os_pipe::dup_stdout().unwrap());
-  command.stderr(std::process::Stdio::piped());
+  command.stderr(Stdio::piped());
 
   let child =
     SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;

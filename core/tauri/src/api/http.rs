@@ -21,6 +21,26 @@ pub use attohttpc::header;
 
 use header::{HeaderName, HeaderValue};
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SerdeDuration {
+  Seconds(u64),
+  Duration(Duration),
+}
+
+fn deserialize_duration<'de, D: Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Option<Duration>, D::Error> {
+  if let Some(duration) = Option::<SerdeDuration>::deserialize(deserializer)? {
+    Ok(Some(match duration {
+      SerdeDuration::Seconds(s) => Duration::from_secs(s),
+      SerdeDuration::Duration(d) => d,
+    }))
+  } else {
+    Ok(None)
+  }
+}
+
 /// The builder of [`Client`].
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +48,7 @@ pub struct ClientBuilder {
   /// Max number of redirections to follow.
   pub max_redirections: Option<usize>,
   /// Connect timeout for the request.
+  #[serde(deserialize_with = "deserialize_duration")]
   pub connect_timeout: Option<Duration>,
 }
 

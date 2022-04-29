@@ -45,9 +45,14 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
+interface Duration {
+  secs: number
+  nanos: number
+}
+
 interface ClientOptions {
   maxRedirections: number
-  connectTimeout: number
+  connectTimeout: number | Duration
 }
 
 enum ResponseType {
@@ -177,7 +182,7 @@ interface HttpOptions {
   headers?: Record<string, any>
   query?: Record<string, any>
   body?: Body
-  timeout?: number
+  timeout?: number | Duration
   responseType?: ResponseType
 }
 
@@ -417,6 +422,7 @@ async function fetch<T>(
 }
 
 export type {
+  Duration,
   ClientOptions,
   Part,
   HttpVerb,

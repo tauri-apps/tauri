@@ -469,6 +469,7 @@ pub struct HttpRequestBuilder {
   /// The request body
   pub body: Option<Body>,
   /// Timeout for the whole request
+  #[serde(deserialize_with = "deserialize_duration")]
   pub timeout: Option<Duration>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,

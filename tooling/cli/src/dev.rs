@@ -147,7 +147,6 @@ fn command_internal(options: Options) -> Result<()> {
       KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
 
       let _ = ctrlc::set_handler(move || {
-        #[cfg(not(windows))]
         kill_before_dev_process();
         #[cfg(not(debug_assertions))]
         let _ = check_for_updates();

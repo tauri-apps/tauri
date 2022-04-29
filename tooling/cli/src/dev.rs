@@ -71,27 +71,14 @@ pub fn command(options: Options) -> Result<()> {
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
+    #[cfg(not(debug_assertions))]
+    let _ = check_for_updates();
   }
   r
 }
 
 fn command_internal(options: Options) -> Result<()> {
   let logger = Logger::new("tauri:dev");
-
-  #[cfg(not(debug_assertions))]
-  match check_for_updates() {
-    Ok((msg, sleep)) => {
-      if sleep {
-        logger.log(msg);
-        std::thread::sleep(std::time::Duration::from_secs(3));
-      } else {
-        logger.log(msg);
-      }
-    }
-    Err(e) => {
-      logger.log(e.to_string());
-    }
-  };
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
@@ -160,6 +147,8 @@ fn command_internal(options: Options) -> Result<()> {
 
       let _ = ctrlc::set_handler(move || {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(130);
       });
     }
@@ -297,20 +286,21 @@ fn command_internal(options: Options) -> Result<()> {
 }
 
 #[cfg(not(debug_assertions))]
-fn check_for_updates() -> Result<(String, bool)> {
-  let current_version = crate::info::cli_current_version()?;
-  let current = semver::Version::parse(&current_version)?;
+fn check_for_updates() -> Result<()> {
+  if std::env::var_os("TAURI_SKIP_UPDATE_CHECK") != Some("true".into()) {
+    let current_version = crate::info::cli_current_version()?;
+    let current = semver::Version::parse(&current_version)?;
 
-  let upstream_version = crate::info::cli_upstream_version()?;
-  let upstream = semver::Version::parse(&upstream_version)?;
-  if upstream.gt(&current) {
-    let message = format!(
-      "🚀 A new version of Tauri CLI is avaliable! [{}]",
-      upstream.to_string()
-    );
-    return Ok((message, true));
+    let upstream_version = crate::info::cli_upstream_version()?;
+    let upstream = semver::Version::parse(&upstream_version)?;
+    if current < upstream {
+      println!(
+        "🚀 A new version of Tauri CLI is avaliable! [{}]",
+        upstream.to_string()
+      );
+    };
   }
-  Ok(("🎉 Tauri CLI is up-to-date!".into(), false))
+  Ok(())
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
@@ -530,6 +520,8 @@ fn start_app(
     if exit_on_panic {
       if !manually_killed_app.load(Ordering::Relaxed) {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(status.code().unwrap_or(0));
       }
     } else {
@@ -547,6 +539,8 @@ fn start_app(
       //    - and error is not a cargo compilation error (using stderr heuristics)
       if status.success() || (status.code() == Some(101) && !is_cargo_compile_error) {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(status.code().unwrap_or(1));
       }
     }

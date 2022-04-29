@@ -99,6 +99,7 @@ pub(crate) fn cli_upstream_version() -> Result<String> {
   let upstream_metadata = match ureq::get(
     "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",
   )
+  .timeout(std::time::Duration::from_secs(10))
   .call()
   {
     Ok(r) => r,

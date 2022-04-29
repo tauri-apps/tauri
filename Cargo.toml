@@ -10,7 +10,8 @@ members = [
   "core/tauri-codegen",
   
   # integration tests
-  "core/tests/restart"
+  "core/tests/restart",
+  "core/tests/app-updater"
 ]
 
 exclude = [

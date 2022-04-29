@@ -23,7 +23,7 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
-  io::BufReader,
+  io::{BufReader, Write},
   path::{Path, PathBuf},
   process::{exit, Command},
   sync::{
@@ -320,7 +320,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      use std::io::Write;
       let _ = file.write_all(TAURI_DEV_WATCHER_GITIGNORE);
     }
   }
@@ -422,7 +421,7 @@ fn kill_before_dev_process() {
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::{io::Write, os::unix::fs::PermissionsExt};
+          use std::os::unix::fs::PermissionsExt;
           let _ = file.write_all(KILL_CHILDREN_SCRIPT);
           let mut permissions = file.metadata().unwrap().permissions();
           permissions.set_mode(0o770);
@@ -506,19 +505,18 @@ fn start_app(
   std::thread::spawn(move || {
     let mut buf = Vec::new();
     let mut lines = stderr_lines_.lock().unwrap();
+    let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
       match tauri_utils::io::read_line(&mut stderr, &mut buf) {
         Ok(s) if s == 0 => break,
         _ => (),
       }
-      let line = String::from_utf8_lossy(&buf).into_owned();
-      if line.ends_with('\r') {
-        eprint!("{}", line);
-      } else {
-        eprintln!("{}", line);
+      let _ = io_stderr.write_all(&buf);
+      if !buf.ends_with(&[b'\r']) {
+        let _ = io_stderr.write_all(b"\n");
       }
-      lines.push(line);
+      lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });
 

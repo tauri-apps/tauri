@@ -3389,7 +3389,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.7"
+version = "1.0.0-rc.8"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3446,7 +3446,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.6"
+version = "1.0.0-rc.7"
 dependencies = [
  "anyhow",
  "cargo_toml",

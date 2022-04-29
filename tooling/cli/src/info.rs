@@ -524,7 +524,7 @@ impl VersionBlock {
         self.version.clone()
       }
     );
-    if !self.version.is_empty() && !self.target_version.is_empty() {
+    if !(self.version.is_empty() || self.target_version.is_empty()) {
       let version = semver::Version::parse(self.version.as_str()).unwrap();
       let target_version = semver::Version::parse(self.target_version.as_str()).unwrap();
       if version < target_version {

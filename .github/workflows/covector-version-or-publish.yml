@@ -93,7 +93,7 @@ jobs:
           args: --manifest-path ./tooling/cli/Cargo.toml
 
       - name: run integration tests
-        run: cargo test -- --ignored
+        run: cargo test --test '*' -- --ignored
 
   version-or-publish:
     runs-on: ubuntu-latest

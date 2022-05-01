@@ -1103,7 +1103,7 @@ pub struct ShellAllowedCommand {
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
   /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
-  #[serde(rename = "cmd")]
+  #[serde(rename = "cmd", default)] // use default just so the schema doesn't flag it as required
   pub command: PathBuf,
 
   /// The allowed arguments for the command execution.

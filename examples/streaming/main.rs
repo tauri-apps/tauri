@@ -47,6 +47,9 @@ fn main() {
       let path = request.uri().replace("stream://localhost/", "");
       #[cfg(not(target_os = "windows"))]
       let path = request.uri().replace("stream://", "");
+      let path = percent_encoding::percent_decode(path.as_bytes())
+        .decode_utf8_lossy()
+        .to_string();
 
       if path != "example/test_video.mp4" {
         // return error 404 if it's not out video

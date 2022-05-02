@@ -13,7 +13,8 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.15", default-features = false, features = [ "file-drop", "protocol" ] }
+# wry = { version = "0.15", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { git = "https://github.com/tauri-apps/wry", branch = "fix/WebviewExtMacOS", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.4.0", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.5", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
@@ -29,6 +30,9 @@ webview2-com = "0.13.0"
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
+
+[target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
+cocoa = "0.24"
 
 [features]
 dox = [ "wry/dox" ]

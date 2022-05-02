@@ -2127,6 +2127,15 @@ fn handle_user_message<T: UserEvent>(
                 use wry::webview::WebviewExtUnix;
                 f(w.webview());
               }
+              #[cfg(target_os = "macos")]
+              {
+                use wry::webview::WebviewExtMacOS;
+                f(Webview {
+                  webview: w.webview(),
+                  manager: w.manager(),
+                  ns_window: w.ns_window(),
+                });
+              }
             }
           }
 

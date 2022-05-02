@@ -205,7 +205,9 @@ fn set_default_path(
 ) -> FileDialogBuilder {
   if default_path.is_file() || !default_path.exists() {
     if let (Some(parent), Some(file_name)) = (default_path.parent(), default_path.file_name()) {
-      dialog_builder = dialog_builder.set_directory(parent);
+      if parent.components().count() > 0 {
+        dialog_builder = dialog_builder.set_directory(parent);
+      }
       dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy().to_string());
     } else {
       dialog_builder = dialog_builder.set_directory(default_path);

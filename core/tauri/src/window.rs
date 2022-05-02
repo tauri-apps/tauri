@@ -543,6 +543,18 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   }
 }
 
+#[cfg(feature = "wry")]
+impl Window<crate::Wry> {
+  /// Executes the closure with the platform's webview handle.
+  #[cfg_attr(doc_cfg, doc(cfg(eature = "wry")))]
+  pub fn with_webview<F: FnOnce(tauri_runtime_wry::Webview) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self.window.dispatcher.with_webview(f).map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
   pub(crate) fn new(
@@ -976,15 +988,6 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.hwnd().map_err(Into::into)
   }
 
-  /// Returns the current window theme.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **macOS / Linux**: Not implemented, always return [`Theme::Light`].
-  pub fn theme(&self) -> crate::Result<Theme> {
-    self.window.dispatcher.theme().map_err(Into::into)
-  }
-
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   ///
   /// Note that this can only be used on the main thread.
@@ -997,6 +1000,15 @@ impl<R: Runtime> Window<R> {
   ))]
   pub fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow> {
     self.window.dispatcher.gtk_window().map_err(Into::into)
+  }
+
+  /// Returns the current window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not implemented, always return [`Theme::Light`].
+  pub fn theme(&self) -> crate::Result<Theme> {
+    self.window.dispatcher.theme().map_err(Into::into)
   }
 
   // Setters

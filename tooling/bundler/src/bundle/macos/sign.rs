@@ -284,6 +284,7 @@ pub fn notarize(
     notarize_args.push(provider_short_name);
   }
 
+  println!("is verbose {}", settings.is_verbose());
   common::print_info("notarizing app")?;
   let output = Command::new("xcrun")
     .args(notarize_args)

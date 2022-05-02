@@ -588,7 +588,7 @@ impl Settings {
 
   /// Returns true if verbose logging is enabled
   pub fn is_verbose(&self) -> bool {
-    self.is_verbose
+    true
   }
 
   /// Returns the product name.

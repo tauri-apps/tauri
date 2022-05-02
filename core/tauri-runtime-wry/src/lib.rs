@@ -2136,6 +2136,13 @@ fn handle_user_message<T: UserEvent>(
                   ns_window: w.ns_window(),
                 });
               }
+
+              #[cfg(windows)]
+              {
+                f(Webview {
+                  controller: w.controller(),
+                });
+              }
             }
           }
 

@@ -322,11 +322,7 @@ impl BundleBinary {
   /// Creates a new bundle binary.
   pub fn new(name: String, main: bool) -> Self {
     Self {
-      name: if cfg!(windows) {
-        format!("{}.exe", name)
-      } else {
-        name
-      },
+      name,
       src_path: None,
       main,
     }

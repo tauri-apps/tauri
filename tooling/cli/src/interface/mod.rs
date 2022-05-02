@@ -23,7 +23,7 @@ pub fn get_bundler_settings(
   let mut settings_builder = SettingsBuilder::new()
     .package_settings(app_settings.get_package_settings())
     .bundle_settings(app_settings.get_bundle_settings(config, manifest, features)?)
-    .binaries(app_settings.get_binaries(config)?)
+    .binaries(app_settings.get_binaries(config, target.clone())?)
     .project_out_directory(out_dir);
 
   if verbose {

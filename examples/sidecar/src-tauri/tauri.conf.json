@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": ["../index.html"],
     "devPath": ["../index.html"],

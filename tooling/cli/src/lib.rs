@@ -17,6 +17,8 @@ use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
 
 use std::ffi::OsString;
 
+const TARGET: Option<&str> = option_env!("TARGET");
+
 pub(crate) trait CommandExt {
   fn pipe(&mut self) -> Result<&mut Self>;
 }

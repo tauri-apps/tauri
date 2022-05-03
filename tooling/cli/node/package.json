@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "2.7.0",
+    "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.1.0",
     "jest": "28.0.3",
@@ -52,9 +53,10 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build:release": "napi build --platform --release",
-    "build": "napi build --platform",
+    "build:release": "cross-env TARGET=node napi build --platform --release",
+    "build": "cross-env TARGET=node napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
+    "prepack": "cp ../schema.json .",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",
     "tauri": "node ./tauri.js",

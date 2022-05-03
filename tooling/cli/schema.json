@@ -4,6 +4,13 @@
   "description": "The config type mapped to `tauri.conf.json`.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "description": "The JSON schema for the Tauri config.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "build": {
       "description": "The build configuration.",
       "default": {

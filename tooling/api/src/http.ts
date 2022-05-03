@@ -51,8 +51,8 @@ interface Duration {
 }
 
 interface ClientOptions {
-  maxRedirections: number
-  connectTimeout: number | Duration
+  maxRedirections?: number
+  connectTimeout?: number | Duration
 }
 
 enum ResponseType {

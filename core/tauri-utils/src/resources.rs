@@ -29,7 +29,11 @@ pub fn external_binaries(external_binaries: &[String], target_triple: &str) -> V
       "{}-{}{}",
       curr_path,
       target_triple,
-      if target_triple.contains("windows") { ".exe" } else { "" }
+      if target_triple.contains("windows") {
+        ".exe"
+      } else {
+        ""
+      }
     ));
   }
   paths

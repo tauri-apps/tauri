@@ -169,10 +169,19 @@ pub fn command(options: Options) -> Result<()> {
     .clone()
     .expect("Cargo manifest must have the `package.name` field");
 
-  let target: String = if options.target.is_some() { options.target.clone().unwrap().into() } else { "".into() };
-  let binary_suffix: String = if target.contains("windows") { ".exe" } else { "" }.into();
+  let target: String = if let Some(target) = options.target.clone() {
+    target
+  } else {
+    tauri_utils::platform::target_triple()?
+  };
+  let binary_extension: String = if target.contains("windows") {
+    ".exe"
+  } else {
+    ""
+  }
+  .into();
 
-  let bin_path = out_dir.join(format!("{}{}", &bin_name, &binary_suffix));
+  let bin_path = out_dir.join(&bin_name).with_extension(&binary_extension);
 
   let no_default_features = args.contains(&"--no-default-features".into());
 
@@ -215,7 +224,9 @@ pub fn command(options: Options) -> Result<()> {
     #[cfg(target_os = "linux")]
     let product_name = product_name.to_kebab_case();
 
-    let product_path = out_dir.join(format!("{}{}", product_name, binary_suffix));
+    let product_path = out_dir
+      .join(&product_name)
+      .with_extension(&binary_extension);
 
     rename(&bin_path, &product_path).with_context(|| {
       format!(
@@ -314,7 +325,7 @@ pub fn command(options: Options) -> Result<()> {
     }
     let settings = crate::interface::get_bundler_settings(
       app_settings,
-      options.target.clone(),
+      target,
       &enabled_features,
       &manifest,
       config_,

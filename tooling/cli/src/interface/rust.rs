@@ -198,11 +198,15 @@ impl AppSettings {
     self.package_settings.clone()
   }
 
-  pub fn get_binaries(&self, config: &Config, target: Option<String>) -> crate::Result<Vec<BundleBinary>> {
+  pub fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
 
-    let target = target.unwrap_or(String::from(""));
-    let binary_suffix: String = if target.contains("windows") { ".exe" } else { "" }.into();
+    let binary_extension: String = if target.contains("windows") {
+      ".exe"
+    } else {
+      ""
+    }
+    .into();
 
     if let Some(bin) = &self.cargo_settings.bin {
       let default_run = self
@@ -216,19 +220,20 @@ impl AppSettings {
             || binary.name.as_str() == default_run
           {
             BundleBinary::new(
-              format!("{}{}",
+              format!(
+                "{}{}",
                 config
                   .package
                   .binary_name()
                   .unwrap_or_else(|| binary.name.clone()),
-                &binary_suffix
+                &binary_extension
               ),
               true,
             )
           } else {
             BundleBinary::new(
-              format!("{}{}", binary.name.clone(), &binary_suffix),
-              false
+              format!("{}{}", binary.name.clone(), &binary_extension),
+              false,
             )
           }
           .set_src_path(binary.path.clone()),
@@ -247,8 +252,8 @@ impl AppSettings {
           });
           if !bin_exists {
             binaries.push(BundleBinary::new(
-              format!("{}{}", name.to_string_lossy().to_string(), &binary_suffix),
-              false
+              format!("{}{}", name.to_string_lossy(), &binary_extension),
+              false,
             ))
           }
         }
@@ -264,12 +269,13 @@ impl AppSettings {
         }
         None => {
           binaries.push(BundleBinary::new(
-            format!("{}{}",
+            format!(
+              "{}{}",
               config
                 .package
                 .binary_name()
                 .unwrap_or_else(|| default_run.to_string()),
-              &binary_suffix
+              &binary_extension
             ),
             true,
           ));
@@ -282,7 +288,11 @@ impl AppSettings {
         #[cfg(target_os = "linux")]
         self.package_settings.product_name.to_kebab_case(),
         #[cfg(not(target_os = "linux"))]
-        format!("{}{}", self.package_settings.product_name.clone(), &binary_suffix),
+        format!(
+          "{}{}",
+          self.package_settings.product_name.clone(),
+          &binary_suffix
+        ),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),

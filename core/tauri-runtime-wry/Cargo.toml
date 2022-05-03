@@ -18,7 +18,6 @@ tauri-runtime = { version = "0.4.0", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.5", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
-percent-encoding = "2.1"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.13.0"
@@ -29,6 +28,7 @@ webview2-com = "0.13.0"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
+percent-encoding = "2.1"
 
 [features]
 dox = [ "wry/dox" ]

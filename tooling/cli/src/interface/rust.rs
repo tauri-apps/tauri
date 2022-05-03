@@ -291,7 +291,7 @@ impl AppSettings {
         format!(
           "{}{}",
           self.package_settings.product_name.clone(),
-          &binary_suffix
+          &binary_extension
         ),
         true,
       )),

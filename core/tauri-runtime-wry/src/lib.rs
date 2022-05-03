@@ -923,11 +923,22 @@ impl WindowBuilder for WindowBuilderWrapper {
 
 pub struct FileDropEventWrapper(WryFileDropEvent);
 
+fn percent_decode_path(path: PathBuf) -> PathBuf {
+  percent_encoding::percent_decode(path.display().to_string().as_bytes())
+    .decode_utf8_lossy()
+    .into_owned()
+    .into()
+}
+
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
-      WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
+      WryFileDropEvent::Hovered(paths) => {
+        FileDropEvent::Hovered(paths.into_iter().map(percent_decode_path).collect())
+      }
+      WryFileDropEvent::Dropped(paths) => {
+        FileDropEvent::Dropped(paths.into_iter().map(percent_decode_path).collect())
+      }
       // default to cancelled
       // FIXME(maybe): Add `FileDropEvent::Unknown` event?
       _ => FileDropEvent::Cancelled,

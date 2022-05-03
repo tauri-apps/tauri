@@ -927,11 +927,42 @@ impl WindowBuilder for WindowBuilderWrapper {
 
 pub struct FileDropEventWrapper(WryFileDropEvent);
 
+// on Linux, the paths are percent-encoded
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn decode_path(path: PathBuf) -> PathBuf {
+  percent_encoding::percent_decode(path.display().to_string().as_bytes())
+    .decode_utf8_lossy()
+    .into_owned()
+    .into()
+}
+
+// on Windows and macOS, we do not need to decode the path
+#[cfg(not(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+)))]
+fn decode_path(path: PathBuf) -> PathBuf {
+  path
+}
+
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
-      WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
+      WryFileDropEvent::Hovered(paths) => {
+        FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
+      }
+      WryFileDropEvent::Dropped(paths) => {
+        FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
+      }
       // default to cancelled
       // FIXME(maybe): Add `FileDropEvent::Unknown` event?
       _ => FileDropEvent::Cancelled,

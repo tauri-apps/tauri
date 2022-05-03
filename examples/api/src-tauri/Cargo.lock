@@ -3510,6 +3510,7 @@ name = "tauri-runtime-wry"
 version = "0.4.0"
 dependencies = [
  "gtk",
+ "percent-encoding",
  "rand 0.8.5",
  "tauri-runtime",
  "tauri-utils",
@@ -4424,9 +4425,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f3d0f8b0ab2ab364d3caf29ce6a8101841e42196ad634f9222c4ebed91dd250"
+checksum = "20b69cff9f50bab10b42e51bac9c2cf695484059f1b19e911754477ae703ef42"
 dependencies = [
  "block",
  "cocoa",

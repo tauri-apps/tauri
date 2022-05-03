@@ -26,6 +26,7 @@ serde_json = "1"
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"
+semver = "1"
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]

@@ -11,8 +11,8 @@ use std::{
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::assets::AssetKey;
 use tauri_utils::config::PatternKind;
+use tauri_utils::{assets::AssetKey, config::DisabledCspModificationKind};
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
@@ -123,9 +123,9 @@ impl RawEmbeddedAssets {
 
           // compress all files encountered
           Ok(entry) => {
-            if options.dangerous_disable_asset_csp_modification {
-              Some(Ok((prefix, entry)))
-            } else if let Err(error) = csp_hashes.add_if_applicable(&entry) {
+            if let Err(error) = csp_hashes
+              .add_if_applicable(&entry, &options.dangerous_disable_asset_csp_modification)
+            {
               Some(Err(error))
             } else {
               Some(Ok((prefix, entry)))
@@ -160,22 +160,28 @@ impl CspHashes {
   ///
   /// Note: this only checks the file extension, much like how a browser will assume a .js file is
   /// a JavaScript file unless HTTP headers tell it otherwise.
-  pub fn add_if_applicable(&mut self, entry: &DirEntry) -> Result<(), EmbeddedAssetsError> {
+  pub fn add_if_applicable(
+    &mut self,
+    entry: &DirEntry,
+    dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
+  ) -> Result<(), EmbeddedAssetsError> {
     let path = entry.path();
 
     // we only hash JavaScript files for now, may expand to other CSP hashable types in the future
     if let Some("js") | Some("mjs") = path.extension().and_then(|os| os.to_str()) {
-      let mut hasher = Sha256::new();
-      hasher.update(
-        &std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
-          path: path.to_path_buf(),
-          error,
-        })?,
-      );
-      let hash = hasher.finalize();
-      self
-        .scripts
-        .push(format!("'sha256-{}'", base64::encode(hash)))
+      if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+        let mut hasher = Sha256::new();
+        hasher.update(
+          &std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+            path: path.to_path_buf(),
+            error,
+          })?,
+        );
+        let hash = hasher.finalize();
+        self
+          .scripts
+          .push(format!("'sha256-{}'", base64::encode(hash)));
+      }
     }
 
     Ok(())
@@ -188,7 +194,7 @@ pub struct AssetOptions {
   pub(crate) csp: bool,
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
-  pub(crate) dangerous_disable_asset_csp_modification: bool,
+  pub(crate) dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
   #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
@@ -200,7 +206,7 @@ impl AssetOptions {
       csp: false,
       pattern,
       freeze_prototype: false,
-      dangerous_disable_asset_csp_modification: false,
+      dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
       #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
@@ -223,7 +229,7 @@ impl AssetOptions {
   /// Instruct the asset handler to **NOT** modify the CSP. This is **NOT** recommended.
   pub fn dangerous_disable_asset_csp_modification(
     mut self,
-    dangerous_disable_asset_csp_modification: bool,
+    dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
   ) -> Self {
     self.dangerous_disable_asset_csp_modification = dangerous_disable_asset_csp_modification;
     self

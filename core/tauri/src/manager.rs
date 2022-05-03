@@ -79,7 +79,7 @@ fn set_csp<R: Runtime>(
   asset: &mut String,
   assets: Arc<dyn Assets>,
   asset_path: &AssetKey,
-  #[allow(unused_variables)] manager: &WindowManager<R>,
+  manager: &WindowManager<R>,
   csp: Csp,
 ) -> String {
   let mut csp = csp.into();
@@ -103,21 +103,30 @@ fn set_csp<R: Runtime>(
         acc
       });
 
-  replace_csp_nonce(
-    asset,
-    SCRIPT_NONCE_TOKEN,
-    &mut csp,
-    "script-src",
-    hash_strings.script,
-  );
+  let dangerous_disable_asset_csp_modification = &manager
+    .config()
+    .tauri
+    .security
+    .dangerous_disable_asset_csp_modification;
+  if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+    replace_csp_nonce(
+      asset,
+      SCRIPT_NONCE_TOKEN,
+      &mut csp,
+      "script-src",
+      hash_strings.script,
+    );
+  }
 
-  replace_csp_nonce(
-    asset,
-    STYLE_NONCE_TOKEN,
-    &mut csp,
-    "style-src",
-    hash_strings.style,
-  );
+  if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+    replace_csp_nonce(
+      asset,
+      STYLE_NONCE_TOKEN,
+      &mut csp,
+      "style-src",
+      hash_strings.style,
+    );
+  }
 
   #[cfg(feature = "isolation")]
   if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {

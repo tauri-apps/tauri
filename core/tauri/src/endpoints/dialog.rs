@@ -95,6 +95,9 @@ impl Cmd {
     {
       dialog_builder = dialog_builder.set_parent(&context.window);
     }
+    if let Some(title) = options.title {
+      dialog_builder = dialog_builder.set_title(&title);
+    }
     if let Some(default_path) = options.default_path {
       dialog_builder = set_default_path(dialog_builder, default_path);
     }
@@ -142,6 +145,9 @@ impl Cmd {
     #[cfg(any(windows, target_os = "macos"))]
     {
       dialog_builder = dialog_builder.set_parent(&context.window);
+    }
+    if let Some(title) = options.title {
+      dialog_builder = dialog_builder.set_title(&title);
     }
     if let Some(default_path) = options.default_path {
       dialog_builder = set_default_path(dialog_builder, default_path);

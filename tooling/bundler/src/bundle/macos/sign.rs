@@ -142,16 +142,13 @@ pub fn setup_keychain(
     return Err(anyhow::anyhow!("failed to set keychain settings",).into());
   }
 
-  // this command just "primes" the keychain, because the `codesign` command will fail if we don't run either `security default-keychain` or this command first.
-  // Don't ask me why ¯\_(ツ)_/¯.
-  // tracking issue: tauri-apps/tauri#4051
-  let set_default_keychain = Command::new("security")
+  let set_keychain_list_entry = Command::new("security")
     .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .status()?;
 
-  if !set_default_keychain.success() {
+  if !set_keychain_list_entry.success() {
     return Err(anyhow::anyhow!("failed to list keychain",).into());
   }
 
@@ -169,7 +166,6 @@ pub fn delete_keychain() {
 
   let _result = Command::new("security")
     .args([
-      "security",
       "list-keychain",
       "-d",
       "user",

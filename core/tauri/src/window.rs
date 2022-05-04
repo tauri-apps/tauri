@@ -568,17 +568,17 @@ impl PlatformWebview {
       target_os = "openbsd"
     )))
   )]
-  pub fn inner(self) -> std::rc::Rc<webkit2gtk::WebView> {
-    self.0
+  pub fn inner(&self) -> std::rc::Rc<webkit2gtk::WebView> {
+    self.0.clone()
   }
 
   /// Returns the WebView2 controller.
   #[cfg(windows)]
   #[cfg_attr(doc_cfg, doc(cfg(windows)))]
   pub fn controller(
-    self,
+    &self,
   ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller {
-    self.0.controller
+    self.0.controller.clone()
   }
 
   /// Returns the [WKWebView] handle.
@@ -586,7 +586,7 @@ impl PlatformWebview {
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  pub fn inner(self) -> cocoa::base::id {
+  pub fn inner(&self) -> cocoa::base::id {
     self.0.webview.clone()
   }
 
@@ -595,7 +595,7 @@ impl PlatformWebview {
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  pub fn controller(self) -> cocoa::base::id {
+  pub fn controller(&self) -> cocoa::base::id {
     self.0.manager.clone()
   }
 
@@ -604,7 +604,7 @@ impl PlatformWebview {
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
-  pub fn ns_window(self) -> cocoa::base::id {
+  pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window.clone()
   }
 }
@@ -620,36 +620,37 @@ impl Window<crate::Wry> {
   /// #[macro_use]
   /// extern crate objc;
   /// use tauri::Manager;
-  /// tauri::Builder::default()
-  ///   .setup(|app| {
-  ///     let main_window = app.get_window("main").unwrap();
-  ///     main_window.with_webview(|webview| {
-  ///       #[cfg(target_os = "linux")]
-  ///       {
-  ///         // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
-  ///         // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
-  ///         use webkit2gtk::traits::WebViewExt;
-  ///         webview.inner().set_zoom_level(4.);
-  ///       }
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let main_window = app.get_window("main").unwrap();
+  ///       main_window.with_webview(|webview| {
+  ///         #[cfg(target_os = "linux")]
+  ///         {
+  ///           // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::traits::WebViewExt;
+  ///           webview.inner().set_zoom_level(4.);
+  ///         }
   ///   
-  ///       #[cfg(windows)]
-  ///       {
+  ///         #[cfg(windows)]
   ///         unsafe {
   ///           // see https://docs.rs/webview2-com/latest/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
-  ///       }
   ///
-  ///       #[cfg(target_os = "macos")]
-  ///       {
-  ///         let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///         let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///         let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///         let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
-  ///       }
-  ///     });
-  ///     Ok(())
+  ///         #[cfg(target_os = "macos")]
+  ///         unsafe {
+  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
+  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
+  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
+  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+  ///         }
+  ///       });
+  ///       Ok(())
   ///   });
+  /// }
   /// ```
   #[cfg_attr(doc_cfg, doc(cfg(eature = "wry")))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(

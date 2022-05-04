@@ -70,6 +70,11 @@ pub fn command(options: Options) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  if config_.tauri.bundle.identifier == "com.tauri.dev" {
+    logger.error("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    std::process::exit(1);
+  }
+
   if let Some(before_build) = &config_.build.before_build_command {
     if !before_build.is_empty() {
       logger.log(format!("Running `{}`", before_build));

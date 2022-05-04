@@ -21,7 +21,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.tauri.isolation",
+      "identifier": "com.tauri.dev",
       "icon": [
         "../.icons/32x32.png",
         "../.icons/128x128.png",

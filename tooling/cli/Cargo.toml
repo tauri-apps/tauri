@@ -64,6 +64,8 @@ url = { version = "2.2", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.2"
+log = { version = "0.4.17", features = ["kv_unstable", "kv_unstable_std"]}
+env_logger = "0.9.0"
 
 [target."cfg(windows)".dependencies]
 encode_unicode = "0.3"

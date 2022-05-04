@@ -13,6 +13,7 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use log::warn;
 use serde::Deserialize;
 
 use crate::{
@@ -20,7 +21,6 @@ use crate::{
     app_paths::tauri_dir,
     config::{wix_settings, Config},
     manifest::Manifest,
-    Logger,
   },
   CommandExt,
 };
@@ -333,7 +333,6 @@ fn get_target_dir(
 pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   let mut dir = current_dir.to_path_buf();
   let project_path = dir.clone();
-  let logger = Logger::new("tauri:rust");
 
   while dir.pop() {
     if dir.join("Cargo.toml").exists() {
@@ -352,13 +351,13 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
           }
         }
         Err(e) => {
-          logger.warn(format!(
+          warn!(
               "Found `{}`, which may define a parent workspace, but \
             failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
             \n    {:#}",
               dir.display(),
               e
-            ));
+            );
         }
       }
     }

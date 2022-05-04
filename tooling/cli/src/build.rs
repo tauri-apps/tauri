@@ -8,13 +8,13 @@ use crate::helpers::{
   config::{get as get_config, AppUrl, WindowUrl},
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
-  Logger,
 };
 use crate::{CommandExt, Result};
 use anyhow::Context;
 use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use log::info;
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
@@ -49,7 +49,6 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let logger = Logger::new("tauri:build");
   let merge_config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
@@ -72,7 +71,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if let Some(before_build) = &config_.build.before_build_command {
     if !before_build.is_empty() {
-      logger.log(format!("Running `{}`", before_build));
+      info!(action = "Running"; "BeforeBuildCommand (`{}`)", before_build);
       #[cfg(target_os = "windows")]
       let status = Command::new("cmd")
         .arg("/S")
@@ -359,10 +358,9 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     "updater archives"
   };
   let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  let logger = Logger::new("Signed");
-  logger.log(&msg);
+  info!("{}", msg);
   for path in output_paths {
-    println!("        {}", path.display());
+    info!("        {}", path.display());
   }
   Ok(())
 }

@@ -848,8 +848,6 @@ async fn prompt_for_install<R: Runtime>(
   body: &str,
   pubkey: String,
 ) -> Result<()> {
-  // remove single & double quote
-  let escaped_body = body.replace(&['\"', '\''][..], "");
   let windows = update.app.windows();
   let parent_window = windows.values().next();
 
@@ -865,7 +863,7 @@ Would you like to install it now?
 
 Release Notes:
 {}"#,
-      app_name, update.version, update.current_version, escaped_body,
+      app_name, update.version, update.current_version, body,
     ),
   );
 

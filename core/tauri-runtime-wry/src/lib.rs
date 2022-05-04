@@ -139,6 +139,10 @@ impl WebviewIdStore {
   fn get(&self, w: &WindowId) -> WebviewId {
     *self.0.lock().unwrap().get(w).unwrap()
   }
+
+  fn try_get(&self, w: &WindowId) -> Option<WebviewId> {
+    self.0.lock().unwrap().get(w).copied()
+  }
 }
 
 #[macro_export]
@@ -926,11 +930,42 @@ impl WindowBuilder for WindowBuilderWrapper {
 
 pub struct FileDropEventWrapper(WryFileDropEvent);
 
+// on Linux, the paths are percent-encoded
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
+fn decode_path(path: PathBuf) -> PathBuf {
+  percent_encoding::percent_decode(path.display().to_string().as_bytes())
+    .decode_utf8_lossy()
+    .into_owned()
+    .into()
+}
+
+// on Windows and macOS, we do not need to decode the path
+#[cfg(not(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+)))]
+fn decode_path(path: PathBuf) -> PathBuf {
+  path
+}
+
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered(paths) => FileDropEvent::Hovered(paths),
-      WryFileDropEvent::Dropped(paths) => FileDropEvent::Dropped(paths),
+      WryFileDropEvent::Hovered(paths) => {
+        FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
+      }
+      WryFileDropEvent::Dropped(paths) => {
+        FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
+      }
       // default to cancelled
       // FIXME(maybe): Add `FileDropEvent::Unknown` event?
       _ => FileDropEvent::Cancelled,
@@ -2505,6 +2540,8 @@ fn handle_event_loop<T: UserEvent>(
       #[allow(unused_mut)]
       let mut window_id = window_id.unwrap(); // always Some on MenuBar event
 
+      println!("got {:?}", window_id);
+
       #[cfg(target_os = "macos")]
       {
         // safety: we're only checking to see if the window_id is 0
@@ -2518,7 +2555,12 @@ fn handle_event_loop<T: UserEvent>(
         menu_item_id: menu_id.0,
       };
       let window_menu_event_listeners = {
-        let window_id = webview_id_map.get(&window_id);
+        // on macOS the window id might be the inspector window if it is detached
+        let window_id = if let Some(window_id) = webview_id_map.try_get(&window_id) {
+          window_id
+        } else {
+          *webview_id_map.0.lock().unwrap().values().next().unwrap()
+        };
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };

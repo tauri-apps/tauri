@@ -39,6 +39,10 @@ describe('[CLI] cli.js template', () => {
     const manifestFile = readFileSync(manifestPath).toString()
     writeFileSync(manifestPath, `workspace = { }\n${manifestFile}`)
 
+    const configPath = resolve(tauriFixturePath, 'tauri.conf.json')
+    const config = readFileSync(configPath).toString()
+    writeFileSync(configPath, config.replace('com.tauri.dev', 'com.tauri.test'))
+
     await cli.run(['build', '--verbose']).catch(err => {
       console.error(err)
       throw err

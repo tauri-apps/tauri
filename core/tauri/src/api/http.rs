@@ -48,7 +48,7 @@ pub struct ClientBuilder {
   /// Max number of redirections to follow.
   pub max_redirections: Option<usize>,
   /// Connect timeout for the request.
-  #[serde(deserialize_with = "deserialize_duration")]
+  #[serde(deserialize_with = "deserialize_duration", default)]
   pub connect_timeout: Option<Duration>,
 }
 
@@ -469,7 +469,7 @@ pub struct HttpRequestBuilder {
   /// The request body
   pub body: Option<Body>,
   /// Timeout for the whole request
-  #[serde(deserialize_with = "deserialize_duration")]
+  #[serde(deserialize_with = "deserialize_duration", default)]
   pub timeout: Option<Duration>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,

@@ -25,8 +25,12 @@
                  InstallScope="perMachine"
                  SummaryCodepage="!(loc.TauriCodepage)"/>
 
+        <!-- https://docs.microsoft.com/en-us/windows/win32/msi/reinstallmode -->
+        <!-- force all files to be reinstalled; rewrite all registry entries; reinstall all shortcuts -->
+        <Property Id="REINSTALLMODE" Value="amus" />
+
         {{#if allow_downgrades}}
-            <MajorUpgrade AllowDowngrades="yes" />
+            <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallInitialize" />
         {{else}}
             <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}

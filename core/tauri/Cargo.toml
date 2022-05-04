@@ -97,9 +97,15 @@ ico = { version = "0.1", optional = true }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
+webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
+cocoa = "0.24"
+objc = "0.2"
+
+[target."cfg(windows)".dependencies]
+webview2-com = "0.13.0"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.30.0"

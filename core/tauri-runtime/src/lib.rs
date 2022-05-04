@@ -473,9 +473,6 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   #[cfg(windows)]
   fn hwnd(&self) -> Result<HWND>;
 
-  /// Returns the current window theme.
-  fn theme(&self) -> Result<Theme>;
-
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
@@ -489,6 +486,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+
+  /// Returns the current window theme.
+  fn theme(&self) -> Result<Theme>;
 
   // SETTERS
 

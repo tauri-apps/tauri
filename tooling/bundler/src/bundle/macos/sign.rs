@@ -12,6 +12,9 @@ use std::{
 use crate::{bundle::common, Settings};
 use regex::Regex;
 
+const KEYCHAIN_ID: &str = "tauri-build.keychain";
+const KEYCHAIN_PWD: &str = "tauri-build";
+
 // Import certificate from ENV variables.
 // APPLE_CERTIFICATE is the p12 certificate base64 encoded.
 // By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
@@ -28,8 +31,6 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       delete_keychain_if_needed();
       common::print_info("setup keychain from environment variables...")?;
 
-      let key_chain_id = "tauri-build.keychain";
-      let key_chain_name = "tauri-build";
       let tmp_dir = tempfile::tempdir()?;
       let cert_path = tmp_dir
         .path()
@@ -58,7 +59,7 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       tmp_cert.write_all(certificate_encoded)?;
 
       let decode_certificate = Command::new("base64")
-        .args(vec!["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
+        .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
         .stderr(Stdio::piped())
         .status()?;
 
@@ -67,7 +68,7 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       }
 
       let create_key_chain = Command::new("security")
-        .args(vec!["create-keychain", "-p", key_chain_name, key_chain_id])
+        .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
@@ -76,18 +77,8 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
         return Err(anyhow::anyhow!("failed to create keychain",).into());
       }
 
-      let set_default_keychain = Command::new("security")
-        .args(vec!["default-keychain", "-s", key_chain_id])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !set_default_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set default keychain",).into());
-      }
-
       let unlock_keychain = Command::new("security")
-        .args(vec!["unlock-keychain", "-p", key_chain_name, key_chain_id])
+        .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
@@ -97,18 +88,20 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       }
 
       let import_certificate = Command::new("security")
-        .arg("import")
-        .arg(cert_path)
-        .arg("-k")
-        .arg(key_chain_id)
-        .arg("-P")
-        .arg(certificate_password)
-        .arg("-T")
-        .arg("/usr/bin/codesign")
-        .arg("-T")
-        .arg("/usr/bin/pkgbuild")
-        .arg("-T")
-        .arg("/usr/bin/productbuild")
+        .args([
+          "import",
+          &cert_path,
+          "-k",
+          KEYCHAIN_ID,
+          "-P",
+          &certificate_password,
+          "-T",
+          "/usr/bin/codesign",
+          "-T",
+          "/usr/bin/pkgbuild",
+          "-T",
+          "/usr/bin/productbuild",
+        ])
         .stderr(Stdio::inherit())
         .output()?;
 
@@ -123,13 +116,7 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       }
 
       let settings_keychain = Command::new("security")
-        .args(vec![
-          "set-keychain-settings",
-          "-t",
-          "3600",
-          "-u",
-          key_chain_id,
-        ])
+        .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .status()?;
@@ -139,14 +126,14 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       }
 
       let partition_list = Command::new("security")
-        .args(vec![
+        .args([
           "set-key-partition-list",
           "-S",
           "apple-tool:,apple:,codesign:",
           "-s",
           "-k",
-          key_chain_name,
-          key_chain_id,
+          KEYCHAIN_PWD,
+          KEYCHAIN_ID,
         ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -154,6 +141,19 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
 
       if !partition_list.success() {
         return Err(anyhow::anyhow!("failed to set keychain settings",).into());
+      }
+
+      // this command just "primes" the keychain, because the `codesign` command will fail if we don't run either `security default-keychain` or this command first. 
+      // Don't ask me why ¯\_(ツ)_/¯.
+      // tracking issue: tauri-apps/tauri#4051
+      let set_default_keychain = Command::new("security")
+        .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .status()?;
+
+      if !set_default_keychain.success() {
+        return Err(anyhow::anyhow!("failed to list keychain",).into());
       }
 
       Ok(())
@@ -168,11 +168,10 @@ pub fn delete_keychain_if_needed() {
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    let key_chain_id = "tauri-build.keychain";
     // delete keychain if needed and skip any error
     let _result = Command::new("security")
       .arg("delete-keychain")
-      .arg(key_chain_id)
+      .arg(KEYCHAIN_ID)
       .stdout(Stdio::piped())
       .stderr(Stdio::piped())
       .status();
@@ -186,7 +185,7 @@ pub fn sign(
   is_an_executable: bool,
 ) -> crate::Result<()> {
   common::print_info(format!(r#"signing with identity "{}""#, identity).as_str())?;
-  let mut args = vec!["--force", "-s", identity];
+  let mut args = vec!["--force", "-s", identity, "--keychain", KEYCHAIN_ID];
   if let Some(entitlements_path) = &settings.macos().entitlements {
     common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;
     args.push("--entitlements");

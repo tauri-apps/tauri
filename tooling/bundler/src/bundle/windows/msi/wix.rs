@@ -591,6 +591,17 @@ pub fn build_wix_app_installer(
     let update_content = skip_uac_task.render("update.xml", &data)?;
     write(&temp_xml_path, update_content)?;
 
+    data.insert(
+      "msiexec_args",
+      to_json(
+        settings
+          .updater()
+          .and_then(|updater| updater.msiexec_args.clone())
+          .map(|args| args.join(" "))
+          .unwrap_or_else(|| "/passive".to_string()),
+      ),
+    );
+
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
     let xml = include_str!("../templates/install-task.ps1");

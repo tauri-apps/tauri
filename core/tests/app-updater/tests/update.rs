@@ -100,12 +100,11 @@ fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
 #[cfg(windows)]
 fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
   root_dir.join(format!(
-    "target/debug/bundle/msi/app-updater_{}_x64_en-US.AppImage",
+    "target/debug/bundle/msi/app-updater_{}_x64_en-US.msi",
     version
   ))
 }
 
-#[cfg(not(windows))]
 #[test]
 #[ignore]
 fn update_app() {

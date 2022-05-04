@@ -16,7 +16,12 @@
         "../../../examples/.icons/icon.icns",
         "../../../examples/.icons/icon.ico"
       ],
-      "category": "DeveloperTool"
+      "category": "DeveloperTool",
+      "windows": {
+        "wix": {
+          "skipWebviewInstall": true
+        }
+      }
     },
     "allowlist": {
       "all": false
@@ -27,7 +32,10 @@
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5QzMxNjYwNTM5OEUwNTgKUldSWTRKaFRZQmJER1h4d1ZMYVA3dnluSjdpN2RmMldJR09hUFFlZDY0SlFqckkvRUJhZDJVZXAK",
       "endpoints": [
         "http://localhost:3007"
-      ]
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
     }
   }
 }

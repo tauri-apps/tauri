@@ -607,7 +607,20 @@ impl<R: Runtime> Update<R> {
       // we run the setup, appimage re-install or overwrite the
       // macos .app
       #[cfg(target_os = "windows")]
-      copy_files_and_run(archive_buffer, &self.extract_path, self.with_elevated_task)?;
+      copy_files_and_run(
+        archive_buffer,
+        &self.extract_path,
+        self.with_elevated_task,
+        self
+          .app
+          .config()
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .clone()
+          .msiexec_args(),
+      )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
     }
@@ -681,6 +694,7 @@ fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
   _extract_path: &Path,
   with_elevated_task: bool,
+  msiexec_args: &[&str],
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -757,8 +771,8 @@ fn copy_files_and_run<R: Read + Seek>(
       Command::new("msiexec.exe")
         .arg("/i")
         .arg(found_path)
-        // quiet basic UI with prompt at the end
-        .arg("/qb+")
+        .args(msiexec_args)
+        .arg("/promptrestart")
         .spawn()
         .expect("installer failed to start");
 

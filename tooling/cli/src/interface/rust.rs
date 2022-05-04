@@ -101,22 +101,11 @@ struct CargoConfig {
 }
 
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  let mut command = Command::new(&runner);
-  command
+  Command::new(&runner)
     .args(&["build", "--features=custom-protocol"])
-    .args(args);
-
-  command.pipe()?;
-
-  let status = command
-    .status()
-    .with_context(|| format!("failed to run {}", runner))?;
-  if !status.success() {
-    return Err(anyhow::anyhow!(format!(
-      "Result of `{} build` operation was unsuccessful: {}",
-      runner, status
-    )));
-  }
+    .args(args)
+    .output_ok()
+    .with_context(|| format!("Result of `{} build` operation was unsuccessful", runner))?;
 
   Ok(())
 }

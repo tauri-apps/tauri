@@ -9,8 +9,8 @@ use crate::helpers::{
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
 };
-use crate::{CommandExt, Result};
-use anyhow::Context;
+use crate::Result;
+use anyhow::{bail, Context};
 use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
@@ -85,15 +85,15 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
         .status()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
+
       if !status.success() {
-        return Err(anyhow::anyhow!(
+        bail!(
           "beforeDevCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
-        ));
+        );
       }
     }
   }

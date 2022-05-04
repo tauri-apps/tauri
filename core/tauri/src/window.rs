@@ -611,7 +611,9 @@ impl PlatformWebview {
 
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes the closure with the platform's webview handle.
+  /// Executes the closure accessing the platform's webview handle.
+  ///
+  /// The closure is executed in the main thread.
   ///
   /// # Examples
   ///

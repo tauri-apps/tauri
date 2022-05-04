@@ -175,7 +175,7 @@ pub fn command(options: Options) -> Result<()> {
     tauri_utils::platform::target_triple()?
   };
   let binary_extension: String = if target.contains("windows") {
-    ".exe"
+    "exe"
   } else {
     ""
   }

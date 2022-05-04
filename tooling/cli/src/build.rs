@@ -68,7 +68,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if let Some(before_build) = &config_.build.before_build_command {
     if !before_build.is_empty() {
-      info!(action = "Running"; "BeforeBuildCommand (`{}`)", before_build);
+      info!(action = "Running"; "beforeBuildCommand `{}`", before_build);
       #[cfg(target_os = "windows")]
       let status = Command::new("cmd")
         .arg("/S")

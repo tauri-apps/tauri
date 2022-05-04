@@ -86,7 +86,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       if bundle.package_type == crate::PackageType::Updater {
         note = " (updater)";
       }
-      printable_paths.push_str(&format!("        {}{}", path.display(), note));
+      printable_paths.push_str(&format!("        {}{}\n", path.display(), note));
     }
   }
 

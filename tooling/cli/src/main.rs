@@ -8,6 +8,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::exit;
 
+use anyhow::Context;
 use env_logger::fmt::Color;
 use env_logger::{Builder, Env};
 use log::{log_enabled, Level};
@@ -69,7 +70,7 @@ fn main() -> tauri_cli::Result<()> {
     }
   };
 
-  tauri_cli::run(args, bin_name)
+  tauri_cli::run(args, bin_name).context("Try running with --verbose to see command output")
 }
 
 /// The default string representation for `Level` is all uppercaps which doesn't mix well with the other printed actions.

@@ -66,11 +66,6 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
         .context("failed to create keychain")?;
 
       Command::new("security")
-        .args(["default-keychain", "-s", KEYCHAIN_ID])
-        .output_ok()
-        .context("failed to set default keychain")?;
-
-      Command::new("security")
         .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
         .output_ok()
         .context("failed to set unlock keychain")?;
@@ -111,6 +106,11 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
         .output_ok()
         .context("failed to set keychain settings")?;
 
+      Command::new("security")
+        .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
+        .output_ok()
+        .context("failed to set default keychain")?;
+
       Ok(())
     }
     // skip it
@@ -137,7 +137,8 @@ pub fn sign(
   settings: &Settings,
   is_an_executable: bool,
 ) -> crate::Result<()> {
-  info!(r#"signing with identity "{}""#, identity);
+  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
+  
   let mut args = vec!["--force", "-s", identity];
   if let Some(entitlements_path) = &settings.macos().entitlements {
     info!("using entitlements file at {}", entitlements_path);

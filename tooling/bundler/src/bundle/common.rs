@@ -143,8 +143,8 @@ impl CommandExt for Command {
 
     let output = self.output()?;
 
-    debug!("Stdout {}", String::from_utf8_lossy(&output.stdout));
-    debug!("Stderr {}", String::from_utf8_lossy(&output.stderr));
+    debug!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+    debug!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
 
     if output.status.success() {
       Ok(output)

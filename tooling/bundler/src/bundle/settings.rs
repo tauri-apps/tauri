@@ -622,7 +622,6 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      println!("{:?} {:?} {:?}", src, dest, self.target);
       common::copy_file(&src, &dest)?;
     }
     Ok(())

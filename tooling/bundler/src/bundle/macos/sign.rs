@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  ffi::OsString,
   fs::File,
   io::prelude::*,
   path::PathBuf,
@@ -21,164 +22,181 @@ const KEYCHAIN_PWD: &str = "tauri-build";
 // Then use the value of the base64 in APPLE_CERTIFICATE env variable.
 // You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when youy exported your certificate.
 // https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
-pub fn setup_keychain_if_needed() -> crate::Result<()> {
-  match (
+pub fn setup_keychain(
+  certificate_encoded: OsString,
+  certificate_password: OsString,
+) -> crate::Result<()> {
+  // we delete any previous version of our keychain if present
+  delete_keychain();
+  common::print_info("setup keychain from environment variables...")?;
+
+  let tmp_dir = tempfile::tempdir()?;
+  let cert_path = tmp_dir
+    .path()
+    .join("cert.p12")
+    .to_string_lossy()
+    .to_string();
+  let cert_path_tmp = tmp_dir
+    .path()
+    .join("cert.p12.tmp")
+    .to_string_lossy()
+    .to_string();
+  let certificate_encoded = certificate_encoded
+    .to_str()
+    .expect("failed to convert APPLE_CERTIFICATE to string")
+    .as_bytes();
+
+  let certificate_password = certificate_password
+    .to_str()
+    .expect("failed to convert APPLE_CERTIFICATE_PASSWORD to string")
+    .to_string();
+
+  // as certificate contain whitespace decoding may be broken
+  // https://github.com/marshallpierce/rust-base64/issues/105
+  // we'll use builtin base64 command from the OS
+  let mut tmp_cert = File::create(cert_path_tmp.clone())?;
+  tmp_cert.write_all(certificate_encoded)?;
+
+  let decode_certificate = Command::new("base64")
+    .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !decode_certificate.success() {
+    return Err(anyhow::anyhow!("failed to decode certificate",).into());
+  }
+
+  let create_key_chain = Command::new("security")
+    .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !create_key_chain.success() {
+    return Err(anyhow::anyhow!("failed to create keychain",).into());
+  }
+
+  let unlock_keychain = Command::new("security")
+    .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !unlock_keychain.success() {
+    return Err(anyhow::anyhow!("failed to set unlock keychain",).into());
+  }
+
+  let import_certificate = Command::new("security")
+    .args([
+      "import",
+      &cert_path,
+      "-k",
+      KEYCHAIN_ID,
+      "-P",
+      &certificate_password,
+      "-T",
+      "/usr/bin/codesign",
+      "-T",
+      "/usr/bin/pkgbuild",
+      "-T",
+      "/usr/bin/productbuild",
+    ])
+    .stderr(Stdio::inherit())
+    .output()?;
+
+  if !import_certificate.status.success() {
+    return Err(
+      anyhow::anyhow!(format!(
+        "failed to import keychain certificate {:?}",
+        std::str::from_utf8(&import_certificate.stdout)
+      ))
+      .into(),
+    );
+  }
+
+  let settings_keychain = Command::new("security")
+    .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !settings_keychain.success() {
+    return Err(anyhow::anyhow!("failed to set keychain settings",).into());
+  }
+
+  let partition_list = Command::new("security")
+    .args([
+      "set-key-partition-list",
+      "-S",
+      "apple-tool:,apple:,codesign:",
+      "-s",
+      "-k",
+      KEYCHAIN_PWD,
+      KEYCHAIN_ID,
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !partition_list.success() {
+    return Err(anyhow::anyhow!("failed to set keychain settings",).into());
+  }
+
+  // this command just "primes" the keychain, because the `codesign` command will fail if we don't run either `security default-keychain` or this command first.
+  // Don't ask me why ¯\_(ツ)_/¯.
+  // tracking issue: tauri-apps/tauri#4051
+  let set_default_keychain = Command::new("security")
+    .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status()?;
+
+  if !set_default_keychain.success() {
+    return Err(anyhow::anyhow!("failed to list keychain",).into());
+  }
+
+  Ok(())
+}
+
+pub fn delete_keychain() {
+  // delete keychain if needed and skip any error
+  let _result = Command::new("security")
+    .arg("delete-keychain")
+    .arg(KEYCHAIN_ID)
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status();
+}
+
+pub fn sign(
+  path_to_sign: PathBuf,
+  identity: &str,
+  settings: &Settings,
+  is_an_executable: bool,
+) -> crate::Result<()> {
+  if let (Some(certificate_encoded), Some(certificate_password)) = (
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    (Some(certificate_encoded), Some(certificate_password)) => {
-      // we delete any previous version of our keychain if present
-      delete_keychain_if_needed();
-      common::print_info("setup keychain from environment variables...")?;
-
-      let tmp_dir = tempfile::tempdir()?;
-      let cert_path = tmp_dir
-        .path()
-        .join("cert.p12")
-        .to_string_lossy()
-        .to_string();
-      let cert_path_tmp = tmp_dir
-        .path()
-        .join("cert.p12.tmp")
-        .to_string_lossy()
-        .to_string();
-      let certificate_encoded = certificate_encoded
-        .to_str()
-        .expect("failed to convert APPLE_CERTIFICATE to string")
-        .as_bytes();
-
-      let certificate_password = certificate_password
-        .to_str()
-        .expect("failed to convert APPLE_CERTIFICATE_PASSWORD to string")
-        .to_string();
-
-      // as certificate contain whitespace decoding may be broken
-      // https://github.com/marshallpierce/rust-base64/issues/105
-      // we'll use builtin base64 command from the OS
-      let mut tmp_cert = File::create(cert_path_tmp.clone())?;
-      tmp_cert.write_all(certificate_encoded)?;
-
-      let decode_certificate = Command::new("base64")
-        .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !decode_certificate.success() {
-        return Err(anyhow::anyhow!("failed to decode certificate",).into());
-      }
-
-      let create_key_chain = Command::new("security")
-        .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !create_key_chain.success() {
-        return Err(anyhow::anyhow!("failed to create keychain",).into());
-      }
-
-      let unlock_keychain = Command::new("security")
-        .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !unlock_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set unlock keychain",).into());
-      }
-
-      let import_certificate = Command::new("security")
-        .args([
-          "import",
-          &cert_path,
-          "-k",
-          KEYCHAIN_ID,
-          "-P",
-          &certificate_password,
-          "-T",
-          "/usr/bin/codesign",
-          "-T",
-          "/usr/bin/pkgbuild",
-          "-T",
-          "/usr/bin/productbuild",
-        ])
-        .stderr(Stdio::inherit())
-        .output()?;
-
-      if !import_certificate.status.success() {
-        return Err(
-          anyhow::anyhow!(format!(
-            "failed to import keychain certificate {:?}",
-            std::str::from_utf8(&import_certificate.stdout)
-          ))
-          .into(),
-        );
-      }
-
-      let settings_keychain = Command::new("security")
-        .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !settings_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }
-
-      let partition_list = Command::new("security")
-        .args([
-          "set-key-partition-list",
-          "-S",
-          "apple-tool:,apple:,codesign:",
-          "-s",
-          "-k",
-          KEYCHAIN_PWD,
-          KEYCHAIN_ID,
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !partition_list.success() {
-        return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }
-
-      // this command just "primes" the keychain, because the `codesign` command will fail if we don't run either `security default-keychain` or this command first. 
-      // Don't ask me why ¯\_(ツ)_/¯.
-      // tracking issue: tauri-apps/tauri#4051
-      let set_default_keychain = Command::new("security")
-        .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !set_default_keychain.success() {
-        return Err(anyhow::anyhow!("failed to list keychain",).into());
-      }
-
-      Ok(())
-    }
-    // skip it
-    _ => Ok(()),
+    // setup keychain allow you to import your certificate
+    // for CI build
+    setup_keychain(certificate_encoded, certificate_password)?;
   }
-}
 
-pub fn delete_keychain_if_needed() {
+  let res = try_sign(path_to_sign, identity, settings, is_an_executable);
+
   if let (Some(_cert), Some(_password)) = (
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    // delete keychain if needed and skip any error
-    let _result = Command::new("security")
-      .arg("delete-keychain")
-      .arg(KEYCHAIN_ID)
-      .stdout(Stdio::piped())
-      .stderr(Stdio::piped())
-      .status();
+    // delete the keychain again after signing
+    delete_keychain();
   }
+
+  res
 }
 
-pub fn sign(
+fn try_sign(
   path_to_sign: PathBuf,
   identity: &str,
   settings: &Settings,

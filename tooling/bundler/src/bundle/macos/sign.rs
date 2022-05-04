@@ -166,6 +166,19 @@ pub fn delete_keychain() {
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .status();
+
+  let _result = Command::new("security")
+    .args([
+      "security",
+      "list-keychain",
+      "-d",
+      "user",
+      "-s",
+      "login.keychain-db",
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped())
+    .status();
 }
 
 pub fn sign(

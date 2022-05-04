@@ -27,9 +27,6 @@ pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
   debug: bool,
-  /// Enables verbose logging
-  #[clap(short, long)]
-  verbose: bool,
   /// Target triple to build against.
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
   /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
@@ -318,7 +315,6 @@ pub fn command(options: Options) -> Result<()> {
       &manifest,
       config_,
       &out_dir,
-      options.verbose,
       package_types,
     )
     .with_context(|| "failed to build bundler settings")?;

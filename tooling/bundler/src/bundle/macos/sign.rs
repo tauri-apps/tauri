@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  fs::File,
-  io::prelude::*,
-  path::PathBuf,
-  process::{Command, Stdio},
-};
+use std::{fs::File, io::prelude::*, path::PathBuf, process::Command};
 
-use crate::{bundle::common, Settings};
+use crate::{bundle::common::CommandExt, Settings};
+use anyhow::Context;
+use log::info;
 use regex::Regex;
+
+const KEYCHAIN_ID: &str = "tauri-build.keychain";
+const KEYCHAIN_PWD: &str = "tauri-build";
 
 // Import certificate from ENV variables.
 // APPLE_CERTIFICATE is the p12 certificate base64 encoded.
@@ -26,10 +26,8 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
     (Some(certificate_encoded), Some(certificate_password)) => {
       // we delete any previous version of our keychain if present
       delete_keychain_if_needed();
-      common::print_info("setup keychain from environment variables...")?;
+      info!("setup keychain from environment variables...");
 
-      let key_chain_id = "tauri-build.keychain";
-      let key_chain_name = "tauri-build";
       let tmp_dir = tempfile::tempdir()?;
       let cert_path = tmp_dir
         .path()
@@ -57,104 +55,61 @@ pub fn setup_keychain_if_needed() -> crate::Result<()> {
       let mut tmp_cert = File::create(cert_path_tmp.clone())?;
       tmp_cert.write_all(certificate_encoded)?;
 
-      let decode_certificate = Command::new("base64")
-        .args(vec!["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
-        .stderr(Stdio::piped())
-        .status()?;
+      Command::new("base64")
+        .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
+        .output_ok()
+        .context("failed to decode certificate")?;
 
-      if !decode_certificate.success() {
-        return Err(anyhow::anyhow!("failed to decode certificate",).into());
-      }
+      Command::new("security")
+        .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+        .output_ok()
+        .context("failed to create keychain")?;
 
-      let create_key_chain = Command::new("security")
-        .args(vec!["create-keychain", "-p", key_chain_name, key_chain_id])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
+      Command::new("security")
+        .args(["default-keychain", "-s", KEYCHAIN_ID])
+        .output_ok()
+        .context("failed to set default keychain")?;
 
-      if !create_key_chain.success() {
-        return Err(anyhow::anyhow!("failed to create keychain",).into());
-      }
+      Command::new("security")
+        .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+        .output_ok()
+        .context("failed to set unlock keychain")?;
 
-      let set_default_keychain = Command::new("security")
-        .args(vec!["default-keychain", "-s", key_chain_id])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !set_default_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set default keychain",).into());
-      }
-
-      let unlock_keychain = Command::new("security")
-        .args(vec!["unlock-keychain", "-p", key_chain_name, key_chain_id])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !unlock_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set unlock keychain",).into());
-      }
-
-      let import_certificate = Command::new("security")
-        .arg("import")
-        .arg(cert_path)
-        .arg("-k")
-        .arg(key_chain_id)
-        .arg("-P")
-        .arg(certificate_password)
-        .arg("-T")
-        .arg("/usr/bin/codesign")
-        .arg("-T")
-        .arg("/usr/bin/pkgbuild")
-        .arg("-T")
-        .arg("/usr/bin/productbuild")
-        .stderr(Stdio::inherit())
-        .output()?;
-
-      if !import_certificate.status.success() {
-        return Err(
-          anyhow::anyhow!(format!(
-            "failed to import keychain certificate {:?}",
-            std::str::from_utf8(&import_certificate.stdout)
-          ))
-          .into(),
-        );
-      }
-
-      let settings_keychain = Command::new("security")
-        .args(vec![
-          "set-keychain-settings",
-          "-t",
-          "3600",
-          "-u",
-          key_chain_id,
+      Command::new("security")
+        .args([
+          "import",
+          &cert_path,
+          "-k",
+          KEYCHAIN_ID,
+          "-P",
+          &certificate_password,
+          "-T",
+          "/usr/bin/codesign",
+          "-T",
+          "/usr/bin/pkgbuild",
+          "-T",
+          "/usr/bin/productbuild",
         ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
+        .output_ok()
+        .context("failed to import keychain certificate")?;
 
-      if !settings_keychain.success() {
-        return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }
+      Command::new("security")
+        .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
+        .output_ok()
+        .context("failed to set keychain settings")?;
 
-      let partition_list = Command::new("security")
-        .args(vec![
+      Command::new("security")
+        .args([
           "set-key-partition-list",
           "-S",
           "apple-tool:,apple:,codesign:",
           "-s",
           "-k",
-          key_chain_name,
-          key_chain_id,
+          KEYCHAIN_PWD,
+          KEYCHAIN_ID,
         ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()?;
-
-      if !partition_list.success() {
-        return Err(anyhow::anyhow!("failed to set keychain settings",).into());
-      }
+        .output_ok()
+        .context("failed to set keychain settings")?;
 
       Ok(())
     }
@@ -168,14 +123,11 @@ pub fn delete_keychain_if_needed() {
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    let key_chain_id = "tauri-build.keychain";
     // delete keychain if needed and skip any error
     let _result = Command::new("security")
       .arg("delete-keychain")
-      .arg(key_chain_id)
-      .stdout(Stdio::piped())
-      .stderr(Stdio::piped())
-      .status();
+      .arg(KEYCHAIN_ID)
+      .output_ok();
   }
 }
 
@@ -185,10 +137,10 @@ pub fn sign(
   settings: &Settings,
   is_an_executable: bool,
 ) -> crate::Result<()> {
-  common::print_info(format!(r#"signing with identity "{}""#, identity).as_str())?;
+  info!(r#"signing with identity "{}""#, identity);
   let mut args = vec!["--force", "-s", identity];
   if let Some(entitlements_path) = &settings.macos().entitlements {
-    common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;
+    info!("using entitlements file at {}", entitlements_path);
     args.push("--entitlements");
     args.push(entitlements_path);
   }
@@ -202,19 +154,11 @@ pub fn sign(
     args.push("--deep");
   }
 
-  let output = Command::new("codesign")
+  Command::new("codesign")
     .args(args)
     .arg(path_to_sign.to_string_lossy().to_string())
-    .output()?;
-
-  if settings.is_verbose() {
-    std::io::stdout().write_all(&output.stdout).unwrap();
-    std::io::stderr().write_all(&output.stderr).unwrap();
-  }
-
-  if !output.status.success() {
-    return Err(anyhow::anyhow!("failed to sign app").into());
-  }
+    .output_ok()
+    .context("failed to sign app")?;
 
   Ok(())
 }
@@ -249,19 +193,10 @@ pub fn notarize(
 
   // use ditto to create a PKZip almost identical to Finder
   // this remove almost 99% of false alarm in notarization
-  let zip_app = Command::new("ditto")
+  Command::new("ditto")
     .args(zip_args)
-    .stderr(Stdio::inherit())
-    .output()?;
-
-  if settings.is_verbose() {
-    std::io::stdout().write_all(&zip_app.stdout).unwrap();
-    std::io::stderr().write_all(&zip_app.stderr).unwrap();
-  }
-
-  if !zip_app.status.success() {
-    return Err(anyhow::anyhow!("failed to zip app with ditto").into());
-  }
+    .output_ok()
+    .context("failed to zip app with ditto")?;
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
@@ -284,52 +219,34 @@ pub fn notarize(
     notarize_args.push(provider_short_name);
   }
 
-  println!("is verbose {}", settings.is_verbose());
-  common::print_info("notarizing app")?;
+  info!(action = "Notarizing"; "{}", app_bundle_path.display());
+
   let output = Command::new("xcrun")
     .args(notarize_args)
     .args(auth_args.clone())
-    .stderr(Stdio::inherit())
-    .output()?;
-
-  if settings.is_verbose() {
-    std::io::stdout().write_all(&output.stdout).unwrap();
-    std::io::stderr().write_all(&output.stderr).unwrap();
-  }
-
-  if !output.status.success() {
-    return Err(
-      anyhow::anyhow!(format!(
-        "failed to upload app to Apple's notarization servers. {}",
-        std::str::from_utf8(&output.stdout)?
-      ))
-      .into(),
-    );
-  }
+    .output_ok()
+    .context("failed to upload app to Apple's notarization servers.")?;
 
   let stdout = std::str::from_utf8(&output.stdout)?;
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
     .captures_iter(stdout)
     .next()
   {
-    common::print_info("notarization started; waiting for Apple response...")?;
+    info!("notarization started; waiting for Apple response...");
+
     let uuid = uuid[1].to_string();
     get_notarization_status(uuid, auth_args, settings)?;
-    staple_app(app_bundle_path.clone(), settings)?;
+    staple_app(app_bundle_path.clone())?;
   } else {
     return Err(
-      anyhow::anyhow!(format!(
-        "failed to parse RequestUUID from upload output. {}",
-        stdout
-      ))
-      .into(),
+      anyhow::anyhow!("failed to parse RequestUUID from upload output. {}", stdout).into(),
     );
   }
 
   Ok(())
 }
 
-fn staple_app(mut app_bundle_path: PathBuf, settings: &Settings) -> crate::Result<()> {
+fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
   let app_bundle_path_clone = app_bundle_path.clone();
   let filename = app_bundle_path_clone
     .file_name()
@@ -339,46 +256,27 @@ fn staple_app(mut app_bundle_path: PathBuf, settings: &Settings) -> crate::Resul
 
   app_bundle_path.pop();
 
-  let output = Command::new("xcrun")
+  Command::new("xcrun")
     .args(vec!["stapler", "staple", "-v", filename])
     .current_dir(app_bundle_path)
-    .stderr(Stdio::inherit())
-    .output()?;
+    .output_ok()
+    .context("failed to staple app.")?;
 
-  if settings.is_verbose() {
-    std::io::stdout().write_all(&output.stdout).unwrap();
-    std::io::stderr().write_all(&output.stderr).unwrap();
-  }
-
-  if !output.status.success() {
-    Err(
-      anyhow::anyhow!(format!(
-        "failed to staple app. {}",
-        std::str::from_utf8(&output.stdout)?
-      ))
-      .into(),
-    )
-  } else {
-    Ok(())
-  }
+  Ok(())
 }
 
-fn get_notarization_status(uuid: String, auth_args: Vec<String>, settings: &Settings,) -> crate::Result<()> {
+fn get_notarization_status(
+  uuid: String,
+  auth_args: Vec<String>,
+  settings: &Settings,
+) -> crate::Result<()> {
   std::thread::sleep(std::time::Duration::from_secs(10));
-  let output = Command::new("xcrun")
+  let result = Command::new("xcrun")
     .args(vec!["altool", "--notarization-info", &uuid])
     .args(auth_args.clone())
-    .stderr(Stdio::inherit())
-    .output()?;
+    .output_ok();
 
-  if settings.is_verbose() {
-    std::io::stdout().write_all(&output.stdout).unwrap();
-    std::io::stderr().write_all(&output.stderr).unwrap();
-  }
-
-  if !output.status.success() {
-    get_notarization_status(uuid, auth_args, settings)
-  } else {
+  if let Ok(output) = result {
     let stdout = std::str::from_utf8(&output.stdout)?;
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
       .captures_iter(stdout)
@@ -410,6 +308,8 @@ fn get_notarization_status(uuid: String, auth_args: Vec<String>, settings: &Sett
     } else {
       get_notarization_status(uuid, auth_args, settings)
     }
+  } else {
+    get_notarization_status(uuid, auth_args, settings)
   }
 }
 

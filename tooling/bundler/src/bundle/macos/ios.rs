@@ -16,6 +16,7 @@ use crate::{bundle::common, Settings};
 
 use anyhow::Context;
 use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
+use log::{info, warn};
 
 use std::{
   collections::BTreeSet,
@@ -28,10 +29,12 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  common::print_warning("iOS bundle support is still experimental.")?;
+  warn!("iOS bundle support is still experimental.");
 
   let app_product_name = format!("{}.app", settings.product_name());
-  common::print_bundling(&app_product_name)?;
+  
+  info!(action = "Bundling"; "{}", app_product_name);
+
   let bundle_dir = settings
     .project_out_directory()
     .join("bundle/ios")

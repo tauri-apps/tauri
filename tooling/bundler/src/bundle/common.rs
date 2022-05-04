@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{CommandExt, Settings};
+use log::debug;
+
 use std::{
   ffi::OsStr,
   fs::{self, File},
-  io::{self, BufWriter, Write},
+  io::{self, BufWriter},
   path::Path,
-  process::{Command, Stdio},
+  process::{Command, Output},
 };
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with
@@ -133,80 +133,26 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   Ok(())
 }
 
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we are creating a bundle with the given filename.
-pub fn print_bundling(filename: &str) -> crate::Result<()> {
-  print_progress("Bundling", filename)
+pub trait CommandExt {
+  fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we have finished the the given bundles.
-pub fn print_finished(bundles: &[crate::bundle::Bundle]) -> crate::Result<()> {
-  let pluralised = if bundles.len() == 1 {
-    "bundle"
-  } else {
-    "bundles"
-  };
-  let msg = format!("{} {} at:", bundles.len(), pluralised);
-  print_progress("Finished", &msg)?;
-  for bundle in bundles {
-    for path in &bundle.bundle_paths {
-      let mut note = "";
-      if bundle.package_type == crate::PackageType::Updater {
-        note = " (updater)";
-      }
-      println!("        {}{}", path.display(), note,);
+impl CommandExt for Command {
+  fn output_ok(&mut self) -> crate::Result<Output> {
+    debug!(action = "Running"; "Command `{} {}`", self.get_program().to_string_lossy(), self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+
+    let output = self.output()?;
+
+    debug!("Stdout {}", String::from_utf8_lossy(&output.stdout));
+    debug!("Stderr {}", String::from_utf8_lossy(&output.stderr));
+
+    if output.status.success() {
+      Ok(output)
+    } else {
+      Err(crate::Error::GenericError(
+        String::from_utf8_lossy(&output.stderr).to_string(),
+      ))
     }
-  }
-  Ok(())
-}
-
-/// Prints a formatted bundle progress to stderr.
-fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
-  write!(output, "    {}", step)?;
-  output.reset()?;
-  writeln!(output, " {}", msg)?;
-  output.flush()?;
-  Ok(())
-}
-
-/// Prints a warning message to stderr, in the same format that `cargo` uses.
-#[allow(dead_code)]
-pub fn print_warning(message: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));
-  write!(output, "warning:")?;
-  output.reset()?;
-  writeln!(output, " {}", message)?;
-  output.flush()?;
-  Ok(())
-}
-
-/// Prints a Info message to stderr.
-pub fn print_info(message: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
-  write!(output, "info:")?;
-  output.reset()?;
-  writeln!(output, " {}", message)?;
-  output.flush()?;
-  Ok(())
-}
-
-pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
-  if settings.is_verbose() {
-    cmd.pipe()?;
-  } else {
-    cmd.stdout(Stdio::null()).stderr(Stdio::null());
-  }
-  let status = cmd.status().expect("failed to spawn command");
-
-  if status.success() {
-    Ok(())
-  } else {
-    Err(anyhow::anyhow!("command failed").into())
   }
 }
 

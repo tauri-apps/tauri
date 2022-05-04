@@ -169,13 +169,13 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 
 /// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
-  common::print_info(format!("Downloading {}", url).as_str())?;
+  info!(action = "Downloading"; "{}", url);
 
   let response = attohttpc::get(url).send()?;
 
   let data: Vec<u8> = response.bytes()?;
 
-  common::print_info("validating hash")?;
+  info!("validating hash")?;
 
   let mut hasher = sha2::Sha256::new();
   hasher.update(&data);
@@ -257,11 +257,11 @@ fn generate_guid(key: &[u8]) -> Uuid {
 
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
-  common::print_info("Verifying wix package")?;
+  info!("Verifying wix package");
 
   let data = download_and_verify(WIX_URL, WIX_SHA256)?;
 
-  common::print_info("extracting WIX")?;
+  info!("extracting WIX");
 
   extract_zip(&data, path)
 }
@@ -301,22 +301,15 @@ fn run_candle(
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
-  common::print_info(format!("running candle for {:?}", wxs_file_path).as_str())?;
 
-  let mut cmd = Command::new(&candle_exe);
-  cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
+  info!(action = "Running"; "candle for {:?}", wxs_file_path);
+  Command::new(&candle_exe)
+    .args(&args)
+    .current_dir(cwd)
+    .output_ok()
+    .context("error running candle.exe")?;
 
-  common::print_info("running candle.exe")?;
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running candle.exe{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })
+  Ok(())
 }
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
@@ -342,19 +335,13 @@ fn run_light(
     args.push(p);
   }
 
-  let mut cmd = Command::new(&light_exe);
-  cmd.args(&args).current_dir(build_path);
+  Command::new(&light_exe)
+    .args(&args)
+    .current_dir(build_path)
+    .output_ok()
+    .context("error running light.exe")?;
 
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running light.exe{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })
+  Ok(())
 }
 
 // fn get_icon_data() -> crate::Result<()> {
@@ -699,7 +686,7 @@ pub fn build_wix_app_installer(
     let msi_path = app_installer_output_path(settings, &language)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
-    common::print_info(format!("running light to produce {}", msi_path.display()).as_str())?;
+    info!(action = "Running"; "light to produce {}", msi_path.display());
 
     run_light(
       wix_toolset_path,

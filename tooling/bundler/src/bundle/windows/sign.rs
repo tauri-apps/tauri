@@ -95,7 +95,9 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 
   // Construct SignTool command
   let signtool = locate_signtool()?;
-  common::print_info(format!("running signtool {:?}", signtool).as_str())?;
+  
+  info!(action = "Running"; "signtool {:?}", signtool);
+
   let mut cmd = Command::new(signtool);
   cmd.arg("sign");
   cmd.args(&["/fd", &params.digest_algorithm]);
@@ -113,15 +115,10 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   cmd.arg(path_str);
 
   // Execute SignTool command
-  let output = cmd.output()?;
-
-  if !output.status.success() {
-    let stderr = String::from_utf8_lossy(output.stderr.as_slice()).into_owned();
-    return Err(crate::Error::Sign(stderr));
-  }
+  let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  common::print_info(format!("{:?}", stdout).as_str())?;
+  info!("{:?}", stdout);
 
   Ok(())
 }

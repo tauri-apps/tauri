@@ -14,6 +14,7 @@ use super::linux::appimage;
 use super::windows::msi;
 #[cfg(target_os = "windows")]
 use std::{fs::File, io::prelude::*};
+use log::error;
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
@@ -30,7 +31,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     let bundle_result = bundle_update(settings, bundles)?;
     Ok(bundle_result)
   } else {
-    common::print_info("Current platform do not support updates")?;
+    error!("Current platform do not support updates");
     Ok(vec![])
   }
 }
@@ -40,6 +41,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 #[cfg(target_os = "macos")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   use std::ffi::OsStr;
+
+  use log::info;
 
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
@@ -71,7 +74,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(&source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &osx_archived_path).as_str())?;
+  info!(action = "Bundling"; "{}", osx_archived_path.display());
+
   Ok(vec![osx_archived_path])
 }
 
@@ -112,7 +116,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &appimage_archived_path).as_str())?;
+  info!(action = "Bundling"; "{}", appimage_archived_path.display());
+
   Ok(vec![appimage_archived_path])
 }
 
@@ -141,7 +146,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
     let msi_archived = format!("{}.zip", source_path.display());
     let msi_archived_path = PathBuf::from(&msi_archived);
 
-    common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
+    info!(action = "Bundling"; "{}", msi_archived_path.display());
 
     // Create our gzip file
     create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;

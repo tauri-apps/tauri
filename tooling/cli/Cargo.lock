@@ -2705,6 +2705,7 @@ dependencies = [
  "icns",
  "image",
  "libflate",
+ "log",
  "md5",
  "os_pipe",
  "regex",

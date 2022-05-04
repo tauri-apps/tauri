@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  super::{common, path_utils},
+  super::{common::CommandExt, path_utils},
   debian,
 };
 use crate::Settings;
-
+use anyhow::Context;
 use handlebars::Handlebars;
-
 use std::{
   collections::BTreeMap,
   fs::{remove_dir_all, write},
@@ -76,7 +75,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
-  common::print_bundling(appimage_path.file_name().unwrap().to_str().unwrap())?;
+
+  info!(action = "Bundling"; "{}", appimage_path.file_name().unwrap().to_str().unwrap());
+
   write(&sh_file, temp)?;
 
   // chmod script for execution
@@ -90,19 +91,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to chmod script");
 
   // execute the shell script to build the appimage.
-  let mut cmd = Command::new(&sh_file);
-  cmd.current_dir(output_path);
-
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running appimage.sh{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })?;
+  Command::new(&sh_file)
+    .current_dir(output_path)
+    .output_ok()
+    .context("error running appimage.sh")?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

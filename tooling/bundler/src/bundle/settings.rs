@@ -376,8 +376,6 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
-  /// whether or not to enable verbose logging
-  is_verbose: bool,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -390,7 +388,6 @@ pub struct Settings {
 #[derive(Default)]
 pub struct SettingsBuilder {
   project_out_directory: Option<PathBuf>,
-  verbose: bool,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -410,13 +407,6 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
-    self
-  }
-
-  /// Enables verbose output.
-  #[must_use]
-  pub fn verbose(mut self) -> Self {
-    self.verbose = true;
     self
   }
 
@@ -470,7 +460,6 @@ impl SettingsBuilder {
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
       package_types: self.package_types,
-      is_verbose: self.verbose,
       project_out_directory: self
         .project_out_directory
         .expect("out directory is required"),
@@ -584,11 +573,6 @@ impl Settings {
     } else {
       Ok(platform_types)
     }
-  }
-
-  /// Returns true if verbose logging is enabled
-  pub fn is_verbose(&self) -> bool {
-    true
   }
 
   /// Returns the product name.

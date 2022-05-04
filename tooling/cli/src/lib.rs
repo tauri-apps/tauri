@@ -48,6 +48,9 @@ pub struct VersionMetadata {
   no_binary_name(true)
 )]
 struct Cli {
+  /// Enables verbose logging
+  #[clap(short, long, parse(from_occurrences))]
+  verbose: usize,
   #[clap(subcommand)]
   command: Commands,
 }

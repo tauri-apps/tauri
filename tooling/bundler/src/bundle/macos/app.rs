@@ -26,9 +26,10 @@ use super::{
   icon::create_icns_file,
   sign::{notarize, notarize_auth_args, setup_keychain_if_needed, sign},
 };
-use crate::Settings;
+use crate::{Settings, bundle::common::CommandExt};
 
 use anyhow::Context;
+use log::{info, warn};
 
 use std::{
   fs,
@@ -43,7 +44,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // we should use the bundle name (App name) as a MacOS standard.
   // version or platform shouldn't be included in the App name.
   let app_product_name = format!("{}.app", settings.product_name());
-  common::print_bundling(&app_product_name)?;
+
+  info!(action = "Bundling"; "{}", app_product_name);
+
   let app_bundle_path = settings
     .project_out_directory()
     .join("bundle/macos")
@@ -92,7 +95,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         notarize(app_bundle_path.clone(), args, settings)?;
       }
       Err(e) => {
-        common::print_info(format!("skipping app notarization, {}", e.to_string()).as_str())?;
+        warn!("skipping app notarization, {}", e.to_string());
       }
     }
   }
@@ -236,23 +239,13 @@ fn create_info_plist(
   file.flush()?;
 
   if let Some(user_plist_path) = &settings.macos().info_plist_path {
-    let mut cmd = Command::new("/usr/libexec/PlistBuddy");
-    cmd.args(&[
+    Command::new("/usr/libexec/PlistBuddy").args(&[
       "-c".into(),
       format!("Merge {}", user_plist_path.display()),
       bundle_plist_path.display().to_string(),
-    ]);
-
-    common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-      crate::Error::ShellScriptError(format!(
-        "error running /usr/libexec/PlistBuddy{}",
-        if settings.is_verbose() {
-          ""
-        } else {
-          ", try running with --verbose to see command output"
-        }
-      ))
-    })?;
+    ])
+    .output_ok()
+    .context("error running PlistBuddy")?;
   }
 
   Ok(())

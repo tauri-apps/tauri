@@ -124,7 +124,7 @@ where
     .try_init();
 
   if let Err(err) = init_res {
-    eprintln!("Failed to attach logger: {}", err.to_string());
+    eprintln!("Failed to attach logger: {}", err);
   }
 
   match cli.command {

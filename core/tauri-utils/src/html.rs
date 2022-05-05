@@ -13,7 +13,7 @@ use serde::Serialize;
 #[cfg(feature = "isolation")]
 use serialize_to_javascript::DefaultTemplate;
 
-use crate::config::PatternKind;
+use crate::config::{DisabledCspModificationKind, PatternKind};
 #[cfg(feature = "isolation")]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
 
@@ -59,9 +59,16 @@ fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
 }
 
 /// Inject nonce tokens to all scripts and styles.
-pub fn inject_nonce_token(document: &mut NodeRef) {
-  inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
-  inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+pub fn inject_nonce_token(
+  document: &mut NodeRef,
+  dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
+) {
+  if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+    inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
+  }
+  if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+    inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+  }
 }
 
 /// Injects a content security policy to the HTML.

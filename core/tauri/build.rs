@@ -2,106 +2,160 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cfg_aliases::cfg_aliases;
+use heck::ToSnakeCase;
+use once_cell::sync::OnceCell;
+
+use std::{path::Path, sync::Mutex};
+
+static CHECKED_FEATURES: OnceCell<Mutex<Vec<String>>> = OnceCell::new();
+
+// checks if the given Cargo feature is enabled.
+fn has_feature(feature: &str) -> bool {
+  CHECKED_FEATURES
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .push(feature.to_string());
+
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+  std::env::var(format!(
+    "CARGO_FEATURE_{}",
+    feature.to_snake_case().to_uppercase()
+  ))
+  .map(|x| x == "1")
+  .unwrap_or(false)
+}
+
+// creates a cfg alias if `has_feature` is true.
+// `alias` must be a snake case string.
+fn alias(alias: &str, has_feature: bool) {
+  if has_feature {
+    println!("cargo:rustc-cfg={}", alias);
+  }
+}
 
 fn main() {
-  cfg_aliases! {
-    custom_protocol: { feature = "custom-protocol" },
-    dev: { not(feature = "custom-protocol") },
-    updater: { any(feature = "updater", feature = "__updater-docs") },
+  alias("custom_protocol", has_feature("custom-protocol"));
+  alias("dev", !has_feature("custom-protocol"));
+  alias(
+    "updater",
+    has_feature("updater") || has_feature("__updater-docs"),
+  );
 
-    api_all: { feature = "api-all" },
+  let api_all = has_feature("api-all");
+  alias("api_all", api_all);
 
-    // fs
-    fs_all: { any(api_all, feature = "fs-all") },
-    fs_read_file: { any(fs_all, feature = "fs-read-file") },
-    fs_write_file: { any(fs_all, feature = "fs-write-file") },
-    fs_write_binary_file: { any(fs_all, feature = "fs-write-binary-file") },
-    fs_read_dir: { any(fs_all, feature = "fs-read-dir") },
-    fs_copy_file: { any(fs_all, feature = "fs-copy-file") },
-    fs_create_dir: { any(fs_all, feature = "fs-create_dir") },
-    fs_remove_dir: { any(fs_all, feature = "fs-remove-dir") },
-    fs_remove_file: { any(fs_all, feature = "fs-remove-file") },
-    fs_rename_file: { any(fs_all, feature = "fs-rename-file") },
+  alias_module(
+    "fs",
+    &[
+      "read-file",
+      "write-file",
+      "read-dir",
+      "copy-file",
+      "create-dir",
+      "remove-dir",
+      "remove-file",
+      "rename-file",
+    ],
+    api_all,
+  );
 
-    // window
-    window_all: { any(api_all, feature = "window-all") },
-    window_create: { any(window_all, feature = "window-create") },
-    window_center: { any(window_all, feature = "window-center") },
-    window_request_user_attention: { any(window_all, feature = "window-request-user-attention") },
-    window_set_resizable: { any(window_all, feature = "window-set-resizable") },
-    window_set_title: { any(window_all, feature = "window-set-title") },
-    window_maximize: { any(window_all, feature = "window-maximize") },
-    window_unmaximize: { any(window_all, feature = "window-unmaximize") },
-    window_minimize: { any(window_all, feature = "window-minimize") },
-    window_unminimize: { any(window_all, feature = "window-unminimize") },
-    window_show: { any(window_all, feature = "window-show") },
-    window_hide: { any(window_all, feature = "window-hide") },
-    window_close: { any(window_all, feature = "window-close") },
-    window_set_decorations: { any(window_all, feature = "window-set-decorations") },
-    window_set_always_on_top: { any(window_all, feature = "window-set-always-on-top") },
-    window_set_size: { any(window_all, feature = "window-set-size") },
-    window_set_min_size: { any(window_all, feature = "window-set-min-size") },
-    window_set_max_size: { any(window_all, feature = "window-set-max-size") },
-    window_set_position: { any(window_all, feature = "window-set-position") },
-    window_set_fullscreen: { any(window_all, feature = "window-set-fullscreen") },
-    window_set_focus: { any(window_all, feature = "window-set-focus") },
-    window_set_icon: { any(window_all, feature = "window-set-icon") },
-    window_set_skip_taskbar: { any(window_all, feature = "window-set-skip-taskbar") },
-    window_set_cursor_grab: { any(window_all, feature = "window-set-cursor-grab") },
-    window_set_cursor_visible: { any(window_all, feature = "window-set-cursor-visible") },
-    window_set_cursor_icon: { any(window_all, feature = "window-set-cursor-icon") },
-    window_set_cursor_position: { any(window_all, feature = "window-set-cursor-position") },
-    window_start_dragging: { any(window_all, feature = "window-start-dragging") },
-    window_print: { any(window_all, feature = "window-print") },
+  alias_module(
+    "window",
+    &[
+      "create",
+      "center",
+      "request-user-attention",
+      "set-resizable",
+      "set-title",
+      "maximize",
+      "unmaximize",
+      "minimize",
+      "unminimize",
+      "show",
+      "hide",
+      "close",
+      "set-decorations",
+      "set-always-on-top",
+      "set-size",
+      "set-min-size",
+      "set-max-size",
+      "set-position",
+      "set-fullscreen",
+      "set-focus",
+      "set-icon",
+      "set-skip-taskbar",
+      "set-cursor-grab",
+      "set-cursor-visible",
+      "set-cursor-icon",
+      "set-cursor-position",
+      "start-dragging",
+      "print",
+    ],
+    api_all,
+  );
 
-    // shell
-    shell_all: { any(api_all, feature = "shell-all") },
-    shell_execute: { any(shell_all, feature = "shell-execute") },
-    shell_sidecar: { any(shell_all, feature = "shell-sidecar") },
-    shell_open: { any(shell_all, feature = "shell-open") },
-    // helper for the shell scope functionality
-    shell_scope: { any(shell_execute, shell_sidecar, feature = "shell-open-api") },
+  alias_module("shell", &["execute", "sidecar", "open"], api_all);
+  // helper for the command module macro
+  let shell_script = has_feature("shell-execute") || has_feature("shell-sidecar");
+  alias("shell_script", shell_script);
+  alias("shell_scope", has_feature("shell-open-api") || shell_script);
 
-    // dialog
-    dialog_all: { any(api_all, feature = "dialog-all") },
-    dialog_open: { any(dialog_all, feature = "dialog-open") },
-    dialog_save: { any(dialog_all, feature = "dialog-save") },
-    dialog_message: { any(dialog_all, feature = "dialog-message") },
-    dialog_ask: { any(dialog_all, feature = "dialog-ask") },
-    dialog_confirm: { any(dialog_all, feature = "dialog-confirm") },
+  alias_module(
+    "dialog",
+    &["open", "save", "message", "ask", "confirm"],
+    api_all,
+  );
 
-    // http
-    http_all: { any(api_all, feature = "http-all") },
-    http_request: { any(http_all, feature = "http-request") },
+  alias_module("http", &["request"], api_all);
 
-    // cli
-    cli: { feature = "cli" },
+  alias("cli", has_feature("cli"));
 
-    // notification
-    notification_all: { any(api_all, feature = "notification-all") },
+  alias_module("notification", &[], api_all);
+  alias_module("global-shortcut", &[], api_all);
+  alias_module("os", &[], api_all);
+  alias_module("path", &[], api_all);
 
-    // global shortcut
-    global_shortcut_all: { any(api_all, feature = "global_shortcut-all") },
+  alias_module("protocol", &["asset"], api_all);
 
-    // os
-    os_all: { any(api_all, feature = "os-all") },
+  alias_module("process", &["relaunch", "exit"], api_all);
 
-    // path
-    path_all: { any(api_all, feature = "path-all") },
+  alias_module("clipboard", &["write-text", "read-text"], api_all);
 
-    // protocol
-    protocol_all: { any(api_all, feature = "protocol-all") },
-    protocol_asset: { any(protocol_all, feature = "protocol-asset") },
+  let checked_features_out_path =
+    Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
+  std::fs::write(
+    &checked_features_out_path,
+    &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
+  )
+  .expect("failed to write checked_features file");
+}
 
-    // process
-    process_all: { any(api_all, feature = "process-all") },
-    process_relaunch: { any(protocol_all, feature = "process-relaunch") },
-    process_exit: { any(protocol_all, feature = "process-exit") },
+// create aliases for the given module with its apis.
+// each api is translated into a feature flag in the format of `<module>-<api>`
+// and aliased as `<module_snake_case>_<api_snake_case>`.
+//
+// The `<module>-all` feature is also aliased to `<module>_all`.
+//
+// If any of the features is enabled, the `<module_snake_case>_any` alias is created.
+//
+// Note that both `module` and `apis` strings must be written in kebab case.
+fn alias_module(module: &str, apis: &[&str], api_all: bool) {
+  let all_feature_name = format!("{}-all", module);
+  let all = has_feature(&all_feature_name) || api_all;
+  alias(&all_feature_name.to_snake_case(), all);
 
-    // clipboard
-    clipboard_all: { any(api_all, feature = "clipboard-all") },
-    clipboard_write_text: { any(protocol_all, feature = "clipboard-write-text") },
-    clipboard_read_text: { any(protocol_all, feature = "clipboard-read-text") },
+  let mut any = all;
+
+  for api in apis {
+    let has = has_feature(&format!("{}-{}", module, api)) || all;
+    alias(
+      &format!("{}_{}", module.to_snake_case(), api.to_snake_case()),
+      has,
+    );
+    any = any || has;
   }
+
+  alias(&format!("{}_any", module.to_snake_case()), any);
 }

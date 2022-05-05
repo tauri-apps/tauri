@@ -322,9 +322,10 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
           path: dest_path,
         };
         if !icons.contains(&deb_icon) {
-          let icon = icon_family.get_icon_with_type(icon_type)?;
-          icon.write_png(common::create_file(&deb_icon.path)?)?;
-          icons.insert(deb_icon);
+          if let Ok(icon) = icon_family.get_icon_with_type(icon_type) {
+            icon.write_png(common::create_file(&deb_icon.path)?)?;
+            icons.insert(deb_icon);
+          }
         }
       }
     } else {

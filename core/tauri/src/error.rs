@@ -71,11 +71,8 @@ pub enum Error {
   /// Client with specified ID not found.
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
-  /// API not enabled by Tauri.
-  #[error("{0}")]
-  ApiNotEnabled(String),
   /// API not whitelisted on tauri.conf.json
-  #[error("'{0}' not on the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
+  #[error("'{0}' not in the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
   /// Invalid args when running a command.
   #[error("invalid args `{1}` for command `{0}`: {2}")]
@@ -138,6 +135,7 @@ pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {
 }
 
 impl Error {
+  #[allow(dead_code)]
   pub(crate) fn into_anyhow(self) -> anyhow::Error {
     anyhow::anyhow!(self.to_string())
   }

@@ -85,6 +85,44 @@ enum PackageManager {
 #[clap(about = "Shows information about Tauri dependencies and project configuration")]
 pub struct Options;
 
+fn version_metadata() -> Result<VersionMetadata> {
+  serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json")).map_err(Into::into)
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn cli_current_version() -> Result<String> {
+  version_metadata().map(|meta| meta.js_cli.version)
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn cli_upstream_version() -> Result<String> {
+  let upstream_metadata = match ureq::get(
+    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata.json",
+  )
+  .timeout(std::time::Duration::from_secs(3))
+  .call()
+  {
+    Ok(r) => r,
+    Err(ureq::Error::Status(code, _response)) => {
+      let message = format!("Unable to find updates at the moment. Code: {}", code);
+      return Err(anyhow::Error::msg(message));
+    }
+    Err(ureq::Error::Transport(transport)) => {
+      let message = format!(
+        "Unable to find updates at the moment. Error: {:?}",
+        transport.kind()
+      );
+      return Err(anyhow::Error::msg(message));
+    }
+  };
+
+  upstream_metadata
+    .into_string()
+    .and_then(|meta_str| Ok(serde_json::from_str::<VersionMetadata>(&meta_str)))
+    .and_then(|json| Ok(json.unwrap().js_cli.version))
+    .map_err(|e| anyhow::Error::new(e))
+}
+
 fn crate_latest_version(name: &str) -> Option<String> {
   let url = format!("https://docs.rs/crate/{}/", name);
   match ureq::get(&url).call() {
@@ -457,7 +495,6 @@ struct VersionBlock {
   version: String,
   target_version: String,
   indentation: usize,
-  skip_update_check: bool,
 }
 
 impl VersionBlock {
@@ -467,13 +504,7 @@ impl VersionBlock {
       version: version.into(),
       target_version: "".into(),
       indentation: 2,
-      skip_update_check: false,
     }
-  }
-
-  fn skip_update_check(mut self) -> Self {
-    self.skip_update_check = true;
-    self
   }
 
   fn target_version(mut self, version: impl Into<String>) -> Self {
@@ -494,7 +525,7 @@ impl VersionBlock {
         self.version.clone()
       }
     );
-    if !self.target_version.is_empty() && !self.skip_update_check {
+    if !(self.version.is_empty() || self.target_version.is_empty()) {
       let version = semver::Version::parse(self.version.as_str()).unwrap();
       let target_version = semver::Version::parse(self.target_version.as_str()).unwrap();
       if version < target_version {
@@ -582,7 +613,7 @@ pub fn command(_options: Options) -> Result<()> {
     .unwrap_or_default();
   panic::set_hook(hook);
 
-  let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
+  let metadata = version_metadata()?;
   VersionBlock::new(
     "Node.js",
     get_version("node", &[])
@@ -593,7 +624,6 @@ pub fn command(_options: Options) -> Result<()> {
       .collect::<String>(),
   )
   .target_version(metadata.js_cli.node.replace(">= ", ""))
-  .skip_update_check()
   .display();
 
   VersionBlock::new(

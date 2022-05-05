@@ -28,6 +28,7 @@ use log::warn;
 use serde::Deserialize;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
+const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri project")]
@@ -183,6 +184,56 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert(
       "window_title",
       to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
+    );
+
+    let mut config = serde_json::from_str(
+      &handlebars
+        .render_template(TAURI_CONF_TEMPLATE, &data)
+        .expect("Failed to render tauri.conf.json template"),
+    )
+    .unwrap();
+    if crate::TARGET == Some("node") {
+      let mut dir = current_dir().expect("failed to read cwd");
+      let mut count = 0;
+      let mut cli_node_module_path = None;
+      let cli_path = "node_modules/@tauri-apps/cli";
+
+      // only go up three folders max
+      while count <= 2 {
+        let test_path = dir.join(cli_path);
+        if test_path.exists() {
+          let mut node_module_path = PathBuf::from("..");
+          for _ in 0..count {
+            node_module_path.push("..");
+          }
+          node_module_path.push(cli_path);
+          node_module_path.push("schema.json");
+          cli_node_module_path.replace(node_module_path);
+          break;
+        }
+        count += 1;
+        match dir.parent() {
+          Some(parent) => {
+            dir = parent.to_path_buf();
+          }
+          None => break,
+        }
+      }
+
+      if let Some(cli_node_module_path) = cli_node_module_path {
+        let mut map = serde_json::Map::default();
+        map.insert(
+          "$schema".into(),
+          serde_json::Value::String(cli_node_module_path.display().to_string()),
+        );
+        let merge_config = serde_json::Value::Object(map);
+        json_patch::merge(&mut config, &merge_config);
+      }
+    }
+
+    data.insert(
+      "tauri_config",
+      to_json(serde_json::to_string_pretty(&config).unwrap()),
     );
 
     template::render(&handlebars, &data, &TEMPLATE_DIR, &options.directory)

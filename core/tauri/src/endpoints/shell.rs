@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(shell_scope)]
 use crate::ExecuteArgs;
@@ -55,10 +57,12 @@ pub struct CommandOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
   #[serde(rename_all = "camelCase")]
   Execute {
     program: String,
@@ -67,20 +71,16 @@ pub enum Cmd {
     #[serde(default)]
     options: CommandOptions,
   },
-  StdinWrite {
-    pid: ChildId,
-    buffer: Buffer,
-  },
-  KillChild {
-    pid: ChildId,
-  },
-  Open {
-    path: String,
-    with: Option<String>,
-  },
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
+  StdinWrite { pid: ChildId, buffer: Buffer },
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
+  KillChild { pid: ChildId },
+  #[cmd(shell_open, "shell > open")]
+  Open { path: String, with: Option<String> },
 }
 
 impl Cmd {
+  #[module_command_handler(shell_script)]
   #[allow(unused_variables)]
   fn execute<R: Runtime>(
     context: InvokeContext<R>,
@@ -169,7 +169,7 @@ impl Cmd {
     }
   }
 
-  #[cfg(any(shell_execute, shell_sidecar))]
+  #[module_command_handler(shell_script)]
   fn stdin_write<R: Runtime>(
     _context: InvokeContext<R>,
     pid: ChildId,
@@ -184,16 +184,7 @@ impl Cmd {
     Ok(())
   }
 
-  #[cfg(not(any(shell_execute, shell_sidecar)))]
-  fn stdin_write<R: Runtime>(
-    _context: InvokeContext<R>,
-    _pid: ChildId,
-    _buffer: Buffer,
-  ) -> super::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted("shell > execute or shell > sidecar".into()).into_anyhow())
-  }
-
-  #[cfg(any(shell_execute, shell_sidecar))]
+  #[module_command_handler(shell_script)]
   fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> super::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
       child.kill()?;
@@ -201,15 +192,10 @@ impl Cmd {
     Ok(())
   }
 
-  #[cfg(not(any(shell_execute, shell_sidecar)))]
-  fn kill_child<R: Runtime>(_context: InvokeContext<R>, _pid: ChildId) -> super::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted("shell > execute or shell > sidecar".into()).into_anyhow())
-  }
-
   /// Open a (url) path with a default or specific browser opening program.
   ///
   /// See [`crate::api::shell::open`] for how it handles security-related measures.
-  #[module_command_handler(shell_open, "shell > open")]
+  #[module_command_handler(shell_open)]
   fn open<R: Runtime>(
     context: InvokeContext<R>,
     path: String,

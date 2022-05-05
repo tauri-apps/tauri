@@ -4,6 +4,13 @@
   "description": "The config type mapped to `tauri.conf.json`.",
   "type": "object",
   "properties": {
+    "$schema": {
+      "description": "The JSON schema for the Tauri config.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "build": {
       "description": "The build configuration.",
       "default": {
@@ -962,6 +969,22 @@
       },
       "additionalProperties": false
     },
+    "DisabledCspModificationKind": {
+      "description": "The possible values for the `dangerous_disable_asset_csp_modification` config option.",
+      "anyOf": [
+        {
+          "description": "If `true`, disables all CSP modification. `false` is the default value and it configures Tauri to control the CSP.",
+          "type": "boolean"
+        },
+        {
+          "description": "Disables the given list of CSP directives modifications.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
     "FsAllowlistConfig": {
       "description": "Allowlist for the file system APIs.",
       "type": "object",
@@ -1343,9 +1366,13 @@
           ]
         },
         "dangerousDisableAssetCspModification": {
-          "description": "Disables the Tauri-injected CSP sources.\n\nAt compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy to only allow loading of your own scripts and styles by injecting nonce and hash sources. This stricts your CSP, which may introduce issues when using along with other flexing sources.\n\n**WARNING:** Only disable this if you know what you are doing and have properly configured the CSP. Your application might be vulnerable to XSS attacks without this Tauri protection.",
+          "description": "Disables the Tauri-injected CSP sources.\n\nAt compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy to only allow loading of your own scripts and styles by injecting nonce and hash sources. This stricts your CSP, which may introduce issues when using along with other flexing sources.\n\nThis configuration option allows both a boolean and a list of strings as value. A boolean instructs Tauri to disable the injection for all CSP injections, and a list of strings indicates the CSP directives that Tauri cannot inject.\n\n**WARNING:** Only disable this if you know what you are doing and have properly configured the CSP. Your application might be vulnerable to XSS attacks without this Tauri protection.",
           "default": false,
-          "type": "boolean"
+          "allOf": [
+            {
+              "$ref": "#/definitions/DisabledCspModificationKind"
+            }
+          ]
         },
         "devCsp": {
           "description": "The Content Security Policy that will be injected on all HTML files on development.\n\nThis is a really important part of the configuration since it helps you ensure your WebView is secured. See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.",
@@ -1409,7 +1436,6 @@
       "description": "A command allowed to be executed by the webview API.",
       "type": "object",
       "required": [
-        "cmd",
         "name"
       ],
       "properties": {
@@ -1424,6 +1450,7 @@
         },
         "cmd": {
           "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+          "default": "",
           "type": "string"
         },
         "name": {

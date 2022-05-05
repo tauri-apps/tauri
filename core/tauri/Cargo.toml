@@ -16,7 +16,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.0.0-rc.6"
+version = "1.0.0-rc.8"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -26,9 +26,12 @@ features = [
   "api-all",
   "cli",
   "__updater-docs",
+  "__fs-extract-api-docs",
   "system-tray",
   "devtools",
   "http-multipart",
+  "gtk-tray",
+  "icon-png",
   "dox"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
@@ -52,10 +55,10 @@ url = { version = "2.2" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.10"
-tauri-runtime = { version = "0.3.4", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-rc.4", path = "../tauri-macros" }
-tauri-utils = { version = "1.0.0-rc.4", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.3.5", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.4.0", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0-rc.5", path = "../tauri-macros" }
+tauri-utils = { version = "1.0.0-rc.5", path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.4.0", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = "1.0"
 serde_repr = "0.1"
@@ -64,7 +67,6 @@ tar = "0.4.36"
 tempfile = "3"
 zip = { version = "0.6", default-features = false, optional = true }
 ignore = "0.4"
-either = "1.6"
 flate2 = "1.0"
 http = "0.2"
 bincode = "1.3"
@@ -72,7 +74,7 @@ dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
-notify-rust = { version = "4.5", optional = true }
+notify-rust = { version = "4.5", default-features = false, features = ["d"], optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
@@ -95,16 +97,23 @@ ico = { version = "0.1", optional = true }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
+webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
+cocoa = "0.24"
+objc = "0.2"
+
+[target."cfg(windows)".dependencies]
+webview2-com = "0.13.0"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.30.0"
 features = [ "Win32_Foundation" ]
 
 [build-dependencies]
-cfg_aliases = "0.1.1"
+heck = "0.4"
+once_cell = "1.10"
 
 [dev-dependencies]
 mockito = "0.31"
@@ -119,7 +128,7 @@ tokio = { version = "1.16", features = [ "full" ] }
 cargo_toml = "0.11"
 
 [features]
-default = [ "wry", "compression", "objc-exception", "ayatana-tray" ]
+default = [ "wry", "compression", "objc-exception" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
@@ -139,8 +148,14 @@ http-api = [ "attohttpc" ]
 http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
+__fs-extract-api-docs = [ ]
 reqwest-client = [ "reqwest", "bytes" ]
 process-command-api = [ "shared_child", "os_pipe" ]
+global-shortcut = [
+  "tauri-runtime/global-shortcut",
+  "tauri-runtime-wry/global-shortcut"
+]
+clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
 dialog = [ "rfd" ]
 notification = [ "notify-rust" ]
 cli = [ "clap" ]
@@ -167,8 +182,8 @@ api-all = [
   "window-all"
 ]
 clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
-clipboard-read-text = [ ]
-clipboard-write-text = [ ]
+clipboard-read-text = [ "clipboard" ]
+clipboard-write-text = [ "clipboard" ]
 dialog-all = [ "dialog-open", "dialog-save", "dialog-message", "dialog-ask" ]
 dialog-ask = [ "dialog" ]
 dialog-confirm = [ "dialog" ]
@@ -193,7 +208,7 @@ fs-remove-dir = [ ]
 fs-remove-file = [ ]
 fs-rename-file = [ ]
 fs-write-file = [ ]
-global-shortcut-all = [ ]
+global-shortcut-all = [ "global-shortcut" ]
 http-all = [ "http-request" ]
 http-request = [ "http-api" ]
 notification-all = [ "notification", "dialog-ask" ]

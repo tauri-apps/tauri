@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -26,44 +26,45 @@ pub struct ContextData {
   pub root: TokenStream,
 }
 
-fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  inject_nonce_token(document);
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
-    let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements {
-      let script = inline_script_el.as_node().text_contents();
-      let mut hasher = Sha256::new();
-      hasher.update(&script);
-      let hash = hasher.finalize();
-      scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
-    }
-    csp_hashes
-      .inline_scripts
-      .entry(key.clone().into())
-      .or_default()
-      .append(&mut scripts);
-  }
-}
-
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
-  let dangerous_disable_asset_csp_modification = options.dangerous_disable_asset_csp_modification;
+  let dangerous_disable_asset_csp_modification =
+    options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
 
+      #[allow(clippy::collapsible_if)]
       if csp {
         #[cfg(target_os = "linux")]
         ::tauri_utils::html::inject_csp_token(&mut document);
 
-        if !dangerous_disable_asset_csp_modification {
-          load_csp(&mut document, key, csp_hashes);
+        inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
 
-          #[cfg(feature = "isolation")]
+        if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+          if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+            let mut scripts = Vec::new();
+            for inline_script_el in inline_script_elements {
+              let script = inline_script_el.as_node().text_contents();
+              let mut hasher = Sha256::new();
+              hasher.update(&script);
+              let hash = hasher.finalize();
+              scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+            }
+            csp_hashes
+              .inline_scripts
+              .entry(key.clone().into())
+              .or_default()
+              .append(&mut scripts);
+          }
+        }
+
+        #[cfg(feature = "isolation")]
+        if dangerous_disable_asset_csp_modification.can_modify("style-src") {
           if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
             // create the csp for the isolation iframe styling now, to make the runtime less complex
             let mut hasher = Sha256::new();
@@ -115,7 +116,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
-    .freeze_prototype(config.tauri.security.freeze_prototype);
+    .freeze_prototype(config.tauri.security.freeze_prototype)
+    .dangerous_disable_asset_csp_modification(
+      config
+        .tauri
+        .security
+        .dangerous_disable_asset_csp_modification
+        .clone(),
+    );
   let csp = if dev {
     config
       .tauri

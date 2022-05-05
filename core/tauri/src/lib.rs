@@ -23,13 +23,16 @@
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
+//! - **global-shortcut**: Enables the global shortcut APIs.
+//! - **clipboard**: Enables the clipboard APIs.
 //! - **process-relaunch-dangerous-allow-symlink-macos**: Allows the [`api::process::current_binary`] function to allow symlinks on macOS (this is dangerous, see the Security section in the documentation website).
 //! - **dialog**: Enables the [`api::dialog`] module.
 //! - **notification**: Enables the [`api::notification`] module.
 //! - **fs-extract-api**: Enabled the `tauri::api::file::Extract` API.
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
-//! - **ayatana-tray** *(enabled by default)*: Use libayatana-appindicator for system tray on Linux.
+//! Note that you must select one of `ayatana-tray` and `gtk-tray` features on Linux.
+//! - **ayatana-tray**: Use libayatana-appindicator for system tray on Linux.
 //! - **gtk-tray**: Use libappindicator3-1 for system tray on Linux. To enable this, you need to disable the default features.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
@@ -232,7 +235,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    ClipboardManager, GlobalShortcutManager, RunIteration, TrayIcon, UserAttentionType,
+    RunIteration, TrayIcon, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -243,6 +246,14 @@ pub use {
   self::window::{Monitor, Window, WindowBuilder},
   scope::*,
 };
+
+#[cfg(feature = "clipboard")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
+pub use self::runtime::ClipboardManager;
+
+#[cfg(feature = "global-shortcut")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
+pub use self::runtime::GlobalShortcutManager;
 
 /// Updater events.
 #[cfg(updater)]
@@ -801,20 +812,95 @@ pub mod test;
 
 #[cfg(test)]
 mod tests {
+  use cargo_toml::Manifest;
+  use once_cell::sync::OnceCell;
+  use std::{env::var, fs::read_to_string, path::PathBuf};
+
+  static MANIFEST: OnceCell<Manifest> = OnceCell::new();
+  const CHECKED_FEATURES: &str = include_str!(concat!(env!("OUT_DIR"), "/checked_features"));
+
+  fn get_manifest() -> &'static Manifest {
+    MANIFEST.get_or_init(|| {
+      let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
+      Manifest::from_path(manifest_dir.join("Cargo.toml")).expect("failed to parse Cargo manifest")
+    })
+  }
+
   #[test]
   fn features_are_documented() {
-    use cargo_toml::Manifest;
-    use std::{env::var, fs::read_to_string, path::PathBuf};
-    // this env var is always set by Cargo
     let manifest_dir = PathBuf::from(var("CARGO_MANIFEST_DIR").unwrap());
-    let manifest =
-      Manifest::from_path(manifest_dir.join("Cargo.toml")).expect("failed to parse Cargo manifest");
-
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
-    for (f, _) in manifest.features {
+    for f in get_manifest().features.keys() {
       if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
         panic!("Feature {} is not documented", f);
+      }
+    }
+  }
+
+  #[test]
+  fn aliased_features_exist() {
+    let checked_features = CHECKED_FEATURES.split(',');
+    let manifest = get_manifest();
+    for checked_feature in checked_features {
+      if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
+        panic!(
+          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
+          checked_feature
+        );
+      }
+    }
+  }
+
+  #[test]
+  fn all_allowlist_features_are_aliased() {
+    let manifest = get_manifest();
+    let all_modules = manifest
+      .features
+      .iter()
+      .find(|(f, _)| f.as_str() == "api-all")
+      .map(|(_, enabled)| enabled)
+      .expect("api-all feature must exist");
+
+    let checked_features = CHECKED_FEATURES.split(',').collect::<Vec<&str>>();
+    assert!(
+      checked_features.contains(&"api-all"),
+      "`api-all` is not aliased"
+    );
+
+    // features that look like an allowlist feature, but are not
+    let allowed = [
+      "fs-extract-api",
+      "http-api",
+      "http-multipart",
+      "process-command-api",
+      "process-relaunch-dangerous-allow-symlink-macos",
+      "window-data-url",
+    ];
+
+    for module_all_feature in all_modules {
+      let module = module_all_feature.replace("-all", "");
+      assert!(
+        checked_features.contains(&module_all_feature.as_str()),
+        "`{}` is not aliased",
+        module
+      );
+
+      let module_prefix = format!("{}-", module);
+      // we assume that module features are the ones that start with `<module>-`
+      // though it's not 100% accurate, we have an allowed list to fix it
+      let module_features = manifest
+        .features
+        .iter()
+        .map(|(f, _)| f)
+        .filter(|f| f.starts_with(&module_prefix));
+      for module_feature in module_features {
+        assert!(
+          allowed.contains(&module_feature.as_str())
+            || checked_features.contains(&module_feature.as_str()),
+          "`{}` is not aliased",
+          module_feature
+        );
       }
     }
   }

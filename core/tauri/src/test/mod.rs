@@ -42,6 +42,7 @@ pub fn noop_assets() -> NoopAsset {
 pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   crate::Context {
     config: Config {
+      schema: None,
       package: Default::default(),
       tauri: TauriConfig {
         pattern: PatternKind::Brownfield,

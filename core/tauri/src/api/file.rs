@@ -4,7 +4,7 @@
 
 //! Types and functions related to file operations.
 
-#[cfg(feature = "fs-extract-api")]
+#[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
 mod extract;
 mod file_move;
 
@@ -13,7 +13,7 @@ use std::{
   path::{Display, Path},
 };
 
-#[cfg(feature = "fs-extract-api")]
+#[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
 pub use extract::*;
 pub use file_move::*;
 
@@ -34,10 +34,12 @@ impl SafePathBuf {
     }
   }
 
+  #[allow(dead_code)]
   pub unsafe fn new_unchecked(path: std::path::PathBuf) -> Self {
     Self(path)
   }
 
+  #[allow(dead_code)]
   pub fn display(&self) -> Display<'_> {
     self.0.display()
   }

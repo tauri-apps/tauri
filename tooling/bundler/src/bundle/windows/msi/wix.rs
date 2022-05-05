@@ -4,24 +4,23 @@
 
 use super::super::sign::{sign, SignParams};
 use crate::bundle::{
-  common,
+  common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
-
 use handlebars::{to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use uuid::Uuid;
 use zip::ZipArchive;
-
+use log::info;
 use std::{
   collections::{BTreeMap, HashMap},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
-  process::{Command, Stdio},
+  process::Command,
 };
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
@@ -365,7 +364,7 @@ pub fn build_wix_app_installer(
   };
 
   // target only supports x64.
-  common::print_info(format!("Target: {}", arch).as_str())?;
+  info!("Target: {}", arch);
 
   let main_binary = settings
     .binaries()
@@ -375,7 +374,7 @@ pub fn build_wix_app_installer(
   let app_exe_source = settings.binary_path(main_binary);
   let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
     if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-      common::print_info(&format!("signing {}", file_path.display()))?;
+      info!(action = "Signing"; "{}", file_path.display());
       sign(
         &file_path,
         &SignParams {

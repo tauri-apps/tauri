@@ -6,9 +6,8 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-
-use crate::bundle::common;
-
+use crate::bundle::common::CommandExt;
+use log::info;
 use bitness::{self, Bitness};
 use winreg::{
   enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY},

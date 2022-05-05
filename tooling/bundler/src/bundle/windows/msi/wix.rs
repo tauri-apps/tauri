@@ -317,8 +317,7 @@ fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
-  output_path: &Path,
-  settings: &Settings,
+  output_path: &Path
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
@@ -693,7 +692,6 @@ pub fn build_wix_app_installer(
       &output_path,
       arguments,
       &msi_output_path,
-      settings,
     )?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;

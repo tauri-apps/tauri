@@ -108,7 +108,7 @@ fn command_internal(options: Options) -> Result<()> {
           .arg(before_dev)
           .current_dir(app_dir())
           .envs(command_env(true))
-          .pipe()?; // development build always includes debug information
+          .output_ok()?; // development build always includes debug information
         command
       };
       #[cfg(not(target_os = "windows"))]

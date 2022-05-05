@@ -92,7 +92,7 @@ where
   };
 
   let mut builder = Builder::from_default_env();
-  builder
+  let init_res = builder
     .format_indent(Some(12))
     .filter(None, level_from_usize(cli.verbose).to_level_filter())
     .format(|f, record| {
@@ -121,7 +121,11 @@ where
 
       writeln!(f, "{}", record.args())
     })
-    .init();
+    .try_init();
+
+  if let Err(err) = init_res {
+    eprintln!("Failed to attach logger: {}", err.to_string());
+  }
 
   match cli.command {
     Commands::Build(options) => build::command(options)?,

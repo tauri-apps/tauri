@@ -15,6 +15,7 @@ use std::{
   path::PathBuf,
   process::{Command, Stdio},
 };
+use log::info;
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.

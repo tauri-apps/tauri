@@ -34,7 +34,12 @@
       }
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "protocol": {
+        "all": false,
+        "asset": true,
+        "assetScope": ["$HOME/**/test_video.mp4"] 
+      }
     },
     "windows": [
       {
@@ -46,7 +51,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src stream: https://stream.localhost"
+      "csp": "default-src 'self'; media-src asset: https://asset.localhost"
     },
     "updater": {
       "active": false

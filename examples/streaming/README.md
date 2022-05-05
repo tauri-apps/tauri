@@ -2,4 +2,4 @@
 
 A simple Tauri Appplication showcase the streaming functionality.
 
-To execute run the following on the root directory of the repository: `cargo run --example streaming`.
+To execute run the following on the root directory of the repository: `cargo run --example streaming --features protocol-asset`.

@@ -14,7 +14,7 @@ use anyhow::{bail, Context};
 use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
-use log::info;
+use log::{error, info};
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
@@ -67,7 +67,7 @@ pub fn command(options: Options) -> Result<()> {
   let config_ = config_guard.as_ref().unwrap();
 
   if config_.tauri.bundle.identifier == "com.tauri.dev" {
-    logger.error("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
     std::process::exit(1);
   }
 

@@ -192,7 +192,7 @@ pub fn command(mut options: Options) -> Result<()> {
         .expect("Failed to render tauri.conf.json template"),
     )
     .unwrap();
-    if crate::TARGET == Some("node") {
+    if option_env!("TARGET") == Some("node") {
       let mut dir = current_dir().expect("failed to read cwd");
       let mut count = 0;
       let mut cli_node_module_path = None;

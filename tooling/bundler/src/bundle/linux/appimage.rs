@@ -9,13 +9,13 @@ use super::{
 use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
+use log::info;
 use std::{
   collections::BTreeMap,
   fs::{remove_dir_all, write},
   path::PathBuf,
   process::{Command, Stdio},
 };
-use log::info;
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.

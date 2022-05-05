@@ -14,12 +14,12 @@ mod plugin;
 mod signer;
 
 use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
-use std::ffi::OsString;
-use std::process::{Output, Command};
 use env_logger::fmt::Color;
-use env_logger::{Builder};
-use log::{log_enabled, Level, debug};
+use env_logger::Builder;
+use log::{debug, log_enabled, Level};
+use std::ffi::OsString;
 use std::io::Write;
+use std::process::{Command, Output};
 
 #[derive(serde::Deserialize)]
 pub struct VersionMetadata {
@@ -135,13 +135,13 @@ where
   Ok(())
 }
 
-/// This maps the occurrence of `--verbose` flags to the correct log level 
+/// This maps the occurrence of `--verbose` flags to the correct log level
 fn level_from_usize(num: usize) -> Level {
   match num {
     0 => Level::Info,
     1 => Level::Debug,
     2.. => Level::Trace,
-    _ => panic!()
+    _ => panic!(),
   }
 }
 
@@ -172,7 +172,9 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
-      Err(anyhow::anyhow!(String::from_utf8_lossy(&output.stderr).to_string()))
+      Err(anyhow::anyhow!(
+        String::from_utf8_lossy(&output.stderr).to_string()
+      ))
     }
   }
 }

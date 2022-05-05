@@ -10,12 +10,10 @@ use crate::bundle::{
 };
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
+use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use uuid::Uuid;
-use zip::ZipArchive;
-use log::info;
 use std::{
   collections::{BTreeMap, HashMap},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
@@ -23,6 +21,8 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
+use uuid::Uuid;
+use zip::ZipArchive;
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
@@ -317,7 +317,7 @@ fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
-  output_path: &Path
+  output_path: &Path,
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
@@ -687,12 +687,7 @@ pub fn build_wix_app_installer(
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(
-      wix_toolset_path,
-      &output_path,
-      arguments,
-      &msi_output_path,
-    )?;
+    run_light(wix_toolset_path, &output_path, arguments, &msi_output_path)?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);

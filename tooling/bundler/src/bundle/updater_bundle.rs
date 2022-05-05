@@ -12,17 +12,17 @@ use super::linux::appimage;
 
 #[cfg(target_os = "windows")]
 use super::windows::msi;
+use log::error;
 #[cfg(target_os = "windows")]
 use std::{fs::File, io::prelude::*};
-use log::error;
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
 use crate::{bundle::Bundle, Settings};
-use std::{fs, io::Write};
 use anyhow::Context;
-use std::path::{Path, PathBuf};
 use log::info;
+use std::path::{Path, PathBuf};
+use std::{fs, io::Write};
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {

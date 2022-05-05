@@ -138,7 +138,7 @@ pub fn sign(
   is_an_executable: bool,
 ) -> crate::Result<()> {
   info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
-  
+
   let mut args = vec!["--force", "-s", identity];
   if let Some(entitlements_path) = &settings.macos().entitlements {
     info!("using entitlements file at {}", entitlements_path);

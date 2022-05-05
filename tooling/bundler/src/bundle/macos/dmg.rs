@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use super::{app, icon::create_icns_file};
-use crate::{bundle::{Bundle, common::CommandExt}, PackageType::MacOsBundle, Settings};
+use crate::{
+  bundle::{common::CommandExt, Bundle},
+  PackageType::MacOsBundle,
+  Settings,
+};
 
 use anyhow::Context;
 use log::info;

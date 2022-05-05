@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::common::CommandExt;
+use bitness::{self, Bitness};
+use log::info;
 use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use crate::bundle::common::CommandExt;
-use log::info;
-use bitness::{self, Bitness};
 use winreg::{
   enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY},
   RegKey,
@@ -94,7 +94,7 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 
   // Construct SignTool command
   let signtool = locate_signtool()?;
-  
+
   info!(action = "Running"; "signtool {:?}", signtool);
 
   let mut cmd = Command::new(signtool);

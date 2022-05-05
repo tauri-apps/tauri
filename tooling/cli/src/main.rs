@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use std::env::args_os;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
-use anyhow::Context; 
 
 fn main() -> tauri_cli::Result<()> {
   let mut args = args_os().peekable();

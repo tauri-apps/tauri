@@ -26,7 +26,7 @@ use super::{
   icon::create_icns_file,
   sign::{notarize, notarize_auth_args, setup_keychain_if_needed, sign},
 };
-use crate::{Settings, bundle::common::CommandExt};
+use crate::{bundle::common::CommandExt, Settings};
 
 use anyhow::Context;
 use log::{info, warn};
@@ -239,13 +239,14 @@ fn create_info_plist(
   file.flush()?;
 
   if let Some(user_plist_path) = &settings.macos().info_plist_path {
-    Command::new("/usr/libexec/PlistBuddy").args(&[
-      "-c".into(),
-      format!("Merge {}", user_plist_path.display()),
-      bundle_plist_path.display().to_string(),
-    ])
-    .output_ok()
-    .context("error running PlistBuddy")?;
+    Command::new("/usr/libexec/PlistBuddy")
+      .args(&[
+        "-c".into(),
+        format!("Merge {}", user_plist_path.display()),
+        bundle_plist_path.display().to_string(),
+      ])
+      .output_ok()
+      .context("error running PlistBuddy")?;
   }
 
   Ok(())

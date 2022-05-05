@@ -62,10 +62,7 @@ pub fn command(mut options: Options) -> Result<()> {
   ));
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json"))?;
   if template_target_path.exists() {
-    warn!(
-      "Plugin dir ({:?}) not empty.",
-      template_target_path
-    );
+    warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep) =
       if let Some(tauri_path) = options.tauri_path {

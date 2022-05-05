@@ -32,7 +32,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   warn!("iOS bundle support is still experimental.");
 
   let app_product_name = format!("{}.app", settings.product_name());
-  
+
   info!(action = "Bundling"; "{}", app_product_name);
 
   let bundle_dir = settings

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::OsString,
+  ffi::{OsStr, OsString},
   fs::File,
   io::prelude::*,
   path::PathBuf,
@@ -27,7 +27,7 @@ pub fn setup_keychain(
   certificate_password: OsString,
 ) -> crate::Result<()> {
   // we delete any previous version of our keychain if present
-  delete_keychain();
+  delete_keychain(&["login.keychain-db"]);
   common::print_info("setup keychain from environment variables...")?;
 
   let tmp_dir = tempfile::tempdir()?;
@@ -155,20 +155,25 @@ pub fn setup_keychain(
   Ok(())
 }
 
-pub fn delete_keychain() {
+pub fn delete_keychain<K: AsRef<OsStr>>(keychains: &[K]) {
   // delete keychain if needed and skip any error
-  let _result = Command::new("security")
+  let delete_keychain_success = Command::new("security")
     .arg("delete-keychain")
     .arg(KEYCHAIN_ID)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .status();
+    .status()
+    .map(|s| s.success())
+    .unwrap_or_default();
 
-  let _result = Command::new("security")
-    .args(["list-keychain", "-d", "user", "-s", "login.keychain-db"])
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .status();
+  if delete_keychain_success {
+    let _result = Command::new("security")
+      .args(["list-keychain", "-d", "user", "-s"])
+      .args(keychains)
+      .stdout(Stdio::piped())
+      .stderr(Stdio::piped())
+      .status();
+  }
 }
 
 pub fn sign(
@@ -177,23 +182,38 @@ pub fn sign(
   settings: &Settings,
   is_an_executable: bool,
 ) -> crate::Result<()> {
-  if let (Some(certificate_encoded), Some(certificate_password)) = (
+  let previous_keychains = if let (Some(certificate_encoded), Some(certificate_password)) = (
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
+    let output = Command::new("security")
+      .args(["list-keychain", "-d", "user"])
+      .output()?;
     // setup keychain allow you to import your certificate
     // for CI build
     setup_keychain(certificate_encoded, certificate_password)?;
-  }
+
+    Some(
+      // TODO: handle non-utf8 string
+      String::from_utf8_lossy(&output.stdout)
+        .split('\n')
+        .map(|line| {
+          line
+            .trim_matches(|c: char| c.is_whitespace() || c == '"')
+            .to_string()
+        })
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<String>>(),
+    )
+  } else {
+    None
+  };
 
   let res = try_sign(path_to_sign, identity, settings, is_an_executable);
 
-  if let (Some(_cert), Some(_password)) = (
-    std::env::var_os("APPLE_CERTIFICATE"),
-    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
-  ) {
+  if let Some(previous_keychains) = previous_keychains {
     // delete the keychain again after signing
-    delete_keychain();
+    delete_keychain(&previous_keychains);
   }
 
   res

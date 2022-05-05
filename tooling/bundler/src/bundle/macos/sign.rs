@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::{OsStr, OsString},
+  ffi::OsString,
   fs::File,
   io::prelude::*,
   path::PathBuf,
@@ -27,8 +27,12 @@ pub fn setup_keychain(
   certificate_password: OsString,
 ) -> crate::Result<()> {
   // we delete any previous version of our keychain if present
-  delete_keychain(&["login.keychain-db"]);
+  delete_keychain();
   common::print_info("setup keychain from environment variables...")?;
+
+  let keychain_list_output = Command::new("security")
+    .args(["list-keychain", "-d", "user"])
+    .output()?;
 
   let tmp_dir = tempfile::tempdir()?;
   let cert_path = tmp_dir
@@ -142,8 +146,20 @@ pub fn setup_keychain(
     return Err(anyhow::anyhow!("failed to set keychain settings",).into());
   }
 
+  let current_keychains = String::from_utf8_lossy(&keychain_list_output.stdout)
+    .split('\n')
+    .map(|line| {
+      line
+        .trim_matches(|c: char| c.is_whitespace() || c == '"')
+        .to_string()
+    })
+    .filter(|l| !l.is_empty())
+    .collect::<Vec<String>>();
+
   let set_keychain_list_entry = Command::new("security")
-    .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
+    .args(["list-keychain", "-d", "user", "-s"])
+    .args(current_keychains)
+    .arg(KEYCHAIN_ID)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .status()?;
@@ -155,25 +171,14 @@ pub fn setup_keychain(
   Ok(())
 }
 
-pub fn delete_keychain<K: AsRef<OsStr>>(keychains: &[K]) {
+pub fn delete_keychain() {
   // delete keychain if needed and skip any error
-  let delete_keychain_success = Command::new("security")
+  let _ = Command::new("security")
     .arg("delete-keychain")
     .arg(KEYCHAIN_ID)
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
-    .status()
-    .map(|s| s.success())
-    .unwrap_or_default();
-
-  if delete_keychain_success {
-    let _result = Command::new("security")
-      .args(["list-keychain", "-d", "user", "-s"])
-      .args(keychains)
-      .stdout(Stdio::piped())
-      .stderr(Stdio::piped())
-      .status();
-  }
+    .status();
 }
 
 pub fn sign(
@@ -182,38 +187,23 @@ pub fn sign(
   settings: &Settings,
   is_an_executable: bool,
 ) -> crate::Result<()> {
-  let previous_keychains = if let (Some(certificate_encoded), Some(certificate_password)) = (
+  let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     std::env::var_os("APPLE_CERTIFICATE"),
     std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    let output = Command::new("security")
-      .args(["list-keychain", "-d", "user"])
-      .output()?;
     // setup keychain allow you to import your certificate
     // for CI build
     setup_keychain(certificate_encoded, certificate_password)?;
-
-    Some(
-      // TODO: handle non-utf8 string
-      String::from_utf8_lossy(&output.stdout)
-        .split('\n')
-        .map(|line| {
-          line
-            .trim_matches(|c: char| c.is_whitespace() || c == '"')
-            .to_string()
-        })
-        .filter(|l| !l.is_empty())
-        .collect::<Vec<String>>(),
-    )
+    true
   } else {
-    None
+    false
   };
 
   let res = try_sign(path_to_sign, identity, settings, is_an_executable);
 
-  if let Some(previous_keychains) = previous_keychains {
+  if setup_keychain {
     // delete the keychain again after signing
-    delete_keychain(&previous_keychains);
+    delete_keychain();
   }
 
   res

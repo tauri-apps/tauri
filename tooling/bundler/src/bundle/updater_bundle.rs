@@ -22,7 +22,6 @@ use crate::{bundle::Bundle, Settings};
 use std::{fs, io::Write};
 use anyhow::Context;
 use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 use log::info;
 
 // Build update
@@ -41,6 +40,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
@@ -82,6 +83,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // No assets are replaced
 #[cfg(target_os = "linux")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // build our app actually we support only appimage on linux
   let bundle_path = match bundles
     .iter()

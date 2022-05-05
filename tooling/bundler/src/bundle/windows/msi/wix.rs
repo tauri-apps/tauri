@@ -8,6 +8,7 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
+use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -174,7 +175,7 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
 
   let data: Vec<u8> = response.bytes()?;
 
-  info!("validating hash")?;
+  info!("validating hash");
 
   let mut hasher = sha2::Sha256::new();
   hasher.update(&data);

@@ -199,7 +199,13 @@ pub fn sign(
     false
   };
 
-  let res = try_sign(path_to_sign, identity, settings, is_an_executable);
+  let res = try_sign(
+    path_to_sign,
+    identity,
+    settings,
+    is_an_executable,
+    setup_keychain,
+  );
 
   if setup_keychain {
     // delete the keychain again after signing
@@ -214,9 +220,16 @@ fn try_sign(
   identity: &str,
   settings: &Settings,
   is_an_executable: bool,
+  tauri_keychain: bool,
 ) -> crate::Result<()> {
   common::print_info(format!(r#"signing with identity "{}""#, identity).as_str())?;
-  let mut args = vec!["--force", "-s", identity, "--keychain", KEYCHAIN_ID];
+  let mut args = vec!["--force", "-s", identity];
+
+  if tauri_keychain {
+    args.push("--keychain");
+    args.push(KEYCHAIN_ID);
+  }
+
   if let Some(entitlements_path) = &settings.macos().entitlements {
     common::print_info(format!("using entitlements file at {}", entitlements_path).as_str())?;
     args.push("--entitlements");

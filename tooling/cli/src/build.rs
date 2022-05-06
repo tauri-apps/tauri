@@ -9,7 +9,7 @@ use crate::helpers::{
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
 };
-use crate::Result;
+use crate::{CommandExt, Result};
 use anyhow::{bail, Context};
 use clap::Parser;
 #[cfg(target_os = "linux")]
@@ -81,6 +81,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
+        .pipe()?
         .status()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
@@ -89,6 +90,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
+        .pipe()?
         .status()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
 

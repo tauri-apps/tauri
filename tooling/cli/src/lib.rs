@@ -161,10 +161,19 @@ fn prettyprint_level(lvl: Level) -> &'static str {
 }
 
 pub trait CommandExt {
+  // The `pipe` function sets the stdout and stderr to properly
+  // show the command output in the Node.js wrapper.
+  fn pipe(&mut self) -> Result<&mut Self>;
   fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
 impl CommandExt for Command {
+  fn pipe(&mut self) -> Result<&mut Self> {
+    self.stdout(os_pipe::dup_stdout()?);
+    self.stderr(os_pipe::dup_stderr()?);
+    Ok(self)
+  }
+
   fn output_ok(&mut self) -> crate::Result<Output> {
     debug!(action = "Running"; "Command `{} {}`", self.get_program().to_string_lossy(), self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
 

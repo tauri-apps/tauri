@@ -90,7 +90,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  info!(action = "Finished"; "{} {} at: {}", bundles.len(), pluralised, printable_paths);
+  info!(action = "Finished"; "{} {} at:\n{}", bundles.len(), pluralised, printable_paths);
 
   Ok(bundles)
 }

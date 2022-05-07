@@ -1814,7 +1814,7 @@
       "type": "object",
       "properties": {
         "installMode": {
-          "description": "The installation mode for the update on Windows. Defaults to `quiet`.",
+          "description": "The installation mode for the update on Windows. Defaults to `passive`.",
           "default": "passive",
           "allOf": [
             {

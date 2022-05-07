@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.5.0]
+
+- Expose methods to access the underlying native handles of the webview.
+  - [c82b4761](https://www.github.com/tauri-apps/tauri/commit/c82b4761e1660592472dc55308ad69d9efc5855b) feat(core): expose `with_webview` API to access the platform webview ([#4058](https://www.github.com/tauri-apps/tauri/pull/4058)) on 2022-05-04
+
 ## \[0.4.0]
 
 - The `AboutMetadata` string setters now take `impl Into<String>`.

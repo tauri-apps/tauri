@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.8]
+
+- Properly set file version information for the Windows executable.
+  - [1ca2dd67](https://www.github.com/tauri-apps/tauri/commit/1ca2dd677d50b4c724c55b37060c3ba64b81c54a) fix(tauri-build): properly set executable version info on Windows ([#4045](https://www.github.com/tauri-apps/tauri/pull/4045)) on 2022-05-03
+
 ## \[1.0.0-rc.7]
 
 - Rerun build script if `TAURI_CONFIG` environment variable change.

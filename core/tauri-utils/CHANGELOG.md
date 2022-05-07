@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Added `$schema` support to `tauri.conf.json`.
+  - [715cbde3](https://www.github.com/tauri-apps/tauri/commit/715cbde3842a916c4ebeab2cab348e1774b5c192) feat(config): add `$schema` to `tauri.conf.json`, closes [#3464](https://www.github.com/tauri-apps/tauri/pull/3464) ([#4031](https://www.github.com/tauri-apps/tauri/pull/4031)) on 2022-05-03
+- The `dangerous_allow_asset_csp_modification` configuration value has been changed to allow a list of CSP directives to disable.
+  - [164078c0](https://www.github.com/tauri-apps/tauri/commit/164078c0b719ccbc12e956fecf8a7d4a3c5044e1) feat: allow limiting dangerousDisableAssetCspModification, closes [#3831](https://www.github.com/tauri-apps/tauri/pull/3831) ([#4021](https://www.github.com/tauri-apps/tauri/pull/4021)) on 2022-05-02
+
 ## \[1.0.0-rc.5]
 
 - Added the `io` module with the `read_line` method.

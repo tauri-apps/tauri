@@ -33,38 +33,39 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let app_product_name = format!("{}.app", settings.product_name());
 
-  info!(action = "Bundling"; "{}", app_product_name);
-
-  let bundle_dir = settings
+  let app_bundle_path = settings
     .project_out_directory()
     .join("bundle/ios")
     .join(&app_product_name);
-  if bundle_dir.exists() {
-    fs::remove_dir_all(&bundle_dir)
+
+  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
+
+  if app_bundle_path.exists() {
+    fs::remove_dir_all(&app_bundle_path)
       .with_context(|| format!("Failed to remove old {}", app_product_name))?;
   }
-  fs::create_dir_all(&bundle_dir)
-    .with_context(|| format!("Failed to create bundle directory at {:?}", bundle_dir))?;
+  fs::create_dir_all(&app_bundle_path)
+    .with_context(|| format!("Failed to create bundle directory at {:?}", app_bundle_path))?;
 
   for src in settings.resource_files() {
     let src = src?;
-    let dest = bundle_dir.join(tauri_utils::resources::resource_relpath(&src));
+    let dest = app_bundle_path.join(tauri_utils::resources::resource_relpath(&src));
     common::copy_file(&src, &dest)
       .with_context(|| format!("Failed to copy resource file {:?}", src))?;
   }
 
   let icon_filenames =
-    generate_icon_files(&bundle_dir, settings).with_context(|| "Failed to create app icons")?;
-  generate_info_plist(&bundle_dir, settings, &icon_filenames)
+    generate_icon_files(&app_bundle_path, settings).with_context(|| "Failed to create app icons")?;
+  generate_info_plist(&app_bundle_path, settings, &icon_filenames)
     .with_context(|| "Failed to create Info.plist")?;
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &bundle_dir.join(bin.name()))
+    common::copy_file(&bin_path, &app_bundle_path.join(bin.name()))
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
   }
 
-  Ok(vec![bundle_dir])
+  Ok(vec![app_bundle_path])
 }
 
 /// Generate the icon files and store them under the `bundle_dir`.

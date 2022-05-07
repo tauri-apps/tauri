@@ -65,7 +65,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
 
-  info!(action = "Bundling"; "{}", dmg_path.display());
+  info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
 
   // write the scripts
   write(

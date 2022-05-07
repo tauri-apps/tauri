@@ -45,12 +45,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // version or platform shouldn't be included in the App name.
   let app_product_name = format!("{}.app", settings.product_name());
 
-  info!(action = "Bundling"; "{}", app_product_name);
-
   let app_bundle_path = settings
     .project_out_directory()
     .join("bundle/macos")
     .join(&app_product_name);
+
+  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
+
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
       .with_context(|| format!("Failed to remove old {}", app_product_name))?;

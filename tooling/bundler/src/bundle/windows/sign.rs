@@ -92,10 +92,12 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   // Convert path to string reference, as we need to pass it as a commandline parameter to signtool
   let path_str = path.as_ref().to_str().unwrap();
 
+  info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
+
   // Construct SignTool command
   let signtool = locate_signtool()?;
 
-  info!(action = "Running"; "signtool {:?}", signtool);
+  debug!("Running signtool {:?}", signtool);
 
   let mut cmd = Command::new(signtool);
   cmd.arg("sign");

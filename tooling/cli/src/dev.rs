@@ -79,16 +79,18 @@ pub fn command(options: Options) -> Result<()> {
 
 fn command_internal(options: Options) -> Result<()> {
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
   let merge_config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
-      std::fs::read_to_string(&config)?
+      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
     })
   } else {
     None
   };
+
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+
   let config = get_config(merge_config.as_deref())?;
 
   if let Some(before_dev) = &config

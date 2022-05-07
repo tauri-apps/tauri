@@ -4,7 +4,7 @@
 
 use crate::bundle::common::CommandExt;
 use bitness::{self, Bitness};
-use log::{info, debug};
+use log::{debug, info};
 use std::{
   path::{Path, PathBuf},
   process::Command,

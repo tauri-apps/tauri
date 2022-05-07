@@ -4,7 +4,7 @@
 
 use crate::Result;
 use crate::{
-  helpers::{resolve_tauri_path, template, Logger},
+  helpers::{resolve_tauri_path, template},
   VersionMetadata,
 };
 use anyhow::Context;
@@ -12,6 +12,7 @@ use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
+use log::warn;
 use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
 
 const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
@@ -55,17 +56,13 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let logger = Logger::new("tauri:init:plugin");
   let template_target_path = PathBuf::from(options.directory).join(&format!(
     "tauri-plugin-{}",
     options.plugin_name.to_kebab_case()
   ));
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json"))?;
   if template_target_path.exists() {
-    logger.warn(format!(
-      "Plugin dir ({:?}) not empty.",
-      template_target_path
-    ));
+    warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep) =
       if let Some(tauri_path) = options.tauri_path {

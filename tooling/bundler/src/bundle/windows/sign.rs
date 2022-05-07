@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::common::CommandExt;
+use bitness::{self, Bitness};
+use log::{debug, info};
 use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-
-use crate::bundle::common;
-
-use bitness::{self, Bitness};
 use winreg::{
   enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY},
   RegKey,
@@ -93,9 +92,13 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   // Convert path to string reference, as we need to pass it as a commandline parameter to signtool
   let path_str = path.as_ref().to_str().unwrap();
 
+  info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
+
   // Construct SignTool command
   let signtool = locate_signtool()?;
-  common::print_info(format!("running signtool {:?}", signtool).as_str())?;
+
+  debug!("Running signtool {:?}", signtool);
+
   let mut cmd = Command::new(signtool);
   cmd.arg("sign");
   cmd.args(&["/fd", &params.digest_algorithm]);
@@ -113,15 +116,10 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   cmd.arg(path_str);
 
   // Execute SignTool command
-  let output = cmd.output()?;
-
-  if !output.status.success() {
-    let stderr = String::from_utf8_lossy(output.stderr.as_slice()).into_owned();
-    return Err(crate::Error::Sign(stderr));
-  }
+  let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  common::print_info(format!("{:?}", stdout).as_str())?;
+  info!("{:?}", stdout);
 
   Ok(())
 }

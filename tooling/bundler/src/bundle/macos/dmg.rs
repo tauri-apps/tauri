@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{super::common, app, icon::create_icns_file};
-use crate::{bundle::Bundle, PackageType::MacOsBundle, Settings};
+use super::{app, icon::create_icns_file};
+use crate::{
+  bundle::{common::CommandExt, Bundle},
+  PackageType::MacOsBundle,
+  Settings,
+};
 
 use anyhow::Context;
+use log::info;
 
 use std::{
   env,
@@ -60,7 +65,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
 
-  common::print_bundling(format!("{:?}", &dmg_path).as_str())?;
+  info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
 
   // write the scripts
   write(
@@ -88,9 +93,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   let mut args = vec![
     "--volname",
-    &product_name,
+    product_name,
     "--icon",
-    &product_name,
+    product_name,
     "180",
     "170",
     "--app-drop-link",
@@ -104,7 +109,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   ];
 
   let icns_icon_path =
-    create_icns_file(&output_path, &settings)?.map(|path| path.to_string_lossy().to_string());
+    create_icns_file(&output_path, settings)?.map(|path| path.to_string_lossy().to_string());
   if let Some(icon) = &icns_icon_path {
     args.push("--volicon");
     args.push(icon);
@@ -129,30 +134,21 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     }
   }
 
+  info!(action = "Running"; "bundle_dmg.sh");
+
   // execute the bundle script
-  let mut cmd = Command::new(&bundle_script_path);
-  cmd
+  Command::new(&bundle_script_path)
     .current_dir(bundle_dir.clone())
     .args(args)
-    .args(vec![dmg_name.as_str(), bundle_file_name.as_str()]);
-
-  common::print_info("running bundle_dmg.sh")?;
-  common::execute_with_verbosity(&mut cmd, &settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running bundle_dmg.sh{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })?;
+    .args(vec![dmg_name.as_str(), bundle_file_name.as_str()])
+    .output_ok()
+    .context("error running bundle_dmg.sh")?;
 
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
 
   // Sign DMG if needed
   if let Some(identity) = &settings.macos().signing_identity {
-    super::sign::sign(dmg_path.clone(), identity, &settings, false)?;
+    super::sign::sign(dmg_path.clone(), identity, settings, false)?;
   }
   Ok(vec![dmg_path])
 }

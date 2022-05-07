@@ -24,11 +24,11 @@
 
 use super::super::common;
 use crate::Settings;
-
 use anyhow::Context;
 use heck::ToKebabCase;
 use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 use libflate::gzip;
+use log::info;
 use walkdir::WalkDir;
 
 use std::{
@@ -64,14 +64,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     arch
   );
   let package_name = format!("{}.deb", package_base_name);
-  common::print_bundling(&package_name)?;
+
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
       .with_context(|| format!("Failed to remove old {}", package_base_name))?;
   }
-  let package_path = base_dir.join(package_name);
+  let package_path = base_dir.join(&package_name);
+
+  info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;

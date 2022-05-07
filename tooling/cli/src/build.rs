@@ -50,7 +50,7 @@ pub fn command(options: Options) -> Result<()> {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
-      std::fs::read_to_string(&config)?
+      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
     })
   } else {
     None

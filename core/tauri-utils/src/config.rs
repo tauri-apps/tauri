@@ -1955,7 +1955,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterWindowsConfig {
-  /// The installation mode for the update on Windows. Defaults to `quiet`.
+  /// The installation mode for the update on Windows. Defaults to `passive`.
   #[serde(default)]
   pub install_mode: WindowsUpdateInstallMode,
 }

@@ -3,4 +3,4 @@
 "cli.js": patch
 ---
 
-The `dev` command now reads the custom config file from CWD instead of the Tauri folder.
+**Breaking change:** The `dev` command now reads the custom config file from CWD instead of the Tauri folder.

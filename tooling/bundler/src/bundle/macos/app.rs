@@ -24,7 +24,7 @@
 use super::{
   super::common,
   icon::create_icns_file,
-  sign::{notarize, notarize_auth_args, setup_keychain_if_needed, sign},
+  sign::{notarize, notarize_auth_args, sign},
 };
 use crate::{bundle::common::CommandExt, Settings};
 
@@ -85,9 +85,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_binaries_to_bundle(&bundle_directory, settings)?;
 
   if let Some(identity) = &settings.macos().signing_identity {
-    // setup keychain allow you to import your certificate
-    // for CI build
-    setup_keychain_if_needed()?;
     // sign application
     sign(app_bundle_path.clone(), identity, &settings, true)?;
     // notarization is required for distribution

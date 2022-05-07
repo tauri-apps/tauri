@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::ffi::OsString;
 use std::{fs::File, io::prelude::*, path::PathBuf, process::Command};
 
 use crate::{bundle::common::CommandExt, Settings};
@@ -18,117 +19,122 @@ const KEYCHAIN_PWD: &str = "tauri-build";
 // Then use the value of the base64 in APPLE_CERTIFICATE env variable.
 // You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when youy exported your certificate.
 // https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
-pub fn setup_keychain_if_needed() -> crate::Result<()> {
-  match (
-    std::env::var_os("APPLE_CERTIFICATE"),
-    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
-  ) {
-    (Some(certificate_encoded), Some(certificate_password)) => {
-      // we delete any previous version of our keychain if present
-      delete_keychain_if_needed();
-      info!("setup keychain from environment variables...");
+pub fn setup_keychain(
+  certificate_encoded: OsString,
+  certificate_password: OsString,
+) -> crate::Result<()> {
+  // we delete any previous version of our keychain if present
+  delete_keychain();
+  info!("setup keychain from environment variables...");
 
-      let tmp_dir = tempfile::tempdir()?;
-      let cert_path = tmp_dir
-        .path()
-        .join("cert.p12")
-        .to_string_lossy()
-        .to_string();
-      let cert_path_tmp = tmp_dir
-        .path()
-        .join("cert.p12.tmp")
-        .to_string_lossy()
-        .to_string();
-      let certificate_encoded = certificate_encoded
-        .to_str()
-        .expect("failed to convert APPLE_CERTIFICATE to string")
-        .as_bytes();
+  let keychain_list_output = Command::new("security")
+    .args(["list-keychain", "-d", "user"])
+    .output()?;
 
-      let certificate_password = certificate_password
-        .to_str()
-        .expect("failed to convert APPLE_CERTIFICATE_PASSWORD to string")
-        .to_string();
+  let tmp_dir = tempfile::tempdir()?;
+  let cert_path = tmp_dir
+    .path()
+    .join("cert.p12")
+    .to_string_lossy()
+    .to_string();
+  let cert_path_tmp = tmp_dir
+    .path()
+    .join("cert.p12.tmp")
+    .to_string_lossy()
+    .to_string();
+  let certificate_encoded = certificate_encoded
+    .to_str()
+    .expect("failed to convert APPLE_CERTIFICATE to string")
+    .as_bytes();
 
-      // as certificate contain whitespace decoding may be broken
-      // https://github.com/marshallpierce/rust-base64/issues/105
-      // we'll use builtin base64 command from the OS
-      let mut tmp_cert = File::create(cert_path_tmp.clone())?;
-      tmp_cert.write_all(certificate_encoded)?;
+  let certificate_password = certificate_password
+    .to_str()
+    .expect("failed to convert APPLE_CERTIFICATE_PASSWORD to string")
+    .to_string();
 
-      Command::new("base64")
-        .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
-        .output_ok()
-        .context("failed to decode certificate")?;
+  // as certificate contain whitespace decoding may be broken
+  // https://github.com/marshallpierce/rust-base64/issues/105
+  // we'll use builtin base64 command from the OS
+  let mut tmp_cert = File::create(cert_path_tmp.clone())?;
+  tmp_cert.write_all(certificate_encoded)?;
 
-      Command::new("security")
-        .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
-        .output_ok()
-        .context("failed to create keychain")?;
+  Command::new("base64")
+    .args(["--decode", "-i", &cert_path_tmp, "-o", &cert_path])
+    .output_ok()
+    .context("failed to decode certificate")?;
 
-      Command::new("security")
-        .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
-        .output_ok()
-        .context("failed to set unlock keychain")?;
+  Command::new("security")
+    .args(["create-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+    .output_ok()
+    .context("failed to create keychain")?;
 
-      Command::new("security")
-        .args([
-          "import",
-          &cert_path,
-          "-k",
-          KEYCHAIN_ID,
-          "-P",
-          &certificate_password,
-          "-T",
-          "/usr/bin/codesign",
-          "-T",
-          "/usr/bin/pkgbuild",
-          "-T",
-          "/usr/bin/productbuild",
-        ])
-        .output_ok()
-        .context("failed to import keychain certificate")?;
+  Command::new("security")
+    .args(["unlock-keychain", "-p", KEYCHAIN_PWD, KEYCHAIN_ID])
+    .output_ok()
+    .context("failed to set unlock keychain")?;
 
-      Command::new("security")
-        .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
-        .output_ok()
-        .context("failed to set keychain settings")?;
+  Command::new("security")
+    .args([
+      "import",
+      &cert_path,
+      "-k",
+      KEYCHAIN_ID,
+      "-P",
+      &certificate_password,
+      "-T",
+      "/usr/bin/codesign",
+      "-T",
+      "/usr/bin/pkgbuild",
+      "-T",
+      "/usr/bin/productbuild",
+    ])
+    .output_ok()
+    .context("failed to import keychain certificate")?;
 
-      Command::new("security")
-        .args([
-          "set-key-partition-list",
-          "-S",
-          "apple-tool:,apple:,codesign:",
-          "-s",
-          "-k",
-          KEYCHAIN_PWD,
-          KEYCHAIN_ID,
-        ])
-        .output_ok()
-        .context("failed to set keychain settings")?;
+  Command::new("security")
+    .args(["set-keychain-settings", "-t", "3600", "-u", KEYCHAIN_ID])
+    .output_ok()
+    .context("failed to set keychain settings")?;
 
-      Command::new("security")
-        .args(["list-keychain", "-d", "user", "-s", KEYCHAIN_ID])
-        .output_ok()
-        .context("failed to set default keychain")?;
+  Command::new("security")
+    .args([
+      "set-key-partition-list",
+      "-S",
+      "apple-tool:,apple:,codesign:",
+      "-s",
+      "-k",
+      KEYCHAIN_PWD,
+      KEYCHAIN_ID,
+    ])
+    .output_ok()
+    .context("failed to set keychain settings")?;
 
-      Ok(())
-    }
-    // skip it
-    _ => Ok(()),
-  }
+  let current_keychains = String::from_utf8_lossy(&keychain_list_output.stdout)
+    .split('\n')
+    .map(|line| {
+      line
+        .trim_matches(|c: char| c.is_whitespace() || c == '"')
+        .to_string()
+    })
+    .filter(|l| !l.is_empty())
+    .collect::<Vec<String>>();
+
+  Command::new("security")
+    .args(["list-keychain", "-d", "user", "-s"])
+    .args(current_keychains)
+    .arg(KEYCHAIN_ID)
+    .output_ok()
+    .context("failed to list keychain")?;
+
+  Ok(())
 }
 
-pub fn delete_keychain_if_needed() {
-  if let (Some(_cert), Some(_password)) = (
-    std::env::var_os("APPLE_CERTIFICATE"),
-    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
-  ) {
-    // delete keychain if needed and skip any error
-    let _result = Command::new("security")
-      .arg("delete-keychain")
-      .arg(KEYCHAIN_ID)
-      .output_ok();
-  }
+pub fn delete_keychain() {
+  // delete keychain if needed and skip any error
+  let _ = Command::new("security")
+    .arg("delete-keychain")
+    .arg(KEYCHAIN_ID)
+    .output_ok();
 }
 
 pub fn sign(
@@ -139,7 +145,48 @@ pub fn sign(
 ) -> crate::Result<()> {
   info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
 
+  let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
+    std::env::var_os("APPLE_CERTIFICATE"),
+    std::env::var_os("APPLE_CERTIFICATE_PASSWORD"),
+  ) {
+    // setup keychain allow you to import your certificate
+    // for CI build
+    setup_keychain(certificate_encoded, certificate_password)?;
+    true
+  } else {
+    false
+  };
+
+  let res = try_sign(
+    path_to_sign,
+    identity,
+    settings,
+    is_an_executable,
+    setup_keychain,
+  );
+
+  if setup_keychain {
+    // delete the keychain again after signing
+    delete_keychain();
+  }
+
+  res
+}
+
+fn try_sign(
+  path_to_sign: PathBuf,
+  identity: &str,
+  settings: &Settings,
+  is_an_executable: bool,
+  tauri_keychain: bool,
+) -> crate::Result<()> {
   let mut args = vec!["--force", "-s", identity];
+
+  if tauri_keychain {
+    args.push("--keychain");
+    args.push(KEYCHAIN_ID);
+  }
+
   if let Some(entitlements_path) = &settings.macos().entitlements {
     info!("using entitlements file at {}", entitlements_path);
     args.push("--entitlements");

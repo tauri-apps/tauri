@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.4.1]
+## \[0.5.0]
 
 - The file drop event payloads are now percent-decoded.
   - [a0ecd81a](https://www.github.com/tauri-apps/tauri/commit/a0ecd81a934e1aa8935151a74cad686786054204) fix(core): percent decode file drop payloads, closes [#4034](https://www.github.com/tauri-apps/tauri/pull/4034) ([#4035](https://www.github.com/tauri-apps/tauri/pull/4035)) on 2022-05-03

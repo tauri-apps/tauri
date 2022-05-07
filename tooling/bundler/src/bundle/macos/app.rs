@@ -86,7 +86,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if let Some(identity) = &settings.macos().signing_identity {
     // sign application
-    sign(app_bundle_path.clone(), identity, &settings, true)?;
+    sign(app_bundle_path.clone(), identity, settings, true)?;
     // notarization is required for distribution
     match notarize_auth_args() {
       Ok(args) => {
@@ -119,10 +119,10 @@ fn create_info_plist(
   settings: &Settings,
 ) -> crate::Result<()> {
   let format = time::format_description::parse("[year][month][day].[hour][minute][second]")
-    .map_err(|e| time::error::Error::from(e))?;
+    .map_err(time::error::Error::from)?;
   let build_number = time::OffsetDateTime::now_utc()
     .format(&format)
-    .map_err(|e| time::error::Error::from(e))?;
+    .map_err(time::error::Error::from)?;
 
   let bundle_plist_path = bundle_dir.join("Info.plist");
   let file = &mut common::create_file(&bundle_plist_path)?;

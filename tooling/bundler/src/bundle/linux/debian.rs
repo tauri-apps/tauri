@@ -64,7 +64,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     arch
   );
   let package_name = format!("{}.deb", package_base_name);
-  
+
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {

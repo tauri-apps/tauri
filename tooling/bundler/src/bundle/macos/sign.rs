@@ -248,7 +248,7 @@ pub fn notarize(
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
-    sign(zip_path.clone(), identity, &settings, false)?;
+    sign(zip_path.clone(), identity, settings, false)?;
   };
 
   let mut notarize_args = vec![

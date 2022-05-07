@@ -54,8 +54,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       .with_context(|| format!("Failed to copy resource file {:?}", src))?;
   }
 
-  let icon_filenames =
-    generate_icon_files(&app_bundle_path, settings).with_context(|| "Failed to create app icons")?;
+  let icon_filenames = generate_icon_files(&app_bundle_path, settings)
+    .with_context(|| "Failed to create app icons")?;
   generate_info_plist(&app_bundle_path, settings, &icon_filenames)
     .with_context(|| "Failed to create Info.plist")?;
 

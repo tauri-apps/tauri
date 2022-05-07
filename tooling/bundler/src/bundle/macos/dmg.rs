@@ -93,9 +93,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   let mut args = vec![
     "--volname",
-    &product_name,
+    product_name,
     "--icon",
-    &product_name,
+    product_name,
     "180",
     "170",
     "--app-drop-link",
@@ -109,7 +109,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   ];
 
   let icns_icon_path =
-    create_icns_file(&output_path, &settings)?.map(|path| path.to_string_lossy().to_string());
+    create_icns_file(&output_path, settings)?.map(|path| path.to_string_lossy().to_string());
   if let Some(icon) = &icns_icon_path {
     args.push("--volicon");
     args.push(icon);
@@ -148,7 +148,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   // Sign DMG if needed
   if let Some(identity) = &settings.macos().signing_identity {
-    super::sign::sign(dmg_path.clone(), identity, &settings, false)?;
+    super::sign::sign(dmg_path.clone(), identity, settings, false)?;
   }
   Ok(vec![dmg_path])
 }

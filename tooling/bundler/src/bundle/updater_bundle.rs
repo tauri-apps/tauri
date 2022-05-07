@@ -69,7 +69,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 
   // Create our gzip file (need to send parent)
   // as we walk the source directory (source isnt added)
-  create_tar(&source_path, &osx_archived_path)
+  create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
   info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.5]
+
+- Fixes the type of `http > connectTimeout`.
+  - [f3c5ca89](https://www.github.com/tauri-apps/tauri/commit/f3c5ca89e79d429183c4e15a9e7cebada2b493a0) fix(core): http api `connect_timeout` deserialization, closes [#4004](https://www.github.com/tauri-apps/tauri/pull/4004) ([#4006](https://www.github.com/tauri-apps/tauri/pull/4006)) on 2022-04-29
+
 ## \[1.0.0-rc.4]
 
 - Encode the file path in the `convertFileSrc` function.

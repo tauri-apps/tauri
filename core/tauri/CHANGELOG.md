@@ -1,5 +1,24 @@
 # Changelog
 
+## \[1.0.0-rc.9]
+
+- The `dangerous_allow_asset_csp_modification` configuration value has been changed to allow a list of CSP directives to disable.
+  - [164078c0](https://www.github.com/tauri-apps/tauri/commit/164078c0b719ccbc12e956fecf8a7d4a3c5044e1) feat: allow limiting dangerousDisableAssetCspModification, closes [#3831](https://www.github.com/tauri-apps/tauri/pull/3831) ([#4021](https://www.github.com/tauri-apps/tauri/pull/4021)) on 2022-05-02
+- The file drop event payloads are now percent-decoded.
+  - [a0ecd81a](https://www.github.com/tauri-apps/tauri/commit/a0ecd81a934e1aa8935151a74cad686786054204) fix(core): percent decode file drop payloads, closes [#4034](https://www.github.com/tauri-apps/tauri/pull/4034) ([#4035](https://www.github.com/tauri-apps/tauri/pull/4035)) on 2022-05-03
+- Fix dialog crash on macOS when the `default_path` value is just the file name.
+  - [d31167c5](https://www.github.com/tauri-apps/tauri/commit/d31167c520e4e5ea5c75518c180574f5fffc1a40) fix(core): dialog crashing on macOS when the parent is empty ([#4028](https://www.github.com/tauri-apps/tauri/pull/4028)) on 2022-05-02
+- Fixes the `title` option being ignored in the dialog API endpoints.
+  - [220e7460](https://www.github.com/tauri-apps/tauri/commit/220e7460148df476171579878c3cfffcdb1423d8) fix(core): set dialog title via API, closes [#4029](https://www.github.com/tauri-apps/tauri/pull/4029) ([#4030](https://www.github.com/tauri-apps/tauri/pull/4030)) on 2022-05-02
+- Fixes nested isolation iframe injection.
+  - [022eed46](https://www.github.com/tauri-apps/tauri/commit/022eed46675976e8dfe5f352a875754b4bd78131) fix(core): nested isolation iframes, closes [#4015](https://www.github.com/tauri-apps/tauri/pull/4015) ([#4020](https://www.github.com/tauri-apps/tauri/pull/4020)) on 2022-05-01
+- Deserialize numeric values (seconds) in the http API `ClientBuilder.connect_timeout` and `HttpRequestBuilder.timeout` fields.
+  - [f3c5ca89](https://www.github.com/tauri-apps/tauri/commit/f3c5ca89e79d429183c4e15a9e7cebada2b493a0) fix(core): http api `connect_timeout` deserialization, closes [#4004](https://www.github.com/tauri-apps/tauri/pull/4004) ([#4006](https://www.github.com/tauri-apps/tauri/pull/4006)) on 2022-04-29
+- Fix updater dialog removing single and double quotes from the release notes
+  - [0180dcc8](https://www.github.com/tauri-apps/tauri/commit/0180dcc812bacb78822bc0f97a3202633821dbce) fix(updater): remove single\&double quotes escaping in updater dialog … ([#4047](https://www.github.com/tauri-apps/tauri/pull/4047)) on 2022-05-04
+- Expose methods to access the underlying native handles of the webview.
+  - [c82b4761](https://www.github.com/tauri-apps/tauri/commit/c82b4761e1660592472dc55308ad69d9efc5855b) feat(core): expose `with_webview` API to access the platform webview ([#4058](https://www.github.com/tauri-apps/tauri/pull/4058)) on 2022-05-04
+
 ## \[1.0.0-rc.8]
 
 - **Breaking change:** Removed the `ayatana-tray` from the default features. You must select one of `ayatana-tray` and `gtk-tray` to use system tray on Linux.

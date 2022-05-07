@@ -1,5 +1,16 @@
 # Changelog
 
+## \[0.4.1]
+
+- The file drop event payloads are now percent-decoded.
+  - [a0ecd81a](https://www.github.com/tauri-apps/tauri/commit/a0ecd81a934e1aa8935151a74cad686786054204) fix(core): percent decode file drop payloads, closes [#4034](https://www.github.com/tauri-apps/tauri/pull/4034) ([#4035](https://www.github.com/tauri-apps/tauri/pull/4035)) on 2022-05-03
+- Fixes a crash when using the menu with the inspector window focused on macOS. In this case the `window_id` will be the id of the first app window.
+  - [891eb748](https://www.github.com/tauri-apps/tauri/commit/891eb748cf590895dc3f1666f8dbd6082b21e04e) fix(tauri-runtime-wry): menu even panic on macOS inspector, closes [#3875](https://www.github.com/tauri-apps/tauri/pull/3875) ([#4027](https://www.github.com/tauri-apps/tauri/pull/4027)) on 2022-05-02
+- Fixes a freeze when calling `set_size` in the main thread on Windows.
+  - [8f259f4e](https://www.github.com/tauri-apps/tauri/commit/8f259f4ef89be3da11b57222c8b66af9487ab736) fix(core): use EventLoopProxy to prevent set_size freeze closes [#3990](https://www.github.com/tauri-apps/tauri/pull/3990) ([#4014](https://www.github.com/tauri-apps/tauri/pull/4014)) on 2022-04-30
+- Expose methods to access the underlying native handles of the webview.
+  - [c82b4761](https://www.github.com/tauri-apps/tauri/commit/c82b4761e1660592472dc55308ad69d9efc5855b) feat(core): expose `with_webview` API to access the platform webview ([#4058](https://www.github.com/tauri-apps/tauri/pull/4058)) on 2022-05-04
+
 ## \[0.4.0]
 
 - \**Breaking change::* Added the `clipboard` Cargo feature.

@@ -34,8 +34,7 @@ strsim = "0.10.0"
 tar = "0.4.38"
 toml = "0.5.9"
 walkdir = "2"
-handlebars = { version = "4.2" }
-zip = { version = "0.6" }
+handlebars = "4.2"
 tempfile = "3.3.0"
 log = { version = "0.4.17", features = ["kv_unstable"]}
 
@@ -47,6 +46,7 @@ winreg = "0.10"
 sha2 = "0.10"
 hex = "0.4"
 glob = "0.3"
+zip = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 time = { version = "0.3", features = [ "formatting" ] }

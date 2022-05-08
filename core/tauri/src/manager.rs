@@ -511,7 +511,6 @@ impl<R: Runtime> WindowManager<R> {
     #[cfg(protocol_asset)]
     if !registered_scheme_protocols.contains(&"asset".into()) {
       use crate::api::file::SafePathBuf;
-      use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
       let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
@@ -548,7 +547,7 @@ impl<R: Runtime> WindowManager<R> {
           .get("range")
           .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
         {
-          let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
+          let (mut headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
             let mut headers = HashMap::new();
             let mut buf = Vec::new();
             // open the file
@@ -586,55 +585,41 @@ impl<R: Runtime> WindowManager<R> {
               }
             };
 
-            // FIXME: Support multiple ranges
-            // let support only 1 range for now
-            let status_code = if let Some(range) = range.first() {
-              let mut real_length = range.length;
-              // prevent max_length;
-              // specially on webview2
-              if range.length > file_size / 3 {
-                // max size sent (400ko / request)
-                // as it's local file system we can afford to read more often
-                real_length = std::cmp::min(file_size - range.start, 1024 * 400);
+            if range.len() == 0 {
+              return (headers, 200, buf);
+            }
+
+            match make_range_response(&mut file, &file_size, range, &path_, || {
+              use rand::Rng;
+              rand::thread_rng()
+                .sample_iter(rand::distributions::Alphanumeric)
+                .take(13)
+                .map(char::from)
+                .collect()
+            })
+            .await
+            {
+              Ok((headers_, buf_)) => {
+                headers.extend(headers_);
+                buf.extend(buf_);
+
+                // partial content
+                (headers, 206, buf)
               }
-
-              // last byte we are reading, the length of the range include the last byte
-              // who should be skipped on the header
-              let last_byte = range.start + real_length - 1;
-
-              headers.insert("Connection", "Keep-Alive".into());
-              headers.insert("Accept-Ranges", "bytes".into());
-              headers.insert("Content-Length", real_length.to_string());
-              headers.insert(
-                "Content-Range",
-                format!("bytes {}-{}/{}", range.start, last_byte, file_size),
-              );
-
-              if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed to seek file to {}: {}", range.start, e);
-                return (headers, 422, buf);
-              }
-
-              if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed read file: {}", e);
-                return (headers, 422, buf);
-              }
-              // partial content
-              206
-            } else {
-              200
-            };
-
-            (headers, status_code, buf)
+              Err(_) => (headers, 422, buf),
+            }
           });
+
+          let mime_type = if headers.contains_key("Content-Type") {
+            // Get mime type from Content-Type header.
+            headers.remove("Content-Type").unwrap()
+          } else {
+            MimeType::parse(&data, &path)
+          };
 
           for (k, v) in headers {
             response = response.header(k, v);
           }
-
-          let mime_type = MimeType::parse(&data, &path);
           response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
@@ -997,11 +982,148 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
+#[cfg(any(protocol_asset, test))]
+async fn make_range_response<'a, GenBoundary>(
+  file: &mut tokio::fs::File,
+  file_size: &u64,
+  range: Vec<tauri_runtime::http::HttpRange>,
+  path: &str,
+  gen_boundary: GenBoundary,
+) -> Result<(HashMap<&'a str, String>, Vec<u8>), std::io::Error>
+where
+  GenBoundary: FnOnce() -> String,
+{
+  use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+  fn calc_content_range(range: &tauri_runtime::http::HttpRange, file_size: &u64) -> (u64, u64) {
+    let mut real_length = range.length;
+    // prevent max_length;
+    // specially on webview2
+    if range.length > file_size / 3 {
+      // max size sent (400ko / request)
+      // as it's local file system we can afford to read more often
+      real_length = std::cmp::min(file_size - range.start, 1024 * 400);
+    }
+
+    // last byte we are reading, the length of the range include the last byte
+    // who should be skipped on the header
+    let last_byte = range.start + real_length - 1;
+
+    (real_length, last_byte)
+  }
+
+  let mut headers = HashMap::new();
+  let mut buf = Vec::new();
+
+  headers.insert("Connection", "Keep-Alive".into());
+  headers.insert("Accept-Ranges", "bytes".into());
+
+  if range.len() == 1 {
+    // Process for single range request
+
+    let range = range.first().unwrap();
+    let (real_length, last_byte) = calc_content_range(range, file_size);
+    headers.insert("Content-Length", real_length.to_string());
+    headers.insert(
+      "Content-Range",
+      format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+    );
+
+    if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
+      #[cfg(debug_assertions)]
+      eprintln!("Failed to seek file to {}: {}", range.start, e);
+      return Err(e);
+    }
+
+    if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
+      #[cfg(debug_assertions)]
+      eprintln!("Failed read file: {}", e);
+      return Err(e);
+    }
+  } else {
+    // Process for multi range request
+
+    let boundary = gen_boundary();
+
+    headers.insert(
+      "Content-Type",
+      format!("multipart/byteranges; boundary={}", boundary),
+    );
+
+    for range in &range {
+      buf.extend_from_slice(format!("--{}", &boundary).as_bytes());
+      buf.extend_from_slice("\r\n".as_bytes());
+
+      let (real_length, last_byte) = calc_content_range(range, file_size);
+
+      buf.extend_from_slice(
+        format!(
+          "Content-Range: bytes {}-{}/{}",
+          range.start, last_byte, file_size
+        )
+        .as_bytes(),
+      );
+      buf.extend_from_slice("\r\n".as_bytes());
+
+      let mut file = match file.try_clone().await {
+        Ok(f) => f,
+        Err(e) => {
+          eprintln!("Failed clone file: {}", e);
+          return Err(e);
+        }
+      };
+
+      let mut tmp_buf = Vec::with_capacity(real_length as usize);
+
+      if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
+        #[cfg(debug_assertions)]
+        eprintln!("Failed to seek file to {}: {}", range.start, e);
+        return Err(e);
+      }
+
+      if let Err(e) = file.take(real_length).read_to_end(&mut tmp_buf).await {
+        #[cfg(debug_assertions)]
+        eprintln!("Failed read file: {}", e);
+        return Err(e);
+      }
+
+      buf.extend_from_slice(
+        format!("Content-Type: {}", MimeType::parse(&tmp_buf, path)).as_bytes(),
+      );
+
+      buf.extend_from_slice("\r\n".as_bytes());
+      buf.extend_from_slice("\r\n".as_bytes());
+
+      buf.extend(tmp_buf);
+      buf.extend_from_slice("\r\n".as_bytes());
+    }
+
+    // End of boundary
+    buf.extend_from_slice(format!("--{}--", &boundary).as_bytes());
+
+    headers.insert(
+      "Content-Length",
+      format!(
+        "{}",
+        String::from_utf8(buf.clone())
+          .unwrap_or_else(|_| "".to_owned())
+          .len()
+      ),
+    );
+  }
+
+  Ok((headers, buf))
+}
+
 #[cfg(test)]
 mod test {
+  use std::collections::HashMap;
+
+  use tauri_runtime::http::HttpRange;
+
   use crate::{generate_context, plugin::PluginStore, StateManager, Wry};
 
-  use super::WindowManager;
+  use super::{make_range_response, WindowManager};
 
   #[test]
   fn check_get_url() {
@@ -1023,6 +1145,73 @@ mod test {
 
     #[cfg(dev)]
     assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+  }
+
+  #[test]
+  fn test_multirange_response() {
+    crate::async_runtime::safe_block_on(async move {
+      let path = std::fs::canonicalize("./test/multirange/test.txt").unwrap();
+
+      // open the file
+      let mut file = tokio::fs::File::open(path.clone()).await.unwrap();
+      // Get the file size
+      let file_size = file.metadata().await.unwrap().len();
+
+      let range = HttpRange::parse("bytes=0-4,10-14,16-20", file_size).unwrap();
+
+      let boundary = "123456789".to_owned();
+
+      let (headers, buf) =
+        make_range_response(&mut file, &file_size, range, path.to_str().unwrap(), || {
+          boundary.clone()
+        })
+        .await
+        .unwrap();
+
+      // Check response headers.
+      let mut expect_headers = HashMap::new();
+      expect_headers.insert("Connection", "Keep-Alive".into());
+      expect_headers.insert("Accept-Ranges", "bytes".into());
+      expect_headers.insert(
+        "Content-Type",
+        format!("multipart/byteranges; boundary={}", boundary),
+      );
+      expect_headers.insert(
+        "Content-Length",
+        format!(
+          "{}",
+          String::from_utf8(buf.clone())
+            .unwrap_or_else(|_| "".to_owned())
+            .len()
+        ),
+      );
+      for (key, val) in &headers {
+        assert_eq!(expect_headers.get(key).unwrap(), val);
+      }
+
+      let expect_buf = format!(
+        "\
+--{boundary}\r\n\
+Content-Range: bytes 0-4/{file_size}\r\n\
+Content-Type: text/html\r\n\
+\r\n\
+Tauri\r\n\
+--{boundary}\r\n\
+Content-Range: bytes 10-14/{file_size}\r\n\
+Content-Type: text/html\r\n\
+\r\n\
+\u{20}fram\r\n\
+--{boundary}\r\n\
+Content-Range: bytes 16-20/{file_size}\r\n\
+Content-Type: text/html\r\n\
+\r\n\
+work \r\n\
+--{boundary}--\
+"
+      );
+
+      assert_eq!(String::from_utf8(buf).unwrap(), expect_buf);
+    })
   }
 }
 

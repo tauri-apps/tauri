@@ -312,6 +312,7 @@
     ".changes/tauri-event-api.md",
     ".changes/tauri-protocol-cors.md",
     ".changes/tauri-runtime-export.md",
+    ".changes/tauri-runtime-wry-plugin.md",
     ".changes/temp-base-directory.md",
     ".changes/temp-scope-variable.md",
     ".changes/template-csp-null.md",
@@ -324,6 +325,7 @@
     ".changes/unlisten-fix.md",
     ".changes/unlisten.md",
     ".changes/update-response-methods.md",
+    ".changes/update-wry-0.16.2.md",
     ".changes/update-wry.md",
     ".changes/updater-check-api.md",
     ".changes/updater-custom-version-checker.md",
@@ -366,6 +368,7 @@
     ".changes/wix-run-app.md",
     ".changes/wix-signing.md",
     ".changes/wry-13.md",
-    ".changes/wry-create-webview.md"
+    ".changes/wry-create-webview.md",
+    ".changes/wry-plugin.md"
   ]
 }

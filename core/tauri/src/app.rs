@@ -470,6 +470,21 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
+#[cfg(feature = "wry")]
+impl App<crate::Wry> {
+  /// Adds a [`tauri_runtime_wry::Plugin`].
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+    &mut self,
+    plugin: P,
+  ) {
+    self.runtime.as_mut().unwrap().plugin(plugin);
+  }
+}
+
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {

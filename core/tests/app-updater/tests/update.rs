@@ -116,20 +116,18 @@ fn update_app() {
 
   let cli_bin_path = if let Some(p) = get_cli_bin_path(&cli_dir, false) {
     p
+  } else if let Some(p) = get_cli_bin_path(&cli_dir, true) {
+    p
   } else {
-    if let Some(p) = get_cli_bin_path(&cli_dir, true) {
-      p
-    } else {
-      let status = Command::new("cargo")
-        .arg("build")
-        .current_dir(&cli_dir)
-        .status()
-        .expect("failed to run cargo");
-      if !status.success() {
-        panic!("failed to build CLI");
-      }
-      get_cli_bin_path(&cli_dir, true).expect("cargo did not build the Tauri CLI")
+    let status = Command::new("cargo")
+      .arg("build")
+      .current_dir(&cli_dir)
+      .status()
+      .expect("failed to run cargo");
+    if !status.success() {
+      panic!("failed to build CLI");
     }
+    get_cli_bin_path(&cli_dir, true).expect("cargo did not build the Tauri CLI")
   };
 
   let mut config = Config {
@@ -214,15 +212,13 @@ fn update_app() {
     Command::new(root_dir.join("target/debug/app-updater.exe"))
   } else if cfg!(target_os = "macos") {
     Command::new(bundle_path(&root_dir, "0.1.0").join("Contents/MacOS/app-updater"))
+  } else if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+    let mut c = Command::new("xvfb-run");
+    c.arg("--auto-servernum")
+      .arg(bundle_path(&root_dir, "0.1.0"));
+    c
   } else {
-    if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
-      let mut c = Command::new("xvfb-run");
-      c.arg("--auto-servernum")
-        .arg(bundle_path(&root_dir, "0.1.0"));
-      c
-    } else {
-      Command::new(bundle_path(&root_dir, "0.1.0"))
-    }
+    Command::new(bundle_path(&root_dir, "0.1.0"))
   };
 
   let status = binary_cmd.status().expect("failed to run app");

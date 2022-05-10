@@ -1556,7 +1556,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
 #[cfg(feature = "system-tray")]
 #[derive(Clone, Default)]
-struct TrayContext {
+pub struct TrayContext {
   tray: Arc<Mutex<Option<Arc<Mutex<WrySystemTray>>>>>,
   listeners: SystemTrayEventListeners,
   items: SystemTrayItems,

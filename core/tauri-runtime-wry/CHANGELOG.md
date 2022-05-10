@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.5.1]
+
+- Added the `plugin` method to the `Wry` runtime, allowing extensions to the event loop.
+  - [c8e0e5b9](https://www.github.com/tauri-apps/tauri/commit/c8e0e5b97d542e549b37be08b545515c862af0e5) feat(tauri-runtime-wry): add plugin API ([#4094](https://www.github.com/tauri-apps/tauri/pull/4094)) on 2022-05-10
+- Update wry to 0.16.2 and webkit2gtk to 0.18.0.
+  - [71a553b7](https://www.github.com/tauri-apps/tauri/commit/71a553b715312e2bcceb963c83e42cffca7a63bc) chore(deps): update wry to 0.16.2, webkit2gtk to 0.18.0 ([#4099](https://www.github.com/tauri-apps/tauri/pull/4099)) on 2022-05-10
+
 ## \[0.5.0]
 
 - The file drop event payloads are now percent-decoded.

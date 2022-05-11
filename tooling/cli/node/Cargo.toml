@@ -13,4 +13,4 @@ napi-derive = "2.3"
 tauri-cli = { path = ".." }
 
 [build-dependencies]
-napi-build = "1.2"
+napi-build = "2.0"

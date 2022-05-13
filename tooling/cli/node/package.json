@@ -37,11 +37,11 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.7.0",
+    "@napi-rs/cli": "2.8.0",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.1.0",
-    "jest": "28.0.3",
+    "jest": "28.1.0",
     "jest-transform-toml": "1.0.0",
     "prettier": "2.6.2"
   },

@@ -18,9 +18,8 @@ fn main() {
       let window = app.get_window("main").unwrap();
       let script_path = app
         .path_resolver()
-        .resource_dir()
+        .resolve_resource("assets/index.js")
         .unwrap()
-        .join("assets/index.js")
         .to_string_lossy()
         .to_string();
       tauri::async_runtime::spawn(async move {

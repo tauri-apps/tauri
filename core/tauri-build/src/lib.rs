@@ -60,22 +60,13 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
 
 /// Attributes used on Windows.
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct WindowsAttributes {
-  window_icon_path: PathBuf,
+  window_icon_path: Option<PathBuf>,
   /// The path to the sdk location. This can be a absolute or relative path. If not supplied
   /// this defaults to whatever `winres` crate determines is the best. See the
   /// [winres documentation](https://docs.rs/winres/*/winres/struct.WindowsResource.html#method.set_toolkit_path)
   sdk_dir: Option<PathBuf>,
-}
-
-impl Default for WindowsAttributes {
-  fn default() -> Self {
-    Self {
-      window_icon_path: PathBuf::from("icons/icon.ico"),
-      sdk_dir: None,
-    }
-  }
 }
 
 impl WindowsAttributes {
@@ -88,7 +79,9 @@ impl WindowsAttributes {
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
-    self.window_icon_path = window_icon_path.as_ref().into();
+    self
+      .window_icon_path
+      .replace(window_icon_path.as_ref().into());
     self
   }
 
@@ -230,16 +223,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .parent()
     .unwrap();
 
-  if let Some(paths) = config.tauri.bundle.external_bin {
+  if let Some(paths) = &config.tauri.bundle.external_bin {
     copy_binaries(
-      ResourcePaths::new(external_binaries(&paths, &target_triple).as_slice(), true),
+      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
     )?;
   }
 
   #[allow(unused_mut)]
-  let mut resources = config.tauri.bundle.resources.unwrap_or_default();
+  let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
   #[cfg(target_os = "linux")]
   if let Some(tray) = config.tauri.system_tray {
     resources.push(tray.icon_path.display().to_string());
@@ -259,13 +252,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use winres::{VersionInfo, WindowsResource};
 
-    let icon_path_string = attributes
+    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
+      let icon_path = config
+        .tauri
+        .bundle
+        .icon
+        .iter()
+        .find(|i| predicate(i))
+        .cloned()
+        .unwrap_or_else(|| default.to_string());
+      icon_path.into()
+    }
+
+    let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .to_string_lossy()
-      .into_owned();
+      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
-    if attributes.windows_attributes.window_icon_path.exists() {
+    if window_icon_path.exists() {
       let mut res = WindowsResource::new();
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
@@ -289,17 +293,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         res.set("ProductName", product_name);
         res.set("FileDescription", product_name);
       }
-      res.set_icon_with_id(&icon_path_string, "32512");
+      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {
         format!(
           "failed to compile `{}` into a Windows Resource file during tauri-build",
-          icon_path_string
+          window_icon_path.display()
         )
       })?;
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",
-        icon_path_string
+        window_icon_path.display()
       )));
     }
   }

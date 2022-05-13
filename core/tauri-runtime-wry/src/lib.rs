@@ -225,16 +225,16 @@ impl<T: UserEvent> Context<T> {
 
     self.prepare_window(window_id);
 
-    let context_ = context.clone();
-    send_user_message(
-      &context_,
-      Message::CreateWebview(
+    // we cannot use `send_user_message` here, see https://github.com/tauri-apps/wry/issues/583
+    self
+      .proxy
+      .send_event(Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
           create_webview(window_id, event_loop, web_context, context, pending)
         }),
-      ),
-    )?;
+      ))
+      .map_err(|_| Error::FailedToSendMessage)?;
 
     let dispatcher = WryDispatcher {
       window_id,
@@ -2622,8 +2622,6 @@ fn handle_event_loop<T: UserEvent>(
       #[allow(unused_mut)]
       let mut window_id = window_id.unwrap(); // always Some on MenuBar event
 
-      println!("got {:?}", window_id);
-
       #[cfg(target_os = "macos")]
       {
         // safety: we're only checking to see if the window_id is 0
@@ -2937,6 +2935,8 @@ fn create_webview<T: UserEvent>(
   };
   let window = window_builder.inner.build(event_loop).unwrap();
 
+  webview_id_map.insert(window.id(), window_id);
+
   if window_builder.center {
     let _ = center_window(&window, window.inner_size());
   }
@@ -3008,8 +3008,6 @@ fn create_webview<T: UserEvent>(
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
-  webview_id_map.insert(webview.window().id(), window_id);
-
   #[cfg(windows)]
   {
     let controller = webview.controller();
@@ -3059,16 +3057,11 @@ fn create_ipc_handler<T: UserEvent>(
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<dyn Fn(&Window, String) + 'static> {
   Box::new(move |window, request| {
+    let window_id = context.webview_id_map.get(&window.id());
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {
-          window_id: *context
-            .webview_id_map
-            .0
-            .lock()
-            .unwrap()
-            .get(&window.id())
-            .unwrap(),
+          window_id,
           context: context.clone(),
         },
         label: label.clone(),

@@ -738,13 +738,13 @@ fn copy_files_and_run<R: Read + Seek>(
 
           // Check if there is a task that enables the updater to skip the UAC prompt
           let update_task_name = format!("Update {} - Skip UAC", product_name);
-          if let Ok(status) = Command::new("schtasks")
+          if let Ok(output) = Command::new("schtasks")
             .arg("/QUERY")
             .arg("/TN")
             .arg(update_task_name.clone())
-            .status()
+            .output()
           {
-            if status.success() {
+            if output.status.success() {
               // Rename the MSI to the match file name the Skip UAC task is expecting it to be
               let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
               Move::from_source(&found_path)

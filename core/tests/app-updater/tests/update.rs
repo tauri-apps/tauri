@@ -29,6 +29,7 @@ struct Config {
 struct PlatformUpdate {
   signature: String,
   url: &'static str,
+  with_elevated_task: bool,
 }
 
 #[derive(Serialize)]
@@ -172,6 +173,7 @@ fn update_app() {
               PlatformUpdate {
                 signature: signature.clone(),
                 url: "http://localhost:3007/download",
+                with_elevated_task: false,
               },
             );
             let body = serde_json::to_vec(&Update {

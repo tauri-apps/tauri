@@ -567,17 +567,6 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
-    // Create the update task XML
-    let mut skip_uac_task = Handlebars::new();
-    let xml = include_str!("../templates/update-task.xml");
-    skip_uac_task
-      .register_template_string("update.xml", xml)
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup Update Task handlebars");
-    let temp_xml_path = output_path.join("update.xml");
-    let update_content = skip_uac_task.render("update.xml", &data)?;
-    write(&temp_xml_path, update_content)?;
-
     data.insert(
       "msiexec_args",
       to_json(
@@ -588,6 +577,17 @@ pub fn build_wix_app_installer(
           .unwrap_or_else(|| "/passive".to_string()),
       ),
     );
+
+    // Create the update task XML
+    let mut skip_uac_task = Handlebars::new();
+    let xml = include_str!("../templates/update-task.xml");
+    skip_uac_task
+      .register_template_string("update.xml", xml)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup Update Task handlebars");
+    let temp_xml_path = output_path.join("update.xml");
+    let update_content = skip_uac_task.render("update.xml", &data)?;
+    write(&temp_xml_path, update_content)?;
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();

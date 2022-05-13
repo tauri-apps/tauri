@@ -1879,8 +1879,6 @@ impl<'de> Deserialize<'de> for UpdaterEndpoint {
 pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
-  /// Specifies there's no UI during the installation process.
-  NoUi,
   /// The quiet mode means there's no user interaction required.
   /// Requires admin privileges if the installer does.
   Quiet,
@@ -1893,7 +1891,6 @@ impl WindowsUpdateInstallMode {
   pub fn msiexec_args(&self) -> &'static [&'static str] {
     match self {
       Self::BasicUi => &["/qb+"],
-      Self::NoUi => &["/qn"],
       Self::Quiet => &["/quiet"],
       Self::Passive => &["/passive"],
     }
@@ -1907,7 +1904,6 @@ impl Display for WindowsUpdateInstallMode {
       "{}",
       match self {
         Self::BasicUi => "basicUI",
-        Self::NoUi => "noUI",
         Self::Quiet => "quiet",
         Self::Passive => "passive",
       }
@@ -1938,7 +1934,6 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "basicui" => Ok(Self::BasicUi),
-      "noui" => Ok(Self::NoUi),
       "quiet" => Ok(Self::Quiet),
       "passive" => Ok(Self::Passive),
       _ => Err(DeError::custom(format!(
@@ -2712,7 +2707,6 @@ mod build {
 
       tokens.append_all(match self {
         Self::BasicUi => quote! { #prefix::BasicUi },
-        Self::NoUi => quote! { #prefix::NoUi },
         Self::Quiet => quote! { #prefix::Quiet },
         Self::Passive => quote! { #prefix::Passive },
       })

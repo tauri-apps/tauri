@@ -2186,7 +2186,6 @@
       "type": "string",
       "enum": [
         "basicUi",
-        "noUi",
         "quiet",
         "passive"
       ]

@@ -282,7 +282,7 @@ impl PathResolver {
   ///       .resolve_resource("../assets/logo.svg")
   ///       .expect("failed to resolve resource dir");
   ///     Ok(())
-  ///   })
+  ///   });
   /// ```
   pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
     self

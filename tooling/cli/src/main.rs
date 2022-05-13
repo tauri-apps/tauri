@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use std::env::args_os;
 use std::ffi::OsStr;
 use std::path::Path;
@@ -32,5 +33,5 @@ fn main() -> tauri_cli::Result<()> {
     }
   };
 
-  tauri_cli::run(args, bin_name)
+  tauri_cli::run(args, bin_name).context("Try running with --verbose to see command output")
 }

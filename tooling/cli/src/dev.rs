@@ -8,13 +8,13 @@ use crate::{
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
     manifest::{rewrite_manifest, Manifest},
-    Logger,
   },
   CommandExt, Result,
 };
 use clap::Parser;
 
 use anyhow::Context;
+use log::{error, info, warn};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
@@ -78,19 +78,19 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn command_internal(options: Options) -> Result<()> {
-  let logger = Logger::new("tauri:dev");
-
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
   let merge_config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
-      std::fs::read_to_string(&config)?
+      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
     })
   } else {
     None
   };
+
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+
   let config = get_config(merge_config.as_deref())?;
 
   if let Some(before_dev) = &config
@@ -102,7 +102,7 @@ fn command_internal(options: Options) -> Result<()> {
     .before_dev_command
   {
     if !before_dev.is_empty() {
-      logger.log(format!("Running `{}`", before_dev));
+      info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       #[cfg(target_os = "windows")]
       let mut command = {
         let mut command = Command::new("cmd");
@@ -132,13 +132,13 @@ fn command_internal(options: Options) -> Result<()> {
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
       let child = Arc::new(child);
       let child_ = child.clone();
-      let logger_ = logger.clone();
+
       std::thread::spawn(move || {
         let status = child_
           .wait()
           .expect("failed to wait on \"beforeDevCommand\"");
         if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-          logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
+          error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
           exit(status.code().unwrap_or(1));
         }
       });
@@ -238,17 +238,17 @@ fn command_internal(options: Options) -> Result<()> {
           break;
         }
         if i % 3 == 0 {
-          logger.warn(format!(
+          warn!(
             "Waiting for your frontend dev server to start on {}...",
             dev_server_url
-          ));
+          );
         }
         i += 1;
         if i == max_attempts {
-          logger.error(format!(
-          "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
-          dev_server_url, i * sleep_interval.as_secs()
-        ));
+          error!(
+            "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
+            dev_server_url, i * sleep_interval.as_secs()
+          );
           exit(1);
         }
         std::thread::sleep(sleep_interval);

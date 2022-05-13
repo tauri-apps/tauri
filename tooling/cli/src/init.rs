@@ -5,7 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
-    resolve_tauri_path, template, Logger,
+    resolve_tauri_path, template,
   },
   VersionMetadata,
 };
@@ -24,6 +24,7 @@ use clap::Parser;
 use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
+use log::warn;
 use serde::Deserialize;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
@@ -127,16 +128,15 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options = options.load()?;
-  let logger = Logger::new("tauri:init");
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
 
   if template_target_path.exists() && !options.force {
-    logger.warn(format!(
+    warn!(
       "Tauri dir ({:?}) not empty. Run `init --force` to overwrite.",
       template_target_path
-    ));
+    );
   } else {
     let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = options.tauri_path {
       (
@@ -192,7 +192,7 @@ pub fn command(mut options: Options) -> Result<()> {
         .expect("Failed to render tauri.conf.json template"),
     )
     .unwrap();
-    if crate::TARGET == Some("node") {
+    if option_env!("TARGET") == Some("node") {
       let mut dir = current_dir().expect("failed to read cwd");
       let mut count = 0;
       let mut cli_node_module_path = None;

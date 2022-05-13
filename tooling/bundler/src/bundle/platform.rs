@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::common::CommandExt;
+use log::warn;
 use std::process::Command;
 
 // Copyright 2019-2021 Tauri Programme within The Commons Conservancy
@@ -36,29 +38,30 @@ fn parse_rust_cfg(cfg: String) -> RustCfg {
 /// * Errors:
 ///     * Unexpected system config
 pub fn target_triple() -> Result<String, crate::Error> {
-  let output = Command::new("rustc").args(&["--print", "cfg"]).output()?;
+  let arch_res = Command::new("rustc").args(&["--print", "cfg"]).output_ok();
 
-  let arch = if output.status.success() {
-    parse_rust_cfg(String::from_utf8_lossy(&output.stdout).into_owned())
+  let arch = match arch_res {
+    Ok(output) => parse_rust_cfg(String::from_utf8_lossy(&output.stdout).into_owned())
       .target_arch
-      .expect("could not find `target_arch` when running `rustc --print cfg`.")
-  } else {
-    super::common::print_info(&format!(
+      .expect("could not find `target_arch` when running `rustc --print cfg`."),
+    Err(err) => {
+      warn!(
       "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",
-      String::from_utf8_lossy(&output.stderr),
-    ))?;
-    if cfg!(target_arch = "x86") {
-      "i686".into()
-    } else if cfg!(target_arch = "x86_64") {
-      "x86_64".into()
-    } else if cfg!(target_arch = "arm") {
-      "armv7".into()
-    } else if cfg!(target_arch = "aarch64") {
-      "aarch64".into()
-    } else {
-      return Err(crate::Error::ArchError(String::from(
-        "Unable to determine target-architecture",
-      )));
+      err,
+    );
+      if cfg!(target_arch = "x86") {
+        "i686".into()
+      } else if cfg!(target_arch = "x86_64") {
+        "x86_64".into()
+      } else if cfg!(target_arch = "arm") {
+        "armv7".into()
+      } else if cfg!(target_arch = "aarch64") {
+        "aarch64".into()
+      } else {
+        return Err(crate::Error::ArchError(String::from(
+          "Unable to determine target-architecture",
+        )));
+      }
     }
   };
 

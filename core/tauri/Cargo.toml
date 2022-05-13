@@ -16,7 +16,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.0.0-rc.8"
+version = "1.0.0-rc.10"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -55,10 +55,10 @@ url = { version = "2.2" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.10"
-tauri-runtime = { version = "0.4.0", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-rc.5", path = "../tauri-macros" }
-tauri-utils = { version = "1.0.0-rc.5", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.4.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.5.0", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0-rc.6", path = "../tauri-macros" }
+tauri-utils = { version = "1.0.0-rc.6", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.5.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = "1.0"
 serde_repr = "0.1"
@@ -74,7 +74,7 @@ dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
-notify-rust = { version = "4.5", default-features = false, features = ["d"], optional = true }
+notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
@@ -97,7 +97,7 @@ ico = { version = "0.1", optional = true }
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
-webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
+webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -107,9 +107,9 @@ objc = "0.2"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.13.0"
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.30.0"
-features = [ "Win32_Foundation" ]
+  [target."cfg(windows)".dependencies.windows]
+  version = "0.30.0"
+  features = [ "Win32_Foundation" ]
 
 [build-dependencies]
 heck = "0.4"

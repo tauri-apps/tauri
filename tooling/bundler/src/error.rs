@@ -34,6 +34,7 @@ pub enum Error {
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
   /// Zip error.
+  #[cfg(target_os = "windows")]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
   /// Hex error.

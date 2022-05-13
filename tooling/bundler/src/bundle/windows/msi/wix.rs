@@ -14,7 +14,6 @@ use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use tauri_utils::resources::resource_relpath;
 use std::{
   collections::{BTreeMap, HashMap},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
@@ -22,6 +21,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
+use tauri_utils::resources::resource_relpath;
 use uuid::Uuid;
 use zip::ZipArchive;
 

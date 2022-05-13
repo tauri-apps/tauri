@@ -22,7 +22,7 @@ use crate::{
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, Env},
+  utils::{assets::Assets, resources::resource_relpath, Env},
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
   StateManager, Theme, Window,
 };
@@ -39,7 +39,7 @@ use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
-  path::PathBuf,
+  path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
 
@@ -253,6 +253,41 @@ impl PathResolver {
   /// Returns the path to the resource directory of this app.
   pub fn resource_dir(&self) -> Option<PathBuf> {
     crate::api::path::resource_dir(&self.package_info, &self.env)
+  }
+
+  /// Resolves the path of the given resource.
+  /// Note that the path must be the same as provided in `tauri.conf.json`.
+  ///
+  /// This function is helpful when your resource path includes a root dir (`/`) or parent component (`..`),
+  /// because Tauri replaces them with a parent folder, so simply using [`Self::resource_dir`] and joining the path
+  /// won't work.
+  ///
+  /// # Examples
+  ///
+  /// `tauri.conf.json`:
+  /// ```json
+  /// {
+  ///   "tauri": {
+  ///     "bundle": {
+  ///       "resources": ["../assets/*"]
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let resource_path = app.path_resolver()
+  ///       .resolve_resource("../assets/logo.svg")
+  ///       .expect("failed to resolve resource dir");
+  ///     Ok(())
+  ///   })
+  /// ```
+  pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+    self
+      .resource_dir()
+      .map(|dir| dir.join(resource_relpath(path.as_ref())))
   }
 
   /// Returns the path to the suggested directory for your app config files.

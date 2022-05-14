@@ -84,6 +84,7 @@ impl<'a, R: Read> Entry<'a, R> {
 
   /// Extract this entry into `into_path`.
   /// If it's a directory, the target will be created, if it's a file, it'll be extracted at this location.
+  /// If it's a symlink, it will be created.
   /// Note: You need to include the complete path, with file name and extension.
   pub fn extract(self, into_path: &path::Path) -> crate::api::Result<()> {
     match self {
@@ -100,13 +101,8 @@ impl<'a, R: Read> Entry<'a, R> {
             }
           }
         } else {
-          let mut out_file = fs::File::create(into_path)?;
-          io::copy(&mut entry, &mut out_file)?;
-
-          // make sure we set permissions
-          if let Ok(mode) = entry.header().mode() {
-            set_perms(into_path, Some(&mut out_file), mode, true)?;
-          }
+          // handle files, symlinks, hard links, etc. and set permissions
+          entry.unpack(into_path)?;
         }
       }
       Self::Zip(entry) => {

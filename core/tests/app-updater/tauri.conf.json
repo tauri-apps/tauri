@@ -16,7 +16,12 @@
         "../../../examples/.icons/icon.icns",
         "../../../examples/.icons/icon.ico"
       ],
-      "category": "DeveloperTool"
+      "category": "DeveloperTool",
+      "macOS": {
+        "frameworks": [
+          "./frameworks/test.framework"
+        ]
+      }
     },
     "allowlist": {
       "all": false

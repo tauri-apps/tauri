@@ -223,6 +223,19 @@ fn update_app() {
 
   let status = binary_cmd.status().expect("failed to run app");
 
+  // Verify the framework extracted symlinks correctly
+  #[cfg(target_os = "macos")]
+  {
+    let meta = std::fs::symlink_metadata(
+      bundle_path(&root_dir, "0.1.0").join("Contents/Frameworks/test.framework/test"),
+    )
+    .expect("test.framework/test metadata");
+    assert!(
+      meta.file_type().is_symlink(),
+      "test.framework/test should be a symlink"
+    );
+  }
+
   if !status.success() {
     panic!("failed to run app");
   }

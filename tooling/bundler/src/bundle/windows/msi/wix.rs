@@ -799,6 +799,13 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .into_string()
       .expect("failed to read resource path");
 
+    // In some glob resource paths like `assets/**/*` a file might appear twice
+    // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
+    // when it finds one. So we must check it before processing the file.
+    if added_resources.contains(&resource_path) {
+      continue;
+    }
+
     added_resources.push(resource_path.clone());
 
     let resource_entry = ResourceFile {

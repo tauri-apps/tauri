@@ -567,6 +567,17 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
+    data.insert(
+      "msiexec_args",
+      to_json(
+        settings
+          .updater()
+          .and_then(|updater| updater.msiexec_args.clone())
+          .map(|args| args.join(" "))
+          .unwrap_or_else(|| "/passive".to_string()),
+      ),
+    );
+
     // Create the update task XML
     let mut skip_uac_task = Handlebars::new();
     let xml = include_str!("../templates/update-task.xml");

@@ -108,7 +108,7 @@ pub struct PackageSettings {
 }
 
 /// The updater settings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
   /// Whether the updater is active or not.
   pub active: bool,
@@ -118,6 +118,8 @@ pub struct UpdaterSettings {
   pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
+  /// Args to pass to `msiexec.exe` to run the updater on Windows.
+  pub msiexec_args: Option<&'static [&'static str]>,
 }
 
 /// The Linux debian bundle settings.
@@ -698,6 +700,11 @@ impl Settings {
   /// Returns the Windows settings.
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
+  }
+
+  /// Returns the Updater settings.
+  pub fn updater(&self) -> Option<&UpdaterSettings> {
+    self.bundle_settings.updater.as_ref()
   }
 
   /// Is update enabled

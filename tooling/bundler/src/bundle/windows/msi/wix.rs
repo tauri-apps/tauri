@@ -567,6 +567,17 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
+    data.insert(
+      "msiexec_args",
+      to_json(
+        settings
+          .updater()
+          .and_then(|updater| updater.msiexec_args.clone())
+          .map(|args| args.join(" "))
+          .unwrap_or_else(|| "/passive".to_string()),
+      ),
+    );
+
     // Create the update task XML
     let mut skip_uac_task = Handlebars::new();
     let xml = include_str!("../templates/update-task.xml");
@@ -787,6 +798,13 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .into_os_string()
       .into_string()
       .expect("failed to read resource path");
+
+    // In some glob resource paths like `assets/**/*` a file might appear twice
+    // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
+    // when it finds one. So we must check it before processing the file.
+    if added_resources.contains(&resource_path) {
+      continue;
+    }
 
     added_resources.push(resource_path.clone());
 

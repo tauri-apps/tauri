@@ -2093,10 +2093,26 @@ impl std::fmt::Display for AppUrl {
 pub struct BuildConfig {
   /// The binary used to build and run the application.
   pub runner: Option<String>,
-  /// The path or URL to use on development.
+  /// The path to the application assets or URL to load in development.
+  ///
+  /// This is usually an URL to a dev server, which serves your application assets
+  /// with live reloading. Most modern JavaScript bundlers provides a way to start a dev server by default.
+  ///
+  /// See [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv)
+  /// for examples on how to set up a dev server.
   #[serde(default = "default_dev_path")]
   pub dev_path: AppUrl,
-  /// The path to the app's dist dir. This path must contain your index.html file.
+  /// The path to the application assets or URL to load in production.
+  ///
+  /// When a path relative to the configuration file is provided,
+  /// it is read recursively and all files are embedded in the application binary.
+  /// Tauri then looks for an `index.html` file unless you provide a custom window URL.
+  ///
+  /// You can also provide a list of paths to be embedded, which allows granular control over what files are added to the binary.
+  /// In this case, all files are added to the root and you must reference it that way in your HTML files.
+  ///
+  /// When an URL is provided, the application won't have bundled assets
+  /// and the application will load that URL by default.
   #[serde(default = "default_dist_dir")]
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.

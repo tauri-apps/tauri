@@ -1272,7 +1272,7 @@ pub struct ShellAllowlistConfig {
   pub execute: bool,
   /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command,
   /// an executable that is shipped with the application.
-  /// For more information see <https://tauri.studio/docs/guides/bundler/sidecar/>.
+  /// For more information see <https://tauri.studio/guides/building/sidecar>.
   #[serde(default)]
   pub sidecar: bool,
   /// Open URL with the user's default application.

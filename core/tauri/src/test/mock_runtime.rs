@@ -257,6 +257,16 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn hidden_title(self, transparent: bool) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn fullsize_content_view(self, fullsize: bool) -> Self {
+    self
+  }
+
   fn theme(self, theme: Option<Theme>) -> Self {
     self
   }

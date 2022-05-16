@@ -421,11 +421,27 @@ impl<R: Runtime> WindowBuilder<R> {
     self
   }
 
-  /// Hides the titlebar. Titlebar buttons will still be visible.
+  /// Hide the titlebar. Titlebar buttons will still be visible.
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn transparent_titlebar(mut self, transparent: bool) -> Self {
     self.window_builder = self.window_builder.transparent_titlebar(transparent);
+    self
+  }
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn hidden_title(mut self, hidden: bool) -> Self {
+    self.window_builder = self.window_builder.hidden_title(hidden);
+    self
+  }
+
+  /// Make the content of the window take up the whole window.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn fullsize_content_view(mut self, fullsize: bool) -> Self {
+    self.window_builder = self.window_builder.fullsize_content_view(fullsize);
     self
   }
 

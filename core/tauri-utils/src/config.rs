@@ -42,7 +42,9 @@ pub use self::parse::parse;
 pub enum WindowUrl {
   /// An external URL.
   External(Url),
-  /// An app URL.
+  /// The path portion of an app URL.
+  /// For instance, to load `tauri://localhost/users/john`,
+  /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
 }
 
@@ -2057,7 +2059,7 @@ fn default_dialog() -> bool {
   true
 }
 
-/// The `dev_path` and `dist_dir` options.
+/// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged, deny_unknown_fields)]

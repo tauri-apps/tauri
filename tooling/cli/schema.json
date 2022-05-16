@@ -381,7 +381,7 @@
       "additionalProperties": false
     },
     "AppUrl": {
-      "description": "The `dev_path` and `dist_dir` options.",
+      "description": "Defines the URL or assets to embed in the application.",
       "anyOf": [
         {
           "description": "The app's external URL, or the path to the directory containing the app assets.",
@@ -2118,7 +2118,7 @@
           "format": "uri"
         },
         {
-          "description": "An app URL.",
+          "description": "The path portion of an app URL. For instance, to load `tauri://localhost/users/john`, you can simply provide `users/john` in this configuration.",
           "type": "string"
         }
       ]

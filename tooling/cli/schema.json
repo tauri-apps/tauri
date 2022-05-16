@@ -1172,6 +1172,16 @@
             "null"
           ]
         },
+        "plugins": {
+          "description": "A list of strings indicating any macOS X plugins that need to be bundled with the application.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "providerShortName": {
           "description": "Provider short name for notarization.",
           "type": [

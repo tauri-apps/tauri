@@ -76,6 +76,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
 
+  copy_plugins_to_bundle(&bundle_directory, settings)
+    .with_context(|| "Failed to bundle plugins")?;
+
   settings.copy_resources(&resources_dir)?;
 
   settings
@@ -308,6 +311,28 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
       "Could not locate framework: {}",
       framework
     )));
+  }
+  Ok(())
+}
+
+// Copies the macOS application bundle plugins to the .app
+fn copy_plugins_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+  let plugins = settings
+    .macos()
+    .plugins
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if plugins.is_empty() {
+    return Ok(());
+  }
+  let dest_dir = bundle_directory.join("PlugIns");
+  fs::create_dir_all(&bundle_directory)
+    .with_context(|| format!("Failed to create PlugIns directory at {:?}", dest_dir))?;
+  for plugin in plugins.iter() {
+    let src_path = PathBuf::from(plugin);
+    let src_name = src_path.file_name().expect("Couldn't get plugin filename");
+    common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
   }
   Ok(())
 }

@@ -153,7 +153,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
-            "tsp": null,
+            "tsp": false,
             "webviewFixedRuntimePath": null,
             "wix": null
           }
@@ -573,7 +573,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "timestampUrl": null,
-            "tsp": null,
+            "tsp": false,
             "webviewFixedRuntimePath": null,
             "wix": null
           },
@@ -669,17 +669,13 @@
         },
         "multiple": {
           "description": "Specifies that the argument may have an unknown number of multiple values. Without any other settings, this argument may appear only once.\n\nFor example, --opt val1 val2 is allowed, but --opt val1 val2 --opt val3 is not.\n\nNOTE: Setting this requires `takes_value` to be set to true.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "default": false,
+          "type": "boolean"
         },
         "multipleOccurrences": {
           "description": "Specifies that the argument may appear more than once. For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences. For options or arguments that take a value, this does not affect how many values they can accept. (i.e. only one at a time is allowed)\n\nFor example, --opt val1 --opt val2 is allowed, but --opt val1 val2 is not.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "default": false,
+          "type": "boolean"
         },
         "name": {
           "description": "The unique argument name",
@@ -713,10 +709,8 @@
         },
         "required": {
           "description": "Sets whether or not the argument is required by default.\n\n- Required by default means it is required, when no other conflicting rules have been evaluated - Conflicting rules take precedence over being required.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "default": false,
+          "type": "boolean"
         },
         "requiredIfEq": {
           "description": "Allows specifying that an argument is required conditionally with the signature [arg, value] the requirement will only become valid if the `arg`'s value equals `${value}`.",
@@ -793,10 +787,8 @@
         },
         "takesValue": {
           "description": "Specifies that the argument takes a value at run time.\n\nNOTE: values for arguments may be specified in any of the following methods - Using a space such as -o value or --option value - Using an equals and no space such as -o=value or --option=value - Use a short and no space such as -ovalue",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1665,7 +1657,7 @@
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "timestampUrl": null,
-              "tsp": null,
+              "tsp": false,
               "webviewFixedRuntimePath": null,
               "wix": null
             }
@@ -2155,10 +2147,8 @@
         },
         "tsp": {
           "description": "Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "default": false,
+          "type": "boolean"
         },
         "webviewFixedRuntimePath": {
           "description": "Path to the webview fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",

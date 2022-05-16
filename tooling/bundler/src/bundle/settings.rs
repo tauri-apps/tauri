@@ -233,7 +233,7 @@ pub struct WindowsSettings {
   pub timestamp_url: Option<String>,
   /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
-  pub tsp: Option<bool>,
+  pub tsp: bool,
   /// WiX configuration.
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
@@ -254,7 +254,7 @@ impl Default for WindowsSettings {
       digest_algorithm: None,
       certificate_thumbprint: None,
       timestamp_url: None,
-      tsp: None,
+      tsp: false,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_fixed_runtime_path: None,

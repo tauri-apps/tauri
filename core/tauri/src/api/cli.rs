@@ -148,9 +148,9 @@ fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Match
   if let Some(args) = config.args() {
     for arg in args {
       let occurrences = matches.occurrences_of(arg.name.clone());
-      let value = if occurrences == 0 || !arg.takes_value.unwrap_or(false) {
+      let value = if occurrences == 0 || !arg.takes_value {
         Value::Bool(occurrences > 0)
-      } else if arg.multiple.unwrap_or(false) {
+      } else if arg.multiple {
         matches
           .values_of(arg.name.clone())
           .map(|v| {
@@ -230,16 +230,14 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
 
   clap_arg = bind_string_arg!(arg, clap_arg, description, help);
   clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_help);
-  clap_arg = bind_value_arg!(arg, clap_arg, takes_value);
-  if let Some(value) = arg.multiple {
-    clap_arg = clap_arg.multiple_values(value);
-  }
-  clap_arg = bind_value_arg!(arg, clap_arg, multiple_occurrences);
+  clap_arg = clap_arg.takes_value(arg.takes_value);
+  clap_arg = clap_arg.multiple_values(arg.multiple);
+  clap_arg = clap_arg.multiple_occurrences(arg.multiple_occurrences);
   clap_arg = bind_value_arg!(arg, clap_arg, number_of_values);
   clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);
   clap_arg = bind_value_arg!(arg, clap_arg, min_values);
   clap_arg = bind_value_arg!(arg, clap_arg, max_values);
-  clap_arg = bind_value_arg!(arg, clap_arg, required);
+  clap_arg = clap_arg.required(arg.required);
   clap_arg = bind_string_arg!(
     arg,
     clap_arg,

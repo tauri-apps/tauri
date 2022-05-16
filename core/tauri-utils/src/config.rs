@@ -253,7 +253,8 @@ pub struct WindowsConfig {
   pub timestamp_url: Option<String>,
   /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
-  pub tsp: Option<bool>,
+  #[serde(default)]
+  pub tsp: bool,
   /// Path to the webview fixed runtime to use.
   ///
   /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
@@ -276,7 +277,7 @@ impl Default for WindowsConfig {
       digest_algorithm: None,
       certificate_thumbprint: None,
       timestamp_url: None,
-      tsp: None,
+      tsp: false,
       webview_fixed_runtime_path: None,
       allow_downgrades: default_allow_downgrades(),
       wix: None,
@@ -366,19 +367,22 @@ pub struct CliArg {
   /// - Using a space such as -o value or --option value
   /// - Using an equals and no space such as -o=value or --option=value
   /// - Use a short and no space such as -ovalue
-  pub takes_value: Option<bool>,
+  #[serde(default)]
+  pub takes_value: bool,
   /// Specifies that the argument may have an unknown number of multiple values. Without any other settings, this argument may appear only once.
   ///
   /// For example, --opt val1 val2 is allowed, but --opt val1 val2 --opt val3 is not.
   ///
   /// NOTE: Setting this requires `takes_value` to be set to true.
-  pub multiple: Option<bool>,
+  #[serde(default)]
+  pub multiple: bool,
   /// Specifies that the argument may appear more than once.
   /// For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences.
   /// For options or arguments that take a value, this does not affect how many values they can accept. (i.e. only one at a time is allowed)
   ///
   /// For example, --opt val1 --opt val2 is allowed, but --opt val1 val2 is not.
-  pub multiple_occurrences: Option<bool>,
+  #[serde(default)]
+  pub multiple_occurrences: bool,
   /// Specifies how many values are required to satisfy this argument. For example, if you had a
   /// `-f <file>` argument where you wanted exactly 3 'files' you would set
   /// `number_of_values = 3`, and this argument wouldn't be satisfied unless the user provided
@@ -405,7 +409,8 @@ pub struct CliArg {
   ///
   /// - Required by default means it is required, when no other conflicting rules have been evaluated
   /// - Conflicting rules take precedence over being required.
-  pub required: Option<bool>,
+  #[serde(default)]
+  pub required: bool,
   /// Sets an arg that override this arg's required setting
   /// i.e. this arg will be required unless this other argument is present.
   pub required_unless_present: Option<String>,
@@ -2505,14 +2510,14 @@ mod build {
       let name = str_lit(&self.name);
       let description = opt_str_lit(self.description.as_ref());
       let long_description = opt_str_lit(self.long_description.as_ref());
-      let takes_value = opt_lit(self.takes_value.as_ref());
-      let multiple = opt_lit(self.multiple.as_ref());
-      let multiple_occurrences = opt_lit(self.multiple_occurrences.as_ref());
+      let takes_value = self.takes_value;
+      let multiple = self.multiple;
+      let multiple_occurrences = self.multiple_occurrences;
       let number_of_values = opt_lit(self.number_of_values.as_ref());
       let possible_values = opt_vec_str_lit(self.possible_values.as_ref());
       let min_values = opt_lit(self.min_values.as_ref());
       let max_values = opt_lit(self.max_values.as_ref());
-      let required = opt_lit(self.required.as_ref());
+      let required = self.required;
       let required_unless_present = opt_str_lit(self.required_unless_present.as_ref());
       let required_unless_present_all = opt_vec_str_lit(self.required_unless_present_all.as_ref());
       let required_unless_present_any = opt_vec_str_lit(self.required_unless_present_any.as_ref());

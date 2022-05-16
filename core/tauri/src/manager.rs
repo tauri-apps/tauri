@@ -458,20 +458,6 @@ impl<R: Runtime> WindowManager<R> {
 
     pending.webview_attributes = webview_attributes;
 
-    if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
-        pending.window_builder = pending
-          .window_builder
-          .icon(default_window_icon.try_into()?)?;
-      }
-    }
-
-    if pending.window_builder.get_menu().is_none() {
-      if let Some(menu) = &self.inner.menu {
-        pending = pending.set_menu(menu.clone());
-      }
-    }
-
     let mut registered_scheme_protocols = Vec::new();
 
     for (uri_scheme, protocol) in &self.inner.uri_scheme_protocols {
@@ -1117,6 +1103,20 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     pending.url = url.to_string();
+
+    if !pending.window_builder.has_icon() {
+      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
+        pending.window_builder = pending
+          .window_builder
+          .icon(default_window_icon.try_into()?)?;
+      }
+    }
+
+    if pending.window_builder.get_menu().is_none() {
+      if let Some(menu) = &self.inner.menu {
+        pending = pending.set_menu(menu.clone());
+      }
+    }
 
     if is_local {
       let label = pending.label.clone();

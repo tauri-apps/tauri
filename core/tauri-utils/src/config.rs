@@ -392,11 +392,11 @@ pub struct CliArg {
   /// At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.
   pub possible_values: Option<Vec<String>>,
   /// Specifies the minimum number of values for this argument.
-  /// For example, if you had a -f <file> argument where you wanted at least 2 'files',
+  /// For example, if you had a -f `<file>` argument where you wanted at least 2 'files',
   /// you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.
   pub min_values: Option<usize>,
   /// Specifies the maximum number of values are for this argument.
-  /// For example, if you had a -f <file> argument where you wanted up to 3 'files',
+  /// For example, if you had a -f `<file>` argument where you wanted up to 3 'files',
   /// you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.
   pub max_values: Option<usize>,
   /// Sets whether or not the argument is required by default.

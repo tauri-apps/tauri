@@ -650,7 +650,7 @@
           ]
         },
         "maxValues": {
-          "description": "Specifies the maximum number of values are for this argument. For example, if you had a -f <file> argument where you wanted up to 3 'files', you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.",
+          "description": "Specifies the maximum number of values are for this argument. For example, if you had a -f `<file>` argument where you wanted up to 3 'files', you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.",
           "type": [
             "integer",
             "null"
@@ -659,7 +659,7 @@
           "minimum": 0.0
         },
         "minValues": {
-          "description": "Specifies the minimum number of values for this argument. For example, if you had a -f <file> argument where you wanted at least 2 'files', you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.",
+          "description": "Specifies the minimum number of values for this argument. For example, if you had a -f `<file>` argument where you wanted at least 2 'files', you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.",
           "type": [
             "integer",
             "null"

@@ -640,7 +640,7 @@
             "null"
           ],
           "format": "uint",
-          "minimum": 0.0
+          "minimum": 1.0
         },
         "longDescription": {
           "description": "The argument long description which will be shown on the help information. Typically this a more detailed (multi-line) message that describes the argument.",

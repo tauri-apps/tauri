@@ -438,6 +438,7 @@ pub struct CliArg {
   /// The index refers to position according to other positional argument.
   /// It does not define position in the argument list as a whole. When utilized with multiple=true,
   /// only the last positional argument may be defined as multiple (i.e. the one with the highest index).
+  #[cfg_attr(feature = "schema", validate(range(min = 1)))]
   pub index: Option<usize>,
 }
 

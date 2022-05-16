@@ -1976,7 +1976,6 @@ pub struct UpdaterConfig {
   /// - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).
   ///
   /// # Examples
-  ///
   /// - "https://my.cdn.com/latest.json": a raw JSON endpoint that returns the latest version and download links for each platform.
   /// - "https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}": a dedicated API with positional and query string arguments.
   #[allow(rustdoc::bare_urls)]

@@ -800,7 +800,7 @@ impl Default for DisabledCspModificationKind {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
   /// The Content Security Policy that will be injected on all HTML files on the built application.
-  /// If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.
+  /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.

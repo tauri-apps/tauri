@@ -2237,12 +2237,12 @@ impl PackageConfig {
 /// [`tauri init`](https://tauri.studio/v1/api/cli#init) command that lives in
 /// your Tauri application source directory (src-tauri). Once generated, you may
 /// modify it at will to customize your Tauri application.
-/// 
+///
 /// In addition to the JSON defined on the `tauri.conf.json` file, Tauri can
 /// read a platform-specific configuration from `tauri.linux.conf.json`,
 /// `tauri.windows.conf.json`, and `tauri.macos.conf.json` and merges it with
 /// the main `tauri.conf.json` configuration.
-/// 
+///
 /// ```json title="Example tauri.config.json file"
 /// {
 ///   "build": {

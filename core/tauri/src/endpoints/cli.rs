@@ -26,7 +26,7 @@ impl Cmd {
         .map(Into::into)
         .map_err(Into::into)
     } else {
-      Err(crate::error::into_anyhow("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)"))
+      Ok(crate::api::cli::Matches::default().into())
     }
   }
 

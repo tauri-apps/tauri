@@ -2269,8 +2269,6 @@ impl PackageConfig {
 ///     "allowlist": {
 ///       "all": true
 ///     },
-///     // The below `bundle` object has been edited for brevity
-///
 ///     "bundle": {},
 ///     "security": {
 ///       "csp": null

@@ -341,6 +341,7 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -505,6 +506,7 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl App<crate::Wry> {
   /// Adds a [`tauri_runtime_wry::Plugin`].

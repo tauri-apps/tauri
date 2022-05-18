@@ -34,31 +34,30 @@ jobs:
             architecture: x64
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-gnu
-            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine-zig
-            build: |-
-              set -e &&
-              rustup target add x86_64-unknown-linux-gnu &&
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            build: |
               cd tooling/cli/node
-              yarn build:release --target x86_64-unknown-linux-gnu --zig --zig-abi-suffix 2.12 &&
-              llvm-strip -x *.node
+              yarn build:release --target x86_64-unknown-linux-gnu
+              strip *.node
           - host: ubuntu-18.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: set -e && cd tooling/cli/node && yarn build:release && strip *.node
+            build: |
+              cd tooling/cli/node
+              yarn build:release
+              strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
               yarn build:release --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-18.04
-            architecture: x64
             target: aarch64-unknown-linux-gnu
-            setup: |
-              sudo apt-get update
-              sudo apt-get install g++-aarch64-linux-gnu gcc-aarch64-linux-gnu -y
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
-              yarn build:release --target=aarch64-unknown-linux-gnu
-              aarch64-linux-gnu-strip *.node
+              cd tooling/cli/node
+              yarn build:release --target aarch64-unknown-linux-gnu
+              aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-18.04
             architecture: x64
             target: armv7-unknown-linux-gnueabihf
@@ -72,11 +71,10 @@ jobs:
             architecture: x64
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-            build: |-
-              set -e &&
-              rustup target add aarch64-unknown-linux-musl &&
-              cd tooling/cli/node &&
-              yarn build:release --target aarch64-unknown-linux-musl &&
+            build: |
+              cd tooling/cli/node
+              rustup target add aarch64-unknown-linux-musl
+              yarn build:release --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
           #- host: windows-latest
           #  architecture: x64
@@ -120,7 +118,7 @@ jobs:
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
-          options: '-v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build'
+          options: --user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/root/.cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/root/.cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/root/.cargo/registry/index -v ${{ github.workspace }}:/build -w /build
           run: ${{ matrix.settings.build }}
 
       - name: Build
@@ -199,6 +197,7 @@ jobs:
           - '12'
           - '14'
           - '16'
+          - '18'
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -232,6 +231,7 @@ jobs:
           - '12'
           - '14'
           - '16'
+          - '18'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -269,6 +269,7 @@ jobs:
           - '12'
           - '14'
           - '16'
+          - '18'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -316,6 +317,7 @@ jobs:
           - '12'
           - '14'
           - '16'
+          - '18'
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
           - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16

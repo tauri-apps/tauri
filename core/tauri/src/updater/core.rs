@@ -19,7 +19,7 @@ use http::{
 };
 use minisign_verify::{PublicKey, Signature};
 use semver::Version;
-use serde::{Deserialize, Serialize};
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
 use url::Url;
 
@@ -48,22 +48,6 @@ use std::{
   process::{exit, Command},
 };
 
-/// Information about a release returned by the remote update server.
-///
-/// This type can have one of two shapes: Server Format (Dynamic Format) and Static Format.
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RemoteRelease {
-  /// Version to install
-  #[serde(alias = "name", deserialize_with = "parse_version")]
-  pub version: Version,
-  /// Release notes
-  pub notes: Option<String>,
-  /// Release date
-  pub pub_date: String,
-  #[serde(flatten)]
-  pub data: RemoteReleaseInner,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RemoteReleaseInner {
@@ -71,6 +55,66 @@ pub enum RemoteReleaseInner {
   Static {
     platforms: HashMap<String, ReleaseManifestPlatform>,
   },
+}
+
+/// Information about a release returned by the remote update server.
+///
+/// This type can have one of two shapes: Server Format (Dynamic Format) and Static Format.
+#[derive(Debug, Serialize)]
+pub struct RemoteRelease {
+  /// Version to install.
+  pub version: Version,
+  /// Release notes.
+  pub notes: Option<String>,
+  /// Release date.
+  pub pub_date: String,
+  /// Release data.
+  #[serde(flatten)]
+  pub data: RemoteReleaseInner,
+}
+
+impl<'de> Deserialize<'de> for RemoteRelease {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct InnerRemoteRelease {
+      #[serde(alias = "name", deserialize_with = "parse_version")]
+      version: Version,
+      notes: Option<String>,
+      pub_date: String,
+      platforms: Option<HashMap<String, ReleaseManifestPlatform>>,
+      // dynamic platform response
+      url: Option<Url>,
+      signature: Option<String>,
+      #[cfg(target_os = "windows")]
+      #[serde(default)]
+      with_elevated_task: bool,
+    }
+
+    let release = InnerRemoteRelease::deserialize(deserializer)?;
+
+    Ok(RemoteRelease {
+      version: release.version,
+      notes: release.notes,
+      pub_date: release.pub_date,
+      data: if let Some(platforms) = release.platforms {
+        RemoteReleaseInner::Static { platforms }
+      } else {
+        RemoteReleaseInner::Dynamic(ReleaseManifestPlatform {
+          url: release.url.ok_or_else(|| {
+            DeError::custom("the `url` field was not set on the updater response")
+          })?,
+          signature: release.signature.ok_or_else(|| {
+            DeError::custom("the `signature` field was not set on the updater response")
+          })?,
+          #[cfg(target_os = "windows")]
+          with_elevated_task: release.with_elevated_task,
+        })
+      },
+    })
+  }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1393,19 +1437,23 @@ mod test {
       }
     }"#;
 
+    fn missing_field_error(field: &str) -> String {
+      format!("the `{}` field was not set on the updater response", field)
+    }
+
     let test_cases = [
-      (missing_signature, Error::MissingResponseField("signature")),
+      (missing_signature, missing_field_error("signature")),
+      (missing_version, "missing field `version`".to_string()),
+      (missing_url, missing_field_error("url")),
       (
-        missing_version,
-        Error::MissingResponseField("version or name"),
+        missing_target,
+        Error::TargetNotFound("test-target".into()).to_string(),
       ),
-      (missing_url, Error::MissingResponseField("url")),
-      (missing_target, Error::TargetNotFound("test-target".into())),
       (
         missing_platform_signature,
-        Error::MissingResponseField("signature"),
+        "missing field `signature`".to_string(),
       ),
-      (missing_platform_url, Error::MissingResponseField("url")),
+      (missing_platform_url, "missing field `url`".to_string()),
     ];
 
     for (response, error) in test_cases {
@@ -1422,7 +1470,8 @@ mod test {
         .target("test-target")
         .build());
       if let Err(e) = check_update {
-        assert_eq!(e.to_string(), error.to_string());
+        println!("ERROR: {}, expected: {}", e, error);
+        assert!(e.to_string().contains(&error));
       } else {
         panic!("unexpected Ok response");
       }

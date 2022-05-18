@@ -34,7 +34,7 @@ strsim = "0.10.0"
 tar = "0.4.38"
 toml = "0.5.9"
 walkdir = "2"
-handlebars = "4.2"
+handlebars = "4.3"
 tempfile = "3.3.0"
 log = { version = "0.4.17", features = [ "kv_unstable" ] }
 

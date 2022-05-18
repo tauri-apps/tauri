@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.5.2]
+
+- Use the event loop proxy to create a window so it doesn't deadlock on Windows.
+  - [61e37652](https://www.github.com/tauri-apps/tauri/commit/61e37652b931520424d6a93a134e67893703d992) fix(core): deadlock when creating window from IPC handler, closes [#4121](https://www.github.com/tauri-apps/tauri/pull/4121) ([#4123](https://www.github.com/tauri-apps/tauri/pull/4123)) on 2022-05-13
+
 ## \[0.5.1]
 
 - Added the `plugin` method to the `Wry` runtime, allowing extensions to the event loop.

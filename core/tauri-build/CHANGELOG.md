@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.9]
+
+- Search `tauri.conf.json > tauri > bundle > icons` for a `.ico` file for the window icon instead of simple default `icons/icon.ico` when `WindowsAttributes::window_icon_path` is not set.
+  - [bad85a1f](https://www.github.com/tauri-apps/tauri/commit/bad85a1f11da03421401080531275ba201480cd1) feat(build): find .ico in config instead of default `icons/icon.ico` ([#4115](https://www.github.com/tauri-apps/tauri/pull/4115)) on 2022-05-13
+
 ## \[1.0.0-rc.8]
 
 - Properly set file version information for the Windows executable.

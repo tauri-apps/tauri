@@ -1378,7 +1378,7 @@ impl Allowlist for DialogAllowlistConfig {
 /// It is a list of URLs that can be accessed by the webview when using the HTTP APIs.
 /// The scoped URL is matched against the request URL using a glob pattern.
 ///
-/// # Examples
+/// Examples:
 /// - "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
@@ -2248,10 +2248,10 @@ impl PackageConfig {
 ///
 /// `tauri.conf.json` is composed of the following objects:
 ///
-/// - [`build`](BuildConfig): The build configuration
-/// - [`package`](PackageConfig): Package settings
-/// - [`plugins`](PluginConfig): The plugins config
-/// - [`tauri`](TauriConfig): The Tauri config
+/// - [`package`](#packageconfig): Package settings
+/// - [`tauri`](#tauriconfig): The Tauri config
+/// - [`build`](#buildconfig): The build configuration
+/// - [`plugins`](#pluginconfig): The plugins config
 ///
 /// ```json title="Example tauri.config.json file"
 /// {
@@ -2269,8 +2269,6 @@ impl PackageConfig {
 ///     "allowlist": {
 ///       "all": true
 ///     },
-///     // The below `bundle` object has been edited for brevity
-///
 ///     "bundle": {},
 ///     "security": {
 ///       "csp": null

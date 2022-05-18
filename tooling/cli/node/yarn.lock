@@ -660,10 +660,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@napi-rs/cli@2.8.0":
-  version "2.8.0"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.8.0.tgz#536677acf045fc223fab4ac746f25e10b7afb907"
-  integrity sha512-yECNMAcIpdy58PcOgsIK6x6FzSButzpdR0QFjdv4d1d0OzeTSmcyt9tVqyc8ZPfEUXnQdNVBXY9wVQLVY1pi/A==
+"@napi-rs/cli@2.9.0":
+  version "2.9.0"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.9.0.tgz#3db950b97ea8f2823021383b89cd2f05addeac3a"
+  integrity sha512-qZ49ORZJ8rsHlvnnLsJCg9Ik+KfhiIgSea1HDMf6A9KBVxwWCijNhSO8zFvvBr7m1m44cx9WWhnQDnwPqSDeLA==
 
 "@sinclair/typebox@^0.23.3":
   version "0.23.5"

@@ -2248,10 +2248,10 @@ impl PackageConfig {
 ///
 /// `tauri.conf.json` is composed of the following objects:
 ///
-/// - [`build`](#buildconfig): The build configuration
 /// - [`package`](#packageconfig): Package settings
-/// - [`plugins`](#pluginconfig): The plugins config
 /// - [`tauri`](#tauriconfig): The Tauri config
+/// - [`build`](#buildconfig): The build configuration
+/// - [`plugins`](#pluginconfig): The plugins config
 ///
 /// ```json title="Example tauri.config.json file"
 /// {

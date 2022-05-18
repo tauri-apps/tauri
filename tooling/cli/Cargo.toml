@@ -43,7 +43,7 @@ json-patch = "0.2"
 tauri-utils = { version = "1.0.0-rc.6", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
 toml = "0.5"
 valico = "3.6"
-handlebars = "4.2"
+handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
 base64 = "0.13.0"

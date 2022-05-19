@@ -94,21 +94,11 @@ impl Monitor {
   }
 }
 
-/// A runtime handle or dispatch used to create new windows.
-#[derive(Debug, Clone)]
-pub enum RuntimeHandleOrDispatch<R: Runtime> {
-  /// Handle to the running [`Runtime`].
-  RuntimeHandle(R::Handle),
-
-  /// A dispatcher to the running [`Runtime`].
-  Dispatch(R::Dispatcher),
-}
-
 /// A builder for a webview window managed by Tauri.
 #[default_runtime(crate::Wry, wry)]
-pub struct WindowBuilder<R: Runtime> {
+pub struct WindowBuilder<'a, R: Runtime> {
   manager: WindowManager<R>,
-  runtime: RuntimeHandleOrDispatch<R>,
+  runtime: RuntimeOrDispatch<'a, R>,
   app_handle: AppHandle<R>,
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
@@ -116,11 +106,10 @@ pub struct WindowBuilder<R: Runtime> {
   web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
 }
 
-impl<R: Runtime> fmt::Debug for WindowBuilder<R> {
+impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowBuilder")
       .field("manager", &self.manager)
-      .field("runtime", &self.runtime)
       .field("app_handle", &self.app_handle)
       .field("label", &self.label)
       .field("window_builder", &self.window_builder)
@@ -129,31 +118,10 @@ impl<R: Runtime> fmt::Debug for WindowBuilder<R> {
   }
 }
 
-impl<R: Runtime> ManagerBase<R> for WindowBuilder<R> {
-  fn manager(&self) -> &WindowManager<R> {
-    &self.manager
-  }
-
-  fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    match &self.runtime {
-      RuntimeHandleOrDispatch::RuntimeHandle(r) => RuntimeOrDispatch::RuntimeHandle(r.clone()),
-      RuntimeHandleOrDispatch::Dispatch(d) => RuntimeOrDispatch::Dispatch(d.clone()),
-    }
-  }
-
-  fn managed_app_handle(&self) -> AppHandle<R> {
-    self.app_handle.clone()
-  }
-}
-
-impl<R: Runtime> WindowBuilder<R> {
+impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
-  pub fn new<M: Manager<R>, L: Into<String>>(manager: &M, label: L, url: WindowUrl) -> Self {
-    let runtime = match manager.runtime() {
-      RuntimeOrDispatch::Runtime(r) => RuntimeHandleOrDispatch::RuntimeHandle(r.handle()),
-      RuntimeOrDispatch::RuntimeHandle(h) => RuntimeHandleOrDispatch::RuntimeHandle(h),
-      RuntimeOrDispatch::Dispatch(d) => RuntimeHandleOrDispatch::Dispatch(d),
-    };
+  pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
+    let runtime = manager.runtime();
     let app_handle = manager.app_handle();
     Self {
       manager: manager.manager().clone(),
@@ -219,25 +187,21 @@ impl<R: Runtime> WindowBuilder<R> {
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
-    let labels = self.manager().labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager().prepare_window(
-      self.managed_app_handle(),
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
+    let pending = self.manager.prepare_window(
+      self.app_handle.clone(),
       pending,
       &labels,
       web_resource_request_handler,
     )?;
-    let window = match self.runtime() {
+    let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),
-      RuntimeOrDispatch::Dispatch(mut dispatcher) => dispatcher.create_window(pending),
+      RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_window(pending),
     }
-    .map(|window| {
-      self
-        .manager()
-        .attach_window(self.managed_app_handle(), window)
-    })?;
+    .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
 
-    self.manager().emit_filter(
+    self.manager.emit_filter(
       "tauri://window-created",
       None,
       Some(WindowCreatedEvent {
@@ -686,12 +650,12 @@ impl<R: Runtime> Window<R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
   ///
   /// Data URLs are only supported with the `window-data-url` feature flag.
-  pub fn builder<M: Manager<R>, L: Into<String>>(
-    manager: &M,
+  pub fn builder<'a, M: Manager<R>, L: Into<String>>(
+    manager: &'a M,
     label: L,
     url: WindowUrl,
-  ) -> WindowBuilder<R> {
-    WindowBuilder::<R>::new(manager, label.into(), url)
+  ) -> WindowBuilder<'a, R> {
+    WindowBuilder::<'a, R>::new(manager, label.into(), url)
   }
 
   pub(crate) fn invoke_responder(&self) -> Arc<InvokeResponder<R>> {

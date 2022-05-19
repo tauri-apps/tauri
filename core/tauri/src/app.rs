@@ -1196,10 +1196,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the current platform's target name for the updater.
   ///
-  /// By default Tauri looks for a target in the format "{target}-{arch}",
-  /// where *target* is one of `darwin`, `linux` and `windows`
-  /// and *arch* is one of `i686`, `x86_64`, `aarch64` and `armv7`
-  /// based on the running platform. You can change the target name with this function.
+  /// See [`UpdateBuilder::target`](crate::updater::UpdateBuilder#method.target) for more information.
   ///
   /// # Examples
   ///

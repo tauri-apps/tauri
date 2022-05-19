@@ -42,6 +42,9 @@ fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Pa
         .to_string_lossy()
         .replace(&format!("-{}", target_triple), ""),
     );
+    if dest.exists() {
+      std::fs::remove_file(&dest).unwrap();
+    }
     copy_file(&src, &dest)?;
   }
   Ok(())

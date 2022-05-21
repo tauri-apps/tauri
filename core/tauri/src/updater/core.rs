@@ -175,13 +175,13 @@ impl RemoteRelease {
 
   #[cfg(target_os = "windows")]
   /// Optional: Windows only try to use elevated task
-  pub fn with_elevated_task(&self) -> bool {
-    match self.inner {
-      RemoteReleaseInner::Dynamic(ref platform) => Ok(&platform.with_elevated_task),
-      RemoteReleaseInner::Static(ref platforms) => platforms
-        .get(&target)
-        .map_or(Err(Error::TargetNotFound(target)), |platform| {
-          Ok(&platform.with_elevated_task)
+  pub fn with_elevated_task(&self, target: &str) -> Result<bool> {
+    match self.data {
+      RemoteReleaseInner::Dynamic(ref platform) => Ok(platform.with_elevated_task),
+      RemoteReleaseInner::Static { ref platforms } => platforms
+        .get(target)
+        .map_or(Err(Error::TargetNotFound(target.to_string())), |platform| {
+          Ok(platform.with_elevated_task)
         }),
     }
   }
@@ -429,7 +429,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       body: final_release.notes().to_owned(),
       signature: final_release.signature(&json_target)?.to_owned(),
       #[cfg(target_os = "windows")]
-      with_elevated_task: final_release.with_elevated_task,
+      with_elevated_task: final_release.with_elevated_task(&json_target)?,
       timeout: self.timeout,
       headers,
     })
@@ -997,7 +997,7 @@ mod test {
           "pub_date": "2020-06-25T14:14:19Z",
           "signature": "{}",
           "url": "{}",
-          "with_elevated_task": "{}"
+          "with_elevated_task": {}
         }}
       "#,
       version, public_signature, download_url, with_elevated_task

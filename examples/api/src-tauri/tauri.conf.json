@@ -4,8 +4,7 @@
     "distDir": "../dist",
     "devPath": "http://localhost:5000",
     "beforeDevCommand": "yarn dev",
-    "beforeBuildCommand": "yarn build",
-    "withGlobalTauri": true
+    "beforeBuildCommand": "yarn build"
   },
   "package": {
     "productName": "Tauri API",

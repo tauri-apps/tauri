@@ -143,7 +143,10 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  *
  * @return {Promise<void>} A promise indicating the success or failure of the operation.
  */
-async function message(message: string, options?: string | MessageDialogOptions): Promise<void> {
+async function message(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<void> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
@@ -151,7 +154,7 @@ async function message(message: string, options?: string | MessageDialogOptions)
       cmd: 'messageDialog',
       message,
       title: opts?.title,
-      kind: opts?.type,
+      type: opts?.type
     }
   })
 }
@@ -164,7 +167,10 @@ async function message(message: string, options?: string | MessageDialogOptions)
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
  */
-async function ask(message: string, options?: string | MessageDialogOptions): Promise<boolean> {
+async function ask(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
@@ -172,7 +178,7 @@ async function ask(message: string, options?: string | MessageDialogOptions): Pr
       cmd: 'askDialog',
       message,
       title: opts?.title,
-      kind: opts?.type,
+      type: opts?.type
     }
   })
 }
@@ -185,7 +191,10 @@ async function ask(message: string, options?: string | MessageDialogOptions): Pr
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
  */
-async function confirm(message: string, options?: string | MessageDialogOptions): Promise<boolean> {
+async function confirm(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
@@ -193,7 +202,7 @@ async function confirm(message: string, options?: string | MessageDialogOptions)
       cmd: 'confirmDialog',
       message,
       title: opts?.title,
-      kind: opts?.type,
+      type: opts?.type
     }
   })
 }

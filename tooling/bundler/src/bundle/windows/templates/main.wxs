@@ -30,10 +30,14 @@
         <Property Id="REINSTALLMODE" Value="dmus" />
 
         {{#if allow_downgrades}}
-            <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallExecute" />
+            <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallValidate" />
         {{else}}
             <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}
+
+        <InstallExecuteSequence>
+            <RemoveShortcuts>Installed AND NOT UPGRADINGPRODUCTCODE</RemoveShortcuts>
+        </InstallExecuteSequence>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 

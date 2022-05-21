@@ -327,16 +327,14 @@ impl<R: Runtime> UpdateBuilder<R> {
     // If no executable path provided, we use current_exe from tauri_utils
     let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
-    let has_custom_target = self.target.is_some();
-    let target = self
-      .target
-      .or_else(|| get_updater_target().map(Into::into))
-      .ok_or(Error::UnsupportedOs)?;
     let arch = get_updater_arch().ok_or(Error::UnsupportedArch)?;
-    let json_target = if has_custom_target {
-      target.clone()
+    // `target` is the `{{target}}` variable we replace in the endpoint
+    // `json_target` is the value we search if the updater server returns a JSON with the `platforms` object
+    let (target, json_target) = if let Some(target) = self.target {
+      (target.clone(), target)
     } else {
-      format!("{}-{}", target, arch)
+      let target = get_updater_target().ok_or(Error::UnsupportedOs)?;
+      (target.to_string(), format!("{}-{}", target, arch))
     };
 
     // Get the extract_path from the provided executable_path

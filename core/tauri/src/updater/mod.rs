@@ -526,7 +526,85 @@ impl<R: Runtime> UpdateBuilder<R> {
     self
   }
 
-  /// Set the target name. Represents the string that is looked up on the updater API or response JSON.
+  /// Sets the current platform's target name for the updater.
+  ///
+  /// The target is injected in the endpoint URL by replacing `{{target}}`.
+  /// Note that this does not affect the `{{arch}}` variable.
+  ///
+  /// If the updater response JSON includes the `platforms` field,
+  /// that object must contain a value for the target key.
+  ///
+  /// By default Tauri uses `$OS_NAME` as the replacement for `{{target}}`
+  /// and `$OS_NAME-$ARCH` as the key in the `platforms` object,
+  /// where `$OS_NAME` is the current operating system name "linux", "windows" or "darwin")
+  /// and `$ARCH` is one of the supported architectures ("i686", "x86_64", "armv7" or "aarch64").
+  ///
+  /// See [`Builder::updater_target`](crate::Builder#method.updater_target) for a way to set the target globally.
+  ///
+  /// # Examples
+  ///
+  /// ## Use a macOS Universal binary target name
+  ///
+  /// In this example, we set the updater target only on macOS.
+  /// On other platforms, we set the default target.
+  /// Note that `{{target}}` will be replaced with `darwin-universal`,
+  /// but `{{arch}}` is still the running platform's architecture.
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     tauri::async_runtime::spawn(async move {
+  ///       let builder = tauri::updater::builder(handle).target(if cfg!(target_os = "macos") {
+  ///         "darwin-universal".to_string()
+  ///       } else {
+  ///         tauri::updater::target().unwrap()
+  ///       });
+  ///       match builder.check().await {
+  ///         Ok(update) => {}
+  ///         Err(error) => {}
+  ///       }
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// ## Append debug information to the target
+  ///
+  /// This allows you to provide updates for both debug and release applications.
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     tauri::async_runtime::spawn(async move {
+  ///       let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
+  ///       let builder = tauri::updater::builder(handle).target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
+  ///       match builder.check().await {
+  ///         Ok(update) => {}
+  ///         Err(error) => {}
+  ///       }
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// ## Use the platform's target triple
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     tauri::async_runtime::spawn(async move {
+  ///       let builder = tauri::updater::builder(handle).target(tauri::utils::platform::target_triple().unwrap());
+  ///       match builder.check().await {
+  ///         Ok(update) => {}
+  ///         Err(error) => {}
+  ///       }
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn target(mut self, target: impl Into<String>) -> Self {
     self.inner = self.inner.target(target);
     self

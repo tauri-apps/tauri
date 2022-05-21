@@ -143,6 +143,11 @@ impl Client {
 
     if let Some(timeout) = request.timeout {
       request_builder = request_builder.timeout(timeout);
+      #[cfg(windows)]
+      {
+        // on Windows the global timeout is not respected, see https://github.com/sbstp/attohttpc/issues/118
+        request_builder = request_builder.read_timeout(timeout);
+      }
     }
 
     let response = if let Some(body) = request.body {

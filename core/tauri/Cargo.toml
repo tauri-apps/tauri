@@ -60,7 +60,7 @@ tauri-macros = { version = "1.0.0-rc.6", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.0-rc.6", features = [ "resources" ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.5.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
-semver = { version = "1.0", features = ["serde"]}
+semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
 state = "0.5"
 tar = "0.4.36"

@@ -135,11 +135,12 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  *
  * @return {Promise<void>} A promise indicating the success or failure of the operation.
  */
-async function message(message: string): Promise<void> {
+async function message(message: string, title?: string): Promise<void> {
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
+      title,
       message
     }
   })

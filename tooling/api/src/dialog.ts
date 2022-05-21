@@ -74,6 +74,13 @@ interface SaveDialogOptions {
   defaultPath?: string
 }
 
+interface MessageDialogOptions {
+  /** The title of the dialog. Defaults to the app name. */
+  title?: string
+  /** The type of the dialog. Defaults to `info`. */
+  type?: 'info' | 'warning' | 'error'
+}
+
 /**
  * Open a file/directory selection dialog.
  *
@@ -132,16 +139,19 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  * Shows a message dialog with an `Ok` button.
  *
  * @param {string} message The message to show.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise indicating the success or failure of the operation.
  */
-async function message(message: string, title?: string): Promise<void> {
+async function message(message: string, options?: string | MessageDialogOptions): Promise<void> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
-      title,
-      message
+      message,
+      title: opts?.title,
+      kind: opts?.type,
     }
   })
 }
@@ -150,17 +160,19 @@ async function message(message: string, title?: string): Promise<void> {
  * Shows a question dialog with `Yes` and `No` buttons.
  *
  * @param {string} message The message to show.
- * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
  */
-async function ask(message: string, title?: string): Promise<boolean> {
+async function ask(message: string, options?: string | MessageDialogOptions): Promise<boolean> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'askDialog',
-      title,
-      message
+      message,
+      title: opts?.title,
+      kind: opts?.type,
     }
   })
 }
@@ -169,17 +181,19 @@ async function ask(message: string, title?: string): Promise<boolean> {
  * Shows a question dialog with `Ok` and `Cancel` buttons.
  *
  * @param {string} message The message to show.
- * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
  */
-async function confirm(message: string, title?: string): Promise<boolean> {
+async function confirm(message: string, options?: string | MessageDialogOptions): Promise<boolean> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'confirmDialog',
-      title,
-      message
+      message,
+      title: opts?.title,
+      kind: opts?.type,
     }
   })
 }

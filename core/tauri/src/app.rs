@@ -537,7 +537,7 @@ macro_rules! shared_app_impl {
       ///     let handle = app.handle();
       ///     tauri::async_runtime::spawn(async move {
       #[cfg_attr(
-        any(feature = "updater", feature = "__updater-docs"),
+        feature = "updater",
         doc = r#"     let response = handle.updater().check().await;"#
       )]
       ///     });

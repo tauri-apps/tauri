@@ -25,8 +25,8 @@ features = [
   "custom-protocol",
   "api-all",
   "cli",
-  "__updater-docs",
-  "__fs-extract-api-docs",
+  "updater",
+  "fs-extract-api",
   "system-tray",
   "devtools",
   "http-multipart",
@@ -143,12 +143,10 @@ updater = [
   "dialog-ask",
   "fs-extract-api"
 ]
-__updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]
 http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-__fs-extract-api-docs = [ ]
 reqwest-client = [ "reqwest", "bytes" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [

@@ -67,7 +67,7 @@ pub enum Error {
   #[error(transparent)]
   Zip(#[from] zip::result::ZipError),
   /// Extract error.
-  #[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
+  #[cfg(feature = "fs-extract-api")]
   #[error("Failed to extract: {0}")]
   Extract(String),
   /// Notification error.

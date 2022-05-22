@@ -4,7 +4,7 @@
 
 //! Types and functions related to file operations.
 
-#[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
+#[cfg(feature = "fs-extract-api")]
 mod extract;
 mod file_move;
 
@@ -13,7 +13,7 @@ use std::{
   path::{Display, Path},
 };
 
-#[cfg(any(feature = "fs-extract-api", feature = "__fs-extract-api-docs"))]
+#[cfg(feature = "fs-extract-api")]
 pub use extract::*;
 pub use file_move::*;
 

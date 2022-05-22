@@ -504,9 +504,9 @@ impl<R: Runtime> WindowManager<R> {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
         #[cfg(target_os = "windows")]
-        let path = filtered_path.replace("asset://localhost/", "");
+        let path = filtered_path.trim_start_matches("asset://localhost/");
         #[cfg(not(target_os = "windows"))]
-        let path = filtered_path.replace("asset://", "");
+        let path = filtered_path.trim_start_matches("asset://");
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -829,8 +829,8 @@ impl<R: Runtime> WindowManager<R> {
         // ignore query string and fragment
         .next()
         .unwrap()
-        .to_string()
-        .replace("tauri://localhost", "");
+        .trim_start_matches("tauri://localhost")
+        .to_string();
       let asset = manager.get_asset(path)?;
       let mut builder = HttpResponseBuilder::new()
         .header("Access-Control-Allow-Origin", &window_origin)
@@ -1366,15 +1366,15 @@ fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Re
 }
 
 #[cfg(feature = "isolation")]
-fn request_to_path(request: &tauri_runtime::http::Request, replace: &str) -> String {
+fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> String {
   let mut path = request
     .uri()
     .split(&['?', '#'][..])
     // ignore query string
     .next()
     .unwrap()
-    .to_string()
-    .replace(replace, "");
+    .trim_start_matches(base_url)
+    .to_string();
 
   if path.ends_with('/') {
     path.pop();

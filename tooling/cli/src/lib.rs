@@ -17,15 +17,23 @@ use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
+use serde::Deserialize;
 use std::ffi::OsString;
 use std::io::Write;
 use std::process::{Command, Output};
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 pub struct VersionMetadata {
   tauri: String,
   #[serde(rename = "tauri-build")]
   tauri_build: String,
+}
+
+#[derive(Deserialize)]
+pub struct PackageJson {
+  name: Option<String>,
+  version: Option<String>,
+  product_name: Option<String>,
 }
 
 #[derive(Parser)]

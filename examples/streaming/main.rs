@@ -44,9 +44,9 @@ fn main() {
       let mut response = ResponseBuilder::new();
       // get the wanted path
       #[cfg(target_os = "windows")]
-      let path = request.uri().replace("stream://localhost/", "");
+      let path = request.uri().trim_start_matches("stream://localhost/");
       #[cfg(not(target_os = "windows"))]
-      let path = request.uri().replace("stream://", "");
+      let path = request.uri().trim_start_matches("stream://");
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()
         .to_string();

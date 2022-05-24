@@ -78,11 +78,16 @@ impl<'de> Deserialize<'de> for RemoteRelease {
   where
     D: Deserializer<'de>,
   {
+    fn default_pub_date() -> String {
+      "N/A".to_string()
+    }
+
     #[derive(Deserialize)]
     struct InnerRemoteRelease {
       #[serde(alias = "name", deserialize_with = "parse_version")]
       version: Version,
       notes: Option<String>,
+      #[serde(default = "default_pub_date")]
       pub_date: String,
       platforms: Option<HashMap<String, ReleaseManifestPlatform>>,
       // dynamic platform response

@@ -33,10 +33,10 @@ http-range = "0.1.4"
 infer = "0.7"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.13.0"
+webview2-com = "0.16.0"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.30.0"
+  version = "0.37.0"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

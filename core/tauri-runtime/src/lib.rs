@@ -295,11 +295,11 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
-  fn show(&self) -> crate::Result<()>;
+  fn show(&self) -> Result<()>;
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
-  fn hide(&self) -> crate::Result<()>;
+  fn hide(&self) -> Result<()>;
 }
 
 /// A global shortcut manager.

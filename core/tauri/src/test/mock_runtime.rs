@@ -85,6 +85,18 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn remove_system_tray(&self) -> Result<()> {
     Ok(())
   }
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> Result<()> {
+    Ok(())
+  }
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]

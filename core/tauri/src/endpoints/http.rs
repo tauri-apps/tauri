@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(http_request)]
 use std::{
@@ -20,6 +22,7 @@ type ClientBuilder = ();
 #[cfg(not(http_request))]
 type HttpRequestBuilder = ();
 #[cfg(not(http_request))]
+#[allow(dead_code)]
 type ResponseData = ();
 
 type ClientId = u32;
@@ -34,15 +37,19 @@ fn clients() -> &'static ClientStore {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[cmd(async)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Create a new HTTP client.
+  #[cmd(http_request, "http > request")]
   CreateClient { options: Option<ClientBuilder> },
   /// Drop a HTTP client.
+  #[cmd(http_request, "http > request")]
   DropClient { client: ClientId },
   /// The HTTP request API.
+  #[cmd(http_request, "http > request")]
   HttpRequest {
     client: ClientId,
     options: Box<HttpRequestBuilder>,
@@ -50,7 +57,7 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn create_client<R: Runtime>(
     _context: InvokeContext<R>,
     options: Option<ClientBuilder>,
@@ -62,7 +69,7 @@ impl Cmd {
     Ok(id)
   }
 
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn drop_client<R: Runtime>(
     _context: InvokeContext<R>,
     client: ClientId,
@@ -72,26 +79,38 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(http_request, "http > request")]
+  #[module_command_handler(http_request)]
   async fn http_request<R: Runtime>(
     context: InvokeContext<R>,
     client_id: ClientId,
     options: Box<HttpRequestBuilder>,
   ) -> super::Result<ResponseData> {
     use crate::Manager;
-    if context
-      .window
-      .state::<crate::Scopes>()
-      .http
-      .is_allowed(&options.url)
-    {
+    let scopes = context.window.state::<crate::Scopes>();
+    if scopes.http.is_allowed(&options.url) {
       let client = clients()
         .lock()
         .unwrap()
         .get(&client_id)
         .ok_or_else(|| crate::Error::HttpClientNotInitialized.into_anyhow())?
         .clone();
-      let response = client.send(*options).await?;
+      let options = *options;
+      if let Some(crate::api::http::Body::Form(form)) = &options.body {
+        for value in form.0.values() {
+          if let crate::api::http::FormPart::File {
+            file: crate::api::http::FilePart::Path(path),
+            ..
+          } = value
+          {
+            if crate::api::file::SafePathBuf::new(path.clone()).is_err()
+              || scopes.fs.is_allowed(&path)
+            {
+              return Err(crate::Error::PathNotAllowed(path.clone()).into_anyhow());
+            }
+          }
+        }
+      }
+      let response = client.send(options).await?;
       Ok(response.read().await?)
     } else {
       Err(crate::Error::UrlNotAllowed(options.url).into_anyhow())
@@ -103,7 +122,7 @@ impl Cmd {
 mod tests {
   use super::{ClientBuilder, ClientId};
 
-  #[tauri_macros::module_command_test(http_request, "http > request", async)]
+  #[tauri_macros::module_command_test(http_request, "http > request")]
   #[quickcheck_macros::quickcheck]
   fn create_client(options: Option<ClientBuilder>) {
     assert!(crate::async_runtime::block_on(super::Cmd::create_client(
@@ -113,7 +132,7 @@ mod tests {
     .is_ok());
   }
 
-  #[tauri_macros::module_command_test(http_request, "http > request", async)]
+  #[tauri_macros::module_command_test(http_request, "http > request")]
   #[quickcheck_macros::quickcheck]
   fn drop_client(client_id: ClientId) {
     crate::async_runtime::block_on(async move {

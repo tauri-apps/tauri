@@ -4,6 +4,7 @@
   import hotkeys from "hotkeys-js";
   import { open } from "@tauri-apps/api/shell";
   import { invoke } from "@tauri-apps/api/tauri";
+  import { appWindow } from "@tauri-apps/api/window";
 
   import Welcome from "./components/Welcome.svelte";
   import Cli from "./components/Cli.svelte";
@@ -26,6 +27,10 @@
     hotkeys(MENU_TOGGLE_HOTKEY, () => {
       invoke('menu_toggle');
     });
+  });
+
+  appWindow.listen('tauri://file-drop', function (event) {
+    onMessage(`File drop: ${event.payload}`);
   });
 
   const views = [

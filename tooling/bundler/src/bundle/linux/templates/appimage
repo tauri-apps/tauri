@@ -5,7 +5,7 @@
 
 set -euxo pipefail
 
-export ARCH=x86_64
+export ARCH={{arch}}
 
 mkdir -p "{{app_name}}.AppDir"
 cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
@@ -17,7 +17,7 @@ find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -e
 find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
+wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
 chmod +x AppRun
 
 cp "{{icon_path}}" .DirIcon
@@ -28,9 +28,9 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 cd ..
 
 wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+wget -q -4 -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${ARCH}.AppImage
 
 chmod +x linuxdeploy-plugin-gtk.sh
-chmod +x linuxdeploy-x86_64.AppImage
+chmod +x linuxdeploy-${ARCH}.AppImage
 
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

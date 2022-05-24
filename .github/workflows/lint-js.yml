@@ -11,6 +11,10 @@ on:
       - 'tooling/cli/node/**'
       - 'tooling/api/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   eslint-check:
     runs-on: ubuntu-latest

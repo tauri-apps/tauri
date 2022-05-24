@@ -1,5 +1,90 @@
 # Changelog
 
+## \[0.6.0]
+
+- Account the monitor position when centering a window.
+  - [a7a9fde1](https://www.github.com/tauri-apps/tauri/commit/a7a9fde16fb7c35d48d4f97e83ff95b8baf9e090) fix(core): account for monitor position when centering window ([#4166](https://www.github.com/tauri-apps/tauri/pull/4166)) on 2022-05-21
+- Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.
+  - [2326be39](https://www.github.com/tauri-apps/tauri/commit/2326be39821890cdd4de76e7029a531424dcb26f) feat(core): update windows-rs to 0.37.0 ([#4199](https://www.github.com/tauri-apps/tauri/pull/4199)) on 2022-05-24
+
+## \[0.5.2]
+
+- Use the event loop proxy to create a window so it doesn't deadlock on Windows.
+  - [61e37652](https://www.github.com/tauri-apps/tauri/commit/61e37652b931520424d6a93a134e67893703d992) fix(core): deadlock when creating window from IPC handler, closes [#4121](https://www.github.com/tauri-apps/tauri/pull/4121) ([#4123](https://www.github.com/tauri-apps/tauri/pull/4123)) on 2022-05-13
+
+## \[0.5.1]
+
+- Added the `plugin` method to the `Wry` runtime, allowing extensions to the event loop.
+  - [c8e0e5b9](https://www.github.com/tauri-apps/tauri/commit/c8e0e5b97d542e549b37be08b545515c862af0e5) feat(tauri-runtime-wry): add plugin API ([#4094](https://www.github.com/tauri-apps/tauri/pull/4094)) on 2022-05-10
+- Update wry to 0.16.2 and webkit2gtk to 0.18.0.
+  - [71a553b7](https://www.github.com/tauri-apps/tauri/commit/71a553b715312e2bcceb963c83e42cffca7a63bc) chore(deps): update wry to 0.16.2, webkit2gtk to 0.18.0 ([#4099](https://www.github.com/tauri-apps/tauri/pull/4099)) on 2022-05-10
+
+## \[0.5.0]
+
+- The file drop event payloads are now percent-decoded.
+  - [a0ecd81a](https://www.github.com/tauri-apps/tauri/commit/a0ecd81a934e1aa8935151a74cad686786054204) fix(core): percent decode file drop payloads, closes [#4034](https://www.github.com/tauri-apps/tauri/pull/4034) ([#4035](https://www.github.com/tauri-apps/tauri/pull/4035)) on 2022-05-03
+- Fixes a crash when using the menu with the inspector window focused on macOS. In this case the `window_id` will be the id of the first app window.
+  - [891eb748](https://www.github.com/tauri-apps/tauri/commit/891eb748cf590895dc3f1666f8dbd6082b21e04e) fix(tauri-runtime-wry): menu even panic on macOS inspector, closes [#3875](https://www.github.com/tauri-apps/tauri/pull/3875) ([#4027](https://www.github.com/tauri-apps/tauri/pull/4027)) on 2022-05-02
+- Fixes a freeze when calling `set_size` in the main thread on Windows.
+  - [8f259f4e](https://www.github.com/tauri-apps/tauri/commit/8f259f4ef89be3da11b57222c8b66af9487ab736) fix(core): use EventLoopProxy to prevent set_size freeze closes [#3990](https://www.github.com/tauri-apps/tauri/pull/3990) ([#4014](https://www.github.com/tauri-apps/tauri/pull/4014)) on 2022-04-30
+- Expose methods to access the underlying native handles of the webview.
+  - [c82b4761](https://www.github.com/tauri-apps/tauri/commit/c82b4761e1660592472dc55308ad69d9efc5855b) feat(core): expose `with_webview` API to access the platform webview ([#4058](https://www.github.com/tauri-apps/tauri/pull/4058)) on 2022-05-04
+
+## \[0.4.0]
+
+- \**Breaking change::* Added the `clipboard` Cargo feature.
+  - [24e4ff20](https://www.github.com/tauri-apps/tauri/commit/24e4ff208ee0fe1a4cc5b10667ea0922ac63dfb5) refactor(core): add clipboard Cargo feature, enhancing binary size ([#3957](https://www.github.com/tauri-apps/tauri/pull/3957)) on 2022-04-24
+- Expose Window cursor APIs `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position`.
+  - [c54ddfe9](https://www.github.com/tauri-apps/tauri/commit/c54ddfe9338e7eb90b4d5b02dfde687d432d5bc1) feat: expose window cursor APIs, closes [#3888](https://www.github.com/tauri-apps/tauri/pull/3888) [#3890](https://www.github.com/tauri-apps/tauri/pull/3890) ([#3935](https://www.github.com/tauri-apps/tauri/pull/3935)) on 2022-04-21
+- Fixes a panic when using the `create_tao_window` API.
+  - [320329a9](https://www.github.com/tauri-apps/tauri/commit/320329a9a7d8a249c0fc9dee6db5669057ca8b39) fix(core): insert to webview_id_map on tao window creation, closes [#3883](https://www.github.com/tauri-apps/tauri/pull/3883) ([#3932](https://www.github.com/tauri-apps/tauri/pull/3932)) on 2022-04-21
+- Fixes a panic when a menu event is triggered when all windows are minimized on macOS.
+  - [70ff55c1](https://www.github.com/tauri-apps/tauri/commit/70ff55c1aa69ed59cd2a78d865e1cb398ef2a4ba) fix(core): panic on menu event with minimized windows, closes [#3902](https://www.github.com/tauri-apps/tauri/pull/3902) ([#3918](https://www.github.com/tauri-apps/tauri/pull/3918)) on 2022-04-20
+- Fixes a rendering issue when resizing the window with the devtools open.
+  - [80b714af](https://www.github.com/tauri-apps/tauri/commit/80b714af6b31365b9026bc92f8631b1721950447) fix: rendering issue when resizing with devtools open closes [#3914](https://www.github.com/tauri-apps/tauri/pull/3914) [#3814](https://www.github.com/tauri-apps/tauri/pull/3814) ([#3915](https://www.github.com/tauri-apps/tauri/pull/3915)) on 2022-04-19
+- \**Breaking change::* Added the `global-shortcut` Cargo feature.
+  - [e11878bc](https://www.github.com/tauri-apps/tauri/commit/e11878bcf7174b261a1fa146fc7d564d12e6312a) refactor(core): add global-shortcut Cargo feature, enhancing binary size ([#3956](https://www.github.com/tauri-apps/tauri/pull/3956)) on 2022-04-24
+- Added `WindowEvent::ThemeChanged(theme)`.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+- Added `theme` getter on `Window`.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+- Added `theme` setter to the WindowBuilder.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+- Create webview immediately when executed in the main thread.
+  - [fa2baba7](https://www.github.com/tauri-apps/tauri/commit/fa2baba76c8f59c81f2a2f7139033a09d14d89da) feat(core): create webview immediately when running in main thread ([#3891](https://www.github.com/tauri-apps/tauri/pull/3891)) on 2022-04-12
+
+## \[0.3.5]
+
+- Fixes `WindowEvent::Destroyed` not firing.
+  - [169b5035](https://www.github.com/tauri-apps/tauri/commit/169b5035a93e3f33a420d4b2b0f8943e6404e07f) fix(core): actually fire `WindowEvent::Destroyed` ([#3797](https://www.github.com/tauri-apps/tauri/pull/3797)) on 2022-03-28
+
+## \[0.3.4]
+
+- Added `close_devtools` and `is_devtools_open` APIs to the `Dispatch` trait.
+  - [e05d718a](https://www.github.com/tauri-apps/tauri/commit/e05d718a7b46476d1fe4817c169008080e84f959) feat(core): add hotkey to toggle devtools, closes [#3776](https://www.github.com/tauri-apps/tauri/pull/3776) ([#3791](https://www.github.com/tauri-apps/tauri/pull/3791)) on 2022-03-28
+- Emit `RunEvent::Exit` on `tao::event::Event::LoopDestroyed` instead of after `RunEvent::ExitRequested`.
+  - [3c4ee7c9](https://www.github.com/tauri-apps/tauri/commit/3c4ee7c997fa3ff696bcfd5b8c82fecaca16bf49) refactor(wry): emit `RunEvent::Exit` on `Event::LoopDestroyed` ([#3785](https://www.github.com/tauri-apps/tauri/pull/3785)) on 2022-03-27
+- **Breaking change:** The `MenuItem::About` variant is now associated with a tuple value `(String, AboutMetadata)`.
+  - [5fb74332](https://www.github.com/tauri-apps/tauri/commit/5fb74332ab9210ac062d96b0e9afd1c942ee2911) chore(deps): update wry to 0.14, tao to 0.7 ([#3790](https://www.github.com/tauri-apps/tauri/pull/3790)) on 2022-03-28
+- Support window parenting on macOS
+  - [4e807a53](https://www.github.com/tauri-apps/tauri/commit/4e807a53e2d6d3f3cd5293d90013d5cdded5454e) Support window parenting on macOS, closes [#3751](https://www.github.com/tauri-apps/tauri/pull/3751) ([#3754](https://www.github.com/tauri-apps/tauri/pull/3754)) on 2022-03-23
+- The file drop event is now part of the `WindowEvent` enum instead of a having a dedicated handler.
+  - [07d1584c](https://www.github.com/tauri-apps/tauri/commit/07d1584cf06ea326aa45d8044bee1b77ecba5006) feat(core): add `WindowEvent::FileDrop`, closes [#3664](https://www.github.com/tauri-apps/tauri/pull/3664) ([#3686](https://www.github.com/tauri-apps/tauri/pull/3686)) on 2022-03-13
+- **Breaking change:** Use the dedicated `WindowEvent` enum on `RunEvent`.
+  - [edad9f4f](https://www.github.com/tauri-apps/tauri/commit/edad9f4f55dcc69a06cd9d6d5a5068c94ecb77dd) refactor(core): add `RunEvent::WindowEvent` ([#3793](https://www.github.com/tauri-apps/tauri/pull/3793)) on 2022-03-28
+- Added `create_proxy` to the `Runtime` and `RuntimeHandle` traits.
+  - [5d538ec2](https://www.github.com/tauri-apps/tauri/commit/5d538ec27c246274df4ff5b8057ff78b6364a43f) refactor(core): use the event loop proxy to send updater events ([#3687](https://www.github.com/tauri-apps/tauri/pull/3687)) on 2022-03-15
+- Allow specifying a user event type for the event loop message.
+  - [5d538ec2](https://www.github.com/tauri-apps/tauri/commit/5d538ec27c246274df4ff5b8057ff78b6364a43f) refactor(core): use the event loop proxy to send updater events ([#3687](https://www.github.com/tauri-apps/tauri/pull/3687)) on 2022-03-15
+- Use a random window id instead of `tao::window::WindowId` to not block the thread waiting for the event loop to process the window creation.
+  - [7cd39c70](https://www.github.com/tauri-apps/tauri/commit/7cd39c70c9ecd62cc9b60d0ab93f10ce0a6dd8b4) refactor(core): use random window id to simplify window creation, closes [#3645](https://www.github.com/tauri-apps/tauri/pull/3645) [#3597](https://www.github.com/tauri-apps/tauri/pull/3597) ([#3684](https://www.github.com/tauri-apps/tauri/pull/3684)) on 2022-03-15
+- Update `wry` to `0.14` and `tao` to `0.7`.
+  - [f2d24ef2](https://www.github.com/tauri-apps/tauri/commit/f2d24ef2fbd95ec7d3433ba651964f4aa3b7f48c) chore(deps): update wry ([#1482](https://www.github.com/tauri-apps/tauri/pull/1482)) on 2021-04-14
+  - [e267ebf1](https://www.github.com/tauri-apps/tauri/commit/e267ebf1f1009b99829e0a7d71519925f5792f9f) Apply Version Updates From Current Changes ([#1486](https://www.github.com/tauri-apps/tauri/pull/1486)) on 2021-04-14
+  - [5fb74332](https://www.github.com/tauri-apps/tauri/commit/5fb74332ab9210ac062d96b0e9afd1c942ee2911) chore(deps): update wry to 0.14, tao to 0.7 ([#3790](https://www.github.com/tauri-apps/tauri/pull/3790)) on 2022-03-28
+- Added the `WindowEvent::FileDrop` variant.
+  - [07d1584c](https://www.github.com/tauri-apps/tauri/commit/07d1584cf06ea326aa45d8044bee1b77ecba5006) feat(core): add `WindowEvent::FileDrop`, closes [#3664](https://www.github.com/tauri-apps/tauri/pull/3664) ([#3686](https://www.github.com/tauri-apps/tauri/pull/3686)) on 2022-03-13
+
 ## \[0.3.3]
 
 - Fixes a deadlock on the `Focused` event when the window is not visible.

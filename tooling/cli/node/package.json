@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.0.0-rc.6",
+  "version": "1.0.0-rc.12",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -37,12 +37,13 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.4.4",
+    "@napi-rs/cli": "2.9.0",
+    "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
-    "fs-extra": "10.0.1",
-    "jest": "27.5.1",
+    "fs-extra": "10.1.0",
+    "jest": "28.1.0",
     "jest-transform-toml": "1.0.0",
-    "prettier": "2.5.1"
+    "prettier": "2.6.2"
   },
   "engines": {
     "node": ">= 10"
@@ -52,9 +53,10 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build:release": "cross-env TARGET=node napi build --platform --release",
+    "build": "cross-env TARGET=node napi build --platform",
     "prepublishOnly": "napi prepublish -t npm",
+    "prepack": "cp ../schema.json .",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",
     "tauri": "node ./tauri.js",

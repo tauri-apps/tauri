@@ -108,7 +108,7 @@ pub struct PackageSettings {
 }
 
 /// The updater settings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
   /// Whether the updater is active or not.
   pub active: bool,
@@ -118,6 +118,8 @@ pub struct UpdaterSettings {
   pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
+  /// Args to pass to `msiexec.exe` to run the updater on Windows.
+  pub msiexec_args: Option<&'static [&'static str]>,
 }
 
 /// The Linux debian bundle settings.
@@ -126,12 +128,6 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
-  /// whether we should use the bootstrap script on debian or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -157,12 +153,6 @@ pub struct MacOsSettings {
   /// The path to the LICENSE file for macOS apps.
   /// Currently only used by the dmg bundle.
   pub license: Option<String>,
-  /// whether we should use the bootstrap script on macOS .app or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
@@ -243,13 +233,19 @@ pub struct WindowsSettings {
   pub timestamp_url: Option<String>,
   /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
-  pub tsp: Option<bool>,
+  pub tsp: bool,
   /// WiX configuration.
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
   /// Path to the webview fixed runtime to use.
   pub webview_fixed_runtime_path: Option<PathBuf>,
+  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  ///
+  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  ///
+  /// /// The default value of this flag is `true`.
+  pub allow_downgrades: bool,
 }
 
 impl Default for WindowsSettings {
@@ -258,10 +254,11 @@ impl Default for WindowsSettings {
       digest_algorithm: None,
       certificate_thumbprint: None,
       timestamp_url: None,
-      tsp: None,
+      tsp: false,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_fixed_runtime_path: None,
+      allow_downgrades: true,
     }
   }
 }
@@ -327,11 +324,7 @@ impl BundleBinary {
   /// Creates a new bundle binary.
   pub fn new(name: String, main: bool) -> Self {
     Self {
-      name: if cfg!(windows) {
-        format!("{}.exe", name)
-      } else {
-        name
-      },
+      name,
       src_path: None,
       main,
     }
@@ -381,8 +374,6 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
-  /// whether or not to enable verbose logging
-  is_verbose: bool,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -395,7 +386,6 @@ pub struct Settings {
 #[derive(Default)]
 pub struct SettingsBuilder {
   project_out_directory: Option<PathBuf>,
-  verbose: bool,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -415,13 +405,6 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
-    self
-  }
-
-  /// Enables verbose output.
-  #[must_use]
-  pub fn verbose(mut self) -> Self {
-    self.verbose = true;
     self
   }
 
@@ -475,7 +458,6 @@ impl SettingsBuilder {
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
       package_types: self.package_types,
-      is_verbose: self.verbose,
       project_out_directory: self
         .project_out_directory
         .expect("out directory is required"),
@@ -591,11 +573,6 @@ impl Settings {
     }
   }
 
-  /// Returns true if verbose logging is enabled
-  pub fn is_verbose(&self) -> bool {
-    self.is_verbose
-  }
-
   /// Returns the product name.
   pub fn product_name(&self) -> &str {
     &self.package.product_name
@@ -643,7 +620,6 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      println!("{:?} {:?} {:?}", src, dest, self.target);
       common::copy_file(&src, &dest)?;
     }
     Ok(())
@@ -724,6 +700,11 @@ impl Settings {
   /// Returns the Windows settings.
   pub fn windows(&self) -> &WindowsSettings {
     &self.bundle_settings.windows
+  }
+
+  /// Returns the Updater settings.
+  pub fn updater(&self) -> Option<&UpdaterSettings> {
+    self.bundle_settings.updater.as_ref()
   }
 
   /// Is update enabled

@@ -7,15 +7,16 @@
 use crate::{
   http::{Request as HttpRequest, Response as HttpResponse},
   menu::{Menu, MenuEntry, MenuHash, MenuId},
-  webview::{FileDropHandler, WebviewAttributes, WebviewIpcHandler},
-  Dispatch, Runtime, WindowBuilder,
+  webview::{WebviewAttributes, WebviewIpcHandler},
+  Dispatch, Runtime, UserEvent, WindowBuilder,
 };
-use serde::Serialize;
-use tauri_utils::config::WindowConfig;
+use serde::{Deserialize, Deserializer, Serialize};
+use tauri_utils::{config::WindowConfig, Theme};
 
 use std::{
   collections::{HashMap, HashSet},
   hash::{Hash, Hasher},
+  path::PathBuf,
   sync::{mpsc::Sender, Arc, Mutex},
 };
 
@@ -27,7 +28,6 @@ pub mod dpi;
 
 /// An event from a window.
 #[derive(Debug, Clone)]
-#[non_exhaustive]
 pub enum WindowEvent {
   /// The size of the window has changed. Contains the client area's new dimensions.
   Resized(dpi::PhysicalSize<u32>),
@@ -35,8 +35,6 @@ pub enum WindowEvent {
   Moved(dpi::PhysicalPosition<i32>),
   /// The window has been requested to close.
   CloseRequested {
-    /// The window label.
-    label: String,
     /// A signal sender. If a `true` value is emitted, the window won't be closed.
     signal_tx: Sender<bool>,
   },
@@ -59,6 +57,26 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: dpi::PhysicalSize<u32>,
   },
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+  /// The system window theme has changed.
+  ///
+  /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
+  ///
+  /// At the moment this is only supported on Windows.
+  ThemeChanged(Theme),
+}
+
+/// The file drop event payload.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum FileDropEvent {
+  /// The file(s) have been dragged onto the window, but have not been dropped yet.
+  Hovered(Vec<PathBuf>),
+  /// The file(s) have been dropped onto the window.
+  Dropped(Vec<PathBuf>),
+  /// The file drop was aborted.
+  Cancelled,
 }
 
 /// A menu event.
@@ -80,13 +98,125 @@ fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &Menu) {
   }
 }
 
+/// Describes the appearance of the mouse cursor.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CursorIcon {
+  /// The platform-dependent default cursor.
+  Default,
+  /// A simple crosshair.
+  Crosshair,
+  /// A hand (often used to indicate links in web browsers).
+  Hand,
+  /// Self explanatory.
+  Arrow,
+  /// Indicates something is to be moved.
+  Move,
+  /// Indicates text that may be selected or edited.
+  Text,
+  /// Program busy indicator.
+  Wait,
+  /// Help indicator (often rendered as a "?")
+  Help,
+  /// Progress indicator. Shows that processing is being done. But in contrast
+  /// with "Wait" the user may still interact with the program. Often rendered
+  /// as a spinning beach ball, or an arrow with a watch or hourglass.
+  Progress,
+
+  /// Cursor showing that something cannot be done.
+  NotAllowed,
+  ContextMenu,
+  Cell,
+  VerticalText,
+  Alias,
+  Copy,
+  NoDrop,
+  /// Indicates something can be grabbed.
+  Grab,
+  /// Indicates something is grabbed.
+  Grabbing,
+  AllScroll,
+  ZoomIn,
+  ZoomOut,
+
+  /// Indicate that some edge is to be moved. For example, the 'SeResize' cursor
+  /// is used when the movement starts from the south-east corner of the box.
+  EResize,
+  NResize,
+  NeResize,
+  NwResize,
+  SResize,
+  SeResize,
+  SwResize,
+  WResize,
+  EwResize,
+  NsResize,
+  NeswResize,
+  NwseResize,
+  ColResize,
+  RowResize,
+}
+
+impl<'de> Deserialize<'de> for CursorIcon {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "default" => CursorIcon::Default,
+      "crosshair" => CursorIcon::Crosshair,
+      "hand" => CursorIcon::Hand,
+      "arrow" => CursorIcon::Arrow,
+      "move" => CursorIcon::Move,
+      "text" => CursorIcon::Text,
+      "wait" => CursorIcon::Wait,
+      "help" => CursorIcon::Help,
+      "progress" => CursorIcon::Progress,
+      "notallowed" => CursorIcon::NotAllowed,
+      "contextmenu" => CursorIcon::ContextMenu,
+      "cell" => CursorIcon::Cell,
+      "verticaltext" => CursorIcon::VerticalText,
+      "alias" => CursorIcon::Alias,
+      "copy" => CursorIcon::Copy,
+      "nodrop" => CursorIcon::NoDrop,
+      "grab" => CursorIcon::Grab,
+      "grabbing" => CursorIcon::Grabbing,
+      "allscroll" => CursorIcon::AllScroll,
+      "zoomun" => CursorIcon::ZoomIn,
+      "zoomout" => CursorIcon::ZoomOut,
+      "eresize" => CursorIcon::EResize,
+      "nresize" => CursorIcon::NResize,
+      "neresize" => CursorIcon::NeResize,
+      "nwresize" => CursorIcon::NwResize,
+      "sresize" => CursorIcon::SResize,
+      "seresize" => CursorIcon::SeResize,
+      "swresize" => CursorIcon::SwResize,
+      "wresize" => CursorIcon::WResize,
+      "ewresize" => CursorIcon::EwResize,
+      "nsresize" => CursorIcon::NsResize,
+      "neswresize" => CursorIcon::NeswResize,
+      "nwseresize" => CursorIcon::NwseResize,
+      "colresize" => CursorIcon::ColResize,
+      "rowresize" => CursorIcon::RowResize,
+      _ => CursorIcon::Default,
+    })
+  }
+}
+
+impl Default for CursorIcon {
+  fn default() -> Self {
+    CursorIcon::Default
+  }
+}
+
 /// A webview window that has yet to be built.
-pub struct PendingWindow<R: Runtime> {
+pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   /// The label that the window will be named.
   pub label: String,
 
   /// The [`WindowBuilder`] that the window will be created with.
-  pub window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+  pub window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
 
   /// The [`WebviewAttributes`] that the webview will be created with.
   pub webview_attributes: WebviewAttributes,
@@ -94,10 +224,7 @@ pub struct PendingWindow<R: Runtime> {
   pub uri_scheme_protocols: HashMap<String, Box<UriSchemeProtocol>>,
 
   /// How to handle IPC calls on the webview window.
-  pub ipc_handler: Option<WebviewIpcHandler<R>>,
-
-  /// How to handle a file dropping onto the webview window.
-  pub file_drop_handler: Option<FileDropHandler<R>>,
+  pub ipc_handler: Option<WebviewIpcHandler<T, R>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,
@@ -122,10 +249,10 @@ pub fn assert_label_is_valid(label: &str) {
   );
 }
 
-impl<R: Runtime> PendingWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
   /// Create a new [`PendingWindow`] with a label and starting url.
   pub fn new(
-    window_builder: <R::Dispatcher as Dispatch>::WindowBuilder,
+    window_builder: <R::Dispatcher as Dispatch<T>>::WindowBuilder,
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
@@ -143,7 +270,6 @@ impl<R: Runtime> PendingWindow<R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        file_drop_handler: None,
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
@@ -157,7 +283,8 @@ impl<R: Runtime> PendingWindow<R> {
     webview_attributes: WebviewAttributes,
     label: impl Into<String>,
   ) -> crate::Result<Self> {
-    let window_builder = <<R::Dispatcher as Dispatch>::WindowBuilder>::with_config(window_config);
+    let window_builder =
+      <<R::Dispatcher as Dispatch<T>>::WindowBuilder>::with_config(window_config);
     let mut menu_ids = HashMap::new();
     if let Some(menu) = window_builder.get_menu() {
       get_menu_ids(&mut menu_ids, menu);
@@ -172,7 +299,6 @@ impl<R: Runtime> PendingWindow<R> {
         uri_scheme_protocols: Default::default(),
         label,
         ipc_handler: None,
-        file_drop_handler: None,
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
@@ -215,7 +341,7 @@ pub struct JsEventListenerKey {
 
 /// A webview window that is not yet managed by Tauri.
 #[derive(Debug)]
-pub struct DetachedWindow<R: Runtime> {
+pub struct DetachedWindow<T: UserEvent, R: Runtime<T>> {
   /// Name of the window
   pub label: String,
 
@@ -229,7 +355,7 @@ pub struct DetachedWindow<R: Runtime> {
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 }
 
-impl<R: Runtime> Clone for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Clone for DetachedWindow<T, R> {
   fn clone(&self) -> Self {
     Self {
       label: self.label.clone(),
@@ -240,15 +366,15 @@ impl<R: Runtime> Clone for DetachedWindow<R> {
   }
 }
 
-impl<R: Runtime> Hash for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Hash for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to represent its hash.
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.label.hash(state)
   }
 }
 
-impl<R: Runtime> Eq for DetachedWindow<R> {}
-impl<R: Runtime> PartialEq for DetachedWindow<R> {
+impl<T: UserEvent, R: Runtime<T>> Eq for DetachedWindow<T, R> {}
+impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
   /// Only use the [`DetachedWindow`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.label.eq(&other.label)

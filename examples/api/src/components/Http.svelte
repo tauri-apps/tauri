@@ -1,7 +1,6 @@
 <script>
   import { getClient, Body } from "@tauri-apps/api/http";
   let httpMethod = "GET";
-  let httpUrl = "https://jsonplaceholder.typicode.com/todos/1";
   let httpBody = "";
 
   export let onMessage;
@@ -12,10 +11,9 @@
       throw e
     });
     let method = httpMethod || "GET";
-    let url = httpUrl || "";
 
     const options = {
-      url: url || "",
+      url: "http://localhost:3003",
       method: method || "GET",
     };
 
@@ -40,11 +38,6 @@
     <option value="PATCH">PATCH</option>
     <option value="DELETE">DELETE</option>
   </select>
-  <input
-    id="request-url"
-    placeholder="Type the request URL..."
-    bind:value={httpUrl}
-  />
   <br />
   <textarea
     id="request-body"

@@ -17,4 +17,4 @@ jobs:
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         with:
-          command: "status"
+          command: 'status'

@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": ["../index.html"],
     "devPath": ["../index.html"],
@@ -10,7 +11,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.tauri.dev",
+      "identifier": "com.tauri.sidecar",
       "icon": [
         "../../.icons/32x32.png",
         "../../.icons/128x128.png",
@@ -25,13 +26,10 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "frameworks": [],
-        "minimumSystemVersion": "",
-        "useBootstrapper": false,
         "exceptionDomain": ""
       }
     },

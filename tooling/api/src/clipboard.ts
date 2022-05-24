@@ -35,7 +35,10 @@ async function readText(): Promise<string | null> {
   return invokeTauriCommand({
     __tauriModule: 'Clipboard',
     message: {
-      cmd: 'readText'
+      cmd: 'readText',
+      // if data is not set, `serde` will ignore the custom deserializer
+      // that is set when the API is not allowlisted
+      data: null
     }
   })
 }

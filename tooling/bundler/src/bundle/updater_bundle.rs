@@ -12,20 +12,17 @@ use super::linux::appimage;
 
 #[cfg(target_os = "windows")]
 use super::windows::msi;
+use log::error;
 #[cfg(target_os = "windows")]
 use std::{fs::File, io::prelude::*};
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
 use crate::{bundle::Bundle, Settings};
-use std::{
-  ffi::OsStr,
-  fs::{self},
-  io::Write,
-};
-
 use anyhow::Context;
+use log::info;
 use std::path::{Path, PathBuf};
+use std::{fs, io::Write};
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
@@ -34,7 +31,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     let bundle_result = bundle_update(settings, bundles)?;
     Ok(bundle_result)
   } else {
-    common::print_info("Current platform do not support updates")?;
+    error!("Current platform do not support updates");
     Ok(vec![])
   }
 }
@@ -43,6 +40,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
@@ -70,10 +69,11 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 
   // Create our gzip file (need to send parent)
   // as we walk the source directory (source isnt added)
-  create_tar(&source_path, &osx_archived_path)
+  create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &osx_archived_path).as_str())?;
+  info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());
+
   Ok(vec![osx_archived_path])
 }
 
@@ -83,6 +83,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // No assets are replaced
 #[cfg(target_os = "linux")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // build our app actually we support only appimage on linux
   let bundle_path = match bundles
     .iter()
@@ -112,7 +114,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &appimage_archived_path).as_str())?;
+  info!(action = "Bundling"; "{} ({})", appimage_archived, appimage_archived_path.display());
+
   Ok(vec![appimage_archived_path])
 }
 
@@ -141,7 +144,7 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
     let msi_archived = format!("{}.zip", source_path.display());
     let msi_archived_path = PathBuf::from(&msi_archived);
 
-    common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
+    info!(action = "Bundling"; "{} ({})", msi_archived, msi_archived_path.display());
 
     // Create our gzip file
     create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;

@@ -16,7 +16,7 @@ use heck::ToKebabCase;
 use schemars::JsonSchema;
 use serde::{
   de::{Deserializer, Error as DeError, Visitor},
-  Deserialize, Serialize,
+  Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
 use serde_with::skip_serializing_none;
@@ -42,7 +42,9 @@ pub use self::parse::parse;
 pub enum WindowUrl {
   /// An external URL.
   External(Url),
-  /// An app URL.
+  /// The path portion of an app URL.
+  /// For instance, to load `tauri://localhost/users/john`,
+  /// you can simply provide `users/john` in this configuration.
   App(PathBuf),
 }
 
@@ -91,12 +93,20 @@ impl BundleTarget {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
-  /// Enable the boostrapper script.
-  #[serde(default)]
-  pub use_bootstrapper: bool,
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+}
+
+fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+  D: Deserializer<'de>,
+{
+  let version = Option::<String>::deserialize(deserializer)?;
+  match version {
+    Some(v) if v.is_empty() => Ok(minimum_system_version()),
+    e => Ok(e),
+  }
 }
 
 /// Configuration for the macOS bundles.
@@ -110,18 +120,21 @@ pub struct MacConfig {
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
+  ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
   /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
-  #[serde(default = "minimum_system_version")]
+  ///
+  /// An empty string is considered an invalid value so the default value is used.
+  #[serde(
+    deserialize_with = "de_minimum_system_version",
+    default = "minimum_system_version"
+  )]
   pub minimum_system_version: Option<String>,
   /// Allows your application to communicate with the outside world.
   /// It should be a lowercase, without port and protocol domain name.
   pub exception_domain: Option<String>,
   /// The path to the license file to add to the DMG bundle.
   pub license: Option<String>,
-  /// Enable the boostrapper script.
-  #[serde(default)]
-  pub use_bootstrapper: bool,
   /// Identity to use for code signing.
   pub signing_identity: Option<String>,
   /// Provider short name for notarization.
@@ -137,7 +150,6 @@ impl Default for MacConfig {
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       license: None,
-      use_bootstrapper: false,
       signing_identity: None,
       provider_short_name: None,
       entitlements: None,
@@ -228,7 +240,7 @@ pub struct WixConfig {
 }
 
 /// Windows bundler configuration.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WindowsConfig {
@@ -241,14 +253,40 @@ pub struct WindowsConfig {
   pub timestamp_url: Option<String>,
   /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
-  pub tsp: Option<bool>,
+  #[serde(default)]
+  pub tsp: bool,
   /// Path to the webview fixed runtime to use.
   ///
   /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
   /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
   pub webview_fixed_runtime_path: Option<PathBuf>,
+  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  ///
+  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  ///
+  /// The default value of this flag is `true`.
+  #[serde(default = "default_allow_downgrades")]
+  pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
+}
+
+impl Default for WindowsConfig {
+  fn default() -> Self {
+    Self {
+      digest_algorithm: None,
+      certificate_thumbprint: None,
+      timestamp_url: None,
+      tsp: false,
+      webview_fixed_runtime_path: None,
+      allow_downgrades: default_allow_downgrades(),
+      wix: None,
+    }
+  }
+}
+
+fn default_allow_downgrades() -> bool {
+  true
 }
 
 /// Configuration for tauri-bundler.
@@ -274,6 +312,9 @@ pub struct BundleConfig {
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.
+  ///
+  /// Should be one of the following:
+  /// Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.
   pub category: Option<String>,
   /// A short description of your application.
   pub short_description: Option<String>,
@@ -310,7 +351,7 @@ pub struct BundleConfig {
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
   ///
-  /// NOTE: Any leading - characters will be stripped, and only the first non - character will be used as the short version.
+  /// NOTE: Any leading `-` characters will be stripped, and only the first non-character will be used as the short version.
   pub short: Option<char>,
   /// The unique argument name
   pub name: String,
@@ -326,19 +367,22 @@ pub struct CliArg {
   /// - Using a space such as -o value or --option value
   /// - Using an equals and no space such as -o=value or --option=value
   /// - Use a short and no space such as -ovalue
-  pub takes_value: Option<bool>,
+  #[serde(default)]
+  pub takes_value: bool,
   /// Specifies that the argument may have an unknown number of multiple values. Without any other settings, this argument may appear only once.
   ///
   /// For example, --opt val1 val2 is allowed, but --opt val1 val2 --opt val3 is not.
   ///
   /// NOTE: Setting this requires `takes_value` to be set to true.
-  pub multiple: Option<bool>,
+  #[serde(default)]
+  pub multiple: bool,
   /// Specifies that the argument may appear more than once.
   /// For flags, this results in the number of occurrences of the flag being recorded. For example -ddd or -d -d -d would count as three occurrences.
   /// For options or arguments that take a value, this does not affect how many values they can accept. (i.e. only one at a time is allowed)
   ///
   /// For example, --opt val1 --opt val2 is allowed, but --opt val1 val2 is not.
-  pub multiple_occurrences: Option<bool>,
+  #[serde(default)]
+  pub multiple_occurrences: bool,
   /// Specifies how many values are required to satisfy this argument. For example, if you had a
   /// `-f <file>` argument where you wanted exactly 3 'files' you would set
   /// `number_of_values = 3`, and this argument wouldn't be satisfied unless the user provided
@@ -354,18 +398,19 @@ pub struct CliArg {
   /// At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.
   pub possible_values: Option<Vec<String>>,
   /// Specifies the minimum number of values for this argument.
-  /// For example, if you had a -f <file> argument where you wanted at least 2 'files',
+  /// For example, if you had a -f `<file>` argument where you wanted at least 2 'files',
   /// you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.
   pub min_values: Option<usize>,
   /// Specifies the maximum number of values are for this argument.
-  /// For example, if you had a -f <file> argument where you wanted up to 3 'files',
+  /// For example, if you had a -f `<file>` argument where you wanted up to 3 'files',
   /// you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.
   pub max_values: Option<usize>,
   /// Sets whether or not the argument is required by default.
   ///
   /// - Required by default means it is required, when no other conflicting rules have been evaluated
   /// - Conflicting rules take precedence over being required.
-  pub required: Option<bool>,
+  #[serde(default)]
+  pub required: bool,
   /// Sets an arg that override this arg's required setting
   /// i.e. this arg will be required unless this other argument is present.
   pub required_unless_present: Option<String>,
@@ -400,6 +445,7 @@ pub struct CliArg {
   /// The index refers to position according to other positional argument.
   /// It does not define position in the argument list as a whole. When utilized with multiple=true,
   /// only the last positional argument may be defined as multiple (i.e. the one with the highest index).
+  #[cfg_attr(feature = "schema", validate(range(min = 1)))]
   pub index: Option<usize>,
 }
 
@@ -515,7 +561,7 @@ pub struct WindowConfig {
   pub focus: bool,
   /// Whether the window is transparent or not.
   ///
-  /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macosPrivateApi`.
+  /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macOSPrivateApi`.
   /// WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
   #[serde(default)]
   pub transparent: bool,
@@ -534,6 +580,8 @@ pub struct WindowConfig {
   /// Whether or not the window icon should be added to the taskbar.
   #[serde(default)]
   pub skip_taskbar: bool,
+  /// The initial window theme. Defaults to the system theme. Only implemented on Windows.
+  pub theme: Option<crate::Theme>,
 }
 
 impl Default for WindowConfig {
@@ -561,6 +609,7 @@ impl Default for WindowConfig {
       decorations: default_decorations(),
       always_on_top: false,
       skip_taskbar: false,
+      theme: None,
     }
   }
 }
@@ -716,6 +765,34 @@ impl Display for Csp {
   }
 }
 
+/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum DisabledCspModificationKind {
+  /// If `true`, disables all CSP modification.
+  /// `false` is the default value and it configures Tauri to control the CSP.
+  Flag(bool),
+  /// Disables the given list of CSP directives modifications.
+  List(Vec<String>),
+}
+
+impl DisabledCspModificationKind {
+  /// Determines whether the given CSP directive can be modified or not.
+  pub fn can_modify(&self, directive: &str) -> bool {
+    match self {
+      Self::Flag(f) => !f,
+      Self::List(l) => !l.contains(&directive.into()),
+    }
+  }
+}
+
+impl Default for DisabledCspModificationKind {
+  fn default() -> Self {
+    Self::Flag(false)
+  }
+}
+
 /// Security configuration.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
@@ -723,7 +800,7 @@ impl Display for Csp {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
   /// The Content Security Policy that will be injected on all HTML files on the built application.
-  /// If [`dev_csp`](SecurityConfig.dev_csp) is not specified, this value is also injected on dev.
+  /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
   ///
   /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
@@ -736,6 +813,20 @@ pub struct SecurityConfig {
   /// Freeze the `Object.prototype` when using the custom protocol.
   #[serde(default)]
   pub freeze_prototype: bool,
+  /// Disables the Tauri-injected CSP sources.
+  ///
+  /// At compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy
+  /// to only allow loading of your own scripts and styles by injecting nonce and hash sources.
+  /// This stricts your CSP, which may introduce issues when using along with other flexing sources.
+  ///
+  /// This configuration option allows both a boolean and a list of strings as value.
+  /// A boolean instructs Tauri to disable the injection for all CSP injections,
+  /// and a list of strings indicates the CSP directives that Tauri cannot inject.
+  ///
+  /// **WARNING:** Only disable this if you know what you are doing and have properly configured the CSP.
+  /// Your application might be vulnerable to XSS attacks without this Tauri protection.
+  #[serde(default)]
+  pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
 }
 
 /// Defines an allowlist type.
@@ -760,7 +851,7 @@ macro_rules! check_feature {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
@@ -1051,8 +1142,8 @@ pub struct ShellAllowedCommand {
   /// It can start with a variable that resolves to a system base directory.
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`.
-  #[serde(rename = "cmd")]
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
+  #[serde(rename = "cmd", default)] // use default just so the schema doesn't flag it as required
   pub command: PathBuf,
 
   /// The allowed arguments for the command execution.
@@ -1189,7 +1280,7 @@ pub struct ShellAllowlistConfig {
   pub execute: bool,
   /// Enable sidecar execution, allowing the JavaScript layer to spawn a sidecar command,
   /// an executable that is shipped with the application.
-  /// For more information see <https://tauri.studio/docs/guides/bundler/sidecar/>.
+  /// For more information see <https://tauri.studio/v1/guides/building/sidecar>.
   #[serde(default)]
   pub sidecar: bool,
   /// Open URL with the user's default application.
@@ -1287,8 +1378,7 @@ impl Allowlist for DialogAllowlistConfig {
 /// It is a list of URLs that can be accessed by the webview when using the HTTP APIs.
 /// The scoped URL is matched against the request URL using a glob pattern.
 ///
-/// # Examples
-///
+/// Examples:
 /// - "https://**": allows all HTTPS urls
 /// - "https://*.github.com/tauri-apps/tauri": allows any subdomain of "github.com" with the "tauri-apps/api" path
 /// - "https://myapi.service.com/users/*": allows access to any URLs that begins with "https://myapi.service.com/users/"
@@ -1671,7 +1761,7 @@ pub enum PatternKind {
   /// Brownfield pattern.
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
-  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+  #[cfg(feature = "isolation")]
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
@@ -1748,7 +1838,7 @@ impl TauriConfig {
     if self.macos_private_api {
       features.push("macos-private-api");
     }
-    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+    #[cfg(feature = "isolation")]
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
@@ -1789,6 +1879,89 @@ impl<'de> Deserialize<'de> for UpdaterEndpoint {
   }
 }
 
+/// Install modes for the Windows update.
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[cfg_attr(feature = "schema", schemars(rename_all = "camelCase"))]
+pub enum WindowsUpdateInstallMode {
+  /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
+  BasicUi,
+  /// The quiet mode means there's no user interaction required.
+  /// Requires admin privileges if the installer does.
+  Quiet,
+  /// Specifies unattended mode, which means the installation only shows a progress bar.
+  Passive,
+}
+
+impl WindowsUpdateInstallMode {
+  /// Returns the associated `msiexec.exe` arguments.
+  pub fn msiexec_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::BasicUi => &["/qb+"],
+      Self::Quiet => &["/quiet"],
+      Self::Passive => &["/passive"],
+    }
+  }
+}
+
+impl Display for WindowsUpdateInstallMode {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::BasicUi => "basicUI",
+        Self::Quiet => "quiet",
+        Self::Passive => "passive",
+      }
+    )
+  }
+}
+
+impl Default for WindowsUpdateInstallMode {
+  fn default() -> Self {
+    Self::Passive
+  }
+}
+
+impl Serialize for WindowsUpdateInstallMode {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+      "basicui" => Ok(Self::BasicUi),
+      "quiet" => Ok(Self::Quiet),
+      "passive" => Ok(Self::Passive),
+      _ => Err(DeError::custom(format!(
+        "unknown update install mode '{}'",
+        s
+      ))),
+    }
+  }
+}
+
+/// The updater configuration for Windows.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterWindowsConfig {
+  /// The installation mode for the update on Windows. Defaults to `passive`.
+  #[serde(default)]
+  pub install_mode: WindowsUpdateInstallMode,
+}
+
 /// The Updater configuration object.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Serialize)]
@@ -1802,10 +1975,23 @@ pub struct UpdaterConfig {
   #[serde(default = "default_dialog")]
   pub dialog: bool,
   /// The updater endpoints. TLS is enforced on production.
+  ///
+  /// The updater URL can contain the following variables:
+  /// - {{current_version}}: The version of the app that is requesting the update
+  /// - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`).
+  /// - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).
+  ///
+  /// # Examples
+  /// - "https://my.cdn.com/latest.json": a raw JSON endpoint that returns the latest version and download links for each platform.
+  /// - "https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}": a dedicated API with positional and query string arguments.
+  #[allow(rustdoc::bare_urls)]
   pub endpoints: Option<Vec<UpdaterEndpoint>>,
   /// Signature public key.
   #[serde(default)] // use default just so the schema doesn't flag it as required
   pub pubkey: String,
+  /// The Windows configuration for the updater.
+  #[serde(default)]
+  pub windows: UpdaterWindowsConfig,
 }
 
 impl<'de> Deserialize<'de> for UpdaterConfig {
@@ -1821,6 +2007,8 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
       dialog: bool,
       endpoints: Option<Vec<UpdaterEndpoint>>,
       pubkey: Option<String>,
+      #[serde(default)]
+      windows: UpdaterWindowsConfig,
     }
 
     let config = InnerUpdaterConfig::deserialize(deserializer)?;
@@ -1836,6 +2024,7 @@ impl<'de> Deserialize<'de> for UpdaterConfig {
       dialog: config.dialog,
       endpoints: config.endpoints,
       pubkey: config.pubkey.unwrap_or_default(),
+      windows: config.windows,
     })
   }
 }
@@ -1847,6 +2036,7 @@ impl Default for UpdaterConfig {
       dialog: default_dialog(),
       endpoints: None,
       pubkey: "".into(),
+      windows: Default::default(),
     }
   }
 }
@@ -1873,7 +2063,7 @@ fn default_dialog() -> bool {
   true
 }
 
-/// The `dev_path` and `dist_dir` options.
+/// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged, deny_unknown_fields)]
@@ -1902,10 +2092,26 @@ impl std::fmt::Display for AppUrl {
 pub struct BuildConfig {
   /// The binary used to build and run the application.
   pub runner: Option<String>,
-  /// The path or URL to use on development.
+  /// The path to the application assets or URL to load in development.
+  ///
+  /// This is usually an URL to a dev server, which serves your application assets
+  /// with live reloading. Most modern JavaScript bundlers provides a way to start a dev server by default.
+  ///
+  /// See [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv)
+  /// for examples on how to set up a dev server.
   #[serde(default = "default_dev_path")]
   pub dev_path: AppUrl,
-  /// The path to the app's dist dir. This path must contain your index.html file.
+  /// The path to the application assets or URL to load in production.
+  ///
+  /// When a path relative to the configuration file is provided,
+  /// it is read recursively and all files are embedded in the application binary.
+  /// Tauri then looks for an `index.html` file unless you provide a custom window URL.
+  ///
+  /// You can also provide a list of paths to be embedded, which allows granular control over what files are added to the binary.
+  /// In this case, all files are added to the root and you must reference it that way in your HTML files.
+  ///
+  /// When an URL is provided, the application won't have bundled assets
+  /// and the application will load that URL by default.
   #[serde(default = "default_dist_dir")]
   pub dist_dir: AppUrl,
   /// A shell command to run before `tauri dev` kicks in.
@@ -2025,12 +2231,71 @@ impl PackageConfig {
   }
 }
 
-/// The config type mapped to `tauri.conf.json`.
+/// The tauri.conf.json is a file generated by the
+/// [`tauri init`](https://tauri.studio/v1/api/cli#init) command that lives in
+/// your Tauri application source directory (src-tauri).
+///
+/// Once generated, you may modify it at will to customize your Tauri application.
+///
+/// ## Platform-Specific Configuration
+///
+/// In addition to the JSON defined on the `tauri.conf.json` file, Tauri can
+/// read a platform-specific configuration from `tauri.linux.conf.json`,
+/// `tauri.windows.conf.json`, and `tauri.macos.conf.json` and merges it with
+/// the main `tauri.conf.json` configuration.
+///
+/// ## Configuration Structure
+///
+/// `tauri.conf.json` is composed of the following objects:
+///
+/// - [`package`](#packageconfig): Package settings
+/// - [`tauri`](#tauriconfig): The Tauri config
+/// - [`build`](#buildconfig): The build configuration
+/// - [`plugins`](#pluginconfig): The plugins config
+///
+/// ```json title="Example tauri.config.json file"
+/// {
+///   "build": {
+///     "beforeBuildCommand": "",
+///     "beforeDevCommand": "",
+///     "devPath": "../dist",
+///     "distDir": "../dist"
+///   },
+///   "package": {
+///     "productName": "tauri-app",
+///     "version": "0.1.0"
+///   },
+///   "tauri": {
+///     "allowlist": {
+///       "all": true
+///     },
+///     "bundle": {},
+///     "security": {
+///       "csp": null
+///     },
+///     "updater": {
+///       "active": false
+///     },
+///     "windows": [
+///       {
+///         "fullscreen": false,
+///         "height": 600,
+///         "resizable": true,
+///         "title": "Tauri App",
+///         "width": 800
+///       }
+///     ]
+///   }
+/// }
+/// ```
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Config {
+  /// The JSON schema for the Tauri config.
+  #[serde(rename = "$schema")]
+  pub schema: Option<String>,
   /// Package settings.
   #[serde(default)]
   pub package: PackageConfig,
@@ -2243,6 +2508,17 @@ mod build {
     }
   }
 
+  impl ToTokens for crate::Theme {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::Theme };
+
+      tokens.append_all(match self {
+        Self::Light => quote! { #prefix::Light },
+        Self::Dark => quote! { #prefix::Dark },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -2267,6 +2543,7 @@ mod build {
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
       let skip_taskbar = self.skip_taskbar;
+      let theme = opt_lit(self.theme.as_ref());
 
       literal_struct!(
         tokens,
@@ -2292,7 +2569,8 @@ mod build {
         visible,
         decorations,
         always_on_top,
-        skip_taskbar
+        skip_taskbar,
+        theme
       );
     }
   }
@@ -2303,14 +2581,14 @@ mod build {
       let name = str_lit(&self.name);
       let description = opt_str_lit(self.description.as_ref());
       let long_description = opt_str_lit(self.long_description.as_ref());
-      let takes_value = opt_lit(self.takes_value.as_ref());
-      let multiple = opt_lit(self.multiple.as_ref());
-      let multiple_occurrences = opt_lit(self.multiple_occurrences.as_ref());
+      let takes_value = self.takes_value;
+      let multiple = self.multiple;
+      let multiple_occurrences = self.multiple_occurrences;
       let number_of_values = opt_lit(self.number_of_values.as_ref());
       let possible_values = opt_vec_str_lit(self.possible_values.as_ref());
       let min_values = opt_lit(self.min_values.as_ref());
       let max_values = opt_lit(self.max_values.as_ref());
-      let required = opt_lit(self.required.as_ref());
+      let required = self.required;
       let required_unless_present = opt_str_lit(self.required_unless_present.as_ref());
       let required_unless_present_all = opt_vec_str_lit(self.required_unless_present_all.as_ref());
       let required_unless_present_any = opt_vec_str_lit(self.required_unless_present_any.as_ref());
@@ -2400,7 +2678,7 @@ mod build {
 
       tokens.append_all(match self {
         Self::Brownfield => quote! { #prefix::Brownfield },
-        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+        #[cfg(feature = "isolation")]
         Self::Isolation { dir } => {
           let dir = path_buf_lit(dir);
           quote! { #prefix::Isolation { dir: #dir } }
@@ -2501,6 +2779,25 @@ mod build {
     }
   }
 
+  impl ToTokens for WindowsUpdateInstallMode {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::WindowsUpdateInstallMode };
+
+      tokens.append_all(match self {
+        Self::BasicUi => quote! { #prefix::BasicUi },
+        Self::Quiet => quote! { #prefix::Quiet },
+        Self::Passive => quote! { #prefix::Passive },
+      })
+    }
+  }
+
+  impl ToTokens for UpdaterWindowsConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let install_mode = &self.install_mode;
+      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
+    }
+  }
+
   impl ToTokens for UpdaterConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let active = self.active;
@@ -2518,8 +2815,17 @@ mod build {
           })
           .as_ref(),
       );
+      let windows = &self.windows;
 
-      literal_struct!(tokens, UpdaterConfig, active, dialog, pubkey, endpoints);
+      literal_struct!(
+        tokens,
+        UpdaterConfig,
+        active,
+        dialog,
+        pubkey,
+        endpoints,
+        windows
+      );
     }
   }
 
@@ -2562,13 +2868,37 @@ mod build {
     }
   }
 
+  impl ToTokens for DisabledCspModificationKind {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::DisabledCspModificationKind };
+
+      tokens.append_all(match self {
+        Self::Flag(flag) => {
+          quote! { #prefix::Flag(#flag) }
+        }
+        Self::List(directives) => {
+          let directives = vec_lit(directives, str_lit);
+          quote! { #prefix::List(#directives) }
+        }
+      });
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
+      let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
 
-      literal_struct!(tokens, SecurityConfig, csp, dev_csp, freeze_prototype);
+      literal_struct!(
+        tokens,
+        SecurityConfig,
+        csp,
+        dev_csp,
+        freeze_prototype,
+        dangerous_disable_asset_csp_modification
+      );
     }
   }
 
@@ -2756,12 +3086,13 @@ mod build {
 
   impl ToTokens for Config {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let schema = quote!(None);
       let package = &self.package;
       let tauri = &self.tauri;
       let build = &self.build;
       let plugins = &self.plugins;
 
-      literal_struct!(tokens, Config, package, tauri, build, plugins);
+      literal_struct!(tokens, Config, schema, package, tauri, build, plugins);
     }
   }
 }
@@ -2813,11 +3144,13 @@ mod test {
         dialog: true,
         pubkey: "".into(),
         endpoints: None,
+        windows: Default::default(),
       },
       security: SecurityConfig {
         csp: None,
         dev_csp: None,
         freeze_prototype: false,
+        dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

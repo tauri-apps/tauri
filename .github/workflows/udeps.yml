@@ -17,9 +17,31 @@ env:
   CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   udeps:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        clippy:
+          - {
+              path: './core/tauri/Cargo.toml',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart'
+            }
+          - { path: './core/tauri-build/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-codegen/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-macros/Cargo.toml', args: '--all-features' }
+          - { path: './core/tauri-runtime/Cargo.toml', args: '--all-features' }
+          - {
+              path: './core/tauri-runtime-wry/Cargo.toml',
+              args: '--features devtools,system-tray,macos-private-api,objc-exception,ayatana-tray'
+            }
+          - { path: './core/tauri-utils/Cargo.toml', args: '--all-features' }
+          - { path: './tooling/bundler/Cargo.toml', args: '--all-features' }
+          - { path: './tooling/cli/Cargo.toml', args: '--all-features' }
     steps:
       - uses: actions/checkout@v2
 
@@ -101,19 +123,9 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --all-targets --all-features
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: udeps
-          args: --manifest-path ./tooling/bundler/Cargo.toml --all-targets --all-features
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: udeps
-          args: --manifest-path ./tooling/cli/Cargo.toml --all-targets --all-features
+          args: --manifest-path ${{ matrix.clippy.path }} --all-targets ${{ matrix.clippy.args }}

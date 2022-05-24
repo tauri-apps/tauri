@@ -1,0 +1,4 @@
+node_modules/
+target/
+WixTools
+Cargo.lock

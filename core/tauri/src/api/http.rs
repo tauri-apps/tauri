@@ -4,13 +4,42 @@
 
 //! Types and functions related to HTTP request.
 
-use http::{header::HeaderName, Method};
-use serde::{Deserialize, Serialize};
+use http::Method;
+pub use http::StatusCode;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use url::Url;
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
+
+#[cfg(feature = "reqwest-client")]
+pub use reqwest::header;
+
+#[cfg(not(feature = "reqwest-client"))]
+pub use attohttpc::header;
+
+use header::{HeaderName, HeaderValue};
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SerdeDuration {
+  Seconds(u64),
+  Duration(Duration),
+}
+
+fn deserialize_duration<'de, D: Deserializer<'de>>(
+  deserializer: D,
+) -> Result<Option<Duration>, D::Error> {
+  if let Some(duration) = Option::<SerdeDuration>::deserialize(deserializer)? {
+    Ok(Some(match duration {
+      SerdeDuration::Seconds(s) => Duration::from_secs(s),
+      SerdeDuration::Duration(d) => d,
+    }))
+  } else {
+    Ok(None)
+  }
+}
 
 /// The builder of [`Client`].
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -18,8 +47,9 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 pub struct ClientBuilder {
   /// Max number of redirections to follow.
   pub max_redirections: Option<usize>,
-  /// Connect timeout in seconds for the request.
-  pub connect_timeout: Option<u64>,
+  /// Connect timeout for the request.
+  #[serde(deserialize_with = "deserialize_duration", default)]
+  pub connect_timeout: Option<Duration>,
 }
 
 impl ClientBuilder {
@@ -35,10 +65,10 @@ impl ClientBuilder {
     self
   }
 
-  /// Sets the connection timeout in seconds.
+  /// Sets the connection timeout.
   #[must_use]
-  pub fn connect_timeout(mut self, connect_timeout: u64) -> Self {
-    self.connect_timeout = Some(connect_timeout);
+  pub fn connect_timeout(mut self, connect_timeout: Duration) -> Self {
+    self.connect_timeout.replace(connect_timeout);
     self
   }
 
@@ -58,7 +88,7 @@ impl ClientBuilder {
     }
 
     if let Some(connect_timeout) = self.connect_timeout {
-      client_builder = client_builder.connect_timeout(Duration::from_secs(connect_timeout));
+      client_builder = client_builder.connect_timeout(connect_timeout);
     }
 
     let client = client_builder.build()?;
@@ -105,17 +135,19 @@ impl Client {
       request_builder = request_builder.params(&query);
     }
 
-    if let Some(headers) = request.headers {
-      for (header, header_value) in headers.iter() {
-        request_builder = request_builder.header(
-          HeaderName::from_bytes(header.as_bytes())?,
-          header_value.as_bytes(),
-        );
+    if let Some(headers) = &request.headers {
+      for (name, value) in headers.0.iter() {
+        request_builder = request_builder.header(name, value);
       }
     }
 
     if let Some(timeout) = request.timeout {
-      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+      request_builder = request_builder.timeout(timeout);
+      #[cfg(windows)]
+      {
+        // on Windows the global timeout is not respected, see https://github.com/sbstp/attohttpc/issues/118
+        request_builder = request_builder.read_timeout(timeout);
+      }
     }
 
     let response = if let Some(body) = request.body {
@@ -124,15 +156,69 @@ impl Client {
         Body::Text(text) => request_builder.body(attohttpc::body::Bytes(text)).send()?,
         Body::Json(json) => request_builder.json(&json)?.send()?,
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: attohttpc::RequestBuilder,
+            headers: &Option<HeaderMap>,
+            form_body: FormBody,
+          ) -> crate::api::Result<attohttpc::Response> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.0.get("content-type"))
+                .map(|v| v.as_bytes()),
+              Some(b"multipart/form-data")
+            ) {
+              let mut multipart = attohttpc::MultipartBuilder::new();
+              let mut byte_cache: HashMap<String, Vec<u8>> = Default::default();
+
+              for (name, part) in &form_body.0 {
+                if let FormPart::File { file, .. } = part {
+                  byte_cache.insert(name.to_string(), file.clone().try_into()?);
+                }
+              }
+              for (name, part) in &form_body.0 {
+                multipart = match part {
+                  FormPart::File {
+                    file,
+                    mime,
+                    file_name,
+                  } => {
+                    // safe to unwrap: always set by previous loop
+                    let mut file =
+                      attohttpc::MultipartFile::new(name, byte_cache.get(name).unwrap());
+                    if let Some(mime) = mime {
+                      file = file.with_type(mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      file = file.with_filename(file_name);
+                    }
+                    multipart.with_file(file)
+                  }
+                  FormPart::Text(value) => multipart.with_text(name, value),
+                };
+              }
+              return request_builder
+                .body(multipart.build()?)
+                .send()
+                .map_err(Into::into);
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::File { file, .. } => {
+                  let bytes: Vec<u8> = file.try_into()?;
+                  form.push((name, serde_json::to_string(&bytes)?))
+                }
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            request_builder.form(&form)?.send().map_err(Into::into)
           }
-          request_builder.form(&form)?.send()?
+
+          send_form(request_builder, &request.headers, form_body)?
         }
       }
     } else {
@@ -162,7 +248,7 @@ impl Client {
     }
 
     if let Some(timeout) = request.timeout {
-      request_builder = request_builder.timeout(Duration::from_secs(timeout));
+      request_builder = request_builder.timeout(timeout);
     }
 
     if let Some(body) = request.body {
@@ -171,28 +257,70 @@ impl Client {
         Body::Text(text) => request_builder.body(bytes::Bytes::from(text)),
         Body::Json(json) => request_builder.json(&json),
         Body::Form(form_body) => {
-          let mut form = Vec::new();
-          for (name, part) in form_body.0 {
-            match part {
-              FormPart::Bytes(bytes) => form.push((name, serde_json::to_string(&bytes)?)),
-              FormPart::File(file_path) => form.push((name, serde_json::to_string(&file_path)?)),
-              FormPart::Text(text) => form.push((name, text)),
+          #[allow(unused_variables)]
+          fn send_form(
+            request_builder: reqwest::RequestBuilder,
+            headers: &Option<HeaderMap>,
+            form_body: FormBody,
+          ) -> crate::api::Result<reqwest::RequestBuilder> {
+            #[cfg(feature = "http-multipart")]
+            if matches!(
+              headers
+                .as_ref()
+                .and_then(|h| h.0.get("content-type"))
+                .map(|v| v.as_bytes()),
+              Some(b"multipart/form-data")
+            ) {
+              let mut multipart = reqwest::multipart::Form::new();
+
+              for (name, part) in form_body.0 {
+                let part = match part {
+                  FormPart::File {
+                    file,
+                    mime,
+                    file_name,
+                  } => {
+                    let bytes: Vec<u8> = file.try_into()?;
+                    let mut part = reqwest::multipart::Part::bytes(bytes);
+                    if let Some(mime) = mime {
+                      part = part.mime_str(&mime)?;
+                    }
+                    if let Some(file_name) = file_name {
+                      part = part.file_name(file_name);
+                    }
+                    part
+                  }
+                  FormPart::Text(value) => reqwest::multipart::Part::text(value),
+                };
+
+                multipart = multipart.part(name, part);
+              }
+
+              return Ok(request_builder.multipart(multipart));
             }
+
+            let mut form = Vec::new();
+            for (name, part) in form_body.0 {
+              match part {
+                FormPart::File { file, .. } => {
+                  let bytes: Vec<u8> = file.try_into()?;
+                  form.push((name, serde_json::to_string(&bytes)?))
+                }
+                FormPart::Text(value) => form.push((name, value)),
+              }
+            }
+            Ok(request_builder.form(&form))
           }
-          request_builder.form(&form)
+          send_form(request_builder, &request.headers, form_body)?
         }
       };
     }
 
-    let mut http_request = request_builder.build()?;
     if let Some(headers) = request.headers {
-      for (header, value) in headers.iter() {
-        http_request.headers_mut().insert(
-          HeaderName::from_bytes(header.as_bytes())?,
-          http::header::HeaderValue::from_bytes(value.as_bytes())?,
-        );
-      }
+      request_builder = request_builder.headers(headers.0);
     }
+
+    let http_request = request_builder.build()?;
 
     let response = self.0.execute(http_request).await?;
 
@@ -216,22 +344,52 @@ pub enum ResponseType {
   Binary,
 }
 
+/// A file path or contents.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum FilePart {
+  /// File path.
+  Path(PathBuf),
+  /// File contents.
+  Contents(Vec<u8>),
+}
+
+impl TryFrom<FilePart> for Vec<u8> {
+  type Error = crate::api::Error;
+  fn try_from(file: FilePart) -> crate::api::Result<Self> {
+    let bytes = match file {
+      FilePart::Path(path) => std::fs::read(&path)?,
+      FilePart::Contents(bytes) => bytes,
+    };
+    Ok(bytes)
+  }
+}
+
 /// [`FormBody`] data types.
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 #[non_exhaustive]
 pub enum FormPart {
-  /// A file path value.
-  File(PathBuf),
   /// A string value.
   Text(String),
-  /// A byte array value.
-  Bytes(Vec<u8>),
+  /// A file value.
+  #[serde(rename_all = "camelCase")]
+  File {
+    /// File path or content.
+    file: FilePart,
+    /// Mime type of this part.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    mime: Option<String>,
+    /// File name.
+    /// Only used when the `Content-Type` header is set to `multipart/form-data`.
+    file_name: Option<String>,
+  },
 }
 
 /// Form body definition.
 #[derive(Debug, Deserialize)]
-pub struct FormBody(HashMap<String, FormPart>);
+pub struct FormBody(pub(crate) HashMap<String, FormPart>);
 
 impl FormBody {
   /// Creates a new form body.
@@ -245,7 +403,7 @@ impl FormBody {
 #[serde(tag = "type", content = "payload")]
 #[non_exhaustive]
 pub enum Body {
-  /// A multipart formdata body.
+  /// A form body.
   Form(FormBody),
   /// A JSON body.
   Json(Value),
@@ -253,6 +411,34 @@ pub enum Body {
   Text(String),
   /// A byte array body.
   Bytes(Vec<u8>),
+}
+
+/// A set of HTTP headers.
+#[derive(Debug, Default)]
+pub struct HeaderMap(header::HeaderMap);
+
+impl<'de> Deserialize<'de> for HeaderMap {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let map = HashMap::<String, String>::deserialize(deserializer)?;
+    let mut headers = header::HeaderMap::default();
+    for (key, value) in map {
+      if let (Ok(key), Ok(value)) = (
+        header::HeaderName::from_bytes(key.as_bytes()),
+        header::HeaderValue::from_str(&value),
+      ) {
+        headers.insert(key, value);
+      } else {
+        return Err(serde::de::Error::custom(format!(
+          "invalid header `{}` `{}`",
+          key, value
+        )));
+      }
+    }
+    Ok(Self(headers))
+  }
 }
 
 /// The builder for a HTTP request.
@@ -284,11 +470,12 @@ pub struct HttpRequestBuilder {
   /// The request query params
   pub query: Option<HashMap<String, String>>,
   /// The request headers
-  pub headers: Option<HashMap<String, String>>,
+  pub headers: Option<HeaderMap>,
   /// The request body
   pub body: Option<Body>,
   /// Timeout for the whole request
-  pub timeout: Option<u64>,
+  #[serde(deserialize_with = "deserialize_duration", default)]
+  pub timeout: Option<Duration>,
   /// The response type (defaults to Json)
   pub response_type: Option<ResponseType>,
 }
@@ -314,10 +501,28 @@ impl HttpRequestBuilder {
     self
   }
 
+  /// Adds a header.
+  pub fn header<K, V>(mut self, key: K, value: V) -> crate::api::Result<Self>
+  where
+    HeaderName: TryFrom<K>,
+    <HeaderName as TryFrom<K>>::Error: Into<http::Error>,
+    HeaderValue: TryFrom<V>,
+    <HeaderValue as TryFrom<V>>::Error: Into<http::Error>,
+  {
+    let key: Result<HeaderName, http::Error> = key.try_into().map_err(Into::into);
+    let value: Result<HeaderValue, http::Error> = value.try_into().map_err(Into::into);
+    self
+      .headers
+      .get_or_insert_with(Default::default)
+      .0
+      .insert(key?, value?);
+    Ok(self)
+  }
+
   /// Sets the request headers.
   #[must_use]
-  pub fn headers(mut self, headers: HashMap<String, String>) -> Self {
-    self.headers = Some(headers);
+  pub fn headers(mut self, headers: header::HeaderMap) -> Self {
+    self.headers.replace(HeaderMap(headers));
     self
   }
 
@@ -330,8 +535,8 @@ impl HttpRequestBuilder {
 
   /// Sets the general request timeout.
   #[must_use]
-  pub fn timeout(mut self, timeout: u64) -> Self {
-    self.timeout = Some(timeout);
+  pub fn timeout(mut self, timeout: Duration) -> Self {
+    self.timeout.replace(timeout);
     self
   }
 
@@ -353,14 +558,59 @@ pub struct Response(ResponseType, reqwest::Response);
 pub struct Response(ResponseType, attohttpc::Response, Url);
 
 impl Response {
+  /// Get the [`StatusCode`] of this Response.
+  pub fn status(&self) -> StatusCode {
+    self.1.status()
+  }
+
+  /// Get the headers of this Response.
+  pub fn headers(&self) -> &header::HeaderMap {
+    self.1.headers()
+  }
+
   /// Reads the response as raw bytes.
   pub async fn bytes(self) -> crate::api::Result<RawResponse> {
-    let status = self.1.status().as_u16();
+    let status = self.status().as_u16();
     #[cfg(feature = "reqwest-client")]
     let data = self.1.bytes().await?.to_vec();
     #[cfg(not(feature = "reqwest-client"))]
     let data = self.1.bytes()?;
     Ok(RawResponse { status, data })
+  }
+
+  #[cfg(not(feature = "reqwest-client"))]
+  #[allow(dead_code)]
+  pub(crate) fn reader(self) -> attohttpc::ResponseReader {
+    let (_, _, reader) = self.1.split();
+    reader
+  }
+
+  /// Convert the response into a Stream of [`bytes::Bytes`] from the body.
+  ///
+  /// # Examples
+  ///
+  /// ```no_run
+  /// use futures::StreamExt;
+  ///
+  /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+  /// let client = tauri::api::http::ClientBuilder::new().build()?;
+  /// let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
+  ///   .await?
+  ///   .bytes_stream();
+  ///
+  /// while let Some(item) = stream.next().await {
+  ///     println!("Chunk: {:?}", item?);
+  /// }
+  /// # Ok(())
+  /// # }
+  /// ```
+  #[cfg(feature = "reqwest-client")]
+  #[allow(dead_code)]
+  pub(crate) fn bytes_stream(
+    self,
+  ) -> impl futures::Stream<Item = crate::api::Result<bytes::Bytes>> {
+    use futures::StreamExt;
+    self.1.bytes_stream().map(|res| res.map_err(Into::into))
   }
 
   /// Reads the response.

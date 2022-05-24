@@ -8,13 +8,13 @@ use crate::helpers::{
   config::{get as get_config, AppUrl, WindowUrl},
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
-  Logger,
 };
 use crate::{CommandExt, Result};
-use anyhow::Context;
+use anyhow::{bail, Context};
 use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use log::{error, info};
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
@@ -27,9 +27,6 @@ pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
   debug: bool,
-  /// Enables verbose logging
-  #[clap(short, long)]
-  verbose: bool,
   /// Target triple to build against.
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
   /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
@@ -49,12 +46,11 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let logger = Logger::new("tauri:build");
   let merge_config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
-      std::fs::read_to_string(&config)?
+      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
     })
   } else {
     None
@@ -70,9 +66,14 @@ pub fn command(options: Options) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  if config_.tauri.bundle.identifier == "com.tauri.dev" {
+    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    std::process::exit(1);
+  }
+
   if let Some(before_build) = &config_.build.before_build_command {
     if !before_build.is_empty() {
-      logger.log(format!("Running `{}`", before_build));
+      info!(action = "Running"; "beforeBuildCommand `{}`", before_build);
       #[cfg(target_os = "windows")]
       let status = Command::new("cmd")
         .arg("/S")
@@ -92,12 +93,13 @@ pub fn command(options: Options) -> Result<()> {
         .pipe()?
         .status()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
+
       if !status.success() {
-        return Err(anyhow::anyhow!(
+        bail!(
           "beforeDevCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
-        ));
+        );
       }
     }
   }
@@ -168,10 +170,22 @@ pub fn command(options: Options) -> Result<()> {
     .name
     .clone()
     .expect("Cargo manifest must have the `package.name` field");
-  #[cfg(windows)]
-  let bin_path = out_dir.join(format!("{}.exe", bin_name));
-  #[cfg(not(windows))]
-  let bin_path = out_dir.join(&bin_name);
+
+  let target: String = if let Some(target) = options.target.clone() {
+    target
+  } else {
+    tauri_utils::platform::target_triple()?
+  };
+  let binary_extension: String = if target.contains("windows") {
+    "exe"
+  } else {
+    ""
+  }
+  .into();
+
+  let bin_path = out_dir.join(&bin_name).with_extension(&binary_extension);
+
+  let no_default_features = args.contains(&"--no-default-features".into());
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
@@ -208,18 +222,14 @@ pub fn command(options: Options) -> Result<()> {
     crate::interface::rust::build_project(runner, args).with_context(|| "failed to build app")?;
   }
 
-  #[cfg(unix)]
-  if !options.debug {
-    strip(&bin_path, &logger)?;
-  }
-
   if let Some(product_name) = config_.package.product_name.clone() {
-    #[cfg(windows)]
-    let product_path = out_dir.join(format!("{}.exe", product_name));
-    #[cfg(target_os = "macos")]
-    let product_path = out_dir.join(product_name);
     #[cfg(target_os = "linux")]
-    let product_path = out_dir.join(product_name.to_kebab_case());
+    let product_name = product_name.to_kebab_case();
+
+    let product_path = out_dir
+      .join(&product_name)
+      .with_extension(&binary_extension);
+
     rename(&bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
@@ -311,13 +321,17 @@ pub fn command(options: Options) -> Result<()> {
       None
     };
 
+    let mut enabled_features = features.clone();
+    if !no_default_features {
+      enabled_features.push("default".into());
+    }
     let settings = crate::interface::get_bundler_settings(
       app_settings,
-      options.target.clone(),
+      target,
+      &enabled_features,
       &manifest,
       config_,
       &out_dir,
-      options.verbose,
       package_types,
     )
     .with_context(|| "failed to build bundler settings")?;
@@ -357,41 +371,9 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     "updater archives"
   };
   let msg = format!("{} {} at:", output_paths.len(), pluralised);
-  let logger = Logger::new("Signed");
-  logger.log(&msg);
+  info!("{}", msg);
   for path in output_paths {
-    println!("        {}", path.display());
+    info!("        {}", path.display());
   }
-  Ok(())
-}
-
-// TODO: drop this when https://github.com/rust-lang/rust/issues/72110 is stabilized
-#[cfg(unix)]
-fn strip(path: &std::path::Path, logger: &Logger) -> crate::Result<()> {
-  use humansize::{file_size_opts, FileSize};
-
-  let filesize_before = std::fs::metadata(&path)
-    .with_context(|| "failed to get executable file size")?
-    .len();
-
-  // Strip the binary
-  Command::new("strip")
-    .arg(&path)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
-    .status()
-    .with_context(|| "failed to execute strip")?;
-
-  let filesize_after = std::fs::metadata(&path)
-    .with_context(|| "failed to get executable file size")?
-    .len();
-
-  logger.log(format!(
-    "Binary stripped, size reduced by {}",
-    (filesize_before - filesize_after)
-      .file_size(file_size_opts::CONVENTIONAL)
-      .unwrap(),
-  ));
-
   Ok(())
 }

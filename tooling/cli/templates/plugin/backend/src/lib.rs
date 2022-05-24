@@ -1,7 +1,7 @@
 {{#if license_header}}
 {{ license_header }}
 {{/if}}
-use tauri::{plugin::{Builder, TauriPlugin}, runtime::Runtime};
+use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

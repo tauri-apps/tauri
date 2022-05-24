@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -26,49 +26,54 @@ pub struct ContextData {
   pub root: TokenStream,
 }
 
-fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  #[cfg(target_os = "linux")]
-  ::tauri_utils::html::inject_csp_token(document);
-  inject_nonce_token(document);
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
-    let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements {
-      let script = inline_script_el.as_node().text_contents();
-      let mut hasher = Sha256::new();
-      hasher.update(&script);
-      let hash = hasher.finalize();
-      scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
-    }
-    csp_hashes
-      .inline_scripts
-      .entry(key.clone().into())
-      .or_default()
-      .append(&mut scripts);
-  }
-}
-
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
-  #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+  #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
+  let dangerous_disable_asset_csp_modification =
+    options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
 
+      #[allow(clippy::collapsible_if)]
       if csp {
-        load_csp(&mut document, key, csp_hashes);
+        #[cfg(target_os = "linux")]
+        ::tauri_utils::html::inject_csp_token(&mut document);
 
-        #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
-        if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
-          // create the csp for the isolation iframe styling now, to make the runtime less complex
-          let mut hasher = Sha256::new();
-          hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
-          let hash = hasher.finalize();
-          csp_hashes
-            .styles
-            .push(format!("'sha256-{}'", base64::encode(&hash)));
+        inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
+
+        if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+          if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+            let mut scripts = Vec::new();
+            for inline_script_el in inline_script_elements {
+              let script = inline_script_el.as_node().text_contents();
+              let mut hasher = Sha256::new();
+              hasher.update(&script);
+              let hash = hasher.finalize();
+              scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+            }
+            csp_hashes
+              .inline_scripts
+              .entry(key.clone().into())
+              .or_default()
+              .append(&mut scripts);
+          }
+        }
+
+        #[cfg(feature = "isolation")]
+        if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+          if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
+            // create the csp for the isolation iframe styling now, to make the runtime less complex
+            let mut hasher = Sha256::new();
+            hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
+            let hash = hasher.finalize();
+            csp_hashes
+              .styles
+              .push(format!("'sha256-{}'", base64::encode(&hash)));
+          }
         }
       }
 
@@ -78,7 +83,7 @@ fn map_core_assets(
   }
 }
 
-#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+#[cfg(feature = "isolation")]
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
@@ -111,7 +116,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
-    .freeze_prototype(config.tauri.security.freeze_prototype);
+    .freeze_prototype(config.tauri.security.freeze_prototype)
+    .dangerous_disable_asset_csp_modification(
+      config
+        .tauri
+        .security
+        .dangerous_disable_asset_csp_modification
+        .clone(),
+    );
   let csp = if dev {
     config
       .tauri
@@ -150,7 +162,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(assets_path, map_core_assets(&options))?
+        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
       }
       _ => unimplemented!(),
     },
@@ -159,6 +171,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .iter()
         .map(|p| config_parent.join(p))
         .collect::<Vec<_>>(),
+      &options,
       map_core_assets(&options),
     )?,
     _ => unimplemented!(),
@@ -284,7 +297,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
-    #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+    #[cfg(feature = "isolation")]
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
@@ -295,7 +308,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
 
       let key = uuid::Uuid::new_v4().to_string();
-      let assets = EmbeddedAssets::new(dir.clone(), map_isolation(&options, dir))?;
+      let assets = EmbeddedAssets::new(dir.clone(), &options, map_isolation(&options, dir))?;
       let schema = options.isolation_schema;
 
       quote!(#root::Pattern::Isolation {
@@ -410,15 +423,15 @@ fn png_icon<P: AsRef<Path>>(
     .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-  let (info, mut reader) = decoder
+  let mut reader = decoder
     .read_info()
     .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row);
+    buffer.extend(row.data());
   }
-  let width = info.width;
-  let height = info.height;
+  let width = reader.info().width;
+  let height = reader.info().height;
 
   let out_path = out_dir.join(path.file_name().unwrap());
   let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {

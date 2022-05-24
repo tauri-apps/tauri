@@ -10,11 +10,11 @@ use html5ever::{interface::QualName, namespace_url, ns, tendril::TendrilSink, Lo
 pub use kuchiki::NodeRef;
 use kuchiki::{Attribute, ExpandedName};
 use serde::Serialize;
-#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+#[cfg(feature = "isolation")]
 use serialize_to_javascript::DefaultTemplate;
 
-use crate::config::PatternKind;
-#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+use crate::config::{DisabledCspModificationKind, PatternKind};
+#[cfg(feature = "isolation")]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
 
 /// The token used on the CSP tag content.
@@ -59,9 +59,16 @@ fn inject_nonce(document: &mut NodeRef, selector: &str, token: &str) {
 }
 
 /// Inject nonce tokens to all scripts and styles.
-pub fn inject_nonce_token(document: &mut NodeRef) {
-  inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
-  inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+pub fn inject_nonce_token(
+  document: &mut NodeRef,
+  dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
+) {
+  if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+    inject_nonce(document, "script[src^='http']", SCRIPT_NONCE_TOKEN);
+  }
+  if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+    inject_nonce(document, "style", STYLE_NONCE_TOKEN);
+  }
 }
 
 /// Injects a content security policy to the HTML.
@@ -115,7 +122,7 @@ impl From<&PatternKind> for PatternObject {
   fn from(pattern_kind: &PatternKind) -> Self {
     match pattern_kind {
       PatternKind::Brownfield => Self::Brownfield,
-      #[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+      #[cfg(feature = "isolation")]
       PatternKind::Isolation { .. } => Self::Isolation {
         side: IsolationSide::default(),
       },
@@ -142,7 +149,7 @@ impl Default for IsolationSide {
 /// Injects the Isolation JavaScript to a codegen time document.
 ///
 /// Note: This function is not considered part of the stable API.
-#[cfg(any(feature = "isolation", feature = "__isolation-docs"))]
+#[cfg(feature = "isolation")]
 pub fn inject_codegen_isolation_script(document: &mut NodeRef) {
   with_head(document, |head| {
     let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);

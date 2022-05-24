@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": ["src/index.html"],
     "devPath": ["src/index.html"],
@@ -24,13 +25,10 @@
       "shortDescription": "",
       "longDescription": "",
       "deb": {
-        "depends": [],
-        "useBootstrapper": false
+        "depends": []
       },
       "macOS": {
         "frameworks": [],
-        "minimumSystemVersion": "",
-        "useBootstrapper": false,
         "exceptionDomain": ""
       }
     },

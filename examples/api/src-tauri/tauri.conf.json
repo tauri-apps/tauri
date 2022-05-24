@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5000",
@@ -112,7 +113,7 @@
         }
       },
       "http": {
-        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
+        "scope": ["http://localhost:3003"]
       }
     },
     "windows": [

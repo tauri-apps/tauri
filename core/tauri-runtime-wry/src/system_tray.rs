@@ -22,7 +22,7 @@ pub use wry::application::platform::macos::CustomMenuItemExtMacOS;
 
 use crate::{Error, Message, Result, TrayMessage};
 
-use tauri_runtime::menu::MenuHash;
+use tauri_runtime::{menu::MenuHash, UserEvent};
 
 use uuid::Uuid;
 
@@ -32,15 +32,15 @@ use std::{
 };
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, SystemTrayEventHandler>>>;
+pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, Arc<SystemTrayEventHandler>>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Debug, Clone)]
-pub struct SystemTrayHandle {
-  pub(crate) proxy: EventLoopProxy<super::Message>,
+pub struct SystemTrayHandle<T: UserEvent> {
+  pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
 
-impl TrayHandle for SystemTrayHandle {
+impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: TrayIcon) -> Result<()> {
     self
       .proxy

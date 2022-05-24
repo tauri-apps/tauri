@@ -138,14 +138,14 @@ main {
   height: 100%;
 }
 
-[type='radio']:checked ~ label {
+[type='radio']:checked~label {
   background: rgb(36, 37, 38);
   color: #67d6ed;
   border-bottom: 1px solid transparent;
   z-index: 2;
 }
 
-[type='radio']:checked ~ label ~ .content {
+[type='radio']:checked~label~.content {
   z-index: 1;
 }
 
@@ -189,4 +189,8 @@ main {
 
 #file-response {
   height: 400px;
+}
+
+span.key {
+  color: #fff;
 }

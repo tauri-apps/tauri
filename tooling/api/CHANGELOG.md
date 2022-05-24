@@ -1,5 +1,39 @@
 # Changelog
 
+## \[1.0.0-rc.6]
+
+- Expose option to set the dialog type.
+  - [f46175d5](https://www.github.com/tauri-apps/tauri/commit/f46175d5d46fa3eae66ad2415a0eb1efb7d31da2) feat(core): expose option to set dialog type, closes [#4183](https://www.github.com/tauri-apps/tauri/pull/4183) ([#4187](https://www.github.com/tauri-apps/tauri/pull/4187)) on 2022-05-21
+- Expose `title` option in the message dialog API.
+  - [ae99f991](https://www.github.com/tauri-apps/tauri/commit/ae99f991674d77c322a2240d10ed4b78ed2f4d4b) feat(core): expose message dialog's title option, ref [#4183](https://www.github.com/tauri-apps/tauri/pull/4183) ([#4186](https://www.github.com/tauri-apps/tauri/pull/4186)) on 2022-05-21
+
+## \[1.0.0-rc.5]
+
+- Fixes the type of `http > connectTimeout`.
+  - [f3c5ca89](https://www.github.com/tauri-apps/tauri/commit/f3c5ca89e79d429183c4e15a9e7cebada2b493a0) fix(core): http api `connect_timeout` deserialization, closes [#4004](https://www.github.com/tauri-apps/tauri/pull/4004) ([#4006](https://www.github.com/tauri-apps/tauri/pull/4006)) on 2022-04-29
+
+## \[1.0.0-rc.4]
+
+- Encode the file path in the `convertFileSrc` function.
+  - [42e8d9cf](https://www.github.com/tauri-apps/tauri/commit/42e8d9cf925089e9ad591198ee04b0cc0a0eed48) fix(api): encode file path in `convertFileSrc` function, closes [#3841](https://www.github.com/tauri-apps/tauri/pull/3841) ([#3846](https://www.github.com/tauri-apps/tauri/pull/3846)) on 2022-04-02
+- Added `theme` getter to `WebviewWindow`.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+- Added `theme` field to `WindowOptions`.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+- Added the `setCursorGrab`, `setCursorVisible`, `setCursorIcon` and `setCursorPosition` methods to the `WebviewWindow` class.
+  - [c54ddfe9](https://www.github.com/tauri-apps/tauri/commit/c54ddfe9338e7eb90b4d5b02dfde687d432d5bc1) feat: expose window cursor APIs, closes [#3888](https://www.github.com/tauri-apps/tauri/pull/3888) [#3890](https://www.github.com/tauri-apps/tauri/pull/3890) ([#3935](https://www.github.com/tauri-apps/tauri/pull/3935)) on 2022-04-21
+- **Breaking change:** The process Command API stdio lines now includes the trailing `\r`.
+  - [b5622882](https://www.github.com/tauri-apps/tauri/commit/b5622882cf3748e1e5a90915f415c0cd922aaaf8) fix(cli): exit on non-compilation Cargo errors, closes [#3930](https://www.github.com/tauri-apps/tauri/pull/3930) ([#3942](https://www.github.com/tauri-apps/tauri/pull/3942)) on 2022-04-22
+- Added the `tauri://theme-changed` event.
+  - [4cebcf6d](https://www.github.com/tauri-apps/tauri/commit/4cebcf6da7cad1953e0f01b426afac3b5ef1f81e) feat: expose theme APIs, closes [#3903](https://www.github.com/tauri-apps/tauri/pull/3903) ([#3937](https://www.github.com/tauri-apps/tauri/pull/3937)) on 2022-04-21
+
+## \[1.0.0-rc.3]
+
+- Properly define the `appWindow` type.
+  - [1deeb03e](https://www.github.com/tauri-apps/tauri/commit/1deeb03ef6c7cbea8cf585864424a3d66f184a02) fix(api.js): appWindow shown as type `any`, fixes [#3747](https://www.github.com/tauri-apps/tauri/pull/3747) ([#3772](https://www.github.com/tauri-apps/tauri/pull/3772)) on 2022-03-24
+- Added `Temp` to the `BaseDirectory` enum.
+  - [266156a0](https://www.github.com/tauri-apps/tauri/commit/266156a0b08150b21140dd552c8bc252fe413cdd) feat(core): add `BaseDirectory::Temp` and `$TEMP` variable ([#3763](https://www.github.com/tauri-apps/tauri/pull/3763)) on 2022-03-24
+
 ## \[1.0.0-rc.2]
 
 - Do not crash if `__TAURI_METADATA__` is not set, log an error instead.

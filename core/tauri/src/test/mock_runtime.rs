@@ -10,17 +10,17 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  ClipboardManager, Dispatch, GlobalShortcutManager, Result, RunEvent, Runtime, RuntimeHandle,
-  UserAttentionType, WindowIcon,
+  Dispatch, EventLoopProxy, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  WindowIcon,
 };
 #[cfg(feature = "system-tray")]
 use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
   SystemTray, SystemTrayEvent, TrayIcon,
 };
-use tauri_utils::config::WindowConfig;
+use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -53,13 +53,18 @@ pub struct MockRuntimeHandle {
   context: RuntimeContext,
 }
 
-impl RuntimeHandle for MockRuntimeHandle {
+impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   type Runtime = MockRuntime;
+
+  fn create_proxy(&self) -> EventProxy {
+    unimplemented!()
+  }
+
   /// Create a new webview window.
   fn create_window(
     &self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> Result<DetachedWindow<Self::Runtime>> {
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>> {
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
@@ -87,12 +92,14 @@ pub struct MockDispatcher {
   context: RuntimeContext,
 }
 
+#[cfg(feature = "global-shortcut")]
 #[derive(Debug, Clone)]
 pub struct MockGlobalShortcutManager {
   context: RuntimeContext,
 }
 
-impl GlobalShortcutManager for MockGlobalShortcutManager {
+#[cfg(feature = "global-shortcut")]
+impl tauri_runtime::GlobalShortcutManager for MockGlobalShortcutManager {
   fn is_registered(&self, accelerator: &str) -> Result<bool> {
     Ok(
       self
@@ -125,12 +132,14 @@ impl GlobalShortcutManager for MockGlobalShortcutManager {
   }
 }
 
+#[cfg(feature = "clipboard")]
 #[derive(Debug, Clone)]
 pub struct MockClipboardManager {
   context: RuntimeContext,
 }
 
-impl ClipboardManager for MockClipboardManager {
+#[cfg(feature = "clipboard")]
+impl tauri_runtime::ClipboardManager for MockClipboardManager {
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()> {
     self.context.clipboard.lock().unwrap().replace(text.into());
     Ok(())
@@ -233,8 +242,17 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn parent_window(self, parent: *mut std::ffi::c_void) -> Self {
+    self
+  }
+
   #[cfg(windows)]
   fn owner_window(self, owner: HWND) -> Self {
+    self
+  }
+
+  fn theme(self, theme: Option<Theme>) -> Self {
     self
   }
 
@@ -247,7 +265,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 }
 
-impl Dispatch for MockDispatcher {
+impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   type Runtime = MockRuntime;
 
   type WindowBuilder = MockWindowBuilder;
@@ -266,6 +284,14 @@ impl Dispatch for MockDispatcher {
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {}
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn close_devtools(&self) {}
+
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn is_devtools_open(&self) -> Result<bool> {
+    Ok(false)
+  }
 
   fn scale_factor(&self) -> Result<f64> {
     Ok(1.0)
@@ -334,6 +360,10 @@ impl Dispatch for MockDispatcher {
     unimplemented!()
   }
 
+  fn theme(&self) -> Result<Theme> {
+    Ok(Theme::Light)
+  }
+
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
     unimplemented!()
@@ -364,8 +394,8 @@ impl Dispatch for MockDispatcher {
 
   fn create_window(
     &mut self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> Result<DetachedWindow<Self::Runtime>> {
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>> {
     unimplemented!()
   }
 
@@ -453,6 +483,22 @@ impl Dispatch for MockDispatcher {
     Ok(())
   }
 
+  fn set_cursor_grab(&self, grab: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_visible(&self, visible: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()> {
+    Ok(())
+  }
+
   fn start_dragging(&self) -> Result<()> {
     Ok(())
   }
@@ -489,10 +535,21 @@ impl TrayHandle for MockTrayHandler {
   }
 }
 
+#[derive(Debug, Clone)]
+pub struct EventProxy {}
+
+impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
+  fn send_event(&self, event: T) -> Result<()> {
+    Ok(())
+  }
+}
+
 #[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
+  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: MockGlobalShortcutManager,
+  #[cfg(feature = "clipboard")]
   clipboard_manager: MockClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handler: MockTrayHandler,
@@ -505,9 +562,11 @@ impl MockRuntime {
       clipboard: Default::default(),
     };
     Self {
+      #[cfg(feature = "global-shortcut")]
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
       },
+      #[cfg(feature = "clipboard")]
       clipboard_manager: MockClipboardManager {
         context: context.clone(),
       },
@@ -520,13 +579,16 @@ impl MockRuntime {
   }
 }
 
-impl Runtime for MockRuntime {
+impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
+  #[cfg(feature = "global-shortcut")]
   type GlobalShortcutManager = MockGlobalShortcutManager;
+  #[cfg(feature = "clipboard")]
   type ClipboardManager = MockClipboardManager;
   #[cfg(feature = "system-tray")]
   type TrayHandler = MockTrayHandler;
+  type EventLoopProxy = EventProxy;
 
   fn new() -> Result<Self> {
     Ok(Self::init())
@@ -537,21 +599,27 @@ impl Runtime for MockRuntime {
     Ok(Self::init())
   }
 
+  fn create_proxy(&self) -> EventProxy {
+    unimplemented!()
+  }
+
   fn handle(&self) -> Self::Handle {
     MockRuntimeHandle {
       context: self.context.clone(),
     }
   }
 
+  #[cfg(feature = "global-shortcut")]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
     self.global_shortcut_manager.clone()
   }
 
+  #[cfg(feature = "clipboard")]
   fn clipboard_manager(&self) -> Self::ClipboardManager {
     self.clipboard_manager.clone()
   }
 
-  fn create_window(&self, pending: PendingWindow<Self>) -> Result<DetachedWindow<Self>> {
+  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>> {
     Ok(DetachedWindow {
       label: pending.label,
       dispatcher: MockDispatcher {
@@ -578,14 +646,14 @@ impl Runtime for MockRuntime {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
-  fn run_iteration<F: Fn(RunEvent) + 'static>(
+  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
     &mut self,
     callback: F,
   ) -> tauri_runtime::RunIteration {
     Default::default()
   }
 
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F) {
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     loop {
       std::thread::sleep(std::time::Duration::from_secs(1));
     }

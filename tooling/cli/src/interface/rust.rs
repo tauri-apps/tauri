@@ -13,6 +13,7 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use log::warn;
 use serde::Deserialize;
 
 use crate::{
@@ -20,7 +21,6 @@ use crate::{
     app_paths::tauri_dir,
     config::{wix_settings, Config},
     manifest::Manifest,
-    Logger,
   },
   CommandExt,
 };
@@ -101,22 +101,12 @@ struct CargoConfig {
 }
 
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  let mut command = Command::new(&runner);
-  command
+  Command::new(&runner)
     .args(&["build", "--features=custom-protocol"])
-    .args(args);
-
-  command.pipe()?;
-
-  let status = command
-    .status()
-    .with_context(|| format!("failed to run {}", runner))?;
-  if !status.success() {
-    return Err(anyhow::anyhow!(format!(
-      "Result of `{} build` operation was unsuccessful: {}",
-      runner, status
-    )));
-  }
+    .args(args)
+    .pipe()?
+    .output_ok()
+    .with_context(|| format!("Result of `{} build` operation was unsuccessful", runner))?;
 
   Ok(())
 }
@@ -177,9 +167,11 @@ impl AppSettings {
     &self,
     config: &Config,
     manifest: &Manifest,
+    features: &[String],
   ) -> crate::Result<BundleSettings> {
     tauri_config_to_bundle_settings(
       manifest,
+      features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
       config.tauri.updater.clone(),
@@ -196,8 +188,16 @@ impl AppSettings {
     self.package_settings.clone()
   }
 
-  pub fn get_binaries(&self, config: &Config) -> crate::Result<Vec<BundleBinary>> {
+  pub fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
+
+    let binary_extension: String = if target.contains("windows") {
+      ".exe"
+    } else {
+      ""
+    }
+    .into();
+
     if let Some(bin) = &self.cargo_settings.bin {
       let default_run = self
         .package_settings
@@ -210,14 +210,21 @@ impl AppSettings {
             || binary.name.as_str() == default_run
           {
             BundleBinary::new(
-              config
-                .package
-                .binary_name()
-                .unwrap_or_else(|| binary.name.clone()),
+              format!(
+                "{}{}",
+                config
+                  .package
+                  .binary_name()
+                  .unwrap_or_else(|| binary.name.clone()),
+                &binary_extension
+              ),
               true,
             )
           } else {
-            BundleBinary::new(binary.name.clone(), false)
+            BundleBinary::new(
+              format!("{}{}", binary.name.clone(), &binary_extension),
+              false,
+            )
           }
           .set_src_path(binary.path.clone()),
         )
@@ -234,7 +241,10 @@ impl AppSettings {
             bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
           });
           if !bin_exists {
-            binaries.push(BundleBinary::new(name.to_string_lossy().to_string(), false))
+            binaries.push(BundleBinary::new(
+              format!("{}{}", name.to_string_lossy(), &binary_extension),
+              false,
+            ))
           }
         }
       }
@@ -249,10 +259,14 @@ impl AppSettings {
         }
         None => {
           binaries.push(BundleBinary::new(
-            config
-              .package
-              .binary_name()
-              .unwrap_or_else(|| default_run.to_string()),
+            format!(
+              "{}{}",
+              config
+                .package
+                .binary_name()
+                .unwrap_or_else(|| default_run.to_string()),
+              &binary_extension
+            ),
             true,
           ));
         }
@@ -264,7 +278,11 @@ impl AppSettings {
         #[cfg(target_os = "linux")]
         self.package_settings.product_name.to_kebab_case(),
         #[cfg(not(target_os = "linux"))]
-        self.package_settings.product_name.clone(),
+        format!(
+          "{}{}",
+          self.package_settings.product_name.clone(),
+          &binary_extension
+        ),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -331,7 +349,6 @@ fn get_target_dir(
 pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
   let mut dir = current_dir.to_path_buf();
   let project_path = dir.clone();
-  let logger = Logger::new("tauri:rust");
 
   while dir.pop() {
     if dir.join("Cargo.toml").exists() {
@@ -350,13 +367,13 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
           }
         }
         Err(e) => {
-          logger.warn(format!(
+          warn!(
               "Found `{}`, which may define a parent workspace, but \
             failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
             \n    {:#}",
               dir.display(),
               e
-            ));
+            );
         }
       }
     }
@@ -369,10 +386,13 @@ pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
 #[allow(unused_variables)]
 fn tauri_config_to_bundle_settings(
   manifest: &Manifest,
+  features: &[String],
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
 ) -> crate::Result<BundleSettings> {
+  let enabled_features = manifest.all_enabled_features(features);
+
   #[cfg(windows)]
   let windows_icon_path = PathBuf::from(
     config
@@ -396,7 +416,11 @@ fn tauri_config_to_bundle_settings(
       let mut icon_path = system_tray_config.icon_path.clone();
       icon_path.set_extension("png");
       resources.push(icon_path.display().to_string());
-      depends.push("libappindicator3-1".to_string());
+      if enabled_features.contains(&"tauri/gtk-tray".into()) {
+        depends.push("libappindicator3-1".into());
+      } else {
+        depends.push("libayatana-appindicator3-1".into());
+      }
     }
 
     // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
@@ -456,14 +480,12 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends)
       },
-      use_bootstrapper: Some(config.deb.use_bootstrapper),
       files: config.deb.files,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,
-      use_bootstrapper: Some(config.macos.use_bootstrapper),
       exception_domain: config.macos.exception_domain,
       signing_identity,
       provider_short_name,
@@ -489,6 +511,7 @@ fn tauri_config_to_bundle_settings(
       }),
       icon_path: windows_icon_path,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
+      allow_downgrades: config.windows.allow_downgrades,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,
@@ -499,6 +522,7 @@ fn tauri_config_to_bundle_settings(
       endpoints: updater_config
         .endpoints
         .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
+      msiexec_args: Some(updater_config.windows.install_mode.msiexec_args()),
     }),
     ..Default::default()
   })

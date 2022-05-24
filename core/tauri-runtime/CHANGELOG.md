@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.5.2]
+## \[0.6.0]
 
 - Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.
   - [2326be39](https://www.github.com/tauri-apps/tauri/commit/2326be39821890cdd4de76e7029a531424dcb26f) feat(core): update windows-rs to 0.37.0 ([#4199](https://www.github.com/tauri-apps/tauri/pull/4199)) on 2022-05-24

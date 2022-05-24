@@ -25,11 +25,19 @@
                  InstallScope="perMachine"
                  SummaryCodepage="!(loc.TauriCodepage)"/>
 
+        <!-- https://docs.microsoft.com/en-us/windows/win32/msi/reinstallmode -->
+        <!-- reinstall if the file is missing or a different version is present; rewrite all registry entries; reinstall all shortcuts -->
+        <Property Id="REINSTALLMODE" Value="dmus" />
+
         {{#if allow_downgrades}}
-            <MajorUpgrade AllowDowngrades="yes" />
+            <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallValidate" />
         {{else}}
             <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
         {{/if}}
+
+        <InstallExecuteSequence>
+            <RemoveShortcuts>Installed AND NOT UPGRADINGPRODUCTCODE</RemoveShortcuts>
+        </InstallExecuteSequence>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 

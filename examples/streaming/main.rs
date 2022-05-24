@@ -44,9 +44,12 @@ fn main() {
       let mut response = ResponseBuilder::new();
       // get the wanted path
       #[cfg(target_os = "windows")]
-      let path = request.uri().replace("stream://localhost/", "");
+      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       #[cfg(not(target_os = "windows"))]
-      let path = request.uri().replace("stream://", "");
+      let path = request.uri().strip_prefix("stream://").unwrap();
+      let path = percent_encoding::percent_decode(path.as_bytes())
+        .decode_utf8_lossy()
+        .to_string();
 
       if path != "example/test_video.mp4" {
         // return error 404 if it's not out video

@@ -1,5 +1,30 @@
 # Changelog
 
+## \[1.0.0-rc.10]
+
+- Delete existing sidecar before copying new one.
+  - [a737f25c](https://www.github.com/tauri-apps/tauri/commit/a737f25c1078083e0b0f7f338f5c958b86914323) fix(tauri-build): delete existing sidecar file, closes [#4134](https://www.github.com/tauri-apps/tauri/pull/4134) ([#4167](https://www.github.com/tauri-apps/tauri/pull/4167)) on 2022-05-18
+
+## \[1.0.0-rc.9]
+
+- Search `tauri.conf.json > tauri > bundle > icons` for a `.ico` file for the window icon instead of simple default `icons/icon.ico` when `WindowsAttributes::window_icon_path` is not set.
+  - [bad85a1f](https://www.github.com/tauri-apps/tauri/commit/bad85a1f11da03421401080531275ba201480cd1) feat(build): find .ico in config instead of default `icons/icon.ico` ([#4115](https://www.github.com/tauri-apps/tauri/pull/4115)) on 2022-05-13
+
+## \[1.0.0-rc.8]
+
+- Properly set file version information for the Windows executable.
+  - [1ca2dd67](https://www.github.com/tauri-apps/tauri/commit/1ca2dd677d50b4c724c55b37060c3ba64b81c54a) fix(tauri-build): properly set executable version info on Windows ([#4045](https://www.github.com/tauri-apps/tauri/pull/4045)) on 2022-05-03
+
+## \[1.0.0-rc.7]
+
+- Rerun build script if `TAURI_CONFIG` environment variable change.
+  - [7ae9e252](https://www.github.com/tauri-apps/tauri/commit/7ae9e25262376529637cd3b47b1cf84809efaec9) fix(tauri-build): rerun if `TAURI_CONFIG` env var changes on 2022-04-26
+
+## \[1.0.0-rc.6]
+
+- Copy system tray icon resource to the target directory on Linux.
+  - [f2a30d8b](https://www.github.com/tauri-apps/tauri/commit/f2a30d8bc54fc3ba49e16f69a413eca5f61a9b1f) refactor(core): use ayatana appindicator by default, keep option to use gtk ([#3916](https://www.github.com/tauri-apps/tauri/pull/3916)) on 2022-04-19
+
 ## \[1.0.0-rc.5]
 
 - Print error context on the `build` panic.

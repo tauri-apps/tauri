@@ -4,25 +4,26 @@
 
 use super::super::sign::{sign, SignParams};
 use crate::bundle::{
-  common,
+  common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
-
+use anyhow::Context;
 use handlebars::{to_json, Handlebars};
+use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use uuid::Uuid;
-use zip::ZipArchive;
-
 use std::{
   collections::{BTreeMap, HashMap},
   fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
-  process::{Command, Stdio},
+  process::Command,
 };
+use tauri_utils::resources::resource_relpath;
+use uuid::Uuid;
+use zip::ZipArchive;
 
 // URLS for the WIX toolchain.  Can be used for crossplatform compilation.
 pub const WIX_URL: &str =
@@ -169,13 +170,13 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 
 /// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
 fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
-  common::print_info(format!("Downloading {}", url).as_str())?;
+  info!(action = "Downloading"; "{}", url);
 
   let response = attohttpc::get(url).send()?;
 
   let data: Vec<u8> = response.bytes()?;
 
-  common::print_info("validating hash")?;
+  info!("validating hash");
 
   let mut hasher = sha2::Sha256::new();
   hasher.update(&data);
@@ -257,11 +258,11 @@ fn generate_guid(key: &[u8]) -> Uuid {
 
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
-  common::print_info("Verifying wix package")?;
+  info!("Verifying wix package");
 
   let data = download_and_verify(WIX_URL, WIX_SHA256)?;
 
-  common::print_info("extracting WIX")?;
+  info!("extracting WIX");
 
   extract_zip(&data, path)
 }
@@ -301,22 +302,15 @@ fn run_candle(
   ];
 
   let candle_exe = wix_toolset_path.join("candle.exe");
-  common::print_info(format!("running candle for {:?}", wxs_file_path).as_str())?;
 
-  let mut cmd = Command::new(&candle_exe);
-  cmd.args(&args).stdout(Stdio::piped()).current_dir(cwd);
+  info!(action = "Running"; "candle for {:?}", wxs_file_path);
+  Command::new(&candle_exe)
+    .args(&args)
+    .current_dir(cwd)
+    .output_ok()
+    .context("error running candle.exe")?;
 
-  common::print_info("running candle.exe")?;
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running candle.exe{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })
+  Ok(())
 }
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
@@ -325,7 +319,6 @@ fn run_light(
   build_path: &Path,
   arguments: Vec<String>,
   output_path: &Path,
-  settings: &Settings,
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
 
@@ -342,19 +335,13 @@ fn run_light(
     args.push(p);
   }
 
-  let mut cmd = Command::new(&light_exe);
-  cmd.args(&args).current_dir(build_path);
+  Command::new(&light_exe)
+    .args(&args)
+    .current_dir(build_path)
+    .output_ok()
+    .context("error running light.exe")?;
 
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running light.exe{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })
+  Ok(())
 }
 
 // fn get_icon_data() -> crate::Result<()> {
@@ -378,7 +365,7 @@ pub fn build_wix_app_installer(
   };
 
   // target only supports x64.
-  common::print_info(format!("Target: {}", arch).as_str())?;
+  info!("Target: {}", arch);
 
   let main_binary = settings
     .binaries()
@@ -388,10 +375,11 @@ pub fn build_wix_app_installer(
   let app_exe_source = settings.binary_path(main_binary);
   let try_sign = |file_path: &PathBuf| -> crate::Result<()> {
     if let Some(certificate_thumbprint) = &settings.windows().certificate_thumbprint {
-      common::print_info(&format!("signing {}", file_path.display()))?;
+      info!(action = "Signing"; "{}", file_path.display());
       sign(
         &file_path,
         &SignParams {
+          product_name: settings.product_name().into(),
           digest_algorithm: settings
             .windows()
             .digest_algorithm
@@ -580,6 +568,17 @@ pub fn build_wix_app_installer(
   create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
+    data.insert(
+      "msiexec_args",
+      to_json(
+        settings
+          .updater()
+          .and_then(|updater| updater.msiexec_args.clone())
+          .map(|args| args.join(" "))
+          .unwrap_or_else(|| "/passive".to_string()),
+      ),
+    );
+
     // Create the update task XML
     let mut skip_uac_task = Handlebars::new();
     let xml = include_str!("../templates/update-task.xml");
@@ -699,15 +698,9 @@ pub fn build_wix_app_installer(
     let msi_path = app_installer_output_path(settings, &language)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
-    common::print_info(format!("running light to produce {}", msi_path.display()).as_str())?;
+    info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(
-      wix_toolset_path,
-      &output_path,
-      arguments,
-      &msi_output_path,
-      settings,
-    )?;
+    run_light(wix_toolset_path, &output_path, arguments, &msi_output_path)?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);
@@ -807,6 +800,13 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .into_string()
       .expect("failed to read resource path");
 
+    // In some glob resource paths like `assets/**/*` a file might appear twice
+    // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
+    // when it finds one. So we must check it before processing the file.
+    if added_resources.contains(&resource_path) {
+      continue;
+    }
+
     added_resources.push(resource_path.clone());
 
     let resource_entry = ResourceFile {
@@ -816,13 +816,10 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     };
 
     // split the resource path directories
-    let components_count = src.components().count();
-    let directories = src
+    let target_path = resource_relpath(&src);
+    let components_count = target_path.components().count();
+    let directories = target_path
       .components()
-      .filter(|component| {
-        let comp = component.as_os_str();
-        comp != "." && comp != ".."
-      })
       .take(components_count - 1) // the last component is the file
       .collect::<Vec<_>>();
 

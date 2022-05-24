@@ -22,9 +22,8 @@ pub use self::{
     Settings, SettingsBuilder, UpdaterSettings,
   },
 };
+use log::{info, warn};
 pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
-
-use common::{print_finished, print_info};
 
 use std::path::PathBuf;
 
@@ -63,7 +62,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
       _ => {
-        print_info(&format!("ignoring {:?}", package_type))?;
+        warn!("ignoring {:?}", package_type);
         continue;
       }
     };
@@ -74,7 +73,24 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     });
   }
 
-  print_finished(&bundles)?;
+  let pluralised = if bundles.len() == 1 {
+    "bundle"
+  } else {
+    "bundles"
+  };
+
+  let mut printable_paths = String::new();
+  for bundle in &bundles {
+    for path in &bundle.bundle_paths {
+      let mut note = "";
+      if bundle.package_type == crate::PackageType::Updater {
+        note = " (updater)";
+      }
+      printable_paths.push_str(&format!("        {}{}\n", path.display(), note));
+    }
+  }
+
+  info!(action = "Finished"; "{} {} at:\n{}", bundles.len(), pluralised, printable_paths);
 
   Ok(bundles)
 }

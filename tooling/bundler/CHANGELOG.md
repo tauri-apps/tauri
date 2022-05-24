@@ -1,5 +1,47 @@
 # Changelog
 
+## \[1.0.0-rc.8]
+
+- Use binary arch instead of `x86_64` on the AppImage bundle script.
+  - [6830a739](https://www.github.com/tauri-apps/tauri/commit/6830a739535e920f1857a1946fb69750a6d7b92f) fix(bundler): use binary arch on appimage bundle script ([#4194](https://www.github.com/tauri-apps/tauri/pull/4194)) on 2022-05-23
+- Fixes lost files on upgrade due to wrong implementation to keep shortcuts.
+  - [8539e02f](https://www.github.com/tauri-apps/tauri/commit/8539e02f7fd56cc47b25ed45c8403d66abe262ac) fix(bundler): wix upgrade do not installing new files, closes [#4182](https://www.github.com/tauri-apps/tauri/pull/4182) on 2022-05-21
+
+## \[1.0.0-rc.7]
+
+- Change `tsp` value from `Option<bool>` to `bool`.
+  - [29d8e768](https://www.github.com/tauri-apps/tauri/commit/29d8e768aa0b52e1997c0f5c9e447b80eff47b93) feat(config): adjust schema for documentation website, closes [#4139](https://www.github.com/tauri-apps/tauri/pull/4139) ([#4142](https://www.github.com/tauri-apps/tauri/pull/4142)) on 2022-05-17
+- Fixes processing of resources with glob patterns when there are nested directories on Windows.
+  - [3e702cf8](https://www.github.com/tauri-apps/tauri/commit/3e702cf8b15762cdca43c8d7ff6f6e8ee9670244) fix(bundler): ignore duplicated files in resource iter, closes [#4126](https://www.github.com/tauri-apps/tauri/pull/4126) ([#4129](https://www.github.com/tauri-apps/tauri/pull/4129)) on 2022-05-15
+- Fixes resource bundling on Windows when the resource path includes root or parent directory components.
+  - [787ea09a](https://www.github.com/tauri-apps/tauri/commit/787ea09adc40644b89926e2b629261065141d16c) fix: generate windows resource directories using resource_relpath, closes [#4087](https://www.github.com/tauri-apps/tauri/pull/4087). ([#4111](https://www.github.com/tauri-apps/tauri/pull/4111)) on 2022-05-13
+- Set the application name when signing the Windows MSI.
+  - [8e1daad1](https://www.github.com/tauri-apps/tauri/commit/8e1daad1537e93c6a969c03328b8502b92bf5b89) fix(bundler): set app name when signing MSI, closes [#3945](https://www.github.com/tauri-apps/tauri/pull/3945) ([#3950](https://www.github.com/tauri-apps/tauri/pull/3950)) on 2022-05-17
+- Change WiX MajorUpgrade element's `Schedule` to `afterInstallExecute` to prevent removal of existing configuration such as the executable's pin to taskbar.
+  - [d965b921](https://www.github.com/tauri-apps/tauri/commit/d965b92174a1e6a01fc1a080254402d52145af1e) fix(bundler): prevent removal of `pin to taskbar` on Windows ([#4144](https://www.github.com/tauri-apps/tauri/pull/4144)) on 2022-05-17
+- Change the MSI reinstall mode so it only reinstall missing or different version files.
+  - [1948ae53](https://www.github.com/tauri-apps/tauri/commit/1948ae53fdcd0ef99ef302066792d779a62c5065) fix(bundler): only reinstall missing or != version files, closes [#4122](https://www.github.com/tauri-apps/tauri/pull/4122) ([#4125](https://www.github.com/tauri-apps/tauri/pull/4125)) on 2022-05-15
+- Allow configuring the display options for the MSI execution allowing quieter updates.
+  - [9f2c3413](https://www.github.com/tauri-apps/tauri/commit/9f2c34131952ea83c3f8e383bc3cec7e1450429f) feat(core): configure msiexec display options, closes [#3951](https://www.github.com/tauri-apps/tauri/pull/3951) ([#4061](https://www.github.com/tauri-apps/tauri/pull/4061)) on 2022-05-15
+
+## \[1.0.0-rc.6]
+
+- Remove `Settings::verbose` option. You may now bring your own `log` frontend to receive logging output from the bundler while remaining in control of verbosity and formatting.
+  - [35f21471](https://www.github.com/tauri-apps/tauri/commit/35f2147161e6697cbd2824681eeaf870b5a991c2) feat(cli): Improve CLI logging ([#4060](https://www.github.com/tauri-apps/tauri/pull/4060)) on 2022-05-07
+- Ignore errors when loading `icns` files in the `.deb` package generation.
+  - [de444b15](https://www.github.com/tauri-apps/tauri/commit/de444b15d222a65861b099a7536318bad000110e) fix(bundler): debian failing to load icns icon, closes [#3062](https://www.github.com/tauri-apps/tauri/pull/3062) ([#4009](https://www.github.com/tauri-apps/tauri/pull/4009)) on 2022-04-30
+- Fix app downgrades when using the Windows installer.
+  - [72e577dc](https://www.github.com/tauri-apps/tauri/commit/72e577dcc6a6733182059ab51b28a03c6077edc1) fix(bundler): properly reinstall files on MSI downgrades, closes [#3868](https://www.github.com/tauri-apps/tauri/pull/3868) ([#4044](https://www.github.com/tauri-apps/tauri/pull/4044)) on 2022-05-04
+
+## \[1.0.0-rc.5]
+
+- Set the Debian control file `Priority` field to `optional`.
+  - [3bd3d923](https://www.github.com/tauri-apps/tauri/commit/3bd3d923d32144b4e28f9f597edf74ee422a9b54) fix: add priority field in debian/control ([#3865](https://www.github.com/tauri-apps/tauri/pull/3865)) on 2022-04-20
+- Fixes DLL resource usage on Windows.
+  - [f66bc3c2](https://www.github.com/tauri-apps/tauri/commit/f66bc3c2b8360b8b685dcadeb373852abe43d9e5) fix(bundler): DLL resources, closes [#3948](https://www.github.com/tauri-apps/tauri/pull/3948) ([#3949](https://www.github.com/tauri-apps/tauri/pull/3949)) on 2022-04-23
+- **Breaking change:** Removed the `useBootstrapper` option. Use https://github.com/tauri-apps/fix-path-env-rs instead.
+  - [6a5ff08c](https://www.github.com/tauri-apps/tauri/commit/6a5ff08ce9052b656aa40accedfd4315825164a3) refactor: remove bootstrapper, closes [#3786](https://www.github.com/tauri-apps/tauri/pull/3786) ([#3832](https://www.github.com/tauri-apps/tauri/pull/3832)) on 2022-03-31
+
 ## \[1.0.0-rc.4]
 
 - Fixes DMG bundling on macOS 12.3.

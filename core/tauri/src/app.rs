@@ -22,7 +22,7 @@ use crate::{
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, Env},
+  utils::{assets::Assets, resources::resource_relpath, Env},
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
   StateManager, Theme, Window,
 };
@@ -39,7 +39,7 @@ use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
-  path::PathBuf,
+  path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
 
@@ -255,6 +255,41 @@ impl PathResolver {
     crate::api::path::resource_dir(&self.package_info, &self.env)
   }
 
+  /// Resolves the path of the given resource.
+  /// Note that the path must be the same as provided in `tauri.conf.json`.
+  ///
+  /// This function is helpful when your resource path includes a root dir (`/`) or parent component (`..`),
+  /// because Tauri replaces them with a parent folder, so simply using [`Self::resource_dir`] and joining the path
+  /// won't work.
+  ///
+  /// # Examples
+  ///
+  /// `tauri.conf.json`:
+  /// ```json
+  /// {
+  ///   "tauri": {
+  ///     "bundle": {
+  ///       "resources": ["../assets/*"]
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let resource_path = app.path_resolver()
+  ///       .resolve_resource("../assets/logo.svg")
+  ///       .expect("failed to resolve resource dir");
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+    self
+      .resource_dir()
+      .map(|dir| dir.join(resource_relpath(path.as_ref())))
+  }
+
   /// Returns the path to the suggested directory for your app config files.
   pub fn app_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_dir(&self.config)
@@ -306,6 +341,7 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -470,6 +506,22 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
+#[cfg(feature = "wry")]
+impl App<crate::Wry> {
+  /// Adds a [`tauri_runtime_wry::Plugin`].
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+    &mut self,
+    plugin: P,
+  ) {
+    self.runtime.as_mut().unwrap().plugin(plugin);
+  }
+}
+
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
@@ -485,7 +537,7 @@ macro_rules! shared_app_impl {
       ///     let handle = app.handle();
       ///     tauri::async_runtime::spawn(async move {
       #[cfg_attr(
-        any(feature = "updater", feature = "__updater-docs"),
+        feature = "updater",
         doc = r#"     let response = handle.updater().check().await;"#
       )]
       ///     });
@@ -578,6 +630,26 @@ impl<R: Runtime> App<R> {
       .as_mut()
       .unwrap()
       .set_activation_policy(activation_policy);
+  }
+
+  /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let matches = app.get_cli_matches()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(cli)]
+  pub fn get_cli_matches(&self) -> crate::Result<crate::api::cli::Matches> {
+    if let Some(cli) = &self.manager.config().tauri.cli {
+      crate::api::cli::get_matches(cli, self.manager.package_info()).map_err(Into::into)
+    } else {
+      Ok(Default::default())
+    }
   }
 
   /// Runs the application.
@@ -1124,10 +1196,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the current platform's target name for the updater.
   ///
-  /// By default Tauri looks for a target in the format "{target}-{arch}",
-  /// where *target* is one of `darwin`, `linux` and `windows`
-  /// and *arch* is one of `i686`, `x86_64`, `aarch64` and `armv7`
-  /// based on the running platform. You can change the target name with this function.
+  /// See [`UpdateBuilder::target`](crate::updater::UpdateBuilder#method.target) for more information.
   ///
   /// # Examples
   ///

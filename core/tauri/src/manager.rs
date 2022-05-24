@@ -79,7 +79,7 @@ fn set_csp<R: Runtime>(
   asset: &mut String,
   assets: Arc<dyn Assets>,
   asset_path: &AssetKey,
-  #[allow(unused_variables)] manager: &WindowManager<R>,
+  manager: &WindowManager<R>,
   csp: Csp,
 ) -> String {
   let mut csp = csp.into();
@@ -103,21 +103,30 @@ fn set_csp<R: Runtime>(
         acc
       });
 
-  replace_csp_nonce(
-    asset,
-    SCRIPT_NONCE_TOKEN,
-    &mut csp,
-    "script-src",
-    hash_strings.script,
-  );
+  let dangerous_disable_asset_csp_modification = &manager
+    .config()
+    .tauri
+    .security
+    .dangerous_disable_asset_csp_modification;
+  if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+    replace_csp_nonce(
+      asset,
+      SCRIPT_NONCE_TOKEN,
+      &mut csp,
+      "script-src",
+      hash_strings.script,
+    );
+  }
 
-  replace_csp_nonce(
-    asset,
-    STYLE_NONCE_TOKEN,
-    &mut csp,
-    "style-src",
-    hash_strings.style,
-  );
+  if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+    replace_csp_nonce(
+      asset,
+      STYLE_NONCE_TOKEN,
+      &mut csp,
+      "style-src",
+      hash_strings.style,
+    );
+  }
 
   #[cfg(feature = "isolation")]
   if let Pattern::Isolation { schema, .. } = &manager.inner.pattern {
@@ -438,6 +447,7 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
+          origin: &self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -447,20 +457,6 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     pending.webview_attributes = webview_attributes;
-
-    if !pending.window_builder.has_icon() {
-      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
-        pending.window_builder = pending
-          .window_builder
-          .icon(default_window_icon.try_into()?)?;
-      }
-    }
-
-    if pending.window_builder.get_menu().is_none() {
-      if let Some(menu) = &self.inner.menu {
-        pending = pending.set_menu(menu.clone());
-      }
-    }
 
     let mut registered_scheme_protocols = Vec::new();
 
@@ -507,10 +503,11 @@ impl<R: Runtime> WindowManager<R> {
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
+        // safe to unwrap: request.uri() always starts with this prefix
         #[cfg(target_os = "windows")]
-        let path = filtered_path.replace("asset://localhost/", "");
+        let path = filtered_path.strip_prefix("asset://localhost/").unwrap();
         #[cfg(not(target_os = "windows"))]
-        let path = filtered_path.replace("asset://", "");
+        let path = filtered_path.strip_prefix("asset://").unwrap();
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -833,8 +830,10 @@ impl<R: Runtime> WindowManager<R> {
         // ignore query string and fragment
         .next()
         .unwrap()
-        .to_string()
-        .replace("tauri://localhost", "");
+        // safe to unwrap: request.uri() always starts with this prefix
+        .strip_prefix("tauri://localhost")
+        .unwrap()
+        .to_string();
       let asset = manager.get_asset(path)?;
       let mut builder = HttpResponseBuilder::new()
         .header("Access-Control-Allow-Origin", &window_origin)
@@ -1108,6 +1107,20 @@ impl<R: Runtime> WindowManager<R> {
 
     pending.url = url.to_string();
 
+    if !pending.window_builder.has_icon() {
+      if let Some(default_window_icon) = self.inner.default_window_icon.clone() {
+        pending.window_builder = pending
+          .window_builder
+          .icon(default_window_icon.try_into()?)?;
+      }
+    }
+
+    if pending.window_builder.get_menu().is_none() {
+      if let Some(menu) = &self.inner.menu {
+        pending = pending.set_menu(menu.clone());
+      }
+    }
+
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(
@@ -1356,15 +1369,15 @@ fn on_menu_event<R: Runtime>(window: &Window<R>, event: &MenuEvent) -> crate::Re
 }
 
 #[cfg(feature = "isolation")]
-fn request_to_path(request: &tauri_runtime::http::Request, replace: &str) -> String {
+fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> String {
   let mut path = request
     .uri()
     .split(&['?', '#'][..])
     // ignore query string
     .next()
     .unwrap()
-    .to_string()
-    .replace(replace, "");
+    .trim_start_matches(base_url)
+    .to_string();
 
   if path.ends_with('/') {
     path.pop();

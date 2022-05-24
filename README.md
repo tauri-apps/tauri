@@ -7,7 +7,7 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/prerequisites/)
+[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/guides/getting-started/prerequisites/)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
@@ -124,7 +124,7 @@ Tauri is a system composed of a number of moving pieces:
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.
 
 ### Contributing
-Before you start working on something, it's best to check if there is an existing issue first. It's also is a good idea to stop by the Discord server and confirm with the team if it makes sense or if someone is already working on it.
+Before you start working on something, it's best to check if there is an existing issue first. It's also a good idea to stop by the Discord server and confirm with the team if it makes sense or if someone else is already working on it.
 
 Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) before making a pull request.
 

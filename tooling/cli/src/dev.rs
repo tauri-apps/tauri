@@ -8,13 +8,13 @@ use crate::{
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
     manifest::{rewrite_manifest, Manifest},
-    Logger,
   },
   CommandExt, Result,
 };
 use clap::Parser;
 
 use anyhow::Context;
+use log::{error, info, warn};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
@@ -23,9 +23,9 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
-  io::BufReader,
+  io::{BufReader, Write},
   path::{Path, PathBuf},
-  process::{exit, Command},
+  process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::channel,
@@ -71,39 +71,26 @@ pub fn command(options: Options) -> Result<()> {
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
+    #[cfg(not(debug_assertions))]
+    let _ = check_for_updates();
   }
   r
 }
 
 fn command_internal(options: Options) -> Result<()> {
-  let logger = Logger::new("tauri:dev");
-
-  #[cfg(not(debug_assertions))]
-  match check_for_updates() {
-    Ok((msg, sleep)) => {
-      if sleep {
-        logger.log(msg);
-        std::thread::sleep(std::time::Duration::from_secs(3));
-      } else {
-        logger.log(msg);
-      }
-    }
-    Err(e) => {
-      logger.log(e.to_string());
-    }
-  };
-
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
   let merge_config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
-      std::fs::read_to_string(&config)?
+      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
     })
   } else {
     None
   };
+
+  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+
   let config = get_config(merge_config.as_deref())?;
 
   if let Some(before_dev) = &config
@@ -115,7 +102,7 @@ fn command_internal(options: Options) -> Result<()> {
     .before_dev_command
   {
     if !before_dev.is_empty() {
-      logger.log(format!("Running `{}`", before_dev));
+      info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       #[cfg(target_os = "windows")]
       let mut command = {
         let mut command = Command::new("cmd");
@@ -139,18 +126,19 @@ fn command_internal(options: Options) -> Result<()> {
           .pipe()?; // development build always includes debug information
         command
       };
+      command.stdin(Stdio::piped());
 
       let child = SharedChild::spawn(&mut command)
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
       let child = Arc::new(child);
       let child_ = child.clone();
-      let logger_ = logger.clone();
+
       std::thread::spawn(move || {
         let status = child_
           .wait()
           .expect("failed to wait on \"beforeDevCommand\"");
         if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-          logger_.error("The \"beforeDevCommand\" terminated with a non-zero status code.");
+          error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
           exit(status.code().unwrap_or(1));
         }
       });
@@ -160,6 +148,8 @@ fn command_internal(options: Options) -> Result<()> {
 
       let _ = ctrlc::set_handler(move || {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(130);
       });
     }
@@ -248,17 +238,17 @@ fn command_internal(options: Options) -> Result<()> {
           break;
         }
         if i % 3 == 0 {
-          logger.warn(format!(
+          warn!(
             "Waiting for your frontend dev server to start on {}...",
             dev_server_url
-          ));
+          );
         }
         i += 1;
         if i == max_attempts {
-          logger.error(format!(
-          "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
-          dev_server_url, i * sleep_interval.as_secs()
-        ));
+          error!(
+            "Could not connect to `{}` after {}s. Please make sure that is the URL to your dev server.",
+            dev_server_url, i * sleep_interval.as_secs()
+          );
           exit(1);
         }
         std::thread::sleep(sleep_interval);
@@ -297,20 +287,21 @@ fn command_internal(options: Options) -> Result<()> {
 }
 
 #[cfg(not(debug_assertions))]
-fn check_for_updates() -> Result<(String, bool)> {
-  let current_version = crate::info::cli_current_version()?;
-  let current = semver::Version::parse(&current_version)?;
+fn check_for_updates() -> Result<()> {
+  if std::env::var_os("TAURI_SKIP_UPDATE_CHECK") != Some("true".into()) {
+    let current_version = crate::info::cli_current_version()?;
+    let current = semver::Version::parse(&current_version)?;
 
-  let upstream_version = crate::info::cli_upstream_version()?;
-  let upstream = semver::Version::parse(&upstream_version)?;
-  if upstream.gt(&current) {
-    let message = format!(
-      "🚀 A new version of Tauri CLI is avaliable! [{}]",
-      upstream.to_string()
-    );
-    return Ok((message, true));
+    let upstream_version = crate::info::cli_upstream_version()?;
+    let upstream = semver::Version::parse(&upstream_version)?;
+    if current < upstream {
+      println!(
+        "🚀 A new version of Tauri CLI is avaliable! [{}]",
+        upstream.to_string()
+      );
+    };
   }
-  Ok(("🎉 Tauri CLI is up-to-date!".into(), false))
+  Ok(())
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
@@ -320,7 +311,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      use std::io::Write;
       let _ = file.write_all(TAURI_DEV_WATCHER_GITIGNORE);
     }
   }
@@ -422,7 +412,7 @@ fn kill_before_dev_process() {
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {
-          use std::{io::Write, os::unix::fs::PermissionsExt};
+          use std::os::unix::fs::PermissionsExt;
           let _ = file.write_all(KILL_CHILDREN_SCRIPT);
           let mut permissions = file.metadata().unwrap().permissions();
           permissions.set_mode(0o770);
@@ -448,9 +438,15 @@ fn start_app(
   command
     .env(
       "CARGO_TERM_PROGRESS_WIDTH",
-      terminal_size::terminal_size()
-        .map(|(w, _)| w.0)
-        .unwrap_or(80)
+      terminal::stderr_width()
+        .map(|width| {
+          if cfg!(windows) {
+            std::cmp::min(60, width)
+          } else {
+            width
+          }
+        })
+        .unwrap_or(if cfg!(windows) { 60 } else { 80 })
         .to_string(),
     )
     .env("CARGO_TERM_PROGRESS_WHEN", "always");
@@ -494,7 +490,7 @@ fn start_app(
   }
 
   command.stdout(os_pipe::dup_stdout().unwrap());
-  command.stderr(std::process::Stdio::piped());
+  command.stderr(Stdio::piped());
 
   let child =
     SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;
@@ -506,19 +502,18 @@ fn start_app(
   std::thread::spawn(move || {
     let mut buf = Vec::new();
     let mut lines = stderr_lines_.lock().unwrap();
+    let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
       match tauri_utils::io::read_line(&mut stderr, &mut buf) {
         Ok(s) if s == 0 => break,
         _ => (),
       }
-      let line = String::from_utf8_lossy(&buf).into_owned();
-      if line.ends_with('\r') {
-        eprint!("{}", line);
-      } else {
-        eprintln!("{}", line);
+      let _ = io_stderr.write_all(&buf);
+      if !buf.ends_with(&[b'\r']) {
+        let _ = io_stderr.write_all(b"\n");
       }
-      lines.push(line);
+      lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });
 
@@ -530,6 +525,8 @@ fn start_app(
     if exit_on_panic {
       if !manually_killed_app.load(Ordering::Relaxed) {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(status.code().unwrap_or(0));
       }
     } else {
@@ -547,10 +544,91 @@ fn start_app(
       //    - and error is not a cargo compilation error (using stderr heuristics)
       if status.success() || (status.code() == Some(101) && !is_cargo_compile_error) {
         kill_before_dev_process();
+        #[cfg(not(debug_assertions))]
+        let _ = check_for_updates();
         exit(status.code().unwrap_or(1));
       }
     }
   });
 
   Ok(child_arc)
+}
+
+// taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L514
+#[cfg(unix)]
+mod terminal {
+  use std::mem;
+
+  pub fn stderr_width() -> Option<usize> {
+    unsafe {
+      let mut winsize: libc::winsize = mem::zeroed();
+      // The .into() here is needed for FreeBSD which defines TIOCGWINSZ
+      // as c_uint but ioctl wants c_ulong.
+      #[allow(clippy::useless_conversion)]
+      if libc::ioctl(libc::STDERR_FILENO, libc::TIOCGWINSZ.into(), &mut winsize) < 0 {
+        return None;
+      }
+      if winsize.ws_col > 0 {
+        Some(winsize.ws_col as usize)
+      } else {
+        None
+      }
+    }
+  }
+}
+
+// taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L543
+#[cfg(windows)]
+mod terminal {
+  use std::{cmp, mem, ptr};
+  use winapi::um::fileapi::*;
+  use winapi::um::handleapi::*;
+  use winapi::um::processenv::*;
+  use winapi::um::winbase::*;
+  use winapi::um::wincon::*;
+  use winapi::um::winnt::*;
+
+  pub fn stderr_width() -> Option<usize> {
+    unsafe {
+      let stdout = GetStdHandle(STD_ERROR_HANDLE);
+      let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = mem::zeroed();
+      if GetConsoleScreenBufferInfo(stdout, &mut csbi) != 0 {
+        return Some((csbi.srWindow.Right - csbi.srWindow.Left) as usize);
+      }
+
+      // On mintty/msys/cygwin based terminals, the above fails with
+      // INVALID_HANDLE_VALUE. Use an alternate method which works
+      // in that case as well.
+      let h = CreateFileA(
+        "CONOUT$\0".as_ptr() as *const CHAR,
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        ptr::null_mut(),
+        OPEN_EXISTING,
+        0,
+        ptr::null_mut(),
+      );
+      if h == INVALID_HANDLE_VALUE {
+        return None;
+      }
+
+      let mut csbi: CONSOLE_SCREEN_BUFFER_INFO = mem::zeroed();
+      let rc = GetConsoleScreenBufferInfo(h, &mut csbi);
+      CloseHandle(h);
+      if rc != 0 {
+        let width = (csbi.srWindow.Right - csbi.srWindow.Left) as usize;
+        // Unfortunately cygwin/mintty does not set the size of the
+        // backing console to match the actual window size. This
+        // always reports a size of 80 or 120 (not sure what
+        // determines that). Use a conservative max of 60 which should
+        // work in most circumstances. ConEmu does some magic to
+        // resize the console correctly, but there's no reasonable way
+        // to detect which kind of terminal we are running in, or if
+        // GetConsoleScreenBufferInfo returns accurate information.
+        return Some(cmp::min(60, width));
+      }
+
+      None
+    }
+  }
 }

@@ -39,12 +39,13 @@
     })
 
     var createWindowButton = document.createElement('button')
+    var windowId = Math.random().toString().replace('.', '')
     var windowNumber = 1
-    createWindowButton.innerHTML = 'Create child window '+windowNumber
+    createWindowButton.innerHTML = 'Create child window ' + windowNumber
     createWindowButton.addEventListener('click', function () {
-      runCommand('create_child_window', { id: 'child-'+windowNumber })
+      runCommand('create_child_window', { id: `child-${windowId}-${windowNumber}` })
       windowNumber += 1
-      createWindowButton.innerHTML = 'Create child window '+windowNumber
+      createWindowButton.innerHTML = 'Create child window ' + windowNumber
     })
     container.appendChild(createWindowButton)
   </script>

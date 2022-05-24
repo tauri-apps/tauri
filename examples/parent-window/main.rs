@@ -7,23 +7,18 @@
   windows_subsystem = "windows"
 )]
 
-#[cfg(any(windows, target_os = "macos"))]
-use tauri::Manager;
-use tauri::{command, window::WindowBuilder, AppHandle, WindowUrl};
+use tauri::{command, window::WindowBuilder, Window, WindowUrl};
 
 #[command]
-fn create_child_window(id: String, app: AppHandle) {
-  #[cfg(any(windows, target_os = "macos"))]
-  let main = app.get_window("main").unwrap();
-
-  let child = WindowBuilder::new(&app, id, WindowUrl::default())
+async fn create_child_window(id: String, window: Window) {
+  let child = WindowBuilder::new(&window, id, WindowUrl::default())
     .title("Child")
     .inner_size(400.0, 300.0);
 
   #[cfg(target_os = "macos")]
-  let child = child.parent_window(main.ns_window().unwrap());
+  let child = child.parent_window(window.ns_window().unwrap());
   #[cfg(windows)]
-  let child = child.parent_window(main.hwnd().unwrap());
+  let child = child.parent_window(window.hwnd().unwrap());
 
   child.build().unwrap();
 }
@@ -43,7 +38,7 @@ fn main() {
         .inner_size(600.0, 400.0)
         .build()?;
       Ok(())
-    }) // safe to unwrap: window label is valid
+    })
     .run(tauri::generate_context!(
       "../../examples/parent-window/tauri.conf.json"
     ))

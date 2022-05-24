@@ -18,15 +18,20 @@ use http::{
   HeaderMap, StatusCode,
 };
 use minisign_verify::{PublicKey, Signature};
+use semver::Version;
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
+use url::Url;
 
 #[cfg(feature = "updater")]
 use std::io::Seek;
 use std::{
-  env, fmt,
+  collections::HashMap,
+  env,
+  fmt::{self},
   io::{Cursor, Read},
   path::{Path, PathBuf},
-  str::from_utf8,
+  str::{from_utf8, FromStr},
   time::Duration,
 };
 
@@ -43,161 +48,147 @@ use std::{
   process::{exit, Command},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum RemoteReleaseInner {
+  Dynamic(ReleaseManifestPlatform),
+  Static {
+    platforms: HashMap<String, ReleaseManifestPlatform>,
+  },
+}
+
+/// Information about a release returned by the remote update server.
+///
+/// This type can have one of two shapes: Server Format (Dynamic Format) and Static Format.
+#[derive(Debug, Serialize)]
 pub struct RemoteRelease {
-  /// Version to install
-  pub version: String,
-  /// Release date
-  pub date: String,
-  /// Download URL for current platform
-  pub download_url: String,
-  /// Update short description
-  pub body: Option<String>,
-  /// Optional signature for the current platform
+  /// Version to install.
+  pub version: Version,
+  /// Release notes.
+  pub notes: Option<String>,
+  /// Release date.
+  pub pub_date: String,
+  /// Release data.
+  #[serde(flatten)]
+  pub data: RemoteReleaseInner,
+}
+
+impl<'de> Deserialize<'de> for RemoteRelease {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    fn default_pub_date() -> String {
+      "N/A".to_string()
+    }
+
+    #[derive(Deserialize)]
+    struct InnerRemoteRelease {
+      #[serde(alias = "name", deserialize_with = "parse_version")]
+      version: Version,
+      notes: Option<String>,
+      #[serde(default = "default_pub_date")]
+      pub_date: String,
+      platforms: Option<HashMap<String, ReleaseManifestPlatform>>,
+      // dynamic platform response
+      url: Option<Url>,
+      signature: Option<String>,
+      #[cfg(target_os = "windows")]
+      #[serde(default)]
+      with_elevated_task: bool,
+    }
+
+    let release = InnerRemoteRelease::deserialize(deserializer)?;
+
+    Ok(RemoteRelease {
+      version: release.version,
+      notes: release.notes,
+      pub_date: release.pub_date,
+      data: if let Some(platforms) = release.platforms {
+        RemoteReleaseInner::Static { platforms }
+      } else {
+        RemoteReleaseInner::Dynamic(ReleaseManifestPlatform {
+          url: release.url.ok_or_else(|| {
+            DeError::custom("the `url` field was not set on the updater response")
+          })?,
+          signature: release.signature.ok_or_else(|| {
+            DeError::custom("the `signature` field was not set on the updater response")
+          })?,
+          #[cfg(target_os = "windows")]
+          with_elevated_task: release.with_elevated_task,
+        })
+      },
+    })
+  }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ReleaseManifestPlatform {
+  /// Download URL for the platform
+  pub url: Url,
+  /// Signature for the platform
   pub signature: String,
   #[cfg(target_os = "windows")]
+  #[serde(default)]
   /// Optional: Windows only try to use elevated task
   pub with_elevated_task: bool,
 }
 
+fn parse_version<'de, D>(deserializer: D) -> std::result::Result<Version, D::Error>
+where
+  D: serde::Deserializer<'de>,
+{
+  let str = String::deserialize(deserializer)?;
+
+  Version::from_str(str.trim_start_matches('v')).map_err(serde::de::Error::custom)
+}
+
 impl RemoteRelease {
-  // Read JSON and confirm this is a valid Schema
-  fn from_release(release: &serde_json::Value, target: &str) -> Result<RemoteRelease> {
-    // Version or name is required for static and dynamic JSON
-    // if `version` is not announced, we fallback to `name` (can be the tag name example v1.0.0)
-    let version = match release.get("version") {
-      Some(version) => version
-        .as_str()
-        .ok_or_else(|| Error::InvalidResponseType("version", "string", version.clone()))?
-        .trim_start_matches('v')
-        .to_string(),
-      None => {
-        let name = release
-          .get("name")
-          .ok_or(Error::MissingResponseField("version or name"))?;
-        name
-          .as_str()
-          .ok_or_else(|| Error::InvalidResponseType("name", "string", name.clone()))?
-          .trim_start_matches('v')
-          .to_string()
-      }
-    };
+  pub fn version(&self) -> &Version {
+    &self.version
+  }
 
-    // pub_date is required default is: `N/A` if not provided by the remote JSON
-    let date = if let Some(date) = release.get("pub_date") {
-      date
-        .as_str()
-        .map(|d| d.to_string())
-        .ok_or_else(|| Error::InvalidResponseType("pub_date", "string", date.clone()))?
-    } else {
-      "N/A".into()
-    };
+  pub fn notes(&self) -> &Option<String> {
+    &self.notes
+  }
 
-    // body is optional to build our update
-    let body = if let Some(notes) = release.get("notes") {
-      Some(
-        notes
-          .as_str()
-          .map(|n| n.to_string())
-          .ok_or_else(|| Error::InvalidResponseType("notes", "string", notes.clone()))?,
-      )
-    } else {
-      None
-    };
+  pub fn pub_date(&self) -> &String {
+    &self.pub_date
+  }
 
-    let download_url;
-    #[cfg(target_os = "windows")]
-    let with_elevated_task;
-    let signature;
-
-    match release.get("platforms") {
-      //
-      // Did we have a platforms field?
-      // If we did, that mean it's a static JSON.
-      // The main difference with STATIC and DYNAMIC is static announce ALL platforms
-      // and dynamic announce only the current platform.
-      //
-      // This could be used if you do NOT want an update server and use
-      // a GIST, S3 or any static JSON file to announce your updates.
-      //
-      // Notes:
-      // Dynamic help to reduce bandwidth usage or to intelligently update your clients
-      // based on the request you give. The server can remotely drive behaviors like
-      // rolling back or phased rollouts.
-      //
-      Some(platforms) => {
-        // make sure we have our target available
-        if let Some(current_target_data) = platforms.get(target) {
-          // use provided signature if available
-          signature = current_target_data
-            .get("signature")
-            .ok_or(Error::MissingResponseField("signature"))
-            .and_then(|signature| {
-              signature
-                .as_str()
-                .ok_or_else(|| Error::InvalidResponseType("signature", "string", signature.clone()))
-            })?;
-          // Download URL is required
-          let url = current_target_data
-            .get("url")
-            .ok_or(Error::MissingResponseField("url"))?;
-          download_url = url
-            .as_str()
-            .ok_or_else(|| Error::InvalidResponseType("url", "string", url.clone()))?
-            .to_string();
-          #[cfg(target_os = "windows")]
-          {
-            with_elevated_task = current_target_data
-              .get("with_elevated_task")
-              .map(|v| {
-                v.as_bool().ok_or_else(|| {
-                  Error::InvalidResponseType("with_elevated_task", "boolean", v.clone())
-                })
-              })
-              .unwrap_or(Ok(false))?;
-          }
-        } else {
-          // make sure we have an available platform from the static
-          return Err(Error::TargetNotFound(target.into()));
-        }
-      }
-      // We don't have the `platforms` field announced, let's assume our
-      // download URL is at the root of the JSON.
-      None => {
-        signature = release
-          .get("signature")
-          .ok_or(Error::MissingResponseField("signature"))
-          .and_then(|signature| {
-            signature
-              .as_str()
-              .ok_or_else(|| Error::InvalidResponseType("signature", "string", signature.clone()))
-          })?;
-        let url = release
-          .get("url")
-          .ok_or(Error::MissingResponseField("url"))?;
-        download_url = url
-          .as_str()
-          .ok_or_else(|| Error::InvalidResponseType("url", "string", url.clone()))?
-          .to_string();
-        #[cfg(target_os = "windows")]
-        {
-          with_elevated_task = match release.get("with_elevated_task") {
-            Some(with_elevated_task) => with_elevated_task.as_bool().unwrap_or(false),
-            None => false,
-          };
-        }
-      }
+  pub fn download_url(&self, target: &str) -> Result<&Url> {
+    match self.data {
+      RemoteReleaseInner::Dynamic(ref platform) => Ok(&platform.url),
+      RemoteReleaseInner::Static { ref platforms } => platforms
+        .get(target)
+        .map_or(Err(Error::TargetNotFound(target.to_string())), |p| {
+          Ok(&p.url)
+        }),
     }
-    // Return our formatted release
-    Ok(RemoteRelease {
-      version,
-      date,
-      download_url,
-      body,
-      signature: signature.to_string(),
-      #[cfg(target_os = "windows")]
-      with_elevated_task,
-    })
+  }
+
+  pub fn signature(&self, target: &str) -> Result<&String> {
+    match self.data {
+      RemoteReleaseInner::Dynamic(ref platform) => Ok(&platform.signature),
+      RemoteReleaseInner::Static { ref platforms } => platforms
+        .get(target)
+        .map_or(Err(Error::TargetNotFound(target.to_string())), |platform| {
+          Ok(&platform.signature)
+        }),
+    }
+  }
+
+  #[cfg(target_os = "windows")]
+  /// Optional: Windows only try to use elevated task
+  pub fn with_elevated_task(&self, target: &str) -> Result<bool> {
+    match self.data {
+      RemoteReleaseInner::Dynamic(ref platform) => Ok(platform.with_elevated_task),
+      RemoteReleaseInner::Static { ref platforms } => platforms
+        .get(target)
+        .map_or(Err(Error::TargetNotFound(target.to_string())), |platform| {
+          Ok(platform.with_elevated_task)
+        }),
+    }
   }
 }
 
@@ -327,16 +318,14 @@ impl<R: Runtime> UpdateBuilder<R> {
     // If no executable path provided, we use current_exe from tauri_utils
     let executable_path = self.executable_path.unwrap_or(current_exe()?);
 
-    let has_custom_target = self.target.is_some();
-    let target = self
-      .target
-      .or_else(|| get_updater_target().map(Into::into))
-      .ok_or(Error::UnsupportedOs)?;
     let arch = get_updater_arch().ok_or(Error::UnsupportedArch)?;
-    let json_target = if has_custom_target {
-      target.clone()
+    // `target` is the `{{target}}` variable we replace in the endpoint
+    // `json_target` is the value we search if the updater server returns a JSON with the `platforms` object
+    let (target, json_target) = if let Some(target) = self.target {
+      (target.clone(), target)
     } else {
-      format!("{}-{}", target, arch)
+      let target = get_updater_target().ok_or(Error::UnsupportedOs)?;
+      (target.to_string(), format!("{}-{}", target, arch))
     };
 
     // Get the extract_path from the provided executable_path
@@ -396,7 +385,7 @@ impl<R: Runtime> UpdateBuilder<R> {
             return Err(Error::UpToDate);
           };
           // Convert the remote result to our local struct
-          let built_release = RemoteRelease::from_release(&res.data, &json_target);
+          let built_release = serde_json::from_value(res.data).map_err(Into::into);
           // make sure all went well and the remote data is compatible
           // with what we need locally
           match built_release {
@@ -422,9 +411,10 @@ impl<R: Runtime> UpdateBuilder<R> {
 
     // did the announced version is greated than our current one?
     let should_update = if let Some(comparator) = self.should_install.take() {
-      comparator(&self.current_version, &final_release.version)
+      comparator(&self.current_version, &final_release.version().to_string())
     } else {
-      version::is_greater(&self.current_version, &final_release.version).unwrap_or(false)
+      version::is_greater(&self.current_version, &final_release.version().to_string())
+        .unwrap_or(false)
     };
 
     headers.remove("Accept");
@@ -435,14 +425,14 @@ impl<R: Runtime> UpdateBuilder<R> {
       target,
       extract_path,
       should_update,
-      version: final_release.version,
-      date: final_release.date,
+      version: final_release.version().to_string(),
+      date: final_release.pub_date().to_string(),
       current_version: self.current_version.to_owned(),
-      download_url: final_release.download_url,
-      body: final_release.body,
-      signature: final_release.signature,
+      download_url: final_release.download_url(&json_target)?.to_owned(),
+      body: final_release.notes().to_owned(),
+      signature: final_release.signature(&json_target)?.to_owned(),
       #[cfg(target_os = "windows")]
-      with_elevated_task: final_release.with_elevated_task,
+      with_elevated_task: final_release.with_elevated_task(&json_target)?,
       timeout: self.timeout,
       headers,
     })
@@ -473,7 +463,7 @@ pub struct Update<R: Runtime> {
   /// Extract path
   extract_path: PathBuf,
   /// Download URL announced
-  download_url: String,
+  download_url: Url,
   /// Signature announced
   signature: String,
   #[cfg(target_os = "windows")]
@@ -607,7 +597,20 @@ impl<R: Runtime> Update<R> {
       // we run the setup, appimage re-install or overwrite the
       // macos .app
       #[cfg(target_os = "windows")]
-      copy_files_and_run(archive_buffer, &self.extract_path, self.with_elevated_task)?;
+      copy_files_and_run(
+        archive_buffer,
+        &self.extract_path,
+        self.with_elevated_task,
+        self
+          .app
+          .config()
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .clone()
+          .msiexec_args(),
+      )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
     }
@@ -643,17 +646,19 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   let mut extractor =
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
 
-  for file in extractor.files()? {
-    if file.extension() == Some(OsStr::new("AppImage")) {
+  extractor.with_files(|entry| {
+    let path = entry.path()?;
+    if path.extension() == Some(OsStr::new("AppImage")) {
       // if something went wrong during the extraction, we should restore previous app
-      if let Err(err) = extractor.extract_file(extract_path, &file) {
+      if let Err(err) = entry.extract(extract_path) {
         Move::from_source(tmp_app_image).to_dest(extract_path)?;
-        return Err(Error::Extract(err.to_string()));
+        return Err(crate::api::Error::Extract(err.to_string()));
       }
       // early finish we have everything we need here
-      return Ok(());
+      return Ok(true);
     }
-  }
+    Ok(false)
+  })?;
 
   Ok(())
 }
@@ -679,6 +684,7 @@ fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
   _extract_path: &Path,
   with_elevated_task: bool,
+  msiexec_args: &[&str],
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -722,13 +728,13 @@ fn copy_files_and_run<R: Read + Seek>(
 
           // Check if there is a task that enables the updater to skip the UAC prompt
           let update_task_name = format!("Update {} - Skip UAC", product_name);
-          if let Ok(status) = Command::new("schtasks")
+          if let Ok(output) = Command::new("schtasks")
             .arg("/QUERY")
             .arg("/TN")
             .arg(update_task_name.clone())
-            .status()
+            .output()
           {
-            if status.success() {
+            if output.status.success() {
               // Rename the MSI to the match file name the Skip UAC task is expecting it to be
               let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
               Move::from_source(&found_path)
@@ -755,8 +761,8 @@ fn copy_files_and_run<R: Read + Seek>(
       Command::new("msiexec.exe")
         .arg("/i")
         .arg(found_path)
-        // quiet basic UI with prompt at the end
-        .arg("/qb+")
+        .args(msiexec_args)
+        .arg("/promptrestart")
         .spawn()
         .expect("installer failed to start");
 
@@ -785,7 +791,6 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
   // the first file in the tar.gz will always be
   // <app_name>/Contents
-  let all_files = extractor.files()?;
   let tmp_dir = tempfile::Builder::new()
     .prefix("tauri_current_app")
     .tempdir()?;
@@ -794,14 +799,15 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Move::from_source(extract_path).to_dest(tmp_dir.path())?;
 
   // extract all the files
-  for file in all_files {
+  extractor.with_files(|entry| {
+    let path = entry.path()?;
     // skip the first folder (should be the app name)
-    let collected_path: PathBuf = file.iter().skip(1).collect();
+    let collected_path: PathBuf = path.iter().skip(1).collect();
     let extraction_path = extract_path.join(collected_path);
 
     // if something went wrong during the extraction, we should restore previous app
-    if let Err(err) = extractor.extract_file(&extraction_path, &file) {
-      for file in extracted_files {
+    if let Err(err) = entry.extract(&extraction_path) {
+      for file in &extracted_files {
         // delete all the files we extracted
         if file.is_dir() {
           std::fs::remove_dir(file)?;
@@ -810,11 +816,13 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
         }
       }
       Move::from_source(tmp_dir.path()).to_dest(extract_path)?;
-      return Err(Error::Extract(err.to_string()));
+      return Err(crate::api::Error::Extract(err.to_string()));
     }
 
     extracted_files.push(extraction_path);
-  }
+
+    Ok(false)
+  })?;
 
   Ok(())
 }
@@ -992,7 +1000,7 @@ mod test {
           "pub_date": "2020-06-25T14:14:19Z",
           "signature": "{}",
           "url": "{}",
-          "with_elevated_task": "{}"
+          "with_elevated_task": {}
         }}
       "#,
       version, public_signature, download_url, with_elevated_task
@@ -1058,7 +1066,7 @@ mod test {
     assert_eq!(updater.version, "2.0.0");
     assert_eq!(updater.signature, "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUldUTE5QWWxkQnlZOVJHMWlvTzRUSlQzTHJOMm5waWpic0p0VVI2R0hUNGxhQVMxdzBPRndlbGpXQXJJakpTN0toRURtVzBkcm15R0VaNTJuS1lZRWdzMzZsWlNKUVAzZGdJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNTkyOTE1NTIzCWZpbGU6RDpcYVx0YXVyaVx0YXVyaVx0YXVyaVxleGFtcGxlc1xjb21tdW5pY2F0aW9uXHNyYy10YXVyaVx0YXJnZXRcZGVidWdcYXBwLng2NC5tc2kuemlwCitXa1lQc3A2MCs1KzEwZnVhOGxyZ2dGMlZqbjBaVUplWEltYUdyZ255eUF6eVF1dldWZzFObStaVEQ3QU1RS1lzcjhDVU4wWFovQ1p1QjJXbW1YZUJ3PT0K");
     assert_eq!(
-      updater.download_url,
+      updater.download_url.to_string(),
       "https://github.com/tauri-apps/updater-test/releases/download/v1.0.0/app.x64.msi.zip"
     );
   }
@@ -1432,19 +1440,23 @@ mod test {
       }
     }"#;
 
+    fn missing_field_error(field: &str) -> String {
+      format!("the `{}` field was not set on the updater response", field)
+    }
+
     let test_cases = [
-      (missing_signature, Error::MissingResponseField("signature")),
+      (missing_signature, missing_field_error("signature")),
+      (missing_version, "missing field `version`".to_string()),
+      (missing_url, missing_field_error("url")),
       (
-        missing_version,
-        Error::MissingResponseField("version or name"),
+        missing_target,
+        Error::TargetNotFound("test-target".into()).to_string(),
       ),
-      (missing_url, Error::MissingResponseField("url")),
-      (missing_target, Error::TargetNotFound("test-target".into())),
       (
         missing_platform_signature,
-        Error::MissingResponseField("signature"),
+        "missing field `signature`".to_string(),
       ),
-      (missing_platform_url, Error::MissingResponseField("url")),
+      (missing_platform_url, "missing field `url`".to_string()),
     ];
 
     for (response, error) in test_cases {
@@ -1461,7 +1473,8 @@ mod test {
         .target("test-target")
         .build());
       if let Err(e) = check_update {
-        assert_eq!(e.to_string(), error.to_string());
+        println!("ERROR: {}, expected: {}", e, error);
+        assert!(e.to_string().contains(&error));
       } else {
         panic!("unexpected Ok response");
       }

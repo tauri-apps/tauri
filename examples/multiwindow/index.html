@@ -16,8 +16,8 @@
 
   <script>
     var WebviewWindow = window.__TAURI__.window.WebviewWindow
-    var thisTauriWindow = window.__TAURI__.window.getCurrent()
-    var windowLabel = thisTauriWindow.label
+    var appWindow = window.__TAURI__.window.appWindow
+    var windowLabel = appWindow.label
     var windowLabelContainer = document.getElementById('window-label')
     windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
 
@@ -44,7 +44,7 @@
 
     var responseContainer = document.getElementById('response')
     // listener tied to this window
-    thisTauriWindow.listen('clicked', function (event) {
+    appWindow.listen('clicked', function (event) {
       responseContainer.innerText +=
         'Got ' + JSON.stringify(event) + ' on window listener\n\n'
     })

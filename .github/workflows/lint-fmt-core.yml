@@ -21,7 +21,7 @@ env:
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart',
               key: 'all'
             }
           - {

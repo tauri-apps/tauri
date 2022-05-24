@@ -69,7 +69,11 @@ fn push_pattern<P: AsRef<Path>>(list: &mut HashSet<Pattern>, pattern: P) -> crat
   list.insert(Pattern::new(&path.to_string_lossy())?);
   #[cfg(windows)]
   {
-    list.insert(Pattern::new(&format!("\\\\?\\{}", path.display()))?);
+    if let Ok(p) = std::fs::canonicalize(&path) {
+      list.insert(Pattern::new(&p.to_string_lossy())?);
+    } else {
+      list.insert(Pattern::new(&format!("\\\\?\\{}", path.display()))?);
+    }
   }
   Ok(())
 }

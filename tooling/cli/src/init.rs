@@ -5,7 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
-    resolve_tauri_path, template, Logger,
+    resolve_tauri_path, template,
   },
   VersionMetadata,
 };
@@ -24,9 +24,10 @@ use clap::Parser;
 use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
-use serde::Deserialize;
+use log::warn;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
+const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri project")]
@@ -61,12 +62,6 @@ pub struct Options {
   dev_path: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct PackageJson {
-  name: Option<String>,
-  product_name: Option<String>,
-}
-
 #[derive(Default)]
 struct InitDefaults {
   app_name: Option<String>,
@@ -80,7 +75,7 @@ impl Options {
 
     let init_defaults = if package_json_path.exists() {
       let package_json_text = read_to_string(package_json_path)?;
-      let package_json: PackageJson = serde_json::from_str(&package_json_text)?;
+      let package_json: crate::PackageJson = serde_json::from_str(&package_json_text)?;
       let (framework, _) = infer_framework(&package_json_text);
       InitDefaults {
         app_name: package_json.product_name.or(package_json.name),
@@ -126,16 +121,15 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options = options.load()?;
-  let logger = Logger::new("tauri:init");
 
   let template_target_path = PathBuf::from(&options.directory).join("src-tauri");
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata.json"))?;
 
   if template_target_path.exists() && !options.force {
-    logger.warn(format!(
+    warn!(
       "Tauri dir ({:?}) not empty. Run `init --force` to overwrite.",
       template_target_path
-    ));
+    );
   } else {
     let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = options.tauri_path {
       (
@@ -183,6 +177,56 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert(
       "window_title",
       to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
+    );
+
+    let mut config = serde_json::from_str(
+      &handlebars
+        .render_template(TAURI_CONF_TEMPLATE, &data)
+        .expect("Failed to render tauri.conf.json template"),
+    )
+    .unwrap();
+    if option_env!("TARGET") == Some("node") {
+      let mut dir = current_dir().expect("failed to read cwd");
+      let mut count = 0;
+      let mut cli_node_module_path = None;
+      let cli_path = "node_modules/@tauri-apps/cli";
+
+      // only go up three folders max
+      while count <= 2 {
+        let test_path = dir.join(cli_path);
+        if test_path.exists() {
+          let mut node_module_path = PathBuf::from("..");
+          for _ in 0..count {
+            node_module_path.push("..");
+          }
+          node_module_path.push(cli_path);
+          node_module_path.push("schema.json");
+          cli_node_module_path.replace(node_module_path);
+          break;
+        }
+        count += 1;
+        match dir.parent() {
+          Some(parent) => {
+            dir = parent.to_path_buf();
+          }
+          None => break,
+        }
+      }
+
+      if let Some(cli_node_module_path) = cli_node_module_path {
+        let mut map = serde_json::Map::default();
+        map.insert(
+          "$schema".into(),
+          serde_json::Value::String(cli_node_module_path.display().to_string()),
+        );
+        let merge_config = serde_json::Value::Object(map);
+        json_patch::merge(&mut config, &merge_config);
+      }
+    }
+
+    data.insert(
+      "tauri_config",
+      to_json(serde_json::to_string_pretty(&config).unwrap()),
     );
 
     template::render(&handlebars, &data, &TEMPLATE_DIR, &options.directory)

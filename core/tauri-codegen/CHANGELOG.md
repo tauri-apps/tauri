@@ -1,5 +1,21 @@
 # Changelog
 
+## \[1.0.0-rc.7]
+
+- Allow configuring the display options for the MSI execution allowing quieter updates.
+  - Bumped due to a bump in tauri-utils.
+  - [9f2c3413](https://www.github.com/tauri-apps/tauri/commit/9f2c34131952ea83c3f8e383bc3cec7e1450429f) feat(core): configure msiexec display options, closes [#3951](https://www.github.com/tauri-apps/tauri/pull/3951) ([#4061](https://www.github.com/tauri-apps/tauri/pull/4061)) on 2022-05-15
+
+## \[1.0.0-rc.6]
+
+- The `dangerous_allow_asset_csp_modification` configuration value has been changed to allow a list of CSP directives to disable.
+  - [164078c0](https://www.github.com/tauri-apps/tauri/commit/164078c0b719ccbc12e956fecf8a7d4a3c5044e1) feat: allow limiting dangerousDisableAssetCspModification, closes [#3831](https://www.github.com/tauri-apps/tauri/pull/3831) ([#4021](https://www.github.com/tauri-apps/tauri/pull/4021)) on 2022-05-02
+
+## \[1.0.0-rc.5]
+
+- Read platform-specific configuration files when generating code without the `TAURI_CONFIG` env var.
+  - [edf85bc1](https://www.github.com/tauri-apps/tauri/commit/edf85bc1d18450c92aee17f7f99c163abe432ebd) fix(codegen): read platform-specific config file ([#3966](https://www.github.com/tauri-apps/tauri/pull/3966)) on 2022-04-25
+
 ## \[1.0.0-rc.4]
 
 - Added an option to disable the CSP injection of distributable assets nonces and hashes.

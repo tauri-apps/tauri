@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.12]
+
+- Properly fetch the NPM dependency information when using Yarn 2+.
+  - [cdfa6255](https://www.github.com/tauri-apps/tauri/commit/cdfa62551115586725bd3e4c04f12c5256f20790) fix(cli): properly read info when using yarn 2+, closes [#4106](https://www.github.com/tauri-apps/tauri/pull/4106) ([#4193](https://www.github.com/tauri-apps/tauri/pull/4193)) on 2022-05-23
+
 ## \[1.0.0-rc.11]
 
 - Allow configuring the display options for the MSI execution allowing quieter updates.

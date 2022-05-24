@@ -1013,7 +1013,6 @@ pub enum ApplicationMessage {
   Hide,
 }
 
-#[derive(Debug, Clone)]
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools

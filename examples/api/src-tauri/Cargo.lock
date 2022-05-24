@@ -3052,7 +3052,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.11"
+version = "1.0.0-rc.12"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3113,7 +3113,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.9"
+version = "1.0.0-rc.10"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3158,7 +3158,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "gtk",
  "http",
@@ -3175,7 +3175,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cocoa",
  "gtk",

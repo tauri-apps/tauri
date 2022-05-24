@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.5.3]
+
+- Account the monitor position when centering a window.
+  - [a7a9fde1](https://www.github.com/tauri-apps/tauri/commit/a7a9fde16fb7c35d48d4f97e83ff95b8baf9e090) fix(core): account for monitor position when centering window ([#4166](https://www.github.com/tauri-apps/tauri/pull/4166)) on 2022-05-21
+- Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.
+  - [2326be39](https://www.github.com/tauri-apps/tauri/commit/2326be39821890cdd4de76e7029a531424dcb26f) feat(core): update windows-rs to 0.37.0 ([#4199](https://www.github.com/tauri-apps/tauri/pull/4199)) on 2022-05-24
+
 ## \[0.5.2]
 
 - Use the event loop proxy to create a window so it doesn't deadlock on Windows.

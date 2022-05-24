@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.5.2"
+version = "0.5.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 wry = { version = "0.17.0", default-features = false, features = [ "file-drop", "protocol" ] }
-tauri-runtime = { version = "0.5.1", path = "../tauri-runtime" }
+tauri-runtime = { version = "0.5.2", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.7", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
@@ -22,9 +22,9 @@ rand = "0.8"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.16.0"
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.37.0"
-features = [ "Win32_Foundation" ]
+  [target."cfg(windows)".dependencies.windows]
+  version = "0.37.0"
+  features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }

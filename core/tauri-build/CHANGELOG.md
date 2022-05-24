@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.10]
+
+- Delete existing sidecar before copying new one.
+  - [a737f25c](https://www.github.com/tauri-apps/tauri/commit/a737f25c1078083e0b0f7f338f5c958b86914323) fix(tauri-build): delete existing sidecar file, closes [#4134](https://www.github.com/tauri-apps/tauri/pull/4134) ([#4167](https://www.github.com/tauri-apps/tauri/pull/4167)) on 2022-05-18
+
 ## \[1.0.0-rc.9]
 
 - Search `tauri.conf.json > tauri > bundle > icons` for a `.ico` file for the window icon instead of simple default `icons/icon.ico` when `WindowsAttributes::window_icon_path` is not set.

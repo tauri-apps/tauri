@@ -124,6 +124,7 @@
     ".changes/dev-server-exit.md",
     ".changes/devtools-apis.md",
     ".changes/devtools-hotkey.md",
+    ".changes/dialog-flag-fix.md",
     ".changes/dialog-parent-macos.md",
     ".changes/dialog-type.md",
     ".changes/emit-and-trigger-tauri-events.md",

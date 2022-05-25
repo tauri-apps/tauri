@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.13]
+
+- Fix `` cannot find macro `message_dialog`  `` error.
+  - [80458a03](https://www.github.com/tauri-apps/tauri/commit/80458a031b15c83019f11a6c222a2993e16d5dc3) Fix `message_dialog` flag ([#4204](https://www.github.com/tauri-apps/tauri/pull/4204)) on 2022-05-25
+
 ## \[1.0.0-rc.12]
 
 - Expose option to set the dialog type.

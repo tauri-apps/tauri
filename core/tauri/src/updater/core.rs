@@ -18,6 +18,7 @@ use minisign_verify::{PublicKey, Signature};
 use semver::Version;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
+use time::OffsetDateTime;
 use url::Url;
 
 #[cfg(feature = "updater")]
@@ -57,16 +58,15 @@ pub enum RemoteReleaseInner {
 /// Information about a release returned by the remote update server.
 ///
 /// This type can have one of two shapes: Server Format (Dynamic Format) and Static Format.
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct RemoteRelease {
   /// Version to install.
   version: Version,
   /// Release notes.
   notes: Option<String>,
   /// Release date.
-  pub_date: String,
+  pub_date: Option<OffsetDateTime>,
   /// Release data.
-  #[serde(flatten)]
   data: RemoteReleaseInner,
 }
 
@@ -75,17 +75,12 @@ impl<'de> Deserialize<'de> for RemoteRelease {
   where
     D: Deserializer<'de>,
   {
-    fn default_pub_date() -> String {
-      "N/A".to_string()
-    }
-
     #[derive(Deserialize)]
     struct InnerRemoteRelease {
       #[serde(alias = "name", deserialize_with = "parse_version")]
       version: Version,
       notes: Option<String>,
-      #[serde(default = "default_pub_date")]
-      pub_date: String,
+      pub_date: Option<String>,
       platforms: Option<HashMap<String, ReleaseManifestPlatform>>,
       // dynamic platform response
       url: Option<Url>,
@@ -97,10 +92,19 @@ impl<'de> Deserialize<'de> for RemoteRelease {
 
     let release = InnerRemoteRelease::deserialize(deserializer)?;
 
+    let pub_date = if let Some(date) = release.pub_date {
+      Some(
+        OffsetDateTime::parse(&date, &time::format_description::well_known::Rfc3339)
+          .map_err(|e| DeError::custom(format!("invalid value for `pub_date`: {}", e)))?,
+      )
+    } else {
+      None
+    };
+
     Ok(RemoteRelease {
       version: release.version,
       notes: release.notes,
-      pub_date: release.pub_date,
+      pub_date,
       data: if let Some(platforms) = release.platforms {
         RemoteReleaseInner::Static { platforms }
       } else {
@@ -152,8 +156,8 @@ impl RemoteRelease {
   }
 
   /// The release date.
-  pub fn pub_date(&self) -> &String {
-    &self.pub_date
+  pub fn pub_date(&self) -> Option<&OffsetDateTime> {
+    self.pub_date.as_ref()
   }
 
   /// The release's download URL for the given target.
@@ -431,7 +435,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       extract_path,
       should_update,
       version: final_release.version().to_string(),
-      date: final_release.pub_date().to_string(),
+      date: final_release.pub_date().cloned(),
       current_version: self.current_version,
       download_url: final_release.download_url(&json_target)?.to_owned(),
       body: final_release.notes().cloned(),
@@ -461,7 +465,7 @@ pub struct Update<R: Runtime> {
   /// Running version
   pub current_version: Version,
   /// Update publish date
-  pub date: String,
+  pub date: Option<OffsetDateTime>,
   /// Target
   #[allow(dead_code)]
   target: String,
@@ -489,7 +493,7 @@ impl<R: Runtime> Clone for Update<R> {
       should_update: self.should_update,
       version: self.version.clone(),
       current_version: self.current_version.clone(),
-      date: self.date.clone(),
+      date: self.date,
       target: self.target.clone(),
       extract_path: self.extract_path.clone(),
       download_url: self.download_url.clone(),

@@ -35,6 +35,7 @@ struct PlatformUpdate {
 #[derive(Serialize)]
 struct Update {
   version: &'static str,
+  date: String,
   platforms: HashMap<String, PlatformUpdate>,
 }
 
@@ -178,6 +179,9 @@ fn update_app() {
             );
             let body = serde_json::to_vec(&Update {
               version: "1.0.0",
+              date: time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap(),
               platforms,
             })
             .unwrap();

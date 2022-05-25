@@ -13,7 +13,6 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::path::PathBuf;
 
-#[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
 macro_rules! message_dialog {
   ($fn_name: ident, $allowlist: ident, $buttons: expr) => {
     #[module_command_handler($allowlist)]
@@ -241,21 +240,18 @@ impl Cmd {
     Ok(path)
   }
 
-  #[cfg(any(dialog_message))]
   message_dialog!(
     message_dialog,
     dialog_message,
     crate::api::dialog::MessageDialogButtons::Ok
   );
 
-  #[cfg(any(dialog_ask))]
   message_dialog!(
     ask_dialog,
     dialog_ask,
     crate::api::dialog::MessageDialogButtons::YesNo
   );
 
-  #[cfg(any(dialog_confirm))]
   message_dialog!(
     confirm_dialog,
     dialog_confirm,

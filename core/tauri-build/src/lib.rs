@@ -5,6 +5,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use heck::ToSnakeCase;
 use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
@@ -59,6 +60,26 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     copy_file(&src, &dest)?;
   }
   Ok(())
+}
+
+// checks if the given Cargo feature is enabled.
+fn has_feature(feature: &str) -> bool {
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+  std::env::var(format!(
+    "CARGO_FEATURE_{}",
+    feature.to_snake_case().to_uppercase()
+  ))
+  .map(|x| x == "1")
+  .unwrap_or(false)
+}
+
+// creates a cfg alias if `has_feature` is true.
+// `alias` must be a snake case string.
+fn cfg_alias(alias: &str, has_feature: bool) {
+  if has_feature {
+    println!("cargo:rustc-cfg={}", alias);
+  }
 }
 
 /// Attributes used on Windows.
@@ -162,6 +183,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       std::env::current_dir().unwrap(),
     )?)?
   };
+
+  cfg_alias("dev", !has_feature("custom-protocol"));
 
   let mut manifest = Manifest::from_path("Cargo.toml")?;
   if let Some(tauri) = manifest.dependencies.remove("tauri") {

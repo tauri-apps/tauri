@@ -338,7 +338,7 @@ impl<R: Runtime> WindowManager<R> {
   ///
   /// * In dev mode, this will be based on the `devPath` configuration value.
   /// * Otherwise, this will be based on the `distDir` configuration value.
-  #[cfg(custom_protocol)]
+  #[cfg(not(dev))]
   fn base_path(&self) -> &AppUrl {
     &self.inner.config.build.dist_dir
   }

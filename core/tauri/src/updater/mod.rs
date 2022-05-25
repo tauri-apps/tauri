@@ -449,8 +449,9 @@ mod error;
 use std::time::Duration;
 
 use http::header::{HeaderName, HeaderValue};
+use semver::Version;
 
-pub use self::error::Error;
+pub use self::{core::RemoteRelease, error::Error};
 /// Alias for [`std::result::Result`] using our own [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -626,7 +627,10 @@ impl<R: Runtime> UpdateBuilder<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn should_install<F: FnOnce(&Version, &RemoteRelease) -> bool + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.inner = self.inner.should_install(f);
     self
   }
@@ -737,7 +741,7 @@ impl<R: Runtime> UpdateResponse<R> {
   }
 
   /// The current version of the application as read by the updater.
-  pub fn current_version(&self) -> &str {
+  pub fn current_version(&self) -> &Version {
     &self.update.current_version
   }
 
@@ -774,7 +778,7 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
 
     let mut builder = self::core::builder(handle.clone())
       .urls(&endpoints[..])
-      .current_version(&package_info.version);
+      .current_version(package_info.version);
     if let Some(target) = &handle.updater_settings.target {
       builder = builder.target(target);
     }
@@ -865,7 +869,7 @@ pub fn builder<R: Runtime>(handle: AppHandle<R>) -> UpdateBuilder<R> {
 
   let mut builder = self::core::builder(handle.clone())
     .urls(&endpoints[..])
-    .current_version(&package_info.version);
+    .current_version(package_info.version);
   if let Some(target) = &handle.updater_settings.target {
     builder = builder.target(target);
   }

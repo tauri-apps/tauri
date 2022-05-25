@@ -23,7 +23,7 @@ pub enum Cmd {
 
 impl Cmd {
   fn get_app_version<R: Runtime>(context: InvokeContext<R>) -> super::Result<String> {
-    Ok(context.package_info.version)
+    Ok(context.package_info.version.to_string())
   }
 
   fn get_app_name<R: Runtime>(context: InvokeContext<R>) -> super::Result<String> {

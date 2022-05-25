@@ -14,6 +14,7 @@
 use heck::ToKebabCase;
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
+use semver::Version;
 use serde::{
   de::{Deserializer, Error as DeError, Visitor},
   Deserialize, Serialize, Serializer,
@@ -27,6 +28,7 @@ use std::{
   fmt::{self, Display},
   fs::read_to_string,
   path::PathBuf,
+  str::FromStr,
 };
 
 /// Items to help with parsing content into a [`Config`].
@@ -2182,13 +2184,25 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
               .get("version")
               .ok_or_else(|| DeError::custom("JSON must contain a `version` field"))?
               .as_str()
-              .ok_or_else(|| DeError::custom("`version` must be a string"))?;
-            Ok(PackageVersion(version.into()))
+              .ok_or_else(|| {
+                DeError::custom(format!("`{} > version` must be a string", path.display()))
+              })?;
+            Ok(PackageVersion(
+              Version::from_str(version)
+                .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+                .to_string(),
+            ))
           } else {
-            Err(DeError::custom("value is not a path to a JSON object"))
+            Err(DeError::custom(
+              "`package > version` value is not a path to a JSON object",
+            ))
           }
         } else {
-          Ok(PackageVersion(value.into()))
+          Ok(PackageVersion(
+            Version::from_str(value)
+              .map_err(|_| DeError::custom("`package > version` must be a semver string"))?
+              .to_string(),
+          ))
         }
       }
     }

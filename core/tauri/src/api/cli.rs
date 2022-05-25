@@ -102,7 +102,8 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
     .description()
     .unwrap_or(&package_info.description.to_string())
     .to_string();
-  let app = get_app(package_info, &package_info.name, Some(&about), cli);
+  let version = &*package_info.version.to_string();
+  let app = get_app(package_info, version, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
     Err(e) => match ErrorExt::kind(&e) {
@@ -178,13 +179,14 @@ fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Match
 
 fn get_app<'a>(
   package_info: &'a PackageInfo,
+  version: &'a str,
   command_name: &'a str,
   about: Option<&'a String>,
   config: &'a CliConfig,
 ) -> App<'a> {
   let mut app = App::new(command_name)
     .author(package_info.authors)
-    .version(&*package_info.version);
+    .version(version);
 
   if let Some(about) = about {
     app = app.about(&**about);
@@ -210,6 +212,7 @@ fn get_app<'a>(
     for (subcommand_name, subcommand) in subcommands {
       let clap_subcommand = get_app(
         package_info,
+        version,
         subcommand_name,
         subcommand.description(),
         subcommand,

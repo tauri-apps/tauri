@@ -25,6 +25,7 @@ walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 regex = { version = "1.5.6", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
+semver = "1"
 
 [target."cfg(windows)".dependencies]
 ico = "0.1"

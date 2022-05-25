@@ -118,6 +118,7 @@
     ".changes/dangerous-disable-asset-csp.md",
     ".changes/data-url-csp.md",
     ".changes/debian-priority.md",
+    ".changes/dev-alias.md",
     ".changes/dev-cmd-config-arg.md",
     ".changes/dev-csp.md",
     ".changes/dev-keep-default-features.md",

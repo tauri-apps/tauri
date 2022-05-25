@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.11]
+
+- Create `dev` cfg alias.
+  - [9cdcf9b3](https://www.github.com/tauri-apps/tauri/commit/9cdcf9b3a8fa27612b3156c1702a4e776627e869) feat(build): create `dev` alias ([#4212](https://www.github.com/tauri-apps/tauri/pull/4212)) on 2022-05-25
+
 ## \[1.0.0-rc.10]
 
 - Delete existing sidecar before copying new one.

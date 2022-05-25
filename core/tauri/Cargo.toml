@@ -84,6 +84,7 @@ os_pipe = { version = "1.0", optional = true }
 rfd = { version = "0.8", optional = true }
 raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
+time = { version = "0.3", features = ["parsing", "formatting"], optional = true }
 os_info = { version = "3.2.0", optional = true }
 futures-lite = "1.12"
 regex = { version = "1.5.5", optional = true }
@@ -138,6 +139,7 @@ isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 updater = [
   "minisign-verify",
+  "time",
   "base64",
   "http-api",
   "dialog-ask",

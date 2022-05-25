@@ -450,6 +450,7 @@ use std::time::Duration;
 
 use http::header::{HeaderName, HeaderValue};
 use semver::Version;
+use time::OffsetDateTime;
 
 pub use self::{core::RemoteRelease, error::Error};
 /// Alias for [`std::result::Result`] using our own [`Error`].
@@ -509,7 +510,7 @@ struct DownloadProgressEvent {
 #[derive(Clone, serde::Serialize)]
 struct UpdateManifest {
   version: String,
-  date: String,
+  date: Option<String>,
   body: String,
 }
 
@@ -686,7 +687,7 @@ impl<R: Runtime> UpdateBuilder<R> {
               EVENT_UPDATE_AVAILABLE,
               UpdateManifest {
                 body: body.clone(),
-                date: update.date.clone(),
+                date: update.date.map(|d| d.to_string()),
                 version: update.version.clone(),
               },
             );
@@ -751,8 +752,8 @@ impl<R: Runtime> UpdateResponse<R> {
   }
 
   /// The update date.
-  pub fn date(&self) -> &str {
-    &self.update.date
+  pub fn date(&self) -> Option<&OffsetDateTime> {
+    self.update.date.as_ref()
   }
 
   /// The update description.

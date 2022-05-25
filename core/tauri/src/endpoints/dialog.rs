@@ -13,7 +13,6 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::path::PathBuf;
 
-#[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
 macro_rules! message_dialog {
   ($fn_name: ident, $allowlist: ident, $buttons: expr) => {
     #[module_command_handler($allowlist)]

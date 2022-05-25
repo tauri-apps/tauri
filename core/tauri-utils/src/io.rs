@@ -8,7 +8,7 @@ use std::io::BufRead;
 
 /// Read a line breaking in both \n and \r.
 ///
-/// Adapted from https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line
+/// Adapted from <https://doc.rust-lang.org/std/io/trait.BufRead.html#method.read_line>.
 pub fn read_line<R: BufRead + ?Sized>(r: &mut R, buf: &mut Vec<u8>) -> std::io::Result<usize> {
   let mut read = 0;
   loop {

@@ -6,10 +6,7 @@ use super::error::{Error, Result};
 #[cfg(feature = "updater")]
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
-  api::{
-    http::{ClientBuilder, HttpRequestBuilder},
-    version,
-  },
+  api::http::{ClientBuilder, HttpRequestBuilder},
   AppHandle, Manager, Runtime,
 };
 use base64::decode;
@@ -63,14 +60,14 @@ pub enum RemoteReleaseInner {
 #[derive(Debug, Serialize)]
 pub struct RemoteRelease {
   /// Version to install.
-  pub version: Version,
+  version: Version,
   /// Release notes.
-  pub notes: Option<String>,
+  notes: Option<String>,
   /// Release date.
-  pub pub_date: String,
+  pub_date: String,
   /// Release data.
   #[serde(flatten)]
-  pub data: RemoteReleaseInner,
+  data: RemoteReleaseInner,
 }
 
 impl<'de> Deserialize<'de> for RemoteRelease {
@@ -148,8 +145,8 @@ impl RemoteRelease {
     &self.version
   }
 
-  pub fn notes(&self) -> &Option<String> {
-    &self.notes
+  pub fn notes(&self) -> Option<&String> {
+    self.notes.as_ref()
   }
 
   pub fn pub_date(&self) -> &String {
@@ -196,14 +193,14 @@ pub struct UpdateBuilder<R: Runtime> {
   /// Application handle.
   pub app: AppHandle<R>,
   /// Current version we are running to compare with announced version
-  pub current_version: String,
+  pub current_version: Version,
   /// The URLs to checks updates. We suggest at least one fallback on a different domain.
   pub urls: Vec<String>,
   /// The platform the updater will check and install the update. Default is from `get_updater_target`
   pub target: Option<String>,
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
-  should_install: Option<Box<dyn FnOnce(&str, &str) -> bool + Send>>,
+  should_install: Option<Box<dyn FnOnce(&Version, &RemoteRelease) -> bool + Send>>,
   timeout: Option<Duration>,
   headers: HeaderMap,
 }
@@ -230,7 +227,8 @@ impl<R: Runtime> UpdateBuilder<R> {
       urls: Vec::new(),
       target: None,
       executable_path: None,
-      current_version: env!("CARGO_PKG_VERSION").into(),
+      // safe to unwrap: CARGO_PKG_VERSION is also a valid semver value
+      current_version: env!("CARGO_PKG_VERSION").parse().unwrap(),
       should_install: None,
       timeout: None,
       headers: Default::default(),
@@ -263,8 +261,8 @@ impl<R: Runtime> UpdateBuilder<R> {
 
   /// Set the current app version, used to compare against the latest available version.
   /// The `cargo_crate_version!` macro can be used to pull the version from your `Cargo.toml`
-  pub fn current_version(mut self, ver: impl Into<String>) -> Self {
-    self.current_version = ver.into();
+  pub fn current_version(mut self, ver: Version) -> Self {
+    self.current_version = ver;
     self
   }
 
@@ -281,7 +279,10 @@ impl<R: Runtime> UpdateBuilder<R> {
     self
   }
 
-  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn should_install<F: FnOnce(&Version, &RemoteRelease) -> bool + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.should_install.replace(Box::new(f));
     self
   }
@@ -359,7 +360,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamicly
       let fixed_link = url
-        .replace("{{current_version}}", &self.current_version)
+        .replace("{{current_version}}", &self.current_version.to_string())
         .replace("{{target}}", &target)
         .replace("{{arch}}", arch);
 
@@ -411,10 +412,9 @@ impl<R: Runtime> UpdateBuilder<R> {
 
     // did the announced version is greated than our current one?
     let should_update = if let Some(comparator) = self.should_install.take() {
-      comparator(&self.current_version, &final_release.version().to_string())
+      comparator(&self.current_version, &final_release)
     } else {
-      version::is_greater(&self.current_version, &final_release.version().to_string())
-        .unwrap_or(false)
+      final_release.version() > &self.current_version
     };
 
     headers.remove("Accept");
@@ -427,9 +427,9 @@ impl<R: Runtime> UpdateBuilder<R> {
       should_update,
       version: final_release.version().to_string(),
       date: final_release.pub_date().to_string(),
-      current_version: self.current_version.to_owned(),
+      current_version: self.current_version,
       download_url: final_release.download_url(&json_target)?.to_owned(),
-      body: final_release.notes().to_owned(),
+      body: final_release.notes().cloned(),
       signature: final_release.signature(&json_target)?.to_owned(),
       #[cfg(target_os = "windows")]
       with_elevated_task: final_release.with_elevated_task(&json_target)?,
@@ -454,7 +454,7 @@ pub struct Update<R: Runtime> {
   /// Version announced
   pub version: String,
   /// Running version
-  pub current_version: String,
+  pub current_version: Version,
   /// Update publish date
   pub date: String,
   /// Target
@@ -1017,7 +1017,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("0.0.0")
+      .current_version("0.0.0".parse().unwrap())
       .url(mockito::server_url())
       .build());
 
@@ -1036,7 +1036,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("0.0.0")
+      .current_version("0.0.0".parse().unwrap())
       .url(mockito::server_url())
       .build());
 
@@ -1055,7 +1055,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("0.0.0")
+      .current_version("0.0.0".parse().unwrap())
       .target("windows-x86_64")
       .url(mockito::server_url())
       .build());
@@ -1081,7 +1081,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("10.0.0")
+      .current_version("10.0.0".parse().unwrap())
       .url(mockito::server_url())
       .build());
 
@@ -1104,7 +1104,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("1.0.0")
+      .current_version("1.0.0".parse().unwrap())
       .url(format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
@@ -1130,7 +1130,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("1.0.0")
+      .current_version("1.0.0".parse().unwrap())
       .url(
         url::Url::parse(&format!(
           "{}/darwin-aarch64/{{{{current_version}}}}",
@@ -1147,7 +1147,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("1.0.0")
+      .current_version("1.0.0".parse().unwrap())
       .urls(&[url::Url::parse(&format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
@@ -1176,7 +1176,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("1.0.0")
+      .current_version("1.0.0".parse().unwrap())
       .url(format!(
         "{}/windows-x86_64/{{{{current_version}}}}",
         mockito::server_url()
@@ -1202,7 +1202,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .current_version("10.0.0")
+      .current_version("10.0.0".parse().unwrap())
       .url(format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
         mockito::server_url()
@@ -1226,7 +1226,7 @@ mod test {
     let check_update = block!(builder(app.handle())
       .url("http://badurl.www.tld/1".into())
       .url(mockito::server_url())
-      .current_version("0.0.1")
+      .current_version("0.0.1".parse().unwrap())
       .build());
 
     let updater = check_update.expect("Can't check remote update");
@@ -1245,7 +1245,7 @@ mod test {
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
       .urls(&["http://badurl.www.tld/1".into(), mockito::server_url(),])
-      .current_version("0.0.1")
+      .current_version("0.0.1".parse().unwrap())
       .build());
 
     let updater = check_update.expect("Can't check remote update");
@@ -1377,7 +1377,7 @@ mod test {
       let app = crate::test::mock_app();
       let check_update = block!(builder(app.handle())
         .url(mockito::server_url())
-        .current_version("0.0.1")
+        .current_version("0.0.1".parse().unwrap())
         .target("test-target")
         .build());
       if let Err(e) = check_update {
@@ -1469,7 +1469,7 @@ mod test {
       let app = crate::test::mock_app();
       let check_update = block!(builder(app.handle())
         .url(mockito::server_url())
-        .current_version("0.0.1")
+        .current_version("0.0.1".parse().unwrap())
         .target("test-target")
         .build());
       if let Err(e) = check_update {
@@ -1561,7 +1561,7 @@ mod test {
       // test path -- in production you shouldn't have to provide it
       .executable_path(my_executable)
       // make sure we force an update
-      .current_version("1.0.0")
+      .current_version("1.0.0".parse().unwrap())
       .build());
 
     #[cfg(target_os = "linux")]

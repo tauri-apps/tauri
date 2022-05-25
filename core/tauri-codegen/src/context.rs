@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::{ffi::OsStr, str::FromStr};
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -220,6 +220,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(env!("CARGO_PKG_NAME").to_string())
   };
   let package_version = if let Some(version) = &config.package.version {
+    semver::Version::from_str(version)?;
     quote!(#version.to_string())
   } else {
     quote!(env!("CARGO_PKG_VERSION").to_string())
@@ -227,7 +228,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let package_info = quote!(
     #root::PackageInfo {
       name: #package_name,
-      version: #package_version,
+      version: #package_version.parse().unwrap(),
       authors: env!("CARGO_PKG_AUTHORS"),
       description: env!("CARGO_PKG_DESCRIPTION"),
     }

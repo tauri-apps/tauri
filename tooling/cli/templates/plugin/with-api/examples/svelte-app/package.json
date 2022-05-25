@@ -12,9 +12,9 @@
     "@rollup/plugin-commonjs": "22.0.0",
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-typescript": "8.3.2",
-    "@tauri-apps/cli": "1.0.0-rc.11",
+    "@tauri-apps/cli": "1.0.0-rc.12",
     "@tsconfig/svelte": "3.0.0",
-    "rollup": "2.73.0",
+    "rollup": "2.74.1",
     "rollup-plugin-css-only": "3.1.0",
     "rollup-plugin-livereload": "2.0.5",
     "rollup-plugin-svelte": "7.1.0",
@@ -23,7 +23,7 @@
     "svelte-check": "2.7.1",
     "svelte-preprocess": "4.10.6",
     "tslib": "2.4.0",
-    "typescript": "4.6.4"
+    "typescript": "4.7.2"
   },
   "dependencies": {
     "sirv-cli": "2.0.2",

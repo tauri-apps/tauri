@@ -136,7 +136,7 @@
 //!   tauri::RunEvent::Updater(updater_event) => {
 //!     match updater_event {
 //!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
-//!         println!("update available {} {} {}", body, date, version);
+//!         println!("update available {} {:?} {}", body, date, version);
 //!       }
 //!       _ => (),
 //!     }
@@ -246,7 +246,7 @@
 //!   tauri::RunEvent::Updater(updater_event) => {
 //!     match updater_event {
 //!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
-//!         println!("update available {} {} {}", body, date, version);
+//!         println!("update available {} {:?} {}", body, date, version);
 //!       }
 //!       tauri::UpdaterEvent::Pending => {
 //!         println!("update is pending!");
@@ -694,7 +694,7 @@ impl<R: Runtime> UpdateBuilder<R> {
             let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
               UpdaterEvent::UpdateAvailable {
                 body,
-                date: update.date.clone(),
+                date: update.date,
                 version: update.version.clone(),
               },
             ));

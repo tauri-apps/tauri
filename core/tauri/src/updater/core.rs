@@ -493,7 +493,7 @@ impl<R: Runtime> Clone for Update<R> {
       should_update: self.should_update,
       version: self.version.clone(),
       current_version: self.current_version.clone(),
-      date: self.date.clone(),
+      date: self.date,
       target: self.target.clone(),
       extract_path: self.extract_path.clone(),
       download_url: self.download_url.clone(),

@@ -141,18 +141,22 @@ where
 }
 
 impl RemoteRelease {
+  /// The release version.
   pub fn version(&self) -> &Version {
     &self.version
   }
 
+  /// The release notes.
   pub fn notes(&self) -> Option<&String> {
     self.notes.as_ref()
   }
 
+  /// The release date.
   pub fn pub_date(&self) -> &String {
     &self.pub_date
   }
 
+  /// The release's download URL for the given target.
   pub fn download_url(&self, target: &str) -> Result<&Url> {
     match self.data {
       RemoteReleaseInner::Dynamic(ref platform) => Ok(&platform.url),
@@ -164,6 +168,7 @@ impl RemoteRelease {
     }
   }
 
+  /// The release's signature for the given target.
   pub fn signature(&self, target: &str) -> Result<&String> {
     match self.data {
       RemoteReleaseInner::Dynamic(ref platform) => Ok(&platform.signature),

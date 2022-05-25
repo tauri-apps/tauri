@@ -23,7 +23,7 @@ tauri-utils = { version = "1.0.0-rc.7", path = "../tauri-utils", features = [ "b
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
-regex = { version = "1.5.5", optional = true }
+regex = { version = "1.5.6", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 
 [target."cfg(windows)".dependencies]

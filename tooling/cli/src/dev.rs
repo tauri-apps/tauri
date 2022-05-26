@@ -296,7 +296,7 @@ fn check_for_updates() -> Result<()> {
     let upstream = semver::Version::parse(&upstream_version)?;
     if current < upstream {
       println!(
-        "🚀 A new version of Tauri CLI is avaliable! [{}]",
+        "🚀 A new version of Tauri CLI is available! [{}]",
         upstream.to_string()
       );
     };

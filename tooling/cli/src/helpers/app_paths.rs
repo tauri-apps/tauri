@@ -56,7 +56,15 @@ fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<P
 }
 
 fn get_tauri_dir() -> PathBuf {
-  lookup(&current_dir().expect("failed to read cwd"), |path, file_type| if file_type.is_dir() {
+  let cwd = current_dir().expect("failed to read cwd");
+
+  if cwd.join("src-tauri/tauri.conf.json").exists()
+    || cwd.join("src-tauri/tauri.conf.json5").exists()
+  {
+    return cwd.join("src-tauri/");
+  }
+
+  lookup(&cwd, |path, file_type| if file_type.is_dir() {
     path.join("tauri.conf.json").exists() || path.join("tauri.conf.json5").exists()
   } else if let Some(file_name) = path.file_name() {
     file_name == OsStr::new("tauri.conf.json") || file_name == OsStr::new("tauri.conf.json5")

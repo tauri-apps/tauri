@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
+#[cfg(windows)]
+mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
@@ -183,6 +185,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       std::env::current_dir().unwrap(),
     )?)?
   };
+
+  #[cfg(windows)]
+  static_vcruntime::build();
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 

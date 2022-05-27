@@ -15,7 +15,6 @@ description = "Command line interface for building Tauri apps"
 include = [
   "src/",
   "/templates",
-  "MergeModules/",
   "scripts/",
   "*.json",
   "*.rs",

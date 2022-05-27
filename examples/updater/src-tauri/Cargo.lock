@@ -1512,6 +1512,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_threads"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "objc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2539,7 +2548,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.11"
+version = "1.0.0-rc.13"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -2577,6 +2586,7 @@ dependencies = [
  "tauri-utils",
  "tempfile",
  "thiserror",
+ "time",
  "tokio",
  "url",
  "uuid 1.0.0",
@@ -2588,10 +2598,11 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.9"
+version = "1.0.0-rc.11"
 dependencies = [
  "anyhow",
  "cargo_toml",
+ "heck 0.4.0",
  "quote",
  "semver 1.0.9",
  "serde_json",
@@ -2610,6 +2621,7 @@ dependencies = [
  "png 0.17.5",
  "proc-macro2",
  "quote",
+ "semver 1.0.9",
  "serde",
  "serde_json",
  "sha2",
@@ -2633,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "gtk",
  "http",
@@ -2650,7 +2662,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "cocoa",
  "gtk",
@@ -2680,6 +2692,7 @@ dependencies = [
  "phf 0.10.1",
  "proc-macro2",
  "quote",
+ "semver 1.0.9",
  "serde",
  "serde_json",
  "serde_with",
@@ -2746,6 +2759,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5516c27b78311c50bf42c071425c560ac799b11c30b31f87e3081965fe5e0180"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "time"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2702e08a7a860f005826c6815dcac101b19b5eb330c27fe4a5928fec1d20ddd"
+dependencies = [
+ "itoa 1.0.2",
+ "libc",
+ "num_threads",
 ]
 
 [[package]]

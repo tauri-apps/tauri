@@ -54,7 +54,7 @@
 - Add `fileDropEnabled` property to `WindowOptions` so you can now disable it when creating windows from js.
   - [1bfc32a3](https://www.github.com/tauri-apps/tauri/commit/1bfc32a3b2f31b962ce8a5c611b60cb008360923) fix(api.js): add `fileDropEnabled` to `WindowOptions`, closes [#2968](https://www.github.com/tauri-apps/tauri/pull/2968) ([#2989](https://www.github.com/tauri-apps/tauri/pull/2989)) on 2021-12-09
 
-- Add `logDir` function to the `path` module to access the sugested log directory.
+- Add `logDir` function to the `path` module to access the suggested log directory.
   Add `BaseDirectory.Log` to the `fs` module.
   - [acbb3ae7](https://www.github.com/tauri-apps/tauri/commit/acbb3ae7bb0165846b9456aea103269f027fc548) feat: add Log directory ([#2736](https://www.github.com/tauri-apps/tauri/pull/2736)) on 2021-10-16
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
@@ -128,7 +128,7 @@
 
 ## \[1.0.0-beta.7]
 
-- Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Lunix and macOS
+- Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Linux and macOS
   is still `asset://path/to/file`.
   - [994b5325](https://www.github.com/tauri-apps/tauri/commit/994b5325dd385f564b37fe1530c5d798dc925fff) fix: missing asset protocol path ([#2484](https://www.github.com/tauri-apps/tauri/pull/2484)) on 2021-08-23
 
@@ -169,7 +169,7 @@
 - You can now use `emit`, `listen` and `once` using the `appWindow` exported by the window module.
   - [5d7626f8](https://www.github.com/tauri-apps/tauri/commit/5d7626f89781a6ebccceb9ab3b2e8335aa7a0392) feat(api): WindowManager extends WebviewWindowHandle, add events docs ([#2146](https://www.github.com/tauri-apps/tauri/pull/2146)) on 2021-07-03
 - Allow manipulating a spawned window directly using `WebviewWindow`, which now extends `WindowManager`.
-  - [d69b1cf6](https://www.github.com/tauri-apps/tauri/commit/d69b1cf6d7c13297073073d753e30fe1a22a09cb) feat(api): allow mananing windows created on JS ([#2154](https://www.github.com/tauri-apps/tauri/pull/2154)) on 2021-07-05
+  - [d69b1cf6](https://www.github.com/tauri-apps/tauri/commit/d69b1cf6d7c13297073073d753e30fe1a22a09cb) feat(api): allow managing windows created on JS ([#2154](https://www.github.com/tauri-apps/tauri/pull/2154)) on 2021-07-05
 
 ## \[1.0.0-beta.4]
 

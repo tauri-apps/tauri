@@ -362,7 +362,7 @@ these specific choices.
   - [1f988535](https://www.github.com/tauri-apps/tauri/commit/1f98853573a837dd0cfc2161b206a5033ec2da5e) chore(deps) Update Tauri Core ([#2480](https://www.github.com/tauri-apps/tauri/pull/2480)) on 2021-08-24
 - The `api::process::Command` APIs are now hidden behind the `command` feature flag.
   - [eed01728](https://www.github.com/tauri-apps/tauri/commit/eed017287fed2ade689af4268e8b63b9c9f2e585) feat(core): add `shell > sidecar` allowlist and `process` feature flag \[TRI-037] ([#18](https://www.github.com/tauri-apps/tauri/pull/18)) on 2021-10-24
-- Add `tauri::api::path::log_dir` function to access the sugested log directory path.
+- Add `tauri::api::path::log_dir` function to access the suggested log directory path.
   - [acbb3ae7](https://www.github.com/tauri-apps/tauri/commit/acbb3ae7bb0165846b9456aea103269f027fc548) feat: add Log directory ([#2736](https://www.github.com/tauri-apps/tauri/pull/2736)) on 2021-10-16
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
 - The `process`, `path` and `updater` APIs now takes a `tauri::Env` argument, used to force environment variables load on startup to prevent env var update attacks.
@@ -418,7 +418,7 @@ these specific choices.
   - [a03b8554](https://www.github.com/tauri-apps/tauri/commit/a03b85545a4b0b61a598a43eabe96e03565dcaf0) fix(core): tray not closing on Windows ([#3351](https://www.github.com/tauri-apps/tauri/pull/3351)) on 2022-02-07
 - Immediately listen to `tauri://window-created` event to catch it before the application triggers it.
   - [878b8b9a](https://www.github.com/tauri-apps/tauri/commit/878b8b9a1fc825b1ea34f955e053311409a1468d) fix(core): immediately listen to window-created, closes [#3297](https://www.github.com/tauri-apps/tauri/pull/3297) ([#3298](https://www.github.com/tauri-apps/tauri/pull/3298)) on 2022-02-04
-- The `tauri::Window#emit` functiow now correctly sends the event to all windows that has a registered listener.
+- The `tauri::Window#emit` function now correctly sends the event to all windows that has a registered listener.
   **Breaking change:** `Window#emit_and_trigger` and `Window#emit` now requires the payload to be cloneable.
   - [9b340552](https://www.github.com/tauri-apps/tauri/commit/9b340552643a1d8b9311219101329ce23c9271ea) fix(core): window-specific event delivery, closes [#3302](https://www.github.com/tauri-apps/tauri/pull/3302) ([#3344](https://www.github.com/tauri-apps/tauri/pull/3344)) on 2022-02-06
 - Allow using a fixed version for the Webview2 runtime via the `tauri > bundle > windows > webviewFixedRuntimePath` config option.
@@ -543,7 +543,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Lunix and macOS
   is still `asset://path/to/file`.
   - [994b5325](https://www.github.com/tauri-apps/tauri/commit/994b5325dd385f564b37fe1530c5d798dc925fff) fix: missing asset protocol path ([#2484](https://www.github.com/tauri-apps/tauri/pull/2484)) on 2021-08-23
-- **Breaking change:** Removed `register_uri_scheme_protocol` from the `WebviewAttibutes` struct and renamed `register_global_uri_scheme_protocol` to `register_uri_scheme_protocol` on the `Builder` struct, which now takes a `Fn(&AppHandle, &http::Request) -> http::Response` closure.
+- **Breaking change:** Removed `register_uri_scheme_protocol` from the `WebviewAttributes` struct and renamed `register_global_uri_scheme_protocol` to `register_uri_scheme_protocol` on the `Builder` struct, which now takes a `Fn(&AppHandle, &http::Request) -> http::Response` closure.
   - [539e4489](https://www.github.com/tauri-apps/tauri/commit/539e4489e0bac7029d86917e9982ea49e02fe489) refactor: custom protocol ([#2503](https://www.github.com/tauri-apps/tauri/pull/2503)) on 2021-08-23
 - Migrate to latest custom protocol allowing `Partial content` streaming and Header parsing.
   - [539e4489](https://www.github.com/tauri-apps/tauri/commit/539e4489e0bac7029d86917e9982ea49e02fe489) refactor: custom protocol ([#2503](https://www.github.com/tauri-apps/tauri/pull/2503)) on 2021-08-23
@@ -786,8 +786,8 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
 - Improve invoke key code injection performance time rewriting code at compile time.
   - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
-- Enfore uniqueness of window label.
-  - [d18b5367](https://www.github.com/tauri-apps/tauri/commit/d18b5367a91fd53d408510b456897630c70abcca) feat(core): enfore label uniqueness, closes [#2067](https://www.github.com/tauri-apps/tauri/pull/2067) ([#2097](https://www.github.com/tauri-apps/tauri/pull/2097)) on 2021-06-27
+- Enforce uniqueness of window label.
+  - [d18b5367](https://www.github.com/tauri-apps/tauri/commit/d18b5367a91fd53d408510b456897630c70abcca) feat(core): enforce label uniqueness, closes [#2067](https://www.github.com/tauri-apps/tauri/pull/2067) ([#2097](https://www.github.com/tauri-apps/tauri/pull/2097)) on 2021-06-27
 - `Window` is now `Send + Sync` on Windows.
   - [fe32afcc](https://www.github.com/tauri-apps/tauri/commit/fe32afcc933920d6282ae1d63b041b182278a031) fix(core): `Window` must be `Send + Sync` on Windows, closes [#2078](https://www.github.com/tauri-apps/tauri/pull/2078) ([#2093](https://www.github.com/tauri-apps/tauri/pull/2093)) on 2021-06-27
 
@@ -1369,7 +1369,7 @@ https://github.com/GoogleChromeLabs/json-parse-benchmark
 ## \[0.7.3]
 
 - Properly run the loopback command on Windows.
-- Properly ignore the ${distDir}/index.html asset from the asset embbeding. Previously every asset with name matching /(.+)index.html$/g were ignored.
+- Properly ignore the ${distDir}/index.html asset from the asset embedding. Previously every asset with name matching /(.+)index.html$/g were ignored.
 
 ## \[0.7.2]
 

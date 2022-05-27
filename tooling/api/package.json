@@ -42,8 +42,8 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@babel/core": "7.18.0",
-    "@babel/preset-env": "7.18.0",
+    "@babel/core": "7.18.2",
+    "@babel/preset-env": "7.18.2",
     "@babel/preset-typescript": "7.17.12",
     "@rollup/plugin-babel": "5.3.1",
     "@rollup/plugin-commonjs": "22.0.0",

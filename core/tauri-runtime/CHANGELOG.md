@@ -1,12 +1,5 @@
 # Changelog
 
-## \[0.6.1]
-
-- **Breaking change:** `PackageInfo::version` is now a `semver::Version` instead of a `String`.
-  - Bumped due to a bump in tauri-utils.
-  - [2badbd2d](https://www.github.com/tauri-apps/tauri/commit/2badbd2d7ed51bf33c1b547b4c837b600574bd4a) refactor: force semver versions, change updater `should_install` sig ([#4215](https://www.github.com/tauri-apps/tauri/pull/4215)) on 2022-05-25
-  - [a7388e23](https://www.github.com/tauri-apps/tauri/commit/a7388e23c3b9019d48b078cae00a75c74d74d11b) fix(ci): adjust change file to include tauri-utils and tauri-codegen on 2022-05-27
-
 ## \[0.6.0]
 
 - Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.

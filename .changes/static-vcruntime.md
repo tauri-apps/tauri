@@ -1,5 +1,4 @@
 ---
-"tauri": patch
 "tauri-build": patch
 "tauri-bundler": patch
 "cli.rs": patch

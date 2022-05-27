@@ -1,78 +1,77 @@
 <script>
-  import { readBinaryFile, readDir, Dir } from "@tauri-apps/api/fs";
-  import { convertFileSrc } from "@tauri-apps/api/tauri";
+  import {
+    readBinaryFile,
+    writeTextFile,
+    readDir,
+    Dir
+  } from '@tauri-apps/api/fs'
+  import { convertFileSrc } from '@tauri-apps/api/tauri'
 
-  export let onMessage;
-  export let insecureRenderHtml;
+  export let onMessage
+  export let insecureRenderHtml
 
-  let pathToRead = "";
-  let img;
+  let pathToRead = ''
+  let img
 
   function getDir() {
-    const dirSelect = document.getElementById("dir");
-    return dirSelect.value ? parseInt(dir.value) : null;
+    const dirSelect = document.getElementById('dir')
+    return dirSelect.value ? parseInt(dir.value) : null
   }
 
   function arrayBufferToBase64(buffer, callback) {
     const blob = new Blob([buffer], {
-      type: "application/octet-binary",
-    });
-    const reader = new FileReader();
+      type: 'application/octet-binary'
+    })
+    const reader = new FileReader()
     reader.onload = function (evt) {
-      const dataurl = evt.target.result;
-      callback(dataurl.substr(dataurl.indexOf(",") + 1));
-    };
-    reader.readAsDataURL(blob);
+      const dataurl = evt.target.result
+      callback(dataurl.substr(dataurl.indexOf(',') + 1))
+    }
+    reader.readAsDataURL(blob)
   }
 
   const DirOptions = Object.keys(Dir)
     .filter((key) => isNaN(parseInt(key)))
-    .map((dir) => [dir, Dir[dir]]);
+    .map((dir) => [dir, Dir[dir]])
 
   function read() {
-    const isFile = pathToRead.match(/\S+\.\S+$/g);
+    const isFile = pathToRead.match(/\S+\.\S+$/g)
     const opts = {
-      dir: getDir(),
-    };
+      dir: getDir()
+    }
     const promise = isFile
       ? readBinaryFile(pathToRead, opts)
-      : readDir(pathToRead, opts);
+      : readDir(pathToRead, opts)
     promise
       .then(function (response) {
         if (isFile) {
-          if (pathToRead.includes(".png") || pathToRead.includes(".jpg")) {
+          if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
             arrayBufferToBase64(new Uint8Array(response), function (base64) {
-              const src = "data:image/png;base64," + base64;
-              insecureRenderHtml('<img src="' + src + '"></img>');
-            });
+              const src = 'data:image/png;base64,' + base64
+              insecureRenderHtml('<img src="' + src + '"></img>')
+            })
           } else {
-            const value = String.fromCharCode.apply(null, response);
+            const value = String.fromCharCode.apply(null, response)
             insecureRenderHtml(
               '<textarea id="file-response"></textarea><button id="file-save">Save</button>'
-            );
+            )
             setTimeout(() => {
-              const fileInput = document.getElementById("file-response");
-              fileInput.value = value;
+              const fileInput = document.getElementById('file-response')
+              fileInput.value = value
               document
-                .getElementById("file-save")
-                .addEventListener("click", function () {
-                  writeFile(
-                    {
-                      file: pathToRead,
-                      contents: fileInput.value,
-                    },
-                    {
-                      dir: getDir(),
-                    }
-                  ).catch(onMessage);
-                });
-            });
+                .getElementById('file-save')
+                .addEventListener('click', function () {
+                  writeTextFile(pathToRead, fileInput.value, {
+                    dir: getDir()
+                  }).catch(onMessage)
+                })
+            })
           }
         } else {
-          onMessage(response);
+          onMessage(response)
         }
       })
-      .catch(onMessage);
+      .catch(onMessage)
   }
 
   function setSrc() {
@@ -95,5 +94,5 @@
   <button class="button" id="read">Read</button>
   <button class="button" type="button" on:click={setSrc}>Use as img src</button>
 
-  <img alt="file" bind:this={img}>
+  <img alt="file" bind:this={img} />
 </form>

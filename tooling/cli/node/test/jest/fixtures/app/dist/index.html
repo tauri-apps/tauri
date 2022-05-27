@@ -31,13 +31,7 @@
         }
 
         return window.__TAURI__.fs
-          .writeFile(
-            {
-              path: 'tauri-test.txt',
-              contents: contents
-            },
-            options
-          )
+          .writeTextFile('tauri-test.txt', contents, options)
           .then(function (res) {
             reply({
               cmd: 'writeFile' + commandSuffix

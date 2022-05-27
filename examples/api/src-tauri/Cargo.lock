@@ -3052,7 +3052,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.13"
+version = "1.0.0-rc.14"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3102,6 +3102,7 @@ dependencies = [
  "tauri-utils",
  "tempfile",
  "thiserror",
+ "time",
  "tokio",
  "url",
  "uuid 1.0.0",
@@ -3113,7 +3114,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.10"
+version = "1.0.0-rc.12"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3127,7 +3128,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.0.0-rc.7"
+version = "1.0.0-rc.8"
 dependencies = [
  "base64",
  "brotli",
@@ -3136,7 +3137,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "semver 1.0.7",
+ "semver 1.0.9",
  "serde",
  "serde_json",
  "sha2",
@@ -3148,7 +3149,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.0.0-rc.7"
+version = "1.0.0-rc.8"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -3194,7 +3195,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.0.0-rc.7"
+version = "1.0.0-rc.8"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -3209,7 +3210,7 @@ dependencies = [
  "phf 0.10.1",
  "proc-macro2",
  "quote",
- "semver 1.0.7",
+ "semver 1.0.9",
  "serde",
  "serde_json",
  "serde_with",

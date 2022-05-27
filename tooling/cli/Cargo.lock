@@ -2805,6 +2805,7 @@ dependencies = [
  "memchr",
  "phf 0.10.1",
  "schemars",
+ "semver",
  "serde",
  "serde_json",
  "serde_with",

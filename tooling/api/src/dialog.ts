@@ -207,6 +207,11 @@ async function confirm(
   })
 }
 
-export type { DialogFilter, OpenDialogOptions, SaveDialogOptions, MessageDialogOptions }
+export type {
+  DialogFilter,
+  OpenDialogOptions,
+  SaveDialogOptions,
+  MessageDialogOptions
+}
 
 export { open, save, message, ask, confirm }

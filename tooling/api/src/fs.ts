@@ -189,7 +189,7 @@ async function writeTextFile(
   path: string,
   contents: string,
   options?: FsOptions
-): Promise<void>;
+): Promise<void>
 
 /**
  * Writes a UTF-8 text file.
@@ -201,7 +201,7 @@ async function writeTextFile(
 async function writeTextFile(
   file: FsTextFileOption,
   options?: FsOptions
-): Promise<void>;
+): Promise<void>
 
 /**
  * Writes a UTF-8 text file.
@@ -260,7 +260,7 @@ async function writeBinaryFile(
   path: string,
   contents: BinaryFileContents,
   options?: FsOptions
-): Promise<void>;
+): Promise<void>
 
 /**
  * Writes a byte array content to a file.
@@ -272,7 +272,7 @@ async function writeBinaryFile(
 async function writeBinaryFile(
   file: FsBinaryFileOption,
   options?: FsOptions
-): Promise<void>;
+): Promise<void>
 
 /**
  * Writes a byte array content to a file.

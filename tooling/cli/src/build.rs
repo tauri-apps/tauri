@@ -32,10 +32,10 @@ pub struct Options {
   /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
   target: Option<String>,
-  /// List of cargo features to activate
+  /// Space or comma separated list of features to activate
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   features: Option<Vec<String>>,
-  /// List of bundles to package
+  /// Space or comma separated list of bundles to package
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json

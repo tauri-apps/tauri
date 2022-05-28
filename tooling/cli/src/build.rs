@@ -33,10 +33,10 @@ pub struct Options {
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long)]
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   features: Option<Vec<String>>,
   /// List of bundles to package
-  #[clap(short, long)]
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -242,7 +242,11 @@ pub fn command(options: Options) -> Result<()> {
   if config_.tauri.bundle.active {
     let package_types = if let Some(names) = options.bundles {
       let mut types = vec![];
-      for name in names {
+      for name in names
+        .into_iter()
+        .map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
+        .flatten()
+      {
         if name == "none" {
           break;
         }

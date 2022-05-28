@@ -244,8 +244,7 @@ pub fn command(options: Options) -> Result<()> {
       let mut types = vec![];
       for name in names
         .into_iter()
-        .map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
-        .flatten()
+        .flat_map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
       {
         if name == "none" {
           break;

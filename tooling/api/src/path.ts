@@ -349,7 +349,7 @@ async function resourceDir(): Promise<string> {
 
 /**
  * Resolve the path to a resource file.
- * 
+ *
  * @param resourcePath The path to the resource.
  * Must follow the same syntax as defined in `tauri.conf.json > tauri > bundle > resources`, i.e. keeping subfolders and parent dir components (`../`).
  * @returns The full path to the resource.

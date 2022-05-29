@@ -52,7 +52,7 @@ pub struct Options {
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long)]
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]

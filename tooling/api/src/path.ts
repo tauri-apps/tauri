@@ -331,7 +331,8 @@ async function publicDir(): Promise<string> {
 }
 
 /**
- * Returns the path to the user's resource directory.
+ * Returns the path to the application's resource directory.
+ * To resolve a resource path, see the [[resolveResource | `resolveResource API`]].
  *
  * @returns
  */
@@ -341,6 +342,24 @@ async function resourceDir(): Promise<string> {
     message: {
       cmd: 'resolvePath',
       path: '',
+      directory: BaseDirectory.Resource
+    }
+  })
+}
+
+/**
+ * Resolve the path to a resource file.
+ *
+ * @param resourcePath The path to the resource.
+ * Must follow the same syntax as defined in `tauri.conf.json > tauri > bundle > resources`, i.e. keeping subfolders and parent dir components (`../`).
+ * @returns The full path to the resource.
+ */
+async function resolveResource(resourcePath: string): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: resourcePath,
       directory: BaseDirectory.Resource
     }
   })
@@ -559,6 +578,7 @@ export {
   pictureDir,
   publicDir,
   resourceDir,
+  resolveResource,
   runtimeDir,
   templateDir,
   videoDir,

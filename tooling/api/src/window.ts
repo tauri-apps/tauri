@@ -1407,7 +1407,7 @@ interface WindowOptions {
   /**
    * Whether the window is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > tauri > macOSPrivateApi`.
-   * WARNING: Using private APIs on `macOS` prevents your application from being accepted for the `App Store`.
+   * WARNING: Using private APIs on `macOS` prevents your application from being accepted to the `App Store`.
    */
   transparent?: boolean
   /** Whether the window should be maximized upon creation or not. */

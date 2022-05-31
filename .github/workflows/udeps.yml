@@ -29,7 +29,7 @@ jobs:
         clippy:
           - {
               path: './core/tauri/Cargo.toml',
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart'
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart'
             }
           - { path: './core/tauri-build/Cargo.toml', args: '--all-features' }
           - { path: './core/tauri-codegen/Cargo.toml', args: '--all-features' }
@@ -37,7 +37,7 @@ jobs:
           - { path: './core/tauri-runtime/Cargo.toml', args: '--all-features' }
           - {
               path: './core/tauri-runtime-wry/Cargo.toml',
-              args: '--features devtools,system-tray,macos-private-api,objc-exception,ayatana-tray'
+              args: '--features devtools,system-tray,macos-private-api,objc-exception'
             }
           - { path: './core/tauri-utils/Cargo.toml', args: '--all-features' }
           - { path: './tooling/bundler/Cargo.toml', args: '--all-features' }

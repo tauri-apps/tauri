@@ -50,12 +50,8 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart',
               key: 'all'
-            }
-          - {
-              args: '--no-default-features --features ayatana-tray',
-              key: 'no-default'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
           - { args: '--features api-all', key: 'api-all' }

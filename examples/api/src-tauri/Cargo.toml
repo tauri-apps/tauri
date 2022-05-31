@@ -16,9 +16,8 @@ tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "global-sh
 tiny_http = "0.11"
 
 [features]
-default = [ "custom-protocol", "tauri/ayatana-tray" ]
+default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
-gtk-tray = [ "tauri/gtk-tray" ]
 
 # default to small, optimized release binaries
 [profile.release]

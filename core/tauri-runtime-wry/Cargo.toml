@@ -13,7 +13,7 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.17.0", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { version = "0.18.1", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.6.0", path = "../tauri-runtime" }
 tauri-utils = { version = "1.0.0-rc.8", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
@@ -44,7 +44,5 @@ macos-private-api = [
   "tauri-runtime/macos-private-api"
 ]
 objc-exception = [ "wry/objc-exception" ]
-gtk-tray = [ "wry/gtk-tray" ]
-ayatana-tray = [ "wry/ayatana-tray" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
 clipboard = [ "tauri-runtime/clipboard" ]

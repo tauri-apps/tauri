@@ -416,6 +416,7 @@ fn tauri_config_to_bundle_settings(
       let mut icon_path = system_tray_config.icon_path.clone();
       icon_path.set_extension("png");
       resources.push(icon_path.display().to_string());
+      depends.push("pkg-config".to_string());
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());

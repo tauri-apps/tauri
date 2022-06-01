@@ -74,14 +74,12 @@ dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
-notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
 open = { version = "2.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.8", optional = true }
 raw-window-handle = "0.4.2"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
@@ -94,6 +92,10 @@ serialize-to-javascript = "=0.1.1"
 infer = { version = "0.7", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.1", optional = true }
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+rfd = { version = "0.8", optional = true }
+notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
@@ -108,9 +110,9 @@ objc = "0.2"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.16.0"
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.37.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.37.0"
+features = [ "Win32_Foundation" ]
 
 [build-dependencies]
 heck = "0.4"

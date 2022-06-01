@@ -204,7 +204,7 @@ pub use runtime::http;
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
   self::app::tray::{SystemTrayEvent, SystemTrayHandle},
@@ -251,7 +251,7 @@ pub use {
 #[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
 pub use self::runtime::ClipboardManager;
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
 

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
-#[cfg(feature = "updater")]
+#[cfg(desktop)]
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
@@ -21,7 +21,7 @@ use tauri_utils::{platform::current_exe, Env};
 use time::OffsetDateTime;
 use url::Url;
 
-#[cfg(feature = "updater")]
+#[cfg(desktop)]
 use std::io::Seek;
 use std::{
   collections::HashMap,
@@ -33,11 +33,10 @@ use std::{
   time::Duration,
 };
 
-#[cfg(feature = "updater")]
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 use std::ffi::OsStr;
 
-#[cfg(all(feature = "updater", not(target_os = "windows")))]
+#[cfg(all(desktop, not(target_os = "windows")))]
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
@@ -600,7 +599,8 @@ impl<R: Runtime> Update<R> {
     // if there is no signature, bail out.
     verify_signature(&mut archive_buffer, &self.signature, &pub_key)?;
 
-    #[cfg(feature = "updater")]
+    // TODO: implement updater in mobile
+    #[cfg(desktop)]
     {
       // we copy the files depending of the operating system
       // we run the setup, appimage re-install or overwrite the
@@ -638,7 +638,6 @@ impl<R: Runtime> Update<R> {
 // We should have an AppImage already installed to be able to copy and install
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
-#[cfg(feature = "updater")]
 #[cfg(target_os = "linux")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let tmp_dir = tempfile::Builder::new()
@@ -686,7 +685,6 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
 // ## EXE
 // Update server can provide a custom EXE (installer) who can run any task.
-#[cfg(feature = "updater")]
 #[cfg(target_os = "windows")]
 #[allow(clippy::unnecessary_wraps)]
 fn copy_files_and_run<R: Read + Seek>(
@@ -789,7 +787,6 @@ fn copy_files_and_run<R: Read + Seek>(
 // │      └── Contents                          # Application contents...
 // │          └── ...
 // └── ...
-#[cfg(feature = "updater")]
 #[cfg(target_os = "macos")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
   let mut extracted_files: Vec<PathBuf> = Vec::new();

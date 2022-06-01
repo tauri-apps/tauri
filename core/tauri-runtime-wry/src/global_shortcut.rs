@@ -16,10 +16,10 @@ use std::{
 use crate::{getter, Context, Message};
 
 use tauri_runtime::{Error, GlobalShortcutManager, Result, UserEvent};
-pub use wry::application::global_shortcut::ShortcutManager as WryShortcutManager;
+#[cfg(desktop)]
 use wry::application::{
   accelerator::{Accelerator, AcceleratorId},
-  global_shortcut::GlobalShortcut,
+  global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
 };
 
 pub type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;

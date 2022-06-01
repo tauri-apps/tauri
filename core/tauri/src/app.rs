@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 pub(crate) mod tray;
 
 use crate::{
@@ -46,7 +46,7 @@ use std::{
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
 #[cfg(updater)]
@@ -57,7 +57,7 @@ use crate::ActivationPolicy;
 
 pub(crate) type GlobalMenuEventListener<R> = Box<dyn Fn(WindowMenuEvent<R>) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(GlobalWindowEvent<R>) + Send + Sync>;
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 type SystemTrayEventListener<R> = Box<dyn Fn(&AppHandle<R>, tray::SystemTrayEvent) + Send + Sync>;
 
 /// Api exposed on the `ExitRequested` event.
@@ -322,11 +322,11 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
   /// The updater configuration.
   #[cfg(updater)]
@@ -375,11 +375,11 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: self.global_shortcut_manager.clone(),
       #[cfg(feature = "clipboard")]
       clipboard_manager: self.clipboard_manager.clone(),
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       tray_handle: self.tray_handle.clone(),
       #[cfg(updater)]
       updater_settings: self.updater_settings.clone(),
@@ -482,11 +482,11 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
   handle: AppHandle<R>,
 }
@@ -548,7 +548,7 @@ macro_rules! shared_app_impl {
         updater::builder(self.app_handle())
       }
 
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
       /// Gets a handle handle to the system tray.
       pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
@@ -568,7 +568,7 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a copy of the global shortcut manager instance.
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
       pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
         self.global_shortcut_manager.clone()
@@ -705,6 +705,7 @@ impl<R: Runtime> App<R> {
   ///   }
   /// }
   /// ```
+  #[cfg(desktop)]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
@@ -814,11 +815,11 @@ pub struct Builder<R: Runtime> {
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
   /// The app system tray.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   system_tray: Option<tray::SystemTray>,
 
   /// System tray event handlers.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
 
   /// The updater configuration.
@@ -845,9 +846,9 @@ impl<R: Runtime> Builder<R> {
       menu: None,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       system_tray: None,
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       system_tray_event_listeners: Vec::new(),
       #[cfg(updater)]
       updater_settings: Default::default(),
@@ -1039,7 +1040,7 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
   pub fn system_tray(mut self, system_tray: tray::SystemTray) -> Self {
@@ -1151,7 +1152,7 @@ impl<R: Runtime> Builder<R> {
   ///     _ => {}
   ///   });
   /// ```
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
   pub fn on_system_tray_event<
@@ -1233,7 +1234,7 @@ impl<R: Runtime> Builder<R> {
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
-    #[cfg(feature = "system-tray")]
+    #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_icon = {
       let icon = context.system_tray_icon.clone();
 
@@ -1313,7 +1314,7 @@ impl<R: Runtime> Builder<R> {
 
     let runtime_handle = runtime.handle();
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = runtime.global_shortcut_manager();
 
     #[cfg(feature = "clipboard")]
@@ -1322,20 +1323,20 @@ impl<R: Runtime> Builder<R> {
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: global_shortcut_manager.clone(),
       #[cfg(feature = "clipboard")]
       clipboard_manager: clipboard_manager.clone(),
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
-        #[cfg(feature = "global-shortcut")]
+        #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager,
         #[cfg(feature = "clipboard")]
         clipboard_manager,
-        #[cfg(feature = "system-tray")]
+        #[cfg(all(desktop, feature = "system-tray"))]
         tray_handle: None,
         #[cfg(updater)]
         updater_settings: self.updater_settings,
@@ -1385,7 +1386,7 @@ impl<R: Runtime> Builder<R> {
       }
     }
 
-    #[cfg(feature = "system-tray")]
+    #[cfg(all(desktop, feature = "system-tray"))]
     if let Some(system_tray) = self.system_tray {
       let mut ids = HashMap::new();
       if let Some(menu) = system_tray.menu() {

@@ -4,8 +4,8 @@
 
 //! The Tauri API interface.
 
-#[cfg(feature = "dialog")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "dialog")))]
+#[cfg(all(desktop, feature = "dialog"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "dialog"))))]
 pub mod dialog;
 pub mod dir;
 pub mod file;
@@ -28,8 +28,8 @@ pub mod cli;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "cli")))]
 pub use clap;
 
-#[cfg(feature = "notification")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "notification")))]
+#[cfg(all(desktop, feature = "notification"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "notification"))))]
 pub mod notification;
 
 mod error;

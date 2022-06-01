@@ -508,11 +508,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg(all(desktop, feature = "wry"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "wry"))))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(feature = "wry")]
+#[cfg(all(desktop, feature = "wry"))]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -619,7 +619,8 @@ impl Window<crate::Wry> {
   ///   });
   /// }
   /// ```
-  #[cfg_attr(doc_cfg, doc(cfg(eature = "wry")))]
+  #[cfg(desktop)]
+  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", desktop))))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,

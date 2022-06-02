@@ -448,7 +448,7 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(shell_execute)]
+    #[cfg(any(shell_execute, shell_sidecar))]
     {
       crate::api::process::kill_children();
     }

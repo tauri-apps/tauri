@@ -30,7 +30,6 @@ features = [
   "system-tray",
   "devtools",
   "http-multipart",
-  "gtk-tray",
   "icon-png",
   "dox"
 ]

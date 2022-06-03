@@ -5,7 +5,7 @@
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   command_env,
-  config::{get as get_config, AppUrl, WindowUrl},
+  config::{get as get_config, AppUrl, ShellAllowlistOpen, WindowUrl},
   manifest::rewrite_manifest,
   updater_signature::sign_file_from_env_variables,
 };
@@ -301,6 +301,14 @@ pub fn command(options: Options) -> Result<()> {
       package_types,
     )
     .with_context(|| "failed to build bundler settings")?;
+
+    // set env vars used by the bundler
+    if matches!(
+      config_.tauri.allowlist.shell.open,
+      ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
+    ) {
+      std::env::set_var("SHELL_OPEN_API", "1");
+    }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 

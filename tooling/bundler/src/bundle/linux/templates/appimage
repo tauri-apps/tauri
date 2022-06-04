@@ -7,6 +7,7 @@ set -euxo pipefail
 
 export ARCH={{arch}}
 APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
+TRAY_LIBRARY_PATH=${TRAY_LIBRARY_PATH-0}
 
 mkdir -p "{{app_name}}.AppDir"
 cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
@@ -16,6 +17,11 @@ cd "{{app_name}}.AppDir"
 if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; then
   echo "Copying /usr/bin/xdg-open"
   cp /usr/bin/xdg-open usr/bin
+fi
+
+if [[ "$TRAY_LIBRARY_PATH" != "0" ]]; then
+  echo "Copying appindicator library ${TRAY_LIBRARY_PATH}"
+  cp ${TRAY_LIBRARY_PATH} usr/lib
 fi
 
 # Copy WebKit files.

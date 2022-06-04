@@ -830,9 +830,7 @@ impl<R: Runtime> WindowManager<R> {
         // ignore query string and fragment
         .next()
         .unwrap()
-        // safe to unwrap: request.uri() always starts with this prefix
-        .strip_prefix("tauri://localhost")
-        .unwrap()
+        .trim_start_matches("tauri://localhost")
         .to_string();
       let asset = manager.get_asset(path)?;
       let mut builder = HttpResponseBuilder::new()

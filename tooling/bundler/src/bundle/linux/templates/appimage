@@ -8,6 +8,12 @@ set -euxo pipefail
 export ARCH={{arch}}
 APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
 
+if [ "$ARCH" == "i686" ]; then
+    linuxdeploy_arch="i386"
+else
+    linuxdeploy_arch="$ARCH"
+fi
+
 mkdir -p "{{app_name}}.AppDir"
 cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 
@@ -34,7 +40,7 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 cd ..
 
 wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-wget -q -4 -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${ARCH}.AppImage
+wget -q -4 -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
 
 chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-${ARCH}.AppImage

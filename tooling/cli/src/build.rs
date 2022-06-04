@@ -309,6 +309,9 @@ pub fn command(options: Options) -> Result<()> {
     ) {
       std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
     }
+    if config_.tauri.bundle.appimage.gstreamer {
+      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+    }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 

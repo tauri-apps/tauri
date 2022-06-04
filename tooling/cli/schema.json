@@ -118,6 +118,9 @@
         },
         "bundle": {
           "active": false,
+          "appimage": {
+            "gstreamer": false
+          },
           "deb": {
             "files": {}
           },
@@ -245,6 +248,9 @@
           "description": "The bundler configuration.",
           "default": {
             "active": false,
+            "appimage": {
+              "gstreamer": false
+            },
             "deb": {
               "files": {}
             },
@@ -955,6 +961,17 @@
             "null"
           ]
         },
+        "appimage": {
+          "description": "Configuration for the AppImage bundle.",
+          "default": {
+            "gstreamer": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppImageConfig"
+            }
+          ]
+        },
         "deb": {
           "description": "Configuration for the Debian bundle.",
           "default": {
@@ -1022,6 +1039,18 @@
           "type": "string"
         }
       ]
+    },
+    "AppImageConfig": {
+      "description": "Configuration for AppImage bundles.",
+      "type": "object",
+      "properties": {
+        "gstreamer": {
+          "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     },
     "DebConfig": {
       "description": "Configuration for Debian (.deb) bundles.",

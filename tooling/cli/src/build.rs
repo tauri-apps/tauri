@@ -307,7 +307,7 @@ pub fn command(options: Options) -> Result<()> {
       config_.tauri.allowlist.shell.open,
       ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
     ) {
-      std::env::set_var("SHELL_OPEN_API", "1");
+      std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;

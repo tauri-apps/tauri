@@ -6,14 +6,14 @@
 set -euxo pipefail
 
 export ARCH={{arch}}
-SHELL_OPEN_API=${SHELL_OPEN_API-0}
+APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
 
 mkdir -p "{{app_name}}.AppDir"
 cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 
 cd "{{app_name}}.AppDir"
 
-if [[ "$SHELL_OPEN_API" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; then
+if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; then
   echo "Copying /usr/bin/xdg-open"
   cp /usr/bin/xdg-open usr/bin
 fi

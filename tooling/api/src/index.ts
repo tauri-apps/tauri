@@ -30,7 +30,11 @@ import * as updater from './updater'
 import * as window from './window'
 import * as os from './os'
 
+/** @ignore */
+const invoke = tauri.invoke
+
 export {
+  invoke,
   app,
   cli,
   clipboard,

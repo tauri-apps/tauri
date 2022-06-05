@@ -69,11 +69,11 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
     const callback = transformCallback((e: T) => {
       resolve(e)
-      Reflect.deleteProperty(window, error)
+      Reflect.deleteProperty(window, "_" + error)
     }, true)
     const error = transformCallback((e) => {
       reject(e)
-      Reflect.deleteProperty(window, callback)
+      Reflect.deleteProperty(window, "_" + callback)
     }, true)
 
     window.__TAURI_IPC__({

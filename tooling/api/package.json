@@ -53,7 +53,6 @@
     "eslint-plugin-security": "1.5.0",
     "lockfile-lint": "4.7.4",
     "prettier": "2.6.2",
-    "rimraf": "3.0.2",
     "tsup": "6.0.1",
     "typedoc": "0.22.17",
     "typedoc-plugin-markdown": "3.12.1",

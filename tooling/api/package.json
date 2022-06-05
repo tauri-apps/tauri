@@ -37,7 +37,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 12.13.0",
+    "node": ">= 14.6.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
@@ -53,7 +53,6 @@
     "eslint-plugin-security": "1.5.0",
     "lockfile-lint": "4.7.4",
     "prettier": "2.6.2",
-    "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",
     "tsup": "6.0.1",
     "typedoc": "0.22.17",

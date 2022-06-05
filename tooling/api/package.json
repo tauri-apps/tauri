@@ -42,7 +42,6 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "tsup": "^5.11.13",
     "@typescript-eslint/eslint-plugin": "5.27.0",
     "@typescript-eslint/parser": "5.27.0",
     "eslint": "8.16.0",
@@ -56,6 +55,7 @@
     "prettier": "2.6.2",
     "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",
+    "tsup": "6.0.1",
     "typedoc": "0.22.17",
     "typedoc-plugin-markdown": "3.12.1",
     "typescript": "4.7.2"

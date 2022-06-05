@@ -6,19 +6,20 @@ export default defineConfig(() => [
     outDir: 'dist',
     format: ['esm', 'cjs'],
     clean: true,
-    splitting: true,
-    dts: true,
-    sourcemap: false,
-    keepNames: true,
+    minify: true,
+    platform: 'browser',
+    dts: {
+      resolve: true
+    }
   },
   {
     entry: { bundle: 'src/index.ts' },
     outDir: '../../core/tauri/scripts',
     format: ['iife'],
     globalName: '__TAURI__',
-    splitting: false,
     clean: false,
-    dts: false,
-    sourcemap: false,
+    minify: true,
+    platform: 'browser',
+    dts: false
   }
 ])

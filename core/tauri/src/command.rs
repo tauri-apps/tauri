@@ -8,8 +8,8 @@
 //! attribute macro along the way and used by [`crate::generate_handler`] macro.
 
 use crate::hooks::InvokeError;
-use crate::runtime::Runtime;
 use crate::InvokeMessage;
+use crate::Runtime;
 use serde::de::Visitor;
 use serde::{Deserialize, Deserializer};
 
@@ -49,9 +49,10 @@ pub trait CommandArg<'de, R: Runtime>: Sized {
 
 /// Automatically implement [`CommandArg`] for any type that can be deserialized.
 impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
-  fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
+  fn from_command(command: CommandItem<'de, R>) -> Result<D, InvokeError> {
+    let name = command.name;
     let arg = command.key;
-    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(arg, e).into())
+    Self::deserialize(command).map_err(|e| crate::Error::InvalidArgs(name, arg, e).into())
   }
 }
 
@@ -154,7 +155,7 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 /// Nothing in this module is considered stable.
 #[doc(hidden)]
 pub mod private {
-  use crate::{runtime::Runtime, InvokeError, InvokeResolver};
+  use crate::{InvokeError, InvokeResolver, Runtime};
   use futures::{FutureExt, TryFutureExt};
   use serde::Serialize;
   use serde_json::Value;

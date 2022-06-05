@@ -1,5 +1,17 @@
 # Changelog
 
+## \[0.1.2]
+
+- Expose `native-host` option in tauri-driver and set default to `127.0.0.1`.
+  - [cd9dfc7b](https://www.github.com/tauri-apps/tauri/commit/cd9dfc7b9a3fe0e04e40d9b0f9be674aefd0d725) fix(driver): expose native-host option and set default to 127.0.0.1 ([#3816](https://www.github.com/tauri-apps/tauri/pull/3816)) on 2022-03-31
+
+## \[0.1.1]
+
+- The minimum Rust version is now `1.56`.
+  - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
+- Add `args` field (array of application CLI arguments) to the `tauri:options` capabilities.
+  - [d0970e34](https://www.github.com/tauri-apps/tauri/commit/d0970e3499297a6c102a36f2dc479d3d657bfaf3) feat(driver): add `args` to `tauri:options` ([#3154](https://www.github.com/tauri-apps/tauri/pull/3154)) on 2022-01-03
+
 ## \[0.1.0]
 
 - Initial release including Linux and Windows support.

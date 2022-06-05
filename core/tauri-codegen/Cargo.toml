@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "1.0.0-beta.4"
+version = "1.0.0-rc.8"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -13,23 +13,29 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-sha2 = "0.9"
+sha2 = "0.10"
 base64 = "0.13"
-blake3 = { version = "1.3", features = [ "rayon" ] }
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { version = "1.0.0-beta.3", path = "../tauri-utils", features = [ "build" ] }
+tauri-utils = { version = "1.0.0-rc.8", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-zstd = { version = "0.10", optional = true }
-regex = { version = "1", optional = true }
-uuid = { version = "0.8", features = [ "v4" ] }
+brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
+regex = { version = "1.5.6", optional = true }
+uuid = { version = "1", features = [ "v4" ] }
+semver = "1"
+
+[target."cfg(windows)".dependencies]
+ico = "0.1"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+png = "0.17"
 
 [features]
 default = [ "compression" ]
-compression = [ "zstd", "tauri-utils/compression" ]
-isolation = ["tauri-utils/isolation"]
-shell-scope = ["regex"]
+compression = [ "brotli", "tauri-utils/compression" ]
+isolation = [ "tauri-utils/isolation" ]
+shell-scope = [ "regex" ]
 config-json5 = [ "tauri-utils/config-json5" ]

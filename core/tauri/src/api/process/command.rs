@@ -4,7 +4,7 @@
 
 use std::{
   collections::HashMap,
-  io::{BufRead, BufReader, Write},
+  io::{BufReader, Write},
   path::PathBuf,
   process::{Command as StdCommand, Stdio},
   sync::{Arc, Mutex, RwLock},
@@ -19,8 +19,8 @@ use std::os::windows::process::CommandExt;
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-use crate::async_runtime::{block_on as block_on_task, channel, Receiver};
-use os_pipe::{pipe, PipeWriter};
+use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
 use tauri_utils::platform;
@@ -55,11 +55,11 @@ pub struct TerminatedPayload {
 #[serde(tag = "event", content = "payload")]
 #[non_exhaustive]
 pub enum CommandEvent {
-  /// Stderr line.
+  /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
   Stderr(String),
-  /// Stdout line.
+  /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
   Stdout(String),
-  /// An error happened.
+  /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
   Error(String),
   /// Command process terminated.
   Terminated(TerminatedPayload),
@@ -215,6 +215,30 @@ impl Command {
   }
 
   /// Spawns the command.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::process::{Command, CommandEvent};
+  /// tauri::async_runtime::spawn(async move {
+  ///   let (mut rx, mut child) = Command::new("cargo")
+  ///     .args(["tauri", "dev"])
+  ///     .spawn()
+  ///     .expect("Failed to spawn cargo");
+  ///
+  ///   let mut i = 0;
+  ///   while let Some(event) = rx.recv().await {
+  ///     if let CommandEvent::Stdout(line) = event {
+  ///       println!("got: {}", line);
+  ///       i += 1;
+  ///       if i == 4 {
+  ///         child.write("message from Rust\n".as_bytes()).unwrap();
+  ///         i = 0;
+  ///       }
+  ///     }
+  ///   }
+  /// });
+  /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
@@ -233,37 +257,18 @@ impl Command {
 
     let (tx, rx) = channel(1);
 
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stdout_reader);
-      for line in reader.lines() {
-        let tx_ = tx_.clone();
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stdout(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
-
-    let tx_ = tx.clone();
-    let guard_ = guard.clone();
-    spawn(move || {
-      let _lock = guard_.read().unwrap();
-      let reader = BufReader::new(stderr_reader);
-      for line in reader.lines() {
-        let tx_ = tx_.clone();
-        block_on_task(async move {
-          let _ = match line {
-            Ok(line) => tx_.send(CommandEvent::Stderr(line)).await,
-            Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
-          };
-        });
-      }
-    });
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stdout_reader,
+      CommandEvent::Stdout,
+    );
+    spawn_pipe_reader(
+      tx.clone(),
+      guard.clone(),
+      stderr_reader,
+      CommandEvent::Stderr,
+    );
 
     spawn(move || {
       let _ = match child_.wait() {
@@ -299,6 +304,13 @@ impl Command {
 
   /// Executes a command as a child process, waiting for it to finish and collecting its exit status.
   /// Stdin, stdout and stderr are ignored.
+  ///
+  /// # Examples
+  /// ```rust,no_run
+  /// use tauri::api::process::Command;
+  /// let status = Command::new("which").args(["ls"]).status().unwrap();
+  /// println!("`which` finished with status: {:?}", status.code());
+  /// ```
   pub fn status(self) -> crate::api::Result<ExitStatus> {
     let (mut rx, _child) = self.spawn()?;
     let code = crate::async_runtime::safe_block_on(async move {
@@ -316,6 +328,15 @@ impl Command {
 
   /// Executes the command as a child process, waiting for it to finish and collecting all of its output.
   /// Stdin is ignored.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::api::process::Command;
+  /// let output = Command::new("echo").args(["TAURI"]).output().unwrap();
+  /// assert!(output.status.success());
+  /// assert_eq!(output.stdout, "TAURI");
+  /// ```
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
@@ -348,6 +369,42 @@ impl Command {
 
     Ok(output)
   }
+}
+
+fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
+  tx: Sender<CommandEvent>,
+  guard: Arc<RwLock<()>>,
+  pipe_reader: PipeReader,
+  wrapper: F,
+) {
+  spawn(move || {
+    let _lock = guard.read().unwrap();
+    let mut reader = BufReader::new(pipe_reader);
+
+    let mut buf = Vec::new();
+    loop {
+      buf.clear();
+      match tauri_utils::io::read_line(&mut reader, &mut buf) {
+        Ok(n) => {
+          if n == 0 {
+            break;
+          }
+          let tx_ = tx.clone();
+          let line = String::from_utf8(buf.clone());
+          block_on_task(async move {
+            let _ = match line {
+              Ok(line) => tx_.send(wrapper(line)).await,
+              Err(e) => tx_.send(CommandEvent::Error(e.to_string())).await,
+            };
+          });
+        }
+        Err(e) => {
+          let tx_ = tx.clone();
+          let _ = block_on_task(async move { tx_.send(CommandEvent::Error(e.to_string())).await });
+        }
+      }
+    }
+  });
 }
 
 // tests for the commands functions.

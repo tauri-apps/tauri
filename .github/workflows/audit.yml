@@ -10,10 +10,14 @@ on:
     - cron: '0 0 * * *'
   push:
     paths:
-      - "**/Cargo.lock"
-      - "**/Cargo.toml"
-      - "**/package.json"
-      - "**/yarn.lock"
+      - '**/Cargo.lock'
+      - '**/Cargo.toml'
+      - '**/package.json'
+      - '**/yarn.lock'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit-rust:
@@ -30,5 +34,5 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: yarn audit
-        working-directory: tooling/cli.js
+        working-directory: tooling/cli/node
         run: yarn audit

@@ -156,7 +156,7 @@ impl<T> Future for JoinHandle<T> {
   type Output = crate::Result<T>;
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     match self.get_mut() {
-      Self::Tokio(t) => t.poll(cx).map_err(|e| crate::Error::JoinError(Box::new(e))),
+      Self::Tokio(t) => t.poll(cx).map_err(Into::into),
     }
   }
 }
@@ -218,7 +218,7 @@ fn default_runtime() -> GlobalRuntime {
 /// For convinience, this method takes a [`TokioHandle`].
 /// Note that you cannot drop the underlying [`TokioRuntime`].
 ///
-/// # Example
+/// # Examples
 ///
 /// ```rust
 /// #[tokio::main]
@@ -285,10 +285,11 @@ where
   F: Future + Send + 'static,
   F::Output: Send + 'static,
 {
-  if tokio::runtime::Handle::try_current().is_ok() {
+  if let Ok(handle) = tokio::runtime::Handle::try_current() {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    spawn(async move {
-      tx.send(task.await).unwrap();
+    let handle_ = handle.clone();
+    handle.spawn_blocking(move || {
+      tx.send(handle_.block_on(task)).unwrap();
     });
     rx.recv().unwrap()
   } else {
@@ -333,8 +334,7 @@ mod tests {
       5
     });
     join.abort();
-    if let crate::Error::JoinError(raw_box) = join.await.unwrap_err() {
-      let raw_error = raw_box.downcast::<tokio::task::JoinError>().unwrap();
+    if let crate::Error::JoinError(raw_error) = join.await.unwrap_err() {
       assert!(raw_error.is_cancelled());
     } else {
       panic!("Abort did not result in the expected `JoinError`");

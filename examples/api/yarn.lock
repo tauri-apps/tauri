@@ -23,9 +23,14 @@
     svelte-hmr "^0.14.7"
 
 "@tauri-apps/api@../../tooling/api/dist":
-  version "1.0.0-beta.8"
+  version "1.0.0-rc.6"
   dependencies:
-    type-fest "2.8.0"
+    type-fest "2.13.0"
+
+"@zerodevx/svelte-json-view@0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@zerodevx/svelte-json-view/-/svelte-json-view-0.2.0.tgz#e4d1f42d3a0fb57c921873fe9e703dbd5d08d989"
+  integrity sha512-hAqzbaDJ+cMDAID0PHr8JT0guSaPsabhVxssy5J1mAqrmUvgrAbxxgTT0RzHSwkACrRn9LP8YDbxrwbHdW0FYw==
 
 debug@^4.3.2:
   version "4.3.3"
@@ -262,10 +267,10 @@ svelte@3.35.0:
   resolved "https://registry.yarnpkg.com/svelte/-/svelte-3.35.0.tgz#e0d0ba60c4852181c2b4fd851194be6fda493e65"
   integrity sha512-gknlZkR2sXheu/X+B7dDImwANVvK1R0QGQLd8CNIfxxGPeXBmePnxfzb6fWwTQRsYQG7lYkZXvpXJvxvpsoB7g==
 
-type-fest@2.8.0:
-  version "2.8.0"
-  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.8.0.tgz#39d7c9f9c508df8d6ce1cf5a966b0e6568dcc50d"
-  integrity sha512-O+V9pAshf9C6loGaH0idwsmugI2LxVNR7DtS40gVo2EXZVYFgz9OuNtOhgHLdHdapOEWNdvz9Ob/eeuaWwwlxA==
+type-fest@2.13.0:
+  version "2.13.0"
+  resolved "https://registry.yarnpkg.com/type-fest/-/type-fest-2.13.0.tgz#d1ecee38af29eb2e863b22299a3d68ef30d2abfb"
+  integrity sha512-lPfAm42MxE4/456+QyIaaVBAwgpJb6xZ8PRu09utnhPdWwcyj9vgy6Sq0Z5yNbJ21EdxB5dRU/Qg8bsyAMtlcw==
 
 vite@^2.6.4:
   version "2.6.14"

@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5000",
@@ -85,26 +86,35 @@
     "allowlist": {
       "all": true,
       "fs": {
-        "scope": ["$APP/db", "$DOWNLOAD/**", "$RESOURCE/**"]
+        "scope": {
+          "allow": ["$APP/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
+        }
       },
       "shell": {
+        "open": true,
         "scope": [
           {
             "name": "sh",
-            "cmd": "sh"
+            "cmd": "sh",
+            "args": ["-c", { "validator": "\\S+" }]
           },
           {
             "name": "cmd",
-            "cmd": "cmd"
+            "cmd": "cmd",
+            "args": ["/C", { "validator": "\\S+" }]
           }
         ]
       },
       "protocol": {
         "asset": true,
-        "assetScope": ["$RESOURCE/**", "$APP/**"]
+        "assetScope": {
+          "allow": ["$APP/db/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
+        }
       },
       "http": {
-        "scope": ["https://jsonplaceholder.typicode.com/todos/*"]
+        "scope": ["http://localhost:3003"]
       }
     },
     "windows": [
@@ -114,7 +124,13 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: img-src: 'self'; style-src 'unsafe-inline' 'self' https://fonts.googleapis.com; img-src 'self' asset: https://asset.localhost blob: data:; font-src https://fonts.gstatic.com"
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "font-src": ["https://fonts.gstatic.com"],
+        "img-src": "'self' asset: https://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+      },
+      "freezePrototype": true
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",

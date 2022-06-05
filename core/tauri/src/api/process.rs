@@ -8,11 +8,11 @@ use crate::Env;
 
 use std::path::PathBuf;
 
-#[cfg(feature = "command")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
+#[cfg(feature = "process-command-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "process-command-api")))]
 mod command;
-#[cfg(feature = "command")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "command")))]
+#[cfg(feature = "process-command-api")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "process-command-api")))]
 pub use command::*;
 
 /// Finds the current running binary's path.
@@ -38,6 +38,19 @@ pub use command::*;
 ///
 /// See [`tauri_utils::platform::current_exe`] for possible security implications.
 ///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::{api::process::current_binary, Env, Manager};
+/// let current_binary_path = current_binary(&Env::default()).unwrap();
+///
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     let current_binary_path = current_binary(&app.env())?;
+///     Ok(())
+///   });
+/// ```
+///
 /// [AppImage]: https://appimage.org/
 pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
   // if we are running from an AppImage, we ONLY want the set AppImage path
@@ -53,6 +66,18 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 ///
 /// See [`current_binary`] for platform specific behavior, and
 /// [`tauri_utils::platform::current_exe`] for possible security implications.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::{api::process::restart, Env, Manager};
+///
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     restart(&app.env());
+///     Ok(())
+///   });
+/// ```
 pub fn restart(env: &Env) {
   use std::process::{exit, Command};
 

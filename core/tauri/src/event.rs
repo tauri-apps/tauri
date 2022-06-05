@@ -4,6 +4,7 @@
 
 use std::{
   boxed::Box,
+  cell::Cell,
   collections::HashMap,
   fmt,
   hash::Hash,
@@ -170,16 +171,21 @@ impl Listeners {
   }
 
   /// Listen to a JS event and immediately unlisten.
-  pub(crate) fn once<F: Fn(Event) + Send + 'static>(
+  pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
     window: Option<String>,
     handler: F,
   ) -> EventHandler {
     let self_ = self.clone();
+    let handler = Cell::new(Some(handler));
+
     self.listen(event, window, move |event| {
       self_.unlisten(event.id);
-      handler(event);
+      let handler = handler
+        .take()
+        .expect("attempted to call handler more than once");
+      handler(event)
     })
   }
 
@@ -294,17 +300,21 @@ mod test {
   }
 }
 
-pub fn unlisten_js(listeners_object_name: String, event_id: u64) -> String {
+pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: u64) -> String {
   format!(
     "
-      for (var event in (window['{listeners}'] || {{}})) {{
-        var listeners = (window['{listeners}'] || {{}})[event]
+      (function () {{
+        const listeners = (window['{listeners}'] || {{}})['{event_name}']
         if (listeners) {{
-          window['{listeners}'][event] = window['{listeners}'][event].filter(function (e) {{ return e.id !== {event_id} }})
+          const index = window['{listeners}']['{event_name}'].findIndex(e => e.id === {event_id})
+          if (index > -1) {{
+            window['{listeners}']['{event_name}'].splice(index, 1)
+          }}
         }}
-      }}
+      }})()
     ",
     listeners = listeners_object_name,
+    event_name = event_name,
     event_id = event_id,
   )
 }

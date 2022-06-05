@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(shell_scope)]
 use crate::ExecuteArgs;
@@ -55,10 +57,12 @@ pub struct CommandOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The execute script API.
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
   #[serde(rename_all = "camelCase")]
   Execute {
     program: String,
@@ -67,20 +71,16 @@ pub enum Cmd {
     #[serde(default)]
     options: CommandOptions,
   },
-  StdinWrite {
-    pid: ChildId,
-    buffer: Buffer,
-  },
-  KillChild {
-    pid: ChildId,
-  },
-  Open {
-    path: String,
-    with: Option<String>,
-  },
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
+  StdinWrite { pid: ChildId, buffer: Buffer },
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
+  KillChild { pid: ChildId },
+  #[cmd(shell_open, "shell > open")]
+  Open { path: String, with: Option<String> },
 }
 
 impl Cmd {
+  #[module_command_handler(shell_script)]
   #[allow(unused_variables)]
   fn execute<R: Runtime>(
     context: InvokeContext<R>,
@@ -88,18 +88,16 @@ impl Cmd {
     args: ExecuteArgs,
     on_event_fn: CallbackFn,
     options: CommandOptions,
-  ) -> crate::Result<ChildId> {
+  ) -> super::Result<ChildId> {
     let mut command = if options.sidecar {
       #[cfg(not(shell_sidecar))]
-      return Err(crate::Error::ApiNotAllowlisted(
-        "shell > sidecar".to_string(),
-      ));
+      return Err(crate::Error::ApiNotAllowlisted("shell > sidecar".to_string()).into_anyhow());
       #[cfg(shell_sidecar)]
       {
         let program = PathBuf::from(program);
         let program_as_string = program.display().to_string();
         let program_no_ext_as_string = program.with_extension("").display().to_string();
-        let is_configured = context
+        let configured_sidecar = context
           .config
           .tauri
           .bundle
@@ -108,34 +106,36 @@ impl Cmd {
           .map(|bins| {
             bins
               .iter()
-              .any(|b| b == &program_as_string || b == &program_no_ext_as_string)
+              .find(|b| b == &&program_as_string || b == &&program_no_ext_as_string)
           })
           .unwrap_or_default();
-        if is_configured {
+        if let Some(sidecar) = configured_sidecar {
           context
             .window
             .state::<Scopes>()
             .shell
-            .prepare(&program.to_string_lossy(), args, true)
-            .map_err(Box::new)?
+            .prepare_sidecar(&program.to_string_lossy(), sidecar, args)
+            .map_err(crate::error::into_anyhow)?
         } else {
-          return Err(crate::Error::SidecarNotAllowed(program));
+          return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());
         }
       }
     } else {
       #[cfg(not(shell_execute))]
-      return Err(crate::Error::ApiNotAllowlisted(
-        "shell > execute".to_string(),
-      ));
+      return Err(crate::Error::ApiNotAllowlisted("shell > execute".to_string()).into_anyhow());
       #[cfg(shell_execute)]
       match context
         .window
         .state::<Scopes>()
         .shell
-        .prepare(&program, args, false)
+        .prepare(&program, args)
       {
         Ok(cmd) => cmd,
-        Err(_) => return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program))),
+        Err(e) => {
+          #[cfg(debug_assertions)]
+          eprintln!("{}", e);
+          return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
+        }
       }
     };
     #[cfg(any(shell_execute, shell_sidecar))]
@@ -169,12 +169,12 @@ impl Cmd {
     }
   }
 
-  #[cfg(any(shell_execute, shell_sidecar))]
+  #[module_command_handler(shell_script)]
   fn stdin_write<R: Runtime>(
     _context: InvokeContext<R>,
     pid: ChildId,
     buffer: Buffer,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
       match buffer {
         Buffer::Text(t) => child.write(t.as_bytes())?,
@@ -184,41 +184,23 @@ impl Cmd {
     Ok(())
   }
 
-  #[cfg(not(any(shell_execute, shell_sidecar)))]
-  fn stdin_write<R: Runtime>(
-    _context: InvokeContext<R>,
-    _pid: ChildId,
-    _buffer: Buffer,
-  ) -> crate::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted(
-      "shell > execute or shell > sidecar".into(),
-    ))
-  }
-
-  #[cfg(any(shell_execute, shell_sidecar))]
-  fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> crate::Result<()> {
+  #[module_command_handler(shell_script)]
+  fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> super::Result<()> {
     if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
       child.kill()?;
     }
     Ok(())
   }
 
-  #[cfg(not(any(shell_execute, shell_sidecar)))]
-  fn kill_child<R: Runtime>(_context: InvokeContext<R>, _pid: ChildId) -> crate::Result<()> {
-    Err(crate::Error::ApiNotAllowlisted(
-      "shell > execute or shell > sidecar".into(),
-    ))
-  }
-
   /// Open a (url) path with a default or specific browser opening program.
   ///
   /// See [`crate::api::shell::open`] for how it handles security-related measures.
-  #[module_command_handler(shell_open, "shell > open")]
+  #[module_command_handler(shell_open)]
   fn open<R: Runtime>(
     context: InvokeContext<R>,
     path: String,
     with: Option<String>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     use std::str::FromStr;
 
     with

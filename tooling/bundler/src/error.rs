@@ -9,15 +9,12 @@ use thiserror::Error as DeriveError;
 #[derive(Debug, DeriveError)]
 #[non_exhaustive]
 pub enum Error {
+  /// Error running tauri_utils API.
+  #[error("{0}")]
+  Resource(#[from] tauri_utils::Error),
   /// Bundler error.
   #[error("{0}")]
   BundlerError(#[from] anyhow::Error),
-  /// Failed to use glob pattern.
-  #[error("`{0}`")]
-  GlobError(#[from] glob::GlobError),
-  /// Invalid glob pattern.
-  #[error("`{0}`")]
-  GlobPatternError(#[from] glob::PatternError),
   /// I/O error.
   #[error("`{0}`")]
   IoError(#[from] io::Error),
@@ -37,6 +34,7 @@ pub enum Error {
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
   /// Zip error.
+  #[cfg(target_os = "windows")]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
   /// Hex error.
@@ -57,6 +55,14 @@ pub enum Error {
   #[cfg(windows)]
   #[error("`{0}`")]
   HttpError(#[from] attohttpc::Error),
+  /// Invalid glob pattern.
+  #[cfg(windows)]
+  #[error("{0}")]
+  GlobPattern(#[from] glob::PatternError),
+  /// Failed to use glob pattern.
+  #[cfg(windows)]
+  #[error("`{0}`")]
+  Glob(#[from] glob::GlobError),
   /// Failed to validate downloaded file hash.
   #[error("hash mismatch of downloaded file")]
   HashError,

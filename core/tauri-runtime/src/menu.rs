@@ -146,8 +146,8 @@ pub enum MenuUpdate {
   SetNativeImage(NativeImage),
 }
 
-pub trait TrayHandle: fmt::Debug {
-  fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
+pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
+  fn set_icon(&self, icon: crate::TrayIcon) -> crate::Result<()>;
   fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
@@ -188,7 +188,7 @@ impl Menu {
 
   /// Creates a new window menu with the given items.
   ///
-  /// # Example
+  /// # Examples
   /// ```
   /// # use tauri_runtime::menu::{Menu, MenuItem, CustomMenuItem, Submenu};
   /// Menu::with_items([
@@ -396,19 +396,95 @@ impl From<Submenu> for MenuEntry {
   }
 }
 
+/// Application metadata for the [`MenuItem::About`] action.
+///
+/// ## Platform-specific
+///
+/// - **Windows / macOS / Android / iOS:** The metadata is ignored on these platforms.
+#[derive(Debug, Clone, Default)]
+#[non_exhaustive]
+pub struct AboutMetadata {
+  /// The application name.
+  pub version: Option<String>,
+  /// The authors of the application.
+  pub authors: Option<Vec<String>>,
+  /// Application comments.
+  pub comments: Option<String>,
+  /// The copyright of the application.
+  pub copyright: Option<String>,
+  /// The license of the application.
+  pub license: Option<String>,
+  /// The application website.
+  pub website: Option<String>,
+  /// The website label.
+  pub website_label: Option<String>,
+}
+
+impl AboutMetadata {
+  /// Creates the default metadata for the [`MenuItem::About`] action, which is just empty.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  /// Defines the application version.
+  pub fn version(mut self, version: impl Into<String>) -> Self {
+    self.version.replace(version.into());
+    self
+  }
+
+  /// Defines the application authors.
+  pub fn authors(mut self, authors: Vec<String>) -> Self {
+    self.authors.replace(authors);
+    self
+  }
+
+  /// Defines the application comments.
+  pub fn comments(mut self, comments: impl Into<String>) -> Self {
+    self.comments.replace(comments.into());
+    self
+  }
+
+  /// Defines the application copyright.
+  pub fn copyright(mut self, copyright: impl Into<String>) -> Self {
+    self.copyright.replace(copyright.into());
+    self
+  }
+
+  /// Defines the application license.
+  pub fn license(mut self, license: impl Into<String>) -> Self {
+    self.license.replace(license.into());
+    self
+  }
+
+  /// Defines the application version.
+  pub fn website(mut self, website: impl Into<String>) -> Self {
+    self.website.replace(website.into());
+    self
+  }
+
+  /// Defines the application version.
+  pub fn website_label(mut self, website_label: impl Into<String>) -> Self {
+    self.website_label.replace(website_label.into());
+    self
+  }
+}
+
 /// A menu item, bound to a pre-defined action or `Custom` emit an event. Note that status bar only
 /// supports `Custom` menu item variants. And on the menu bar, some platforms might not support some
 /// of the variants. Unsupported variant will be no-op on such platform.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum MenuItem {
-  /// Shows a standard "About" item
+  /// Shows a standard "About" item.
+  ///
+  /// The first value is the application name, and the second is its metadata.
   ///
   /// ## Platform-specific
   ///
   /// - **Windows / Android / iOS:** Unsupported
+  /// - **Linux:** The metadata is only applied on Linux
   ///
-  About(String),
+  About(String, AboutMetadata),
 
   /// A standard "hide the app" menu item.
   ///

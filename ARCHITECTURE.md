@@ -44,13 +44,13 @@ A typescript library that creates `cjs` and `esm` Javascript endpoints for you t
 #### [bundler](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) [RUST / SHELL]
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
 
-#### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.js) [JS]
-Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, and `yarn`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli.rs).
+#### [cli.js](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) [JS]
+It is a wrapper around [cli.rs](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
 
-#### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli.rs) [RUST]
+#### [cli.rs](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
 
-#### [create-tauri-app](https://github.com/tauri-apps/tauri/tree/dev/tooling/create-tauri-app) [JS]
+#### [create-tauri-app](https://github.com/tauri-apps/create-tauri-app) [JS]
 This is a toolkit that will enable engineering teams to rapidly scaffold out a new tauri-apps project using the frontend framework of their choice (as long as it has been configured).
 
 # External Crates
@@ -63,9 +63,6 @@ Cross-platform application window creation library in Rust that supports all maj
 ## [WRY](https://github.com/tauri-apps/wry)
 WRY is a cross-platform WebView rendering library in Rust that supports all major desktop platforms like Windows, macOS, and Linux.
 Tauri uses WRY as the abstract layer responsible to determine which webview is used (and how interactions are made).
-
-## [tauri-hotkey-rs](https://github.com/tauri-apps/tauri-hotkey-rs)
-We needed to fix hotkey to work on all platforms, because upstream was not being responsive.
 
 # Additional tooling
 

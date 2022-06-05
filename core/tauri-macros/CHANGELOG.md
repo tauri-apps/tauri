@@ -1,5 +1,86 @@
 # Changelog
 
+## \[1.0.0-rc.8]
+
+- **Breaking change:** `PackageInfo::version` is now a `semver::Version` instead of a `String`.
+  - Bumped due to a bump in tauri-utils.
+  - [2badbd2d](https://www.github.com/tauri-apps/tauri/commit/2badbd2d7ed51bf33c1b547b4c837b600574bd4a) refactor: force semver versions, change updater `should_install` sig ([#4215](https://www.github.com/tauri-apps/tauri/pull/4215)) on 2022-05-25
+  - [a7388e23](https://www.github.com/tauri-apps/tauri/commit/a7388e23c3b9019d48b078cae00a75c74d74d11b) fix(ci): adjust change file to include tauri-utils and tauri-codegen on 2022-05-27
+
+## \[1.0.0-rc.7]
+
+- Allow configuring the display options for the MSI execution allowing quieter updates.
+  - Bumped due to a bump in tauri-utils.
+  - [9f2c3413](https://www.github.com/tauri-apps/tauri/commit/9f2c34131952ea83c3f8e383bc3cec7e1450429f) feat(core): configure msiexec display options, closes [#3951](https://www.github.com/tauri-apps/tauri/pull/3951) ([#4061](https://www.github.com/tauri-apps/tauri/pull/4061)) on 2022-05-15
+
+## \[1.0.0-rc.6]
+
+- Added `$schema` support to `tauri.conf.json`.
+  - Bumped due to a bump in tauri-utils.
+  - [715cbde3](https://www.github.com/tauri-apps/tauri/commit/715cbde3842a916c4ebeab2cab348e1774b5c192) feat(config): add `$schema` to `tauri.conf.json`, closes [#3464](https://www.github.com/tauri-apps/tauri/pull/3464) ([#4031](https://www.github.com/tauri-apps/tauri/pull/4031)) on 2022-05-03
+- The `dangerous_allow_asset_csp_modification` configuration value has been changed to allow a list of CSP directives to disable.
+  - Bumped due to a bump in tauri-utils.
+  - [164078c0](https://www.github.com/tauri-apps/tauri/commit/164078c0b719ccbc12e956fecf8a7d4a3c5044e1) feat: allow limiting dangerousDisableAssetCspModification, closes [#3831](https://www.github.com/tauri-apps/tauri/pull/3831) ([#4021](https://www.github.com/tauri-apps/tauri/pull/4021)) on 2022-05-02
+
+## \[1.0.0-rc.5]
+
+- Read platform-specific configuration files when generating code without the `TAURI_CONFIG` env var.
+  - Bumped due to a bump in tauri-codegen.
+  - [edf85bc1](https://www.github.com/tauri-apps/tauri/commit/edf85bc1d18450c92aee17f7f99c163abe432ebd) fix(codegen): read platform-specific config file ([#3966](https://www.github.com/tauri-apps/tauri/pull/3966)) on 2022-04-25
+
+## \[1.0.0-rc.4]
+
+- Replace multiple dependencies who's C code compiled concurrently and caused
+  the other ones to bloat compile time significantly.
+
+- `zstd` -> `brotli`
+
+- `blake3` -> a vendored version of the blake3 reference
+
+- `ring` -> `getrandom`
+
+See https://github.com/tauri-apps/tauri/pull/3773 for more information about
+these specific choices.
+
+- [8661e3e2](https://www.github.com/tauri-apps/tauri/commit/8661e3e24d96c399bfbcdee5d8e9d6beba2265a7) replace dependencies with long build times when used together (closes [#3571](https://www.github.com/tauri-apps/tauri/pull/3571)) ([#3773](https://www.github.com/tauri-apps/tauri/pull/3773)) on 2022-03-27
+
+## \[1.0.0-rc.3]
+
+- Parse window icons at compile time.
+  - Bumped due to a bump in tauri-codegen.
+  - [8c935872](https://www.github.com/tauri-apps/tauri/commit/8c9358725a17dcc2acaf4d10c3f654afdff586b0) refactor(core): move `png` and `ico` behind Cargo features ([#3588](https://www.github.com/tauri-apps/tauri/pull/3588)) on 2022-03-05
+
+## \[1.0.0-rc.2]
+
+- Changed the default value for `tauri > bundle > macOS > minimumSystemVersion` to `10.13`.
+  - Bumped due to a bump in tauri-utils.
+  - [fce344b9](https://www.github.com/tauri-apps/tauri/commit/fce344b90b7227f8f5514853c2f885fb24d3648e) feat(core): set default value for `minimum_system_version` to 10.13 ([#3497](https://www.github.com/tauri-apps/tauri/pull/3497)) on 2022-02-17
+
+## \[1.0.0-rc.1]
+
+- Change default value for the `freezePrototype` configuration to `false`.
+  - Bumped due to a bump in tauri-utils.
+  - [3a4c0160](https://www.github.com/tauri-apps/tauri/commit/3a4c01606184be762adee055ddac803de0d28527) fix(core): change default `freezePrototype` to false, closes [#3416](https://www.github.com/tauri-apps/tauri/pull/3416) [#3406](https://www.github.com/tauri-apps/tauri/pull/3406) ([#3423](https://www.github.com/tauri-apps/tauri/pull/3423)) on 2022-02-12
+
+## \[1.0.0-rc.0]
+
+- Adds support for using JSON5 format for the `tauri.conf.json` file, along with also supporting the `.json5` extension.
+
+Here is the logic flow that determines if JSON or JSON5 will be used to parse the config:
+
+1. Check if `tauri.conf.json` exists
+   a. Parse it with `serde_json`
+   b. Parse it with `json5` if `serde_json` fails
+   c. Return original `serde_json` error if all above steps failed
+2. Check if `tauri.conf.json5` exists
+   a. Parse it with `json5`
+   b. Return error if all above steps failed
+3. Return error if all above steps failed
+
+- [995de57a](https://www.github.com/tauri-apps/tauri/commit/995de57a76cf51215277673e526d7ec32b86b564) Add seamless support for using JSON5 in the config file ([#47](https://www.github.com/tauri-apps/tauri/pull/47)) on 2022-02-03
+- The minimum Rust version is now `1.56`.
+  - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
+
 ## \[1.0.0-beta.5]
 
 - Embed Info.plist file contents on binary on dev.
@@ -75,7 +156,7 @@
 - Fixes a name collision when the command function is named `invoke`.
   - [7862ec5](https://www.github.com/tauri-apps/tauri/commit/7862ec562fa70e3733263ce1f690d6cd2943c0b4) fix(macros): change invoke binding in generate handler ([#1804](https://www.github.com/tauri-apps/tauri/pull/1804)) on 2021-05-12
 - Fixes a name collision when the command function is named `message` or `resolver`.
-  - [0b87532](https://www.github.com/tauri-apps/tauri/commit/0b875327067ca825ff6f6f26c9b2ce6fcb001e79) fix(macros): fix rest of command collisons ([#1805](https://www.github.com/tauri-apps/tauri/pull/1805)) on 2021-05-12
+  - [0b87532](https://www.github.com/tauri-apps/tauri/commit/0b875327067ca825ff6f6f26c9b2ce6fcb001e79) fix(macros): fix rest of command collisions ([#1805](https://www.github.com/tauri-apps/tauri/pull/1805)) on 2021-05-12
 - Fixes a name collision when the command function is named `cmd`.
   - [d36b726](https://www.github.com/tauri-apps/tauri/commit/d36b7269261d329dd7d7fcd4d5098f3fca167364) fix(macros): collision when command is named `cmd` ([#1802](https://www.github.com/tauri-apps/tauri/pull/1802)) on 2021-05-12
 

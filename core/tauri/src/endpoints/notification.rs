@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::Runtime;
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(notification_all)]
 use crate::{api::notification::Notification, Env, Manager};
@@ -28,10 +30,12 @@ pub struct NotificationOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// The show notification API.
+  #[cmd(notification_all, "notification > all")]
   Notification { options: NotificationOptions },
   /// The request notification permission API.
   RequestNotificationPermission,
@@ -40,17 +44,17 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(notification_all, "notification > all")]
+  #[module_command_handler(notification_all)]
   fn notification<R: Runtime>(
     context: InvokeContext<R>,
     options: NotificationOptions,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let allowed = match is_permission_granted(&context) {
       Some(p) => p,
       None => request_permission(&context),
     };
     if !allowed {
-      return Err(crate::Error::NotificationNotAllowed);
+      return Err(crate::Error::NotificationNotAllowed.into_anyhow());
     }
     let mut notification =
       Notification::new(context.config.tauri.bundle.identifier.clone()).title(options.title);
@@ -67,7 +71,7 @@ impl Cmd {
   #[cfg(notification_all)]
   fn request_notification_permission<R: Runtime>(
     context: InvokeContext<R>,
-  ) -> crate::Result<&'static str> {
+  ) -> super::Result<&'static str> {
     if request_permission(&context) {
       Ok(PERMISSION_GRANTED)
     } else {
@@ -78,14 +82,14 @@ impl Cmd {
   #[cfg(not(notification_all))]
   fn request_notification_permission<R: Runtime>(
     _context: InvokeContext<R>,
-  ) -> crate::Result<&'static str> {
+  ) -> super::Result<&'static str> {
     Ok(PERMISSION_DENIED)
   }
 
   #[cfg(notification_all)]
   fn is_notification_permission_granted<R: Runtime>(
     context: InvokeContext<R>,
-  ) -> crate::Result<Option<bool>> {
+  ) -> super::Result<Option<bool>> {
     if let Some(allow_notification) = is_permission_granted(&context) {
       Ok(Some(allow_notification))
     } else {
@@ -96,7 +100,7 @@ impl Cmd {
   #[cfg(not(notification_all))]
   fn is_notification_permission_granted<R: Runtime>(
     _context: InvokeContext<R>,
-  ) -> crate::Result<Option<bool>> {
+  ) -> super::Result<Option<bool>> {
     Ok(Some(false))
   }
 }

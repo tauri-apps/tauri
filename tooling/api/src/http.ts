@@ -21,14 +21,38 @@
  * }
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
+ *
+ * ## Security
+ *
+ * This API has a scope configuration that forces you to restrict the URLs and paths that can be accessed using glob patterns.
+ *
+ * For instance, this scope configuration only allows making HTTP requests to the GitHub API for the `tauri-apps` organization:
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "http": {
+ *         "scope": ["https://api.github.com/repos/tauri-apps/*"]
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
+ *
  * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
 
+interface Duration {
+  secs: number
+  nanos: number
+}
+
 interface ClientOptions {
-  maxRedirections: number
-  connectTimeout: number
+  maxRedirections?: number
+  connectTimeout?: number | Duration
 }
 
 enum ResponseType {
@@ -37,7 +61,13 @@ enum ResponseType {
   Binary = 3
 }
 
-type Part = string | Uint8Array
+interface FilePart<T> {
+  value: string | T
+  mime?: string
+  fileName?: string
+}
+
+type Part = string | Uint8Array | FilePart<Uint8Array>
 
 /** The body object to be used on POST and PUT requests. */
 class Body {
@@ -51,19 +81,49 @@ class Body {
   }
 
   /**
-   * Creates a new form data body.
+   * Creates a new form data body. The form data is an object where each key is the entry name,
+   * and the value is either a string or a file object.
+   *
+   * By default it sets the `application/x-www-form-urlencoded` Content-Type header,
+   * but you can set it to `multipart/form-data` if the Cargo feature `http-multipart` is enabled.
+   *
+   * Note that a file path must be allowed in the `fs` allowlist scope.
+   *
+   * # Examples
+   *
+   * ```js
+   * import { Body } from "@tauri-apps/api/http"
+   * Body.form({
+   *   key: 'value',
+   *   image: {
+   *     file: '/path/to/file', // either a path of an array buffer of the file contents
+   *     mime: 'image/jpeg', // optional
+   *     fileName: 'image.jpg' // optional
+   *   }
+   * })
+   * ```
    *
    * @param data The body data.
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
   static form(data: Record<string, Part>): Body {
-    const form: Record<string, string | number[]> = {}
+    const form: Record<string, string | number[] | FilePart<number[]>> = {}
     for (const key in data) {
       // eslint-disable-next-line security/detect-object-injection
       const v = data[key]
+      let r
+      if (typeof v === 'string') {
+        r = v
+      } else if (v instanceof Uint8Array || Array.isArray(v)) {
+        r = Array.from(v)
+      } else if (typeof v.value === 'string') {
+        r = { value: v.value, mime: v.mime, fileName: v.fileName }
+      } else {
+        r = { value: Array.from(v.value), mime: v.mime, fileName: v.fileName }
+      }
       // eslint-disable-next-line security/detect-object-injection
-      form[key] = typeof v === 'string' ? v : Array.from(v)
+      form[key] = r
     }
     return new Body('Form', form)
   }
@@ -122,7 +182,7 @@ interface HttpOptions {
   headers?: Record<string, any>
   query?: Record<string, any>
   body?: Body
-  timeout?: number
+  timeout?: number | Duration
   responseType?: ResponseType
 }
 
@@ -362,6 +422,7 @@ async function fetch<T>(
 }
 
 export type {
+  Duration,
   ClientOptions,
   Part,
   HttpVerb,
@@ -370,4 +431,4 @@ export type {
   FetchOptions
 }
 
-export { getClient, fetch, Body, Client, Response, ResponseType }
+export { getClient, fetch, Body, Client, Response, ResponseType, FilePart }

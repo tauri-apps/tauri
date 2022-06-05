@@ -109,5 +109,5 @@ fn make_icns_image(img: image::DynamicImage) -> io::Result<icns::Image> {
       return Err(io::Error::new(io::ErrorKind::InvalidData, msg));
     }
   };
-  icns::Image::from_data(pixel_format, img.width(), img.height(), img.to_bytes())
+  icns::Image::from_data(pixel_format, img.width(), img.height(), img.into_bytes())
 }

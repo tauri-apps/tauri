@@ -1,7 +1,7 @@
 [package]
 name = "bench_files_transfer"
 version = "0.1.0"
-description = "A very simple Tauri Appplication"
+description = "A very simple Tauri Application"
 edition = "2021"
 rust-version = "1.57"
 

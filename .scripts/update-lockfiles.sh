@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-declare -a examples=("api" "sidecar" "updater" "resources")
-declare -a tooling=("bench" "cli.rs" "webdriver")
+declare -a examples=("api" "sidecar" "updater" "resources" "tauri-dynamic-lib")
+declare -a tooling=("bench" "cli" "webdriver")
 
 for example in "${examples[@]}"
 do
@@ -21,12 +21,3 @@ do
    cargo build
    cd ../..
 done
-
-cd tooling/bench/tests
-cd cpu_intensive/src-tauri
-cargo update
-cargo build
-cd ../../files_transfer/src-tauri
-cargo update
-cargo build
-cd ../../../../..

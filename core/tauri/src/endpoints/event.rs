@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{
   api::ipc::CallbackFn,
@@ -12,7 +14,7 @@ use crate::{
   Manager, Runtime,
 };
 use serde::{de::Deserializer, Deserialize};
-use tauri_macros::CommandModule;
+use tauri_macros::{command_enum, CommandModule};
 
 pub struct EventId(String);
 
@@ -51,6 +53,7 @@ impl<'de> Deserialize<'de> for WindowLabel {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
@@ -63,7 +66,7 @@ pub enum Cmd {
   },
   /// Unlisten to an event.
   #[serde(rename_all = "camelCase")]
-  Unlisten { event_id: u64 },
+  Unlisten { event: EventId, event_id: u64 },
   /// Emit an event to the webview associated with the given window.
   /// If the window_label is omitted, the event will be triggered on all listeners.
   #[serde(rename_all = "camelCase")]
@@ -80,18 +83,21 @@ impl Cmd {
     event: EventId,
     window_label: Option<WindowLabel>,
     handler: CallbackFn,
-  ) -> crate::Result<u64> {
+  ) -> super::Result<u64> {
     let event_id = rand::random();
 
     let window_label = window_label.map(|l| l.0);
 
-    context.window.eval(&listen_js(
-      context.window.manager().event_listeners_object_name(),
-      format!("'{}'", event.0),
-      event_id,
-      window_label.clone(),
-      format!("window['_{}']", handler.0),
-    ))?;
+    context
+      .window
+      .eval(&listen_js(
+        context.window.manager().event_listeners_object_name(),
+        format!("'{}'", event.0),
+        event_id,
+        window_label.clone(),
+        format!("window['_{}']", handler.0),
+      ))
+      .map_err(crate::error::into_anyhow)?;
 
     context
       .window
@@ -100,11 +106,19 @@ impl Cmd {
     Ok(event_id)
   }
 
-  fn unlisten<R: Runtime>(context: InvokeContext<R>, event_id: u64) -> crate::Result<()> {
-    context.window.eval(&unlisten_js(
-      context.window.manager().event_listeners_object_name(),
-      event_id,
-    ))?;
+  fn unlisten<R: Runtime>(
+    context: InvokeContext<R>,
+    event: EventId,
+    event_id: u64,
+  ) -> super::Result<()> {
+    context
+      .window
+      .eval(&unlisten_js(
+        context.window.manager().event_listeners_object_name(),
+        event.0,
+        event_id,
+      ))
+      .map_err(crate::error::into_anyhow)?;
     context.window.unregister_js_listener(event_id);
     Ok(())
   }
@@ -114,14 +128,20 @@ impl Cmd {
     event: EventId,
     window_label: Option<WindowLabel>,
     payload: Option<String>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     // dispatch the event to Rust listeners
     context.window.trigger(&event.0, payload.clone());
 
     if let Some(target) = window_label {
-      context.window.emit_to(&target.0, &event.0, payload)?;
+      context
+        .window
+        .emit_to(&target.0, &event.0, payload)
+        .map_err(crate::error::into_anyhow)?;
     } else {
-      context.window.emit_all(&event.0, payload)?;
+      context
+        .window
+        .emit_all(&event.0, payload)
+        .map_err(crate::error::into_anyhow)?;
     }
     Ok(())
   }

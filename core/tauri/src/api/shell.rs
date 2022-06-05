@@ -89,12 +89,28 @@ impl Program {
   }
 }
 
-/// Opens path or URL with program specified in `with`, or system default if `None`.
+/// Opens path or URL with the program specified in `with`, or system default if `None`.
 ///
 /// The path will be matched against the shell open validation regex, defaulting to `^https?://`.
 /// A custom validation regex may be supplied in the config in `tauri > allowlist > scope > open`.
-pub fn open(scope: &ShellScope, path: String, with: Option<Program>) -> crate::api::Result<()> {
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use tauri::{api::shell::open, Manager};
+/// tauri::Builder::default()
+///   .setup(|app| {
+///     // open the given URL on the system default browser
+///     open(&app.shell_scope(), "https://github.com/tauri-apps/tauri", None)?;
+///     Ok(())
+///   });
+/// ```
+pub fn open<P: AsRef<str>>(
+  scope: &ShellScope,
+  path: P,
+  with: Option<Program>,
+) -> crate::api::Result<()> {
   scope
-    .open(&path, with)
+    .open(path.as_ref(), with)
     .map_err(|err| crate::api::Error::Shell(format!("failed to open: {}", err)))
 }

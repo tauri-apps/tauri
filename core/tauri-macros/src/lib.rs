@@ -26,7 +26,7 @@ pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
 /// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
 ///
-/// # Example
+/// # Examples
 /// ```rust,ignore
 /// use tauri_macros::{command, generate_handler};
 /// #[command]
@@ -76,6 +76,14 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
   runtime::default_runtime(attributes, input).into()
 }
 
+/// Prepares the command module enum.
+#[doc(hidden)]
+#[proc_macro_derive(CommandModule, attributes(cmd))]
+pub fn derive_command_module(input: TokenStream) -> TokenStream {
+  let input = parse_macro_input!(input as DeriveInput);
+  command_module::generate_run_fn(input)
+}
+
 /// Adds a `run` method to an enum (one of the tauri endpoint modules).
 /// The `run` method takes a `tauri::endpoints::InvokeContext`
 /// and returns a `tauri::Result<tauri::endpoints::InvokeResponse>`.
@@ -83,10 +91,10 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// passing the the context and the variant's fields as arguments.
 /// That function must also return the same `Result<InvokeResponse>`.
 #[doc(hidden)]
-#[proc_macro_derive(CommandModule, attributes(cmd))]
-pub fn derive_command_module(input: TokenStream) -> TokenStream {
+#[proc_macro_attribute]
+pub fn command_enum(_: TokenStream, input: TokenStream) -> TokenStream {
   let input = parse_macro_input!(input as DeriveInput);
-  command_module::generate_run_fn(input)
+  command_module::generate_command_enum(input)
 }
 
 #[doc(hidden)]

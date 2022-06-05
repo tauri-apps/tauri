@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Settings;
+use log::debug;
+
 use std::{
   ffi::OsStr,
   fs::{self, File},
-  io::{self, BufWriter, Write},
-  path::{Component, Path, PathBuf},
-  process::{Command, Stdio},
+  io::{self, BufWriter},
+  path::Path,
+  process::{Command, Output},
 };
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// Returns true if the path has a filename indicating that it is a high-desity
 /// "retina" icon.  Specifically, returns true the the file stem ends with
@@ -133,108 +133,40 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
   Ok(())
 }
 
-/// Given a path (absolute or relative) to a resource file, returns the
-/// relative path from the bundle resources directory where that resource
-/// should be stored.
-pub fn resource_relpath(path: &Path) -> PathBuf {
-  let mut dest = PathBuf::new();
-  for component in path.components() {
-    match component {
-      Component::Prefix(_) => {}
-      Component::RootDir => dest.push("_root_"),
-      Component::CurDir => {}
-      Component::ParentDir => dest.push("_up_"),
-      Component::Normal(string) => dest.push(string),
+pub trait CommandExt {
+  fn output_ok(&mut self) -> crate::Result<Output>;
+}
+
+impl CommandExt for Command {
+  fn output_ok(&mut self) -> crate::Result<Output> {
+    debug!(action = "Running"; "Command `{} {}`", self.get_program().to_string_lossy(), self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+
+    let output = self.output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !stdout.is_empty() {
+      debug!("Stdout: {}", stdout);
     }
-  }
-  dest
-}
-
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we are creating a bundle with the given filename.
-pub fn print_bundling(filename: &str) -> crate::Result<()> {
-  print_progress("Bundling", filename)
-}
-
-/// Prints a message to stderr, in the same format that `cargo` uses,
-/// indicating that we have finished the the given bundles.
-pub fn print_finished(bundles: &[crate::bundle::Bundle]) -> crate::Result<()> {
-  let pluralised = if bundles.len() == 1 {
-    "bundle"
-  } else {
-    "bundles"
-  };
-  let msg = format!("{} {} at:", bundles.len(), pluralised);
-  print_progress("Finished", &msg)?;
-  for bundle in bundles {
-    for path in &bundle.bundle_paths {
-      let mut note = "";
-      if bundle.package_type == crate::PackageType::Updater {
-        note = " (updater)";
-      }
-      println!("        {}{}", path.display(), note,);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.is_empty() {
+      debug!("Stderr: {}", stderr);
     }
-  }
-  Ok(())
-}
 
-/// Prints a formatted bundle progress to stderr.
-fn print_progress(step: &str, msg: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
-  write!(output, "    {}", step)?;
-  output.reset()?;
-  writeln!(output, " {}", msg)?;
-  output.flush()?;
-  Ok(())
-}
-
-/// Prints a warning message to stderr, in the same format that `cargo` uses.
-#[allow(dead_code)]
-pub fn print_warning(message: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Yellow)).set_bold(true));
-  write!(output, "warning:")?;
-  output.reset()?;
-  writeln!(output, " {}", message)?;
-  output.flush()?;
-  Ok(())
-}
-
-/// Prints a Info message to stderr.
-pub fn print_info(message: &str) -> crate::Result<()> {
-  let mut output = StandardStream::stderr(ColorChoice::Always);
-  let _ = output.set_color(ColorSpec::new().set_fg(Some(Color::Green)).set_bold(true));
-  write!(output, "info:")?;
-  output.reset()?;
-  writeln!(output, " {}", message)?;
-  output.flush()?;
-  Ok(())
-}
-
-pub fn execute_with_verbosity(cmd: &mut Command, settings: &Settings) -> crate::Result<()> {
-  let stdio_config = if settings.is_verbose() {
-    Stdio::inherit
-  } else {
-    Stdio::null
-  };
-  let status = cmd
-    .stdout(stdio_config())
-    .stderr(stdio_config())
-    .status()
-    .expect("failed to spawn command");
-
-  if status.success() {
-    Ok(())
-  } else {
-    Err(anyhow::anyhow!("command failed").into())
+    if output.status.success() {
+      Ok(output)
+    } else {
+      Err(crate::Error::GenericError(
+        String::from_utf8_lossy(&output.stderr).to_string(),
+      ))
+    }
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::{create_file, is_retina, resource_relpath};
+  use super::{create_file, is_retina};
   use std::{io::Write, path::PathBuf};
+  use tauri_utils::resources::resource_relpath;
 
   #[test]
   fn create_file_with_parent_dirs() {

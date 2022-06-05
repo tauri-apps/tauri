@@ -5,19 +5,31 @@
 
 set -euxo pipefail
 
-export ARCH=x86_64
+export ARCH={{arch}}
+APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
+
+if [ "$ARCH" == "i686" ]; then
+    linuxdeploy_arch="i386"
+else
+    linuxdeploy_arch="$ARCH"
+fi
 
 mkdir -p "{{app_name}}.AppDir"
 cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
 
 cd "{{app_name}}.AppDir"
 
+if [[ "$APPIMAGE_BUNDLE_XDG_OPEN" != "0" ]] && [[ -f "/usr/bin/xdg-open" ]]; then
+  echo "Copying /usr/bin/xdg-open"
+  cp /usr/bin/xdg-open usr/bin
+fi
+
 # Copy WebKit files.
 find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-x86_64 || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-aarch64
+wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
 chmod +x AppRun
 
 cp "{{icon_path}}" .DirIcon
@@ -28,15 +40,9 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 cd ..
 
 wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-wget -q -4 -O linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+wget -q -4 -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
 
 chmod +x linuxdeploy-plugin-gtk.sh
-chmod +x linuxdeploy-x86_64.AppImage
+chmod +x linuxdeploy-${ARCH}.AppImage
 
-args=()
-if ! lsmod | grep -q 'fuse'
-then
-  args+=( '--appimage-extract-and-run' )
-fi
-
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-x86_64.AppImage "${args[@]}" --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

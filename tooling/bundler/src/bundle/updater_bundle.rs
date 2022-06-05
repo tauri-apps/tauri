@@ -12,20 +12,17 @@ use super::linux::appimage;
 
 #[cfg(target_os = "windows")]
 use super::windows::msi;
+use log::error;
 #[cfg(target_os = "windows")]
 use std::{fs::File, io::prelude::*};
 #[cfg(target_os = "windows")]
 use zip::write::FileOptions;
 
 use crate::{bundle::Bundle, Settings};
-use std::{
-  ffi::OsStr,
-  fs::{self},
-  io::Write,
-};
-
 use anyhow::Context;
+use log::info;
 use std::path::{Path, PathBuf};
+use std::{fs, io::Write};
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
@@ -34,7 +31,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     let bundle_result = bundle_update(settings, bundles)?;
     Ok(bundle_result)
   } else {
-    common::print_info("Current platform do not support updates")?;
+    error!("Current platform do not support updates");
     Ok(vec![])
   }
 }
@@ -43,6 +40,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 // This is the Mac OS App packaged
 #[cfg(target_os = "macos")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // find our .app or rebuild our bundle
   let bundle_path = match bundles
     .iter()
@@ -70,10 +69,11 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 
   // Create our gzip file (need to send parent)
   // as we walk the source directory (source isnt added)
-  create_tar(&source_path, &osx_archived_path)
+  create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &osx_archived_path).as_str())?;
+  info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());
+
   Ok(vec![osx_archived_path])
 }
 
@@ -83,6 +83,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // No assets are replaced
 #[cfg(target_os = "linux")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
+  use std::ffi::OsStr;
+
   // build our app actually we support only appimage on linux
   let bundle_path = match bundles
     .iter()
@@ -112,7 +114,8 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  common::print_bundling(format!("{:?}", &appimage_archived_path).as_str())?;
+  info!(action = "Bundling"; "{} ({})", appimage_archived, appimage_archived_path.display());
+
   Ok(vec![appimage_archived_path])
 }
 
@@ -123,35 +126,33 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 #[cfg(target_os = "windows")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
   // find our .msi or rebuild
-  let bundle_path = match bundles
+  let mut bundle_paths = bundles
     .iter()
-    .filter(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
-    .find_map(|bundle| {
-      bundle
-        .bundle_paths
-        .iter()
-        .find(|path| path.extension() == Some(OsStr::new("msi")))
-    }) {
-    Some(path) => vec![path.clone()],
-    None => msi::bundle_project(settings)?,
-  };
+    .find(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
+    .map(|bundle| bundle.bundle_paths.clone())
+    .unwrap_or_default();
 
-  // we expect our .msi to be on bundle_path[0]
-  if bundle_path.is_empty() {
-    return Err(crate::Error::UnableToFindProject);
+  // we expect our .msi files to be on `bundle_paths`
+  if bundle_paths.is_empty() {
+    bundle_paths.extend(msi::bundle_project(settings)?);
   }
 
-  let source_path = &bundle_path[0];
+  let mut msi_archived_paths = Vec::new();
 
-  // add .tar.gz to our path
-  let msi_archived = format!("{}.zip", source_path.display());
-  let msi_archived_path = PathBuf::from(&msi_archived);
+  for source_path in bundle_paths {
+    // add .zip to our path
+    let msi_archived = format!("{}.zip", source_path.display());
+    let msi_archived_path = PathBuf::from(&msi_archived);
 
-  // Create our gzip file
-  create_zip(source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+    info!(action = "Bundling"; "{} ({})", msi_archived, msi_archived_path.display());
 
-  common::print_bundling(format!("{:?}", &msi_archived_path).as_str())?;
-  Ok(vec![msi_archived_path])
+    // Create our gzip file
+    create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;
+
+    msi_archived_paths.push(msi_archived_path);
+  }
+
+  Ok(msi_archived_paths)
 }
 
 #[cfg(target_os = "windows")]

@@ -6,15 +6,16 @@
     "dev": "vite --clearScreen false --port 5000",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "node ../../tooling/cli.js/bin/tauri"
+    "tauri": "node ../../tooling/cli/node/tauri.js"
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",
+    "@zerodevx/svelte-json-view": "0.2.0",
     "hotkeys-js": "^3.8.5"
   },
   "devDependencies": {
-    "svelte": "3.35.0",
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.11",
+    "svelte": "3.35.0",
     "vite": "^2.6.4"
   }
 }

@@ -4,6 +4,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use tauri_utils::resources::{external_binaries, ResourcePaths};
 
 use std::{
   collections::HashMap,
@@ -107,7 +108,7 @@ pub struct PackageSettings {
 }
 
 /// The updater settings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
   /// Whether the updater is active or not.
   pub active: bool,
@@ -117,6 +118,8 @@ pub struct UpdaterSettings {
   pub pubkey: String,
   /// Display built-in dialog or use event system if disabled.
   pub dialog: bool,
+  /// Args to pass to `msiexec.exe` to run the updater on Windows.
+  pub msiexec_args: Option<&'static [&'static str]>,
 }
 
 /// The Linux debian bundle settings.
@@ -125,12 +128,6 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
-  /// whether we should use the bootstrap script on debian or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -156,12 +153,6 @@ pub struct MacOsSettings {
   /// The path to the LICENSE file for macOS apps.
   /// Currently only used by the dmg bundle.
   pub license: Option<String>,
-  /// whether we should use the bootstrap script on macOS .app or not.
-  ///
-  /// this script goal is to allow your app to access environment variables e.g $PATH.
-  ///
-  /// without it, you can't run some applications installed by the user.
-  pub use_bootstrapper: Option<bool>,
   /// The exception domain to use on the macOS .app bundle.
   ///
   /// This allows communication to the outside world e.g. a web server you're shipping.
@@ -240,12 +231,21 @@ pub struct WindowsSettings {
   pub certificate_thumbprint: Option<String>,
   /// Server to use during timestamping.
   pub timestamp_url: Option<String>,
+  /// Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may
+  /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
+  pub tsp: bool,
   /// WiX configuration.
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
   /// Path to the webview fixed runtime to use.
   pub webview_fixed_runtime_path: Option<PathBuf>,
+  /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
+  ///
+  /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
+  ///
+  /// /// The default value of this flag is `true`.
+  pub allow_downgrades: bool,
 }
 
 impl Default for WindowsSettings {
@@ -254,9 +254,11 @@ impl Default for WindowsSettings {
       digest_algorithm: None,
       certificate_thumbprint: None,
       timestamp_url: None,
+      tsp: false,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_fixed_runtime_path: None,
+      allow_downgrades: true,
     }
   }
 }
@@ -322,11 +324,7 @@ impl BundleBinary {
   /// Creates a new bundle binary.
   pub fn new(name: String, main: bool) -> Self {
     Self {
-      name: if cfg!(windows) {
-        format!("{}.exe", name)
-      } else {
-        name
-      },
+      name,
       src_path: None,
       main,
     }
@@ -376,8 +374,6 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
-  /// whether or not to enable verbose logging
-  is_verbose: bool,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -390,7 +386,6 @@ pub struct Settings {
 #[derive(Default)]
 pub struct SettingsBuilder {
   project_out_directory: Option<PathBuf>,
-  verbose: bool,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
   bundle_settings: BundleSettings,
@@ -410,13 +405,6 @@ impl SettingsBuilder {
     self
       .project_out_directory
       .replace(path.as_ref().to_path_buf());
-    self
-  }
-
-  /// Enables verbose output.
-  #[must_use]
-  pub fn verbose(mut self) -> Self {
-    self.verbose = true;
     self
   }
 
@@ -466,17 +454,22 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
-    let bundle_settings = parse_external_bin(&target, self.bundle_settings)?;
 
     Ok(Settings {
       package: self.package_settings.expect("package settings is required"),
       package_types: self.package_types,
-      is_verbose: self.verbose,
       project_out_directory: self
         .project_out_directory
         .expect("out directory is required"),
       binaries: self.binaries,
-      bundle_settings,
+      bundle_settings: BundleSettings {
+        external_bin: self
+          .bundle_settings
+          .external_bin
+          .as_ref()
+          .map(|bins| external_binaries(bins, &target)),
+        ..self.bundle_settings
+      },
       target,
     })
   }
@@ -486,6 +479,11 @@ impl Settings {
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
+  }
+
+  /// Returns the target triple.
+  pub fn target(&self) -> &str {
+    &self.target
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
@@ -575,11 +573,6 @@ impl Settings {
     }
   }
 
-  /// Returns true if verbose logging is enabled
-  pub fn is_verbose(&self) -> bool {
-    self.is_verbose
-  }
-
   /// Returns the product name.
   pub fn product_name(&self) -> &str {
     &self.package.product_name
@@ -636,7 +629,7 @@ impl Settings {
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
     for src in self.resource_files() {
       let src = src?;
-      let dest = path.join(common::resource_relpath(&src));
+      let dest = path.join(tauri_utils::resources::resource_relpath(&src));
       common::copy_file(&src, &dest)?;
     }
     Ok(())
@@ -709,132 +702,16 @@ impl Settings {
     &self.bundle_settings.windows
   }
 
+  /// Returns the Updater settings.
+  pub fn updater(&self) -> Option<&UpdaterSettings> {
+    self.bundle_settings.updater.as_ref()
+  }
+
   /// Is update enabled
   pub fn is_update_enabled(&self) -> bool {
     match &self.bundle_settings.updater {
       Some(val) => val.active,
       None => false,
-    }
-  }
-}
-
-/// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-fn parse_external_bin(
-  target_triple: &str,
-  bundle_settings: BundleSettings,
-) -> crate::Result<BundleSettings> {
-  let mut win_paths = Vec::new();
-  let external_bin = match bundle_settings.external_bin {
-    Some(paths) => {
-      for curr_path in paths.iter() {
-        win_paths.push(format!(
-          "{}-{}{}",
-          curr_path,
-          target_triple,
-          if cfg!(windows) { ".exe" } else { "" }
-        ));
-      }
-      Some(win_paths)
-    }
-    None => Some(vec![]),
-  };
-
-  Ok(BundleSettings {
-    external_bin,
-    ..bundle_settings
-  })
-}
-
-/// A helper to iterate through resources.
-pub struct ResourcePaths<'a> {
-  /// the patterns to iterate.
-  pattern_iter: std::slice::Iter<'a, String>,
-  /// the glob iterator if the path from the current iteration is a glob pattern.
-  glob_iter: Option<glob::Paths>,
-  /// the walkdir iterator if the path from the current iteration is a directory.
-  walk_iter: Option<walkdir::IntoIter>,
-  /// whether the resource paths allows directories or not.
-  allow_walk: bool,
-  /// the pattern of the current iteration.
-  current_pattern: Option<String>,
-  /// whether the current pattern is valid or not.
-  current_pattern_is_valid: bool,
-}
-
-impl<'a> ResourcePaths<'a> {
-  /// Creates a new ResourcePaths from a slice of patterns to iterate
-  fn new(patterns: &'a [String], allow_walk: bool) -> ResourcePaths<'a> {
-    ResourcePaths {
-      pattern_iter: patterns.iter(),
-      glob_iter: None,
-      walk_iter: None,
-      allow_walk,
-      current_pattern: None,
-      current_pattern_is_valid: false,
-    }
-  }
-}
-
-impl<'a> Iterator for ResourcePaths<'a> {
-  type Item = crate::Result<PathBuf>;
-
-  fn next(&mut self) -> Option<crate::Result<PathBuf>> {
-    loop {
-      if let Some(ref mut walk_entries) = self.walk_iter {
-        if let Some(entry) = walk_entries.next() {
-          let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          let path = entry.path();
-          if path.is_dir() {
-            continue;
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path.to_path_buf()));
-        }
-      }
-      self.walk_iter = None;
-      if let Some(ref mut glob_paths) = self.glob_iter {
-        if let Some(glob_result) = glob_paths.next() {
-          let path = match glob_result {
-            Ok(path) => path,
-            Err(error) => return Some(Err(crate::Error::from(error))),
-          };
-          if path.is_dir() {
-            if self.allow_walk {
-              let walk = walkdir::WalkDir::new(path);
-              self.walk_iter = Some(walk.into_iter());
-              continue;
-            } else {
-              let msg = format!("{:?} is a directory", path);
-              return Some(Err(crate::Error::GenericError(msg)));
-            }
-          }
-          self.current_pattern_is_valid = true;
-          return Some(Ok(path));
-        } else if let Some(current_path) = &self.current_pattern {
-          if !self.current_pattern_is_valid {
-            self.glob_iter = None;
-            return Some(Err(crate::Error::GenericError(format!(
-              "Path matching '{}' not found",
-              current_path
-            ))));
-          }
-        }
-      }
-      self.glob_iter = None;
-      if let Some(pattern) = self.pattern_iter.next() {
-        self.current_pattern = Some(pattern.to_string());
-        self.current_pattern_is_valid = false;
-        let glob = match glob::glob(pattern) {
-          Ok(glob) => glob,
-          Err(error) => return Some(Err(crate::Error::from(error))),
-        };
-        self.glob_iter = Some(glob);
-        continue;
-      }
-      return None;
     }
   }
 }

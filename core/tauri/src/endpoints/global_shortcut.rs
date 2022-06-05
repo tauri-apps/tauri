@@ -2,54 +2,61 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 use serde::Deserialize;
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(global_shortcut_all)]
 use crate::runtime::GlobalShortcutManager;
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
   /// Register a global shortcut.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   Register {
     shortcut: String,
     handler: CallbackFn,
   },
   /// Register a list of global shortcuts.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   RegisterAll {
     shortcuts: Vec<String>,
     handler: CallbackFn,
   },
   /// Unregister a global shortcut.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   Unregister { shortcut: String },
   /// Unregisters all registered shortcuts.
   UnregisterAll,
   /// Determines whether the given hotkey is registered or not.
+  #[cmd(global_shortcut_all, "globalShortcut > all")]
   IsRegistered { shortcut: String },
 }
 
 impl Cmd {
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn register<R: Runtime>(
     context: InvokeContext<R>,
     shortcut: String,
     handler: CallbackFn,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let mut manager = context.window.app_handle.global_shortcut_manager();
     register_shortcut(context.window, &mut manager, shortcut, handler)?;
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
+  #[module_command_handler(global_shortcut_all)]
   fn register_all<R: Runtime>(
     context: InvokeContext<R>,
     shortcuts: Vec<String>,
     handler: CallbackFn,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let mut manager = context.window.app_handle.global_shortcut_manager();
     for shortcut in shortcuts {
       register_shortcut(context.window.clone(), &mut manager, shortcut, handler)?;
@@ -57,35 +64,41 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
-  fn unregister<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> crate::Result<()> {
+  #[module_command_handler(global_shortcut_all)]
+  fn unregister<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> super::Result<()> {
     context
       .window
       .app_handle
       .global_shortcut_manager()
-      .unregister(&shortcut)?;
+      .unregister(&shortcut)
+      .map_err(crate::error::into_anyhow)?;
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
-  fn unregister_all<R: Runtime>(context: InvokeContext<R>) -> crate::Result<()> {
+  #[module_command_handler(global_shortcut_all)]
+  fn unregister_all<R: Runtime>(context: InvokeContext<R>) -> super::Result<()> {
     context
       .window
       .app_handle
       .global_shortcut_manager()
-      .unregister_all()?;
+      .unregister_all()
+      .map_err(crate::error::into_anyhow)?;
     Ok(())
   }
 
-  #[module_command_handler(global_shortcut_all, "globalShortcut > all")]
-  fn is_registered<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> crate::Result<bool> {
-    Ok(
-      context
-        .window
-        .app_handle
-        .global_shortcut_manager()
-        .is_registered(&shortcut)?,
-    )
+  #[cfg(not(global_shortcut_all))]
+  fn unregister_all<R: Runtime>(_: InvokeContext<R>) -> super::Result<()> {
+    Err(crate::Error::ApiNotAllowlisted("globalShortcut > all".into()).into_anyhow())
+  }
+
+  #[module_command_handler(global_shortcut_all)]
+  fn is_registered<R: Runtime>(context: InvokeContext<R>, shortcut: String) -> super::Result<bool> {
+    context
+      .window
+      .app_handle
+      .global_shortcut_manager()
+      .is_registered(&shortcut)
+      .map_err(crate::error::into_anyhow)
   }
 }
 
@@ -95,13 +108,15 @@ fn register_shortcut<R: Runtime>(
   manager: &mut R::GlobalShortcutManager,
   shortcut: String,
   handler: CallbackFn,
-) -> crate::Result<()> {
+) -> super::Result<()> {
   let accelerator = shortcut.clone();
-  manager.register(&shortcut, move || {
-    let callback_string = crate::api::ipc::format_callback(handler, &accelerator)
-      .expect("unable to serialize shortcut string to json");
-    let _ = window.eval(callback_string.as_str());
-  })?;
+  manager
+    .register(&shortcut, move || {
+      let callback_string = crate::api::ipc::format_callback(handler, &accelerator)
+        .expect("unable to serialize shortcut string to json");
+      let _ = window.eval(callback_string.as_str());
+    })
+    .map_err(crate::error::into_anyhow)?;
   Ok(())
 }
 
@@ -136,7 +151,7 @@ mod tests {
     assert!(!super::Cmd::is_registered(ctx, shortcut).unwrap());
   }
 
-  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all")]
+  #[tauri_macros::module_command_test(global_shortcut_all, "globalShortcut > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn unregister_all() {
     let shortcuts = vec!["CTRL+X".to_string(), "SUPER+C".to_string(), "D".to_string()];

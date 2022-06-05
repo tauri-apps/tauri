@@ -8,6 +8,7 @@
 
 use serde::Deserialize;
 use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
+use tauri_utils::Theme;
 use uuid::Uuid;
 
 #[cfg(windows)]
@@ -25,7 +26,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DetachedWindow, PendingWindow, WindowEvent,
+  CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
 };
 
 use crate::http::{
@@ -39,7 +40,7 @@ use crate::http::{
 #[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct SystemTray {
-  pub icon: Option<Icon>,
+  pub icon: Option<TrayIcon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
@@ -56,9 +57,9 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray icon. Must be a [`Icon::File`] on Linux and a [`Icon::Raw`] on Windows and macOS.
+  /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
   #[must_use]
-  pub fn with_icon(mut self, icon: Icon) -> Self {
+  pub fn with_icon(mut self, icon: TrayIcon) -> Self {
     self.icon.replace(icon);
     self
   }
@@ -98,10 +99,13 @@ pub enum UserAttentionType {
 pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
-  CreateWebview(Box<dyn std::error::Error + Send>),
+  CreateWebview(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
+  /// The given window label is invalid.
+  #[error("Window labels must only include alphanumeric characters, `-`, `/`, `:` and `_`.")]
+  InvalidWindowLabel,
   /// Failed to send message to webview.
   #[error("failed to send message to the webview")]
   FailedToSendMessage,
@@ -115,16 +119,17 @@ pub enum Error {
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[error("error encountered during tray setup: {0}")]
-  SystemTray(Box<dyn std::error::Error + Send>),
+  SystemTray(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to load window icon.
   #[error("invalid icon: {0}")]
-  InvalidIcon(Box<dyn std::error::Error + Send>),
+  InvalidIcon(Box<dyn std::error::Error + Send + Sync>),
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
   /// Global shortcut error.
+  #[cfg(feature = "global-shortcut")]
   #[error(transparent)]
-  GlobalShortcut(Box<dyn std::error::Error + Send>),
+  GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -137,30 +142,43 @@ pub enum Error {
   InvalidMethod(#[from] InvalidMethod),
   #[error("Infallible error, something went really wrong: {0}")]
   Infallible(#[from] std::convert::Infallible),
+  #[error("the event loop has been closed")]
+  EventLoopClosed,
 }
 
 /// Result type.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Window icon.
+#[derive(Debug, Clone)]
+pub struct WindowIcon {
+  /// RGBA bytes of the icon.
+  pub rgba: Vec<u8>,
+  /// Icon width.
+  pub width: u32,
+  /// Icon height.
+  pub height: u32,
+}
+
 /// A icon definition.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum Icon {
+pub enum TrayIcon {
   /// Icon from file path.
   File(PathBuf),
-  /// Icon from raw bytes.
+  /// Icon from raw file bytes.
   Raw(Vec<u8>),
 }
 
-impl Icon {
+impl TrayIcon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(target_os = "linux")]
-  pub fn into_tray_icon(self) -> PathBuf {
+  pub fn into_platform_icon(self) -> PathBuf {
     match self {
-      Icon::File(path) => path,
-      Icon::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not bytes.")
+      Self::File(path) => path,
+      Self::Raw(_) => {
+        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
       }
     }
   }
@@ -168,36 +186,37 @@ impl Icon {
   /// Converts the icon to a the expected system tray format.
   /// We expect the code that passes the Icon enum to have already checked the platform.
   #[cfg(not(target_os = "linux"))]
-  pub fn into_tray_icon(self) -> Vec<u8> {
+  pub fn into_platform_icon(self) -> Vec<u8> {
     match self {
-      Icon::Raw(bytes) => bytes,
-      Icon::File(_) => {
-        panic!("non-linux system menu icons must be bytes, not a file path.")
+      Self::Raw(r) => r,
+      Self::File(_) => {
+        panic!("non-linux system menu icons must be raw bytes, not a file path.")
       }
     }
   }
 }
 
+/// A type that can be used as an user event.
+pub trait UserEvent: Debug + Clone + Send + 'static {}
+
+impl<T: Debug + Clone + Send + 'static> UserEvent for T {}
+
 /// Event triggered on the event loop run.
 #[non_exhaustive]
-pub enum RunEvent {
+pub enum RunEvent<T: UserEvent> {
   /// Event loop is exiting.
   Exit,
   /// Event loop is about to exit
   ExitRequested {
-    /// Label of the last window managed by the runtime.
-    window_label: String,
     tx: Sender<ExitRequestedEventAction>,
   },
-  /// Window close was requested by the user.
-  CloseRequested {
+  /// An event associated with a window.
+  WindowEvent {
     /// The window label.
     label: String,
-    /// A signal sender. If a `true` value is emitted, the window won't be closed.
-    signal_tx: Sender<bool>,
+    /// The detailed event.
+    event: WindowEvent,
   },
-  /// Window closed.
-  WindowClose(String),
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.
@@ -206,6 +225,8 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// A custom event defined by the user.
+  UserEvent(T),
 }
 
 /// Action to take when the event loop is about to exit
@@ -253,87 +274,102 @@ pub enum ActivationPolicy {
 }
 
 /// A [`Send`] handle to the runtime.
-pub trait RuntimeHandle: Debug + Send + Sized + Clone + 'static {
-  type Runtime: Runtime<Handle = Self>;
+pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
+  type Runtime: Runtime<T, Handle = Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> <Self::Runtime as Runtime<T>>::EventLoopProxy;
+
   /// Create a new webview window.
   fn create_window(
     &self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Run a task on the main thread.
-  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   #[cfg(all(windows, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> crate::Result<()>;
+  fn remove_system_tray(&self) -> Result<()>;
 }
 
 /// A global shortcut manager.
-pub trait GlobalShortcutManager: Debug {
+#[cfg(feature = "global-shortcut")]
+pub trait GlobalShortcutManager: Debug + Clone + Send + Sync {
   /// Whether the application has registered the given `accelerator`.
-  fn is_registered(&self, accelerator: &str) -> crate::Result<bool>;
+  fn is_registered(&self, accelerator: &str) -> Result<bool>;
 
   /// Register a global shortcut of `accelerator`.
-  fn register<F: Fn() + Send + 'static>(
-    &mut self,
-    accelerator: &str,
-    handler: F,
-  ) -> crate::Result<()>;
+  fn register<F: Fn() + Send + 'static>(&mut self, accelerator: &str, handler: F) -> Result<()>;
 
   /// Unregister all accelerators registered by the manager instance.
-  fn unregister_all(&mut self) -> crate::Result<()>;
+  fn unregister_all(&mut self) -> Result<()>;
 
   /// Unregister the provided `accelerator`.
-  fn unregister(&mut self, accelerator: &str) -> crate::Result<()>;
+  fn unregister(&mut self, accelerator: &str) -> Result<()>;
 }
 
 /// Clipboard manager.
-pub trait ClipboardManager: Debug {
+#[cfg(feature = "clipboard")]
+pub trait ClipboardManager: Debug + Clone + Send + Sync {
   /// Writes the text into the clipboard as plain text.
   fn write_text<T: Into<String>>(&mut self, text: T) -> Result<()>;
   /// Read the content in the clipboard as plain text.
   fn read_text(&self) -> Result<Option<String>>;
 }
 
+pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
+  fn send_event(&self, event: T) -> Result<()>;
+}
+
 /// The webview runtime interface.
-pub trait Runtime: Sized + 'static {
+pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// The message dispatcher.
-  type Dispatcher: Dispatch<Runtime = Self>;
+  type Dispatcher: Dispatch<T, Runtime = Self>;
   /// The runtime handle type.
-  type Handle: RuntimeHandle<Runtime = Self>;
+  type Handle: RuntimeHandle<T, Runtime = Self>;
   /// The global shortcut manager type.
-  type GlobalShortcutManager: GlobalShortcutManager + Clone + Send;
+  #[cfg(feature = "global-shortcut")]
+  type GlobalShortcutManager: GlobalShortcutManager;
   /// The clipboard manager type.
-  type ClipboardManager: ClipboardManager + Clone + Send;
+  #[cfg(feature = "clipboard")]
+  type ClipboardManager: ClipboardManager;
   /// The tray handler type.
   #[cfg(feature = "system-tray")]
-  type TrayHandler: menu::TrayHandle + Clone + Send;
+  type TrayHandler: menu::TrayHandle;
+  /// The proxy type.
+  type EventLoopProxy: EventLoopProxy<T>;
 
   /// Creates a new webview runtime. Must be used on the main thread.
-  fn new() -> crate::Result<Self>;
+  fn new() -> Result<Self>;
 
   /// Creates a new webview runtime on any thread.
   #[cfg(any(windows, target_os = "linux"))]
   #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
-  fn new_any_thread() -> crate::Result<Self>;
+  fn new_any_thread() -> Result<Self>;
+
+  /// Creates an `EventLoopProxy` that can be used to dispatch user events to the main event loop.
+  fn create_proxy(&self) -> Self::EventLoopProxy;
 
   /// Gets a runtime handle.
   fn handle(&self) -> Self::Handle;
 
   /// Gets the global shortcut manager.
+  #[cfg(feature = "global-shortcut")]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager;
 
   /// Gets the clipboard manager.
+  #[cfg(feature = "clipboard")]
   fn clipboard_manager(&self) -> Self::ClipboardManager;
 
   /// Create a new webview window.
-  fn create_window(&self, pending: PendingWindow<Self>) -> crate::Result<DetachedWindow<Self>>;
+  fn create_window(&self, pending: PendingWindow<T, Self>) -> Result<DetachedWindow<T, Self>>;
 
   /// Adds the icon to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn system_tray(&self, system_tray: SystemTray) -> crate::Result<Self::TrayHandler>;
+  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler>;
 
   /// Registers a system tray event handler.
   #[cfg(feature = "system-tray")]
@@ -346,22 +382,22 @@ pub trait Runtime: Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
-  fn run_iteration<F: Fn(RunEvent) + 'static>(&mut self, callback: F) -> RunIteration;
+  fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
 
   /// Run the webview runtime.
-  fn run<F: FnMut(RunEvent) + 'static>(self, callback: F);
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
 }
 
 /// Webview dispatcher. A thread-safe handle to the webview API.
-pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
+pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static {
   /// The runtime this [`Dispatch`] runs under.
-  type Runtime: Runtime;
+  type Runtime: Runtime<T>;
 
   /// The winoow builder type.
-  type WindowBuilder: WindowBuilder + Clone;
+  type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
-  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()>;
+  fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Registers a window event handler.
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid;
@@ -369,68 +405,77 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
   /// Registers a window event handler.
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
+  /// Open the web inspector which is usually called devtools.
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self);
+
+  /// Close the web inspector which is usually called devtools.
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn close_devtools(&self);
+
+  /// Gets the devtools window's current open state.
+  #[cfg(any(debug_assertions, feature = "devtools"))]
+  fn is_devtools_open(&self) -> Result<bool>;
 
   // GETTERS
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
-  fn scale_factor(&self) -> crate::Result<f64>;
+  fn scale_factor(&self) -> Result<f64>;
 
   /// Returns the position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
-  fn inner_position(&self) -> crate::Result<PhysicalPosition<i32>>;
+  fn inner_position(&self) -> Result<PhysicalPosition<i32>>;
 
   /// Returns the position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
-  fn outer_position(&self) -> crate::Result<PhysicalPosition<i32>>;
+  fn outer_position(&self) -> Result<PhysicalPosition<i32>>;
 
   /// Returns the physical size of the window's client area.
   ///
   /// The client area is the content of the window, excluding the title bar and borders.
-  fn inner_size(&self) -> crate::Result<PhysicalSize<u32>>;
+  fn inner_size(&self) -> Result<PhysicalSize<u32>>;
 
   /// Returns the physical size of the entire window.
   ///
   /// These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
-  fn outer_size(&self) -> crate::Result<PhysicalSize<u32>>;
+  fn outer_size(&self) -> Result<PhysicalSize<u32>>;
 
   /// Gets the window's current fullscreen state.
-  fn is_fullscreen(&self) -> crate::Result<bool>;
+  fn is_fullscreen(&self) -> Result<bool>;
 
   /// Gets the window's current maximized state.
-  fn is_maximized(&self) -> crate::Result<bool>;
+  fn is_maximized(&self) -> Result<bool>;
 
   /// Gets the window’s current decoration state.
-  fn is_decorated(&self) -> crate::Result<bool>;
+  fn is_decorated(&self) -> Result<bool>;
 
   /// Gets the window’s current resizable state.
-  fn is_resizable(&self) -> crate::Result<bool>;
+  fn is_resizable(&self) -> Result<bool>;
 
   /// Gets the window's current vibility state.
-  fn is_visible(&self) -> crate::Result<bool>;
+  fn is_visible(&self) -> Result<bool>;
 
   /// Gets the window menu current visibility state.
-  fn is_menu_visible(&self) -> crate::Result<bool>;
+  fn is_menu_visible(&self) -> Result<bool>;
 
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.
-  fn current_monitor(&self) -> crate::Result<Option<Monitor>>;
+  fn current_monitor(&self) -> Result<Option<Monitor>>;
 
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.
-  fn primary_monitor(&self) -> crate::Result<Option<Monitor>>;
+  fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
-  fn available_monitors(&self) -> crate::Result<Vec<Monitor>>;
+  fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  fn hwnd(&self) -> crate::Result<HWND>;
+  fn hwnd(&self) -> Result<HWND>;
 
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void>;
+  fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
   #[cfg(any(
@@ -440,96 +485,116 @@ pub trait Dispatch: Debug + Clone + Send + Sized + 'static {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  fn gtk_window(&self) -> crate::Result<gtk::ApplicationWindow>;
+  fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+
+  /// Returns the current window theme.
+  fn theme(&self) -> Result<Theme>;
 
   // SETTERS
 
   /// Centers the window.
-  fn center(&self) -> crate::Result<()>;
+  fn center(&self) -> Result<()>;
 
   /// Opens the dialog to prints the contents of the webview.
-  fn print(&self) -> crate::Result<()>;
+  fn print(&self) -> Result<()>;
 
   /// Requests user attention to the window.
   ///
   /// Providing `None` will unset the request for user attention.
-  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> crate::Result<()>;
+  fn request_user_attention(&self, request_type: Option<UserAttentionType>) -> Result<()>;
 
   /// Create a new webview window.
   fn create_window(
     &mut self,
-    pending: PendingWindow<Self::Runtime>,
-  ) -> crate::Result<DetachedWindow<Self::Runtime>>;
+    pending: PendingWindow<T, Self::Runtime>,
+  ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Updates the window resizable flag.
-  fn set_resizable(&self, resizable: bool) -> crate::Result<()>;
+  fn set_resizable(&self, resizable: bool) -> Result<()>;
 
   /// Updates the window title.
-  fn set_title<S: Into<String>>(&self, title: S) -> crate::Result<()>;
+  fn set_title<S: Into<String>>(&self, title: S) -> Result<()>;
 
   /// Maximizes the window.
-  fn maximize(&self) -> crate::Result<()>;
+  fn maximize(&self) -> Result<()>;
 
   /// Unmaximizes the window.
-  fn unmaximize(&self) -> crate::Result<()>;
+  fn unmaximize(&self) -> Result<()>;
 
   /// Minimizes the window.
-  fn minimize(&self) -> crate::Result<()>;
+  fn minimize(&self) -> Result<()>;
 
   /// Unminimizes the window.
-  fn unminimize(&self) -> crate::Result<()>;
+  fn unminimize(&self) -> Result<()>;
 
   /// Shows the window menu.
-  fn show_menu(&self) -> crate::Result<()>;
+  fn show_menu(&self) -> Result<()>;
 
   /// Hides the window menu.
-  fn hide_menu(&self) -> crate::Result<()>;
+  fn hide_menu(&self) -> Result<()>;
 
   /// Shows the window.
-  fn show(&self) -> crate::Result<()>;
+  fn show(&self) -> Result<()>;
 
   /// Hides the window.
-  fn hide(&self) -> crate::Result<()>;
+  fn hide(&self) -> Result<()>;
 
   /// Closes the window.
-  fn close(&self) -> crate::Result<()>;
+  fn close(&self) -> Result<()>;
 
   /// Updates the hasDecorations flag.
-  fn set_decorations(&self, decorations: bool) -> crate::Result<()>;
+  fn set_decorations(&self, decorations: bool) -> Result<()>;
 
   /// Updates the window alwaysOnTop flag.
-  fn set_always_on_top(&self, always_on_top: bool) -> crate::Result<()>;
+  fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
 
   /// Resizes the window.
-  fn set_size(&self, size: Size) -> crate::Result<()>;
+  fn set_size(&self, size: Size) -> Result<()>;
 
   /// Updates the window min size.
-  fn set_min_size(&self, size: Option<Size>) -> crate::Result<()>;
+  fn set_min_size(&self, size: Option<Size>) -> Result<()>;
 
   /// Updates the window max size.
-  fn set_max_size(&self, size: Option<Size>) -> crate::Result<()>;
+  fn set_max_size(&self, size: Option<Size>) -> Result<()>;
 
   /// Updates the window position.
-  fn set_position(&self, position: Position) -> crate::Result<()>;
+  fn set_position(&self, position: Position) -> Result<()>;
 
   /// Updates the window fullscreen state.
-  fn set_fullscreen(&self, fullscreen: bool) -> crate::Result<()>;
+  fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
 
   /// Bring the window to front and focus.
-  fn set_focus(&self) -> crate::Result<()>;
+  fn set_focus(&self) -> Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: Icon) -> crate::Result<()>;
+  fn set_icon(&self, icon: WindowIcon) -> Result<()>;
 
   /// Whether to show the window icon in the task bar or not.
-  fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()>;
+  fn set_skip_taskbar(&self, skip: bool) -> Result<()>;
+
+  /// Grabs the cursor, preventing it from leaving the window.
+  ///
+  /// There's no guarantee that the cursor will be hidden. You should
+  /// hide it by yourself if you want so.
+  fn set_cursor_grab(&self, grab: bool) -> Result<()>;
+
+  /// Modifies the cursor's visibility.
+  ///
+  /// If `false`, this will hide the cursor. If `true`, this will show the cursor.
+  fn set_cursor_visible(&self, visible: bool) -> Result<()>;
+
+  // Modifies the cursor icon of the window.
+  fn set_cursor_icon(&self, icon: CursorIcon) -> Result<()>;
+
+  /// Changes the position of the cursor in window coordinates.
+  fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
 
   /// Starts dragging the window.
-  fn start_dragging(&self) -> crate::Result<()>;
+  fn start_dragging(&self) -> Result<()>;
 
   /// Executes javascript on the window this [`Dispatch`] represents.
-  fn eval_script<S: Into<String>>(&self, script: S) -> crate::Result<()>;
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
 
   /// Applies the specified `update` to the menu item associated with the given `id`.
-  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> crate::Result<()>;
+  fn update_menu_item(&self, id: u16, update: menu::MenuUpdate) -> Result<()>;
 }

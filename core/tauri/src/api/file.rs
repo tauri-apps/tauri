@@ -4,20 +4,69 @@
 
 //! Types and functions related to file operations.
 
+#[cfg(feature = "fs-extract-api")]
 mod extract;
 mod file_move;
 
-use std::{fs, path::Path};
+use std::{
+  fs,
+  path::{Display, Path},
+};
 
+#[cfg(feature = "fs-extract-api")]
 pub use extract::*;
 pub use file_move::*;
 
-/// Reads a string file.
+use serde::{de::Error as DeError, Deserialize, Deserializer};
+
+#[derive(Clone, Debug)]
+pub(crate) struct SafePathBuf(std::path::PathBuf);
+
+impl SafePathBuf {
+  pub fn new(path: std::path::PathBuf) -> Result<Self, &'static str> {
+    if path
+      .components()
+      .any(|x| matches!(x, std::path::Component::ParentDir))
+    {
+      Err("cannot traverse directory, rewrite the path without the use of `../`")
+    } else {
+      Ok(Self(path))
+    }
+  }
+
+  #[allow(dead_code)]
+  pub unsafe fn new_unchecked(path: std::path::PathBuf) -> Self {
+    Self(path)
+  }
+
+  #[allow(dead_code)]
+  pub fn display(&self) -> Display<'_> {
+    self.0.display()
+  }
+}
+
+impl AsRef<Path> for SafePathBuf {
+  fn as_ref(&self) -> &Path {
+    self.0.as_ref()
+  }
+}
+
+impl<'de> Deserialize<'de> for SafePathBuf {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let path = std::path::PathBuf::deserialize(deserializer)?;
+    SafePathBuf::new(path).map_err(DeError::custom)
+  }
+}
+
+/// Reads the entire contents of a file into a string.
 pub fn read_string<P: AsRef<Path>>(file: P) -> crate::api::Result<String> {
   fs::read_to_string(file).map_err(Into::into)
 }
 
-/// Reads a binary file.
+/// Reads the entire contents of a file into a bytes vector.
 pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
   fs::read(file).map_err(Into::into)
 }
@@ -26,6 +75,19 @@ pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
 mod test {
   use super::*;
   use crate::api::Error;
+  use quickcheck::{Arbitrary, Gen};
+
+  use std::path::PathBuf;
+
+  impl Arbitrary for super::SafePathBuf {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self(PathBuf::arbitrary(g))
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+      Box::new(self.0.shrink().map(SafePathBuf))
+    }
+  }
 
   #[test]
   fn check_read_string() {
@@ -48,9 +110,8 @@ mod test {
 
     assert!(res.is_err());
 
+    #[cfg(not(windows))]
     if let Error::Io(e) = res.unwrap_err() {
-      #[cfg(windows)]
-      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
       assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }
@@ -88,9 +149,8 @@ mod test {
 
     assert!(res.is_err());
 
+    #[cfg(not(windows))]
     if let Error::Io(e) = res.unwrap_err() {
-      #[cfg(windows)]
-      assert_eq!(e.to_string(), "Access is denied. (os error 5)".to_string());
       #[cfg(not(windows))]
       assert_eq!(e.to_string(), "Is a directory (os error 21)".to_string());
     }

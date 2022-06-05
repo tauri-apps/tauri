@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  super::{common, path_utils},
+  super::{common::CommandExt, path_utils},
   debian,
 };
 use crate::Settings;
-
+use anyhow::Context;
 use handlebars::Handlebars;
-
+use log::info;
 use std::{
   collections::BTreeMap,
   fs::{remove_dir_all, write},
@@ -51,6 +51,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
+  sh_map.insert("arch", settings.target().split('-').next().unwrap());
   sh_map.insert("app_name", settings.main_binary_name());
   sh_map.insert("app_name_uppercase", &upcase_app_name);
   sh_map.insert("appimage_filename", &appimage_filename);
@@ -76,7 +77,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
-  common::print_bundling(appimage_path.file_name().unwrap().to_str().unwrap())?;
+
+  info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+
   write(&sh_file, temp)?;
 
   // chmod script for execution
@@ -90,19 +93,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .expect("Failed to chmod script");
 
   // execute the shell script to build the appimage.
-  let mut cmd = Command::new(&sh_file);
-  cmd.current_dir(output_path);
-
-  common::execute_with_verbosity(&mut cmd, settings).map_err(|_| {
-    crate::Error::ShellScriptError(format!(
-      "error running appimage.sh{}",
-      if settings.is_verbose() {
-        ""
-      } else {
-        ", try running with --verbose to see command output"
-      }
-    ))
-  })?;
+  Command::new(&sh_file)
+    .current_dir(output_path)
+    .output_ok()
+    .context("error running appimage.sh")?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

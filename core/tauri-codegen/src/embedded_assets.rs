@@ -7,19 +7,20 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
+  fmt::Write,
   fs::File,
   path::{Path, PathBuf},
 };
-use tauri_utils::assets::AssetKey;
 use tauri_utils::config::PatternKind;
+use tauri_utils::{assets::AssetKey, config::DisabledCspModificationKind};
 use thiserror::Error;
 use walkdir::{DirEntry, WalkDir};
 
+#[cfg(feature = "compression")]
+use brotli::enc::backward_references::BrotliEncoderParams;
+
 /// The subdirectory inside the target directory we want to place assets.
 const TARGET_PATH: &str = "tauri-codegen-assets";
-
-/// The minimum size needed for the hasher to use multiple threads.
-const MULTI_HASH_SIZE_LIMIT: usize = 131_072; // 128KiB
 
 /// (key, (original filepath, compressed bytes))
 type Asset = (AssetKey, (PathBuf, PathBuf));
@@ -40,6 +41,9 @@ pub enum EmbeddedAssetsError {
     error: std::io::Error,
   },
 
+  #[error("failed to create hex from bytes because {0}")]
+  Hex(std::fmt::Error),
+
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
 
@@ -51,6 +55,9 @@ pub enum EmbeddedAssetsError {
 
   #[error("OUT_DIR env var is not set, do you have a build script?")]
   OutDir,
+
+  #[error("version error: {0}")]
+  Version(#[from] semver::Error),
 }
 
 /// Represent a directory of assets that are compressed and embedded.
@@ -90,7 +97,7 @@ struct RawEmbeddedAssets {
 
 impl RawEmbeddedAssets {
   /// Creates a new list of (prefix, entry) from a collection of inputs.
-  fn new(input: EmbeddedAssetsInput) -> Result<Self, EmbeddedAssetsError> {
+  fn new(input: EmbeddedAssetsInput, options: &AssetOptions) -> Result<Self, EmbeddedAssetsError> {
     let mut csp_hashes = CspHashes::default();
 
     input
@@ -119,7 +126,9 @@ impl RawEmbeddedAssets {
 
           // compress all files encountered
           Ok(entry) => {
-            if let Err(error) = csp_hashes.add_if_applicable(&entry) {
+            if let Err(error) = csp_hashes
+              .add_if_applicable(&entry, &options.dangerous_disable_asset_csp_modification)
+            {
               Some(Err(error))
             } else {
               Some(Ok((prefix, entry)))
@@ -154,22 +163,28 @@ impl CspHashes {
   ///
   /// Note: this only checks the file extension, much like how a browser will assume a .js file is
   /// a JavaScript file unless HTTP headers tell it otherwise.
-  pub fn add_if_applicable(&mut self, entry: &DirEntry) -> Result<(), EmbeddedAssetsError> {
+  pub fn add_if_applicable(
+    &mut self,
+    entry: &DirEntry,
+    dangerous_disable_asset_csp_modification: &DisabledCspModificationKind,
+  ) -> Result<(), EmbeddedAssetsError> {
     let path = entry.path();
 
     // we only hash JavaScript files for now, may expand to other CSP hashable types in the future
     if let Some("js") | Some("mjs") = path.extension().and_then(|os| os.to_str()) {
-      let mut hasher = Sha256::new();
-      hasher.update(
-        &std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
-          path: path.to_path_buf(),
-          error,
-        })?,
-      );
-      let hash = hasher.finalize();
-      self
-        .scripts
-        .push(format!("'sha256-{}'", base64::encode(hash)))
+      if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+        let mut hasher = Sha256::new();
+        hasher.update(
+          &std::fs::read(path).map_err(|error| EmbeddedAssetsError::AssetRead {
+            path: path.to_path_buf(),
+            error,
+          })?,
+        );
+        let hash = hasher.finalize();
+        self
+          .scripts
+          .push(format!("'sha256-{}'", base64::encode(hash)));
+      }
     }
 
     Ok(())
@@ -182,6 +197,7 @@ pub struct AssetOptions {
   pub(crate) csp: bool,
   pub(crate) pattern: PatternKind,
   pub(crate) freeze_prototype: bool,
+  pub(crate) dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
   #[cfg(feature = "isolation")]
   pub(crate) isolation_schema: String,
 }
@@ -192,13 +208,14 @@ impl AssetOptions {
     Self {
       csp: false,
       pattern,
-      freeze_prototype: true,
+      freeze_prototype: false,
+      dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
       #[cfg(feature = "isolation")]
       isolation_schema: format!("isolation-{}", uuid::Uuid::new_v4()),
     }
   }
 
-  /// Instruct the asset handler to inject the CSP token to HTML files.
+  /// Instruct the asset handler to inject the CSP token to HTML files (Linux only) and add asset nonces and hashes to the policy.
   #[must_use]
   pub fn with_csp(mut self) -> Self {
     self.csp = true;
@@ -211,6 +228,15 @@ impl AssetOptions {
     self.freeze_prototype = freeze;
     self
   }
+
+  /// Instruct the asset handler to **NOT** modify the CSP. This is **NOT** recommended.
+  pub fn dangerous_disable_asset_csp_modification(
+    mut self,
+    dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
+  ) -> Self {
+    self.dangerous_disable_asset_csp_modification = dangerous_disable_asset_csp_modification;
+    self
+  }
 }
 
 impl EmbeddedAssets {
@@ -219,10 +245,11 @@ impl EmbeddedAssets {
   /// [`Assets`]: tauri_utils::assets::Assets
   pub fn new(
     input: impl Into<EmbeddedAssetsInput>,
+    options: &AssetOptions,
     map: impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError>,
   ) -> Result<Self, EmbeddedAssetsError> {
     // we need to pre-compute all files now, so that we can inject data from all files into a few
-    let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into())?;
+    let RawEmbeddedAssets { paths, csp_hashes } = RawEmbeddedAssets::new(input.into(), options)?;
 
     struct CompressState {
       csp_hashes: CspHashes,
@@ -237,7 +264,7 @@ impl EmbeddedAssets {
       move |mut state, (prefix, entry)| {
         let (key, asset) = Self::compress_file(&prefix, entry.path(), &map, &mut state.csp_hashes)?;
         state.assets.insert(key, asset);
-        Ok(state)
+        Result::<_, EmbeddedAssetsError>::Ok(state)
       },
     )?;
 
@@ -246,13 +273,19 @@ impl EmbeddedAssets {
 
   /// Use highest compression level for release, the fastest one for everything else
   #[cfg(feature = "compression")]
-  fn compression_level() -> i32 {
-    let levels = zstd::compression_level_range();
+  fn compression_settings() -> BrotliEncoderParams {
+    let mut settings = BrotliEncoderParams::default();
+
+    // the following compression levels are hand-picked and are not min-maxed.
+    // they have a good balance of runtime vs size for the respective profile goals.
+    // see the "brotli" section of this comment https://github.com/tauri-apps/tauri/issues/3571#issuecomment-1054847558
     if cfg!(debug_assertions) {
-      *levels.start()
+      settings.quality = 2
     } else {
-      *levels.end()
+      settings.quality = 9
     }
+
+    settings
   }
 
   /// Compress a file and spit out the information in a [`HashMap`] friendly form.
@@ -291,20 +324,24 @@ impl EmbeddedAssets {
 
     // get a hash of the input - allows for caching existing files
     let hash = {
-      let mut hasher = blake3::Hasher::new();
-      if input.len() < MULTI_HASH_SIZE_LIMIT {
-        hasher.update(&input);
-      } else {
-        hasher.update_rayon(&input);
+      let mut hasher = crate::vendor::blake3_reference::Hasher::default();
+      hasher.update(&input);
+
+      let mut bytes = [0u8; 32];
+      hasher.finalize(&mut bytes);
+
+      let mut hex = String::with_capacity(2 * bytes.len());
+      for b in bytes {
+        write!(hex, "{:02x}", b).map_err(EmbeddedAssetsError::Hex)?;
       }
-      hasher.finalize().to_hex()
+      hex
     };
 
     // use the content hash to determine filename, keep extensions that exist
     let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
       out_dir.join(format!("{}.{}", hash, ext))
     } else {
-      out_dir.join(hash.to_string())
+      out_dir.join(hash)
     };
 
     // only compress and write to the file if it doesn't already exist.
@@ -328,13 +365,16 @@ impl EmbeddedAssets {
       }
 
       #[cfg(feature = "compression")]
-      // entirely write input to the output file path with compression
-      zstd::stream::copy_encode(&*input, out_file, Self::compression_level()).map_err(|error| {
-        EmbeddedAssetsError::AssetWrite {
-          path: path.to_owned(),
-          error,
-        }
-      })?;
+      {
+        let mut input = std::io::Cursor::new(input);
+        // entirely write input to the output file path with compression
+        brotli::BrotliCompress(&mut input, &mut out_file, &Self::compression_settings()).map_err(
+          |error| EmbeddedAssetsError::AssetWrite {
+            path: path.to_owned(),
+            error,
+          },
+        )?;
+      }
     }
 
     Ok((key, (path.into(), out_path)))

@@ -11,6 +11,8 @@ pub use tauri_utils::config::{parse::ConfigError, Config};
 
 mod context;
 pub mod embedded_assets;
+#[doc(hidden)]
+pub mod vendor;
 
 /// Represents all the errors that can happen while reading the config during codegen.
 #[derive(Debug, thiserror::Error)]
@@ -25,6 +27,9 @@ pub enum CodegenConfigError {
 
   #[error("unable to parse inline JSON TAURI_CONFIG env var: {0}")]
   FormatInline(serde_json::Error),
+
+  #[error(transparent)]
+  Json(#[from] serde_json::Error),
 
   #[error("{0}")]
   ConfigError(#[from] ConfigError),
@@ -42,6 +47,12 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
     Cow::Borrowed(path)
   };
 
+  // this should be impossible because of the use of `current_dir()` above, but handle it anyways
+  let parent = path
+    .parent()
+    .map(ToOwned::to_owned)
+    .ok_or_else(|| CodegenConfigError::Parent(path.into_owned()))?;
+
   // in the future we may want to find a way to not need the TAURI_CONFIG env var so that
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
@@ -49,14 +60,8 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   let config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
     serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?
   } else {
-    tauri_utils::config::parse(path.to_path_buf())?
+    serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?)?
   };
-
-  // this should be impossible because of the use of `current_dir()` above, but handle it anyways
-  let parent = path
-    .parent()
-    .map(ToOwned::to_owned)
-    .ok_or_else(|| CodegenConfigError::Parent(path.into_owned()))?;
 
   Ok((config, parent))
 }

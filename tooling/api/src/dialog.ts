@@ -53,6 +53,11 @@ interface OpenDialogOptions {
   multiple?: boolean
   /** Whether the dialog is a directory selection or not. */
   directory?: boolean
+  /**
+   * If `directory` is true, indicates that it will be read recursively later.
+   * Defines whether subdirectories will be allowed on the scope or not.
+   */
+  recursive?: boolean
 }
 
 /** Options for the save dialog. */
@@ -69,14 +74,28 @@ interface SaveDialogOptions {
   defaultPath?: string
 }
 
+interface MessageDialogOptions {
+  /** The title of the dialog. Defaults to the app name. */
+  title?: string
+  /** The type of the dialog. Defaults to `info`. */
+  type?: 'info' | 'warning' | 'error'
+}
+
 /**
- * Open a file/directory selection dialog
+ * Open a file/directory selection dialog.
+ *
+ * The selected paths are added to the filesystem and asset protocol allowlist scopes.
+ * When security is more important than the easy of use of this API,
+ * prefer writing a dedicated command instead.
+ *
+ * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
  *
  * @returns A promise resolving to the selected path(s)
  */
 async function open(
   options: OpenDialogOptions = {}
-): Promise<string | string[]> {
+): Promise<null | string | string[]> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -92,6 +111,13 @@ async function open(
 
 /**
  * Open a file/directory save dialog.
+ *
+ * The selected path is added to the filesystem and asset protocol allowlist scopes.
+ * When security is more important than the easy of use of this API,
+ * prefer writing a dedicated command instead.
+ *
+ * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
+ * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
  *
  * @returns A promise resolving to the selected path.
  */
@@ -113,15 +139,22 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  * Shows a message dialog with an `Ok` button.
  *
  * @param {string} message The message to show.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise indicating the success or failure of the operation.
  */
-async function message(message: string): Promise<void> {
+async function message(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<void> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
-      message
+      message,
+      title: opts?.title,
+      type: opts?.type
     }
   })
 }
@@ -130,17 +163,22 @@ async function message(message: string): Promise<void> {
  * Shows a question dialog with `Yes` and `No` buttons.
  *
  * @param {string} message The message to show.
- * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
  */
-async function ask(message: string, title?: string): Promise<boolean> {
+async function ask(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<boolean> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'askDialog',
-      title,
-      message
+      message,
+      title: opts?.title,
+      type: opts?.type
     }
   })
 }
@@ -149,21 +187,31 @@ async function ask(message: string, title?: string): Promise<boolean> {
  * Shows a question dialog with `Ok` and `Cancel` buttons.
  *
  * @param {string} message The message to show.
- * @param {string|undefined} title The dialog's title. Defaults to the application name.
+ * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
  *
  * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
  */
-async function confirm(message: string, title?: string): Promise<boolean> {
+async function confirm(
+  message: string,
+  options?: string | MessageDialogOptions
+): Promise<boolean> {
+  const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
     __tauriModule: 'Dialog',
     message: {
       cmd: 'confirmDialog',
-      title,
-      message
+      message,
+      title: opts?.title,
+      type: opts?.type
     }
   })
 }
 
-export type { DialogFilter, OpenDialogOptions, SaveDialogOptions }
+export type {
+  DialogFilter,
+  OpenDialogOptions,
+  SaveDialogOptions,
+  MessageDialogOptions
+}
 
 export { open, save, message, ask, confirm }

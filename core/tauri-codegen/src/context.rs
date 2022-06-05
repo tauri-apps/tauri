@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::{ffi::OsStr, str::FromStr};
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html, NodeRef};
+use tauri_utils::html::{inject_nonce_token, parse as parse_html};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -26,49 +26,54 @@ pub struct ContextData {
   pub root: TokenStream,
 }
 
-fn load_csp(document: &mut NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
-  #[cfg(target_os = "linux")]
-  ::tauri_utils::html::inject_csp_token(document);
-  inject_nonce_token(document);
-  if let Ok(inline_script_elements) = document.select("script:not(empty)") {
-    let mut scripts = Vec::new();
-    for inline_script_el in inline_script_elements {
-      let script = inline_script_el.as_node().text_contents();
-      let mut hasher = Sha256::new();
-      hasher.update(&script);
-      let hash = hasher.finalize();
-      scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
-    }
-    csp_hashes
-      .inline_scripts
-      .entry(key.clone().into())
-      .or_default()
-      .append(&mut scripts);
-  }
-}
-
 fn map_core_assets(
   options: &AssetOptions,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
   let csp = options.csp;
+  let dangerous_disable_asset_csp_modification =
+    options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
       let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
 
+      #[allow(clippy::collapsible_if)]
       if csp {
-        load_csp(&mut document, key, csp_hashes);
+        #[cfg(target_os = "linux")]
+        ::tauri_utils::html::inject_csp_token(&mut document);
+
+        inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
+
+        if dangerous_disable_asset_csp_modification.can_modify("script-src") {
+          if let Ok(inline_script_elements) = document.select("script:not(empty)") {
+            let mut scripts = Vec::new();
+            for inline_script_el in inline_script_elements {
+              let script = inline_script_el.as_node().text_contents();
+              let mut hasher = Sha256::new();
+              hasher.update(&script);
+              let hash = hasher.finalize();
+              scripts.push(format!("'sha256-{}'", base64::encode(&hash)));
+            }
+            csp_hashes
+              .inline_scripts
+              .entry(key.clone().into())
+              .or_default()
+              .append(&mut scripts);
+          }
+        }
 
         #[cfg(feature = "isolation")]
-        if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
-          // create the csp for the isolation iframe styling now, to make the runtime less complex
-          let mut hasher = Sha256::new();
-          hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
-          let hash = hasher.finalize();
-          csp_hashes
-            .styles
-            .push(format!("'sha256-{}'", base64::encode(&hash)));
+        if dangerous_disable_asset_csp_modification.can_modify("style-src") {
+          if let tauri_utils::html::PatternObject::Isolation { .. } = &pattern {
+            // create the csp for the isolation iframe styling now, to make the runtime less complex
+            let mut hasher = Sha256::new();
+            hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
+            let hash = hasher.finalize();
+            csp_hashes
+              .styles
+              .push(format!("'sha256-{}'", base64::encode(&hash)));
+          }
         }
       }
 
@@ -111,7 +116,14 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } = data;
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
-    .freeze_prototype(config.tauri.security.freeze_prototype);
+    .freeze_prototype(config.tauri.security.freeze_prototype)
+    .dangerous_disable_asset_csp_modification(
+      config
+        .tauri
+        .security
+        .dangerous_disable_asset_csp_modification
+        .clone(),
+    );
   let csp = if dev {
     config
       .tauri
@@ -150,7 +162,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(assets_path, map_core_assets(&options))?
+        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
       }
       _ => unimplemented!(),
     },
@@ -159,31 +171,48 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .iter()
         .map(|p| config_parent.join(p))
         .collect::<Vec<_>>(),
+      &options,
       map_core_assets(&options),
     )?,
     _ => unimplemented!(),
   };
 
+  #[cfg(any(windows, target_os = "linux"))]
+  let out_dir = {
+    let out_dir = std::env::var("OUT_DIR")
+      .map_err(|_| EmbeddedAssetsError::OutDir)
+      .map(PathBuf::from)
+      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
+
+    // make sure that our output directory is created
+    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
+
+    out_dir
+  };
+
   // handle default window icons for Windows targets
-  let default_window_icon = if cfg!(windows) {
+  #[cfg(windows)]
+  let default_window_icon = {
     let icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
-  } else if cfg!(target_os = "linux") {
+    ico_icon(&root, &out_dir, icon_path)?
+  };
+  #[cfg(target_os = "linux")]
+  let default_window_icon = {
     let icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".png"),
       "icons/icon.png",
     );
-    quote!(Some(include_bytes!(#icon_path).to_vec()))
-  } else {
-    quote!(None)
+    png_icon(&root, &out_dir, icon_path)?
   };
+  #[cfg(not(any(windows, target_os = "linux")))]
+  let default_window_icon = quote!(None);
 
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
@@ -191,6 +220,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(env!("CARGO_PKG_NAME").to_string())
   };
   let package_version = if let Some(version) = &config.package.version {
+    semver::Version::from_str(version)?;
     quote!(#version.to_string())
   } else {
     quote!(env!("CARGO_PKG_VERSION").to_string())
@@ -198,7 +228,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let package_info = quote!(
     #root::PackageInfo {
       name: #package_name,
-      version: #package_version,
+      version: #package_version.parse().unwrap(),
       authors: env!("CARGO_PKG_AUTHORS"),
       description: env!("CARGO_PKG_DESCRIPTION"),
     }
@@ -213,12 +243,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .join(system_tray_icon_path)
         .display()
         .to_string();
-      quote!(Some(#root::Icon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
     } else {
       let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
       quote!(
         Some(
-          #root::Icon::File(
+          #root::TrayIcon::File(
             #root::api::path::resolve_path(
               &#config,
               &#package_info,
@@ -242,7 +272,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       .join(system_tray_icon_path)
       .display()
       .to_string();
-    quote!(Some(#root::Icon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
+    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -279,7 +309,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
 
       let key = uuid::Uuid::new_v4().to_string();
-      let assets = EmbeddedAssets::new(dir.clone(), map_isolation(&options, dir))?;
+      let assets = EmbeddedAssets::new(dir.clone(), &options, map_isolation(&options, dir))?;
       let schema = options.isolation_schema;
 
       quote!(#root::Pattern::Isolation {
@@ -337,6 +367,93 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   )))
 }
 
+#[cfg(windows)]
+fn ico_icon<P: AsRef<Path>>(
+  root: &TokenStream,
+  out_dir: &Path,
+  path: P,
+) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .to_vec();
+  let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
+    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
+  let entry = &icon_dir.entries()[0];
+  let rgba = entry
+    .decode()
+    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
+    .rgba_data()
+    .to_vec();
+  let width = entry.width();
+  let height = entry.height();
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&rgba)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  Ok(icon)
+}
+
+#[cfg(target_os = "linux")]
+fn png_icon<P: AsRef<Path>>(
+  root: &TokenStream,
+  out_dir: &Path,
+  path: P,
+) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .to_vec();
+  let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+  let mut reader = decoder
+    .read_info()
+    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
+  let mut buffer: Vec<u8> = Vec::new();
+  while let Ok(Some(row)) = reader.next_row() {
+    buffer.extend(row.data());
+  }
+  let width = reader.info().width;
+  let height = reader.info().height;
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&buffer)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  Ok(icon)
+}
+
+#[cfg(any(windows, target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,
@@ -376,25 +493,22 @@ fn get_allowed_clis(root: &TokenStream, scope: &ShellAllowlistScope) -> TokenStr
             ShellAllowedArg::Fixed(fixed) => {
               quote!(#root::scope::ShellScopeAllowedArg::Fixed(#fixed.into()))
             }
-            ShellAllowedArg::Var { name, validate } => {
-              let validate = match validate {
-                None => quote!(::std::option::Option::None),
-                Some(regex) => match regex::Regex::new(regex) {
-                  Ok(regex) => {
-                    let regex = regex.as_str();
-                    quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap()))
-                  }
-                  Err(error) => {
-                    let error = error.to_string();
-                    quote!({
-                      compile_error!(#error);
-                      ::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())
-                    })
-                  }
-                },
+            ShellAllowedArg::Var { validator } => {
+              let validator = match regex::Regex::new(validator) {
+                Ok(regex) => {
+                  let regex = regex.as_str();
+                  quote!(#root::regex::Regex::new(#regex).unwrap())
+                }
+                Err(error) => {
+                  let error = error.to_string();
+                  quote!({
+                    compile_error!(#error);
+                    #root::regex::Regex::new(#validator).unwrap()
+                  })
+                }
               };
 
-              quote!(#root::scope::ShellScopeAllowedArg::Var { name: #name.into(), validate: #validate })
+              quote!(#root::scope::ShellScopeAllowedArg::Var { validator: #validator })
             }
             _ => panic!("unknown shell scope arg, unable to prepare"),
           });

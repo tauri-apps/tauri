@@ -144,8 +144,12 @@ impl Assets for EmbeddedAssets {
     self
       .assets
       .get(key.as_ref())
-      .copied()
-      .map(zstd::decode_all)
+      .map(|&(mut asdf)| {
+        // with the exception of extremely small files, output should usually be
+        // at least as large as the compressed version.
+        let mut buf = Vec::with_capacity(asdf.len());
+        brotli::BrotliDecompress(&mut asdf, &mut buf).map(|()| buf)
+      })
       .and_then(Result::ok)
       .map(Cow::Owned)
   }

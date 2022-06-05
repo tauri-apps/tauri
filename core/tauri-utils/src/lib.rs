@@ -5,10 +5,19 @@
 //! Tauri utility helpers
 #![warn(missing_docs, rust_2018_idioms)]
 
+use std::fmt::Display;
+
+use semver::Version;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 pub mod assets;
 pub mod config;
 pub mod html;
+pub mod io;
 pub mod platform;
+/// Prepare application resources and sidecars.
+#[cfg(feature = "resources")]
+pub mod resources;
 
 /// Application pattern.
 pub mod pattern;
@@ -19,7 +28,7 @@ pub struct PackageInfo {
   /// App name
   pub name: String,
   /// App version
-  pub version: String,
+  pub version: Version,
   /// The crate authors.
   pub authors: &'static str,
   /// The crate description.
@@ -37,6 +46,52 @@ impl PackageInfo {
     }
     #[cfg(not(target_os = "linux"))]
     self.name.clone()
+  }
+}
+
+/// System theme.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[non_exhaustive]
+pub enum Theme {
+  /// Light theme.
+  Light,
+  /// Dark theme.
+  Dark,
+}
+
+impl Serialize for Theme {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for Theme {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "dark" => Self::Dark,
+      _ => Self::Light,
+    })
+  }
+}
+
+impl Display for Theme {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Light => "light",
+        Self::Dark => "dark",
+      }
+    )
   }
 }
 
@@ -123,4 +178,24 @@ pub enum Error {
   /// Invalid pattern.
   #[error("invalid pattern `{0}`. Expected either `brownfield` or `isolation`.")]
   InvalidPattern(String),
+  /// Invalid glob pattern.
+  #[cfg(feature = "resources")]
+  #[error("{0}")]
+  GlobPattern(#[from] glob::PatternError),
+  /// Failed to use glob pattern.
+  #[cfg(feature = "resources")]
+  #[error("`{0}`")]
+  Glob(#[from] glob::GlobError),
+  /// Glob pattern did not find any results.
+  #[cfg(feature = "resources")]
+  #[error("path matching {0} not found.")]
+  GlobPathNotFound(String),
+  /// Error walking directory.
+  #[cfg(feature = "resources")]
+  #[error("{0}")]
+  WalkdirError(#[from] walkdir::Error),
+  /// Not allowed to walk dir.
+  #[cfg(feature = "resources")]
+  #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
+  NotAllowedToWalkDir(std::path::PathBuf),
 }

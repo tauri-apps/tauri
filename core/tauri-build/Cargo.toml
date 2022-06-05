@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "1.0.0-beta.4"
+version = "1.0.0-rc.12"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -19,15 +19,17 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "1.0.0-beta.4", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "1.0.0-beta.0", path = "../tauri-utils", features = [ "build" ] }
-cargo_toml = "0.10"
+tauri-codegen = { version = "1.0.0-rc.8", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "1.0.0-rc.8", path = "../tauri-utils", features = [ "build", "resources" ] }
+cargo_toml = "0.11"
 serde_json = "1"
+heck = "0.4"
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"
+semver = "1"
 
 [features]
 codegen = [ "tauri-codegen", "quote" ]
-isolation = ["tauri-codegen/isolation", "tauri-utils/isolation"]
+isolation = [ "tauri-codegen/isolation", "tauri-utils/isolation" ]
 config-json5 = [ "tauri-utils/config-json5" ]

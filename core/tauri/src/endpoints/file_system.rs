@@ -2,18 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(unused_imports)]
+
 use crate::{
-  api::{dir, file, path::BaseDirectory},
+  api::{
+    dir,
+    file::{self, SafePathBuf},
+    path::BaseDirectory,
+  },
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };
 
 use super::InvokeContext;
+#[allow(unused_imports)]
+use anyhow::Context;
 use serde::{
   de::{Deserializer, Error as DeError},
   Deserialize, Serialize,
 };
-use tauri_macros::{module_command_handler, CommandModule};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::fmt::{Debug, Formatter};
 use std::{
@@ -23,34 +31,6 @@ use std::{
   path::{Component, Path},
   sync::Arc,
 };
-
-#[derive(Clone, Debug)]
-pub struct SafePathBuf(std::path::PathBuf);
-
-impl AsRef<Path> for SafePathBuf {
-  fn as_ref(&self) -> &Path {
-    self.0.as_ref()
-  }
-}
-
-impl<'de> Deserialize<'de> for SafePathBuf {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let path = std::path::PathBuf::deserialize(deserializer)?;
-    if path.components().any(|x| {
-      matches!(
-        x,
-        Component::ParentDir | Component::RootDir | Component::Prefix(_)
-      )
-    }) {
-      Err(DeError::custom("cannot traverse directory"))
-    } else {
-      Ok(SafePathBuf(path))
-    }
-  }
-}
 
 /// The options for the directory functions on the file system API.
 #[derive(Debug, Clone, Deserialize)]
@@ -72,47 +52,62 @@ pub struct FileOperationOptions {
 }
 
 /// The API descriptor.
+#[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
-pub enum Cmd {
-  /// The read text file API.
+pub(crate) enum Cmd {
+  /// The read binary file API.
+  #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
+  /// The read binary file API.
+  #[cmd(fs_read_file, "fs > readFile")]
+  ReadTextFile {
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  },
   /// The write file API.
+  #[cmd(fs_write_file, "fs > writeFile")]
   WriteFile {
     path: SafePathBuf,
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
   },
   /// The read dir API.
+  #[cmd(fs_read_dir, "fs > readDir")]
   ReadDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The copy file API.
+  #[cmd(fs_copy_file, "fs > copyFile")]
   CopyFile {
     source: SafePathBuf,
     destination: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The create dir API.
+  #[cmd(fs_create_dir, "fs > createDir")]
   CreateDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The remove dir API.
+  #[cmd(fs_remove_dir, "fs > removeDir")]
   RemoveDir {
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
   },
   /// The remove file API.
+  #[cmd(fs_remove_file, "fs > removeFile")]
   RemoveFile {
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
   /// The rename file API.
+  #[cmd(fs_rename_file, "fs > renameFile")]
   #[serde(rename_all = "camelCase")]
   RenameFile {
     old_path: SafePathBuf,
@@ -122,71 +117,92 @@ pub enum Cmd {
 }
 
 impl Cmd {
-  #[module_command_handler(fs_read_file, "fs > readFile")]
+  #[module_command_handler(fs_read_file)]
   fn read_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<Vec<u8>> {
-    file::read_binary(resolve_path(
+  ) -> super::Result<Vec<u8>> {
+    let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
       options.and_then(|o| o.dir),
-    )?)
-    .map_err(crate::Error::FailedToExecuteApi)
+    )?;
+    file::read_binary(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
   }
 
-  #[module_command_handler(fs_write_file, "fs > writeFile")]
+  #[module_command_handler(fs_read_file)]
+  fn read_text_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  ) -> super::Result<String> {
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.and_then(|o| o.dir),
+    )?;
+    file::read_string(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_write_file)]
   fn write_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     contents: Vec<u8>,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
-    File::create(resolve_path(
+  ) -> super::Result<()> {
+    let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
       options.and_then(|o| o.dir),
-    )?)
-    .map_err(Into::into)
-    .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
+    )?;
+    File::create(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
+      .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
   }
 
-  #[module_command_handler(fs_read_dir, "fs > readDir")]
+  #[module_command_handler(fs_read_dir)]
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<Vec<dir::DiskEntry>> {
+  ) -> super::Result<Vec<dir::DiskEntry>> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
       (false, None)
     };
-    dir::read_dir(
-      resolve_path(
-        &context.config,
-        &context.package_info,
-        &context.window,
-        path,
-        dir,
-      )?,
-      recursive,
-    )
-    .map_err(crate::Error::FailedToExecuteApi)
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      dir,
+    )?;
+    dir::read_dir(&resolved_path, recursive)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
   }
 
-  #[module_command_handler(fs_copy_file, "fs > copyFile")]
+  #[module_command_handler(fs_copy_file)]
   fn copy_file<R: Runtime>(
     context: InvokeContext<R>,
     source: SafePathBuf,
     destination: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (src, dest) = match options.and_then(|o| o.dir) {
       Some(dir) => (
         resolve_path(
@@ -194,7 +210,7 @@ impl Cmd {
           &context.package_info,
           &context.window,
           source,
-          Some(dir.clone()),
+          Some(dir),
         )?,
         resolve_path(
           &context.config,
@@ -206,16 +222,17 @@ impl Cmd {
       ),
       None => (source, destination),
     };
-    fs::copy(src, dest)?;
+    fs::copy(src.clone(), dest.clone())
+      .with_context(|| format!("source: {}, dest: {}", src.display(), dest.display()))?;
     Ok(())
   }
 
-  #[module_command_handler(fs_create_dir, "fs > createDir")]
+  #[module_command_handler(fs_create_dir)]
   fn create_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
@@ -229,20 +246,22 @@ impl Cmd {
       dir,
     )?;
     if recursive {
-      fs::create_dir_all(resolved_path)?;
+      fs::create_dir_all(&resolved_path)
+        .with_context(|| format!("path: {}", resolved_path.display()))?;
     } else {
-      fs::create_dir(resolved_path)?;
+      fs::create_dir(&resolved_path)
+        .with_context(|| format!("path: {} (non recursive)", resolved_path.display()))?;
     }
 
     Ok(())
   }
 
-  #[module_command_handler(fs_remove_dir, "fs > removeDir")]
+  #[module_command_handler(fs_remove_dir)]
   fn remove_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<DirOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (recursive, dir) = if let Some(options_value) = options {
       (options_value.recursive, options_value.dir)
     } else {
@@ -256,20 +275,22 @@ impl Cmd {
       dir,
     )?;
     if recursive {
-      fs::remove_dir_all(resolved_path)?;
+      fs::remove_dir_all(&resolved_path)
+        .with_context(|| format!("path: {}", resolved_path.display()))?;
     } else {
-      fs::remove_dir(resolved_path)?;
+      fs::remove_dir(&resolved_path)
+        .with_context(|| format!("path: {} (non recursive)", resolved_path.display()))?;
     }
 
     Ok(())
   }
 
-  #[module_command_handler(fs_remove_file, "fs > removeFile")]
+  #[module_command_handler(fs_remove_file)]
   fn remove_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -277,17 +298,18 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?;
-    fs::remove_file(resolved_path)?;
+    fs::remove_file(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))?;
     Ok(())
   }
 
-  #[module_command_handler(fs_rename_file, "fs > renameFile")]
+  #[module_command_handler(fs_rename_file)]
   fn rename_file<R: Runtime>(
     context: InvokeContext<R>,
     old_path: SafePathBuf,
     new_path: SafePathBuf,
     options: Option<FileOperationOptions>,
-  ) -> crate::Result<()> {
+  ) -> super::Result<()> {
     let (old, new) = match options.and_then(|o| o.dir) {
       Some(dir) => (
         resolve_path(
@@ -295,7 +317,7 @@ impl Cmd {
           &context.package_info,
           &context.window,
           old_path,
-          Some(dir.clone()),
+          Some(dir),
         )?,
         resolve_path(
           &context.config,
@@ -307,7 +329,9 @@ impl Cmd {
       ),
       None => (old_path, new_path),
     };
-    fs::rename(old, new).map_err(crate::Error::Io)
+    fs::rename(&old, &new)
+      .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))
+      .map_err(Into::into)
   }
 }
 
@@ -318,17 +342,23 @@ fn resolve_path<R: Runtime>(
   window: &Window<R>,
   path: SafePathBuf,
   dir: Option<BaseDirectory>,
-) -> crate::Result<SafePathBuf> {
+) -> super::Result<SafePathBuf> {
   let env = window.state::<Env>().inner();
-  match crate::api::path::resolve_path(config, package_info, env, path, dir) {
+  match crate::api::path::resolve_path(config, package_info, env, &path, dir) {
     Ok(path) => {
       if window.state::<Scopes>().fs.is_allowed(&path) {
-        Ok(SafePathBuf(path))
+        Ok(
+          // safety: the path is resolved by Tauri so it is safe
+          unsafe { SafePathBuf::new_unchecked(path) },
+        )
       } else {
-        Err(crate::Error::PathNotAllowed(path))
+        Err(anyhow::anyhow!(
+          crate::Error::PathNotAllowed(path).to_string()
+        ))
       }
     }
-    Err(e) => Err(e.into()),
+    Err(e) => super::Result::<SafePathBuf>::Err(e.into())
+      .with_context(|| format!("path: {}, base dir: {:?}", path.display(), dir)),
   }
 }
 
@@ -337,18 +367,6 @@ mod tests {
   use super::{BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf};
 
   use quickcheck::{Arbitrary, Gen};
-
-  use std::path::PathBuf;
-
-  impl Arbitrary for super::SafePathBuf {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self(PathBuf::arbitrary(g))
-    }
-
-    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
-      Box::new(self.0.shrink().map(SafePathBuf))
-    }
-  }
 
   impl Arbitrary for BaseDirectory {
     fn arbitrary(g: &mut Gen) -> Self {
@@ -381,21 +399,21 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn read_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
   fn write_file(path: SafePathBuf, contents: Vec<u8>, options: Option<FileOperationOptions>) {
     let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, contents, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_read_dir, "fs > readDir")]
   #[quickcheck_macros::quickcheck]
   fn read_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::read_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_copy_file, "fs > copyFile")]
@@ -411,28 +429,28 @@ mod tests {
       destination,
       options,
     );
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_create_dir, "fs > createDir")]
   #[quickcheck_macros::quickcheck]
   fn create_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::create_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_remove_dir, "fs > removeDir")]
   #[quickcheck_macros::quickcheck]
   fn remove_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
     let res = super::Cmd::remove_dir(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_remove_file, "fs > removeFile")]
   #[quickcheck_macros::quickcheck]
   fn remove_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
     let res = super::Cmd::remove_file(crate::test::mock_invoke_context(), path, options);
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 
   #[tauri_macros::module_command_test(fs_rename_file, "fs > renameFile")]
@@ -448,6 +466,6 @@ mod tests {
       new_path,
       options,
     );
-    assert!(!matches!(res, Err(crate::Error::ApiNotAllowlisted(_))));
+    crate::test_utils::assert_not_allowlist_error(res);
   }
 }

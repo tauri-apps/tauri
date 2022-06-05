@@ -5,34 +5,94 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use heck::ToSnakeCase;
+use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
+#[cfg(windows)]
+mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
+fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
+  let from = from.as_ref();
+  let to = to.as_ref();
+  if !from.exists() {
+    return Err(anyhow::anyhow!("{:?} does not exist", from));
+  }
+  if !from.is_file() {
+    return Err(anyhow::anyhow!("{:?} is not a file", from));
+  }
+  let dest_dir = to.parent().expect("No data in parent");
+  std::fs::create_dir_all(dest_dir)?;
+  std::fs::copy(from, to)?;
+  Ok(())
+}
+
+fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
+  for src in binaries {
+    let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
+    let dest = path.join(
+      src
+        .file_name()
+        .expect("failed to extract external binary filename")
+        .to_string_lossy()
+        .replace(&format!("-{}", target_triple), ""),
+    );
+    if dest.exists() {
+      std::fs::remove_file(&dest).unwrap();
+    }
+    copy_file(&src, &dest)?;
+  }
+  Ok(())
+}
+
+/// Copies resources to a path.
+fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+  for src in resources {
+    let src = src?;
+    println!("cargo:rerun-if-changed={}", src.display());
+    let dest = path.join(resource_relpath(&src));
+    copy_file(&src, &dest)?;
+  }
+  Ok(())
+}
+
+// checks if the given Cargo feature is enabled.
+fn has_feature(feature: &str) -> bool {
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+  std::env::var(format!(
+    "CARGO_FEATURE_{}",
+    feature.to_snake_case().to_uppercase()
+  ))
+  .map(|x| x == "1")
+  .unwrap_or(false)
+}
+
+// creates a cfg alias if `has_feature` is true.
+// `alias` must be a snake case string.
+fn cfg_alias(alias: &str, has_feature: bool) {
+  if has_feature {
+    println!("cargo:rustc-cfg={}", alias);
+  }
+}
+
 /// Attributes used on Windows.
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct WindowsAttributes {
-  window_icon_path: PathBuf,
+  window_icon_path: Option<PathBuf>,
   /// The path to the sdk location. This can be a absolute or relative path. If not supplied
   /// this defaults to whatever `winres` crate determines is the best. See the
   /// [winres documentation](https://docs.rs/winres/*/winres/struct.WindowsResource.html#method.set_toolkit_path)
   sdk_dir: Option<PathBuf>,
-}
-
-impl Default for WindowsAttributes {
-  fn default() -> Self {
-    Self {
-      window_icon_path: PathBuf::from("icons/icon.ico"),
-      sdk_dir: None,
-    }
-  }
 }
 
 impl WindowsAttributes {
@@ -45,7 +105,9 @@ impl WindowsAttributes {
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
-    self.window_icon_path = window_icon_path.as_ref().into();
+    self
+      .window_icon_path
+      .replace(window_icon_path.as_ref().into());
     self
   }
 
@@ -100,7 +162,7 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    panic!("error found during tauri-build: {}", error);
+    panic!("error found during tauri-build: {:#?}", error);
   }
 }
 
@@ -111,7 +173,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   use cargo_toml::{Dependency, Manifest};
   use tauri_utils::config::{Config, TauriConfig};
 
-  println!("cargo:rerun-if-changed=src/Cargo.toml");
+  println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
@@ -123,6 +185,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       std::env::current_dir().unwrap(),
     )?)?
   };
+
+  #[cfg(windows)]
+  static_vcruntime::build();
+
+  cfg_alias("dev", !has_feature("custom-protocol"));
 
   let mut manifest = Manifest::from_path("Cargo.toml")?;
   if let Some(tauri) = manifest.dependencies.remove("tauri") {
@@ -176,18 +243,64 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
+  let target_triple = std::env::var("TARGET").unwrap();
+  let out_dir = std::env::var("OUT_DIR").unwrap();
+  // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
+  let target_dir = Path::new(&out_dir)
+    .parent()
+    .unwrap()
+    .parent()
+    .unwrap()
+    .parent()
+    .unwrap();
+
+  if let Some(paths) = &config.tauri.bundle.external_bin {
+    copy_binaries(
+      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
+      &target_triple,
+      target_dir,
+    )?;
+  }
+
+  #[allow(unused_mut)]
+  let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
+  #[cfg(target_os = "linux")]
+  if let Some(tray) = config.tauri.system_tray {
+    resources.push(tray.icon_path.display().to_string());
+  }
+  copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
+
+  #[cfg(target_os = "macos")]
+  {
+    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
+    }
+  }
+
   #[cfg(windows)]
   {
     use anyhow::Context;
-    use winres::WindowsResource;
+    use semver::Version;
+    use winres::{VersionInfo, WindowsResource};
 
-    let icon_path_string = attributes
+    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
+      let icon_path = config
+        .tauri
+        .bundle
+        .icon
+        .iter()
+        .find(|i| predicate(i))
+        .cloned()
+        .unwrap_or_else(|| default.to_string());
+      icon_path.into()
+    }
+
+    let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .to_string_lossy()
-      .into_owned();
+      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
-    if attributes.windows_attributes.window_icon_path.exists() {
+    if window_icon_path.exists() {
       let mut res = WindowsResource::new();
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
@@ -199,6 +312,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       if let Some(version) = &config.package.version {
+        if let Ok(v) = Version::parse(version) {
+          let version = v.major << 48 | v.minor << 32 | v.patch << 16;
+          res.set_version_info(VersionInfo::FILEVERSION, version);
+          res.set_version_info(VersionInfo::PRODUCTVERSION, version);
+        }
         res.set("FileVersion", version);
         res.set("ProductVersion", version);
       }
@@ -206,17 +324,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         res.set("ProductName", product_name);
         res.set("FileDescription", product_name);
       }
-      res.set_icon_with_id(&icon_path_string, "32512");
+      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {
         format!(
           "failed to compile `{}` into a Windows Resource file during tauri-build",
-          icon_path_string
+          window_icon_path.display()
         )
       })?;
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",
-        icon_path_string
+        window_icon_path.display()
       )));
     }
   }

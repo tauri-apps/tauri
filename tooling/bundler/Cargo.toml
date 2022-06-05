@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.0.0-beta.4"
+version = "1.0.0-rc.9"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -22,35 +22,34 @@ exclude = [
 ]
 
 [dependencies]
-ar = "0.9.0"
-glob = "0.3.0"
+tauri-utils = { version = "1.0.0-rc.8", path = "../../core/tauri-utils", features = [ "resources" ] }
 icns = "0.3"
-image = "0.23.14"
-libflate = "1.1"
-md5 = "0.7.0"
+image = "0.24.2"
+libflate = "1.2"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
-tar = "0.4"
-termcolor = "1.1.2"
-toml = "0.5.8"
+tar = "0.4.38"
+toml = "0.5.9"
 walkdir = "2"
-handlebars = { version = "4.2" }
-zip = { version = "0.5" }
+handlebars = "4.3"
 tempfile = "3.3.0"
+log = { version = "0.4.17", features = [ "kv_unstable" ] }
 
 [target."cfg(target_os = \"windows\")".dependencies]
-attohttpc = "0.18"
-uuid = { version = "0.8", features = [ "v4", "v5" ] }
+attohttpc = "0.19"
+uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
 winreg = "0.10"
 sha2 = "0.10"
 hex = "0.4"
+glob = "0.3"
+zip = "0.6"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-time = { version = "0.3", features = ["formatting"] }
+time = { version = "0.3", features = [ "formatting" ] }
 dirs-next = "2.0"
 
 [target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]
@@ -58,6 +57,8 @@ regex = "1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
+ar = "0.9.0"
+md5 = "0.7.0"
 
 [lib]
 name = "tauri_bundler"

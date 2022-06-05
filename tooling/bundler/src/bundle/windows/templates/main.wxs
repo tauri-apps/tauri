@@ -25,8 +25,19 @@
                  InstallScope="perMachine"
                  SummaryCodepage="!(loc.TauriCodepage)"/>
 
-        <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)"
-          AllowSameVersionUpgrades="yes" />
+        <!-- https://docs.microsoft.com/en-us/windows/win32/msi/reinstallmode -->
+        <!-- reinstall all files; rewrite all registry entries; reinstall all shortcuts -->
+        <Property Id="REINSTALLMODE" Value="amus" />
+
+        {{#if allow_downgrades}}
+            <MajorUpgrade AllowDowngrades="yes" Schedule="afterInstallValidate" />
+        {{else}}
+            <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
+        {{/if}}
+
+        <InstallExecuteSequence>
+            <RemoveShortcuts>Installed AND NOT UPGRADINGPRODUCTCODE</RemoveShortcuts>
+        </InstallExecuteSequence>
 
         <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
 
@@ -52,7 +63,7 @@
 
         <!-- launch app checkbox -->
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
-        <Property Id="WixShellExecTarget" Value="{{{app_exe_source}}}" />
+        <Property Id="WixShellExecTarget" Value="[!Path]" />
         <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
         <UI>

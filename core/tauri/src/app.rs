@@ -15,26 +15,31 @@ use crate::{
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    webview::{WebviewAttributes, WindowBuilder},
-    window::{PendingWindow, WindowEvent},
-    Dispatch, ExitRequestedEventAction, RunEvent as RuntimeRunEvent, Runtime,
+    webview::WebviewAttributes,
+    window::{PendingWindow, WindowEvent as RuntimeWindowEvent},
+    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::config::{Config, WindowUrl},
-  utils::{assets::Assets, Env},
-  Context, Invoke, InvokeError, InvokeResponse, Manager, Scopes, StateManager, Window,
+  utils::config::Config,
+  utils::{assets::Assets, resources::resource_relpath, Env},
+  Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
+  StateManager, Theme, Window,
 };
 
 #[cfg(shell_scope)]
 use crate::scope::ShellScope;
 
 use tauri_macros::default_runtime;
+use tauri_runtime::window::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  FileDropEvent,
+};
 use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
-  path::PathBuf,
+  path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
 
@@ -42,9 +47,9 @@ use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{Icon, SystemTrayEvent as RuntimeSystemTrayEvent};
+use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 use crate::updater;
 
 #[cfg(target_os = "macos")]
@@ -67,13 +72,83 @@ impl ExitRequestApi {
 }
 
 /// Api exposed on the `CloseRequested` event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CloseRequestApi(Sender<bool>);
 
 impl CloseRequestApi {
   /// Prevents the window from being closed.
   pub fn prevent_close(&self) {
     self.0.send(true).unwrap();
+  }
+}
+
+/// An event from a window.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum WindowEvent {
+  /// The size of the window has changed. Contains the client area's new dimensions.
+  Resized(PhysicalSize<u32>),
+  /// The position of the window has changed. Contains the window's new position.
+  Moved(PhysicalPosition<i32>),
+  /// The window has been requested to close.
+  #[non_exhaustive]
+  CloseRequested {
+    /// An API modify the behavior of the close requested event.
+    api: CloseRequestApi,
+  },
+  /// The window has been destroyed.
+  Destroyed,
+  /// The window gained or lost focus.
+  ///
+  /// The parameter is true if the window has gained focus, and false if it has lost focus.
+  Focused(bool),
+  /// The window's scale factor has changed.
+  ///
+  /// The following user actions can cause DPI changes:
+  ///
+  /// - Changing the display's resolution.
+  /// - Changing the display's scale factor (e.g. in Control Panel on Windows).
+  /// - Moving the window to a display with a different scale factor.
+  #[non_exhaustive]
+  ScaleFactorChanged {
+    /// The new scale factor.
+    scale_factor: f64,
+    /// The window inner size.
+    new_inner_size: PhysicalSize<u32>,
+  },
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+  /// The system window theme has changed.
+  ///
+  /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux**: Not supported.
+  /// - **Windows**: Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
+  ThemeChanged(Theme),
+}
+
+impl From<RuntimeWindowEvent> for WindowEvent {
+  fn from(event: RuntimeWindowEvent) -> Self {
+    match event {
+      RuntimeWindowEvent::Resized(size) => Self::Resized(size),
+      RuntimeWindowEvent::Moved(position) => Self::Moved(position),
+      RuntimeWindowEvent::CloseRequested { signal_tx } => Self::CloseRequested {
+        api: CloseRequestApi(signal_tx),
+      },
+      RuntimeWindowEvent::Destroyed => Self::Destroyed,
+      RuntimeWindowEvent::Focused(flag) => Self::Focused(flag),
+      RuntimeWindowEvent::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      } => Self::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      },
+      RuntimeWindowEvent::FileDrop(event) => Self::FileDrop(event),
+      RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
+    }
   }
 }
 
@@ -86,22 +161,17 @@ pub enum RunEvent {
   /// The app is about to exit
   #[non_exhaustive]
   ExitRequested {
-    /// The label of the window that requested the exit.
-    /// It is the last window managed by tauri.
-    window_label: String,
     /// Event API
     api: ExitRequestApi,
   },
-  /// Window close was requested by the user.
+  /// An event associated with a window.
   #[non_exhaustive]
-  CloseRequested {
+  WindowEvent {
     /// The window label.
     label: String,
-    /// Event API.
-    api: CloseRequestApi,
+    /// The detailed event.
+    event: WindowEvent,
   },
-  /// Window closed.
-  WindowClosed(String),
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.
@@ -110,6 +180,19 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Updater event.
+  #[cfg(updater)]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+  Updater(crate::UpdaterEvent),
+}
+
+impl From<EventLoopMessage> for RunEvent {
+  fn from(event: EventLoopMessage) -> Self {
+    match event {
+      #[cfg(updater)]
+      EventLoopMessage::Updater(event) => RunEvent::Updater(event),
+    }
+  }
 }
 
 /// A menu event that was triggered on a window.
@@ -152,6 +235,12 @@ impl<R: Runtime> GlobalWindowEvent<R> {
   }
 }
 
+#[cfg(updater)]
+#[derive(Debug, Clone, Default)]
+pub(crate) struct UpdaterSettings {
+  pub(crate) target: Option<String>,
+}
+
 /// The path resolver is a helper for the application-specific [`crate::api::path`] APIs.
 #[derive(Debug, Clone)]
 pub struct PathResolver {
@@ -164,6 +253,41 @@ impl PathResolver {
   /// Returns the path to the resource directory of this app.
   pub fn resource_dir(&self) -> Option<PathBuf> {
     crate::api::path::resource_dir(&self.package_info, &self.env)
+  }
+
+  /// Resolves the path of the given resource.
+  /// Note that the path must be the same as provided in `tauri.conf.json`.
+  ///
+  /// This function is helpful when your resource path includes a root dir (`/`) or parent component (`..`),
+  /// because Tauri replaces them with a parent folder, so simply using [`Self::resource_dir`] and joining the path
+  /// won't work.
+  ///
+  /// # Examples
+  ///
+  /// `tauri.conf.json`:
+  /// ```json
+  /// {
+  ///   "tauri": {
+  ///     "bundle": {
+  ///       "resources": ["../assets/*"]
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let resource_path = app.path_resolver()
+  ///       .resolve_resource("../assets/logo.svg")
+  ///       .expect("failed to resolve resource dir");
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+    self
+      .resource_dir()
+      .map(|dir| dir.join(resource_relpath(path.as_ref())))
   }
 
   /// Returns the path to the suggested directory for your app config files.
@@ -198,12 +322,26 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
   manager: WindowManager<R>,
+  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
+  #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
+  /// The updater configuration.
+  #[cfg(updater)]
+  pub(crate) updater_settings: UpdaterSettings,
 }
 
+impl<R: Runtime> AppHandle<R> {
+  // currently only used on the updater
+  #[allow(dead_code)]
+  pub(crate) fn create_proxy(&self) -> R::EventLoopProxy {
+    self.runtime_handle.create_proxy()
+  }
+}
+
+/// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -224,7 +362,10 @@ impl AppHandle<crate::Wry> {
   ) -> crate::Result<()> {
     self
       .runtime_handle
-      .send_event(tauri_runtime_wry::Message::Window(window_id, message))
+      .send_event(tauri_runtime_wry::Message::Window(
+        self.runtime_handle.window_id(window_id),
+        message,
+      ))
       .map_err(Into::into)
   }
 }
@@ -234,10 +375,14 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      #[cfg(feature = "global-shortcut")]
       global_shortcut_manager: self.global_shortcut_manager.clone(),
+      #[cfg(feature = "clipboard")]
       clipboard_manager: self.clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: self.tray_handle.clone(),
+      #[cfg(updater)]
+      updater_settings: self.updater_settings.clone(),
     }
   }
 }
@@ -289,15 +434,21 @@ impl<R: Runtime> AppHandle<R> {
     Ok(())
   }
 
-  /// Exits the app
+  /// Exits the app. This is the same as [`std::process::exit`], but it performs cleanup on this application.
   pub fn exit(&self, exit_code: i32) {
     self.cleanup_before_exit();
     std::process::exit(exit_code);
   }
 
+  /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
+  pub fn restart(&self) {
+    self.cleanup_before_exit();
+    crate::api::process::restart(&self.env());
+  }
+
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(shell_execute)]
+    #[cfg(any(shell_execute, shell_sidecar))]
     {
       crate::api::process::kill_children();
     }
@@ -318,7 +469,7 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
     RuntimeOrDispatch::RuntimeHandle(self.runtime_handle.clone())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.clone()
   }
 }
@@ -331,7 +482,9 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 pub struct App<R: Runtime> {
   runtime: Option<R>,
   manager: WindowManager<R>,
+  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
+  #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
   #[cfg(feature = "system-tray")]
   tray_handle: Option<tray::SystemTrayHandle<R>>,
@@ -348,41 +501,51 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
     RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
   }
 
-  fn app_handle(&self) -> AppHandle<R> {
+  fn managed_app_handle(&self) -> AppHandle<R> {
     self.handle()
+  }
+}
+
+/// APIs specific to the wry runtime.
+#[cfg(feature = "wry")]
+impl App<crate::Wry> {
+  /// Adds a [`tauri_runtime_wry::Plugin`].
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+    &mut self,
+    plugin: P,
+  ) {
+    self.runtime.as_mut().unwrap().plugin(plugin);
   }
 }
 
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
-      /// Creates a new webview window.
+      #[cfg(updater)]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
+      /// Gets the updater builder to manually check if an update is available.
       ///
-      /// Data URLs are only supported with the `window-data-url` feature flag.
-      pub fn create_window<F>(
-        &self,
-        label: impl Into<String>,
-        url: WindowUrl,
-        setup: F,
-      ) -> crate::Result<Window<R>>
-      where
-        F: FnOnce(
-          <R::Dispatcher as Dispatch>::WindowBuilder,
-          WebviewAttributes,
-        ) -> (
-          <R::Dispatcher as Dispatch>::WindowBuilder,
-          WebviewAttributes,
-        ),
-      {
-        let (window_builder, webview_attributes) = setup(
-          <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-          WebviewAttributes::new(url),
-        );
-        self.create_new_window(PendingWindow::new(
-          window_builder,
-          webview_attributes,
-          label,
-        ))
+      /// # Examples
+      ///
+      /// ```no_run
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     let handle = app.handle();
+      ///     tauri::async_runtime::spawn(async move {
+      #[cfg_attr(
+        feature = "updater",
+        doc = r#"     let response = handle.updater().check().await;"#
+      )]
+      ///     });
+      ///     Ok(())
+      ///   });
+      /// ```
+      pub fn updater(&self) -> updater::UpdateBuilder<R> {
+        updater::builder(self.app_handle())
       }
 
       #[cfg(feature = "system-tray")]
@@ -405,11 +568,15 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a copy of the global shortcut manager instance.
+      #[cfg(feature = "global-shortcut")]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
       pub fn global_shortcut_manager(&self) -> R::GlobalShortcutManager {
         self.global_shortcut_manager.clone()
       }
 
       /// Gets a copy of the clipboard manager instance.
+      #[cfg(feature = "clipboard")]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
       pub fn clipboard_manager(&self) -> R::ClipboardManager {
         self.clipboard_manager.clone()
       }
@@ -445,7 +612,7 @@ impl<R: Runtime> App<R> {
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -465,9 +632,29 @@ impl<R: Runtime> App<R> {
       .set_activation_policy(activation_policy);
   }
 
+  /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let matches = app.get_cli_matches()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(cli)]
+  pub fn get_cli_matches(&self) -> crate::Result<crate::api::cli::Matches> {
+    if let Some(cli) = &self.manager.config().tauri.cli {
+      crate::api::cli::get_matches(cli, self.manager.package_info()).map_err(Into::into)
+    } else {
+      Ok(Default::default())
+    }
+  }
+
   /// Runs the application.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -505,7 +692,7 @@ impl<R: Runtime> App<R> {
   /// The cleanup calls [`crate::api::process::kill_children`] so you may want to call that function before exiting the application.
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
@@ -532,56 +719,44 @@ impl<R: Runtime> App<R> {
   }
 }
 
-#[cfg(feature = "updater")]
+#[cfg(updater)]
 impl<R: Runtime> App<R> {
   /// Runs the updater hook with built-in dialog.
-  fn run_updater_dialog(&self, window: Window<R>) {
-    let updater_config = self.manager.config().tauri.updater.clone();
-    let package_info = self.manager.package_info().clone();
+  fn run_updater_dialog(&self) {
+    let handle = self.handle();
 
-    crate::async_runtime::spawn(async move {
-      updater::check_update_with_dialog(updater_config, package_info, window).await
-    });
+    crate::async_runtime::spawn(async move { updater::check_update_with_dialog(handle).await });
   }
 
-  /// Listen updater events when dialog are disabled.
-  fn listen_updater_events(&self, window: Window<R>) {
+  fn run_updater(&self) {
+    let handle = self.handle();
+    let handle_ = handle.clone();
     let updater_config = self.manager.config().tauri.updater.clone();
-    updater::listener(updater_config, self.manager.package_info().clone(), &window);
-  }
-
-  fn run_updater(&self, main_window: Option<Window<R>>) {
-    if let Some(main_window) = main_window {
-      let event_window = main_window.clone();
-      let updater_config = self.manager.config().tauri.updater.clone();
-      // check if updater is active or not
-      if updater_config.dialog && updater_config.active {
+    // check if updater is active or not
+    if updater_config.active {
+      if updater_config.dialog {
         // if updater dialog is enabled spawn a new task
-        self.run_updater_dialog(main_window.clone());
-        let config = self.manager.config().tauri.updater.clone();
-        let package_info = self.manager.package_info().clone();
+        self.run_updater_dialog();
         // When dialog is enabled, if user want to recheck
         // if an update is available after first start
         // invoke the Event `tauri://update` from JS or rust side.
-        main_window.listen(updater::EVENT_CHECK_UPDATE, move |_msg| {
-          let window = event_window.clone();
-          let package_info = package_info.clone();
-          let config = config.clone();
+        handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
+          let handle = handle_.clone();
           // re-spawn task inside tokyo to launch the download
           // we don't need to emit anything as everything is handled
           // by the process (user is asked to restart at the end)
           // and it's handled by the updater
-          crate::async_runtime::spawn(async move {
-            updater::check_update_with_dialog(config, package_info, window).await
-          });
+          crate::async_runtime::spawn(
+            async move { updater::check_update_with_dialog(handle).await },
+          );
         });
-      } else if updater_config.active {
+      } else {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
         // if there is a new update we emit `tauri://update-available` with details
         // this is the user responsabilities to display dialog and ask if user want to install
         // to install the update you need to invoke the Event `tauri://update-install`
-        self.listen_updater_events(main_window);
+        updater::listener(handle);
       }
     }
   }
@@ -589,7 +764,7 @@ impl<R: Runtime> App<R> {
 
 /// Builds a Tauri application.
 ///
-/// # Example
+/// # Examples
 /// ```rust,no_run
 /// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
@@ -600,7 +775,6 @@ impl<R: Runtime> App<R> {
 pub struct Builder<R: Runtime> {
   /// A flag indicating that the runtime must be started on an environment that supports the event loop not on the main thread.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
   runtime_any_thread: bool,
 
   /// The JS message handler.
@@ -619,7 +793,7 @@ pub struct Builder<R: Runtime> {
   on_page_load: Box<OnPageLoad<R>>,
 
   /// windows to create when starting up.
-  pending_windows: Vec<PendingWindow<R>>,
+  pending_windows: Vec<PendingWindow<EventLoopMessage, R>>,
 
   /// All passed plugins
   plugins: PluginStore<R>,
@@ -646,6 +820,10 @@ pub struct Builder<R: Runtime> {
   /// System tray event handlers.
   #[cfg(feature = "system-tray")]
   system_tray_event_listeners: Vec<SystemTrayEventListener<R>>,
+
+  /// The updater configuration.
+  #[cfg(updater)]
+  updater_settings: UpdaterSettings,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -671,6 +849,8 @@ impl<R: Runtime> Builder<R> {
       system_tray: None,
       #[cfg(feature = "system-tray")]
       system_tray_event_listeners: Vec::new(),
+      #[cfg(updater)]
+      updater_settings: Default::default(),
     }
   }
 
@@ -678,9 +858,10 @@ impl<R: Runtime> Builder<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS**: on macOS the application *must* be executed on the main thread, so this function is not exposed.
+  /// - **macOS:** on macOS the application *must* be executed on the main thread, so this function is not exposed.
   #[cfg(any(windows, target_os = "linux"))]
-  #[cfg_attr(doc_cfg, doc(any(windows, target_os = "linux")))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "linux"))))]
+  #[must_use]
   pub fn any_thread(mut self) -> Self {
     self.runtime_any_thread = true;
     self
@@ -688,7 +869,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines the JS message handler callback.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// #[tauri::command]
   /// fn command_1() -> String {
@@ -727,7 +908,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines the setup hook.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::Manager;
   /// tauri::Builder::default()
@@ -743,7 +924,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn setup<F>(mut self, setup: F) -> Self
   where
-    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error + Send>> + Send + 'static,
+    F: FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
   {
     self.setup = Box::new(setup);
     self
@@ -771,10 +952,10 @@ impl<R: Runtime> Builder<R> {
   /// This method can be called any number of times as long as each call
   /// refers to a different `T`.
   ///
-  /// Managed state can be retrieved by any request handler via the
-  /// [`State`](crate::State) request guard. In particular, if a value of type `T`
+  /// Managed state can be retrieved by any command handler via the
+  /// [`State`](crate::State) guard. In particular, if a value of type `T`
   /// is managed by Tauri, adding `State<T>` to the list of arguments in a
-  /// request handler instructs Tauri to retrieve the managed value.
+  /// command handler instructs Tauri to retrieve the managed value.
   ///
   /// # Panics
   ///
@@ -788,32 +969,36 @@ impl<R: Runtime> Builder<R> {
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
-  /// struct Storage(Mutex<HashMap<u64, String>>);
+  /// struct Storage {
+  ///   store: Mutex<HashMap<u64, String>>,
+  /// }
   /// struct Connection;
-  /// struct DbConnection(Mutex<Option<Connection>>);
+  /// struct DbConnection {
+  ///   db: Mutex<Option<Connection>>,
+  /// }
   ///
   /// #[tauri::command]
   /// fn connect(connection: State<DbConnection>) {
   ///   // initialize the connection, mutating the state with interior mutability
-  ///   *connection.0.lock().unwrap() = Some(Connection {});
+  ///   *connection.db.lock().unwrap() = Some(Connection {});
   /// }
   ///
   /// #[tauri::command]
   /// fn storage_insert(key: u64, value: String, storage: State<Storage>) {
   ///   // mutate the storage behind the Mutex
-  ///   storage.0.lock().unwrap().insert(key, value);
+  ///   storage.store.lock().unwrap().insert(key, value);
   /// }
   ///
   /// tauri::Builder::default()
-  ///   .manage(Storage(Default::default()))
-  ///   .manage(DbConnection(Default::default()))
+  ///   .manage(Storage { store: Default::default() })
+  ///   .manage(DbConnection { db: Default::default() })
   ///   .invoke_handler(tauri::generate_handler![connect, storage_insert])
   ///   // on an actual app, remove the string argument
   ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while running tauri application");
   /// ```
   ///
-  /// # Example
+  /// # Examples
   ///
   /// ```rust,no_run
   /// use tauri::State;
@@ -853,44 +1038,6 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Creates a new webview window.
-  ///
-  /// # Example
-  /// ```rust,no_run
-  /// use tauri::WindowBuilder;
-  /// tauri::Builder::default()
-  ///   .create_window("main", tauri::WindowUrl::default(), |win, webview| {
-  ///     let win = win
-  ///       .title("My Main Window")
-  ///       .resizable(true)
-  ///       .inner_size(800.0, 550.0)
-  ///       .min_inner_size(400.0, 200.0);
-  ///     return (win, webview);
-  ///   });
-  /// ```
-  #[must_use]
-  pub fn create_window<F>(mut self, label: impl Into<String>, url: WindowUrl, setup: F) -> Self
-  where
-    F: FnOnce(
-      <R::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ) -> (
-      <R::Dispatcher as Dispatch>::WindowBuilder,
-      WebviewAttributes,
-    ),
-  {
-    let (window_builder, webview_attributes) = setup(
-      <R::Dispatcher as Dispatch>::WindowBuilder::new(),
-      WebviewAttributes::new(url),
-    );
-    self.pending_windows.push(PendingWindow::new(
-      window_builder,
-      webview_attributes,
-      label,
-    ));
-    self
-  }
-
   /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
   #[cfg(feature = "system-tray")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
@@ -902,7 +1049,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the menu to use on all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
   ///
@@ -926,7 +1073,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a menu event handler for all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api, Manager};
   /// tauri::Builder::default()
@@ -966,7 +1113,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a window event handler for all windows.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// tauri::Builder::default()
   ///   .on_window_event(|event| match event.event() {
@@ -990,7 +1137,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a system tray event handler.
   ///
-  /// # Example
+  /// # Examples
   /// ```rust,no_run
   /// use tauri::Manager;
   /// tauri::Builder::default()
@@ -1047,6 +1194,42 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Sets the current platform's target name for the updater.
+  ///
+  /// See [`UpdateBuilder::target`](crate::updater::UpdateBuilder#method.target) for more information.
+  ///
+  /// # Examples
+  ///
+  /// - Use a macOS Universal binary target name:
+  ///
+  /// ```no_run
+  /// let mut builder = tauri::Builder::default();
+  /// #[cfg(target_os = "macos")]
+  /// {
+  ///   builder = builder.updater_target("darwin-universal");
+  /// }
+  /// ```
+  ///
+  /// - Append debug information to the target:
+  ///
+  /// ```no_run
+  /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
+  /// tauri::Builder::default()
+  ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
+  /// ```
+  ///
+  /// - Use the platform's target triple:
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .updater_target(tauri::utils::platform::target_triple().unwrap());
+  /// ```
+  #[cfg(updater)]
+  pub fn updater_target<T: Into<String>>(mut self, target: T) -> Self {
+    self.updater_settings.target.replace(target.into());
+    self
+  }
+
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
@@ -1058,19 +1241,19 @@ impl<R: Runtime> Builder<R> {
       if self.system_tray.is_some() {
         use std::io::{Error, ErrorKind};
         #[cfg(target_os = "linux")]
-        if let Some(Icon::Raw(_)) = icon {
-          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+        if let Some(TrayIcon::Raw(..)) = icon {
+          return Err(crate::Error::InvalidIcon(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on linux must be a file path",
-          ))));
+          )));
         }
 
         #[cfg(not(target_os = "linux"))]
-        if let Some(Icon::File(_)) = icon {
-          return Err(crate::Error::InvalidIcon(Box::new(Error::new(
+        if let Some(TrayIcon::File(_)) = icon {
+          return Err(crate::Error::InvalidIcon(Error::new(
             ErrorKind::InvalidInput,
             "system tray icons on non-linux platforms must be the raw bytes",
-          ))));
+          )));
         }
       }
 
@@ -1116,7 +1299,7 @@ impl<R: Runtime> Builder<R> {
         config,
         webview_attributes,
         label,
-      ));
+      )?);
     }
 
     #[cfg(any(windows, target_os = "linux"))]
@@ -1129,23 +1312,33 @@ impl<R: Runtime> Builder<R> {
     let runtime = R::new()?;
 
     let runtime_handle = runtime.handle();
+
+    #[cfg(feature = "global-shortcut")]
     let global_shortcut_manager = runtime.global_shortcut_manager();
+
+    #[cfg(feature = "clipboard")]
     let clipboard_manager = runtime.clipboard_manager();
 
     let mut app = App {
       runtime: Some(runtime),
       manager: manager.clone(),
+      #[cfg(feature = "global-shortcut")]
       global_shortcut_manager: global_shortcut_manager.clone(),
+      #[cfg(feature = "clipboard")]
       clipboard_manager: clipboard_manager.clone(),
       #[cfg(feature = "system-tray")]
       tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
+        #[cfg(feature = "global-shortcut")]
         global_shortcut_manager,
+        #[cfg(feature = "clipboard")]
         clipboard_manager,
         #[cfg(feature = "system-tray")]
         tray_handle: None,
+        #[cfg(updater)]
+        updater_settings: self.updater_settings,
       },
     };
 
@@ -1156,14 +1349,14 @@ impl<R: Runtime> Builder<R> {
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.fs.scope,
-      ),
+      )?,
       #[cfg(protocol_asset)]
       asset_protocol: FsScope::for_fs_api(
         &app.manager.config(),
         app.package_info(),
         &env,
         &app.config().tauri.allowlist.protocol.asset_scope,
-      ),
+      )?,
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
@@ -1198,47 +1391,30 @@ impl<R: Runtime> Builder<R> {
       if let Some(menu) = system_tray.menu() {
         tray::get_menu_ids(&mut ids, menu);
       }
-      let mut tray = tray::SystemTray::new();
+      let mut tray = tray::SystemTray::new().with_icon(
+        system_tray
+          .icon
+          .or(system_tray_icon)
+          .expect("tray icon not found; please configure it on tauri.conf.json"),
+      );
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
-
-      #[cfg(not(target_os = "macos"))]
-      let tray_handler = app
-        .runtime
-        .as_ref()
-        .unwrap()
-        .system_tray(
-          tray.with_icon(
-            system_tray
-              .icon
-              .or(system_tray_icon)
-              .expect("tray icon not found; please configure it on tauri.conf.json"),
-          ),
-        )
-        .expect("failed to run tray");
-
       #[cfg(target_os = "macos")]
+      let tray = tray.with_icon_as_template(system_tray_icon_as_template);
+
       let tray_handler = app
         .runtime
         .as_ref()
         .unwrap()
-        .system_tray(
-          tray
-            .with_icon(
-              system_tray
-                .icon
-                .or(system_tray_icon)
-                .expect("tray icon not found; please configure it on tauri.conf.json"),
-            )
-            .with_icon_as_template(system_tray_icon_as_template),
-        )
+        .system_tray(tray)
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(ids.clone()),
+        ids: Arc::new(std::sync::Mutex::new(ids)),
         inner: tray_handler,
       };
+      let ids = tray_handle.ids.clone();
       app.tray_handle.replace(tray_handle.clone());
       app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
@@ -1253,7 +1429,7 @@ impl<R: Runtime> Builder<R> {
             let app_handle = app_handle.clone();
             let event = match event {
               RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.get(id).unwrap().clone(),
+                id: ids.lock().unwrap().get(id).unwrap().clone(),
               },
               RuntimeSystemTrayEvent::LeftClick { position, size } => {
                 tray::SystemTrayEvent::LeftClick {
@@ -1288,25 +1464,19 @@ impl<R: Runtime> Builder<R> {
       .map(|p| p.label.clone())
       .collect::<Vec<_>>();
 
-    #[cfg(feature = "updater")]
-    let mut main_window = None;
-
     for pending in self.pending_windows {
-      let pending = app
-        .manager
-        .prepare_window(app.handle.clone(), pending, &window_labels)?;
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
       let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
       let _window = app.manager.attach_window(app.handle(), detached);
-      #[cfg(feature = "updater")]
-      if main_window.is_none() {
-        main_window = Some(_window);
-      }
     }
 
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e))?;
+    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.into()))?;
 
-    #[cfg(feature = "updater")]
-    app.run_updater(main_window);
+    #[cfg(updater)]
+    app.run_updater();
 
     Ok(app)
   }
@@ -1320,28 +1490,31 @@ impl<R: Runtime> Builder<R> {
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
   app_handle: &AppHandle<R>,
-  event: RuntimeRunEvent,
+  event: RuntimeRunEvent<EventLoopMessage>,
   manager: &WindowManager<R>,
   callback: Option<&mut F>,
 ) {
-  if let RuntimeRunEvent::WindowClose(label) = &event {
+  if let RuntimeRunEvent::WindowEvent {
+    label,
+    event: RuntimeWindowEvent::Destroyed,
+  } = &event
+  {
     manager.on_window_close(label);
   }
 
   let event = match event {
     RuntimeRunEvent::Exit => RunEvent::Exit,
-    RuntimeRunEvent::ExitRequested { window_label, tx } => RunEvent::ExitRequested {
-      window_label,
+    RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
       api: ExitRequestApi(tx),
     },
-    RuntimeRunEvent::CloseRequested { label, signal_tx } => RunEvent::CloseRequested {
+    RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,
-      api: CloseRequestApi(signal_tx),
+      event: event.into(),
     },
-    RuntimeRunEvent::WindowClose(label) => RunEvent::WindowClosed(label),
     RuntimeRunEvent::Ready => RunEvent::Ready,
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
+    RuntimeRunEvent::UserEvent(t) => t.into(),
     _ => unimplemented!(),
   };
 

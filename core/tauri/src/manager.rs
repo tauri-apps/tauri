@@ -508,7 +508,7 @@ impl<R: Runtime> WindowManager<R> {
           .strip_prefix("asset://localhost/")
           // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
           // where `$P` is not `localhost/*`
-          .unwrap_or_else(|| "".to_string());
+          .unwrap_or("");
         // safe to unwrap: request.uri() always starts with this prefix
         #[cfg(not(target_os = "windows"))]
         let path = filtered_path.strip_prefix("asset://").unwrap();

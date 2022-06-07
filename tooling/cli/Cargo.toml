@@ -69,11 +69,11 @@ env_logger = "0.9.0"
 encode_unicode = "0.3"
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
 
-[target."cfg(target_os = \"linux\")".build-dependencies]
-heck = "0.4"
-
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+
+[target."cfg(target_os = \"linux\")".dependencies]
+libappindicator-sys = "0.7.2"
 
 [build-dependencies]
 tauri-utils = { version = "1.0.0-rc.5", features = [ "schema", "isolation" ], path = "../../core/tauri-utils" }
@@ -82,6 +82,9 @@ serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 serde_with = "1.14"
 url = { version = "2.2", features = [ "serde" ] }
+
+[target."cfg(target_os = \"linux\")".build-dependencies]
+heck = "0.4"
 
 [profile.release]
 lto = true

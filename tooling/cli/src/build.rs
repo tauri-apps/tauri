@@ -303,11 +303,39 @@ pub fn command(options: Options) -> Result<()> {
     .with_context(|| "failed to build bundler settings")?;
 
     // set env vars used by the bundler
-    if matches!(
-      config_.tauri.allowlist.shell.open,
-      ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
-    ) {
-      std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
+    #[cfg(target_os = "linux")]
+    {
+      if matches!(
+        config_.tauri.allowlist.shell.open,
+        ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
+      ) {
+        std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
+      }
+      if config_.tauri.system_tray.is_some() {
+        if let Ok(tray) = std::env::var("TAURI_TRAY") {
+          std::env::set_var(
+            "TRAY_LIBRARY_PATH",
+            if tray == "ayatana" {
+              format!(
+                "{}/libayatana-appindicator3.so",
+                libappindicator_sys::get_library_path("ayatana-appindicator3-0.1")
+                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
+              )
+            } else {
+              format!(
+                "{}/libappindicator3.so",
+                libappindicator_sys::get_library_path("appindicator3-0.1")
+                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
+              )
+            },
+          );
+        } else {
+          std::env::set_var(
+            "TRAY_LIBRARY_PATH",
+            libappindicator_sys::get_appindicator_library_path(),
+          );
+        }
+      }
     }
     if config_.tauri.bundle.appimage.gstreamer {
       std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");

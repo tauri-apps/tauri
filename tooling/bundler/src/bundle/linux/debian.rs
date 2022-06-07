@@ -26,7 +26,7 @@ use super::super::common;
 use crate::Settings;
 use anyhow::Context;
 use heck::ToKebabCase;
-use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
+use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
 use walkdir::WalkDir;
@@ -281,7 +281,6 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
     ))
   };
   let mut icons = BTreeSet::new();
-  // Prefer PNG files.
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
     if icon_path.extension() != Some(OsStr::new("png")) {
@@ -301,51 +300,6 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
     if !icons.contains(&deb_icon) {
       common::copy_file(&icon_path, &deb_icon.path)?;
       icons.insert(deb_icon);
-    }
-  }
-  // Fall back to non-PNG files for any missing sizes.
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() == Some(OsStr::new("png")) {
-      continue;
-    } else if icon_path.extension() == Some(OsStr::new("icns")) {
-      let icon_family = icns::IconFamily::read(File::open(&icon_path)?)?;
-      for icon_type in icon_family.available_icons() {
-        let width = icon_type.screen_width();
-        let height = icon_type.screen_height();
-        let is_high_density = icon_type.pixel_density() > 1;
-        let dest_path = get_dest_path(width, height, is_high_density);
-        let deb_icon = DebIcon {
-          width,
-          height,
-          is_high_density,
-          path: dest_path,
-        };
-        if !icons.contains(&deb_icon) {
-          if let Ok(icon) = icon_family.get_icon_with_type(icon_type) {
-            icon.write_png(common::create_file(&deb_icon.path)?)?;
-            icons.insert(deb_icon);
-          }
-        }
-      }
-    } else {
-      let icon = image::open(&icon_path)?;
-      let (width, height) = icon.dimensions();
-      let is_high_density = common::is_retina(&icon_path);
-      let dest_path = get_dest_path(width, height, is_high_density);
-      let deb_icon = DebIcon {
-        width,
-        height,
-        is_high_density,
-        path: dest_path,
-      };
-      if !icons.contains(&deb_icon) {
-        icon.write_to(
-          &mut common::create_file(&deb_icon.path)?,
-          image::ImageOutputFormat::Png,
-        )?;
-        icons.insert(deb_icon);
-      }
     }
   }
   Ok(icons)

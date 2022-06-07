@@ -286,16 +286,19 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let decoder = PngDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0;
-    let height = decoder.dimensions().1;
-    let is_high_density = common::is_retina(&icon_path);
-    let dest_path = get_dest_path(width, height, is_high_density);
-    let deb_icon = DebIcon {
-      width,
-      height,
-      is_high_density,
-      path: dest_path,
+    // Put file in scope so that it's closed when copying it
+    let deb_icon = {
+      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+      let width = decoder.dimensions().0;
+      let height = decoder.dimensions().1;
+      let is_high_density = common::is_retina(&icon_path);
+      let dest_path = get_dest_path(width, height, is_high_density);
+      DebIcon {
+        width,
+        height,
+        is_high_density,
+        path: dest_path,
+      }
     };
     if !icons.contains(&deb_icon) {
       common::copy_file(&icon_path, &deb_icon.path)?;

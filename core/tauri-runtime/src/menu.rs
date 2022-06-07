@@ -254,6 +254,7 @@ impl Default for Menu {
     }
     menu = menu.add_submenu(Submenu::new("File", file_menu));
 
+    #[cfg(not(target_os = "linux"))]
     let mut edit_menu = Menu::new();
     #[cfg(target_os = "macos")]
     {

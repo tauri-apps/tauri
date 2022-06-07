@@ -155,7 +155,7 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
 }
 
 /// A window menu.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Menu {
   pub items: Vec<MenuEntry>,
@@ -183,7 +183,7 @@ impl Submenu {
 impl Menu {
   /// Creates a new window menu.
   pub fn new() -> Self {
-    Default::default()
+    Self { items: Vec::new() }
   }
 
   /// Creates a new window menu with the given items.
@@ -224,6 +224,70 @@ impl Menu {
   pub fn add_submenu(mut self, submenu: Submenu) -> Self {
     self.items.push(MenuEntry::Submenu(submenu));
     self
+  }
+}
+
+impl Default for Menu {
+  fn default() -> Self {
+    let mut menu = Menu::new();
+    #[cfg(target_os = "macos")]
+    {
+      menu = menu.add_submenu(Submenu::new(
+        "app_name",
+        Menu::new()
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Services)
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Hide)
+          .add_native_item(MenuItem::HideOthers)
+          .add_native_item(MenuItem::ShowAll)
+          .add_native_item(MenuItem::Separator)
+          .add_native_item(MenuItem::Quit),
+      ));
+    }
+
+    let mut file_menu = Menu::new();
+    file_menu = file_menu.add_native_item(MenuItem::CloseWindow);
+    #[cfg(not(target_os = "macos"))]
+    {
+      file_menu = file_menu.add_native_item(MenuItem::Quit);
+    }
+    menu = menu.add_submenu(Submenu::new("File", file_menu));
+
+    let mut edit_menu = Menu::new();
+    #[cfg(target_os = "macos")]
+    {
+      edit_menu = edit_menu.add_native_item(MenuItem::Undo);
+      edit_menu = edit_menu.add_native_item(MenuItem::Redo);
+      edit_menu = edit_menu.add_native_item(MenuItem::Separator);
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+      edit_menu = edit_menu.add_native_item(MenuItem::Cut);
+      edit_menu = edit_menu.add_native_item(MenuItem::Copy);
+      edit_menu = edit_menu.add_native_item(MenuItem::Paste);
+      edit_menu = edit_menu.add_native_item(MenuItem::SelectAll);
+      menu = menu.add_submenu(Submenu::new("Edit", edit_menu));
+    }
+    #[cfg(target_os = "macos")]
+    {
+      menu = menu.add_submenu(Submenu::new(
+        "View",
+        Menu::new().add_native_item(MenuItem::EnterFullScreen),
+      ));
+    }
+
+    let mut window_menu = Menu::new();
+    window_menu = window_menu.add_native_item(MenuItem::Minimize);
+    #[cfg(target_os = "macos")]
+    {
+      window_menu = window_menu.add_native_item(MenuItem::Zoom);
+      window_menu = window_menu.add_native_item(MenuItem::Separator);
+    }
+    window_menu = window_menu.add_native_item(MenuItem::CloseWindow);
+    menu = menu.add_submenu(Submenu::new("Window", window_menu));
+
+    menu
   }
 }
 

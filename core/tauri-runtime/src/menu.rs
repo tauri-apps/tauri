@@ -155,7 +155,7 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
 }
 
 /// A window menu.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 #[non_exhaustive]
 pub struct Menu {
   pub items: Vec<MenuEntry>,
@@ -245,7 +245,7 @@ impl Menu {
       menu = menu.add_submenu(Submenu::new(
         app_name,
         Menu::new()
-          .add_native_item(MenuItem::About(app_name, AboutMetadata::default()))
+          .add_native_item(MenuItem::About(app_name.to_string(), AboutMetadata::default()))
           .add_native_item(MenuItem::Separator)
           .add_native_item(MenuItem::Services)
           .add_native_item(MenuItem::Separator)

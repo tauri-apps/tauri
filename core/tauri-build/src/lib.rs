@@ -187,7 +187,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   };
 
   #[cfg(windows)]
-  static_vcruntime::build();
+  if std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
+    static_vcruntime::build();
+  }
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 

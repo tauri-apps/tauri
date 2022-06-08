@@ -13,7 +13,6 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 use crate::{api::notification::Notification, Env, Manager};
 
 // `Granted` response from `request_permission`. Matches the Web API return value.
-#[cfg(notification_all)]
 const PERMISSION_GRANTED: &str = "granted";
 // `Denied` response from `request_permission`. Matches the Web API return value.
 const PERMISSION_DENIED: &str = "denied";
@@ -49,11 +48,7 @@ impl Cmd {
     context: InvokeContext<R>,
     options: NotificationOptions,
   ) -> super::Result<()> {
-    let allowed = match is_permission_granted(&context) {
-      Some(p) => p,
-      None => request_permission(&context),
-    };
-    if !allowed {
+    if cfg!(not(notification_all)) {
       return Err(crate::Error::NotificationNotAllowed.into_anyhow());
     }
     let mut notification =
@@ -68,78 +63,21 @@ impl Cmd {
     Ok(())
   }
 
-  #[cfg(notification_all)]
-  fn request_notification_permission<R: Runtime>(
-    context: InvokeContext<R>,
-  ) -> super::Result<&'static str> {
-    if request_permission(&context) {
-      Ok(PERMISSION_GRANTED)
-    } else {
-      Ok(PERMISSION_DENIED)
-    }
-  }
-
-  #[cfg(not(notification_all))]
   fn request_notification_permission<R: Runtime>(
     _context: InvokeContext<R>,
   ) -> super::Result<&'static str> {
-    Ok(PERMISSION_DENIED)
-  }
-
-  #[cfg(notification_all)]
-  fn is_notification_permission_granted<R: Runtime>(
-    context: InvokeContext<R>,
-  ) -> super::Result<Option<bool>> {
-    if let Some(allow_notification) = is_permission_granted(&context) {
-      Ok(Some(allow_notification))
+    Ok(if cfg!(notification_all) {
+      PERMISSION_GRANTED
     } else {
-      Ok(None)
-    }
+      PERMISSION_DENIED
+    })
   }
 
-  #[cfg(not(notification_all))]
   fn is_notification_permission_granted<R: Runtime>(
     _context: InvokeContext<R>,
   ) -> super::Result<Option<bool>> {
-    Ok(Some(false))
+    Ok(Some(cfg!(notification_all)))
   }
-}
-
-#[cfg(notification_all)]
-fn request_permission<R: Runtime>(context: &InvokeContext<R>) -> bool {
-  let mut settings = crate::settings::read_settings(
-    &context.config,
-    &context.package_info,
-    context.window.state::<Env>().inner(),
-  );
-  if let Some(allow_notification) = settings.allow_notification {
-    return allow_notification;
-  }
-  let answer = crate::api::dialog::blocking::ask(
-    Some(&context.window),
-    "Permissions",
-    "This app wants to show notifications. Do you allow?",
-  );
-
-  settings.allow_notification = Some(answer);
-  let _ = crate::settings::write_settings(
-    &context.config,
-    &context.package_info,
-    context.window.state::<Env>().inner(),
-    settings,
-  );
-
-  answer
-}
-
-#[cfg(notification_all)]
-fn is_permission_granted<R: Runtime>(context: &InvokeContext<R>) -> Option<bool> {
-  crate::settings::read_settings(
-    &context.config,
-    &context.package_info,
-    context.window.state::<Env>().inner(),
-  )
-  .allow_notification
 }
 
 #[cfg(test)]

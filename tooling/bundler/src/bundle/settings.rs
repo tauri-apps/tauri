@@ -25,6 +25,8 @@ pub enum PackageType {
   Deb,
   /// The Linux RPM bundle (.rpm).
   Rpm,
+  /// The Linux Pacman bundle .
+  Pacman,
   /// The Linux AppImage bundle (.AppImage).
   AppImage,
   /// The macOS DMG bundle (.dmg).
@@ -40,6 +42,7 @@ impl PackageType {
     // Other types we may eventually want to support: apk.
     match name {
       "deb" => Some(PackageType::Deb),
+      "pacman" => Some(PackageType::Pacman),
       "ios" => Some(PackageType::IosBundle),
       "msi" => Some(PackageType::WindowsMsi),
       "app" => Some(PackageType::MacOsBundle),
@@ -56,6 +59,7 @@ impl PackageType {
   pub fn short_name(&self) -> &'static str {
     match *self {
       PackageType::Deb => "deb",
+      PackageType::Pacman => "pacman",
       PackageType::IosBundle => "ios",
       PackageType::WindowsMsi => "msi",
       PackageType::MacOsBundle => "app",
@@ -83,6 +87,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
   PackageType::MacOsBundle,
   #[cfg(target_os = "linux")]
   PackageType::Rpm,
+  #[cfg(target_os = "linux")]
+  PackageType::Pacman,
   #[cfg(target_os = "macos")]
   PackageType::Dmg,
   #[cfg(target_os = "linux")]
@@ -540,7 +546,7 @@ impl Settings {
     let mut platform_types = match target_os {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::AppImage, PackageType::Pacman],
       "windows" => vec![PackageType::WindowsMsi],
       os => {
         return Err(crate::Error::GenericError(format!(

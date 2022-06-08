@@ -226,7 +226,7 @@ impl<T: UserEvent> Context<T> {
     self.prepare_window(window_id);
 
     send_user_message(
-      &self,
+      self,
       Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {

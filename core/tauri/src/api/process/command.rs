@@ -275,7 +275,7 @@ impl Command {
         Ok(status) => {
           let _l = guard.write().unwrap();
           commands().lock().unwrap().remove(&child_.id());
-          let _ = block_on_task(async move {
+          block_on_task(async move {
             tx.send(CommandEvent::Terminated(TerminatedPayload {
               code: status.code(),
               #[cfg(windows)]
@@ -284,11 +284,11 @@ impl Command {
               signal: status.signal(),
             }))
             .await
-          });
+          })
         }
         Err(e) => {
           let _l = guard.write().unwrap();
-          let _ = block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
+          block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await })
         }
       };
     });

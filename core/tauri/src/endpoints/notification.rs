@@ -98,16 +98,21 @@ mod tests {
   fn request_notification_permission() {
     assert_eq!(
       super::Cmd::request_notification_permission(crate::test::mock_invoke_context()).unwrap(),
-      super::PERMISSION_DENIED
+      if cfg!(notification_all) {
+        super::PERMISSION_GRANTED
+      } else {
+        super::PERMISSION_DENIED
+      }
     )
   }
 
   #[cfg(not(notification_all))]
   #[test]
   fn is_notification_permission_granted() {
+    let expected = cfg!(notification_all);
     assert_eq!(
       super::Cmd::is_notification_permission_granted(crate::test::mock_invoke_context()).unwrap(),
-      Some(false)
+      expected,
     );
   }
 

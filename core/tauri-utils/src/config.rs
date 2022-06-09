@@ -88,7 +88,7 @@ impl BundleTarget {
 }
 
 /// Configuration for AppImage bundles.
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppImageConfig {

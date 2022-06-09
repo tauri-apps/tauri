@@ -62,7 +62,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       p
     },
   );
-  sh_map.insert("tauri_tools_path");
+  sh_map.insert("tauri_tools_path", tauri_tools_path);
   let larger_icon = icons
     .iter()
     .filter(|i| i.width == i.height)

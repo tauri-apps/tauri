@@ -641,9 +641,13 @@ impl<R: Runtime> Update<R> {
 #[cfg(feature = "updater")]
 #[cfg(target_os = "linux")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
+  use std::os::unix::fs::PermissionsExt;
   let tmp_dir = tempfile::Builder::new()
     .prefix("tauri_current_app")
     .tempdir()?;
+  let mut perms = std::fs::metadata(tmp_dir.path())?.permissions();
+  perms.set_mode(0o700);
+  std::fs::set_permissions(tmp_dir.path(), perms)?;
 
   let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 

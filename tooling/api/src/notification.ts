@@ -46,7 +46,7 @@ type Permission = 'granted' | 'denied' | 'default'
  *
  * @returns
  */
-async function isPermissionGranted(): Promise<boolean | null> {
+async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
   }

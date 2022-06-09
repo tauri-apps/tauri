@@ -62,7 +62,7 @@ enum ResponseType {
 }
 
 interface FilePart<T> {
-  value: string | T
+  file: string | T
   mime?: string
   fileName?: string
 }
@@ -96,7 +96,7 @@ class Body {
    * Body.form({
    *   key: 'value',
    *   image: {
-   *     file: '/path/to/file', // either a path of an array buffer of the file contents
+   *     file: '/path/to/file', // either a path or an array buffer of the file contents
    *     mime: 'image/jpeg', // optional
    *     fileName: 'image.jpg' // optional
    *   }
@@ -117,10 +117,10 @@ class Body {
         r = v
       } else if (v instanceof Uint8Array || Array.isArray(v)) {
         r = Array.from(v)
-      } else if (typeof v.value === 'string') {
-        r = { value: v.value, mime: v.mime, fileName: v.fileName }
+      } else if (typeof v.file === 'string') {
+        r = { file: v.file, mime: v.mime, fileName: v.fileName }
       } else {
-        r = { value: Array.from(v.value), mime: v.mime, fileName: v.fileName }
+        r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
       }
       // eslint-disable-next-line security/detect-object-injection
       form[key] = r

@@ -55,7 +55,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sh_map.insert("app_name", settings.main_binary_name());
   sh_map.insert("app_name_uppercase", &upcase_app_name);
   sh_map.insert("appimage_filename", &appimage_filename);
-  let tauri_tools_path = dis_next::cache_dir().map_or_else(
+  let tauri_tools_path = dirs_next::cache_dir().map_or_else(
     || output_path.to_path_buf(),
     |mut p| {
       p.push("tauri");

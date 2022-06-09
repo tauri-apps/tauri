@@ -48,9 +48,6 @@ impl Cmd {
     context: InvokeContext<R>,
     options: NotificationOptions,
   ) -> super::Result<()> {
-    if cfg!(not(notification_all)) {
-      return Err(crate::Error::NotificationNotAllowed.into_anyhow());
-    }
     let mut notification =
       Notification::new(context.config.tauri.bundle.identifier.clone()).title(options.title);
     if let Some(body) = options.body {
@@ -75,8 +72,8 @@ impl Cmd {
 
   fn is_notification_permission_granted<R: Runtime>(
     _context: InvokeContext<R>,
-  ) -> super::Result<Option<bool>> {
-    Ok(Some(cfg!(notification_all)))
+  ) -> super::Result<bool> {
+    Ok(cfg!(notification_all))
   }
 }
 

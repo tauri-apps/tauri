@@ -51,4 +51,4 @@ wget -q -4 -O "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" https://github
 chmod +x "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh"
 chmod +x "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage"
 
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+OUTPUT="{{appimage_filename}}" "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage

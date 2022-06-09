@@ -35,7 +35,7 @@ find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -e
 find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-wget -q -4 -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
+wget -q -4 -nc -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -nc -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
 chmod +x "{{tauri_tools_path}}/AppRun"
 
 cp "{{icon_path}}" .DirIcon
@@ -45,8 +45,8 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
 
-wget -q -4 -O "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh" "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-wget -q -4 -O "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
+wget -q -4 -nc -O "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh" "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+wget -q -4 -nc -O "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
 
 chmod +x "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh"
 chmod +x "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage"

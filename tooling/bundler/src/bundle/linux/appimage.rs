@@ -62,6 +62,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       p
     },
   );
+  std::fs::create_dir_all(&tauri_tools_path)?;
   let tauri_tools_path_str = tauri_tools_path.to_string_lossy();
   sh_map.insert("tauri_tools_path", &tauri_tools_path_str);
   let larger_icon = icons

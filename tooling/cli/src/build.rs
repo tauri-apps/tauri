@@ -337,7 +337,7 @@ pub fn command(options: Options) -> Result<()> {
         }
       }
     }
-    if config_.tauri.bundle.appimage.gstreamer {
+    if config_.tauri.bundle.appimage.bundle_media_framework {
       std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
     }
 

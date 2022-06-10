@@ -95,7 +95,7 @@ pub struct AppImageConfig {
   /// Include additional gstreamer dependencies needed for audio and video playback.
   /// This increases the bundle size by ~15-35MB depending on your build system.
   #[serde(default)]
-  pub gstreamer: bool,
+  pub bundle_media_framework: bool,
 }
 
 /// Configuration for Debian (.deb) bundles.

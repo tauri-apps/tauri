@@ -276,7 +276,7 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
       "{}x{}{}/apps/{}.png",
       width,
       height,
-      if is_high_density { "@2x" } else { "" },
+      if is_high_density { "@2" } else { "" },
       settings.main_binary_name()
     ))
   };

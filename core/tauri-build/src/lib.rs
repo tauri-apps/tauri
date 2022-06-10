@@ -270,6 +270,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   if let Some(tray) = config.tauri.system_tray {
     resources.push(tray.icon_path.display().to_string());
   }
+  #[cfg(windows)]
+  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
+  {
+    resources.push(fixed_webview2_runtime_path.display().to_string());
+  }
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
   #[cfg(target_os = "macos")]

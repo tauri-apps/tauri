@@ -138,63 +138,59 @@ pub trait CommandExt {
   fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
-fn debugging_output(command: &mut Command) -> crate::Result<Output> {
-  let program = command.get_program().to_string_lossy().into_owned();
-  debug!(action = "Running"; "Command `{} {}`", program, command.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
-
-  let mut child = command.spawn()?;
-
-  let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
-  let stdout_lines = Arc::new(Mutex::new(Vec::new()));
-  let stdout_lines_ = stdout_lines.clone();
-  std::thread::spawn(move || {
-    let mut buf = Vec::new();
-    let mut lines = stdout_lines_.lock().unwrap();
-    loop {
-      buf.clear();
-      match tauri_utils::io::read_line(&mut stdout, &mut buf) {
-        Ok(s) if s == 0 => break,
-        _ => (),
-      }
-      debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
-      lines.extend(buf.clone());
-      lines.push(b'\n');
-    }
-  });
-
-  let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
-  let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-  let stderr_lines_ = stderr_lines.clone();
-  std::thread::spawn(move || {
-    let mut buf = Vec::new();
-    let mut lines = stderr_lines_.lock().unwrap();
-    loop {
-      buf.clear();
-      match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-        Ok(s) if s == 0 => break,
-        _ => (),
-      }
-      debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
-      lines.extend(buf.clone());
-      lines.push(b'\n');
-    }
-  });
-
-  let status = child.wait()?;
-  let output = Output {
-    status,
-    stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
-    stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
-  };
-  Ok(output)
-}
-
 impl CommandExt for Command {
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
-    let output = debugging_output(self)?;
+
+    let mut child = self.spawn()?;
+
+    let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
+    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
+    let stdout_lines_ = stdout_lines.clone();
+    std::thread::spawn(move || {
+      let mut buf = Vec::new();
+      let mut lines = stdout_lines_.lock().unwrap();
+      loop {
+        buf.clear();
+        match tauri_utils::io::read_line(&mut stdout, &mut buf) {
+          Ok(s) if s == 0 => break,
+          _ => (),
+        }
+        debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
+      }
+    });
+
+    let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
+    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+    let stderr_lines_ = stderr_lines.clone();
+    std::thread::spawn(move || {
+      let mut buf = Vec::new();
+      let mut lines = stderr_lines_.lock().unwrap();
+      loop {
+        buf.clear();
+        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          Ok(s) if s == 0 => break,
+          _ => (),
+        }
+        debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
+      }
+    });
+
+    let status = child.wait()?;
+    let output = Output {
+      status,
+      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
+      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+    };
+
     if output.status.success() {
       Ok(output)
     } else {

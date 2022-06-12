@@ -19,7 +19,8 @@ exclude = [
   "examples/api/src-tauri",
   "examples/updater/src-tauri",
   "examples/resources/src-tauri",
-  "examples/sidecar/src-tauri"
+  "examples/sidecar/src-tauri",
+  "examples/file-associations/src-tauri"
 ]
 
 # default to small, optimized workspace release binaries

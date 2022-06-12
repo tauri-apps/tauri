@@ -955,6 +955,16 @@
             "null"
           ]
         },
+        "fileAssociations": {
+          "description": "File associations to application.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/FileAssociation"
+          }
+        },
         "shortDescription": {
           "description": "A short description of your application.",
           "type": [
@@ -1072,6 +1082,51 @@
         "app",
         "dmg",
         "updater"
+      ]
+    },
+    "FileAssociation": {
+      "description": "File association",
+      "type": "object",
+      "required": [
+        "ext"
+      ],
+      "properties": {
+        "ext": {
+          "description": "File extensions to associate with this app.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "name": {
+          "description": "The name. Default to ext[0]",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "description": "macOS-only The app’s role with respect to the type.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BundleTypeRole"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "BundleTypeRole": {
+      "description": "macOS-only. Corresponds to CFBundleTypeRole",
+      "type": "string",
+      "enum": [
+        "Editor",
+        "Viewer",
+        "Shell",
+        "QLGenerator",
+        "None"
       ]
     },
     "AppImageConfig": {

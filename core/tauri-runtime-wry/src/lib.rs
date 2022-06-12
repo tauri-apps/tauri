@@ -2753,6 +2753,9 @@ fn handle_event_loop<T: UserEvent>(
         );
       }
     },
+    Event::OpenFile(file_path) => {
+      callback(RunEvent::OpenFile(file_path));
+    }
     _ => (),
   }
 

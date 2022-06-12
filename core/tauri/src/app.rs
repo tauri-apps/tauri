@@ -178,6 +178,8 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Emitted when a file is opened by application.
+  OpenFile(PathBuf),
   /// Updater event.
   #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
@@ -1607,6 +1609,10 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     manager.on_window_close(label);
   }
 
+  if let RuntimeRunEvent::OpenFile(file_path) = &event {
+    app_handle.trigger_global("open-file", Some(file_path.to_string_lossy().to_string()));
+  }
+
   let event = match event {
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
@@ -1642,6 +1648,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
+    RuntimeRunEvent::OpenFile(file_path) => RunEvent::OpenFile(file_path),
     _ => unimplemented!(),
   };
 

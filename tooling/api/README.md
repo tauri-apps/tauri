@@ -29,7 +29,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 ## Installation
 
-The preferred method is to install this module locally as a development dependency:
+The preferred method is to install this module locally as a dependency:
 ```
 $ npm install --save @tauri-apps/api
 $ yarn add @tauri-apps/api

@@ -60,6 +60,11 @@ interface InvokeArgs {
 
 /**
  * Sends a message to the backend.
+ * @example
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/tauri';
+ * await invoke('login', { user: 'tauri', password: 'poiwe3h4r5ip3yrhtew9ty' });
+ * ```
  *
  * @param cmd The command name.
  * @param args The optional arguments to pass to the command.
@@ -97,18 +102,18 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
  * @example
  * ```typescript
- * import { appDir, join } from '@tauri-apps/api/path'
- * import { convertFileSrc } from '@tauri-apps/api/tauri'
- * const appDirPath = await appDir()
- * const filePath = await join(appDir, 'assets/video.mp4')
- * const assetUrl = convertFileSrc(filePath)
+ * import { appDir, join } from '@tauri-apps/api/path';
+ * import { convertFileSrc } from '@tauri-apps/api/tauri';
+ * const appDirPath = await appDir();
+ * const filePath = await join(appDir, 'assets/video.mp4');
+ * const assetUrl = convertFileSrc(filePath);
  *
- * const video = document.getElementById('my-video')
- * const source = document.createElement('source')
- * source.type = 'video/mp4'
- * source.src = assetUrl
- * video.appendChild(source)
- * video.load()
+ * const video = document.getElementById('my-video');
+ * const source = document.createElement('source');
+ * source.type = 'video/mp4';
+ * source.src = assetUrl;
+ * video.appendChild(source);
+ * video.load();
  * ```
  *
  * @return the URL that can be used as source on the webview.

@@ -81,8 +81,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
       let status = Command::new("sh")
@@ -90,8 +89,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
 
       if !status.success() {
@@ -336,6 +334,9 @@ pub fn command(options: Options) -> Result<()> {
           );
         }
       }
+    }
+    if config_.tauri.bundle.appimage.bundle_media_framework {
+      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;

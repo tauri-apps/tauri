@@ -31,6 +31,15 @@ interface UpdateResult {
 
 /**
  * Install the update if there's one available.
+ * @example
+ * ```typescript
+ * import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * if (update.shouldUpdate) {
+ *   console.log(`Installing update ${update.manifest?.version}, ${update.manifest?.date}, ${update.manifest.body}`);
+ *   await installUpdate();
+ * }
+ * ```
  *
  * @return A promise indicating the success or failure of the operation.
  */
@@ -83,6 +92,12 @@ async function installUpdate(): Promise<void> {
 
 /**
  * Checks if an update is available.
+ * @example
+ * ```typescript
+ * import { checkUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * // now run installUpdate() if needed
+ * ```
  *
  * @return Promise resolving to the update status.
  */

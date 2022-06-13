@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.6.1]
+## \[0.7.0]
 
 - Added a config flag to bundle the media framework used by webkit2gtk `tauri.conf.json > tauri > bundle > appimage > bundleMediaFramework`.
   - Bumped due to a bump in tauri-utils.

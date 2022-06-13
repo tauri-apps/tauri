@@ -1748,7 +1748,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   #[cfg(all(windows, feature = "system-tray"))]
-  /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {
     send_user_message(&self.context, Message::Tray(TrayMessage::Close))
   }

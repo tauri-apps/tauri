@@ -134,6 +134,7 @@
   // drag region
   document.addEventListener('mousedown', (e) => {
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
+      // prevents text cursor
       e.preventDefault()
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {

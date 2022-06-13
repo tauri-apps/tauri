@@ -115,6 +115,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
 
       - name: cargo login
         run: cargo login ${{ secrets.crate_token }}

@@ -313,7 +313,9 @@ pub struct BundleConfig {
   pub active: bool,
   /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
   pub targets: Option<BundleTarget>,
-  /// The app's identifier
+  /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
+  /// This string must be unique across applications since it is used in system configurations like
+  /// the bundle ID and path to the webview data directory.
   pub identifier: String,
   /// The app's icons
   #[serde(default)]

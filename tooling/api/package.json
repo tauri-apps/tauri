@@ -16,7 +16,6 @@
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
-    "lint:lockfile": "lockfile-lint --path yarn.lock --type yarn --validate-https --allowed-hosts npm yarn",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "format:check": "prettier --check --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
     "generate-docs": "typedoc"
@@ -37,7 +36,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">= 12.13.0",
+    "node": ">= 12.22.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
@@ -49,7 +48,7 @@
     "@rollup/plugin-commonjs": "22.0.0",
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-sucrase": "4.0.4",
-    "@rollup/plugin-typescript": "8.3.2",
+    "@rollup/plugin-typescript": "8.3.3",
     "@typescript-eslint/eslint-plugin": "5.27.1",
     "@typescript-eslint/parser": "5.27.1",
     "eslint": "8.17.0",
@@ -59,7 +58,6 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.0.0",
     "eslint-plugin-security": "1.5.0",
-    "lockfile-lint": "4.7.4",
     "prettier": "2.6.2",
     "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",

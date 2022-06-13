@@ -11,7 +11,7 @@
   "devDependencies": {
     "@rollup/plugin-commonjs": "22.0.0",
     "@rollup/plugin-node-resolve": "13.3.0",
-    "@rollup/plugin-typescript": "8.3.2",
+    "@rollup/plugin-typescript": "8.3.3",
     "@tauri-apps/cli": "1.0.0-rc.13",
     "@tsconfig/svelte": "3.0.0",
     "rollup": "2.75.6",

@@ -2446,15 +2446,15 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::WebviewEvent(event) => {
         if let Some(event) = WindowEventWrapper::from(&event).0 {
-          for handler in window_event_listeners
+          let shared_listeners = window_event_listeners
             .lock()
             .unwrap()
             .get(&id)
             .unwrap()
-            .lock()
-            .unwrap()
-            .values()
-          {
+            .clone();
+          let listeners = shared_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
             handler(&event);
           }
         }
@@ -2642,7 +2642,9 @@ fn handle_event_loop<T: UserEvent>(
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };
-      for handler in window_menu_event_listeners.lock().unwrap().values() {
+      let listeners = window_menu_event_listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2676,7 +2678,9 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      for handler in tray_context.listeners.lock().unwrap().values() {
+      let listeners = tray_context.listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2714,15 +2718,15 @@ fn handle_event_loop<T: UserEvent>(
               label,
               event: event.clone(),
             });
-            for handler in window_event_listeners
+            let shared_listeners = window_event_listeners
               .lock()
               .unwrap()
               .get(&window_id)
               .unwrap()
-              .lock()
-              .unwrap()
-              .values()
-            {
+              .clone();
+            let listeners = shared_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
               handler(&event);
             }
           }
@@ -2813,15 +2817,15 @@ fn on_close_requested<'a, T: UserEvent>(
   if let Some(w) = windows_guard.get(&window_id) {
     let label = w.label.clone();
     drop(windows_guard);
-    for handler in window_event_listeners
+    let shared_listeners = window_event_listeners
       .lock()
       .unwrap()
       .get(&window_id)
       .unwrap()
-      .lock()
-      .unwrap()
-      .values()
-    {
+      .clone();
+    let listeners = shared_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for handler in handlers {
       handler(&WindowEvent::CloseRequested {
         signal_tx: tx.clone(),
       });
@@ -2974,7 +2978,7 @@ fn create_webview<T: UserEvent>(
   let mut web_context = web_context.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
-  let web_context = match web_context.entry(
+  let entry = web_context.entry(
     // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
@@ -2983,7 +2987,8 @@ fn create_webview<T: UserEvent>(
       // random unique key
       Some(Uuid::new_v4().as_hyphenated().to_string().into())
     },
-  ) {
+  );
+  let web_context = match entry {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
       let mut web_context = WebContext::new(webview_attributes.data_directory);
@@ -3088,7 +3093,8 @@ fn create_file_drop_handler<T: UserEvent>(
     if let Some(window_listeners) = listeners.get(&webview_id_map.get(&window.id())) {
       let listeners_map = window_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
-      for listener in listeners_map.values() {
+      let handlers = listeners_map.values();
+      for listener in handlers {
         listener(&window_event);
       }
       // block the default OS action on file drop if we had a listener

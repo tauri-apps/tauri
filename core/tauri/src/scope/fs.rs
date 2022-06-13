@@ -127,7 +127,9 @@ impl Scope {
   }
 
   fn trigger(&self, event: Event) {
-    for listener in self.event_listeners.lock().unwrap().values() {
+    let listeners = self.event_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for listener in handlers {
       listener(&event);
     }
   }

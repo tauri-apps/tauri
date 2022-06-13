@@ -36,7 +36,9 @@ fn commands() -> &'static ChildStore {
 /// Kills all child processes created with [`Command`].
 /// By default it's called before the [`crate::App`] exits.
 pub fn kill_children() {
-  for child in commands().lock().unwrap().values() {
+  let commands = commands().lock().unwrap();
+  let children = commands.values();
+  for child in children {
     let _ = child.kill();
   }
 }

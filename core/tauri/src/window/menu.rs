@@ -67,7 +67,9 @@ impl<R: Runtime> Clone for MenuItemHandle<R> {
 impl<R: Runtime> MenuHandle<R> {
   /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: MenuIdRef<'_>) -> MenuItemHandle<R> {
-    for (raw, item_id) in self.ids.lock().unwrap().iter() {
+    let ids = self.ids.lock().unwrap();
+    let iter = ids.iter();
+    for (raw, item_id) in iter {
       if item_id == id {
         return MenuItemHandle {
           id: *raw,

@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.6.1]
+
+- **Breaking change**: Removed the `gtk-tray` and `ayatana-tray` Cargo features.
+  - [6216eb49](https://www.github.com/tauri-apps/tauri/commit/6216eb49e72863bfb6d4c9edb8827b21406ac393) refactor(core): drop `ayatana-tray` and `gtk-tray` Cargo features ([#4247](https://www.github.com/tauri-apps/tauri/pull/4247)) on 2022-06-02
+
 ## \[0.6.0]
 
 - Account the monitor position when centering a window.

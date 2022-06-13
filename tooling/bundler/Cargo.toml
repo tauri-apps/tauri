@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.0.0-rc.9"
+version = "1.0.0-rc.10"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -22,7 +22,7 @@ exclude = [
 ]
 
 [dependencies]
-tauri-utils = { version = "1.0.0-rc.8", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "1.0.0-rc.9", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.2"
 libflate = "1.2"
 anyhow = "1.0"

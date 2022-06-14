@@ -192,12 +192,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   // handle default window icons for Windows targets
   #[cfg(windows)]
   let default_window_icon = {
-    let icon_path = find_icon(
+    let mut icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
+    if !icon_path.exists() {
+      icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".png"),
+        "icons/icon.png",
+      );
+    }
     ico_icon(&root, &out_dir, icon_path)?
   };
   #[cfg(target_os = "linux")]
@@ -429,7 +437,7 @@ fn find_icon<F: Fn(&&String) -> bool>(
   config_parent: &Path,
   predicate: F,
   default: &str,
-) -> String {
+) -> PathBuf {
   let icon_path = config
     .tauri
     .bundle
@@ -438,7 +446,7 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .find(|i| predicate(i))
     .cloned()
     .unwrap_or_else(|| default.to_string());
-  config_parent.join(icon_path).display().to_string()
+  config_parent.join(icon_path)
 }
 
 #[cfg(feature = "shell-scope")]

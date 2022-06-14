@@ -118,6 +118,9 @@
         },
         "bundle": {
           "active": false,
+          "appimage": {
+            "bundleMediaFramework": false
+          },
           "deb": {
             "files": {}
           },
@@ -245,6 +248,9 @@
           "description": "The bundler configuration.",
           "default": {
             "active": false,
+            "appimage": {
+              "bundleMediaFramework": false
+            },
             "deb": {
               "files": {}
             },
@@ -906,7 +912,7 @@
           ]
         },
         "identifier": {
-          "description": "The app's identifier",
+          "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`). This string must be unique across applications since it is used in system configurations like the bundle ID and path to the webview data directory.",
           "type": "string"
         },
         "icon": {
@@ -953,6 +959,17 @@
           "type": [
             "string",
             "null"
+          ]
+        },
+        "appimage": {
+          "description": "Configuration for the AppImage bundle.",
+          "default": {
+            "bundleMediaFramework": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppImageConfig"
+            }
           ]
         },
         "deb": {
@@ -1022,6 +1039,18 @@
           "type": "string"
         }
       ]
+    },
+    "AppImageConfig": {
+      "description": "Configuration for AppImage bundles.",
+      "type": "object",
+      "properties": {
+        "bundleMediaFramework": {
+          "description": "Include additional gstreamer dependencies needed for audio and video playback. This increases the bundle size by ~15-35MB depending on your build system.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
     },
     "DebConfig": {
       "description": "Configuration for Debian (.deb) bundles.",

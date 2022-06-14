@@ -25,7 +25,7 @@ pub use self::{
 use log::{info, warn};
 pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
-use std::path::PathBuf;
+use std::{fmt::Write, path::PathBuf};
 
 /// Generated bundle metadata.
 #[derive(Debug)]
@@ -88,7 +88,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       if bundle.package_type == crate::PackageType::Updater {
         note = " (updater)";
       }
-      printable_paths.push_str(&format!("        {}{}\n", path.display(), note));
+      writeln!(printable_paths, "        {}{}", path.display(), note).unwrap();
     }
   }
 

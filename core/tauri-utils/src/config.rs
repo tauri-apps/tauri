@@ -87,6 +87,17 @@ impl BundleTarget {
   }
 }
 
+/// Configuration for AppImage bundles.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppImageConfig {
+  /// Include additional gstreamer dependencies needed for audio and video playback.
+  /// This increases the bundle size by ~15-35MB depending on your build system.
+  #[serde(default)]
+  pub bundle_media_framework: bool,
+}
+
 /// Configuration for Debian (.deb) bundles.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
@@ -302,7 +313,9 @@ pub struct BundleConfig {
   pub active: bool,
   /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
   pub targets: Option<BundleTarget>,
-  /// The app's identifier
+  /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
+  /// This string must be unique across applications since it is used in system configurations like
+  /// the bundle ID and path to the webview data directory.
   pub identifier: String,
   /// The app's icons
   #[serde(default)]
@@ -322,6 +335,9 @@ pub struct BundleConfig {
   pub short_description: Option<String>,
   /// A longer, multi-line description of the application.
   pub long_description: Option<String>,
+  /// Configuration for the AppImage bundle.
+  #[serde(default)]
+  pub appimage: AppImageConfig,
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
@@ -2728,6 +2744,7 @@ mod build {
       let category = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
+      let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
@@ -2745,6 +2762,7 @@ mod build {
         category,
         short_description,
         long_description,
+        appimage,
         deb,
         macos,
         external_bin,
@@ -3147,6 +3165,7 @@ mod test {
         category: None,
         short_description: None,
         long_description: None,
+        appimage: Default::default(),
         deb: Default::default(),
         macos: Default::default(),
         external_bin: None,

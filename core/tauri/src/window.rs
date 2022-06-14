@@ -1186,7 +1186,8 @@ impl<R: Runtime> Window<R> {
   pub(crate) fn unregister_js_listener(&self, id: u64) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
-    for (key, ids) in js_listeners.iter_mut() {
+    let iter = js_listeners.iter_mut();
+    for (key, ids) in iter {
       if ids.contains(&id) {
         ids.remove(&id);
         if ids.is_empty() {

@@ -101,15 +101,19 @@ struct CargoConfig {
 }
 
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  Command::new(&runner)
+  let status = Command::new(&runner)
     .args(&["build", "--features=custom-protocol"])
     .args(args)
     .env("STATIC_VCRUNTIME", "true")
-    .pipe()?
-    .output_ok()
-    .with_context(|| format!("Result of `{} build` operation was unsuccessful", runner))?;
-
-  Ok(())
+    .piped()?;
+  if status.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!(
+      "Result of `{} build` operation was unsuccessful",
+      runner
+    ))
+  }
 }
 
 pub struct AppSettings {

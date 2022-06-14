@@ -16,8 +16,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
+  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
+  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -486,9 +486,9 @@ fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 
-impl TryFrom<WindowIcon> for WryIcon {
+impl TryFrom<Icon> for WryIcon {
   type Error = Error;
-  fn try_from(icon: WindowIcon) -> std::result::Result<Self, Self::Error> {
+  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
     WryWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
       .map(Self)
       .map_err(icon_err)
@@ -885,7 +885,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn icon(mut self, icon: WindowIcon) -> Result<Self> {
+  fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
       .with_window_icon(Some(WryIcon::try_from(icon)?.0));
@@ -1092,7 +1092,7 @@ pub enum WebviewEvent {
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
   UpdateMenu(SystemTrayMenu),
-  UpdateIcon(TrayIcon),
+  UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Close,
@@ -1480,7 +1480,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  fn set_icon(&self, icon: WindowIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(
@@ -1953,10 +1953,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(feature = "system-tray")]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let icon = system_tray
-      .icon
-      .expect("tray icon not set")
-      .into_platform_icon();
+    let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
 
     let mut items = HashMap::new();
 
@@ -1973,7 +1970,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     #[cfg(not(target_os = "macos"))]
     let tray = SystemTrayBuilder::new(
-      icon,
+      icon.0,
       system_tray
         .menu
         .map(|menu| to_wry_context_menu(&mut items, menu)),
@@ -2530,7 +2527,9 @@ fn handle_user_message<T: UserEvent>(
       }
       TrayMessage::UpdateIcon(icon) => {
         if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon(icon.into_platform_icon());
+          if let Ok(icon) = TrayIcon::try_from(icon) {
+            tray.lock().unwrap().set_icon(icon.0);
+          }
         }
       }
       #[cfg(target_os = "macos")]

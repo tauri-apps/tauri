@@ -230,6 +230,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37ccbd214614c6783386c1af30caf03192f17891059cecc394b4fb119e363de3"
 
 [[package]]
+name = "bytemuck"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdead85bdec19c194affaeeb670c0e41fe23de31459efd1c174d049269cf02cc"
+
+[[package]]
 name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -405,6 +411,12 @@ dependencies = [
  "libc",
  "objc",
 ]
+
+[[package]]
+name = "color_quant"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "combine"
@@ -1376,6 +1388,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "image"
+version = "0.24.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28edd9d7bc256be2502e325ac0628bde30b7001b9b52e0abe31a1a9dc2701212"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "color_quant",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1829,6 +1855,17 @@ name = "num-iter"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d03e6c028c5dc5cac6e2dec0efda81fc887605bb3d884578bb6d6bf7514e252"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d41702bd167c2df5520b384281bc111a4b5efcf7fbc4c9c222c815b07e0a6a6a"
 dependencies = [
  "autocfg",
  "num-integer",
@@ -2991,9 +3028,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.10.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2497feadd60f2a5a7f124572d7a44b2aba589a0ad2a65d3aaf2d073c327c3b8"
+checksum = "fdfeb6aae32a6eb89544d0b109290f836d901cc5108a7c3767d6228c825af278"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3011,6 +3048,7 @@ dependencies = [
  "glib",
  "glib-sys",
  "gtk",
+ "image",
  "instant",
  "jni 0.19.0",
  "lazy_static",
@@ -3024,11 +3062,13 @@ dependencies = [
  "once_cell",
  "parking_lot 0.11.2",
  "paste",
+ "png 0.17.5",
  "raw-window-handle",
  "scopeguard",
  "serde",
  "tao-core-video-sys",
  "unicode-segmentation",
+ "uuid 0.8.2",
  "windows 0.37.0",
  "windows-implement",
  "x11-dl",
@@ -3562,6 +3602,9 @@ name = "uuid"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom 0.2.6",
+]
 
 [[package]]
 name = "uuid"
@@ -4030,9 +4073,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.18.2"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138e84a6f7f0ef90004a244a6dd4125b5fb78074b48c4369ab52b3cac68a863e"
+checksum = "26b1ba327c7dd4292f46bf8e6ba8e6ec2db4443b2973c9d304a359d95e0aa856"
 dependencies = [
  "block",
  "cocoa",

@@ -26,11 +26,7 @@ brotli = { version = "3", optional = true, default-features = false, features = 
 regex = { version = "1.5.6", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
-
-[target."cfg(windows)".dependencies]
 ico = "0.1"
-
-[target."cfg(target_os = \"linux\")".dependencies]
 png = "0.17"
 
 [features]

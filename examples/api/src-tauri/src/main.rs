@@ -10,8 +10,6 @@
 mod cmd;
 mod menu;
 
-#[cfg(target_os = "linux")]
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
@@ -135,7 +133,7 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Raw(
+              .set_icon(tauri::Icon::Raw(
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
@@ -146,36 +144,22 @@ fn main() {
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Raw(
+              .set_icon(tauri::Icon::Raw(
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
           }
-          #[cfg(target_os = "linux")]
+          #[cfg(any(target_os = "linux", windows))]
           "icon_1" => app
             .tray_handle()
-            .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../.icons/tray_icon_with_transparency.png",
-            )))
-            .unwrap(),
-          #[cfg(target_os = "linux")]
-          "icon_2" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../.icons/tray_icon.png",
-            )))
-            .unwrap(),
-          #[cfg(target_os = "windows")]
-          "icon_1" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::Raw(
+            .set_icon(tauri::Icon::Raw(
               include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
             ))
             .unwrap(),
-          #[cfg(target_os = "windows")]
+          #[cfg(any(target_os = "linux", windows))]
           "icon_2" => app
             .tray_handle()
-            .set_icon(tauri::TrayIcon::Raw(
+            .set_icon(tauri::Icon::Raw(
               include_bytes!("../../../.icons/icon.ico").to_vec(),
             ))
             .unwrap(),

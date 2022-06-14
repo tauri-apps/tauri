@@ -147,7 +147,7 @@ pub enum MenuUpdate {
 }
 
 pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
-  fn set_icon(&self, icon: crate::TrayIcon) -> crate::Result<()>;
+  fn set_icon(&self, icon: crate::Icon) -> crate::Result<()>;
   fn set_menu(&self, menu: crate::menu::SystemTrayMenu) -> crate::Result<()>;
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]

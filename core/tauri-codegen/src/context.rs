@@ -234,45 +234,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  #[cfg(target_os = "linux")]
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension("png");
-    if dev {
-      let system_tray_icon_path = config_parent
-        .join(system_tray_icon_path)
-        .display()
-        .to_string();
-      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+    let system_tray_icon_path = tray.icon_path.clone();
+    let ext = system_tray_icon_path.extension();
+    if ext.map_or(false, |e| e == "ico") {
+      ico_icon(&root, &out_dir, system_tray_icon_path)?
+    } else if ext.map_or(false, |e| e == "png") {
+      png_icon(&root, &out_dir, system_tray_icon_path)?
     } else {
-      let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
-      quote!(
-        Some(
-          #root::TrayIcon::File(
-            #root::api::path::resolve_path(
-              &#config,
-              &#package_info,
-              &Default::default(),
-              #system_tray_icon_file_path,
-              Some(#root::api::path::BaseDirectory::Resource)
-            ).expect("failed to resolve resource dir")
-          )
-        )
-      )
+      quote!(compile_error!(
+        "The tray icon extension must be either `.ico` or `.png`."
+      ))
     }
-  } else {
-    quote!(None)
-  };
-
-  #[cfg(not(target_os = "linux"))]
-  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
-    let system_tray_icon_path = config_parent
-      .join(system_tray_icon_path)
-      .display()
-      .to_string();
-    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -367,7 +340,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   )))
 }
 
-#[cfg(windows)]
 fn ico_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -378,14 +350,14 @@ fn ico_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to parse icon {}", path.display()));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to decode icon {}", path.display()))
     .rgba_data()
     .to_vec();
   let width = entry.width();
@@ -410,7 +382,6 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(target_os = "linux")]
 fn png_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -421,12 +392,12 @@ fn png_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let mut reader = decoder
     .read_info()
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());

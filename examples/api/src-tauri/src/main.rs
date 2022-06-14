@@ -127,8 +127,8 @@ fn main() {
               .build()
               .unwrap();
           }
-          #[cfg(target_os = "macos")]
           "icon_1" => {
+            #[cfg(target_os = "macos")]
             app.tray_handle().set_icon_as_template(true).unwrap();
 
             app
@@ -138,8 +138,8 @@ fn main() {
               ))
               .unwrap();
           }
-          #[cfg(target_os = "macos")]
           "icon_2" => {
+            #[cfg(target_os = "macos")]
             app.tray_handle().set_icon_as_template(true).unwrap();
 
             app
@@ -149,20 +149,6 @@ fn main() {
               ))
               .unwrap();
           }
-          #[cfg(any(target_os = "linux", windows))]
-          "icon_1" => app
-            .tray_handle()
-            .set_icon(tauri::Icon::Raw(
-              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
-            ))
-            .unwrap(),
-          #[cfg(any(target_os = "linux", windows))]
-          "icon_2" => app
-            .tray_handle()
-            .set_icon(tauri::Icon::Raw(
-              include_bytes!("../../../.icons/icon.ico").to_vec(),
-            ))
-            .unwrap(),
           "switch_menu" => {
             let flag = is_menu1.load(Ordering::Relaxed);
             app

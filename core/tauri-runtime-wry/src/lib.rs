@@ -1957,6 +1957,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     let mut items = HashMap::new();
 
+    #[allow(unused_mut)]
     let mut tray_builder = SystemTrayBuilder::new(
       icon.0,
       system_tray

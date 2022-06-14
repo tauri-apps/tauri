@@ -8,9 +8,9 @@ pub use crate::{
       MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
     },
     window::dpi::{PhysicalPosition, PhysicalSize},
-    SystemTray, TrayIcon,
+    SystemTray,
   },
-  Runtime,
+  Icon, Runtime,
 };
 
 use tauri_macros::default_runtime;
@@ -132,9 +132,9 @@ impl<R: Runtime> SystemTrayHandle<R> {
     panic!("item id not found")
   }
 
-  /// Updates the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
-  pub fn set_icon(&self, icon: TrayIcon) -> crate::Result<()> {
-    self.inner.set_icon(icon).map_err(Into::into)
+  /// Updates the tray icon.
+  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+    self.inner.set_icon(icon.try_into()?).map_err(Into::into)
   }
 
   /// Updates the tray menu.

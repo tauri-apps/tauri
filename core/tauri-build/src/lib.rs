@@ -266,12 +266,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  #[allow(unused_mut)]
+  #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
-  #[cfg(target_os = "linux")]
-  if let Some(tray) = config.tauri.system_tray {
-    resources.push(tray.icon_path.display().to_string());
-  }
   #[cfg(windows)]
   if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
   {

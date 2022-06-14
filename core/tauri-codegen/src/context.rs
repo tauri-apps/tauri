@@ -177,7 +177,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     _ => unimplemented!(),
   };
 
-  #[cfg(any(windows, target_os = "linux"))]
   let out_dir = {
     let out_dir = std::env::var("OUT_DIR")
       .map_err(|_| EmbeddedAssetsError::OutDir)
@@ -193,12 +192,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   // handle default window icons for Windows targets
   #[cfg(windows)]
   let default_window_icon = {
-    let icon_path = find_icon(
+    let mut icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
+    if !icon_path.exists() {
+      icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".png"),
+        "icons/icon.png",
+      );
+    }
     ico_icon(&root, &out_dir, icon_path)?
   };
   #[cfg(target_os = "linux")]
@@ -234,45 +241,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   );
 
-  #[cfg(target_os = "linux")]
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension("png");
-    if dev {
-      let system_tray_icon_path = config_parent
-        .join(system_tray_icon_path)
-        .display()
-        .to_string();
-      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+    let system_tray_icon_path = tray.icon_path.clone();
+    let ext = system_tray_icon_path.extension();
+    if ext.map_or(false, |e| e == "ico") {
+      ico_icon(&root, &out_dir, system_tray_icon_path)?
+    } else if ext.map_or(false, |e| e == "png") {
+      png_icon(&root, &out_dir, system_tray_icon_path)?
     } else {
-      let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
-      quote!(
-        Some(
-          #root::TrayIcon::File(
-            #root::api::path::resolve_path(
-              &#config,
-              &#package_info,
-              &Default::default(),
-              #system_tray_icon_file_path,
-              Some(#root::api::path::BaseDirectory::Resource)
-            ).expect("failed to resolve resource dir")
-          )
-        )
-      )
+      quote!(compile_error!(
+        "The tray icon extension must be either `.ico` or `.png`."
+      ))
     }
-  } else {
-    quote!(None)
-  };
-
-  #[cfg(not(target_os = "linux"))]
-  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
-    let system_tray_icon_path = config_parent
-      .join(system_tray_icon_path)
-      .display()
-      .to_string();
-    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -367,7 +347,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   )))
 }
 
-#[cfg(windows)]
 fn ico_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -378,14 +357,14 @@ fn ico_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to parse icon {}", path.display()));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to decode icon {}", path.display()))
     .rgba_data()
     .to_vec();
   let width = entry.width();
@@ -410,7 +389,6 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(target_os = "linux")]
 fn png_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -421,12 +399,12 @@ fn png_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let mut reader = decoder
     .read_info()
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());
@@ -459,7 +437,7 @@ fn find_icon<F: Fn(&&String) -> bool>(
   config_parent: &Path,
   predicate: F,
   default: &str,
-) -> String {
+) -> PathBuf {
   let icon_path = config
     .tauri
     .bundle
@@ -468,7 +446,7 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .find(|i| predicate(i))
     .cloned()
     .unwrap_or_else(|| default.to_string());
-  config_parent.join(icon_path).display().to_string()
+  config_parent.join(icon_path)
 }
 
 #[cfg(feature = "shell-scope")]

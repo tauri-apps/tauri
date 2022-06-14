@@ -231,7 +231,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, TrayIcon, UserAttentionType,
+    RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -372,7 +372,7 @@ pub enum Icon {
   },
 }
 
-impl TryFrom<Icon> for runtime::WindowIcon {
+impl TryFrom<Icon> for runtime::Icon {
   type Error = Error;
 
   fn try_from(icon: Icon) -> Result<Self> {
@@ -445,7 +445,7 @@ pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
-  pub(crate) system_tray_icon: Option<TrayIcon>,
+  pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -506,13 +506,13 @@ impl<A: Assets> Context<A> {
 
   /// The icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&TrayIcon> {
+  pub fn system_tray_icon(&self) -> Option<&Icon> {
     self.system_tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<TrayIcon> {
+  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.system_tray_icon
   }
 
@@ -548,7 +548,7 @@ impl<A: Assets> Context<A> {
     config: Config,
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
-    system_tray_icon: Option<TrayIcon>,
+    system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,

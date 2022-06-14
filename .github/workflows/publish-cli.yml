@@ -36,6 +36,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
+              sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev
               cd tooling/cli/node
               yarn build:release --target x86_64-unknown-linux-gnu
               strip *.node
@@ -43,6 +45,8 @@ jobs:
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
+              sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev
               cd tooling/cli/node
               yarn build:release
               strip *.node
@@ -55,6 +59,8 @@ jobs:
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
+              sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev
               cd tooling/cli/node
               yarn build:release --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
@@ -63,6 +69,7 @@ jobs:
             target: armv7-unknown-linux-gnueabihf
             setup: |
               sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
               yarn build:release --target=armv7-unknown-linux-gnueabihf
@@ -72,6 +79,8 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
+              sudo apt-get update
+              sudo apt-get install -y libgtk-3-dev
               cd tooling/cli/node
               rustup target add aarch64-unknown-linux-musl
               yarn build:release --target aarch64-unknown-linux-musl

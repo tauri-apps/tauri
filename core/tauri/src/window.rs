@@ -597,7 +597,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn inner(&self) -> cocoa::base::id {
-    self.0.webview.clone()
+    self.0.webview
   }
 
   /// Returns WKWebView [controller] handle.
@@ -606,7 +606,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn controller(&self) -> cocoa::base::id {
-    self.0.manager.clone()
+    self.0.manager
   }
 
   /// Returns [NSWindow] associated with the WKWebView webview.
@@ -615,7 +615,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
-    self.0.ns_window.clone()
+    self.0.ns_window
   }
 }
 

@@ -177,7 +177,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     _ => unimplemented!(),
   };
 
-  #[cfg(any(windows, target_os = "linux"))]
   let out_dir = {
     let out_dir = std::env::var("OUT_DIR")
       .map_err(|_| EmbeddedAssetsError::OutDir)

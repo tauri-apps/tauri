@@ -1957,26 +1957,21 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     let mut items = HashMap::new();
 
-    #[cfg(target_os = "macos")]
-    let tray = SystemTrayBuilder::new(
-      icon,
-      system_tray
-        .menu
-        .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .with_icon_as_template(system_tray.icon_as_template)
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
-
-    #[cfg(not(target_os = "macos"))]
-    let tray = SystemTrayBuilder::new(
+    let mut tray_builder = SystemTrayBuilder::new(
       icon.0,
       system_tray
         .menu
         .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    );
+
+    #[cfg(target_os = "macos")]
+    {
+      tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+    }
+
+    let tray = tray_builder
+      .build(&self.event_loop)
+      .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
     *self.tray_context.items.lock().unwrap() = items;
     *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));

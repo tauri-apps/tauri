@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0-rc.10]
+
+- **Breaking change:** The `TrayIcon` enum has been removed and now `Icon` is used instead.
+  This allows you to use more image formats and use embedded icons on Linux.
+  - Bumped due to a bump in tauri-codegen.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
 ## \[1.0.0-rc.9]
 
 - Added a config flag to bundle the media framework used by webkit2gtk `tauri.conf.json > tauri > bundle > appimage > bundleMediaFramework`.

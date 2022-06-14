@@ -107,6 +107,7 @@ interface MessageDialogOptions {
  * } else {
  *   // user selected a single file
  * }
+ * ```
  *
  * @example Open a selection dialog for directories
  * ```typescript

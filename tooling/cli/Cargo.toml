@@ -72,9 +72,6 @@ winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "
 [target."cfg(unix)".dependencies]
 libc = "0.2"
 
-[target."cfg(target_os = \"linux\")".dependencies]
-libappindicator-sys = "0.7.2"
-
 [target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.4"
 

@@ -20,28 +20,17 @@
 
 use super::super::common;
 use crate::Settings;
+use crate::bundle::linux::util;
 use anyhow::Context;
 use heck::ToKebabCase;
-use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 use log::info;
 use std::process::Command;
 
 use std::{
-  collections::BTreeSet,
-  ffi::OsStr,
-  fs::{self, File},
+  fs,
   io::Write,
   path::{Path, PathBuf},
 };
-
-
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct LinuxIcon {
-  pub width: u32,
-  pub height: u32,
-  pub is_high_density: bool,
-  pub path: PathBuf,
-}
 
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // unimplemented!();
@@ -73,8 +62,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   copy_bin_lib(settings, &package_dir).with_context(|| "Failed to copy lib and bin file")?;
-  generate_desktop_file(settings, &package_dir).with_context(|| "Failed to create desktop file")?;
-  generate_icon_files(settings, &package_dir).with_context(|| "Failed to create icon file")?;
+  util::generate_desktop_file(settings, &package_dir).with_context(|| "Failed to create desktop file")?;
+  util::generate_icon_files(settings, &package_dir).with_context(|| "Failed to create icon file")?;
   generate_pkgbuild(settings, &package_dir, arch, pkgrel).with_context(|| "Failed to create PKGBUILD file")?;
   run_pkgbuild(&package_dir).with_context(|| "Failed to run PKGBUILD file")?;
 
@@ -98,118 +87,6 @@ fn copy_bin_lib(settings: &Settings, package_dir: &Path) -> crate::Result<()> {
 
   Ok(())
 }
-
-/// Generate the application desktop file and store it under the `data_dir`.
-fn generate_desktop_file(settings: &Settings, package_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{}.desktop", bin_name);
-  let desktop_file_path = package_dir
-    .join("usr/share/applications")
-    .join(desktop_file_name);
-  let file = &mut common::create_file(&desktop_file_path)?;
-  // For more information about the format of this file, see
-  // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  writeln!(file, "[Desktop Entry]")?;
-  if let Some(category) = settings.app_category() {
-    writeln!(file, "Categories={}", category.gnome_desktop_categories())?;
-  } else {
-    writeln!(file, "Categories=")?;
-  }
-  if !settings.short_description().is_empty() {
-    writeln!(file, "Comment={}", settings.short_description())?;
-  }
-  writeln!(file, "Exec={}", bin_name)?;
-  writeln!(file, "Icon={}", bin_name)?;
-  writeln!(file, "Name={}", settings.product_name())?;
-  writeln!(file, "Terminal=false")?;
-  writeln!(file, "Type=Application")?;
-  Ok(())
-}
-
-
-/// Generate the icon files and store them under the `data_dir`.
-fn generate_icon_files(settings: &Settings, package_dir: &Path) -> crate::Result<BTreeSet<LinuxIcon>> {
-  let base_dir = package_dir.join("usr/share/icons/hicolor");
-  let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
-    base_dir.join(format!(
-      "{}x{}{}/apps/{}.png",
-      width,
-      height,
-      if is_high_density { "@2x" } else { "" },
-      settings.main_binary_name()
-    ))
-  };
-  let mut icons = BTreeSet::new();
-  // Prefer PNG files.
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() != Some(OsStr::new("png")) {
-      continue;
-    }
-    let decoder = PngDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0;
-    let height = decoder.dimensions().1;
-    let is_high_density = common::is_retina(&icon_path);
-    let dest_path = get_dest_path(width, height, is_high_density);
-    let linux_icon = LinuxIcon {
-      width,
-      height,
-      is_high_density,
-      path: dest_path,
-    };
-    if !icons.contains(&linux_icon) {
-      common::copy_file(&icon_path, &linux_icon.path)?;
-      icons.insert(linux_icon);
-    }
-  }
-  // Fall back to non-PNG files for any missing sizes.
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() == Some(OsStr::new("png")) {
-      continue;
-    } else if icon_path.extension() == Some(OsStr::new("icns")) {
-      let icon_family = icns::IconFamily::read(File::open(&icon_path)?)?;
-      for icon_type in icon_family.available_icons() {
-        let width = icon_type.screen_width();
-        let height = icon_type.screen_height();
-        let is_high_density = icon_type.pixel_density() > 1;
-        let dest_path = get_dest_path(width, height, is_high_density);
-        let linux_icon = LinuxIcon {
-          width,
-          height,
-          is_high_density,
-          path: dest_path,
-        };
-        if !icons.contains(&linux_icon) {
-          if let Ok(icon) = icon_family.get_icon_with_type(icon_type) {
-            icon.write_png(common::create_file(&linux_icon.path)?)?;
-            icons.insert(linux_icon);
-          }
-        }
-      }
-    } else {
-      let icon = image::open(&icon_path)?;
-      let (width, height) = icon.dimensions();
-      let is_high_density = common::is_retina(&icon_path);
-      let dest_path = get_dest_path(width, height, is_high_density);
-      let linux_icon = LinuxIcon {
-        width,
-        height,
-        is_high_density,
-        path: dest_path,
-      };
-      if !icons.contains(&linux_icon) {
-        icon.write_to(
-          &mut common::create_file(&linux_icon.path)?,
-          image::ImageOutputFormat::Png,
-        )?;
-        icons.insert(linux_icon);
-      }
-    }
-  }
-  Ok(icons)
-}
-
 
 fn generate_pkgbuild(settings: &Settings, package_dir: &Path, arch: &str, pkgrel: i32) -> crate::Result<()> {
   let dest_path = package_dir.join("PKGBUILD");

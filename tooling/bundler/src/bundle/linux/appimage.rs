@@ -6,7 +6,7 @@ use super::{
   super::{common::CommandExt, path_utils},
   debian,
 };
-use crate::Settings;
+use crate::{Settings, bundle::linux::util};
 use anyhow::Context;
 use handlebars::Handlebars;
 use log::info;
@@ -30,7 +30,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // generate deb_folder structure
   let (_, icons) = debian::generate_data(settings, &package_dir)?;
-  let icons: Vec<debian::DebIcon> = icons.into_iter().collect();
+  let icons: Vec<util::LinuxIcon> = icons.into_iter().collect();
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {

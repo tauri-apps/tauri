@@ -266,8 +266,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  #[allow(unused_mut)]
-  let mut resources = config.tauri.bundle.resources.unwrap_or_default();
+  #[allow(unused_mut, clippy::redundant_clone)]
+  let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
   #[cfg(windows)]
   if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
   {

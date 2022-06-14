@@ -271,10 +271,10 @@ async function writeTextFile(
 
 /**
  * Writes a byte array content to a file.
- * @example Write a binary file to the `$RESOURCEDIR/avatar.png` path
+ * @example Write a binary file to the `$APPDIR/avatar.png` path
  * ```typescript
  * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
- * await writeBinaryFile('avatar.png', new Uint8Array([]), { dir: BaseDirectory.Resource });
+ * await writeBinaryFile('avatar.png', new Uint8Array([]), { dir: BaseDirectory.App });
  * ```
  *
  * @param path The file path.
@@ -290,10 +290,10 @@ async function writeBinaryFile(
 
 /**
  * Writes a byte array content to a file.
- * @example Write a binary file to the `$RESOURCEDIR/avatar.png` path
+ * @example Write a binary file to the `$APPEDIR/avatar.png` path
  * ```typescript
  * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
- * await writeBinaryFile({ path: 'avatar.png', contents: new Uint8Array([]) }, { dir: BaseDirectory.Resource });
+ * await writeBinaryFile({ path: 'avatar.png', contents: new Uint8Array([]) }, { dir: BaseDirectory.App });
  * ```
  *
  * @param file The object containing the file path and contents.

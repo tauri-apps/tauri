@@ -88,4 +88,4 @@ pub fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Res
     writeln!(file, "Terminal=false")?;
     writeln!(file, "Type=Application")?;
     Ok(())
-  }
+}

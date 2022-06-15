@@ -242,7 +242,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   );
 
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let system_tray_icon_path = tray.icon_path.clone();
+    let system_tray_icon_path = config_parent.join(&tray.icon_path);
     let ext = system_tray_icon_path.extension();
     if ext.map_or(false, |e| e == "ico") {
       ico_icon(&root, &out_dir, system_tray_icon_path)?

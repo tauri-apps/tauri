@@ -41,7 +41,7 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@babel/core": "7.18.2",
+    "@babel/core": "7.18.5",
     "@babel/preset-env": "7.18.2",
     "@babel/preset-typescript": "7.17.12",
     "@rollup/plugin-babel": "5.3.1",
@@ -49,8 +49,8 @@
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-sucrase": "4.0.4",
     "@rollup/plugin-typescript": "8.3.3",
-    "@typescript-eslint/eslint-plugin": "5.27.1",
-    "@typescript-eslint/parser": "5.27.1",
+    "@typescript-eslint/eslint-plugin": "5.28.0",
+    "@typescript-eslint/parser": "5.28.0",
     "eslint": "8.17.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-config-standard-with-typescript": "21.0.1",
@@ -58,7 +58,7 @@
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.0.0",
     "eslint-plugin-security": "1.5.0",
-    "prettier": "2.6.2",
+    "prettier": "2.7.0",
     "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",
     "rollup": "2.75.6",
@@ -69,6 +69,6 @@
     "typescript": "4.7.3"
   },
   "dependencies": {
-    "type-fest": "2.13.0"
+    "type-fest": "2.13.1"
   }
 }

@@ -8,7 +8,6 @@
 'tauri-codegen': major
 'tauri-macros': major
 'tauri-build': major
-'tauri-driver': patch
 ---
 
-Upgrade to `rc`!
+Upgrade to `stable`!

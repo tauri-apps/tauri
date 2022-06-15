@@ -10,7 +10,9 @@
 use tauri::WindowBuilder;
 
 fn main() {
+  let context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
   tauri::Builder::default()
+    .menu(tauri::Menu::default(&context.package_info().name))
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
@@ -27,8 +29,6 @@ fn main() {
       .build()?;
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/multiwindow/tauri.conf.json"
-    ))
+    .run(context)
     .expect("failed to run tauri application");
 }

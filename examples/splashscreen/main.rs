@@ -17,7 +17,9 @@ mod rust {
   fn close_splashscreen() {}
 
   pub fn main() {
+    let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
     tauri::Builder::default()
+      .menu(tauri::Menu::default(&context.package_info().name))
       .setup(|app| {
         let splashscreen_window = app.get_window("splashscreen").unwrap();
         let main_window = app.get_window("main").unwrap();
@@ -34,9 +36,7 @@ mod rust {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(tauri::generate_context!(
-        "../../examples/splashscreen/tauri.conf.json"
-      ))
+      .run(context)
       .expect("failed to run app");
   }
 }
@@ -64,7 +64,9 @@ mod ui {
   }
 
   pub fn main() {
+    let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
     tauri::Builder::default()
+      .menu(tauri::Menu::default(&context.package_info().name))
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(
@@ -76,9 +78,7 @@ mod ui {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(tauri::generate_context!(
-        "../../examples/splashscreen/tauri.conf.json"
-      ))
+      .run(context)
       .expect("error while running tauri application");
   }
 }

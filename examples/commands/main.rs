@@ -157,7 +157,9 @@ fn borrow_cmd_async(argument: &str) -> &str {
 }
 
 fn main() {
+  let context = tauri::generate_context!("../../examples/commands/tauri.conf.json");
   tauri::Builder::default()
+    .menu(tauri::Menu::default(&context.package_info().name))
     .manage(MyState {
       value: 0,
       label: "Tauri!".into(),
@@ -187,8 +189,6 @@ fn main() {
       future_simple_command_with_result,
       async_stateful_command_with_result,
     ])
-    .run(tauri::generate_context!(
-      "../../examples/commands/tauri.conf.json"
-    ))
+    .run(context)
     .expect("error while running tauri application");
 }

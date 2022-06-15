@@ -6,7 +6,7 @@
 fn main() {
   let context = tauri::generate_context!();
   tauri::Builder::default()
-    .menu(tauri::Menu::window_default(&context.package_info().name))
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .run(context)
     .expect("error while running tauri application");
 }

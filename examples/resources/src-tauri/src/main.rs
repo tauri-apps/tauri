@@ -16,7 +16,7 @@ fn main() {
   let context = tauri::generate_context!();
 
   tauri::Builder::default()
-    .menu(tauri::Menu::window_default(&context.package_info().name))
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .setup(move |app| {
       let window = app.get_window("main").unwrap();
       let script_path = app

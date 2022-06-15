@@ -23,7 +23,7 @@ fn main() {
 fn main() {
   let context = tauri::generate_context!("../../examples/isolation/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::window_default(&context.package_info().name))
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .invoke_handler(tauri::generate_handler![ping])
     .run(context)
     .expect("error while running tauri application");

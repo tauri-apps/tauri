@@ -186,7 +186,7 @@ impl Menu {
     Default::default()
   }
 
-  /// Creates a default menu filled with default menu items and submenus.
+  /// Creates a menu filled with default menu items and submenus.
   ///
   /// ## Platform-specific:
   ///
@@ -238,7 +238,7 @@ impl Menu {
   ///     - Zoom
   ///     - Separator
   ///     - CloseWindow
-  pub fn window_default(#[allow(unused)] app_name: &str) -> Self {
+  pub fn os_default(#[allow(unused)] app_name: &str) -> Self {
     let mut menu = Menu::new();
     #[cfg(target_os = "macos")]
     {

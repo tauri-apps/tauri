@@ -71,7 +71,7 @@ fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
 fn main() {
   let context = tauri::generate_context!("../../examples/state/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::window_default(&context.package_info().name))
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .manage(Counter(AtomicUsize::new(0)))
     .manage(Database(Default::default()))
     .manage(Connection(Default::default()))

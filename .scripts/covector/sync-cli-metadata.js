@@ -18,16 +18,26 @@ const {
 const packageNickname = process.argv[2]
 const filePath = packageNickname === 'cli.js' ? `../../../tooling/cli/metadata.json` : `../../tooling/cli/metadata.json`
 const bump = process.argv[3]
-if (bump !== 'prerelease') {
-  throw new Error(
-    `We don't handle anything except prerelease right now. Exiting.`
-  )
+let index = null
+
+switch (bump) {
+  case 'major':
+    index = 0;
+    break;
+  case 'minor':
+    index = 1;
+    break;
+  case 'patch':
+    index = 2;
+    break;
+  default:
+    throw new Error('unexpected bump ' + bump)
 }
 
 const inc = (version) => {
   const v = version.split('.')
-  const n = v[v.length - 1]
-  v[v.length - 1] = String(Number(n) + 1)
+  const n = v[index]
+  v[index] = String(Number(n) + 1)
   return v.join('.')
 }
 

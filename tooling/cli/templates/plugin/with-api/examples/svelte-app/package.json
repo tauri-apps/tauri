@@ -12,7 +12,7 @@
     "@rollup/plugin-commonjs": "22.0.0",
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-typescript": "8.3.3",
-    "@tauri-apps/cli": "^1.0.0",
+    "@tauri-apps/cli": "^1.0.0-rc",
     "@tsconfig/svelte": "3.0.0",
     "rollup": "2.75.6",
     "rollup-plugin-css-only": "3.1.0",

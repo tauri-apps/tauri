@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.8.2]
+## \[0.9.0]
 
 - Upgrade to `stable`!
   - Bumped due to a bump in tauri-utils.

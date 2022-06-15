@@ -81,8 +81,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
       let status = Command::new("sh")
@@ -90,8 +89,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
 
       if !status.success() {
@@ -318,13 +316,13 @@ pub fn command(options: Options) -> Result<()> {
             if tray == "ayatana" {
               format!(
                 "{}/libayatana-appindicator3.so",
-                libappindicator_sys::get_library_path("ayatana-appindicator3-0.1")
+                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
                   .expect("failed to get ayatana-appindicator library path using pkg-config.")
               )
             } else {
               format!(
                 "{}/libappindicator3.so",
-                libappindicator_sys::get_library_path("appindicator3-0.1")
+                pkgconfig_utils::get_library_path("appindicator3-0.1")
                   .expect("failed to get libappindicator-gtk library path using pkg-config.")
               )
             },
@@ -332,10 +330,13 @@ pub fn command(options: Options) -> Result<()> {
         } else {
           std::env::set_var(
             "TRAY_LIBRARY_PATH",
-            libappindicator_sys::get_appindicator_library_path(),
+            pkgconfig_utils::get_appindicator_library_path(),
           );
         }
       }
+    }
+    if config_.tauri.bundle.appimage.bundle_media_framework {
+      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
@@ -378,4 +379,38 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     info!("        {}", path.display());
   }
   Ok(())
+}
+
+#[cfg(target_os = "linux")]
+mod pkgconfig_utils {
+  use std::{path::PathBuf, process::Command};
+
+  pub fn get_appindicator_library_path() -> PathBuf {
+    match get_library_path("ayatana-appindicator3-0.1") {
+      Some(p) => format!("{}/libayatana-appindicator3.so", p).into(),
+      None => match get_library_path("appindicator3-0.1") {
+        Some(p) => format!("{}/libappindicator3.so", p).into(),
+        None => panic!("Can't detect any appindicator library"),
+      },
+    }
+  }
+
+  /// Gets the folder in which a library is located using `pkg-config`.
+  pub fn get_library_path(name: &str) -> Option<String> {
+    let mut cmd = Command::new("pkg-config");
+    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
+    cmd.arg("--libs-only-L");
+    cmd.arg(name);
+    if let Ok(output) = cmd.output() {
+      if !output.stdout.is_empty() {
+        // output would be "-L/path/to/library\n"
+        let word = output.stdout[2..].to_vec();
+        return Some(String::from_utf8_lossy(&word).trim().to_string());
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
 }

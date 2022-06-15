@@ -13,6 +13,11 @@ import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Gets the application version.
+ * @example
+ * ```typescript
+ * import { getVersion } from '@tauri-apps/api/app';
+ * const appVersion = await getVersion();
+ * ```
  *
  * @returns A promise resolving to the application version.
  */
@@ -27,6 +32,11 @@ async function getVersion(): Promise<string> {
 
 /**
  * Gets the application name.
+ * @example
+ * ```typescript
+ * import { getName } from '@tauri-apps/api/app';
+ * const appName = await getName();
+ * ```
  *
  * @returns A promise resolving to application name.
  */
@@ -41,6 +51,12 @@ async function getName(): Promise<string> {
 
 /**
  * Gets the tauri version.
+ *
+ * @example
+ * ```typescript
+ * import { getTauriVersion } from '@tauri-apps/api/app';
+ * const tauriVersion = await getTauriVersion();
+ * ```
  *
  * @returns A promise resolving to tauri version.
  */

@@ -135,6 +135,11 @@ interface FileEntry {
 
 /**
  * Reads a file as an UTF-8 encoded string.
+ * @example Read the text file in the `$APPDIR/app.conf` path
+ * ```typescript
+ * import { readTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * const contents = await readTextFile('app.conf', { dir: BaseDirectory.App });
+ * ```
  *
  * @param filePath Path to the file.
  * @param options Configuration object.
@@ -156,6 +161,11 @@ async function readTextFile(
 
 /**
  * Reads a file as byte array.
+ * @example Read the image file in the `$RESOURCEDIR/avatar.png` path
+ * ```typescript
+ * import { readBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * const contents = await readBinaryFile('avatar.png', { dir: BaseDirectory.Resource });
+ * ```
  *
  * @param filePath Path to the file.
  * @param options Configuration object.
@@ -179,6 +189,11 @@ async function readBinaryFile(
 
 /**
  * Writes a UTF-8 text file.
+ * @example Write a text file to the `$APPDIR/app.conf` path
+ * ```typescript
+ * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await writeTextFile('app.conf', 'file contents', { dir: BaseDirectory.App });
+ * ```
  *
  * @param path The file path.
  * @param contents The file contents.
@@ -193,6 +208,11 @@ async function writeTextFile(
 
 /**
  * Writes a UTF-8 text file.
+ * @example Write a text file to the `$APPDIR/app.conf` path
+ * ```typescript
+ * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await writeTextFile({ path: 'app.conf', contents: 'file contents' }, { dir: BaseDirectory.App });
+ * ```
  *
  * @param file The object containing the file path and contents.
  * @param options Configuration object.
@@ -206,8 +226,9 @@ async function writeTextFile(
 /**
  * Writes a UTF-8 text file.
  *
- * @param file File configuration object.
- * @param options Configuration object.
+ * @param path File path or configuration object.
+ * @param contents File contents or options.
+ * @param options File options.
  * @returns A promise indicating the success or failure of the operation.
  */
 async function writeTextFile(
@@ -250,6 +271,11 @@ async function writeTextFile(
 
 /**
  * Writes a byte array content to a file.
+ * @example Write a binary file to the `$APPDIR/avatar.png` path
+ * ```typescript
+ * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await writeBinaryFile('avatar.png', new Uint8Array([]), { dir: BaseDirectory.App });
+ * ```
  *
  * @param path The file path.
  * @param contents The file contents.
@@ -264,6 +290,11 @@ async function writeBinaryFile(
 
 /**
  * Writes a byte array content to a file.
+ * @example Write a binary file to the `$APPEDIR/avatar.png` path
+ * ```typescript
+ * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await writeBinaryFile({ path: 'avatar.png', contents: new Uint8Array([]) }, { dir: BaseDirectory.App });
+ * ```
  *
  * @param file The object containing the file path and contents.
  * @param options Configuration object.
@@ -277,8 +308,9 @@ async function writeBinaryFile(
 /**
  * Writes a byte array content to a file.
  *
- * @param file Write configuration object.
- * @param options Configuration object.
+ * @param path File path or configuration object.
+ * @param contents File contents or options.
+ * @param options File options.
  * @returns A promise indicating the success or failure of the operation.
  */
 async function writeBinaryFile(
@@ -322,6 +354,20 @@ async function writeBinaryFile(
 
 /**
  * List directory files.
+ * @example Reads the `$APPDIR/users` directory recursively
+ * ```typescript
+ * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
+ * const entries = await readDir('users', new Uint8Array([]), { dir: BaseDirectory.App, recursive: true });
+ *
+ * function processEntries(entries) {
+ *   for (const entry of entries) {
+ *     console.log(`Entry: ${entry.path}`);
+ *     if (entry.children !== null) {
+ *       processEntries(entry.children)
+ *     }
+ *   }
+ * }
+ * ```
  *
  * @param dir Path to the directory to read.
  * @param options Configuration object.
@@ -345,6 +391,11 @@ async function readDir(
  * Creates a directory.
  * If one of the path's parent components doesn't exist
  * and the `recursive` option isn't set to true, the promise will be rejected.
+ * @example Create the `$APPDIR/users` directory
+ * ```typescript
+ * import { createDir, BaseDirectory } from '@tauri-apps/api/fs';
+ * await createDir('users', { dir: BaseDirectory.App, recursive: true });
+ * ```
  *
  * @param dir Path to the directory to create.
  * @param options Configuration object.
@@ -367,6 +418,11 @@ async function createDir(
 /**
  * Removes a directory.
  * If the directory is not empty and the `recursive` option isn't set to true, the promise will be rejected.
+ * @example Remove the directory `$APPDIR/users`
+ * ```typescript
+ * import { removeDir, BaseDirectory } from '@tauri-apps/api/fs';
+ * await removeDir('users', { dir: BaseDirectory.App });
+ * ```
  *
  * @param dir Path to the directory to remove.
  * @param options Configuration object.
@@ -388,6 +444,11 @@ async function removeDir(
 
 /**
  * Copys a file to a destination.
+ * @example Copy the `$APPDIR/app.conf` file to `$APPDIR/app.conf.bk`
+ * ```typescript
+ * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await copyFile('app.conf', 'app.conf.bk', { dir: BaseDirectory.App });
+ * ```
  *
  * @param source A path of the file to copy.
  * @param destination A path for the destination file.
@@ -412,6 +473,11 @@ async function copyFile(
 
 /**
  * Removes a file.
+ * @example Remove the `$APPDIR/app.conf` file
+ * ```typescript
+ * import { removeFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await removeFile('app.conf', { dir: BaseDirectory.App });
+ * ```
  *
  * @param file Path to the file to remove.
  * @param options Configuration object.
@@ -433,6 +499,11 @@ async function removeFile(
 
 /**
  * Renames a file.
+ * @example Rename the `$APPDIR/avatar.png` file
+ * ```typescript
+ * import { renameFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await renameFile('avatar.png', 'deleted.png', { dir: BaseDirectory.App });
+ * ```
  *
  * @param oldPath A path of the file to rename.
  * @param newPath A path of the new file name.

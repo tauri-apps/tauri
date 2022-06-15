@@ -19,6 +19,16 @@ import type {
 
 /**
  * Listen to an event from the backend.
+ * @example Listen to the `error` event expecting a string payload
+ * ```typescript
+ * import { listen } from '@tauri-apps/api/event';
+ * const unlisten = await listen<string>('error', (event) => {
+ *   console.log(`Got error in window ${event.windowLabel}, payload: ${payload}`);
+ * });
+ *
+ * // removes the listener later
+ * await unlisten();
+ * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
@@ -33,6 +43,17 @@ async function listen<T>(
 
 /**
  * Listen to an one-off event from the backend.
+ * @example Listen to the `loaded` event that is only triggered once
+ * ```typescript
+ * import { once } from '@tauri-apps/api/event';
+ * interface LoadedPayload {
+ *   loggedIn: boolean,
+ *   token: string
+ * }
+ * const unlisten = await once<LoadedPayload>('loaded', (event) => {
+ *   console.log(`App is loaded, logggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
+ * });
+ * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
@@ -47,6 +68,11 @@ async function once<T>(
 
 /**
  * Emits an event to the backend.
+ * @example Emits the `frontend-loaded` event with the given payload
+ * ```typescript
+ * import { emit } from '@tauri-apps/api/event';
+ * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param [payload] Event payload

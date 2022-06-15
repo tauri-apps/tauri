@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.8.0]
+
+- Removed `TrayIcon` and renamed `WindowIcon` to `Icon`, a shared type for both icons.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
+## \[0.7.0]
+
+- **Breaking change**: Removed the `gtk-tray` and `ayatana-tray` Cargo features.
+  - [6216eb49](https://www.github.com/tauri-apps/tauri/commit/6216eb49e72863bfb6d4c9edb8827b21406ac393) refactor(core): drop `ayatana-tray` and `gtk-tray` Cargo features ([#4247](https://www.github.com/tauri-apps/tauri/pull/4247)) on 2022-06-02
+
 ## \[0.6.0]
 
 - Account the monitor position when centering a window.

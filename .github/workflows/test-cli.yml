@@ -57,7 +57,7 @@ jobs:
       - name: Cache cargo state
         uses: actions/cache@v2
         env:
-          cache-name: cargo-state
+          cache-name: cargo_state
         with:
           path: |
             ~/.cargo/registry
@@ -73,7 +73,7 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo-cli
+          cache-name: cargo_cli
         with:
           path: tooling/cli/target
           # Add date to the cache to keep it up to date
@@ -130,7 +130,7 @@ jobs:
       - name: Cache cargo state
         uses: actions/cache@v2
         env:
-          cache-name: cargo-state
+          cache-name: cargo_state
         with:
           path: |
             ~/.cargo/registry
@@ -146,7 +146,7 @@ jobs:
       - name: Cache CLI cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo-cli
+          cache-name: cargo_cli
         with:
           path: tooling/cli/target
           # Add date to the cache to keep it up to date
@@ -161,7 +161,7 @@ jobs:
       - name: Cache template cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo-template
+          cache-name: cargo_template
         with:
           path: tooling/cli/node/test/jest/fixtures/empty/src-tauri/target
           # Add date to the cache to keep it up to date

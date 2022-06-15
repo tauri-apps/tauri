@@ -969,7 +969,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   fn event_initialization_script(&self) -> String {
-    return format!(
+    format!(
       "
       Object.defineProperty(window, '{function}', {{
         value: function (eventData) {{
@@ -987,7 +987,7 @@ impl<R: Runtime> WindowManager<R> {
     ",
       function = self.event_emit_function_name(),
       listeners = self.event_listeners_object_name()
-    );
+    )
   }
 }
 
@@ -1315,7 +1315,9 @@ fn on_window_event<R: Runtime>(
     WindowEvent::Destroyed => {
       window.emit(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
-      for window in manager.inner.windows.lock().unwrap().values() {
+      let windows_map = manager.inner.windows.lock().unwrap();
+      let windows = windows_map.values();
+      for window in windows {
         window.eval(&format!(
           r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
           label

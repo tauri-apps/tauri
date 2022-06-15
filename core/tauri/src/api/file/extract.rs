@@ -38,7 +38,7 @@ impl<R: Read + Seek> ArchiveReader<R> {
 }
 
 /// The supported archive formats.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ArchiveFormat {
   /// Tar archive.
@@ -48,7 +48,7 @@ pub enum ArchiveFormat {
 }
 
 /// The supported compression types.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Compression {
   /// Gz compression (e.g. `.tar.gz` archives)

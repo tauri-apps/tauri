@@ -1,5 +1,20 @@
 # Changelog
 
+## \[1.0.0-rc.7]
+
+- Fix `FilePart` usage in `http.Body.form` by renaming the `value` property to `file`.
+  - [55f89d5f](https://www.github.com/tauri-apps/tauri/commit/55f89d5f9d429252ad3fd557b1d6233b256495e0) fix(api): Rename FormPart `value` to `file` to match docs and endpoint ([#4307](https://www.github.com/tauri-apps/tauri/pull/4307)) on 2022-06-09
+- Fixes a memory leak in the command system.
+  - [f72cace3](https://www.github.com/tauri-apps/tauri/commit/f72cace36821dc675a6d25268ae85a21bdbd6296) fix: never remove ipc callback & mem never be released ([#4274](https://www.github.com/tauri-apps/tauri/pull/4274)) on 2022-06-05
+- The notification's `isPermissionGranted` function now returns `boolean` instead of `boolean | null`. The response is never `null` because we won't check the permission for now, always returning `true` instead.
+  - [f482b094](https://www.github.com/tauri-apps/tauri/commit/f482b0942276e9402ab3725957535039bacb4fef) fix: remove notification permission prompt ([#4302](https://www.github.com/tauri-apps/tauri/pull/4302)) on 2022-06-09
+- Added the `resolveResource` API to the path module.
+  - [7bba8db8](https://www.github.com/tauri-apps/tauri/commit/7bba8db83ead92e9bd9c4be7863742e71ac47513) feat(api): add `resolveResource` API to the path module ([#4234](https://www.github.com/tauri-apps/tauri/pull/4234)) on 2022-05-29
+- Renamed `writeFile` to `writeTextFile` but kept the original function for backwards compatibility.
+  - [3f998ca2](https://www.github.com/tauri-apps/tauri/commit/3f998ca29445a349489078a74dd068e157a4d68e) feat(api): add `writeTextFile` and `(path, contents, options)` overload ([#4228](https://www.github.com/tauri-apps/tauri/pull/4228)) on 2022-05-29
+- Added `(path, contents[, options])` overload to the `writeTextFile` and `writeBinaryFile` APIs.
+  - [3f998ca2](https://www.github.com/tauri-apps/tauri/commit/3f998ca29445a349489078a74dd068e157a4d68e) feat(api): add `writeTextFile` and `(path, contents, options)` overload ([#4228](https://www.github.com/tauri-apps/tauri/pull/4228)) on 2022-05-29
+
 ## \[1.0.0-rc.6]
 
 - Expose option to set the dialog type.

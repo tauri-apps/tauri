@@ -9,7 +9,7 @@ use crate::{
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
     manifest::{rewrite_manifest, Manifest},
   },
-  CommandExt, Result,
+  Result,
 };
 use clap::Parser;
 
@@ -111,8 +111,7 @@ fn command_internal(options: Options) -> Result<()> {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true))
-          .pipe()?; // development build always includes debug information
+          .envs(command_env(true));
         command
       };
       #[cfg(not(target_os = "windows"))]
@@ -122,11 +121,12 @@ fn command_internal(options: Options) -> Result<()> {
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true))
-          .pipe()?; // development build always includes debug information
+          .envs(command_env(true));
         command
       };
       command.stdin(Stdio::piped());
+      command.stdout(os_pipe::dup_stdout()?);
+      command.stderr(os_pipe::dup_stderr()?);
 
       let child = SharedChild::spawn(&mut command)
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));

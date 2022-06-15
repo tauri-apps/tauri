@@ -7,6 +7,7 @@ set -euxo pipefail
 
 export ARCH={{arch}}
 APPIMAGE_BUNDLE_XDG_OPEN=${APPIMAGE_BUNDLE_XDG_OPEN-0}
+APPIMAGE_BUNDLE_GSTREAMER=${APPIMAGE_BUNDLE_GSTREAMER-0}
 TRAY_LIBRARY_PATH=${TRAY_LIBRARY_PATH-0}
 
 if [ "$ARCH" == "i686" ]; then
@@ -15,8 +16,14 @@ else
     linuxdeploy_arch="$ARCH"
 fi
 
+OUTDIR="${PWD}"
+
+cd "{{tauri_tools_path}}"
+
+# remove the folder if it exists - the rest of the script fails if it does
+rm -rf "{{app_name}}.AppDir"
 mkdir -p "{{app_name}}.AppDir"
-cp -r ../appimage_deb/data/usr "{{app_name}}.AppDir"
+cp -r "${OUTDIR}/../appimage_deb/data/usr" "{{app_name}}.AppDir"
 
 cd "{{app_name}}.AppDir"
 
@@ -35,7 +42,7 @@ find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -e
 find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
+wget -q -4 -N -O AppRun https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -N -O AppRun https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
 chmod +x AppRun
 
 cp "{{icon_path}}" .DirIcon
@@ -45,10 +52,20 @@ ln -s "usr/share/applications/{{app_name}}.desktop" "{{app_name}}.desktop"
 
 cd ..
 
-wget -q -4 -O linuxdeploy-plugin-gtk.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
-wget -q -4 -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
+if [[ "$APPIMAGE_BUNDLE_GSTREAMER" != "0" ]]; then
+  gst_plugin="--plugin gstreamer"
+  wget -q -4 -N -O linuxdeploy-plugin-gstreamer.sh "https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh"
+  chmod +x linuxdeploy-plugin-gstreamer.sh
+else
+  gst_plugin=""
+fi
+
+wget -q -4 -N -O linuxdeploy-plugin-gtk.sh https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+wget -q -4 -N -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${linuxdeploy_arch}.AppImage
 
 chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-${ARCH}.AppImage
 
-OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk --output appimage
+OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk ${gst_plugin}  --output appimage
+rm -r "{{app_name}}.AppDir"
+mv "{{appimage_filename}}" $OUTDIR

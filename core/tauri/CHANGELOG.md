@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.17]
+
+- Add `Menu::os_default` which will create a menu filled with default menu items and submenus.
+  - [4c4acc30](https://www.github.com/tauri-apps/tauri/commit/4c4acc3094218dd9cee0f1ad61810c979e0b41fa) feat: implement `Default` for `Menu`, closes [#2398](https://www.github.com/tauri-apps/tauri/pull/2398) ([#4291](https://www.github.com/tauri-apps/tauri/pull/4291)) on 2022-06-15
+
 ## \[1.0.0-rc.16]
 
 - **Breaking change:** The `TrayIcon` enum has been removed and now `Icon` is used instead.

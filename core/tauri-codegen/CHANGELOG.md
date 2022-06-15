@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.11]
+
+- Read the tray icon path relatively to the config directory.
+  - [562e8ca2](https://www.github.com/tauri-apps/tauri/commit/562e8ca23facf1a8e5fa6c8cdf872357d3523a78) fix(codegen): tray icon path is relative to the config directory on 2022-06-15
+
 ## \[1.0.0-rc.10]
 
 - **Breaking change:** The `TrayIcon` enum has been removed and now `Icon` is used instead.

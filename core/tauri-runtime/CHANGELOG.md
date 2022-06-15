@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.8.1]
+
+- Add `Menu::os_default` which will create a menu filled with default menu items and submenus.
+  - [4c4acc30](https://www.github.com/tauri-apps/tauri/commit/4c4acc3094218dd9cee0f1ad61810c979e0b41fa) feat: implement `Default` for `Menu`, closes [#2398](https://www.github.com/tauri-apps/tauri/pull/2398) ([#4291](https://www.github.com/tauri-apps/tauri/pull/4291)) on 2022-06-15
+
 ## \[0.8.0]
 
 - Removed `TrayIcon` and renamed `WindowIcon` to `Icon`, a shared type for both icons.

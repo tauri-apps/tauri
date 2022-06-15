@@ -79,7 +79,7 @@ attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
 open = { version = "3.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.8", optional = true }
+rfd = { version = "0.9", optional = true }
 raw-window-handle = "0.4.3"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }

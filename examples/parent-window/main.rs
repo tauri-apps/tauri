@@ -26,7 +26,7 @@ async fn create_child_window(id: String, window: Window) {
 fn main() {
   let context = tauri::generate_context!("../../examples/parent-window/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::default(&context.package_info().name))
+    .menu(tauri::Menu::window_default(&context.package_info().name))
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {

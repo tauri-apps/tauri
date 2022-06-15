@@ -238,7 +238,7 @@ impl Menu {
   ///     - Zoom
   ///     - Separator
   ///     - CloseWindow
-  pub fn default(#[allow(unused)] app_name: &str) -> Self {
+  pub fn window_default(#[allow(unused)] app_name: &str) -> Self {
     let mut menu = Menu::new();
     #[cfg(target_os = "macos")]
     {

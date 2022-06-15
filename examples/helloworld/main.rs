@@ -10,7 +10,7 @@
 fn main() {
   let context = tauri::generate_context!("../../examples/helloworld/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::default(&context.package_info().name))
+    .menu(tauri::Menu::window_default(&context.package_info().name))
     .run(context)
     .expect("error while running tauri application");
 }

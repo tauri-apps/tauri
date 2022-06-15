@@ -15,7 +15,7 @@ use tauri::{
 fn main() {
   let context = tauri::generate_context!();
   tauri::Builder::default()
-    .menu(tauri::Menu::default(&context.package_info().name))
+    .menu(tauri::Menu::window_default(&context.package_info().name))
     .setup(|app| {
       let window = app.get_window("main").unwrap();
       tauri::async_runtime::spawn(async move {

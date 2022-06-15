@@ -15,7 +15,7 @@ fn my_custom_command(argument: String) {
 fn main() {
   let context = tauri::generate_context!();
   tauri::Builder::default()
-    .menu(tauri::Menu::default(&context.package_info().name))
+    .menu(tauri::Menu::window_default(&context.package_info().name))
     .invoke_handler(tauri::generate_handler![my_custom_command])
     .run(context)
     .expect("error while running tauri application");

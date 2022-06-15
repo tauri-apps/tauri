@@ -181,7 +181,17 @@ impl Cmd {
 
     let scopes = context.window.state::<Scopes>();
 
-    let res = if options.directory {
+    let res = if options.directory && options.multiple {
+      let folders = dialog_builder.pick_folders();
+      if let Some(folders) = &folders {
+        for folder in folders {
+          scopes
+            .allow_directory(folder, options.recursive)
+            .map_err(crate::error::into_anyhow)?;
+        }
+      }
+      folders.into()
+    } else if options.directory {
       let folder = dialog_builder.pick_folder();
       if let Some(path) = &folder {
         scopes

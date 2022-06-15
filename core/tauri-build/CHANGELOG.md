@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.14]
+
+- Do not copy the tray icon to the output directory on Linux since it is embedded in the binary.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
 ## \[1.0.0-rc.13]
 
 - Copy `tauri.conf.json > tauri.bundle.windows.webview_fixed_runtime_path` as a resource to the target directory to fix development usage of a fixed Webview2 runtime path.

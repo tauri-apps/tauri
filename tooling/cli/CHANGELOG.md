@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0-rc.15]
+
+- Removed the tray icon from the Debian and AppImage bundles since they are embedded in the binary now.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
 ## \[1.0.0-rc.14]
 
 - Set the `TRAY_LIBRARY_PATH` environment variable to make the bundle copy the appindicator library to the AppImage.

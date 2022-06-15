@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.0]
+
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
 ## \[1.0.0-rc.9]
 
 - Added a config flag to bundle the media framework used by webkit2gtk `tauri.conf.json > tauri > bundle > appimage > bundleMediaFramework`.

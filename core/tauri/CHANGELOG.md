@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0]
+
+- Allow choosing multiple folders in `dialog.open`.
+  - [4e51dce6](https://www.github.com/tauri-apps/tauri/commit/4e51dce6ca21c7664de779bc78a04be1051371f7) fix: dialog open supports multiple dirs, fixes [#4091](https://www.github.com/tauri-apps/tauri/pull/4091) ([#4354](https://www.github.com/tauri-apps/tauri/pull/4354)) on 2022-06-15
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
 ## \[1.0.0-rc.17]
 
 - Add `Menu::os_default` which will create a menu filled with default menu items and submenus.

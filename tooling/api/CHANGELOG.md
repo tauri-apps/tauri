@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.1]
+
+- Fixes the `writeBinaryFile` sending an empty file contents when only the first argument is passed.
+  - [ea43cf52](https://www.github.com/tauri-apps/tauri/commit/ea43cf52db8541d20a6397ef3ecd40f0f2bd6113) fix(api): `writeBinaryFile` sends an empty contents with only one arg ([#4368](https://www.github.com/tauri-apps/tauri/pull/4368)) on 2022-06-16
+
 ## \[1.0.0]
 
 - Allow choosing multiple folders in `dialog.open`.

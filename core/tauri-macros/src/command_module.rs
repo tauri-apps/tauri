@@ -182,7 +182,7 @@ pub(crate) fn generate_run_fn(input: DeriveInput) -> TokenStream {
       }
 
       matcher.extend(quote! {
-        _ => Err(crate::error::into_anyhow("API not in the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")),
+        _ => Err(crate::error::into_anyhow("API not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")),
       });
     }
     _ => {

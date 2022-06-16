@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.0]
+
+- Allow choosing multiple folders in `dialog.open`.
+  - [4e51dce6](https://www.github.com/tauri-apps/tauri/commit/4e51dce6ca21c7664de779bc78a04be1051371f7) fix: dialog open supports multiple dirs, fixes [#4091](https://www.github.com/tauri-apps/tauri/pull/4091) ([#4354](https://www.github.com/tauri-apps/tauri/pull/4354)) on 2022-06-15
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
 ## \[1.0.0-rc.17]
 
 - Add `Menu::os_default` which will create a menu filled with default menu items and submenus.
@@ -21,7 +28,7 @@
   - [f6205afc](https://www.github.com/tauri-apps/tauri/commit/f6205afc0d0e419ecb56b9b6b04bd0a0cc9f62ca) fix(core): wrong Content-Type when using reqwest's multipart, ref [#4312](https://www.github.com/tauri-apps/tauri/pull/4312) on 2022-06-10
 - Kill sidecar processes on app exit even when only the `shell-sidecar` feature is enabled.
   - [6ba91272](https://www.github.com/tauri-apps/tauri/commit/6ba9127298632531b64d2831bccec6d22ef6c874) Fix: sidecar cleanup when only `shell-sidecar` is enabled ([#4254](https://www.github.com/tauri-apps/tauri/pull/4254)) on 2022-06-04
-- Fixes a crash when a request is made to `https://tauri.$URL` on Windows where `$URL` is not `localhost/**` e.g. `https://tauri.studio`.
+- Fixes a crash when a request is made to `https://tauri.$URL` on Windows where `$URL` is not `localhost/**` e.g. `https://tauri.app`.
   - [74457222](https://www.github.com/tauri-apps/tauri/commit/74457222b47221f08388f528a7d52133b6734af6) fix(core): handle requests to `https://tauri.*` on Windows ([#4270](https://www.github.com/tauri-apps/tauri/pull/4270)) on 2022-06-05
 - Set notification icon to app icon on Linux.
   - [235e448d](https://www.github.com/tauri-apps/tauri/commit/235e448defd8271739804d9b005ffee9c149dd8e) fix: add a default icon to notifications on linux ([#4283](https://www.github.com/tauri-apps/tauri/pull/4283)) on 2022-06-09
@@ -478,7 +485,7 @@ these specific choices.
 - `tauri::api::HttpRequestBuilder::new` now returns a `Result` to validate the url.
   - [0ad1c651](https://www.github.com/tauri-apps/tauri/commit/0ad1c6515f696fadefddbf133a9561836b3d5934) feat(core): add `http` allowlist scope \[TRI-008] ([#24](https://www.github.com/tauri-apps/tauri/pull/24)) on 2021-10-29
 - Added the `isolation` pattern.
-  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.studio> on 2022-01-17
+  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.app> on 2022-01-17
 - Added `abort` method to `tauri::async_runtime::JoinHandle`.
   - [ad169759](https://www.github.com/tauri-apps/tauri/commit/ad16975938afc9e87747de5fdcb0f07fc2d24811) feat: Add JoinHandle::abort() ([#2877](https://www.github.com/tauri-apps/tauri/pull/2877)) on 2021-11-13
 - Adds support for using JSON5 format for the `tauri.conf.json` file, along with also supporting the `.json5` extension.
@@ -546,7 +553,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - The minimum Rust version is now `1.56`.
   - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
 - The minimum Rust version is now 1.57.
-  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.studio> on 2022-01-17
+  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.app> on 2022-01-17
 - Scopes the `filesystem` APIs from the webview access using `tauri.conf.json > tauri > allowlist > fs > scope`.
   Scopes the `asset` protocol access using `tauri.conf.json > tauri > allowlist > protocol > assetScope`.
   Scopes the `http` APIs from the webview access using `tauri.conf.json > tauri > allowlist > http > scope`.
@@ -1253,7 +1260,7 @@ Note: The order that event handlers are called when triggered is still non-deter
   - [a6def70](https://www.github.com/tauri-apps/tauri/commit/a6def7066eec19c889b0f14cc1e475bf209a332e) Refactor(tauri): move tauri-api and tauri-updater to tauri ([#1455](https://www.github.com/tauri-apps/tauri/pull/1455)) on 2021-04-11
 - Tauri now uses explicit Error variants with `thiserror` instead of relying on `anyhow`.
   - [156a0ad](https://www.github.com/tauri-apps/tauri/commit/156a0ad5cb0a152eaa0dd038a6b3dba68f03eb21) refactor(tauri): use explicit error types instead of anyhow ([#1209](https://www.github.com/tauri-apps/tauri/pull/1209)) on 2021-02-10
-- Align HTTP API types with the [documentation](https://tauri.studio/en/docs/api/js#http).
+- Align HTTP API types with the [documentation](https://tauri.app/en/docs/api/js#http).
   - [2fc39fc](https://www.github.com/tauri-apps/tauri/commit/2fc39fc341771431078c20a95fa6b2affe5155c9) fix(api/http): correct types ([#1360](https://www.github.com/tauri-apps/tauri/pull/1360)) on 2021-03-17
   - [a6def70](https://www.github.com/tauri-apps/tauri/commit/a6def7066eec19c889b0f14cc1e475bf209a332e) Refactor(tauri): move tauri-api and tauri-updater to tauri ([#1455](https://www.github.com/tauri-apps/tauri/pull/1455)) on 2021-04-11
 - Replace `\` with `\\` in css assets that are lazy loaded. Since these are injected in a template literal, backslashes must be escaped. Backslashes are sometimes used for octal sequences in CSS.

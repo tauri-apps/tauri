@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.9.0]
+
+- Upgrade to `stable`!
+  - Bumped due to a bump in tauri-utils.
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
 ## \[0.8.1]
 
 - Add `Menu::os_default` which will create a menu filled with default menu items and submenus.

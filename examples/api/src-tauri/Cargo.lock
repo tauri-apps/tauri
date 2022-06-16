@@ -359,9 +359,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.4"
+version = "3.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d20de3739b4fb45a17837824f40aa1769cc7655d7a83e68739a77fe7b30c87a"
+checksum = "d53da17d37dba964b9b3ecb5c5a1f193a2762c700e6829201e645b9381c99dc7"
 dependencies = [
  "atty",
  "bitflags",
@@ -703,6 +703,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bde03329ae10e79ede66c9ce4dc930aa8599043b0743008548680f25b91502d6"
 dependencies = [
  "dtoa",
+]
+
+[[package]]
+name = "embed-resource"
+version = "1.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecc24ff8d764818e9ab17963b0593c535f077a513f565e75e4352d758bc4d8c0"
+dependencies = [
+ "cc",
+ "rustc_version 0.4.0",
+ "toml",
+ "vswhom",
+ "winreg",
 ]
 
 [[package]]
@@ -2568,12 +2581,13 @@ dependencies = [
 
 [[package]]
 name = "rfd"
-version = "0.8.4"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f756b55bff8f256a1a8c24dbabb1430ac8110628e418a02e4a1c5ff67179f56"
+checksum = "95281ea32d3c1ebdf84027986952e22f2bb89fa1b8b97c012be72bbc3b8e4537"
 dependencies = [
  "block",
  "dispatch",
+ "embed-resource",
  "glib-sys",
  "gobject-sys",
  "gtk-sys",
@@ -3099,7 +3113,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.0.0-rc.16"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "attohttpc",
@@ -3160,7 +3174,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.0.0-rc.14"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3174,7 +3188,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.0.0-rc.10"
+version = "1.0.0"
 dependencies = [
  "base64",
  "brotli",
@@ -3195,7 +3209,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.0.0-rc.10"
+version = "1.0.0"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -3207,7 +3221,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "gtk",
  "http",
@@ -3224,7 +3238,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3241,7 +3255,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.0.0-rc.9"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -3644,6 +3658,26 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vswhom"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be979b7f07507105799e854203b470ff7c78a1639e330a58f183b5fea574608b"
+dependencies = [
+ "libc",
+ "vswhom-sys",
+]
+
+[[package]]
+name = "vswhom-sys"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22025f6d8eb903ebf920ea6933b70b1e495be37e2cb4099e62c80454aaf57c39"
+dependencies = [
+ "cc",
+ "libc",
+]
 
 [[package]]
 name = "waker-fn"

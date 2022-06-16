@@ -905,7 +905,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     {
       self.inner = self.inner.with_theme(if let Some(t) = theme {
         match t {
@@ -916,6 +916,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         None
       });
     }
+
     self
   }
 
@@ -2322,7 +2323,7 @@ fn handle_user_message<T: UserEvent>(
           ))]
           WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
           WindowMessage::Theme(tx) => {
-            #[cfg(windows)]
+            #[cfg(any(windows, target_os = "macos"))]
             tx.send(map_theme(&window.theme())).unwrap();
             #[cfg(not(windows))]
             tx.send(Theme::Light).unwrap();

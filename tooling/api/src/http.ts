@@ -424,7 +424,7 @@ class Client {
    * import { getClient, Body } from '@tauri-apps/api/http';
    * const client = await getClient();
    * const response = await client.patch('http://localhost:3003/users/1', {
-   *   body: Body.json({ email: 'contact@tauri.studio' })
+   *   body: Body.json({ email: 'contact@tauri.app' })
    * });
    * ```
    *

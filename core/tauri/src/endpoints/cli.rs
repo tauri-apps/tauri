@@ -32,13 +32,13 @@ impl Cmd {
 
   #[cfg(not(cli))]
   fn cli_matches<R: Runtime>(_: InvokeContext<R>) -> super::Result<InvokeResponse> {
-    Err(crate::error::into_anyhow("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)"))
+    Err(crate::error::into_anyhow("CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.app/docs/api/config#tauri.cli)"))
   }
 }
 
 #[cfg(test)]
 mod tests {
-  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.studio/docs/api/config#tauri.cli)", runtime)]
+  #[tauri_macros::module_command_test(cli, "CLI definition not set under tauri.conf.json > tauri > cli (https://tauri.app/docs/api/config#tauri.cli)", runtime)]
   #[quickcheck_macros::quickcheck]
   fn cli_matches() {
     let res = super::Cmd::cli_matches(crate::test::mock_invoke_context());

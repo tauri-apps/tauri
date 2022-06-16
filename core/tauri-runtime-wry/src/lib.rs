@@ -757,7 +757,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     if config.transparent {
       eprintln!(
         "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.studio/docs/api/config#tauri.macOSPrivateApi>
+        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
     }
 

@@ -1111,7 +1111,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 
@@ -1137,7 +1137,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 
@@ -1182,7 +1182,7 @@ mod test {
       .with_body(generate_sample_with_elevated_task_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
         true,
       ))
       .create();
@@ -1209,7 +1209,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 

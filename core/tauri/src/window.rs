@@ -154,7 +154,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// #[tauri::command]
   /// async fn create_window(app: tauri::AppHandle) {
-  ///   let window = tauri::WindowBuilder::new(&app, "label", tauri::WindowUrl::External("https://tauri.studio/".parse().unwrap()))
+  ///   let window = tauri::WindowBuilder::new(&app, "label", tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()))
   ///     .build()
   ///     .unwrap();
   /// }

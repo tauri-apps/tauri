@@ -237,6 +237,7 @@ fn create_info_plist(
   file.flush()?;
 
   if let Some(user_plist_path) = &settings.macos().info_plist_path {
+    // TODO: use the plist crate instead
     Command::new("/usr/libexec/PlistBuddy")
       .args(&[
         "-c".into(),

@@ -261,14 +261,28 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let info_plist = {
     if dev {
       let info_plist_path = config_parent.join("Info.plist");
-      if info_plist_path.exists() {
-        let info_plist_path = info_plist_path.display().to_string();
-        quote!({
-          tauri::embed_plist::embed_info_plist!(#info_plist_path);
-        })
+      let mut info_plist = if info_plist_path.exists() {
+        plist::Value::from_file(&info_plist_path)
+          .unwrap_or_else(|e| panic!("failed to read plist {}: {}", info_plist_path.display(), e))
       } else {
-        quote!(())
+        plist::Value::Dictionary(Default::default())
+      };
+
+      if let Some(dict) = info_plist.as_dictionary_mut() {
+        if let Some(product_name) = &config.package.product_name {
+          dict.insert("CFBundleName".into(), product_name.clone().into());
+        }
       }
+
+      let out_path = out_dir.join("Info.plist");
+      info_plist
+        .to_file_xml(&out_path)
+        .expect("failed to write Info.plist");
+
+      let info_plist_path = out_path.display().to_string();
+      quote!({
+        tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      })
     } else {
       quote!(())
     }

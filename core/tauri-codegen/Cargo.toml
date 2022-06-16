@@ -29,6 +29,9 @@ semver = "1"
 ico = "0.1"
 png = "0.17"
 
+[target."cfg(target_os = \"macos\")".dependencies]
+plist = "1"
+
 [features]
 default = [ "compression" ]
 compression = [ "brotli", "tauri-utils/compression" ]

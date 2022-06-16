@@ -661,7 +661,7 @@ class WindowManager extends WebviewWindowHandle {
    * const theme = await appWindow.theme();
    * ```
    *
-   * @returns The system theme.
+   * @returns The window theme.
    * */
   async theme(): Promise<Theme | null> {
     return invokeTauriCommand({

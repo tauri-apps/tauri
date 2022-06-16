@@ -290,7 +290,7 @@ async function writeBinaryFile(
 
 /**
  * Writes a byte array content to a file.
- * @example Write a binary file to the `$APPEDIR/avatar.png` path
+ * @example Write a binary file to the `$APPDIR/avatar.png` path
  * ```typescript
  * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
  * await writeBinaryFile({ path: 'avatar.png', contents: new Uint8Array([]) }, { dir: BaseDirectory.App });

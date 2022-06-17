@@ -221,7 +221,7 @@ pub fn command(mut options: Options) -> Result<()> {
             cli_node_module_path
               .display()
               .to_string()
-              .replace("\\", "/"),
+              .replace('\\', "/"),
           ),
         );
         let merge_config = serde_json::Value::Object(map);

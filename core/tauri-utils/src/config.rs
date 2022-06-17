@@ -600,7 +600,7 @@ pub struct WindowConfig {
   /// Whether or not the window icon should be added to the taskbar.
   #[serde(default)]
   pub skip_taskbar: bool,
-  /// The initial window theme. Defaults to the system theme. Only implemented on Windows.
+  /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
 }
 

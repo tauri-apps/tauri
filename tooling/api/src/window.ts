@@ -651,14 +651,17 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Gets the window's current visible state.
+   * Gets the window's current theme.
+   *
+   * Only implemented on Windows and macOS 10.14+.
+   *
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
    * const theme = await appWindow.theme();
    * ```
    *
-   * @returns The system theme.
+   * @returns The window theme.
    * */
   async theme(): Promise<Theme | null> {
     return invokeTauriCommand({
@@ -1674,9 +1677,9 @@ interface WindowOptions {
    */
   fileDropEnabled?: boolean
   /**
-   *  The initial window theme. Defaults to the system theme.
+   * The initial window theme. Defaults to the system theme.
    *
-   * Only implemented on Windows.
+   * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
 }

@@ -429,6 +429,7 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
+#[cfg(target_os = "macos")]
 fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
   use std::fs::File;
   use std::io::Write;

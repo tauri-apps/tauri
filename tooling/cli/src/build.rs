@@ -76,9 +76,9 @@ pub fn command(options: Options) -> Result<()> {
     .bundle
     .identifier
     .chars()
-    .any(|ch| !(ch.is_alphanumeric() || ch.eq(&'-') || ch.eq(&'.')))
+    .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.)");
+    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).");
     std::process::exit(1);
   }
 

@@ -71,6 +71,17 @@ pub fn command(options: Options) -> Result<()> {
     std::process::exit(1);
   }
 
+  if config_
+    .tauri
+    .bundle
+    .identifier
+    .chars()
+    .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
+  {
+    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).");
+    std::process::exit(1);
+  }
+
   if let Some(before_build) = &config_.build.before_build_command {
     if !before_build.is_empty() {
       info!(action = "Running"; "beforeBuildCommand `{}`", before_build);

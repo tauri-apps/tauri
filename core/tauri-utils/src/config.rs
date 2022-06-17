@@ -316,6 +316,8 @@ pub struct BundleConfig {
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like
   /// the bundle ID and path to the webview data directory.
+  /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
+  /// and periods (.).
   pub identifier: String,
   /// The app's icons
   #[serde(default)]

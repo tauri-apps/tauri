@@ -43,7 +43,7 @@ If you are interested in making a tauri app, please visit the [documentation web
 ### App Bundles
 - [x] App Icons
 - [x] Build on MacOS (.app, .dmg)
-- [x] Build on Linux (.deb, AppImage)
+- [x] Build on Linux (.deb, AppImage, Pacman)
 - [x] Build on Windows (.exe, .msi)
 - [x] Copy Buffer
 - [x] Device Notifications (toast)

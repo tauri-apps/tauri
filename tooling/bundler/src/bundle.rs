@@ -53,6 +53,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
+      PackageType::Pacman => linux::pacman::bundle_project(&settings)?,
+      #[cfg(target_os = "linux")]
       PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,

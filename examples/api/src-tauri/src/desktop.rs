@@ -1,7 +1,11 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  api::dialog::ask, CustomMenuItem, GlobalShortcutManager, Manager, RunEvent, SystemTray,
-  SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowEvent, WindowUrl,
+  api::{
+    dialog::{ask, MessageDialogBuilder, MessageDialogButtons},
+    shell,
+  },
+  CustomMenuItem, GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent,
+  SystemTrayMenu, WindowBuilder, WindowEvent, WindowUrl,
 };
 
 pub fn main() {
@@ -70,6 +74,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let is_menu1 = AtomicBool::new(true);
@@ -148,6 +153,20 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
                 })
                 .unwrap();
               is_menu1.store(!flag, Ordering::Relaxed);
+            }
+            "about" => {
+              let window = handle.get_window("main").unwrap();
+              MessageDialogBuilder::new("About app", "Tauri demo app")
+                .parent(&window)
+                .buttons(MessageDialogButtons::OkCancelCustom(
+                  "Homepage".into(),
+                  "know it".into(),
+                ))
+                .show(move |ok| {
+                  if ok {
+                    shell::open(&window.shell_scope(), "https://tauri.app/", None).unwrap();
+                  }
+                });
             }
             _ => {}
           }

@@ -2216,7 +2216,7 @@ fn handle_user_message<T: UserEvent>(
   match message {
     Message::Task(task) => task(),
     Message::Window(id, window_message) => {
-      if let WindowMessage::UpdateMenuItem(item_id, update) = &window_message {
+      if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
         if let Some(menu_items) = windows
           .lock()
           .expect("poisoned webview collection")
@@ -2224,11 +2224,11 @@ fn handle_user_message<T: UserEvent>(
           .map(|w| &mut w.menu_items)
         {
           if let Some(menu_items) = menu_items.as_mut() {
-            let item = menu_items.get_mut(item_id).expect("menu item not found");
+            let item = menu_items.get_mut(&item_id).expect("menu item not found");
             match update {
-              MenuUpdate::SetEnabled(enabled) => item.set_enabled(*enabled),
-              MenuUpdate::SetTitle(title) => item.set_title(title),
-              MenuUpdate::SetSelected(selected) => item.set_selected(*selected),
+              MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+              MenuUpdate::SetTitle(title) => item.set_title(&title),
+              MenuUpdate::SetSelected(selected) => item.set_selected(selected),
               #[cfg(target_os = "macos")]
               MenuUpdate::SetNativeImage(image) => {
                 item.set_native_image(NativeImageWrapper::from(image).0)

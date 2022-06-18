@@ -1435,15 +1435,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    // NOTE: set_size cannot use the `send_user_message` function because tao freezes on Windows
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetSize(size),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetSize(size)),
+    )
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {

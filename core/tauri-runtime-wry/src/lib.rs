@@ -2224,7 +2224,7 @@ fn handle_user_message<T: UserEvent>(
           .map(|w| &mut w.menu_items)
         {
           if let Some(menu_items) = menu_items.as_mut() {
-            let item = menu_items.get_mut(&item_id).expect("menu item not found");
+            let item = menu_items.get_mut(item_id).expect("menu item not found");
             match update {
               MenuUpdate::SetEnabled(enabled) => item.set_enabled(*enabled),
               MenuUpdate::SetTitle(title) => item.set_title(title),

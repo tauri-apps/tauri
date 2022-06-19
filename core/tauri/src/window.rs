@@ -120,6 +120,52 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in the setup hook:
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::WindowBuilder::new(app, "label", tauri::WindowUrl::App("index.html".into()))
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// - Create a window in a separate thread:
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     std::thread::spawn(move || {
+  ///       let window = tauri::WindowBuilder::new(&handle, "label", tauri::WindowUrl::App("index.html".into()))
+  ///         .build()
+  ///         .unwrap();
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn create_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::new(&app, "label", tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()))
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle();
@@ -551,7 +597,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn inner(&self) -> cocoa::base::id {
-    self.0.webview.clone()
+    self.0.webview
   }
 
   /// Returns WKWebView [controller] handle.
@@ -560,7 +606,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn controller(&self) -> cocoa::base::id {
-    self.0.manager.clone()
+    self.0.manager
   }
 
   /// Returns [NSWindow] associated with the WKWebView webview.
@@ -569,7 +615,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
-    self.0.ns_window.clone()
+    self.0.ns_window
   }
 }
 
@@ -600,7 +646,7 @@ impl Window<crate::Wry> {
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
-  ///   
+  ///
   ///         #[cfg(windows)]
   ///         unsafe {
   ///           // see https://docs.rs/webview2-com/latest/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
@@ -1140,7 +1186,8 @@ impl<R: Runtime> Window<R> {
   pub(crate) fn unregister_js_listener(&self, id: u64) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
-    for (key, ids) in js_listeners.iter_mut() {
+    let iter = js_listeners.iter_mut();
+    for (key, ids) in iter {
       if ids.contains(&id) {
         ids.remove(&id);
         if ids.is_empty() {

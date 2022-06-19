@@ -338,7 +338,7 @@ impl<R: Runtime> WindowManager<R> {
   ///
   /// * In dev mode, this will be based on the `devPath` configuration value.
   /// * Otherwise, this will be based on the `distDir` configuration value.
-  #[cfg(custom_protocol)]
+  #[cfg(not(dev))]
   fn base_path(&self) -> &AppUrl {
     &self.inner.config.build.dist_dir
   }
@@ -503,9 +503,13 @@ impl<R: Runtime> WindowManager<R> {
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
-        // safe to unwrap: request.uri() always starts with this prefix
         #[cfg(target_os = "windows")]
-        let path = filtered_path.strip_prefix("asset://localhost/").unwrap();
+        let path = filtered_path
+          .strip_prefix("asset://localhost/")
+          // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
+          // where `$P` is not `localhost/*`
+          .unwrap_or("");
+        // safe to unwrap: request.uri() always starts with this prefix
         #[cfg(not(target_os = "windows"))]
         let path = filtered_path.strip_prefix("asset://").unwrap();
         let path = percent_encoding::percent_decode(path.as_bytes())
@@ -830,10 +834,11 @@ impl<R: Runtime> WindowManager<R> {
         // ignore query string and fragment
         .next()
         .unwrap()
-        // safe to unwrap: request.uri() always starts with this prefix
         .strip_prefix("tauri://localhost")
-        .unwrap()
-        .to_string();
+        .map(|p| p.to_string())
+        // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
+        // where `$P` is not `localhost/*`
+        .unwrap_or_else(|| "".to_string());
       let asset = manager.get_asset(path)?;
       let mut builder = HttpResponseBuilder::new()
         .header("Access-Control-Allow-Origin", &window_origin)
@@ -964,7 +969,7 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   fn event_initialization_script(&self) -> String {
-    return format!(
+    format!(
       "
       Object.defineProperty(window, '{function}', {{
         value: function (eventData) {{
@@ -982,7 +987,7 @@ impl<R: Runtime> WindowManager<R> {
     ",
       function = self.event_emit_function_name(),
       listeners = self.event_listeners_object_name()
-    );
+    )
   }
 }
 
@@ -1310,7 +1315,9 @@ fn on_window_event<R: Runtime>(
     WindowEvent::Destroyed => {
       window.emit(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
-      for window in manager.inner.windows.lock().unwrap().values() {
+      let windows_map = manager.inner.windows.lock().unwrap();
+      let windows = windows_map.values();
+      for window in windows {
         window.eval(&format!(
           r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
           label

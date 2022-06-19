@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.0.0-rc.12",
+  "version": "1.0.0",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/tauri-apps/tauri.git"
   },
   "contributors": [
-    "Tauri Team <team@tauri-apps.org> (https://tauri.studio)"
+    "Tauri Team <team@tauri-apps.org> (https://tauri.app)"
   ],
   "license": "Apache-2.0 OR MIT",
   "bugs": {
@@ -37,13 +37,13 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.9.0",
+    "@napi-rs/cli": "2.10.0",
     "cross-env": "7.0.3",
     "cross-spawn": "7.0.3",
     "fs-extra": "10.1.0",
-    "jest": "28.1.0",
+    "jest": "28.1.1",
     "jest-transform-toml": "1.0.0",
-    "prettier": "2.6.2"
+    "prettier": "2.7.0"
   },
   "engines": {
     "node": ">= 10"

@@ -7,7 +7,7 @@ pub use tauri_runtime::{
     Menu, MenuEntry, MenuItem, MenuUpdate, Submenu, SystemTrayMenu, SystemTrayMenuEntry,
     SystemTrayMenuItem, TrayHandle,
   },
-  SystemTrayEvent, TrayIcon,
+  Icon, SystemTrayEvent,
 };
 pub use wry::application::{
   event::TrayEvent,
@@ -15,6 +15,7 @@ pub use wry::application::{
   menu::{
     ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuItem as WryMenuItem,
   },
+  system_tray::Icon as WryTrayIcon,
 };
 
 #[cfg(target_os = "macos")]
@@ -35,13 +36,25 @@ pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, Arc<SystemTrayEventHandler>>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
+/// Wrapper around a [`wry::application::system_tray::Icon`] that can be created from an [`WindowIcon`].
+pub struct TrayIcon(pub(crate) WryTrayIcon);
+
+impl TryFrom<Icon> for TrayIcon {
+  type Error = Error;
+  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
+    WryTrayIcon::from_rgba(icon.rgba, icon.width, icon.height)
+      .map(Self)
+      .map_err(crate::icon_err)
+  }
+}
+
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
 
 impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
-  fn set_icon(&self, icon: TrayIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     self
       .proxy
       .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))

@@ -136,7 +136,7 @@
 //!   tauri::RunEvent::Updater(updater_event) => {
 //!     match updater_event {
 //!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
-//!         println!("update available {} {} {}", body, date, version);
+//!         println!("update available {} {:?} {}", body, date, version);
 //!       }
 //!       _ => (),
 //!     }
@@ -246,7 +246,7 @@
 //!   tauri::RunEvent::Updater(updater_event) => {
 //!     match updater_event {
 //!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
-//!         println!("update available {} {} {}", body, date, version);
+//!         println!("update available {} {:?} {}", body, date, version);
 //!       }
 //!       tauri::UpdaterEvent::Pending => {
 //!         println!("update is pending!");
@@ -449,8 +449,10 @@ mod error;
 use std::time::Duration;
 
 use http::header::{HeaderName, HeaderValue};
+use semver::Version;
+use time::OffsetDateTime;
 
-pub use self::error::Error;
+pub use self::{core::RemoteRelease, error::Error};
 /// Alias for [`std::result::Result`] using our own [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -508,7 +510,7 @@ struct DownloadProgressEvent {
 #[derive(Clone, serde::Serialize)]
 struct UpdateManifest {
   version: String,
-  date: String,
+  date: Option<String>,
   body: String,
 }
 
@@ -626,7 +628,10 @@ impl<R: Runtime> UpdateBuilder<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn should_install<F: FnOnce(&str, &str) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  pub fn should_install<F: FnOnce(&Version, &RemoteRelease) -> bool + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.inner = self.inner.should_install(f);
     self
   }
@@ -682,14 +687,14 @@ impl<R: Runtime> UpdateBuilder<R> {
               EVENT_UPDATE_AVAILABLE,
               UpdateManifest {
                 body: body.clone(),
-                date: update.date.clone(),
+                date: update.date.map(|d| d.to_string()),
                 version: update.version.clone(),
               },
             );
             let _ = handle.create_proxy().send_event(EventLoopMessage::Updater(
               UpdaterEvent::UpdateAvailable {
                 body,
-                date: update.date.clone(),
+                date: update.date,
                 version: update.version.clone(),
               },
             ));
@@ -737,7 +742,7 @@ impl<R: Runtime> UpdateResponse<R> {
   }
 
   /// The current version of the application as read by the updater.
-  pub fn current_version(&self) -> &str {
+  pub fn current_version(&self) -> &Version {
     &self.update.current_version
   }
 
@@ -747,8 +752,8 @@ impl<R: Runtime> UpdateResponse<R> {
   }
 
   /// The update date.
-  pub fn date(&self) -> &str {
-    &self.update.date
+  pub fn date(&self) -> Option<&OffsetDateTime> {
+    self.update.date.as_ref()
   }
 
   /// The update description.
@@ -774,7 +779,7 @@ pub(crate) async fn check_update_with_dialog<R: Runtime>(handle: AppHandle<R>) {
 
     let mut builder = self::core::builder(handle.clone())
       .urls(&endpoints[..])
-      .current_version(&package_info.version);
+      .current_version(package_info.version);
     if let Some(target) = &handle.updater_settings.target {
       builder = builder.target(target);
     }
@@ -865,7 +870,7 @@ pub fn builder<R: Runtime>(handle: AppHandle<R>) -> UpdateBuilder<R> {
 
   let mut builder = self::core::builder(handle.clone())
     .urls(&endpoints[..])
-    .current_version(&package_info.version);
+    .current_version(package_info.version);
   if let Some(target) = &handle.updater_settings.target {
     builder = builder.target(target);
   }

@@ -41,7 +41,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
   let arch_res = Command::new("rustc").args(&["--print", "cfg"]).output_ok();
 
   let arch = match arch_res {
-    Ok(output) => parse_rust_cfg(String::from_utf8_lossy(&output.stdout).into_owned())
+    Ok(output) => parse_rust_cfg(String::from_utf8_lossy(&output.stdout).into())
       .target_arch
       .expect("could not find `target_arch` when running `rustc --print cfg`."),
     Err(err) => {

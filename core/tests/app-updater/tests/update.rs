@@ -35,6 +35,7 @@ struct PlatformUpdate {
 #[derive(Serialize)]
 struct Update {
   version: &'static str,
+  date: String,
   platforms: HashMap<String, PlatformUpdate>,
 }
 
@@ -56,8 +57,7 @@ fn get_cli_bin_path(cli_dir: &Path, debug: bool) -> Option<PathBuf> {
 fn build_app(cli_bin_path: &Path, cwd: &Path, config: &Config, bundle_updater: bool) {
   let mut command = Command::new(&cli_bin_path);
   command
-    .arg("build")
-    .arg("--debug")
+    .args(["build", "--debug", "--verbose"])
     .arg("--config")
     .arg(serde_json::to_string(config).unwrap())
     .current_dir(&cwd);
@@ -178,6 +178,9 @@ fn update_app() {
             );
             let body = serde_json::to_vec(&Update {
               version: "1.0.0",
+              date: time::OffsetDateTime::now_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .unwrap(),
               platforms,
             })
             .unwrap();

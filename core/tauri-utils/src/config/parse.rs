@@ -62,7 +62,7 @@ pub enum ConfigError {
   /// A generic IO error with context of what caused it.
   #[error("unable to read Tauri config file at {path} because {error}")]
   Io {
-    /// The path the IO error occured on.
+    /// The path the IO error occurred on.
     path: PathBuf,
 
     /// The [`std::io::Error`].

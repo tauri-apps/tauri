@@ -36,6 +36,21 @@ interface CliMatches {
 
 /**
  * Parse the arguments provided to the current process and get the matches using the configuration defined `tauri.conf.json > tauri > cli`.
+ * @example
+ * ```typescript
+ * import { getMatches } from '@tauri-apps/api/cli';
+ * const matches = await getMatches();
+ * if (matches.subcommand?.name === 'run') {
+ *   // `./your-app run $ARGS` was executed
+ *   const args = matches.subcommand?.matches.args
+ *   if ('debug' in args) {
+ *     // `./your-app run --debug` was executed
+ *   }
+ * } else {
+ *   const args = matches.args
+ *   // `./your-app $ARGS` was executed
+ * }
+ * ```
  *
  * @returns A promise resolving to the parsed arguments.
  */

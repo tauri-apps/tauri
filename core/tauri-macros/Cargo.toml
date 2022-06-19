@@ -1,10 +1,10 @@
 [package]
 name = "tauri-macros"
-version = "1.0.0-rc.7"
+version = "1.0.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "os", "filesystem", "web-programming" ]
 license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.studio"
+homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Macros for the tauri crate."
 edition = "2021"
@@ -20,8 +20,8 @@ proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"
-tauri-codegen = { version = "1.0.0-rc.7", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "1.0.0-rc.7", path = "../tauri-utils" }
+tauri-codegen = { version = "1.0.0", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "1.0.0", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]

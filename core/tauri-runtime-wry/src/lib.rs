@@ -16,8 +16,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
+  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
+  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -227,16 +227,15 @@ impl<T: UserEvent> Context<T> {
 
     self.prepare_window(window_id);
 
-    // we cannot use `send_user_message` here, see https://github.com/tauri-apps/wry/issues/583
-    self
-      .proxy
-      .send_event(Message::CreateWebview(
+    send_user_message(
+      self,
+      Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
           create_webview(window_id, event_loop, web_context, context, pending)
         }),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
+      ),
+    )?;
 
     let dispatcher = WryDispatcher {
       window_id,
@@ -489,9 +488,9 @@ fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 
-impl TryFrom<WindowIcon> for WryIcon {
+impl TryFrom<Icon> for WryIcon {
   type Error = Error;
-  fn try_from(icon: WindowIcon) -> std::result::Result<Self, Self::Error> {
+  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
     WryWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
       .map(Self)
       .map_err(icon_err)
@@ -760,7 +759,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     if config.transparent {
       eprintln!(
         "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.studio/docs/api/config#tauri.macOSPrivateApi>
+        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
     }
 
@@ -888,7 +887,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn icon(mut self, icon: WindowIcon) -> Result<Self> {
+  fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
       .with_window_icon(Some(WryIcon::try_from(icon)?.0));
@@ -1102,7 +1101,7 @@ pub enum WebviewEvent {
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
   UpdateMenu(SystemTrayMenu),
-  UpdateIcon(TrayIcon),
+  UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Close,
@@ -1492,7 +1491,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  fn set_icon(&self, icon: WindowIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(
@@ -1760,7 +1759,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   #[cfg(all(windows, feature = "system-tray"))]
-  /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {
     send_user_message(&self.context, Message::Tray(TrayMessage::Close))
   }
@@ -1982,33 +1980,26 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(feature = "system-tray")]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let icon = system_tray
-      .icon
-      .expect("tray icon not set")
-      .into_platform_icon();
+    let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
 
     let mut items = HashMap::new();
 
-    #[cfg(target_os = "macos")]
-    let tray = SystemTrayBuilder::new(
-      icon,
+    #[allow(unused_mut)]
+    let mut tray_builder = SystemTrayBuilder::new(
+      icon.0,
       system_tray
         .menu
         .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .with_icon_as_template(system_tray.icon_as_template)
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    );
 
-    #[cfg(not(target_os = "macos"))]
-    let tray = SystemTrayBuilder::new(
-      icon,
-      system_tray
-        .menu
-        .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    #[cfg(target_os = "macos")]
+    {
+      tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+    }
+
+    let tray = tray_builder
+      .build(&self.event_loop)
+      .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
     *self.tray_context.items.lock().unwrap() = items;
     *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
@@ -2484,15 +2475,15 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::WebviewEvent(event) => {
         if let Some(event) = WindowEventWrapper::from(&event).0 {
-          for handler in window_event_listeners
+          let shared_listeners = window_event_listeners
             .lock()
             .unwrap()
             .get(&id)
             .unwrap()
-            .lock()
-            .unwrap()
-            .values()
-          {
+            .clone();
+          let listeners = shared_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
             handler(&event);
           }
         }
@@ -2568,7 +2559,9 @@ fn handle_user_message<T: UserEvent>(
       }
       TrayMessage::UpdateIcon(icon) => {
         if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon(icon.into_platform_icon());
+          if let Ok(icon) = TrayIcon::try_from(icon) {
+            tray.lock().unwrap().set_icon(icon.0);
+          }
         }
       }
       #[cfg(target_os = "macos")]
@@ -2680,7 +2673,9 @@ fn handle_event_loop<T: UserEvent>(
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };
-      for handler in window_menu_event_listeners.lock().unwrap().values() {
+      let listeners = window_menu_event_listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2714,7 +2709,9 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      for handler in tray_context.listeners.lock().unwrap().values() {
+      let listeners = tray_context.listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2752,15 +2749,15 @@ fn handle_event_loop<T: UserEvent>(
               label,
               event: event.clone(),
             });
-            for handler in window_event_listeners
+            let shared_listeners = window_event_listeners
               .lock()
               .unwrap()
               .get(&window_id)
               .unwrap()
-              .lock()
-              .unwrap()
-              .values()
-            {
+              .clone();
+            let listeners = shared_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
               handler(&event);
             }
           }
@@ -2851,15 +2848,15 @@ fn on_close_requested<'a, T: UserEvent>(
   if let Some(w) = windows_guard.get(&window_id) {
     let label = w.label.clone();
     drop(windows_guard);
-    for handler in window_event_listeners
+    let shared_listeners = window_event_listeners
       .lock()
       .unwrap()
       .get(&window_id)
       .unwrap()
-      .lock()
-      .unwrap()
-      .values()
-    {
+      .clone();
+    let listeners = shared_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for handler in handlers {
       handler(&WindowEvent::CloseRequested {
         signal_tx: tx.clone(),
       });
@@ -3012,7 +3009,7 @@ fn create_webview<T: UserEvent>(
   let mut web_context = web_context.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
-  let web_context = match web_context.entry(
+  let entry = web_context.entry(
     // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
@@ -3021,7 +3018,8 @@ fn create_webview<T: UserEvent>(
       // random unique key
       Some(Uuid::new_v4().as_hyphenated().to_string().into())
     },
-  ) {
+  );
+  let web_context = match entry {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
       let mut web_context = WebContext::new(webview_attributes.data_directory);
@@ -3126,7 +3124,8 @@ fn create_file_drop_handler<T: UserEvent>(
     if let Some(window_listeners) = listeners.get(&webview_id_map.get(&window.id())) {
       let listeners_map = window_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
-      for listener in listeners_map.values() {
+      let handlers = listeners_map.values();
+      for listener in handlers {
         listener(&window_event);
       }
       // block the default OS action on file drop if we had a listener

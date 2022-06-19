@@ -7,7 +7,7 @@
 
 ![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
 )
-[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.studio)
+[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.app)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
@@ -29,7 +29,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 ## Installation
 
-The preferred method is to install this module locally as a development dependency:
+The preferred method is to install this module locally as a dependency:
 ```
 $ npm install --save @tauri-apps/api
 $ yarn add @tauri-apps/api

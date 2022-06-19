@@ -8,7 +8,7 @@
 
 ![](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library
 )
-[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.studio)
+[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.app)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)
@@ -39,7 +39,7 @@ Logo: CC-BY-NC-ND
 - Original Tauri Logo Designs by [Daniel Thompson-Yvetot](https://github.com/nothingismagick) and [Guillaume Chau](https://github.com/akryum)
 
 ## Licensing Errata:
-Because of publishing issues upstream, we soft-forked (and patched) both [`console`](https://github.com/mitsuhiko/console/blob/278de9dc2bf0fa28db69adee351072f668beec8f/Cargo.toml#L7) and [`dialoguer`](https://github.com/mitsuhiko/dialoguer/blob/2c3fe6b64641cfb57eb0e1d428274f63976ec150/Cargo.toml#L12) crates because of untenable issues surrounding expected use on Windows. 
+Because of publishing issues upstream, we soft-forked (and patched) both [`console`](https://github.com/mitsuhiko/console/blob/278de9dc2bf0fa28db69adee351072f668beec8f/Cargo.toml#L7) and [`dialoguer`](https://github.com/mitsuhiko/dialoguer/blob/2c3fe6b64641cfb57eb0e1d428274f63976ec150/Cargo.toml#L12) crates because of untenable issues surrounding expected use on Windows.
 
 This soft fork was introduced to the Tauri Codebase [here](https://github.com/tauri-apps/tauri/pull/1610).
 

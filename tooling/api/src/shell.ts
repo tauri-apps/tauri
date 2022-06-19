@@ -190,10 +190,11 @@ class Child {
    * @param data The message to write, either a string or a byte array.
    * @example
    * ```typescript
-   * const command = new Command('node')
-   * const child = await command.spawn()
-   * await child.write('message')
-   * await child.write([0, 1, 2, 3, 4, 5])
+   * import { Command } from '@tauri-apps/api/shell';
+   * const command = new Command('node');
+   * const child = await command.spawn();
+   * await child.write('message');
+   * await child.write([0, 1, 2, 3, 4, 5]);
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
@@ -231,16 +232,17 @@ class Child {
  * It emits the `close` and `error` events.
  * @example
  * ```typescript
- * const command = new Command('node')
+ * import { Command } from '@tauri-apps/api/shell';
+ * const command = new Command('node');
  * command.on('close', data => {
  *   console.log(`command finished with code ${data.code} and signal ${data.signal}`)
- * })
- * command.on('error', error => console.error(`command error: "${error}"`))
- * command.stdout.on('data', line => console.log(`command stdout: "${line}"`))
- * command.stderr.on('data', line => console.log(`command stderr: "${line}"`))
+ * });
+ * command.on('error', error => console.error(`command error: "${error}"`));
+ * command.stdout.on('data', line => console.log(`command stdout: "${line}"`));
+ * command.stderr.on('data', line => console.log(`command stderr: "${line}"`));
  *
- * const child = await command.spawn()
- * console.log('pid:', child.pid)
+ * const child = await command.spawn();
+ * console.log('pid:', child.pid);
  * ```
  */
 class Command extends EventEmitter<'close' | 'error'> {
@@ -278,8 +280,9 @@ class Command extends EventEmitter<'close' | 'error'> {
    * Creates a command to execute the given sidecar program.
    * @example
    * ```typescript
-   * const command = Command.sidecar('my-sidecar')
-   * const output = await command.execute()
+   * import { Command } from '@tauri-apps/api/shell';
+   * const command = Command.sidecar('my-sidecar');
+   * const output = await command.execute();
    * ```
    *
    * @param program The program to execute.
@@ -331,11 +334,12 @@ class Command extends EventEmitter<'close' | 'error'> {
    * Executes the command as a child process, waiting for it to finish and collecting all of its output.
    * @example
    * ```typescript
-   * const output = await new Command('echo', 'message').execute()
-   * assert(output.code === 0)
-   * assert(output.signal === null)
-   * assert(output.stdout === 'message')
-   * assert(output.stderr === '')
+   * import { Command } from '@tauri-apps/api/shell';
+   * const output = await new Command('echo', 'message').execute();
+   * assert(output.code === 0);
+   * assert(output.signal === null);
+   * assert(output.stdout === 'message');
+   * assert(output.stderr === '');
    * ```
    *
    * @return A promise resolving to the child process output.
@@ -398,12 +402,13 @@ type CommandEvent =
  *
  * @example
  * ```typescript
+ * import { open } from '@tauri-apps/api/shell';
  * // opens the given URL on the default browser:
- * await open('https://github.com/tauri-apps/tauri')
+ * await open('https://github.com/tauri-apps/tauri');
  * // opens the given URL using `firefox`:
- * await open('https://github.com/tauri-apps/tauri', 'firefox')
+ * await open('https://github.com/tauri-apps/tauri', 'firefox');
  * // opens a file using the default program:
- * await open('/path/to/file')
+ * await open('/path/to/file');
  * ```
  *
  * @param path The path or URL to open.

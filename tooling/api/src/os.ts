@@ -37,6 +37,11 @@ const EOL = isWindows() ? '\r\n' : '\n'
 /**
  * Returns a string identifying the operating system platform.
  * The value is set at compile time. Possible values are `'linux'`, `'darwin'`, `'ios'`, `'freebsd'`, `'dragonfly'`, `'netbsd'`, `'openbsd'`, `'solaris'`, `'android'`, `'win32'`
+ * @example
+ * ```typescript
+ * import { platform } from '@tauri-apps/api/os';
+ * const platformName = await platform();
+ * ```
  */
 async function platform(): Promise<
   LiteralUnion<
@@ -63,6 +68,11 @@ async function platform(): Promise<
 
 /**
  * Returns a string identifying the kernel version.
+ * @example
+ * ```typescript
+ * import { version } from '@tauri-apps/api/os';
+ * const osVersion = await version();
+ * ```
  */
 async function version(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -75,6 +85,11 @@ async function version(): Promise<string> {
 
 /**
  * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
+ * @example
+ * ```typescript
+ * import { type } from '@tauri-apps/api/os';
+ * const osType = await type();
+ * ```
  */
 async function type(): Promise<
   LiteralUnion<'Linux' | 'Darwin' | 'Windows_NT', string>
@@ -88,7 +103,13 @@ async function type(): Promise<
 }
 
 /**
- * Returns the operating system CPU architecture for which the tauri app was compiled. Possible values are `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'mips'`, `'mips64'`, `'powerpc'`, `'powerpc64'`, `'riscv64'`, `'s390x'`, `'sparc64'`
+ * Returns the operating system CPU architecture for which the tauri app was compiled.
+ * Possible values are `'x86'`, `'x86_64'`, `'arm'`, `'aarch64'`, `'mips'`, `'mips64'`, `'powerpc'`, `'powerpc64'`, `'riscv64'`, `'s390x'`, `'sparc64'`.
+ * @example
+ * ```typescript
+ * import { arch } from '@tauri-apps/api/os';
+ * const archName = await arch();
+ * ```
  */
 async function arch(): Promise<
   LiteralUnion<
@@ -116,6 +137,11 @@ async function arch(): Promise<
 
 /**
  * Returns the operating system's default directory for temporary files as a string.
+ * @example
+ * ```typescript
+ * import { tempdir } from '@tauri-apps/api/os';
+ * const tempdirPath = await tempdir();
+ * ```
  */
 async function tempdir(): Promise<string> {
   return invokeTauriCommand<string>({

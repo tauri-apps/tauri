@@ -364,10 +364,10 @@ impl<R: Runtime> UpdateBuilder<R> {
       // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
       // this is usefull if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
-      // will be transleted into ->
+      // will be translated into ->
       // https://releases.myapp.com/update/darwin/aarch64/1.0.0
       // The main objective is if the update URL is defined via the Cargo.toml
-      // the URL will be generated dynamicly
+      // the URL will be generated dynamically
       let fixed_link = url
         .replace("{{current_version}}", &self.current_version.to_string())
         .replace("{{target}}", &target)

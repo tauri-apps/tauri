@@ -9,7 +9,7 @@
 //         Info.plist     # An xml file containing the app's metadata
 //         MacOS          # A directory to hold executable binary files
 //             foobar          # The main binary executable of the app
-//             foobar_helper   # A helper application, possibly provitidng a CLI
+//             foobar_helper   # A helper application, possibly providing a CLI
 //         Resources      # Data files such as images, sounds, translations and nib files
 //             en.lproj        # Folder containing english translation strings/data
 //         Frameworks     # A directory containing private frameworks (shared libraries)

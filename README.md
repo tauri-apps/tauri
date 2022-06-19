@@ -42,7 +42,7 @@ If you are interested in making a tauri app, please visit the [documentation web
 
 ### App Bundles
 - [x] App Icons
-- [x] Build on MacOS (.app, .dmg)
+- [x] Build on macOS (.app, .dmg)
 - [x] Build on Linux (.deb, AppImage)
 - [x] Build on Windows (.exe, .msi)
 - [x] Copy Buffer
@@ -88,7 +88,7 @@ If you are interested in making a tauri app, please visit the [documentation web
 | Auto Updater               | Yes    | Yes<sup>1</sup>      |
 | Custom App Icon            | Yes    | Yes                  |
 | Windows Binary             | Yes    | Yes                  |
-| MacOS Binary               | Yes    | Yes                  |
+| macOS Binary               | Yes    | Yes                  |
 | Linux Binary               | Yes    | Yes                  |
 | iOS Binary                 | Soon   | No                   |
 | Android Binary             | Soon   | No                   |
@@ -108,7 +108,7 @@ Tauri is a system composed of a number of moving pieces:
 - GitHub actions for CI and CD
 - Discord for discussions
 - Netlify-hosted documentation website
-- DigitalOcean meilisearch instance
+- DigitalOcean Meilisearch instance
 
 ### Major Runtimes
 - Node.js for running the CLI (deno and pure rust are on the roadmap)
@@ -116,7 +116,7 @@ Tauri is a system composed of a number of moving pieces:
 
 ### Major Languages
 - Rust for the CLI
-- EcmaScript bindings to the Rust API, written in typescript
+- ECMAScript bindings to the Rust API, written in typescript
 - Rust for bindings, rust side of the API, harnesses
 - Rust plugins to Tauri backend
 

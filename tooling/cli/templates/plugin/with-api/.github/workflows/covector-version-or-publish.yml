@@ -28,12 +28,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
-      - name: create pull request
-        id: cpr
-        uses: tauri-apps/create-pull-request@v2.8.0
+      - name: Create Pull Request With Versions Bumped
+        if: steps.covector.outputs.commandRan == 'version'
+        uses: tauri-apps/create-pull-request@v3.4.1
         with:
-          title: "Publish New Versions"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release/version-updates
+          title: Apply Version Updates From Current Changes
+          commit-message: "apply version updates"
           labels: "version updates"
-          branch: "release"
           body: ${{ steps.covector.outputs.change }}
+
 {{{{/raw}}}}

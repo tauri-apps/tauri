@@ -445,6 +445,7 @@ pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
+  pub(crate) app_icon: Option<Vec<u8>>,
   pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
@@ -458,6 +459,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
+      .field("app_icon", &self.app_icon)
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
@@ -548,6 +550,7 @@ impl<A: Assets> Context<A> {
     config: Config,
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
+    app_icon: Option<Vec<u8>>,
     system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
@@ -558,6 +561,7 @@ impl<A: Assets> Context<A> {
       config,
       assets,
       default_window_icon,
+      app_icon,
       system_tray_icon,
       package_info,
       _info_plist: info_plist,

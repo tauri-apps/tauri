@@ -192,21 +192,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   // handle default window icons for Windows targets
   #[cfg(windows)]
   let default_window_icon = {
-    let mut icon_path = find_icon(
+    let icon_path = find_icon(
       &config,
       &config_parent,
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    if !icon_path.exists() {
-      icon_path = find_icon(
+    if icon_path.exists() {
+      ico_icon(&root, &out_dir, icon_path)?
+    } else {
+      let icon_path = find_icon(
         &config,
         &config_parent,
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
+      png_icon(&root, &out_dir, icon_path)?
     }
-    ico_icon(&root, &out_dir, icon_path)?
   };
   #[cfg(target_os = "linux")]
   let default_window_icon = {
@@ -220,6 +222,29 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
   #[cfg(not(any(windows, target_os = "linux")))]
   let default_window_icon = quote!(None);
+
+  #[cfg(target_os = "macos")]
+  let app_icon = if dev {
+    let mut icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".icns"),
+      "icons/icon.png",
+    );
+    if !icon_path.exists() {
+      icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".png"),
+        "icons/icon.png",
+      );
+    }
+    raw_icon(&out_dir, icon_path)?
+  } else {
+    quote!(None)
+  };
+  #[cfg(not(target_os = "macos"))]
+  let app_icon = quote!(None);
 
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
@@ -353,6 +378,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #config,
     ::std::sync::Arc::new(#assets),
     #default_window_icon,
+    #app_icon,
     #system_tray_icon,
     #package_info,
     #info_plist,
@@ -403,6 +429,35 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
+#[cfg(target_os = "macos")]
+fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .to_vec();
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&bytes)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  Ok(icon)
+}
+
 fn png_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -445,7 +500,6 @@ fn png_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(any(windows, target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,

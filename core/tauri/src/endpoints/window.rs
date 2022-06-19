@@ -154,7 +154,7 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
     "minimize" => crate::Error::ApiNotAllowlisted("window > minimize".to_string()),
-    "nnminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
+    "unminimize" => crate::Error::ApiNotAllowlisted("window > unminimize".to_string()),
     "show" => crate::Error::ApiNotAllowlisted("window > show".to_string()),
     "hide" => crate::Error::ApiNotAllowlisted("window > hide".to_string()),
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),

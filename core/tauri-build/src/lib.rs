@@ -118,7 +118,7 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a vaild UTF-8
+  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
   /// path. Defaults to whatever the `winres` crate determines is best.
   #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {

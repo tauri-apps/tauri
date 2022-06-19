@@ -357,7 +357,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime<T>;
 
-  /// The winoow builder type.
+  /// The window builder type.
   type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
@@ -414,7 +414,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
 
   /// Gets the window menu current visibility state.
@@ -441,7 +441,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",

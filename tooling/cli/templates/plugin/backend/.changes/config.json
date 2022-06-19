@@ -4,6 +4,36 @@
     "rust": {
       "version": true,
       "getPublishedVersion": "cargo search ${ pkg.pkg } --limit 1 | sed -nE 's/^[^\"]*\"//; s/\".*//1p' -",
+      "prepublish": [
+        "sudo apt-get update",
+        "sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0",
+        "cargo install cargo-audit",
+        {
+          "command": "cargo generate-lockfile",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo \"# Cargo Audit\"",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```'",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "cargo audit ${ process.env.CARGO_AUDIT_OPTIONS || '' }",
+          "dryRunCommand": true,
+          "pipe": true
+        },
+        {
+          "command": "echo '```'",
+          "dryRunCommand": true,
+          "pipe": true
+        }
+      ],
       "publish": [
         {
           "command": "cargo package --allow-dirty",

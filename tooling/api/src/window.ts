@@ -53,10 +53,10 @@
  *
  * Events can be listened using `appWindow.listen`:
  * ```typescript
- * import { appWindow } from '@tauri-apps/api/window'
- * appWindow.listen('tauri://move', ({ event, payload }) => {
- *   const { x, y } = payload // payload here is a `PhysicalPosition`
- * })
+ * import { appWindow } from "@tauri-apps/api/window"
+ * appWindow.listen("tauri://move", ({ event, payload }) => {
+ *   const { x, y } = payload; // payload here is a `PhysicalPosition`
+ * });
  * ```
  *
  * Window-specific events emitted by the backend:
@@ -78,6 +78,16 @@
  * #### 'tauri://close-requested'
  * Emitted when the user requests the window to be closed.
  * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
+ * ```typescript
+ * import { appWindow } from "@tauri-apps/api/window";
+ * import { confirm } from '@tauri-apps/api/dialog';
+ * appWindow.listen("tauri://close-requested", async ({ event, payload }) => {
+ *   const confirmed = await confirm('Are you sure?');
+ *   if (confirmed) {
+ *     await appWindow.close();
+ *   }
+ * });
+ * ```
  *
  * #### 'tauri://focus'
  * Emitted when the window gains focus.

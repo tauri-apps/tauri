@@ -247,8 +247,8 @@ async function ask(
  * @example
  * ```typescript
  * import { confirm } from '@tauri-apps/api/dialog';
- * const confirm = await confirm('Are you sure?', 'Tauri');
- * const confirm2 = await confirm('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
+ * const confirmed = await confirm('Are you sure?', 'Tauri');
+ * const confirmed2 = await confirm('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
  * ```
  *
  * @param {string} message The message to show.

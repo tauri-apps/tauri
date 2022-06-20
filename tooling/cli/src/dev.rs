@@ -317,6 +317,9 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
   let mut builder = ignore::WalkBuilder::new(dir);
   let _ = builder.add_ignore(default_gitignore);
+  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+    builder.add_ignore(ignore_file);
+  }
   builder.require_git(false).ignore(false).max_depth(Some(1));
 
   for entry in builder.build().flatten() {

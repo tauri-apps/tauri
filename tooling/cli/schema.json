@@ -607,7 +607,7 @@
           "type": "boolean"
         },
         "theme": {
-          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOs 10.14+.",
+          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.",
           "anyOf": [
             {
               "$ref": "#/definitions/Theme"

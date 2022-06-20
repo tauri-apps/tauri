@@ -2434,9 +2434,9 @@ fn handle_user_message<T: UserEvent>(
           .get(&id)
           .and_then(|w| w.inner.as_ref())
         {
-          if let Err(e) = webview.evaluate_script(&script) {
+          if let Err(_e) = webview.evaluate_script(&script) {
             #[cfg(debug_assertions)]
-            eprintln!("{}", e);
+            eprintln!("{}", _e);
           }
         }
       }
@@ -2473,9 +2473,9 @@ fn handle_user_message<T: UserEvent>(
           .expect("poisoned webview collection")
           .insert(window_id, webview);
       }
-      Err(e) => {
+      Err(_e) => {
         #[cfg(debug_assertions)]
-        eprintln!("{}", e);
+        eprintln!("{}", _e);
       }
     },
     Message::CreateWindow(window_id, handler, sender) => {
@@ -2771,9 +2771,9 @@ fn handle_event_loop<T: UserEvent>(
             .get(&window_id)
             .and_then(|w| w.inner.as_ref())
           {
-            if let Err(e) = webview.resize() {
+            if let Err(_e) = webview.resize() {
               #[cfg(debug_assertions)]
-              eprintln!("{}", e);
+              eprintln!("{}", _e);
             }
           }
         }

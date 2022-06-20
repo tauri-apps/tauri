@@ -517,7 +517,15 @@ impl Settings {
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
     let mut path = self.project_out_directory.clone();
-    let binary_name = format!("{}{}", binary.name(), if self.target.contains("windows") { ".exe" } else { "" });
+    let binary_name = format!(
+      "{}{}",
+      binary.name(),
+      if self.target.contains("windows") {
+        ".exe"
+      } else {
+        ""
+      }
+    );
     path.push(binary_name);
     path
   }

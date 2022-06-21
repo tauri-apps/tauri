@@ -28,14 +28,20 @@ pub struct Options {
   #[clap(short, long)]
   debug: bool,
   /// Target triple to build against.
+  ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  ///
   /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
   target: Option<String>,
   /// Space or comma separated list of features to activate
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   features: Option<Vec<String>>,
-  /// Space or comma separated list of bundles to package
+  /// Space or comma separated list of bundles to package.
+  ///
+  /// Each bundle must be one of `deb`, `appimage`, `msi`, `app` or `dmg` on MacOS and `updater` on all platforms.
+  ///
+  /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
@@ -288,6 +294,11 @@ pub fn command(options: Options) -> Result<()> {
             }
           }
         }
+
+        if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
+          types.push(PackageType::Updater);
+        }
+
         Some(types)
       } else {
         None

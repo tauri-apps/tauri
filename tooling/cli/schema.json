@@ -607,7 +607,7 @@
           "type": "boolean"
         },
         "theme": {
-          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOs 10.14+.",
+          "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.",
           "anyOf": [
             {
               "$ref": "#/definitions/Theme"
@@ -896,12 +896,12 @@
       ],
       "properties": {
         "active": {
-          "description": "Whether we should build your app with tauri-bundler or plain `cargo build`",
+          "description": "Whether Tauri should bundle your application or just output the executable.",
           "default": false,
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".\n\nThe `updater` target is automatically added if the updater is enabled.",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleTarget"

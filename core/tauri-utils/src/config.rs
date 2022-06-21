@@ -308,10 +308,12 @@ fn default_allow_downgrades() -> bool {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
-  /// Whether we should build your app with tauri-bundler or plain `cargo build`
+  /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
+  /// The bundle targets, currently supports ["deb", "appimage", "msi", "app", "dmg", "updater"] or "all".
+  ///
+  /// The `updater` target is automatically added if the updater is enabled.
   pub targets: Option<BundleTarget>,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like

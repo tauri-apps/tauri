@@ -91,14 +91,16 @@
   "packages": {
     "tauri-plugin-{{ plugin_name }}": {
       "path": ".",
-      "manager": "rust"
+      "manager": "rust",
+      "releaseTag": "crate-v${ pkgFile.version }"
     },
     "tauri-plugin-{{ plugin_name }}-api": {
       "path": ".",
       "manager": "javascript",
       "dependencies": [
         "tauri-plugin-{{ plugin_name }}"
-      ]
+      ],
+      "releaseTag": "npm-v${ pkgFile.version }"
     }
   }
 }

@@ -65,7 +65,8 @@
   "packages": {
     "tauri-plugin-{{ plugin_name }}": {
       "path": ".",
-      "manager": "rust"
+      "manager": "rust",
+      "releaseTag": "v${ pkgFile.version }"
     }
   }
 }

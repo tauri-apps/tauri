@@ -51,27 +51,27 @@ Tauri currently supports development and distribution on the following platforms
 
 For **developing** Tauri apps we support the following configurations:
 
-- Debian (Ubuntu 18.04 and above or equivalent)
-  - For development you must have `libwebkit2gtk-4.0-dev`, `build-essential`<sup>1</sup>, `curl`, `wget`, `libssl-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`<sup>2</sup>, and `librsvg2-dev`<sup>3</sup> installed
-- Arch
-  - For development you must have `webkit2gtk`, `appmenu-gtk-module`, `base-devel`, `curl`, `wget`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>2</sup>, `librsvg`<sup>3</sup>, and `libvips` installed
-- Fedora
-  - For development you must have `webkit2gtk3-devel.x86_64`, `openssl-devel`, `curl`, `wget`, `libappindicator-gtk3`<sup>2</sup>, and `librsvg2-devel`<sup>3</sup> installed
+- Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
+  - `libwebkit2gtk-4.0-dev`, `build-essential`, `curl`, `wget`, `libssl-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`<sup>1</sup>, `librsvg2-dev`<sup>2</sup>
+- Arch with the following packages installed:
+  - `webkit2gtk`, `appmenu-gtk-module`, `base-devel`, `curl`, `wget`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>1</sup>, `librsvg`<sup>2</sup>, `libvips`
+- Fedora with the following packages installed:
+  - `webkit2gtk3-devel.x86_64`, `openssl-devel`, `curl`, `wget`, `libappindicator-gtk3`<sup>1</sup>, `librsvg2-devel`<sup>2</sup>
+
+<sup>1</sup> `appindicator` is only required if system trays are used
+
+<sup>2</sup> `librsvg` is only required for appimage bundling
 
 For **running** Tauri apps we support the following configurations:
 
-- Debian (Ubuntu 18.04 and above or equivalent)
-  - For development you must have `libwebkit2gtk-4.0-dev`, `build-essential`<sup>1</sup>, `curl`, `wget`, `libssl-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`<sup>2</sup>, and `librsvg2-dev`<sup>3</sup> installed
-- Arch
-  - For development you must have `webkit2gtk`, `appmenu-gtk-module`, `base-devel`, `curl`, `wget`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>2</sup>, `librsvg`<sup>3</sup>, and `libvips` installed
-- Fedora
-  - For development you must have `webkit2gtk3-devel.x86_64`, `openssl-devel`, `curl`, `wget`, `libappindicator-gtk3`<sup>2</sup>, and `librsvg2-devel`<sup>3</sup> installed
+- Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
+  - `libwebkit2gtk-4.0`, `libssl`, `libgtk-3`, `libayatana-appindicator3`<sup>1</sup>
+- Arch with the following packages installed:
+  - `webkit2gtk`, `appmenu-gtk-module`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>2</sup>, `libvips`
+- Fedora with the following packages installed:
+  - `webkit2gtk3-devel.x86_64`, `openssl-devel`, `libappindicator-gtk3`<sup>1</sup>
 
-<sup>1</sup> `build-essential` is only required on the build system
-
-<sup>2</sup> `appindicator` is only required if system trays are used
-
-<sup>3</sup> `librsvg` is only required for appimage bundling
+<sup>1</sup> `appindicator` is only required if system trays are used
 
 ### App Bundles
 

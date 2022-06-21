@@ -293,9 +293,17 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         plist::Value::Dictionary(Default::default())
       };
 
-      if let Some(dict) = info_plist.as_dictionary_mut() {
+      if let Some(plist) = info_plist.as_dictionary_mut() {
         if let Some(product_name) = &config.package.product_name {
-          dict.insert("CFBundleName".into(), product_name.clone().into());
+          plist.insert("CFBundleName".into(), product_name.clone().into());
+        }
+        if let Some(version) = &config.package.version {
+          plist.insert("CFBundleShortVersionString".into(), version.clone().into());
+        }
+        let format =
+          time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
+        if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
+          plist.insert("CFBundleVersion".into(), build_number.into());
         }
       }
 

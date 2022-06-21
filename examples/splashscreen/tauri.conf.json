@@ -5,6 +5,10 @@
     "devPath": "dist",
     "withGlobalTauri": true
   },
+  "package": {
+    "productName": "Splashscreen",
+    "version": "0.1.0"
+  },
   "tauri": {
     "bundle": {
       "active": true,

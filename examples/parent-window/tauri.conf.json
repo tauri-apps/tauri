@@ -5,6 +5,10 @@
     "devPath": ["index.html"],
     "withGlobalTauri": true
   },
+  "package": {
+    "productName": "Parent Window",
+    "version": "0.1.0"
+  },
   "tauri": {
     "bundle": {
       "active": true,

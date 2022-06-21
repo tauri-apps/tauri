@@ -31,6 +31,7 @@ png = "0.17"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
+time = { version = "0.3", features = [ "parsing", "formatting" ] }
 
 [features]
 default = [ "compression" ]

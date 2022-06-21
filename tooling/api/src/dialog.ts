@@ -95,10 +95,10 @@ interface MessageDialogOptions {
  * import { open } from '@tauri-apps/api/dialog';
  * const selected = await open({
  *   multiple: true,
- *   filters: {
+ *   filters: [{
  *     name: 'Image',
  *     extensions: ['png', 'jpeg']
- *   }
+ *   }]
  * });
  * if (Array.isArray(selected)) {
  *   // user selected multiple files
@@ -159,10 +159,10 @@ async function open(
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
  *   multiple: true,
- *   filters: {
+ *   filters: [{
  *     name: 'Image',
  *     extensions: ['stronghold']
- *   }
+ *   }]
  * });
  * ```
  *

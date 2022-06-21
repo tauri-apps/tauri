@@ -36,7 +36,7 @@
       ],
       "publish": [
         {
-          "command": "cargo package --allow-dirty",
+          "command": "cargo package --no-verify",
           "dryRunCommand": true
         },
         {
@@ -51,7 +51,7 @@
         },
         {
           "command": "cargo publish",
-          "dryRunCommand": "cargo publish --dry-run --allow-dirty",
+          "dryRunCommand": "cargo publish --dry-run",
           "pipe": true
         },
         {

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::{
-  config::get as get_config, framework::infer_from_package_json as infer_framework,
+use crate::{
+  helpers::{config::get as get_config, framework::infer_from_package_json as infer_framework},
+  interface::rust::get_workspace_dir,
+  Result,
 };
-use crate::Result;
 use clap::Parser;
 use colored::Colorize;
 use serde::Deserialize;
@@ -476,12 +477,12 @@ fn crate_version(
         };
 
         let lock_version = match (lock, crate_lock_packages.is_empty()) {
-          (Some(_lock), true) => crate_lock_packages
+          (Some(_lock), false) => crate_lock_packages
             .iter()
             .map(|p| p.version.clone())
             .collect::<Vec<String>>()
             .join(", "),
-          (Some(_lock), false) => "unknown lockfile".to_string(),
+          (Some(_lock), true) => "unknown lockfile".to_string(),
           _ => "no lockfile".to_string(),
         };
 
@@ -789,12 +790,13 @@ pub fn command(_options: Options) -> Result<()> {
         } else {
           None
         };
-      let lock: Option<CargoLock> =
-        if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
-          toml::from_str(&lock_contents).ok()
-        } else {
-          None
-        };
+      let lock: Option<CargoLock> = if let Ok(lock_contents) =
+        read_to_string(get_workspace_dir(&tauri_dir).join("Cargo.lock"))
+      {
+        toml::from_str(&lock_contents).ok()
+      } else {
+        None
+      };
 
       for (dep, label) in [
         ("tauri", format!("{} {}", "tauri", "[RUST]".dimmed())),

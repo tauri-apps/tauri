@@ -362,16 +362,10 @@ impl<R: Runtime> WindowManager<R> {
   }
 
   /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> Cow<'_, str> {
+  fn get_browser_origin(&self) -> String {
     match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => {
-        let mut url = url.to_string();
-        if url.ends_with('/') {
-          url.pop();
-        }
-        Cow::Owned(url)
-      }
-      _ => Cow::Owned(format_real_schema("tauri")),
+      AppUrl::Url(WindowUrl::External(url)) => url.origin().ascii_serialization(),
+      _ => format_real_schema("tauri"),
     }
   }
 
@@ -450,7 +444,7 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: &self.get_browser_origin(),
+          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -883,7 +877,7 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: Cow<'a, str>,
+      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]

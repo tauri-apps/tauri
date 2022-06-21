@@ -129,6 +129,7 @@
           "macOS": {
             "minimumSystemVersion": "10.13"
           },
+          "targets": "all",
           "windows": {
             "allowDowngrades": true,
             "certificateThumbprint": null,
@@ -259,6 +260,7 @@
             "macOS": {
               "minimumSystemVersion": "10.13"
             },
+            "targets": "all",
             "windows": {
               "allowDowngrades": true,
               "certificateThumbprint": null,
@@ -896,18 +898,16 @@
       ],
       "properties": {
         "active": {
-          "description": "Whether we should build your app with tauri-bundler or plain `cargo build`",
+          "description": "Whether Tauri should bundle your application or just output the executable.",
           "default": false,
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"app\", \"msi\", \"appimage\", \"dmg\"] or \"all\"",
-          "anyOf": [
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "default": "all",
+          "allOf": [
             {
               "$ref": "#/definitions/BundleTarget"
-            },
-            {
-              "type": "null"
             }
           ]
         },
@@ -1025,19 +1025,41 @@
       "additionalProperties": false
     },
     "BundleTarget": {
-      "description": "Targets to bundle.",
+      "description": "Targets to bundle. Each value is case insensitive.",
       "anyOf": [
+        {
+          "description": "Bundle all targets.",
+          "enum": [
+            "all"
+          ]
+        },
         {
           "description": "A list of bundle targets.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/BundleType"
           }
         },
         {
           "description": "A single bundle target.",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/BundleType"
+            }
+          ]
         }
+      ]
+    },
+    "BundleType": {
+      "description": "A bundle referenced by tauri-bundler.",
+      "type": "string",
+      "enum": [
+        "deb",
+        "appimage",
+        "msi",
+        "app",
+        "dmg",
+        "updater"
       ]
     },
     "AppImageConfig": {

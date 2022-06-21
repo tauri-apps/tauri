@@ -65,23 +65,176 @@ impl Default for WindowUrl {
   }
 }
 
-/// Targets to bundle.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+/// A bundle referenced by tauri-bundler.
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged)]
+#[cfg_attr(feature = "schema", schemars(rename_all = "lowercase"))]
+pub enum BundleType {
+  /// The debian bundle (.deb).
+  Deb,
+  /// The AppImage bundle (.appimage).
+  AppImage,
+  /// The Microsoft Installer bundle (.msi).
+  Msi,
+  /// The macOS application bundle (.app).
+  App,
+  /// The Apple Disk Image bundle (.dmg).
+  Dmg,
+  /// The Tauri updater bundle.
+  Updater,
+}
+
+impl Display for BundleType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Deb => "deb",
+        Self::AppImage => "appimage",
+        Self::Msi => "msi",
+        Self::App => "app",
+        Self::Dmg => "dmg",
+        Self::Updater => "updater",
+      }
+    )
+  }
+}
+
+impl Serialize for BundleType {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for BundleType {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+      "deb" => Ok(Self::Deb),
+      "appimage" => Ok(Self::AppImage),
+      "msi" => Ok(Self::Msi),
+      "app" => Ok(Self::App),
+      "dmg" => Ok(Self::Dmg),
+      "updater" => Ok(Self::Updater),
+      _ => Err(DeError::custom(format!("unknown bundle target '{}'", s))),
+    }
+  }
+}
+
+/// Targets to bundle. Each value is case insensitive.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BundleTarget {
+  /// Bundle all targets.
+  All,
   /// A list of bundle targets.
-  All(Vec<String>),
+  List(Vec<BundleType>),
   /// A single bundle target.
-  One(String),
+  One(BundleType),
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for BundleTarget {
+  fn schema_name() -> std::string::String {
+    "BundleTarget".to_owned()
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let any_of = vec![
+      schemars::schema::SchemaObject {
+        enum_values: Some(vec!["all".into()]),
+        metadata: Some(Box::new(schemars::schema::Metadata {
+          description: Some("Bundle all targets.".to_owned()),
+          ..Default::default()
+        })),
+        ..Default::default()
+      }
+      .into(),
+      schemars::_private::apply_metadata(
+        gen.subschema_for::<Vec<BundleType>>(),
+        schemars::schema::Metadata {
+          description: Some("A list of bundle targets.".to_owned()),
+          ..Default::default()
+        },
+      ),
+      schemars::_private::apply_metadata(
+        gen.subschema_for::<BundleType>(),
+        schemars::schema::Metadata {
+          description: Some("A single bundle target.".to_owned()),
+          ..Default::default()
+        },
+      ),
+    ];
+
+    schemars::schema::SchemaObject {
+      subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
+        any_of: Some(any_of),
+        ..Default::default()
+      })),
+      metadata: Some(Box::new(schemars::schema::Metadata {
+        description: Some("Targets to bundle. Each value is case insensitive.".to_owned()),
+        ..Default::default()
+      })),
+      ..Default::default()
+    }
+    .into()
+  }
+}
+
+impl Default for BundleTarget {
+  fn default() -> Self {
+    Self::All
+  }
+}
+
+impl Serialize for BundleTarget {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    match self {
+      Self::All => serializer.serialize_str("all"),
+      Self::List(l) => l.serialize(serializer),
+      Self::One(t) => serializer.serialize_str(t.to_string().as_ref()),
+    }
+  }
+}
+
+impl<'de> Deserialize<'de> for BundleTarget {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize, Serialize)]
+    #[serde(untagged)]
+    pub enum BundleTargetInner {
+      List(Vec<BundleType>),
+      One(BundleType),
+      All(String),
+    }
+
+    match BundleTargetInner::deserialize(deserializer)? {
+      BundleTargetInner::All(s) if s.to_lowercase() == "all" => Ok(Self::All),
+      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {}", t))),
+      BundleTargetInner::List(l) => Ok(Self::List(l)),
+      BundleTargetInner::One(t) => Ok(Self::One(t)),
+    }
+  }
 }
 
 impl BundleTarget {
-  /// Gets the bundle targets as a [`Vec`].
+  /// Gets the bundle targets as a [`Vec`]. The vector is empty when set to [`BundleTarget::All`].
   #[allow(dead_code)]
-  pub fn to_vec(&self) -> Vec<String> {
+  pub fn to_vec(&self) -> Vec<BundleType> {
     match self {
-      Self::All(list) => list.clone(),
+      Self::All => vec![],
+      Self::List(list) => list.clone(),
       Self::One(i) => vec![i.clone()],
     }
   }
@@ -308,11 +461,12 @@ fn default_allow_downgrades() -> bool {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BundleConfig {
-  /// Whether we should build your app with tauri-bundler or plain `cargo build`
+  /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "app", "msi", "appimage", "dmg"] or "all"
-  pub targets: Option<BundleTarget>,
+  /// The bundle targets, currently supports ["deb", "appimage", "msi", "app", "dmg", "updater"] or "all".
+  #[serde(default)]
+  pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like
   /// the bundle ID and path to the webview data directory.
@@ -2740,7 +2894,7 @@ mod build {
       let identifier = str_lit(&self.identifier);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
-      let targets = quote!(None);
+      let targets = quote!(Default::default());
       let resources = quote!(None);
       let copyright = quote!(None);
       let category = quote!(None);
@@ -3159,7 +3313,7 @@ mod test {
       windows: vec![],
       bundle: BundleConfig {
         active: false,
-        targets: None,
+        targets: Default::default(),
         identifier: String::from(""),
         icon: Vec::new(),
         resources: None,

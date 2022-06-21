@@ -568,7 +568,7 @@ impl<R: Runtime> WindowManager<R> {
               }
             };
 
-            if range.len() == 0 {
+            if range.is_empty() {
               return (headers, 200, buf);
             }
 
@@ -1068,9 +1068,8 @@ where
         return Err(e);
       }
 
-      buf.extend_from_slice(
-        format!("Content-Type: {}", MimeType::parse(&tmp_buf, path)).as_bytes(),
-      );
+      buf
+        .extend_from_slice(format!("Content-Type: {}", MimeType::parse(&tmp_buf, path)).as_bytes());
 
       buf.extend_from_slice("\r\n".as_bytes());
       buf.extend_from_slice("\r\n".as_bytes());

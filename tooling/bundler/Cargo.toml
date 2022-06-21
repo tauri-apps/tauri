@@ -51,6 +51,7 @@ zip = "0.6"
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = "0.3"
 time = { version = "0.3", features = [ "formatting" ] }
+plist = "1"
 
 [target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]
 regex = "1"

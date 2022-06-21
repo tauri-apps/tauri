@@ -26,16 +26,14 @@ use super::{
   icon::create_icns_file,
   sign::{notarize, notarize_auth_args, sign},
 };
-use crate::{bundle::common::CommandExt, Settings};
+use crate::Settings;
 
 use anyhow::Context;
 use log::{info, warn};
 
 use std::{
   fs,
-  io::prelude::*,
   path::{Path, PathBuf},
-  process::Command,
 };
 
 /// Bundles the project.
@@ -124,129 +122,74 @@ fn create_info_plist(
     .format(&format)
     .map_err(time::error::Error::from)?;
 
-  let bundle_plist_path = bundle_dir.join("Info.plist");
-  let file = &mut common::create_file(&bundle_plist_path)?;
-  write!(
-    file,
-    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-     <!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \
-     \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n\
-     <plist version=\"1.0\">\n\
-     <dict>\n"
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleDevelopmentRegion</key>\n  \
-     <string>English</string>\n"
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleDisplayName</key>\n  <string>{}</string>\n",
-    settings.product_name()
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleExecutable</key>\n  <string>{}</string>\n",
-    settings.main_binary_name()
-  )?;
+  let mut plist = plist::Dictionary::new();
+  plist.insert("CFBundleDevelopmentRegion".into(), "English".into());
+  plist.insert("CFBundleDisplayName".into(), settings.product_name().into());
+  plist.insert(
+    "CFBundleExecutable".into(),
+    settings.main_binary_name().into(),
+  );
   if let Some(path) = bundle_icon_file {
-    write!(
-      file,
-      "  <key>CFBundleIconFile</key>\n  <string>{}</string>\n",
-      path.file_name().expect("No file name").to_string_lossy()
-    )?;
+    plist.insert(
+      "CFBundleIconFile".into(),
+      path
+        .file_name()
+        .expect("No file name")
+        .to_string_lossy()
+        .into_owned()
+        .into(),
+    );
   }
-  write!(
-    file,
-    "  <key>CFBundleIdentifier</key>\n  <string>{}</string>\n",
-    settings.bundle_identifier()
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleInfoDictionaryVersion</key>\n  \
-     <string>6.0</string>\n"
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleName</key>\n  <string>{}</string>\n",
-    settings.product_name()
-  )?;
-  write!(
-    file,
-    "  <key>CFBundlePackageType</key>\n  <string>APPL</string>\n"
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleShortVersionString</key>\n  <string>{}</string>\n",
-    settings.version_string()
-  )?;
-  write!(
-    file,
-    "  <key>CFBundleVersion</key>\n  <string>{}</string>\n",
-    build_number
-  )?;
-  write!(file, "  <key>CSResourcesFileMapped</key>\n  <true/>\n")?;
+  plist.insert(
+    "CFBundleIdentifier".into(),
+    settings.bundle_identifier().into(),
+  );
+  plist.insert("CFBundleInfoDictionaryVersion".into(), "6.0".into());
+  plist.insert("CFBundleName".into(), settings.product_name().into());
+  plist.insert("CFBundlePackageType".into(), "APPL".into());
+  plist.insert(
+    "CFBundleShortVersionString".into(),
+    settings.version_string().into(),
+  );
+  plist.insert("CFBundleVersion".into(), build_number.into());
+  plist.insert("CSResourcesFileMapped".into(), true.into());
   if let Some(category) = settings.app_category() {
-    write!(
-      file,
-      "  <key>LSApplicationCategoryType</key>\n  \
-       <string>{}</string>\n",
-      category.macos_application_category_type()
-    )?;
+    plist.insert(
+      "LSApplicationCategoryType".into(),
+      category.macos_application_category_type().into(),
+    );
   }
-  if let Some(version) = &settings.macos().minimum_system_version {
-    write!(
-      file,
-      "  <key>LSMinimumSystemVersion</key>\n  \
-       <string>{}</string>\n",
-      version
-    )?;
+  if let Some(version) = settings.macos().minimum_system_version.clone() {
+    plist.insert("LSMinimumSystemVersion".into(), version.into());
   }
-  write!(file, "  <key>LSRequiresCarbon</key>\n  <true/>\n")?;
-  write!(file, "  <key>NSHighResolutionCapable</key>\n  <true/>\n")?;
+  plist.insert("LSRequiresCarbon".into(), true.into());
+  plist.insert("NSHighResolutionCapable".into(), true.into());
   if let Some(copyright) = settings.copyright_string() {
-    write!(
-      file,
-      "  <key>NSHumanReadableCopyright</key>\n  \
-       <string>{}</string>\n",
-      copyright
-    )?;
+    plist.insert("NSHumanReadableCopyright".into(), copyright.into());
   }
 
-  if let Some(exception_domain) = &settings.macos().exception_domain {
-    write!(
-      file,
-      "  <key>NSAppTransportSecurity</key>\n  \
-      <dict>\n  \
-          <key>NSExceptionDomains</key>\n  \
-          <dict>\n  \
-              <key>{}</key>\n  \
-              <dict>\n  \
-                  <key>NSExceptionAllowsInsecureHTTPLoads</key>\n  \
-                  <true/>\n  \
-                  <key>NSIncludesSubdomains</key>\n  \
-                  <true/>\n  \
-              </dict>\n  \
-          </dict>\n  \
-      </dict>",
-      exception_domain
-    )?;
-  }
+  if let Some(exception_domain) = settings.macos().exception_domain.clone() {
+    let mut security = plist::Dictionary::new();
+    let mut domain = plist::Dictionary::new();
+    domain.insert("NSExceptionAllowsInsecureHTTPLoads".into(), true.into());
+    domain.insert("NSIncludesSubdomains".into(), true.into());
 
-  write!(file, "</dict>\n</plist>\n")?;
-  file.flush()?;
+    let mut exception_domains = plist::Dictionary::new();
+    exception_domains.insert(exception_domain, domain.into());
+    security.insert("NSExceptionDomains".into(), exception_domains.into());
+    plist.insert("NSAppTransportSecurity".into(), security.into());
+  }
 
   if let Some(user_plist_path) = &settings.macos().info_plist_path {
-    // TODO: use the plist crate instead
-    Command::new("/usr/libexec/PlistBuddy")
-      .args(&[
-        "-c".into(),
-        format!("Merge {}", user_plist_path.display()),
-        bundle_plist_path.display().to_string(),
-      ])
-      .output_ok()
-      .context("error running PlistBuddy")?;
+    let user_plist = plist::Value::from_file(user_plist_path)?;
+    if let Some(dict) = user_plist.into_dictionary() {
+      for (key, value) in dict {
+        plist.insert(key, value);
+      }
+    }
   }
+
+  plist::Value::Dictionary(plist).to_file_xml(bundle_dir.join("Info.plist"))?;
 
   Ok(())
 }

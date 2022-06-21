@@ -49,27 +49,16 @@ Tauri currently supports development and distribution on the following platforms
 
 **Linux Support**
 
-For **developing** Tauri apps we support the following configurations:
+For **developing** Tauri apps refer to the [Getting Started guide on tauri.app](https://tauri.app/v1/guides/getting-started/prerequisites#setting-up-linux).
 
-- Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
-  - `libwebkit2gtk-4.0-dev`, `build-essential`, `curl`, `wget`, `libssl-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`<sup>1</sup>, `librsvg2-dev`<sup>2</sup>
-- Arch with the following packages installed:
-  - `webkit2gtk`, `appmenu-gtk-module`, `base-devel`, `curl`, `wget`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>1</sup>, `librsvg`<sup>2</sup>, `libvips`
-- Fedora with the following packages installed:
-  - `webkit2gtk3-devel.x86_64`, `openssl-devel`, `curl`, `wget`, `libappindicator-gtk3`<sup>1</sup>, `librsvg2-devel`<sup>2</sup>
-
-<sup>1</sup> `appindicator` is only required if system trays are used
-
-<sup>2</sup> `librsvg` is only required for appimage bundling
-
-For **running** Tauri apps we support the following configurations:
+For **running** Tauri apps we support the below configurations (these are automatically added as dependencies for .deb and are bundled for AppImage so that your users don't need to manually install them):
 
 - Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
   - `libwebkit2gtk-4.0`, `libssl`, `libgtk-3`, `libayatana-appindicator3`<sup>1</sup>
 - Arch with the following packages installed:
-  - `webkit2gtk`, `appmenu-gtk-module`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>2</sup>, `libvips`
-- Fedora with the following packages installed:
-  - `webkit2gtk3-devel.x86_64`, `openssl-devel`, `libappindicator-gtk3`<sup>1</sup>
+  - `webkit2gtk`, `appmenu-gtk-module`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>1</sup>, `libvips`
+- Fedora (latest 2 versions) with the following packages installed:
+  - `webkit2gtk3`, `openssl`, `gtk3`, `libappindicator-gtk3`<sup>1</sup>
 
 <sup>1</sup> `appindicator` is only required if system trays are used
 

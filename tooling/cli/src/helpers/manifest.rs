@@ -93,8 +93,6 @@ fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
     .parse::<Document>()
     .with_context(|| "failed to parse Cargo.toml")?;
 
-  println!("{}", manifest.to_string());
-
   Ok(manifest)
 }
 
@@ -136,7 +134,7 @@ fn write_features(
       }
 
       // remove features that shouldn't be in the manifest anymore
-      let mut i = 0 as usize;
+      let mut i = 0;
       while i < features_array.len() {
         if let Some(f) = features_array.get(i).and_then(|f| f.as_str()) {
           if !features.contains(f) {

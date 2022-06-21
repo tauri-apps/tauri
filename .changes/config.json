@@ -41,7 +41,7 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "cargo package --allow-dirty --no-verify",
+          "command": "cargo package --no-verify",
           "dryRunCommand": true
         },
         {
@@ -55,8 +55,8 @@
           "pipe": true
         },
         {
-          "command": "cargo publish --no-verify",
-          "dryRunCommand": "cargo publish --no-verify --dry-run --allow-dirty",
+          "command": "cargo publish",
+          "dryRunCommand": "cargo publish --dry-run",
           "pipe": true
         },
         {

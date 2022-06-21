@@ -499,7 +499,15 @@ fn start_app(
     Ok(c) => c,
     Err(e) => {
       if e.kind() == ErrorKind::NotFound {
-        return Err(anyhow::anyhow!("`{}` command not found. Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites", runner));
+        return Err(anyhow::anyhow!(
+          "`{}` command not found.{}",
+          runner,
+          if runner == "cargo" {
+            " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+          } else {
+            ""
+          }
+        ));
       } else {
         return Err(e.into());
       }

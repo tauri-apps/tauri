@@ -119,7 +119,15 @@ pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
     }
     Err(e) => {
       if e.kind() == ErrorKind::NotFound {
-        Err(anyhow::anyhow!("`{}` command not found. Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites", runner))
+        Err(anyhow::anyhow!(
+          "`{}` command not found.{}",
+          runner,
+          if runner == "cargo" {
+            " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+          } else {
+            ""
+          }
+        ))
       } else {
         Err(e.into())
       }

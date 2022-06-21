@@ -1013,12 +1013,12 @@ where
     );
 
     if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
-      eprintln!("Failed to seek file to {}: {}", range.start, e);
+      debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
       return Err(e);
     }
 
     if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
-      eprintln!("Failed read file: {}", e);
+      debug_eprintln!("Failed read file: {}", e);
       return Err(e);
     }
   } else {

@@ -1,5 +1,110 @@
 # Changelog
 
+## \[1.0.0]
+
+- Allow choosing multiple folders in `dialog.open`.
+  - [4e51dce6](https://www.github.com/tauri-apps/tauri/commit/4e51dce6ca21c7664de779bc78a04be1051371f7) fix: dialog open supports multiple dirs, fixes [#4091](https://www.github.com/tauri-apps/tauri/pull/4091) ([#4354](https://www.github.com/tauri-apps/tauri/pull/4354)) on 2022-06-15
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
+## \[1.0.0-rc.17]
+
+- Add `Menu::os_default` which will create a menu filled with default menu items and submenus.
+  - [4c4acc30](https://www.github.com/tauri-apps/tauri/commit/4c4acc3094218dd9cee0f1ad61810c979e0b41fa) feat: implement `Default` for `Menu`, closes [#2398](https://www.github.com/tauri-apps/tauri/pull/2398) ([#4291](https://www.github.com/tauri-apps/tauri/pull/4291)) on 2022-06-15
+
+## \[1.0.0-rc.16]
+
+- **Breaking change:** The `TrayIcon` enum has been removed and now `Icon` is used instead.
+  This allows you to use more image formats and use embedded icons on Linux.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
+## \[1.0.0-rc.15]
+
+- Fixes filesystem scope check when using the HTTP API to upload files.
+  - [8ce5b762](https://www.github.com/tauri-apps/tauri/commit/8ce5b7626478db5c4767e894d005fafb79aa5a7f) fix: scope check when using the HTTP API to upload files closes [#4312](https://www.github.com/tauri-apps/tauri/pull/4312) on 2022-06-10
+- Fixes a memory leak in the command system.
+  - [f72cace3](https://www.github.com/tauri-apps/tauri/commit/f72cace36821dc675a6d25268ae85a21bdbd6296) fix: never remove ipc callback & mem never be released ([#4274](https://www.github.com/tauri-apps/tauri/pull/4274)) on 2022-06-05
+- Fixes the `Content-Type` header value when sending multipart requests using the `reqwest-client` feature.
+  - [f6205afc](https://www.github.com/tauri-apps/tauri/commit/f6205afc0d0e419ecb56b9b6b04bd0a0cc9f62ca) fix(core): wrong Content-Type when using reqwest's multipart, ref [#4312](https://www.github.com/tauri-apps/tauri/pull/4312) on 2022-06-10
+- Kill sidecar processes on app exit even when only the `shell-sidecar` feature is enabled.
+  - [6ba91272](https://www.github.com/tauri-apps/tauri/commit/6ba9127298632531b64d2831bccec6d22ef6c874) Fix: sidecar cleanup when only `shell-sidecar` is enabled ([#4254](https://www.github.com/tauri-apps/tauri/pull/4254)) on 2022-06-04
+- Fixes a crash when a request is made to `https://tauri.$URL` on Windows where `$URL` is not `localhost/**` e.g. `https://tauri.app`.
+  - [74457222](https://www.github.com/tauri-apps/tauri/commit/74457222b47221f08388f528a7d52133b6734af6) fix(core): handle requests to `https://tauri.*` on Windows ([#4270](https://www.github.com/tauri-apps/tauri/pull/4270)) on 2022-06-05
+- Set notification icon to app icon on Linux.
+  - [235e448d](https://www.github.com/tauri-apps/tauri/commit/235e448defd8271739804d9b005ffee9c149dd8e) fix: add a default icon to notifications on linux ([#4283](https://www.github.com/tauri-apps/tauri/pull/4283)) on 2022-06-09
+- **Breaking change:** Revert the window creation to be blocking in the main thread. This ensures the window is created before using other methods, but has an issue on Windows where the program deadlocks when creating a window in a Tauri command if it is not `async`. The documentation now states that commands must be `async` in other to prevent it until the issue is fixed in Webview2.
+  - [69ae6f14](https://www.github.com/tauri-apps/tauri/commit/69ae6f14943f94285f4279c3a92f9003f74aacff) refactor(window): block main thread when creating a new window ([#4298](https://www.github.com/tauri-apps/tauri/pull/4298)) on 2022-06-08
+- No longer ask for permission to send notifications and always allow it.
+  - [f482b094](https://www.github.com/tauri-apps/tauri/commit/f482b0942276e9402ab3725957535039bacb4fef) fix: remove notification permission prompt ([#4302](https://www.github.com/tauri-apps/tauri/pull/4302)) on 2022-06-09
+- **Breaking change:** Removed the `settings` module.
+  - [f482b094](https://www.github.com/tauri-apps/tauri/commit/f482b0942276e9402ab3725957535039bacb4fef) fix: remove notification permission prompt ([#4302](https://www.github.com/tauri-apps/tauri/pull/4302)) on 2022-06-09
+- **Breaking change**: Removed the `gtk-tray` and `ayatana-tray` Cargo features.
+  - [6216eb49](https://www.github.com/tauri-apps/tauri/commit/6216eb49e72863bfb6d4c9edb8827b21406ac393) refactor(core): drop `ayatana-tray` and `gtk-tray` Cargo features ([#4247](https://www.github.com/tauri-apps/tauri/pull/4247)) on 2022-06-02
+- Call `preventDefault()` in the mousedown event handler for `[data-tauri-drag-region]` elements.
+  - [a0e20621](https://www.github.com/tauri-apps/tauri/commit/a0e20621f5369682700daa234ec1f4df0c3c4d28) fix: preventDefault mousedown on data-tauri-drag-region, closes [#4059](https://www.github.com/tauri-apps/tauri/pull/4059) on 2022-06-13
+- Set permission to `0o700` for the tmp folder used to move the current AppImage on the updater process.
+  - [b77877fd](https://www.github.com/tauri-apps/tauri/commit/b77877fd2c643c810659fd059cb1bca5b2c68238) fix(updater): set tmp folder permissions ([#4311](https://www.github.com/tauri-apps/tauri/pull/4311)) on 2022-06-12
+
+## \[1.0.0-rc.14]
+
+- **Breaking change:** `PackageInfo::version` is now a `semver::Version` instead of a `String`.
+  - [2badbd2d](https://www.github.com/tauri-apps/tauri/commit/2badbd2d7ed51bf33c1b547b4c837b600574bd4a) refactor: force semver versions, change updater `should_install` sig ([#4215](https://www.github.com/tauri-apps/tauri/pull/4215)) on 2022-05-25
+  - [a7388e23](https://www.github.com/tauri-apps/tauri/commit/a7388e23c3b9019d48b078cae00a75c74d74d11b) fix(ci): adjust change file to include tauri-utils and tauri-codegen on 2022-05-27
+- **Breaking change**: `UpdateBuilder::should_update` now takes the current version as a `semver::Version` and a `RemoteRelease` struct, allowing you to check other release fields.
+  - [2badbd2d](https://www.github.com/tauri-apps/tauri/commit/2badbd2d7ed51bf33c1b547b4c837b600574bd4a) refactor: force semver versions, change updater `should_install` sig ([#4215](https://www.github.com/tauri-apps/tauri/pull/4215)) on 2022-05-25
+- **Breaking change:** The `tauri::UpdaterEvent::UpdateEvent` date field is now an `Option<time::OffsetDateTime>`.
+  - [ac7656ab](https://www.github.com/tauri-apps/tauri/commit/ac7656ab19ebeda1955698ff7a16199d7055d640) refactor(updater): strong type for the `pub_date` field, ref [#4162](https://www.github.com/tauri-apps/tauri/pull/4162) ([#4218](https://www.github.com/tauri-apps/tauri/pull/4218)) on 2022-05-25
+- **Breaking change:** The updater response `pub_date` now must be a valid RFC 3339 string.
+  - [ac7656ab](https://www.github.com/tauri-apps/tauri/commit/ac7656ab19ebeda1955698ff7a16199d7055d640) refactor(updater): strong type for the `pub_date` field, ref [#4162](https://www.github.com/tauri-apps/tauri/pull/4162) ([#4218](https://www.github.com/tauri-apps/tauri/pull/4218)) on 2022-05-25
+
+## \[1.0.0-rc.13]
+
+- Fix `` cannot find macro `message_dialog`  `` error.
+  - [80458a03](https://www.github.com/tauri-apps/tauri/commit/80458a031b15c83019f11a6c222a2993e16d5dc3) Fix `message_dialog` flag ([#4204](https://www.github.com/tauri-apps/tauri/pull/4204)) on 2022-05-25
+
+## \[1.0.0-rc.12]
+
+- Expose option to set the dialog type.
+  - [f46175d5](https://www.github.com/tauri-apps/tauri/commit/f46175d5d46fa3eae66ad2415a0eb1efb7d31da2) feat(core): expose option to set dialog type, closes [#4183](https://www.github.com/tauri-apps/tauri/pull/4183) ([#4187](https://www.github.com/tauri-apps/tauri/pull/4187)) on 2022-05-21
+- Expose `title` option in the message dialog API.
+  - [ae99f991](https://www.github.com/tauri-apps/tauri/commit/ae99f991674d77c322a2240d10ed4b78ed2f4d4b) feat(core): expose message dialog's title option, ref [#4183](https://www.github.com/tauri-apps/tauri/pull/4183) ([#4186](https://www.github.com/tauri-apps/tauri/pull/4186)) on 2022-05-21
+- Immediately create windows when using `tauri::App` as manager.
+  - [52d17754](https://www.github.com/tauri-apps/tauri/commit/52d177543ab5d0b316628ef30c2a32f303bc451d) fix(core): immediately create window when using tauri::App, closes [#4170](https://www.github.com/tauri-apps/tauri/pull/4170) ([#4172](https://www.github.com/tauri-apps/tauri/pull/4172)) on 2022-05-21
+- Account the monitor position when centering a window.
+  - [a7a9fde1](https://www.github.com/tauri-apps/tauri/commit/a7a9fde16fb7c35d48d4f97e83ff95b8baf9e090) fix(core): account for monitor position when centering window ([#4166](https://www.github.com/tauri-apps/tauri/pull/4166)) on 2022-05-21
+- Allow the canonical, absolute form of a path for the filesystem scope on Windows if `std::fs::canonicalize` returns a path, fallback to `\\?\$PATH`.
+  - [78f2565e](https://www.github.com/tauri-apps/tauri/commit/78f2565e14a5a8292045200967a36d6a40899721) fix: allow return value of fs::canonicalize on fs scope, closes [#4130](https://www.github.com/tauri-apps/tauri/pull/4130) ([#4188](https://www.github.com/tauri-apps/tauri/pull/4188)) on 2022-05-21
+- Fixes updater documentation not showing on docs.rs.
+  - [55892c35](https://www.github.com/tauri-apps/tauri/commit/55892c35f5c60836a8b7244e1660a83a01a4bc37) fix(core): updater documentation not showing on docs.rs ([#4190](https://www.github.com/tauri-apps/tauri/pull/4190)) on 2022-05-22
+- Fixes HTTP timeout not working on Windows when using the `attohttpc` client.
+  - [d99c5d58](https://www.github.com/tauri-apps/tauri/commit/d99c5d583bdb1429966283cc5cd4a977cf0770b2) fix(core): HTTP timeout not working on Windows, closes [#4050](https://www.github.com/tauri-apps/tauri/pull/4050) ([#4185](https://www.github.com/tauri-apps/tauri/pull/4185)) on 2022-05-21
+- Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.
+  - [2326be39](https://www.github.com/tauri-apps/tauri/commit/2326be39821890cdd4de76e7029a531424dcb26f) feat(core): update windows-rs to 0.37.0 ([#4199](https://www.github.com/tauri-apps/tauri/pull/4199)) on 2022-05-24
+- **Breaking change:** The `WindowBuilder` struct now has a lifetime annotation `WindowBuilder<R: Runtime, 'a>`.
+  - [52d17754](https://www.github.com/tauri-apps/tauri/commit/52d177543ab5d0b316628ef30c2a32f303bc451d) fix(core): immediately create window when using tauri::App, closes [#4170](https://www.github.com/tauri-apps/tauri/pull/4170) ([#4172](https://www.github.com/tauri-apps/tauri/pull/4172)) on 2022-05-21
+
+## \[1.0.0-rc.11]
+
+- Added the `App::get_cli_matches` helper function.
+  - [617f1144](https://www.github.com/tauri-apps/tauri/commit/617f1144f3f5c4a88e229ff410a511aa72795eef) feat(core): add `App::get_cli_matches` helper ref [#4145](https://www.github.com/tauri-apps/tauri/pull/4145) on 2022-05-17
+- Fixes `fileDropEnabled` option not working.
+  - [706fcbd3](https://www.github.com/tauri-apps/tauri/commit/706fcbd39c9c08f58da12f874199bd0c06016fb2) fix(core): fileDropEnabled option is not working when creating a new WebviewWindow ([#4146](https://www.github.com/tauri-apps/tauri/pull/4146)) on 2022-05-18
+- Prepare window icon and menu even when loading remote URLs. Previously it was behind a `is local URL?` condition.
+  - [25aa4347](https://www.github.com/tauri-apps/tauri/commit/25aa4347b3a85c66d445e09f864b7fe6c140a0f9) fix(core): prepare window icon and menu on remote URLs, closes [#4131](https://www.github.com/tauri-apps/tauri/pull/4131) ([#4140](https://www.github.com/tauri-apps/tauri/pull/4140)) on 2022-05-16
+- Fix `.mjs` not being recognised as a file extension for JavaScript files (`text/javascript`).
+  - [45c45253](https://www.github.com/tauri-apps/tauri/commit/45c45253866ce0de317a6a547af3ea0434d4bcac) fix: add mjs mime type (fix: [#4098](https://www.github.com/tauri-apps/tauri/pull/4098)) ([#4108](https://www.github.com/tauri-apps/tauri/pull/4108)) on 2022-05-13
+- Added `PathResolver::resolve_resource` API.
+  - [e35aaebc](https://www.github.com/tauri-apps/tauri/commit/e35aaebc309f5796cf6f380d1ac7d5a8094b9033) feat(core): add `PathResolver::resolve_resource` API ([#4116](https://www.github.com/tauri-apps/tauri/pull/4116)) on 2022-05-13
+- Allow configuring the display options for the MSI execution allowing quieter updates.
+  - [9f2c3413](https://www.github.com/tauri-apps/tauri/commit/9f2c34131952ea83c3f8e383bc3cec7e1450429f) feat(core): configure msiexec display options, closes [#3951](https://www.github.com/tauri-apps/tauri/pull/3951) ([#4061](https://www.github.com/tauri-apps/tauri/pull/4061)) on 2022-05-15
+
+## \[1.0.0-rc.10]
+
+- Update wry to 0.16.2 and webkit2gtk to 0.18.0.
+  - [71a553b7](https://www.github.com/tauri-apps/tauri/commit/71a553b715312e2bcceb963c83e42cffca7a63bc) chore(deps): update wry to 0.16.2, webkit2gtk to 0.18.0 ([#4099](https://www.github.com/tauri-apps/tauri/pull/4099)) on 2022-05-10
+- Adds the `App#wry_plugin` API to inject a plugin for the wry integration.
+  - [c8e0e5b9](https://www.github.com/tauri-apps/tauri/commit/c8e0e5b97d542e549b37be08b545515c862af0e5) feat(tauri-runtime-wry): add plugin API ([#4094](https://www.github.com/tauri-apps/tauri/pull/4094)) on 2022-05-10
+
 ## \[1.0.0-rc.9]
 
 - The `dangerous_allow_asset_csp_modification` configuration value has been changed to allow a list of CSP directives to disable.
@@ -314,7 +419,7 @@ these specific choices.
   - [1f988535](https://www.github.com/tauri-apps/tauri/commit/1f98853573a837dd0cfc2161b206a5033ec2da5e) chore(deps) Update Tauri Core ([#2480](https://www.github.com/tauri-apps/tauri/pull/2480)) on 2021-08-24
 - The `api::process::Command` APIs are now hidden behind the `command` feature flag.
   - [eed01728](https://www.github.com/tauri-apps/tauri/commit/eed017287fed2ade689af4268e8b63b9c9f2e585) feat(core): add `shell > sidecar` allowlist and `process` feature flag \[TRI-037] ([#18](https://www.github.com/tauri-apps/tauri/pull/18)) on 2021-10-24
-- Add `tauri::api::path::log_dir` function to access the sugested log directory path.
+- Add `tauri::api::path::log_dir` function to access the suggested log directory path.
   - [acbb3ae7](https://www.github.com/tauri-apps/tauri/commit/acbb3ae7bb0165846b9456aea103269f027fc548) feat: add Log directory ([#2736](https://www.github.com/tauri-apps/tauri/pull/2736)) on 2021-10-16
   - [62c7a8ad](https://www.github.com/tauri-apps/tauri/commit/62c7a8ad30fd3031b8679960590e5ef3eef8e4da) chore(covector): prepare for `rc` release ([#3376](https://www.github.com/tauri-apps/tauri/pull/3376)) on 2022-02-10
 - The `process`, `path` and `updater` APIs now takes a `tauri::Env` argument, used to force environment variables load on startup to prevent env var update attacks.
@@ -370,7 +475,7 @@ these specific choices.
   - [a03b8554](https://www.github.com/tauri-apps/tauri/commit/a03b85545a4b0b61a598a43eabe96e03565dcaf0) fix(core): tray not closing on Windows ([#3351](https://www.github.com/tauri-apps/tauri/pull/3351)) on 2022-02-07
 - Immediately listen to `tauri://window-created` event to catch it before the application triggers it.
   - [878b8b9a](https://www.github.com/tauri-apps/tauri/commit/878b8b9a1fc825b1ea34f955e053311409a1468d) fix(core): immediately listen to window-created, closes [#3297](https://www.github.com/tauri-apps/tauri/pull/3297) ([#3298](https://www.github.com/tauri-apps/tauri/pull/3298)) on 2022-02-04
-- The `tauri::Window#emit` functiow now correctly sends the event to all windows that has a registered listener.
+- The `tauri::Window#emit` function now correctly sends the event to all windows that has a registered listener.
   **Breaking change:** `Window#emit_and_trigger` and `Window#emit` now requires the payload to be cloneable.
   - [9b340552](https://www.github.com/tauri-apps/tauri/commit/9b340552643a1d8b9311219101329ce23c9271ea) fix(core): window-specific event delivery, closes [#3302](https://www.github.com/tauri-apps/tauri/pull/3302) ([#3344](https://www.github.com/tauri-apps/tauri/pull/3344)) on 2022-02-06
 - Allow using a fixed version for the Webview2 runtime via the `tauri > bundle > windows > webviewFixedRuntimePath` config option.
@@ -380,7 +485,7 @@ these specific choices.
 - `tauri::api::HttpRequestBuilder::new` now returns a `Result` to validate the url.
   - [0ad1c651](https://www.github.com/tauri-apps/tauri/commit/0ad1c6515f696fadefddbf133a9561836b3d5934) feat(core): add `http` allowlist scope \[TRI-008] ([#24](https://www.github.com/tauri-apps/tauri/pull/24)) on 2021-10-29
 - Added the `isolation` pattern.
-  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.studio> on 2022-01-17
+  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.app> on 2022-01-17
 - Added `abort` method to `tauri::async_runtime::JoinHandle`.
   - [ad169759](https://www.github.com/tauri-apps/tauri/commit/ad16975938afc9e87747de5fdcb0f07fc2d24811) feat: Add JoinHandle::abort() ([#2877](https://www.github.com/tauri-apps/tauri/pull/2877)) on 2021-11-13
 - Adds support for using JSON5 format for the `tauri.conf.json` file, along with also supporting the `.json5` extension.
@@ -448,7 +553,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - The minimum Rust version is now `1.56`.
   - [a9dfc015](https://www.github.com/tauri-apps/tauri/commit/a9dfc015505afe91281c2027954ffcc588b1a59c) feat: update to edition 2021 and set minimum rust to 1.56 ([#2789](https://www.github.com/tauri-apps/tauri/pull/2789)) on 2021-10-22
 - The minimum Rust version is now 1.57.
-  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.studio> on 2022-01-17
+  - [d5d6d2ab](https://www.github.com/tauri-apps/tauri/commit/d5d6d2abc17cd89c3a079d2ce01581193469dbc0) Isolation Pattern ([#43](https://www.github.com/tauri-apps/tauri/pull/43)) Co-authored-by: Ngo Iok Ui (Wu Yu Wei) <wusyong9104@gmail.com> Co-authored-by: Lucas Fernandes Nogueira <lucas@tauri.app> on 2022-01-17
 - Scopes the `filesystem` APIs from the webview access using `tauri.conf.json > tauri > allowlist > fs > scope`.
   Scopes the `asset` protocol access using `tauri.conf.json > tauri > allowlist > protocol > assetScope`.
   Scopes the `http` APIs from the webview access using `tauri.conf.json > tauri > allowlist > http > scope`.
@@ -495,7 +600,7 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
 - Fix missing asset protocol path.Now the protocol is `https://asset.localhost/path/to/file` on Windows. Lunix and macOS
   is still `asset://path/to/file`.
   - [994b5325](https://www.github.com/tauri-apps/tauri/commit/994b5325dd385f564b37fe1530c5d798dc925fff) fix: missing asset protocol path ([#2484](https://www.github.com/tauri-apps/tauri/pull/2484)) on 2021-08-23
-- **Breaking change:** Removed `register_uri_scheme_protocol` from the `WebviewAttibutes` struct and renamed `register_global_uri_scheme_protocol` to `register_uri_scheme_protocol` on the `Builder` struct, which now takes a `Fn(&AppHandle, &http::Request) -> http::Response` closure.
+- **Breaking change:** Removed `register_uri_scheme_protocol` from the `WebviewAttributes` struct and renamed `register_global_uri_scheme_protocol` to `register_uri_scheme_protocol` on the `Builder` struct, which now takes a `Fn(&AppHandle, &http::Request) -> http::Response` closure.
   - [539e4489](https://www.github.com/tauri-apps/tauri/commit/539e4489e0bac7029d86917e9982ea49e02fe489) refactor: custom protocol ([#2503](https://www.github.com/tauri-apps/tauri/pull/2503)) on 2021-08-23
 - Migrate to latest custom protocol allowing `Partial content` streaming and Header parsing.
   - [539e4489](https://www.github.com/tauri-apps/tauri/commit/539e4489e0bac7029d86917e9982ea49e02fe489) refactor: custom protocol ([#2503](https://www.github.com/tauri-apps/tauri/pull/2503)) on 2021-08-23
@@ -738,8 +843,8 @@ Here is the logic flow that determines if JSON or JSON5 will be used to parse th
   - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
 - Improve invoke key code injection performance time rewriting code at compile time.
   - [7765c7fa](https://www.github.com/tauri-apps/tauri/commit/7765c7fa281853ddfb26b6b17534df95eaede804) fix(core): invoke key injection on ES module, improve performance ([#2094](https://www.github.com/tauri-apps/tauri/pull/2094)) on 2021-06-27
-- Enfore uniqueness of window label.
-  - [d18b5367](https://www.github.com/tauri-apps/tauri/commit/d18b5367a91fd53d408510b456897630c70abcca) feat(core): enfore label uniqueness, closes [#2067](https://www.github.com/tauri-apps/tauri/pull/2067) ([#2097](https://www.github.com/tauri-apps/tauri/pull/2097)) on 2021-06-27
+- Enforce uniqueness of window label.
+  - [d18b5367](https://www.github.com/tauri-apps/tauri/commit/d18b5367a91fd53d408510b456897630c70abcca) feat(core): enforce label uniqueness, closes [#2067](https://www.github.com/tauri-apps/tauri/pull/2067) ([#2097](https://www.github.com/tauri-apps/tauri/pull/2097)) on 2021-06-27
 - `Window` is now `Send + Sync` on Windows.
   - [fe32afcc](https://www.github.com/tauri-apps/tauri/commit/fe32afcc933920d6282ae1d63b041b182278a031) fix(core): `Window` must be `Send + Sync` on Windows, closes [#2078](https://www.github.com/tauri-apps/tauri/pull/2078) ([#2093](https://www.github.com/tauri-apps/tauri/pull/2093)) on 2021-06-27
 
@@ -1155,7 +1260,7 @@ Note: The order that event handlers are called when triggered is still non-deter
   - [a6def70](https://www.github.com/tauri-apps/tauri/commit/a6def7066eec19c889b0f14cc1e475bf209a332e) Refactor(tauri): move tauri-api and tauri-updater to tauri ([#1455](https://www.github.com/tauri-apps/tauri/pull/1455)) on 2021-04-11
 - Tauri now uses explicit Error variants with `thiserror` instead of relying on `anyhow`.
   - [156a0ad](https://www.github.com/tauri-apps/tauri/commit/156a0ad5cb0a152eaa0dd038a6b3dba68f03eb21) refactor(tauri): use explicit error types instead of anyhow ([#1209](https://www.github.com/tauri-apps/tauri/pull/1209)) on 2021-02-10
-- Align HTTP API types with the [documentation](https://tauri.studio/en/docs/api/js#http).
+- Align HTTP API types with the [documentation](https://tauri.app/en/docs/api/js#http).
   - [2fc39fc](https://www.github.com/tauri-apps/tauri/commit/2fc39fc341771431078c20a95fa6b2affe5155c9) fix(api/http): correct types ([#1360](https://www.github.com/tauri-apps/tauri/pull/1360)) on 2021-03-17
   - [a6def70](https://www.github.com/tauri-apps/tauri/commit/a6def7066eec19c889b0f14cc1e475bf209a332e) Refactor(tauri): move tauri-api and tauri-updater to tauri ([#1455](https://www.github.com/tauri-apps/tauri/pull/1455)) on 2021-04-11
 - Replace `\` with `\\` in css assets that are lazy loaded. Since these are injected in a template literal, backslashes must be escaped. Backslashes are sometimes used for octal sequences in CSS.
@@ -1321,7 +1426,7 @@ https://github.com/GoogleChromeLabs/json-parse-benchmark
 ## \[0.7.3]
 
 - Properly run the loopback command on Windows.
-- Properly ignore the ${distDir}/index.html asset from the asset embbeding. Previously every asset with name matching /(.+)index.html$/g were ignored.
+- Properly ignore the ${distDir}/index.html asset from the asset embedding. Previously every asset with name matching /(.+)index.html$/g were ignored.
 
 ## \[0.7.2]
 

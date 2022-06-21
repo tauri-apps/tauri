@@ -9,7 +9,7 @@ use crate::{
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
     manifest::{rewrite_manifest, Manifest},
   },
-  CommandExt, Result,
+  Result,
 };
 use clap::Parser;
 
@@ -52,7 +52,7 @@ pub struct Options {
   #[clap(short, long)]
   target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long)]
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
@@ -111,8 +111,7 @@ fn command_internal(options: Options) -> Result<()> {
           .arg("/C")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true))
-          .pipe()?; // development build always includes debug information
+          .envs(command_env(true));
         command
       };
       #[cfg(not(target_os = "windows"))]
@@ -122,11 +121,12 @@ fn command_internal(options: Options) -> Result<()> {
           .arg("-c")
           .arg(before_dev)
           .current_dir(app_dir())
-          .envs(command_env(true))
-          .pipe()?; // development build always includes debug information
+          .envs(command_env(true));
         command
       };
       command.stdin(Stdio::piped());
+      command.stdout(os_pipe::dup_stdout()?);
+      command.stderr(os_pipe::dup_stderr()?);
 
       let child = SharedChild::spawn(&mut command)
         .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
@@ -296,7 +296,7 @@ fn check_for_updates() -> Result<()> {
     let upstream = semver::Version::parse(&upstream_version)?;
     if current < upstream {
       println!(
-        "🚀 A new version of Tauri CLI is avaliable! [{}]",
+        "🚀 A new version of Tauri CLI is available! [{}]",
         upstream.to_string()
       );
     };
@@ -317,6 +317,9 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
   let mut builder = ignore::WalkBuilder::new(dir);
   let _ = builder.add_ignore(default_gitignore);
+  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+    builder.add_ignore(ignore_file);
+  }
   builder.require_git(false).ignore(false).max_depth(Some(1));
 
   for entry in builder.build().flatten() {

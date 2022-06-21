@@ -15,10 +15,11 @@ use winreg::{
 };
 
 pub struct SignParams {
+  pub product_name: String,
   pub digest_algorithm: String,
   pub certificate_thumbprint: String,
   pub timestamp_url: Option<String>,
-  pub tsp: Option<bool>,
+  pub tsp: bool,
 }
 
 // sign code forked from https://github.com/forbjok/rust-codesign
@@ -103,9 +104,10 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   cmd.arg("sign");
   cmd.args(&["/fd", &params.digest_algorithm]);
   cmd.args(&["/sha1", &params.certificate_thumbprint]);
+  cmd.args(&["/d", &params.product_name]);
 
   if let Some(ref timestamp_url) = params.timestamp_url {
-    if params.tsp == Some(true) {
+    if params.tsp {
       cmd.args(&["/tr", timestamp_url]);
       cmd.args(&["/td", &params.digest_algorithm]);
     } else {

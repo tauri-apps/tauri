@@ -69,7 +69,11 @@ fn push_pattern<P: AsRef<Path>>(list: &mut HashSet<Pattern>, pattern: P) -> crat
   list.insert(Pattern::new(&path.to_string_lossy())?);
   #[cfg(windows)]
   {
-    list.insert(Pattern::new(&format!("\\\\?\\{}", path.display()))?);
+    if let Ok(p) = std::fs::canonicalize(&path) {
+      list.insert(Pattern::new(&p.to_string_lossy())?);
+    } else {
+      list.insert(Pattern::new(&format!("\\\\?\\{}", path.display()))?);
+    }
   }
   Ok(())
 }
@@ -123,7 +127,9 @@ impl Scope {
   }
 
   fn trigger(&self, event: Event) {
-    for listener in self.event_listeners.lock().unwrap().values() {
+    let listeners = self.event_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for listener in handlers {
       listener(&event);
     }
   }

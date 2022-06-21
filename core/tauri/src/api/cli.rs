@@ -84,6 +84,9 @@ impl Matches {
 
 /// Gets the argument matches of the CLI definition.
 ///
+/// This is a low level API. If the application has been built,
+/// prefer [`App::get_cli_matches`](`crate::App#method.get_cli_matches`).
+///
 /// # Examples
 ///
 /// ```rust,no_run
@@ -99,7 +102,8 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
     .description()
     .unwrap_or(&package_info.description.to_string())
     .to_string();
-  let app = get_app(package_info, &package_info.name, Some(&about), cli);
+  let version = &*package_info.version.to_string();
+  let app = get_app(package_info, version, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
     Err(e) => match ErrorExt::kind(&e) {
@@ -147,10 +151,12 @@ fn get_matches_internal(config: &CliConfig, matches: &ArgMatches) -> Matches {
 fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Matches) {
   if let Some(args) = config.args() {
     for arg in args {
+      #[allow(deprecated)]
       let occurrences = matches.occurrences_of(arg.name.clone());
-      let value = if occurrences == 0 || !arg.takes_value.unwrap_or(false) {
+      let value = if occurrences == 0 || !arg.takes_value {
         Value::Bool(occurrences > 0)
-      } else if arg.multiple.unwrap_or(false) {
+      } else if arg.multiple {
+        #[allow(deprecated)]
         matches
           .values_of(arg.name.clone())
           .map(|v| {
@@ -162,6 +168,7 @@ fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Match
           })
           .unwrap_or(Value::Null)
       } else {
+        #[allow(deprecated)]
         matches
           .value_of(arg.name.clone())
           .map(|v| Value::String(v.to_string()))
@@ -175,13 +182,14 @@ fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Match
 
 fn get_app<'a>(
   package_info: &'a PackageInfo,
+  version: &'a str,
   command_name: &'a str,
   about: Option<&'a String>,
   config: &'a CliConfig,
 ) -> App<'a> {
   let mut app = App::new(command_name)
     .author(package_info.authors)
-    .version(&*package_info.version);
+    .version(version);
 
   if let Some(about) = about {
     app = app.about(&**about);
@@ -207,6 +215,7 @@ fn get_app<'a>(
     for (subcommand_name, subcommand) in subcommands {
       let clap_subcommand = get_app(
         package_info,
+        version,
         subcommand_name,
         subcommand.description(),
         subcommand,
@@ -230,16 +239,20 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
 
   clap_arg = bind_string_arg!(arg, clap_arg, description, help);
   clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_help);
-  clap_arg = bind_value_arg!(arg, clap_arg, takes_value);
-  if let Some(value) = arg.multiple {
-    clap_arg = clap_arg.multiple_values(value);
+  clap_arg = clap_arg.takes_value(arg.takes_value);
+  clap_arg = clap_arg.multiple_values(arg.multiple);
+  #[allow(deprecated)]
+  {
+    clap_arg = clap_arg.multiple_occurrences(arg.multiple_occurrences);
   }
-  clap_arg = bind_value_arg!(arg, clap_arg, multiple_occurrences);
   clap_arg = bind_value_arg!(arg, clap_arg, number_of_values);
-  clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);
+  #[allow(deprecated)]
+  {
+    clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);
+  }
   clap_arg = bind_value_arg!(arg, clap_arg, min_values);
   clap_arg = bind_value_arg!(arg, clap_arg, max_values);
-  clap_arg = bind_value_arg!(arg, clap_arg, required);
+  clap_arg = clap_arg.required(arg.required);
   clap_arg = bind_string_arg!(
     arg,
     clap_arg,

@@ -13,14 +13,16 @@ fn main() {
     Manager,
   };
 
+  let context = tauri::generate_context!();
+
   tauri::Builder::default()
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .setup(move |app| {
       let window = app.get_window("main").unwrap();
       let script_path = app
         .path_resolver()
-        .resource_dir()
+        .resolve_resource("assets/index.js")
         .unwrap()
-        .join("assets/index.js")
         .to_string_lossy()
         .to_string();
       tauri::async_runtime::spawn(async move {
@@ -41,6 +43,6 @@ fn main() {
 
       Ok(())
     })
-    .run(tauri::generate_context!())
+    .run(context)
     .expect("error while running tauri application");
 }

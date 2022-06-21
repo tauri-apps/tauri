@@ -83,6 +83,8 @@ impl Notification {
     }
     if let Some(icon) = self.icon {
       notification.icon(&icon);
+    } else {
+      notification.auto_icon();
     }
     #[cfg(windows)]
     {

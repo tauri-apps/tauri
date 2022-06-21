@@ -143,6 +143,11 @@ impl Client {
 
     if let Some(timeout) = request.timeout {
       request_builder = request_builder.timeout(timeout);
+      #[cfg(windows)]
+      {
+        // on Windows the global timeout is not respected, see https://github.com/sbstp/attohttpc/issues/118
+        request_builder = request_builder.read_timeout(timeout);
+      }
     }
 
     let response = if let Some(body) = request.body {
@@ -233,7 +238,7 @@ impl Client {
   /// Executes an HTTP request
   ///
   /// # Examples
-  pub async fn send(&self, request: HttpRequestBuilder) -> crate::api::Result<Response> {
+  pub async fn send(&self, mut request: HttpRequestBuilder) -> crate::api::Result<Response> {
     let method = Method::from_bytes(request.method.to_uppercase().as_bytes())?;
 
     let mut request_builder = self.0.request(method, request.url.as_str());
@@ -255,7 +260,7 @@ impl Client {
           #[allow(unused_variables)]
           fn send_form(
             request_builder: reqwest::RequestBuilder,
-            headers: &Option<HeaderMap>,
+            headers: &mut Option<HeaderMap>,
             form_body: FormBody,
           ) -> crate::api::Result<reqwest::RequestBuilder> {
             #[cfg(feature = "http-multipart")]
@@ -266,6 +271,8 @@ impl Client {
                 .map(|v| v.as_bytes()),
               Some(b"multipart/form-data")
             ) {
+              // the Content-Type header will be set by reqwest in the `.multipart` call
+              headers.as_mut().map(|h| h.0.remove("content-type"));
               let mut multipart = reqwest::multipart::Form::new();
 
               for (name, part) in form_body.0 {
@@ -306,7 +313,7 @@ impl Client {
             }
             Ok(request_builder.form(&form))
           }
-          send_form(request_builder, &request.headers, form_body)?
+          send_form(request_builder, &mut request.headers, form_body)?
         }
       };
     }

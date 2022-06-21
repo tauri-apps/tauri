@@ -1,5 +1,46 @@
 # Changelog
 
+## \[0.9.0]
+
+- Upgrade to `stable`!
+  - Bumped due to a bump in tauri-utils.
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
+## \[0.8.1]
+
+- Add `Menu::os_default` which will create a menu filled with default menu items and submenus.
+  - Bumped due to a bump in tauri-runtime.
+  - [4c4acc30](https://www.github.com/tauri-apps/tauri/commit/4c4acc3094218dd9cee0f1ad61810c979e0b41fa) feat: implement `Default` for `Menu`, closes [#2398](https://www.github.com/tauri-apps/tauri/pull/2398) ([#4291](https://www.github.com/tauri-apps/tauri/pull/4291)) on 2022-06-15
+
+## \[0.8.0]
+
+- Removed `TrayIcon` and renamed `WindowIcon` to `Icon`, a shared type for both icons.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
+## \[0.7.0]
+
+- **Breaking change**: Removed the `gtk-tray` and `ayatana-tray` Cargo features.
+  - [6216eb49](https://www.github.com/tauri-apps/tauri/commit/6216eb49e72863bfb6d4c9edb8827b21406ac393) refactor(core): drop `ayatana-tray` and `gtk-tray` Cargo features ([#4247](https://www.github.com/tauri-apps/tauri/pull/4247)) on 2022-06-02
+
+## \[0.6.0]
+
+- Account the monitor position when centering a window.
+  - [a7a9fde1](https://www.github.com/tauri-apps/tauri/commit/a7a9fde16fb7c35d48d4f97e83ff95b8baf9e090) fix(core): account for monitor position when centering window ([#4166](https://www.github.com/tauri-apps/tauri/pull/4166)) on 2022-05-21
+- Update `windows-rs` to `0.37.0`, which requires Rust 1.61.0+.
+  - [2326be39](https://www.github.com/tauri-apps/tauri/commit/2326be39821890cdd4de76e7029a531424dcb26f) feat(core): update windows-rs to 0.37.0 ([#4199](https://www.github.com/tauri-apps/tauri/pull/4199)) on 2022-05-24
+
+## \[0.5.2]
+
+- Use the event loop proxy to create a window so it doesn't deadlock on Windows.
+  - [61e37652](https://www.github.com/tauri-apps/tauri/commit/61e37652b931520424d6a93a134e67893703d992) fix(core): deadlock when creating window from IPC handler, closes [#4121](https://www.github.com/tauri-apps/tauri/pull/4121) ([#4123](https://www.github.com/tauri-apps/tauri/pull/4123)) on 2022-05-13
+
+## \[0.5.1]
+
+- Added the `plugin` method to the `Wry` runtime, allowing extensions to the event loop.
+  - [c8e0e5b9](https://www.github.com/tauri-apps/tauri/commit/c8e0e5b97d542e549b37be08b545515c862af0e5) feat(tauri-runtime-wry): add plugin API ([#4094](https://www.github.com/tauri-apps/tauri/pull/4094)) on 2022-05-10
+- Update wry to 0.16.2 and webkit2gtk to 0.18.0.
+  - [71a553b7](https://www.github.com/tauri-apps/tauri/commit/71a553b715312e2bcceb963c83e42cffca7a63bc) chore(deps): update wry to 0.16.2, webkit2gtk to 0.18.0 ([#4099](https://www.github.com/tauri-apps/tauri/pull/4099)) on 2022-05-10
+
 ## \[0.5.0]
 
 - The file drop event payloads are now percent-decoded.

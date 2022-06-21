@@ -1,5 +1,61 @@
 # Changelog
 
+## \[1.0.0]
+
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
+## \[1.0.0-rc.10]
+
+- Bundle the tray library file (`.so` extension) in the AppImage if the `TRAY_LIBRARY_PATH` environment variable is set.
+  - [34552444](https://www.github.com/tauri-apps/tauri/commit/3455244436578003a5fbb447b039e5c8971152ec) feat(cli): bundle appindicator library in the AppImage, closes [#3859](https://www.github.com/tauri-apps/tauri/pull/3859) ([#4267](https://www.github.com/tauri-apps/tauri/pull/4267)) on 2022-06-07
+- Bundle additional gstreamer files needed for audio and video playback if the `APPIMAGE_BUNDLE_GSTREAMER` environment variable is set.
+  - [d335fae9](https://www.github.com/tauri-apps/tauri/commit/d335fae92cdcbb0ee18aad4e54558914afa3e778) feat(bundler): bundle additional gstreamer files, closes [#4092](https://www.github.com/tauri-apps/tauri/pull/4092) ([#4271](https://www.github.com/tauri-apps/tauri/pull/4271)) on 2022-06-10
+- Cache bundling tools in a directory shared by all tauri projects. Usually in `$XDG_HOME/.cache/tauri` on Linux and `$HOME\AppData\Local\tauri` on Windows.
+  - [f48b1b0b](https://www.github.com/tauri-apps/tauri/commit/f48b1b0b3bec6a2a85c7dac67a128fa578f7ee15) feat(bundler): cache bundling tools in a common dir for all projects ([#4305](https://www.github.com/tauri-apps/tauri/pull/4305)) on 2022-06-09
+- Pull correct linuxdeploy AppImage when building for 32-bit targets.
+  - [53ae13d9](https://www.github.com/tauri-apps/tauri/commit/53ae13d99a06b786fb4fbeb1a10e934f7be3008c) fix(bundler): Pull correct 32bit linuxdeploy appimage, closes [#4260](https://www.github.com/tauri-apps/tauri/pull/4260) ([#4269](https://www.github.com/tauri-apps/tauri/pull/4269)) on 2022-06-04
+- Copy the `/usr/bin/xdg-open` binary if it exists and the `APPIMAGE_BUNDLE_XDG_OPEN` environment variable is set.
+  - [2322ac11](https://www.github.com/tauri-apps/tauri/commit/2322ac11cf6290c6bf65413048a049c8072f863b) fix(bundler): bundle `/usr/bin/xdg-open` in appimage if open API enabled ([#4265](https://www.github.com/tauri-apps/tauri/pull/4265)) on 2022-06-04
+- On Linux, high-dpi icons are now placed in the correct directory
+  and should be recognized by the desktop environment.
+  - [c2b7c775](https://www.github.com/tauri-apps/tauri/commit/c2b7c7751764d0963362a4b271cd921d6424e5e9) fix: put linux high dpi icons in the correct dir ([#4281](https://www.github.com/tauri-apps/tauri/pull/4281)) on 2022-06-10
+- Only png files from tauri.conf.json > tauri.bundle.icon are used for app icons for linux targets.
+  Previously, all sizes from all source files (10 files using tauricon defaults) were used.
+  This also prevents unexpectedly mixed icons in cases where platform-specific icons are used.
+  - [a6f45d52](https://www.github.com/tauri-apps/tauri/commit/a6f45d5248ec0f4d3876afd8f106998306ea931e) Debian icon no fallback, fixes [#4280](https://www.github.com/tauri-apps/tauri/pull/4280) ([#4282](https://www.github.com/tauri-apps/tauri/pull/4282)) on 2022-06-09
+- Log command output in real time instead of waiting for it to finish.
+  - [76d1eaae](https://www.github.com/tauri-apps/tauri/commit/76d1eaaebda5c8f6b0d41bf6587945e98cd441f3) feat(cli): debug command output in real time ([#4318](https://www.github.com/tauri-apps/tauri/pull/4318)) on 2022-06-12
+
+## \[1.0.0-rc.9]
+
+- Statically link the Visual C++ runtime instead of using a merge module on the installer.
+  - [bb061509](https://www.github.com/tauri-apps/tauri/commit/bb061509fb674bef86ecbc1de3aa8f3e367a9907) refactor(core): statically link vcruntime, closes [#4122](https://www.github.com/tauri-apps/tauri/pull/4122) ([#4227](https://www.github.com/tauri-apps/tauri/pull/4227)) on 2022-05-27
+
+## \[1.0.0-rc.8]
+
+- Use binary arch instead of `x86_64` on the AppImage bundle script.
+  - [6830a739](https://www.github.com/tauri-apps/tauri/commit/6830a739535e920f1857a1946fb69750a6d7b92f) fix(bundler): use binary arch on appimage bundle script ([#4194](https://www.github.com/tauri-apps/tauri/pull/4194)) on 2022-05-23
+- Fixes lost files on upgrade due to wrong implementation to keep shortcuts.
+  - [8539e02f](https://www.github.com/tauri-apps/tauri/commit/8539e02f7fd56cc47b25ed45c8403d66abe262ac) fix(bundler): wix upgrade do not installing new files, closes [#4182](https://www.github.com/tauri-apps/tauri/pull/4182) on 2022-05-21
+
+## \[1.0.0-rc.7]
+
+- Change `tsp` value from `Option<bool>` to `bool`.
+  - [29d8e768](https://www.github.com/tauri-apps/tauri/commit/29d8e768aa0b52e1997c0f5c9e447b80eff47b93) feat(config): adjust schema for documentation website, closes [#4139](https://www.github.com/tauri-apps/tauri/pull/4139) ([#4142](https://www.github.com/tauri-apps/tauri/pull/4142)) on 2022-05-17
+- Fixes processing of resources with glob patterns when there are nested directories on Windows.
+  - [3e702cf8](https://www.github.com/tauri-apps/tauri/commit/3e702cf8b15762cdca43c8d7ff6f6e8ee9670244) fix(bundler): ignore duplicated files in resource iter, closes [#4126](https://www.github.com/tauri-apps/tauri/pull/4126) ([#4129](https://www.github.com/tauri-apps/tauri/pull/4129)) on 2022-05-15
+- Fixes resource bundling on Windows when the resource path includes root or parent directory components.
+  - [787ea09a](https://www.github.com/tauri-apps/tauri/commit/787ea09adc40644b89926e2b629261065141d16c) fix: generate windows resource directories using resource_relpath, closes [#4087](https://www.github.com/tauri-apps/tauri/pull/4087). ([#4111](https://www.github.com/tauri-apps/tauri/pull/4111)) on 2022-05-13
+- Set the application name when signing the Windows MSI.
+  - [8e1daad1](https://www.github.com/tauri-apps/tauri/commit/8e1daad1537e93c6a969c03328b8502b92bf5b89) fix(bundler): set app name when signing MSI, closes [#3945](https://www.github.com/tauri-apps/tauri/pull/3945) ([#3950](https://www.github.com/tauri-apps/tauri/pull/3950)) on 2022-05-17
+- Change WiX MajorUpgrade element's `Schedule` to `afterInstallExecute` to prevent removal of existing configuration such as the executable's pin to taskbar.
+  - [d965b921](https://www.github.com/tauri-apps/tauri/commit/d965b92174a1e6a01fc1a080254402d52145af1e) fix(bundler): prevent removal of `pin to taskbar` on Windows ([#4144](https://www.github.com/tauri-apps/tauri/pull/4144)) on 2022-05-17
+- Change the MSI reinstall mode so it only reinstall missing or different version files.
+  - [1948ae53](https://www.github.com/tauri-apps/tauri/commit/1948ae53fdcd0ef99ef302066792d779a62c5065) fix(bundler): only reinstall missing or != version files, closes [#4122](https://www.github.com/tauri-apps/tauri/pull/4122) ([#4125](https://www.github.com/tauri-apps/tauri/pull/4125)) on 2022-05-15
+- Allow configuring the display options for the MSI execution allowing quieter updates.
+  - [9f2c3413](https://www.github.com/tauri-apps/tauri/commit/9f2c34131952ea83c3f8e383bc3cec7e1450429f) feat(core): configure msiexec display options, closes [#3951](https://www.github.com/tauri-apps/tauri/pull/3951) ([#4061](https://www.github.com/tauri-apps/tauri/pull/4061)) on 2022-05-15
+
 ## \[1.0.0-rc.6]
 
 - Remove `Settings::verbose` option. You may now bring your own `log` frontend to receive logging output from the bundler while remaining in control of verbosity and formatting.

@@ -58,7 +58,7 @@
 
   export let onMessage
 
-  let urlValue = 'https://tauri.studio'
+  let urlValue = 'https://tauri.app'
   let resizable = true
   let maximized = false
   let transparent = false

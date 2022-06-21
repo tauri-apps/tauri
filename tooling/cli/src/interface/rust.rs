@@ -101,14 +101,19 @@ struct CargoConfig {
 }
 
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  Command::new(&runner)
+  let status = Command::new(&runner)
     .args(&["build", "--features=custom-protocol"])
     .args(args)
-    .pipe()?
-    .output_ok()
-    .with_context(|| format!("Result of `{} build` operation was unsuccessful", runner))?;
-
-  Ok(())
+    .env("STATIC_VCRUNTIME", "true")
+    .piped()?;
+  if status.success() {
+    Ok(())
+  } else {
+    Err(anyhow::anyhow!(
+      "Result of `{} build` operation was unsuccessful",
+      runner
+    ))
+  }
 }
 
 pub struct AppSettings {
@@ -413,13 +418,12 @@ fn tauri_config_to_bundle_settings(
   #[cfg(target_os = "linux")]
   {
     if let Some(system_tray_config) = &system_tray_config {
-      let mut icon_path = system_tray_config.icon_path.clone();
-      icon_path.set_extension("png");
-      resources.push(icon_path.display().to_string());
-      if enabled_features.contains(&"tauri/gtk-tray".into()) {
-        depends.push("libappindicator3-1".into());
-      } else {
+      depends.push("pkg-config".to_string());
+      let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
+      if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());
+      } else {
+        depends.push("libappindicator3-1".into());
       }
     }
 
@@ -522,6 +526,7 @@ fn tauri_config_to_bundle_settings(
       endpoints: updater_config
         .endpoints
         .map(|endpoints| endpoints.iter().map(|e| e.to_string()).collect()),
+      msiexec_args: Some(updater_config.windows.install_mode.msiexec_args()),
     }),
     ..Default::default()
   })

@@ -279,7 +279,7 @@ mod test {
     assert_eq!(escape_single_quoted_json_test, result);
   }
 
-  // check abritrary strings in the format callback function
+  // check arbitrary strings in the format callback function
   #[quickcheck]
   fn qc_formating(f: CallbackFn, a: String) -> bool {
     // call format callback

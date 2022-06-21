@@ -7,7 +7,7 @@
 
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
 [![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.studio-purple.svg)](https://tauri.studio/docs/getting-started/prerequisites/)
+[![devto](https://img.shields.io/badge/documentation-tauri.app-purple.svg)](https://tauri.app)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
 
@@ -42,7 +42,7 @@ If you are interested in making a tauri app, please visit the [documentation web
 
 ### App Bundles
 - [x] App Icons
-- [x] Build on MacOS (.app, .dmg)
+- [x] Build on macOS (.app, .dmg)
 - [x] Build on Linux (.deb, AppImage)
 - [x] Build on Windows (.exe, .msi)
 - [x] Copy Buffer
@@ -88,7 +88,7 @@ If you are interested in making a tauri app, please visit the [documentation web
 | Auto Updater               | Yes    | Yes<sup>1</sup>      |
 | Custom App Icon            | Yes    | Yes                  |
 | Windows Binary             | Yes    | Yes                  |
-| MacOS Binary               | Yes    | Yes                  |
+| macOS Binary               | Yes    | Yes                  |
 | Linux Binary               | Yes    | Yes                  |
 | iOS Binary                 | Soon   | No                   |
 | Android Binary             | Soon   | No                   |
@@ -108,7 +108,7 @@ Tauri is a system composed of a number of moving pieces:
 - GitHub actions for CI and CD
 - Discord for discussions
 - Netlify-hosted documentation website
-- DigitalOcean meilisearch instance
+- DigitalOcean Meilisearch instance
 
 ### Major Runtimes
 - Node.js for running the CLI (deno and pure rust are on the roadmap)
@@ -116,7 +116,7 @@ Tauri is a system composed of a number of moving pieces:
 
 ### Major Languages
 - Rust for the CLI
-- EcmaScript bindings to the Rust API, written in typescript
+- ECMAScript bindings to the Rust API, written in typescript
 - Rust for bindings, rust side of the API, harnesses
 - Rust plugins to Tauri backend
 
@@ -124,7 +124,7 @@ Tauri is a system composed of a number of moving pieces:
 Tauri core can be developed on Mac, Linux and Windows, but you are encouraged to use the latest possible operating systems and build tools for your OS.
 
 ### Contributing
-Before you start working on something, it's best to check if there is an existing issue first. It's also is a good idea to stop by the Discord server and confirm with the team if it makes sense or if someone is already working on it.
+Before you start working on something, it's best to check if there is an existing issue first. It's also a good idea to stop by the Discord server and confirm with the team if it makes sense or if someone else is already working on it.
 
 Please make sure to read the [Contributing Guide](./.github/CONTRIBUTING.md) before making a pull request.
 

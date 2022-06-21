@@ -124,6 +124,95 @@ macro_rules! file_dialog_builder {
   };
 }
 
+macro_rules! message_dialog_builder {
+  () => {
+    /// A builder for message dialogs.
+    pub struct MessageDialogBuilder(rfd::MessageDialog);
+
+    impl MessageDialogBuilder {
+      /// Creates a new message dialog builder.
+      pub fn new(title: impl AsRef<str>, message: impl AsRef<str>) -> Self {
+        let title = title.as_ref().to_string();
+        let message = message.as_ref().to_string();
+        Self(
+          rfd::MessageDialog::new()
+            .set_title(&title)
+            .set_description(&message),
+        )
+      }
+
+      /// Set parent windows explicitly (optional)
+      ///
+      /// ## Platform-specific
+      ///
+      /// - **Linux:** Unsupported.
+      pub fn parent<W: raw_window_handle::HasRawWindowHandle>(mut self, parent: &W) -> Self {
+        self.0 = self.0.set_parent(parent);
+        self
+      }
+
+      /// Set the set of button that will be displayed on the dialog.
+      pub fn buttons(mut self, buttons: MessageDialogButtons) -> Self {
+        self.0 = self.0.set_buttons(buttons.into());
+        self
+      }
+
+      /// Set type of a dialog.
+      ///
+      /// Depending on the system it can result in type specific icon to show up,
+      /// the will inform user it message is a error, warning or just information.
+      pub fn kind(mut self, kind: MessageDialogKind) -> Self {
+        self.0 = self.0.set_level(kind.into());
+        self
+      }
+    }
+  };
+}
+
+/// Options for action buttons on message dialogs.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum MessageDialogButtons {
+  /// Ok button.
+  Ok,
+  /// Ok and Cancel buttons.
+  OkCancel,
+  /// Yes and No buttons.
+  YesNo,
+}
+
+impl From<MessageDialogButtons> for rfd::MessageButtons {
+  fn from(kind: MessageDialogButtons) -> Self {
+    match kind {
+      MessageDialogButtons::Ok => Self::Ok,
+      MessageDialogButtons::OkCancel => Self::OkCancel,
+      MessageDialogButtons::YesNo => Self::YesNo,
+    }
+  }
+}
+
+/// Types of message, ask and confirm dialogs.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum MessageDialogKind {
+  /// Information dialog.
+  Info,
+  /// Warning dialog.
+  Warning,
+  /// Error dialog.
+  Error,
+}
+
+impl From<MessageDialogKind> for rfd::MessageLevel {
+  fn from(kind: MessageDialogKind) -> Self {
+    match kind {
+      MessageDialogKind::Info => Self::Info,
+      MessageDialogKind::Warning => Self::Warning,
+      MessageDialogKind::Error => Self::Error,
+    }
+  }
+}
+
 /// Blocking interfaces for the dialog APIs.
 ///
 /// The blocking APIs will block the current thread to execute instead of relying on callback closures,
@@ -132,11 +221,13 @@ macro_rules! file_dialog_builder {
 /// **NOTE:** You cannot block the main thread when executing the dialog APIs, so you must use the [`crate::api::dialog`] methods instead.
 /// Examples of main thread context are the [`crate::App::run`] closure and non-async commmands.
 pub mod blocking {
+  use super::{MessageDialogButtons, MessageDialogKind};
   use crate::{Runtime, Window};
   use std::path::{Path, PathBuf};
   use std::sync::mpsc::sync_channel;
 
   file_dialog_builder!();
+  message_dialog_builder!();
 
   impl FileDialogBuilder {
     /// Shows the dialog to select a single file.
@@ -209,6 +300,30 @@ pub mod blocking {
       response
     }
 
+    /// Shows the dialog to select multiple folders.
+    /// This is a blocking operation,
+    /// and should *NOT* be used when running on the main thread context.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use tauri::api::dialog::blocking::FileDialogBuilder;
+    /// #[tauri::command]
+    /// fn my_command() {
+    ///   let folder_paths = FileDialogBuilder::new().pick_folders();
+    ///   // do something with the optional folder paths here
+    ///   // the folder paths value is `None` if the user closed the dialog
+    /// }
+    /// ```
+    pub fn pick_folders(self) -> Option<Vec<PathBuf>> {
+      #[allow(clippy::let_and_return)]
+      let response = run_dialog_sync!(self.0.pick_folders());
+      #[cfg(not(target_os = "linux"))]
+      let response =
+        response.map(|paths| paths.into_iter().map(|p| p.path().to_path_buf()).collect());
+      response
+    }
+
     /// Shows the dialog to save a file.
     /// This is a blocking operation,
     /// and should *NOT* be used when running on the main thread context.
@@ -230,6 +345,22 @@ pub mod blocking {
       #[cfg(not(target_os = "linux"))]
       let response = response.map(|p| p.path().to_path_buf());
       response
+    }
+  }
+
+  impl MessageDialogBuilder {
+    //// Shows a message dialog.
+    ///
+    /// - In `Ok` dialog, it will return `true` when `OK` was pressed.
+    /// - In `OkCancel` dialog, it will return `true` when `OK` was pressed.
+    /// - In `YesNo` dialog, it will return `true` when `Yes` was pressed.
+    pub fn show(self) -> bool {
+      let (tx, rx) = sync_channel(1);
+      let f = move |response| {
+        tx.send(response).unwrap();
+      };
+      run_dialog!(self.0.show(), f);
+      rx.recv().unwrap()
     }
   }
 
@@ -314,6 +445,7 @@ pub mod blocking {
       title,
       message,
       buttons,
+      MessageDialogKind::Info,
       move |response| {
         tx.send(response).unwrap();
       },
@@ -323,10 +455,12 @@ pub mod blocking {
 }
 
 mod nonblocking {
+  use super::{MessageDialogButtons, MessageDialogKind};
   use crate::{Runtime, Window};
   use std::path::{Path, PathBuf};
 
   file_dialog_builder!();
+  message_dialog_builder!();
 
   impl FileDialogBuilder {
     /// Shows the dialog to select a single file.
@@ -405,6 +539,32 @@ mod nonblocking {
       run_file_dialog!(self.0.pick_folder(), f)
     }
 
+    /// Shows the dialog to select multiple folders.
+    /// This is not a blocking operation,
+    /// and should be used when running on the main thread to avoid deadlocks with the event loop.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use tauri::api::dialog::FileDialogBuilder;
+    /// tauri::Builder::default()
+    ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+    ///   .expect("failed to build tauri app")
+    ///   .run(|_app, _event| {
+    ///     FileDialogBuilder::new().pick_folders(|file_paths| {
+    ///       // do something with the optional folder paths here
+    ///       // the folder paths value is `None` if the user closed the dialog
+    ///     })
+    ///   })
+    /// ```
+    pub fn pick_folders<F: FnOnce(Option<Vec<PathBuf>>) + Send + 'static>(self, f: F) {
+      #[cfg(not(target_os = "linux"))]
+      let f = |paths: Option<Vec<rfd::FileHandle>>| {
+        f(paths.map(|list| list.into_iter().map(|p| p.path().to_path_buf()).collect()))
+      };
+      run_file_dialog!(self.0.pick_folders(), f)
+    }
+
     /// Shows the dialog to save a file.
     ///
     /// This is not a blocking operation,
@@ -431,6 +591,17 @@ mod nonblocking {
     }
   }
 
+  impl MessageDialogBuilder {
+    /// Shows a message dialog:
+    ///
+    /// - In `Ok` dialog, it will call the closure with `true` when `OK` was pressed
+    /// - In `OkCancel` dialog, it will call the closure with `true` when `OK` was pressed
+    /// - In `YesNo` dialog, it will call the closure with `true` when `Yes` was pressed
+    pub fn show<F: FnOnce(bool) + Send + 'static>(self, f: F) {
+      run_dialog!(self.0.show(), f);
+    }
+  }
+
   /// Displays a non-blocking dialog with a message and an optional title with a "yes" and a "no" button.
   ///
   /// This is not a blocking operation,
@@ -453,7 +624,14 @@ mod nonblocking {
     message: impl AsRef<str>,
     f: F,
   ) {
-    run_message_dialog(parent_window, title, message, rfd::MessageButtons::YesNo, f)
+    run_message_dialog(
+      parent_window,
+      title,
+      message,
+      rfd::MessageButtons::YesNo,
+      MessageDialogKind::Info,
+      f,
+    )
   }
 
   /// Displays a non-blocking dialog with a message and an optional title with an "ok" and a "cancel" button.
@@ -483,6 +661,7 @@ mod nonblocking {
       title,
       message,
       rfd::MessageButtons::OkCancel,
+      MessageDialogKind::Info,
       f,
     )
   }
@@ -511,6 +690,7 @@ mod nonblocking {
       title,
       message,
       rfd::MessageButtons::Ok,
+      MessageDialogKind::Info,
       |_| {},
     )
   }
@@ -521,6 +701,7 @@ mod nonblocking {
     title: impl AsRef<str>,
     message: impl AsRef<str>,
     buttons: rfd::MessageButtons,
+    level: MessageDialogKind,
     f: F,
   ) {
     let title = title.as_ref().to_string();
@@ -530,7 +711,7 @@ mod nonblocking {
       .set_title(&title)
       .set_description(&message)
       .set_buttons(buttons)
-      .set_level(rfd::MessageLevel::Info);
+      .set_level(level.into());
 
     #[cfg(any(windows, target_os = "macos"))]
     {

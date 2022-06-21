@@ -1,10 +1,10 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.5.0"
+version = "0.9.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
-homepage = "https://tauri.studio"
+homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
@@ -13,22 +13,22 @@ exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.16", default-features = false, features = [ "file-drop", "protocol" ] }
-tauri-runtime = { version = "0.5.0", path = "../tauri-runtime" }
-tauri-utils = { version = "1.0.0-rc.6", path = "../tauri-utils" }
+wry = { version = "0.18.3", default-features = false, features = [ "file-drop", "protocol" ] }
+tauri-runtime = { version = "0.9.0", path = "../tauri-runtime" }
+tauri-utils = { version = "1.0.0", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.13.0"
+webview2-com = "0.16.0"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.30.0"
+  version = "0.37.0"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
-webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
+webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
@@ -44,7 +44,5 @@ macos-private-api = [
   "tauri-runtime/macos-private-api"
 ]
 objc-exception = [ "wry/objc-exception" ]
-gtk-tray = [ "wry/gtk-tray" ]
-ayatana-tray = [ "wry/ayatana-tray" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
 clipboard = [ "tauri-runtime/clipboard" ]

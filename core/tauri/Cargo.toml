@@ -11,12 +11,12 @@ exclude = [
   "CHANGELOG.md",
   "/target"
 ]
-homepage = "https://tauri.studio"
+homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.0.0-rc.9"
+version = "1.0.0"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -25,12 +25,11 @@ features = [
   "custom-protocol",
   "api-all",
   "cli",
-  "__updater-docs",
-  "__fs-extract-api-docs",
+  "updater",
+  "fs-extract-api",
   "system-tray",
   "devtools",
   "http-multipart",
-  "gtk-tray",
   "icon-png",
   "dox"
 ]
@@ -48,28 +47,27 @@ normal = [ "attohttpc", "reqwest" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1.16", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1.19", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures = "0.3"
 uuid = { version = "1", features = [ "v4" ] }
 url = { version = "2.2" }
 anyhow = "1.0"
 thiserror = "1.0"
-once_cell = "1.10"
-tauri-runtime = { version = "0.5.0", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.0-rc.6", path = "../tauri-macros" }
-tauri-utils = { version = "1.0.0-rc.6", path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.5.0", path = "../tauri-runtime-wry", optional = true }
+once_cell = "1.12"
+tauri-runtime = { version = "0.9.0", path = "../tauri-runtime" }
+tauri-macros = { version = "1.0.0", path = "../tauri-macros" }
+tauri-utils = { version = "1.0.0", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.9.0", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
-semver = "1.0"
+semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
 state = "0.5"
-tar = "0.4.36"
+tar = "0.4.38"
 tempfile = "3"
 zip = { version = "0.6", default-features = false, optional = true }
 ignore = "0.4"
 flate2 = "1.0"
 http = "0.2"
-bincode = "1.3"
 dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
@@ -78,26 +76,27 @@ notify-rust = { version = "4.5", default-features = false, features = [ "d" ], o
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
 attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
-open = { version = "2.0", optional = true }
+open = { version = "3.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.8", optional = true }
-raw-window-handle = "0.4.2"
+rfd = { version = "0.9", optional = true }
+raw-window-handle = "0.4.3"
 minisign-verify = { version = "0.2", optional = true }
-os_info = { version = "3.2.0", optional = true }
+time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
+os_info = { version = "3.4.0", optional = true }
 futures-lite = "1.12"
-regex = { version = "1.5.5", optional = true }
+regex = { version = "1.5.6", optional = true }
 glob = "0.3"
 data-url = { version = "0.1", optional = true }
 serialize-to-javascript = "=0.1.1"
-infer = { version = "0.7", optional = true }
+infer = { version = "0.8", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.1", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
-webkit2gtk = { version = "0.17", features = [ "v2_22" ] }
+webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -105,15 +104,15 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.13.0"
+webview2-com = "0.16.0"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.30.0"
+  version = "0.37.0"
   features = [ "Win32_Foundation" ]
 
 [build-dependencies]
 heck = "0.4"
-once_cell = "1.10"
+once_cell = "1.12"
 
 [dev-dependencies]
 mockito = "0.31"
@@ -124,7 +123,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4.2"
-tokio = { version = "1.16", features = [ "full" ] }
+tokio = { version = "1.19", features = [ "full" ] }
 cargo_toml = "0.11"
 
 [features]
@@ -132,23 +131,20 @@ default = [ "wry", "compression", "objc-exception" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
-ayatana-tray = [ "tauri-runtime-wry/ayatana-tray" ]
-gtk-tray = [ "tauri-runtime-wry/gtk-tray" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 updater = [
   "minisign-verify",
+  "time",
   "base64",
   "http-api",
   "dialog-ask",
   "fs-extract-api"
 ]
-__updater-docs = [ "minisign-verify", "base64", "http-api", "dialog-ask" ]
 http-api = [ "attohttpc" ]
 http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
-__fs-extract-api-docs = [ ]
 reqwest-client = [ "reqwest", "bytes" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [

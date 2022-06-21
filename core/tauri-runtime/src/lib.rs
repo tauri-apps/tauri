@@ -7,7 +7,7 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 use serde::Deserialize;
-use std::{fmt::Debug, path::PathBuf, sync::mpsc::Sender};
+use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use uuid::Uuid;
 
@@ -40,7 +40,7 @@ use crate::http::{
 #[non_exhaustive]
 #[derive(Debug, Default)]
 pub struct SystemTray {
-  pub icon: Option<TrayIcon>,
+  pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
@@ -59,7 +59,7 @@ impl SystemTray {
 
   /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
   #[must_use]
-  pub fn with_icon(mut self, icon: TrayIcon) -> Self {
+  pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
     self
   }
@@ -81,7 +81,7 @@ impl SystemTray {
 }
 
 /// Type of user attention requested on a window.
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(tag = "type")]
 pub enum UserAttentionType {
   /// ## Platform-specific
@@ -151,49 +151,13 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Window icon.
 #[derive(Debug, Clone)]
-pub struct WindowIcon {
+pub struct Icon {
   /// RGBA bytes of the icon.
   pub rgba: Vec<u8>,
   /// Icon width.
   pub width: u32,
   /// Icon height.
   pub height: u32,
-}
-
-/// A icon definition.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum TrayIcon {
-  /// Icon from file path.
-  File(PathBuf),
-  /// Icon from raw file bytes.
-  Raw(Vec<u8>),
-}
-
-impl TrayIcon {
-  /// Converts the icon to a the expected system tray format.
-  /// We expect the code that passes the Icon enum to have already checked the platform.
-  #[cfg(target_os = "linux")]
-  pub fn into_platform_icon(self) -> PathBuf {
-    match self {
-      Self::File(path) => path,
-      Self::Raw(_) => {
-        panic!("linux requires the system menu icon to be a file path, not raw bytes.")
-      }
-    }
-  }
-
-  /// Converts the icon to a the expected system tray format.
-  /// We expect the code that passes the Icon enum to have already checked the platform.
-  #[cfg(not(target_os = "linux"))]
-  pub fn into_platform_icon(self) -> Vec<u8> {
-    match self {
-      Self::Raw(r) => r,
-      Self::File(_) => {
-        panic!("non-linux system menu icons must be raw bytes, not a file path.")
-      }
-    }
-  }
 }
 
 /// A type that can be used as an user event.
@@ -393,7 +357,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// The runtime this [`Dispatch`] runs under.
   type Runtime: Runtime<T>;
 
-  /// The winoow builder type.
+  /// The window builder type.
   type WindowBuilder: WindowBuilder;
 
   /// Run a task on the main thread.
@@ -450,7 +414,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window’s current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
 
   /// Gets the window menu current visibility state.
@@ -477,7 +441,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   #[cfg(target_os = "macos")]
   fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -567,7 +531,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn set_focus(&self) -> Result<()>;
 
   /// Updates the window icon.
-  fn set_icon(&self, icon: WindowIcon) -> Result<()>;
+  fn set_icon(&self, icon: Icon) -> Result<()>;
 
   /// Whether to show the window icon in the task bar or not.
   fn set_skip_taskbar(&self, skip: bool) -> Result<()>;

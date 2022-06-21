@@ -38,10 +38,7 @@ fn alias(alias: &str, has_feature: bool) {
 fn main() {
   alias("custom_protocol", has_feature("custom-protocol"));
   alias("dev", !has_feature("custom-protocol"));
-  alias(
-    "updater",
-    has_feature("updater") || has_feature("__updater-docs"),
-  );
+  alias("updater", has_feature("updater"));
 
   let api_all = has_feature("api-all");
   alias("api_all", api_all);

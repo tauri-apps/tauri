@@ -10,8 +10,6 @@
 mod cmd;
 mod menu;
 
-#[cfg(target_os = "linux")]
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::Serialize;
@@ -129,56 +127,28 @@ fn main() {
               .build()
               .unwrap();
           }
-          #[cfg(target_os = "macos")]
           "icon_1" => {
+            #[cfg(target_os = "macos")]
             app.tray_handle().set_icon_as_template(true).unwrap();
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Raw(
+              .set_icon(tauri::Icon::Raw(
                 include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
               ))
               .unwrap();
           }
-          #[cfg(target_os = "macos")]
           "icon_2" => {
+            #[cfg(target_os = "macos")]
             app.tray_handle().set_icon_as_template(true).unwrap();
 
             app
               .tray_handle()
-              .set_icon(tauri::TrayIcon::Raw(
-                include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
+              .set_icon(tauri::Icon::Raw(
+                include_bytes!("../../../.icons/icon.ico").to_vec(),
               ))
               .unwrap();
           }
-          #[cfg(target_os = "linux")]
-          "icon_1" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../.icons/tray_icon_with_transparency.png",
-            )))
-            .unwrap(),
-          #[cfg(target_os = "linux")]
-          "icon_2" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::File(PathBuf::from(
-              "../../.icons/tray_icon.png",
-            )))
-            .unwrap(),
-          #[cfg(target_os = "windows")]
-          "icon_1" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::Raw(
-              include_bytes!("../../../.icons/tray_icon_with_transparency.ico").to_vec(),
-            ))
-            .unwrap(),
-          #[cfg(target_os = "windows")]
-          "icon_2" => app
-            .tray_handle()
-            .set_icon(tauri::TrayIcon::Raw(
-              include_bytes!("../../../.icons/icon.ico").to_vec(),
-            ))
-            .unwrap(),
           "switch_menu" => {
             let flag = is_menu1.load(Ordering::Relaxed);
             app

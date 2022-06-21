@@ -51,9 +51,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
+  sh_map.insert("arch", settings.target().split('-').next().unwrap());
   sh_map.insert("app_name", settings.main_binary_name());
   sh_map.insert("app_name_uppercase", &upcase_app_name);
   sh_map.insert("appimage_filename", &appimage_filename);
+  let tauri_tools_path = dirs_next::cache_dir().map_or_else(
+    || output_path.to_path_buf(),
+    |mut p| {
+      p.push("tauri");
+      p
+    },
+  );
+  std::fs::create_dir_all(&tauri_tools_path)?;
+  let tauri_tools_path_str = tauri_tools_path.to_string_lossy();
+  sh_map.insert("tauri_tools_path", &tauri_tools_path_str);
   let larger_icon = icons
     .iter()
     .filter(|i| i.width == i.height)

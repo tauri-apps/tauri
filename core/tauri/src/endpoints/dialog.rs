@@ -8,10 +8,36 @@ use super::{InvokeContext, InvokeResponse};
 use crate::Runtime;
 #[cfg(any(dialog_open, dialog_save))]
 use crate::{api::dialog::blocking::FileDialogBuilder, Manager, Scopes};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 use std::path::PathBuf;
+
+macro_rules! message_dialog {
+  ($fn_name: ident, $allowlist: ident, $buttons: expr) => {
+    #[module_command_handler($allowlist)]
+    fn $fn_name<R: Runtime>(
+      context: InvokeContext<R>,
+      title: Option<String>,
+      message: String,
+      level: Option<MessageDialogType>,
+    ) -> super::Result<bool> {
+      let mut builder = crate::api::dialog::blocking::MessageDialogBuilder::new(
+        title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
+        message,
+      )
+      .buttons($buttons);
+      #[cfg(any(windows, target_os = "macos"))]
+      {
+        builder = builder.parent(&context.window);
+      }
+      if let Some(level) = level {
+        builder = builder.kind(level.into());
+      }
+      Ok(builder.show())
+    }
+  };
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
@@ -57,6 +83,44 @@ pub struct SaveDialogOptions {
   pub default_path: Option<PathBuf>,
 }
 
+/// Types of message, ask and confirm dialogs.
+#[non_exhaustive]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum MessageDialogType {
+  /// Information dialog.
+  Info,
+  /// Warning dialog.
+  Warning,
+  /// Error dialog.
+  Error,
+}
+
+impl<'de> Deserialize<'de> for MessageDialogType {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "info" => MessageDialogType::Info,
+      "warning" => MessageDialogType::Warning,
+      "error" => MessageDialogType::Error,
+      _ => MessageDialogType::Info,
+    })
+  }
+}
+
+#[cfg(any(dialog_message, dialog_ask, dialog_confirm))]
+impl From<MessageDialogType> for crate::api::dialog::MessageDialogKind {
+  fn from(kind: MessageDialogType) -> Self {
+    match kind {
+      MessageDialogType::Info => Self::Info,
+      MessageDialogType::Warning => Self::Warning,
+      MessageDialogType::Error => Self::Error,
+    }
+  }
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -70,16 +134,25 @@ pub enum Cmd {
   #[cmd(dialog_save, "dialog > save")]
   SaveDialog { options: SaveDialogOptions },
   #[cmd(dialog_message, "dialog > message")]
-  MessageDialog { message: String },
+  MessageDialog {
+    title: Option<String>,
+    message: String,
+    #[serde(rename = "type")]
+    level: Option<MessageDialogType>,
+  },
   #[cmd(dialog_ask, "dialog > ask")]
   AskDialog {
     title: Option<String>,
     message: String,
+    #[serde(rename = "type")]
+    level: Option<MessageDialogType>,
   },
   #[cmd(dialog_confirm, "dialog > confirm")]
   ConfirmDialog {
     title: Option<String>,
     message: String,
+    #[serde(rename = "type")]
+    level: Option<MessageDialogType>,
   },
 }
 
@@ -109,13 +182,25 @@ impl Cmd {
     let scopes = context.window.state::<Scopes>();
 
     let res = if options.directory {
-      let folder = dialog_builder.pick_folder();
-      if let Some(path) = &folder {
-        scopes
-          .allow_directory(path, options.recursive)
-          .map_err(crate::error::into_anyhow)?;
+      if options.multiple {
+        let folders = dialog_builder.pick_folders();
+        if let Some(folders) = &folders {
+          for folder in folders {
+            scopes
+              .allow_directory(folder, options.recursive)
+              .map_err(crate::error::into_anyhow)?;
+          }
+        }
+        folders.into()
+      } else {
+        let folder = dialog_builder.pick_folder();
+        if let Some(path) = &folder {
+          scopes
+            .allow_directory(path, options.recursive)
+            .map_err(crate::error::into_anyhow)?;
+        }
+        folder.into()
       }
-      folder.into()
     } else if options.multiple {
       let files = dialog_builder.pick_files();
       if let Some(files) = &files {
@@ -167,41 +252,23 @@ impl Cmd {
     Ok(path)
   }
 
-  #[module_command_handler(dialog_message)]
-  fn message_dialog<R: Runtime>(context: InvokeContext<R>, message: String) -> super::Result<()> {
-    crate::api::dialog::blocking::message(
-      Some(&context.window),
-      &context.window.app_handle.package_info().name,
-      message,
-    );
-    Ok(())
-  }
+  message_dialog!(
+    message_dialog,
+    dialog_message,
+    crate::api::dialog::MessageDialogButtons::Ok
+  );
 
-  #[module_command_handler(dialog_ask)]
-  fn ask_dialog<R: Runtime>(
-    context: InvokeContext<R>,
-    title: Option<String>,
-    message: String,
-  ) -> super::Result<bool> {
-    Ok(crate::api::dialog::blocking::ask(
-      Some(&context.window),
-      title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
-      message,
-    ))
-  }
+  message_dialog!(
+    ask_dialog,
+    dialog_ask,
+    crate::api::dialog::MessageDialogButtons::YesNo
+  );
 
-  #[module_command_handler(dialog_confirm)]
-  fn confirm_dialog<R: Runtime>(
-    context: InvokeContext<R>,
-    title: Option<String>,
-    message: String,
-  ) -> super::Result<bool> {
-    Ok(crate::api::dialog::blocking::confirm(
-      Some(&context.window),
-      title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
-      message,
-    ))
-  }
+  message_dialog!(
+    confirm_dialog,
+    dialog_confirm,
+    crate::api::dialog::MessageDialogButtons::OkCancel
+  );
 }
 
 #[cfg(any(dialog_open, dialog_save))]
@@ -214,7 +281,7 @@ fn set_default_path(
       if parent.components().count() > 0 {
         dialog_builder = dialog_builder.set_directory(parent);
       }
-      dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy().to_string());
+      dialog_builder = dialog_builder.set_file_name(&file_name.to_string_lossy());
     } else {
       dialog_builder = dialog_builder.set_directory(default_path);
     }

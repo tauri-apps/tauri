@@ -37,7 +37,7 @@
   <Actions Context="Author">
     <Exec>
       <Command>cmd.exe</Command>
-      <Arguments>/c "msiexec.exe /i %TEMP%\\{{{product_name}}}.msi /qb+"</Arguments>
+      <Arguments>/c "msiexec.exe /i %TEMP%\\{{{product_name}}}.msi {{{msiexec_args}}} /promptrestart"</Arguments>
     </Exec>
   </Actions>
 </Task>

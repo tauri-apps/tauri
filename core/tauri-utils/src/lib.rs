@@ -7,6 +7,7 @@
 
 use std::fmt::Display;
 
+use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod assets;
@@ -27,7 +28,7 @@ pub struct PackageInfo {
   /// App name
   pub name: String,
   /// App version
-  pub version: String,
+  pub version: Version,
   /// The crate authors.
   pub authors: &'static str,
   /// The crate description.
@@ -197,4 +198,32 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
+}
+
+/// Suppresses the unused-variable warnings of the given inputs.
+///
+/// This does not move any values. Instead, it just suppresses the warning by taking a
+/// reference to the value.
+#[macro_export]
+macro_rules! consume_unused_variable {
+  ($($arg:expr),*) => {
+    $(
+      let _ = &$arg;
+    )*
+    ()
+  };
+}
+
+/// Prints to the standard error, with a newline.
+///
+/// Equivalent to the [`eprintln!`] macro, except that it's only effective for debug builds.
+#[macro_export]
+macro_rules! debug_eprintln {
+  () => ($crate::debug_eprintln!(""));
+  ($($arg:tt)*) => {
+    #[cfg(debug_assertions)]
+    eprintln!($($arg)*);
+    #[cfg(not(debug_assertions))]
+    $crate::consume_unused_variable!($($arg)*);
+  };
 }

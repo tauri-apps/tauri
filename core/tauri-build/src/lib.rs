@@ -5,12 +5,15 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
+use heck::ToSnakeCase;
 use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
+#[cfg(windows)]
+mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "codegen")))]
@@ -42,6 +45,9 @@ fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Pa
         .to_string_lossy()
         .replace(&format!("-{}", target_triple), ""),
     );
+    if dest.exists() {
+      std::fs::remove_file(&dest).unwrap();
+    }
     copy_file(&src, &dest)?;
   }
   Ok(())
@@ -58,24 +64,42 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
   Ok(())
 }
 
-/// Attributes used on Windows.
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct WindowsAttributes {
-  window_icon_path: PathBuf,
-  /// The path to the sdk location. This can be a absolute or relative path. If not supplied
-  /// this defaults to whatever `winres` crate determines is the best. See the
-  /// [winres documentation](https://docs.rs/winres/*/winres/struct.WindowsResource.html#method.set_toolkit_path)
-  sdk_dir: Option<PathBuf>,
+// checks if the given Cargo feature is enabled.
+fn has_feature(feature: &str) -> bool {
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+  std::env::var(format!(
+    "CARGO_FEATURE_{}",
+    feature.to_snake_case().to_uppercase()
+  ))
+  .map(|x| x == "1")
+  .unwrap_or(false)
 }
 
-impl Default for WindowsAttributes {
-  fn default() -> Self {
-    Self {
-      window_icon_path: PathBuf::from("icons/icon.ico"),
-      sdk_dir: None,
-    }
+// creates a cfg alias if `has_feature` is true.
+// `alias` must be a snake case string.
+fn cfg_alias(alias: &str, has_feature: bool) {
+  if has_feature {
+    println!("cargo:rustc-cfg={}", alias);
   }
+}
+
+/// Attributes used on Windows.
+#[allow(dead_code)]
+#[derive(Debug, Default)]
+pub struct WindowsAttributes {
+  window_icon_path: Option<PathBuf>,
+  /// The path to the sdk location.
+  ///
+  /// For the GNU toolkit this has to be the path where MinGW put windres.exe and ar.exe.
+  /// This could be something like: "C:\Program Files\mingw-w64\x86_64-5.3.0-win32-seh-rt_v4-rev0\mingw64\bin"
+  ///
+  /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
+  /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
+  /// if multiple 10 versions are installed, set it directly to the corret bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
+  ///
+  /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
+  sdk_dir: Option<PathBuf>,
 }
 
 impl WindowsAttributes {
@@ -88,11 +112,13 @@ impl WindowsAttributes {
   /// It must be in `ico` format. Defaults to `icons/icon.ico`.
   #[must_use]
   pub fn window_icon_path<P: AsRef<Path>>(mut self, window_icon_path: P) -> Self {
-    self.window_icon_path = window_icon_path.as_ref().into();
+    self
+      .window_icon_path
+      .replace(window_icon_path.as_ref().into());
     self
   }
 
-  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a vaild UTF-8
+  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
   /// path. Defaults to whatever the `winres` crate determines is best.
   #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
@@ -167,6 +193,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?)?
   };
 
+  cfg_alias("dev", !has_feature("custom-protocol"));
+
   let mut manifest = Manifest::from_path("Cargo.toml")?;
   if let Some(tauri) = manifest.dependencies.remove("tauri") {
     let features = match tauri {
@@ -220,9 +248,9 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   let target_triple = std::env::var("TARGET").unwrap();
-  let out_dir = std::env::var("OUT_DIR").unwrap();
+  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
-  let target_dir = Path::new(&out_dir)
+  let target_dir = out_dir
     .parent()
     .unwrap()
     .parent()
@@ -230,19 +258,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .parent()
     .unwrap();
 
-  if let Some(paths) = config.tauri.bundle.external_bin {
+  if let Some(paths) = &config.tauri.bundle.external_bin {
     copy_binaries(
-      ResourcePaths::new(external_binaries(&paths, &target_triple).as_slice(), true),
+      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
     )?;
   }
 
-  #[allow(unused_mut)]
-  let mut resources = config.tauri.bundle.resources.unwrap_or_default();
-  #[cfg(target_os = "linux")]
-  if let Some(tray) = config.tauri.system_tray {
-    resources.push(tray.icon_path.display().to_string());
+  #[allow(unused_mut, clippy::redundant_clone)]
+  let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
+  #[cfg(windows)]
+  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
+  {
+    resources.push(fixed_webview2_runtime_path.display().to_string());
   }
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
@@ -259,13 +288,24 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use winres::{VersionInfo, WindowsResource};
 
-    let icon_path_string = attributes
+    fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
+      let icon_path = config
+        .tauri
+        .bundle
+        .icon
+        .iter()
+        .find(|i| predicate(i))
+        .cloned()
+        .unwrap_or_else(|| default.to_string());
+      icon_path.into()
+    }
+
+    let window_icon_path = attributes
       .windows_attributes
       .window_icon_path
-      .to_string_lossy()
-      .into_owned();
+      .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
-    if attributes.windows_attributes.window_icon_path.exists() {
+    if window_icon_path.exists() {
       let mut res = WindowsResource::new();
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
@@ -289,18 +329,50 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         res.set("ProductName", product_name);
         res.set("FileDescription", product_name);
       }
-      res.set_icon_with_id(&icon_path_string, "32512");
+      res.set_icon_with_id(&window_icon_path.display().to_string(), "32512");
       res.compile().with_context(|| {
         format!(
           "failed to compile `{}` into a Windows Resource file during tauri-build",
-          icon_path_string
+          window_icon_path.display()
         )
       })?;
     } else {
       return Err(anyhow!(format!(
         "`{}` not found; required for generating a Windows Resource file during tauri-build",
-        icon_path_string
+        window_icon_path.display()
       )));
+    }
+
+    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap();
+    match target_env.as_str() {
+      "gnu" => {
+        let target_arch = match std::env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
+          "x86_64" => Some("x64"),
+          "x86" => Some("x86"),
+          "aarch64" => Some("arm64"),
+          arch => None,
+        };
+        if let Some(target_arch) = target_arch {
+          for entry in std::fs::read_dir(target_dir.join("build"))? {
+            let path = entry?.path();
+            let webview2_loader_path = path
+              .join("out")
+              .join(target_arch)
+              .join("WebView2Loader.dll");
+            if path.to_string_lossy().contains("webview2-com-sys") && webview2_loader_path.exists()
+            {
+              std::fs::copy(webview2_loader_path, target_dir.join("WebView2Loader.dll"))?;
+              break;
+            }
+          }
+        }
+      }
+      "msvc" => {
+        if std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
+          static_vcruntime::build();
+        }
+      }
+      _ => (),
     }
   }
 

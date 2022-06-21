@@ -52,11 +52,11 @@
     return new Promise(function (resolve, reject) {
       var callback = window.__TAURI__.transformCallback(function (r) {
         resolve(r)
-        delete window[error]
+        delete window[`_${error}`]
       }, true)
       var error = window.__TAURI__.transformCallback(function (e) {
         reject(e)
-        delete window[callback]
+        delete window[`_${callback}`]
       }, true)
 
       if (typeof cmd === 'string') {
@@ -134,6 +134,8 @@
   // drag region
   document.addEventListener('mousedown', (e) => {
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
+      // prevents text cursor
+      e.preventDefault()
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {
         __tauriModule: 'Window',

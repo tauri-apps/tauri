@@ -22,7 +22,7 @@ use crate::{
   scope::FsScope,
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, Env},
+  utils::{assets::Assets, resources::resource_relpath, Env},
   Context, EventLoopMessage, Invoke, InvokeError, InvokeResponse, Manager, Runtime, Scopes,
   StateManager, Theme, Window,
 };
@@ -39,7 +39,7 @@ use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
-  path::PathBuf,
+  path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
 
@@ -47,7 +47,7 @@ use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
 #[cfg(feature = "system-tray")]
-use crate::runtime::{SystemTrayEvent as RuntimeSystemTrayEvent, TrayIcon};
+use crate::runtime::SystemTrayEvent as RuntimeSystemTrayEvent;
 
 #[cfg(updater)]
 use crate::updater;
@@ -255,6 +255,41 @@ impl PathResolver {
     crate::api::path::resource_dir(&self.package_info, &self.env)
   }
 
+  /// Resolves the path of the given resource.
+  /// Note that the path must be the same as provided in `tauri.conf.json`.
+  ///
+  /// This function is helpful when your resource path includes a root dir (`/`) or parent component (`..`),
+  /// because Tauri replaces them with a parent folder, so simply using [`Self::resource_dir`] and joining the path
+  /// won't work.
+  ///
+  /// # Examples
+  ///
+  /// `tauri.conf.json`:
+  /// ```json
+  /// {
+  ///   "tauri": {
+  ///     "bundle": {
+  ///       "resources": ["../assets/*"]
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// ```no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let resource_path = app.path_resolver()
+  ///       .resolve_resource("../assets/logo.svg")
+  ///       .expect("failed to resolve resource dir");
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn resolve_resource<P: AsRef<Path>>(&self, path: P) -> Option<PathBuf> {
+    self
+      .resource_dir()
+      .map(|dir| dir.join(resource_relpath(path.as_ref())))
+  }
+
   /// Returns the path to the suggested directory for your app config files.
   pub fn app_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_dir(&self.config)
@@ -306,6 +341,7 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl AppHandle<crate::Wry> {
   /// Create a new tao window using a callback. The event loop must be running at this point.
@@ -412,7 +448,7 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Runs necessary cleanup tasks before exiting the process
   fn cleanup_before_exit(&self) {
-    #[cfg(shell_execute)]
+    #[cfg(any(shell_execute, shell_sidecar))]
     {
       crate::api::process::kill_children();
     }
@@ -470,6 +506,22 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 }
 
+/// APIs specific to the wry runtime.
+#[cfg(feature = "wry")]
+impl App<crate::Wry> {
+  /// Adds a [`tauri_runtime_wry::Plugin`].
+  ///
+  /// # Stability
+  ///
+  /// This API is unstable.
+  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+    &mut self,
+    plugin: P,
+  ) {
+    self.runtime.as_mut().unwrap().plugin(plugin);
+  }
+}
+
 macro_rules! shared_app_impl {
   ($app: ty) => {
     impl<R: Runtime> $app {
@@ -485,7 +537,7 @@ macro_rules! shared_app_impl {
       ///     let handle = app.handle();
       ///     tauri::async_runtime::spawn(async move {
       #[cfg_attr(
-        any(feature = "updater", feature = "__updater-docs"),
+        feature = "updater",
         doc = r#"     let response = handle.updater().check().await;"#
       )]
       ///     });
@@ -578,6 +630,26 @@ impl<R: Runtime> App<R> {
       .as_mut()
       .unwrap()
       .set_activation_policy(activation_policy);
+  }
+
+  /// Gets the argument matches of the CLI definition configured in `tauri.conf.json`.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let matches = app.get_cli_matches()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(cli)]
+  pub fn get_cli_matches(&self) -> crate::Result<crate::api::cli::Matches> {
+    if let Some(cli) = &self.manager.config().tauri.cli {
+      crate::api::cli::get_matches(cli, self.manager.package_info()).map_err(Into::into)
+    } else {
+      Ok(Default::default())
+    }
   }
 
   /// Runs the application.
@@ -1124,10 +1196,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the current platform's target name for the updater.
   ///
-  /// By default Tauri looks for a target in the format "{target}-{arch}",
-  /// where *target* is one of `darwin`, `linux` and `windows`
-  /// and *arch* is one of `i686`, `x86_64`, `aarch64` and `armv7`
-  /// based on the running platform. You can change the target name with this function.
+  /// See [`UpdateBuilder::target`](crate::updater::UpdateBuilder#method.target) for more information.
   ///
   /// # Examples
   ///
@@ -1165,31 +1234,7 @@ impl<R: Runtime> Builder<R> {
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(feature = "system-tray")]
-    let system_tray_icon = {
-      let icon = context.system_tray_icon.clone();
-
-      // check the icon format if the system tray is configured
-      if self.system_tray.is_some() {
-        use std::io::{Error, ErrorKind};
-        #[cfg(target_os = "linux")]
-        if let Some(TrayIcon::Raw(..)) = icon {
-          return Err(crate::Error::InvalidIcon(Error::new(
-            ErrorKind::InvalidInput,
-            "system tray icons on linux must be a file path",
-          )));
-        }
-
-        #[cfg(not(target_os = "linux"))]
-        if let Some(TrayIcon::File(_)) = icon {
-          return Err(crate::Error::InvalidIcon(Error::new(
-            ErrorKind::InvalidInput,
-            "system tray icons on non-linux platforms must be the raw bytes",
-          )));
-        }
-      }
-
-      icon
-    };
+    let system_tray_icon = context.system_tray_icon.clone();
 
     #[cfg(all(feature = "system-tray", target_os = "macos"))]
     let system_tray_icon_as_template = context
@@ -1322,12 +1367,15 @@ impl<R: Runtime> Builder<R> {
       if let Some(menu) = system_tray.menu() {
         tray::get_menu_ids(&mut ids, menu);
       }
-      let mut tray = tray::SystemTray::new().with_icon(
-        system_tray
-          .icon
-          .or(system_tray_icon)
-          .expect("tray icon not found; please configure it on tauri.conf.json"),
-      );
+      let tray_icon = if let Some(icon) = system_tray.icon {
+        Some(icon)
+      } else if let Some(tray_icon) = system_tray_icon {
+        Some(tray_icon.try_into()?)
+      } else {
+        None
+      };
+      let mut tray = tray::SystemTray::new()
+        .with_icon(tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"));
       if let Some(menu) = system_tray.menu {
         tray = tray.with_menu(menu);
       }
@@ -1442,7 +1490,29 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
       label,
       event: event.into(),
     },
-    RuntimeRunEvent::Ready => RunEvent::Ready,
+    RuntimeRunEvent::Ready => {
+      // set the app icon in development
+      #[cfg(all(dev, target_os = "macos"))]
+      unsafe {
+        use cocoa::{
+          appkit::NSImage,
+          base::{id, nil},
+          foundation::NSData,
+        };
+        use objc::*;
+        if let Some(icon) = app_handle.manager.inner.app_icon.clone() {
+          let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
+          let data = NSData::dataWithBytes_length_(
+            nil,
+            icon.as_ptr() as *const std::os::raw::c_void,
+            icon.len() as u64,
+          );
+          let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
+          let _: () = msg_send![ns_app, setApplicationIconImage: app_icon];
+        }
+      }
+      RunEvent::Ready
+    }
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),

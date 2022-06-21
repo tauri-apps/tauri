@@ -25,7 +25,6 @@ use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 use log::warn;
-use serde::Deserialize;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
@@ -63,12 +62,6 @@ pub struct Options {
   dev_path: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct PackageJson {
-  name: Option<String>,
-  product_name: Option<String>,
-}
-
 #[derive(Default)]
 struct InitDefaults {
   app_name: Option<String>,
@@ -82,7 +75,7 @@ impl Options {
 
     let init_defaults = if package_json_path.exists() {
       let package_json_text = read_to_string(package_json_path)?;
-      let package_json: PackageJson = serde_json::from_str(&package_json_text)?;
+      let package_json: crate::PackageJson = serde_json::from_str(&package_json_text)?;
       let (framework, _) = infer_framework(&package_json_text);
       InitDefaults {
         app_name: package_json.product_name.or(package_json.name),
@@ -224,7 +217,12 @@ pub fn command(mut options: Options) -> Result<()> {
         let mut map = serde_json::Map::default();
         map.insert(
           "$schema".into(),
-          serde_json::Value::String(cli_node_module_path.display().to_string()),
+          serde_json::Value::String(
+            cli_node_module_path
+              .display()
+              .to_string()
+              .replace('\\', "/"),
+          ),
         );
         let merge_config = serde_json::Value::Object(map);
         json_patch::merge(&mut config, &merge_config);

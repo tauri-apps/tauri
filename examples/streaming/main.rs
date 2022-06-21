@@ -38,15 +38,18 @@ fn main() {
     assert!(video_file.exists());
   }
 
+  let context = tauri::generate_context!("../../examples/streaming/tauri.conf.json");
+
   tauri::Builder::default()
+    .menu(tauri::Menu::os_default(&context.package_info().name))
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
       // get the wanted path
       #[cfg(target_os = "windows")]
-      let path = request.uri().replace("stream://localhost/", "");
+      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       #[cfg(not(target_os = "windows"))]
-      let path = request.uri().replace("stream://", "");
+      let path = request.uri().strip_prefix("stream://").unwrap();
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()
         .to_string();
@@ -112,8 +115,6 @@ fn main() {
 
       response.mimetype("video/mp4").status(status_code).body(buf)
     })
-    .run(tauri::generate_context!(
-      "../../examples/streaming/tauri.conf.json"
-    ))
+    .run(context)
     .expect("error while running tauri application");
 }

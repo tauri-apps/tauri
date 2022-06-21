@@ -1,5 +1,50 @@
 # Changelog
 
+## \[1.0.0]
+
+- Upgrade to `stable`!
+  - [f4bb30cc](https://www.github.com/tauri-apps/tauri/commit/f4bb30cc73d6ba9b9ef19ef004dc5e8e6bb901d3) feat(covector): prepare for v1 ([#4351](https://www.github.com/tauri-apps/tauri/pull/4351)) on 2022-06-15
+
+## \[1.0.0-rc.15]
+
+- Read the tray icon path relatively to the config directory.
+  - Bumped due to a bump in tauri-codegen.
+  - [562e8ca2](https://www.github.com/tauri-apps/tauri/commit/562e8ca23facf1a8e5fa6c8cdf872357d3523a78) fix(codegen): tray icon path is relative to the config directory on 2022-06-15
+
+## \[1.0.0-rc.14]
+
+- Do not copy the tray icon to the output directory on Linux since it is embedded in the binary.
+  - [4ce8e228](https://www.github.com/tauri-apps/tauri/commit/4ce8e228134cd3f22973b74ef26ca0d165fbbbd9) refactor(core): use `Icon` for tray icons ([#4342](https://www.github.com/tauri-apps/tauri/pull/4342)) on 2022-06-14
+
+## \[1.0.0-rc.13]
+
+- Copy `tauri.conf.json > tauri.bundle.windows.webview_fixed_runtime_path` as a resource to the target directory to fix development usage of a fixed Webview2 runtime path.
+  - [8a634895](https://www.github.com/tauri-apps/tauri/commit/8a63489567b9fa86e404ad42b5b30c64361efe85) fix(build): fixed Webview2 runtime path in development, closes [#4308](https://www.github.com/tauri-apps/tauri/pull/4308) on 2022-06-10
+- Improve usage of the GNU toolchain on Windows by copying the Webview2Loader.dll file to the target directory.
+  - [58a6879b](https://www.github.com/tauri-apps/tauri/commit/58a6879b82e3a82027604cdd0913caacaaab5c76) feat(tauri-build): improve Windows GNU toolchain usage, closes [#4319](https://www.github.com/tauri-apps/tauri/pull/4319) ([#4323](https://www.github.com/tauri-apps/tauri/pull/4323)) on 2022-06-12
+- Only statically link the VC runtime when the `STATIC_VCRUNTIME` environment variable is set to `true` (automatically done by the Tauri CLI).
+  - [d703d27a](https://www.github.com/tauri-apps/tauri/commit/d703d27a707edc028f13b35603205da1133fcc2b) fix(build): statically link VC runtime only on `tauri build` ([#4292](https://www.github.com/tauri-apps/tauri/pull/4292)) on 2022-06-07
+
+## \[1.0.0-rc.12]
+
+- Statically link the Visual C++ runtime instead of using a merge module on the installer.
+  - [bb061509](https://www.github.com/tauri-apps/tauri/commit/bb061509fb674bef86ecbc1de3aa8f3e367a9907) refactor(core): statically link vcruntime, closes [#4122](https://www.github.com/tauri-apps/tauri/pull/4122) ([#4227](https://www.github.com/tauri-apps/tauri/pull/4227)) on 2022-05-27
+
+## \[1.0.0-rc.11]
+
+- Create `dev` cfg alias.
+  - [9cdcf9b3](https://www.github.com/tauri-apps/tauri/commit/9cdcf9b3a8fa27612b3156c1702a4e776627e869) feat(build): create `dev` alias ([#4212](https://www.github.com/tauri-apps/tauri/pull/4212)) on 2022-05-25
+
+## \[1.0.0-rc.10]
+
+- Delete existing sidecar before copying new one.
+  - [a737f25c](https://www.github.com/tauri-apps/tauri/commit/a737f25c1078083e0b0f7f338f5c958b86914323) fix(tauri-build): delete existing sidecar file, closes [#4134](https://www.github.com/tauri-apps/tauri/pull/4134) ([#4167](https://www.github.com/tauri-apps/tauri/pull/4167)) on 2022-05-18
+
+## \[1.0.0-rc.9]
+
+- Search `tauri.conf.json > tauri > bundle > icons` for a `.ico` file for the window icon instead of simple default `icons/icon.ico` when `WindowsAttributes::window_icon_path` is not set.
+  - [bad85a1f](https://www.github.com/tauri-apps/tauri/commit/bad85a1f11da03421401080531275ba201480cd1) feat(build): find .ico in config instead of default `icons/icon.ico` ([#4115](https://www.github.com/tauri-apps/tauri/pull/4115)) on 2022-05-13
+
 ## \[1.0.0-rc.8]
 
 - Properly set file version information for the Windows executable.

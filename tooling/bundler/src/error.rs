@@ -106,6 +106,10 @@ pub enum Error {
   #[cfg(target_os = "macos")]
   #[error("`{0}`")]
   TimeError(#[from] time::error::Error),
+  /// Plist error.
+  #[cfg(target_os = "macos")]
+  #[error(transparent)]
+  Plist(#[from] plist::Error),
 }
 
 /// Convenient type alias of Result type.

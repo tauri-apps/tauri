@@ -14,6 +14,7 @@ use anyhow::{bail, Context};
 use clap::Parser;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use log::warn;
 use log::{error, info};
 use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
@@ -277,35 +278,20 @@ pub fn command(options: Options) -> Result<()> {
         }
       }
       Some(types)
-    } else if let Some(targets) = &config_.tauri.bundle.targets {
-      let mut types = vec![];
-      let targets = targets.to_vec();
-      if !targets.contains(&"all".into()) {
-        for name in targets {
-          match PackageType::from_short_name(&name) {
-            Some(package_type) => {
-              types.push(package_type);
-            }
-            None => {
-              return Err(anyhow::anyhow!(format!(
-                "Unsupported bundle format: {}",
-                name
-              )));
-            }
-          }
-        }
-
-        if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
-          types.push(PackageType::Updater);
-        }
-
-        Some(types)
-      } else {
-        None
-      }
     } else {
-      None
+      let targets = config_.tauri.bundle.targets.to_vec();
+      if targets.is_empty() {
+        None
+      } else {
+        Some(targets.into_iter().map(Into::into).collect())
+      }
     };
+
+    if let Some(types) = &package_types {
+      if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
+        warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
+      }
+    }
 
     let mut enabled_features = features.clone();
     if !no_default_features {

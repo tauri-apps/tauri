@@ -129,6 +129,7 @@
           "macOS": {
             "minimumSystemVersion": "10.13"
           },
+          "targets": "all",
           "windows": {
             "allowDowngrades": true,
             "certificateThumbprint": null,
@@ -259,6 +260,7 @@
             "macOS": {
               "minimumSystemVersion": "10.13"
             },
+            "targets": "all",
             "windows": {
               "allowDowngrades": true,
               "certificateThumbprint": null,
@@ -901,13 +903,11 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".\n\nThe `updater` target is automatically added if the updater is enabled.",
-          "anyOf": [
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "default": "all",
+          "allOf": [
             {
               "$ref": "#/definitions/BundleTarget"
-            },
-            {
-              "type": "null"
             }
           ]
         },
@@ -1025,19 +1025,41 @@
       "additionalProperties": false
     },
     "BundleTarget": {
-      "description": "Targets to bundle.",
+      "description": "Targets to bundle. Each value is case insensitive.",
       "anyOf": [
+        {
+          "description": "Bundle all targets.",
+          "enum": [
+            "all"
+          ]
+        },
         {
           "description": "A list of bundle targets.",
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/definitions/BundleType"
           }
         },
         {
           "description": "A single bundle target.",
-          "type": "string"
+          "allOf": [
+            {
+              "$ref": "#/definitions/BundleType"
+            }
+          ]
         }
+      ]
+    },
+    "BundleType": {
+      "description": "A bundle referenced by tauri-bundler.",
+      "type": "string",
+      "enum": [
+        "deb",
+        "appimage",
+        "msi",
+        "app",
+        "dmg",
+        "updater"
       ]
     },
     "AppImageConfig": {

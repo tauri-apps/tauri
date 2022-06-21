@@ -4,7 +4,10 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
-use tauri_utils::resources::{external_binaries, ResourcePaths};
+use tauri_utils::{
+  config::BundleType,
+  resources::{external_binaries, ResourcePaths},
+};
 
 use std::{
   collections::HashMap,
@@ -31,6 +34,19 @@ pub enum PackageType {
   Dmg,
   /// The Updater bundle.
   Updater,
+}
+
+impl From<BundleType> for PackageType {
+  fn from(bundle: BundleType) -> Self {
+    match bundle {
+      BundleType::Deb => Self::Deb,
+      BundleType::AppImage => Self::AppImage,
+      BundleType::Msi => Self::WindowsMsi,
+      BundleType::App => Self::MacOsBundle,
+      BundleType::Dmg => Self::Dmg,
+      BundleType::Updater => Self::Updater,
+    }
+  }
 }
 
 impl PackageType {

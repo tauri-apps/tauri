@@ -16,6 +16,7 @@ use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use url::Url;
 
 use tauri_macros::default_runtime;
+use tauri_utils::debug_eprintln;
 #[cfg(feature = "isolation")]
 use tauri_utils::pattern::isolation::RawIsolationPayload;
 use tauri_utils::{
@@ -95,8 +96,7 @@ fn set_csp<R: Runtime>(
             acc.style.push(hash.into());
           }
           _csp_hash => {
-            #[cfg(debug_assertions)]
-            eprintln!("Unknown CspHash variant encountered: {:?}", _csp_hash)
+            debug_eprintln!("Unknown CspHash variant encountered: {:?}", _csp_hash);
           }
         }
 
@@ -514,14 +514,12 @@ impl<R: Runtime> WindowManager<R> {
           .to_string();
 
         if let Err(e) = SafePathBuf::new(path.clone().into()) {
-          #[cfg(debug_assertions)]
-          eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
+          debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
           return HttpResponseBuilder::new().status(403).body(Vec::new());
         }
 
         if !asset_scope.is_allowed(&path) {
-          #[cfg(debug_assertions)]
-          eprintln!("asset protocol not configured to allow the path: {}", path);
+          debug_eprintln!("asset protocol not configured to allow the path: {}", path);
           return HttpResponseBuilder::new().status(403).body(Vec::new());
         }
 
@@ -543,8 +541,7 @@ impl<R: Runtime> WindowManager<R> {
             let mut file = match tokio::fs::File::open(path_.clone()).await {
               Ok(file) => file,
               Err(e) => {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed to open asset: {}", e);
+                debug_eprintln!("Failed to open asset: {}", e);
                 return (headers, 404, buf);
               }
             };
@@ -552,8 +549,7 @@ impl<R: Runtime> WindowManager<R> {
             let file_size = match file.metadata().await {
               Ok(metadata) => metadata.len(),
               Err(e) => {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed to read asset metadata: {}", e);
+                debug_eprintln!("Failed to read asset metadata: {}", e);
                 return (headers, 404, buf);
               }
             };
@@ -568,8 +564,7 @@ impl<R: Runtime> WindowManager<R> {
             ) {
               Ok(r) => r,
               Err(e) => {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed to parse range {}: {:?}", range, e);
+                debug_eprintln!("Failed to parse range {}: {:?}", range, e);
                 return (headers, 400, buf);
               }
             };
@@ -599,14 +594,12 @@ impl<R: Runtime> WindowManager<R> {
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed to seek file to {}: {}", range.start, e);
+                debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
                 return (headers, 422, buf);
               }
 
               if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
-                #[cfg(debug_assertions)]
-                eprintln!("Failed read file: {}", e);
+                debug_eprintln!("Failed read file: {}", e);
                 return (headers, 422, buf);
               }
               // partial content
@@ -631,8 +624,7 @@ impl<R: Runtime> WindowManager<R> {
               response.mimetype(&mime_type).body(data)
             }
             Err(e) => {
-              #[cfg(debug_assertions)]
-              eprintln!("Failed to read file: {}", e);
+              debug_eprintln!("Failed to read file: {}", e);
               response.status(404).body(Vec::new())
             }
           }
@@ -756,10 +748,10 @@ impl<R: Runtime> WindowManager<R> {
         asset
       })
       .or_else(|| {
-        #[cfg(debug_assertions)]
-        eprintln!(
+        debug_eprintln!(
           "Asset `{}` not found; fallback to {}/index.html",
-          path, path
+          path,
+          path
         );
         let fallback = format!("{}/index.html", path.as_str()).into();
         let asset = assets.get(&fallback);
@@ -767,8 +759,7 @@ impl<R: Runtime> WindowManager<R> {
         asset
       })
       .or_else(|| {
-        #[cfg(debug_assertions)]
-        eprintln!("Asset `{}` not found; fallback to index.html", path);
+        debug_eprintln!("Asset `{}` not found; fallback to index.html", path);
         let fallback = AssetKey::from("index.html");
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -806,8 +797,7 @@ impl<R: Runtime> WindowManager<R> {
         })
       }
       Err(e) => {
-        #[cfg(debug_assertions)]
-        eprintln!("{:?}", e); // TODO log::error!
+        debug_eprintln!("{:?}", e); // TODO log::error!
         Err(Box::new(e))
       }
     }

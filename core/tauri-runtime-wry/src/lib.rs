@@ -39,7 +39,7 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -2435,8 +2435,7 @@ fn handle_user_message<T: UserEvent>(
           .and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
-            #[cfg(debug_assertions)]
-            eprintln!("{}", e);
+            debug_eprintln!("{}", e);
           }
         }
       }
@@ -2474,8 +2473,7 @@ fn handle_user_message<T: UserEvent>(
           .insert(window_id, webview);
       }
       Err(e) => {
-        #[cfg(debug_assertions)]
-        eprintln!("{}", e);
+        debug_eprintln!("{}", e);
       }
     },
     Message::CreateWindow(window_id, handler, sender) => {
@@ -2772,8 +2770,7 @@ fn handle_event_loop<T: UserEvent>(
             .and_then(|w| w.inner.as_ref())
           {
             if let Err(e) = webview.resize() {
-              #[cfg(debug_assertions)]
-              eprintln!("{}", e);
+              debug_eprintln!("{}", e);
             }
           }
         }

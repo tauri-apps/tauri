@@ -39,13 +39,13 @@ If you are interested in making a tauri app, please visit the [documentation web
 
 Tauri currently supports development and distribution on the following platforms:
 
-| Platform                 | Versions                |
-| :----------------------- | :---------------------- |
-| Windows                  | 7 and above |
-| macOS                    | 10.15 and above         |
-| Linux                    | See below               |
-| iOS/iPadOS (coming soon) |                         |
-| Android (coming soon)    |                         |
+| Platform                 | Versions        |
+| :----------------------- | :-------------- |
+| Windows                  | 7 and above     |
+| macOS                    | 10.15 and above |
+| Linux                    | See below       |
+| iOS/iPadOS (coming soon) |                 |
+| Android (coming soon)    |                 |
 
 **Linux Support**
 
@@ -54,7 +54,7 @@ For **developing** Tauri apps refer to the [Getting Started guide on tauri.app](
 For **running** Tauri apps we support the below configurations (these are automatically added as dependencies for .deb and are bundled for AppImage so that your users don't need to manually install them):
 
 - Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
-  - `libwebkit2gtk-4.0-37`, `libssl`, `libgtk-3-0`, `libayatana-appindicator3-1`<sup>1</sup>
+  - `libwebkit2gtk-4.0-37`, `libgtk-3-0`, `libayatana-appindicator3-1`<sup>1</sup>
 - Arch with the following packages installed:
   - `webkit2gtk`, `appmenu-gtk-module`, `gtk3`, `libayatana-appindicator`<sup>1</sup>
 - Fedora (latest 2 versions) with the following packages installed:

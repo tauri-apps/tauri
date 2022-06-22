@@ -56,7 +56,7 @@ For **running** Tauri apps we support the below configurations (these are automa
 - Debian (Ubuntu 18.04 and above or equivalent) with the following packages installed:
   - `libwebkit2gtk-4.0-37`, `libssl`, `libgtk-3-0`, `libayatana-appindicator3-1`<sup>1</sup>
 - Arch with the following packages installed:
-  - `webkit2gtk`, `appmenu-gtk-module`, `openssl`, `gtk3`, `libayatana-appindicator`<sup>1</sup>, `libvips`
+  - `webkit2gtk`, `appmenu-gtk-module`, `gtk3`, `libayatana-appindicator`<sup>1</sup>
 - Fedora (latest 2 versions) with the following packages installed:
   - `webkit2gtk3`, `openssl`, `gtk3`, `libappindicator-gtk3`<sup>1</sup>
 

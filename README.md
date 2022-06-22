@@ -13,15 +13,33 @@
 
 ## Current Releases
 
-| Component                                                                       | Description                              | Version                                                                                                          | Lin | Win | Mac |
-| ------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --- | --- | --- |
-| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli)          | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)                         | ✅  | ✅  | ✅  |
-| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node)     | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli)           | ✅  | ✅  | ✅  |
-| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)          | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api)           | ✅  | ✅  | ✅  |
-| [**create-tauri-app**](https://github.com/tauri-apps/create-tauri-app)          | Get started with your first Tauri app    | [![](https://img.shields.io/npm/v/create-tauri-app.svg)](https://www.npmjs.com/package/create-tauri-app)         | ✅  | ✅  | ✅  |
-| [**vue-cli-plugin-tauri**](https://github.com/tauri-apps/vue-cli-plugin-tauri/) | Vue CLI plugin for Tauri                 | [![](https://img.shields.io/npm/v/vue-cli-plugin-tauri.svg)](https://www.npmjs.com/package/vue-cli-plugin-tauri) | ✅  | ✅  | ✅  |
-| [**core**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)             | runtime core                             | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                                 | ✅  | ✅  | ✅  |
-| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler)     | manufacture the final binaries           | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)                 | ✅  | ✅  | ✅  |
+### Core
+
+| Component                                                                                    | Description                               | Version                                                                                                  | Lin | Win | Mac |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | --- | --- | --- |
+| [**tauri**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)                         | runtime core                              | [![](https://img.shields.io/crates/v/tauri.svg)](https://crates.io/crates/tauri)                         | ✅  | ✅  | ✅  |
+| [**tauri-build**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build)             | applies macros at build-time              | [![](https://img.shields.io/crates/v/tauri-build.svg)](https://crates.io/crates/tauri-build)             | ✅  | ✅  | ✅  |
+| [**tauri-codegen**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen)         | handles assets, parses tauri.conf.json    | [![](https://img.shields.io/crates/v/tauri-codegen.svg)](https://crates.io/crates/tauri-codegen)         | ✅  | ✅  | ✅  |
+| [**tauri-macros**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-macros)           | creates macros using tauri-codegen        | [![](https://img.shields.io/crates/v/tauri-macros.svg)](https://crates.io/crates/tauri-macros)           | ✅  | ✅  | ✅  |
+| [**tauri-runtime**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-runtime)         | layer between Tauri and webview libraries | [![](https://img.shields.io/crates/v/tauri-runtime.svg)](https://crates.io/crates/tauri-runtime)         | ✅  | ✅  | ✅  |
+| [**tauri-runtime-wry**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-runtime-wry) | enables system-level interaction via WRY  | [![](https://img.shields.io/crates/v/tauri-runtime-wry.svg)](https://crates.io/crates/tauri-runtime-wry) | ✅  | ✅  | ✅  |
+| [**tauri-utils**](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-utils)             | common code used across the tauri crates  | [![](https://img.shields.io/crates/v/tauri-utils.svg)](https://crates.io/crates/tauri-utils)             | ✅  | ✅  | ✅  |
+
+### Tooling
+
+| Component                                                                   | Description                              | Version                                                                                                | Lin | Win | Mac |
+| --------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | --- | --- | --- |
+| [**bundler**](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) | manufacture the final binaries           | [![](https://img.shields.io/crates/v/tauri-bundler.svg)](https://crates.io/crates/tauri-bundler)       | ✅  | ✅  | ✅  |
+| [**api.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/api)      | JS API for interaction with Rust backend | [![](https://img.shields.io/npm/v/@tauri-apps/api.svg)](https://www.npmjs.com/package/@tauri-apps/api) | ✅  | ✅  | ✅  |
+| [**cli.rs**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli)      | create, develop and build apps           | [![](https://img.shields.io/crates/v/tauri-cli.svg)](https://crates.io/crates/tauri-cli)               | ✅  | ✅  | ✅  |
+| [**cli.js**](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) | Node.js CLI wrapper for cli.rs           | [![](https://img.shields.io/npm/v/@tauri-apps/cli.svg)](https://www.npmjs.com/package/@tauri-apps/cli) | ✅  | ✅  | ✅  |
+
+### Utilities and Plugins
+
+| Component                                                                       | Description                           | Version                                                                                                          | Lin | Win | Mac |
+| ------------------------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --- | --- | --- |
+| [**create-tauri-app**](https://github.com/tauri-apps/create-tauri-app)          | Get started with your first Tauri app | [![](https://img.shields.io/npm/v/create-tauri-app.svg)](https://www.npmjs.com/package/create-tauri-app)         | ✅  | ✅  | ✅  |
+| [**vue-cli-plugin-tauri**](https://github.com/tauri-apps/vue-cli-plugin-tauri/) | Vue CLI plugin for Tauri              | [![](https://img.shields.io/npm/v/vue-cli-plugin-tauri.svg)](https://www.npmjs.com/package/vue-cli-plugin-tauri) | ✅  | ✅  | ✅  |
 
 ## Introduction
 

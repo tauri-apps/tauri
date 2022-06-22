@@ -113,4 +113,4 @@ pub enum Error {
 }
 
 /// Convenient type alias of Result type.
-pub type Result<T> = anyhow::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;

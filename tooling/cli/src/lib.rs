@@ -176,12 +176,12 @@ fn prettyprint_level(lvl: Level) -> &'static str {
 pub trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
   // show the command output in the Node.js wrapper.
-  fn piped(&mut self) -> Result<ExitStatus>;
+  fn piped(&mut self) -> std::io::Result<ExitStatus>;
   fn output_ok(&mut self) -> crate::Result<()>;
 }
 
 impl CommandExt for Command {
-  fn piped(&mut self) -> crate::Result<ExitStatus> {
+  fn piped(&mut self) -> std::io::Result<ExitStatus> {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();

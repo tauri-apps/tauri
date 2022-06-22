@@ -4,7 +4,7 @@
 
 use std::{
   fs::File,
-  io::Read,
+  io::{ErrorKind, Read},
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
@@ -101,18 +101,37 @@ struct CargoConfig {
 }
 
 pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  let status = Command::new(&runner)
+  match Command::new(&runner)
     .args(&["build", "--features=custom-protocol"])
     .args(args)
     .env("STATIC_VCRUNTIME", "true")
-    .piped()?;
-  if status.success() {
-    Ok(())
-  } else {
-    Err(anyhow::anyhow!(
-      "Result of `{} build` operation was unsuccessful",
-      runner
-    ))
+    .piped()
+  {
+    Ok(status) => {
+      if status.success() {
+        Ok(())
+      } else {
+        Err(anyhow::anyhow!(
+          "Result of `{} build` operation was unsuccessful",
+          runner
+        ))
+      }
+    }
+    Err(e) => {
+      if e.kind() == ErrorKind::NotFound {
+        Err(anyhow::anyhow!(
+          "`{}` command not found.{}",
+          runner,
+          if runner == "cargo" {
+            " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+          } else {
+            ""
+          }
+        ))
+      } else {
+        Err(e.into())
+      }
+    }
   }
 }
 

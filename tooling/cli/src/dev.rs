@@ -23,7 +23,7 @@ use std::{
   env::set_current_dir,
   ffi::OsStr,
   fs::FileType,
-  io::{BufReader, Write},
+  io::{BufReader, ErrorKind, Write},
   path::{Path, PathBuf},
   process::{exit, Command, Stdio},
   sync::{
@@ -495,8 +495,24 @@ fn start_app(
   command.stdout(os_pipe::dup_stdout().unwrap());
   command.stderr(Stdio::piped());
 
-  let child =
-    SharedChild::spawn(&mut command).with_context(|| format!("failed to run {}", runner))?;
+  let child = match SharedChild::spawn(&mut command) {
+    Ok(c) => c,
+    Err(e) => {
+      if e.kind() == ErrorKind::NotFound {
+        return Err(anyhow::anyhow!(
+          "`{}` command not found.{}",
+          runner,
+          if runner == "cargo" {
+            " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+          } else {
+            ""
+          }
+        ));
+      } else {
+        return Err(e.into());
+      }
+    }
+  };
   let child_arc = Arc::new(child);
   let child_stderr = child_arc.take_stderr().unwrap();
   let mut stderr = BufReader::new(child_stderr);

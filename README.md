@@ -41,7 +41,7 @@ Tauri currently supports development and distribution on the following platforms
 
 | Platform                 | Versions                |
 | :----------------------- | :---------------------- |
-| Windows                  | 7 (64-bit), 8 and above |
+| Windows                  | 7 and above |
 | macOS                    | 10.15 and above         |
 | Linux                    | See below               |
 | iOS/iPadOS (coming soon) |                         |

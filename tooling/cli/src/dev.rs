@@ -22,10 +22,10 @@ use shared_child::SharedChild;
 use std::{
   env::set_current_dir,
   ffi::OsStr,
-  fs::FileType,
+  fs::{rename, FileType},
   io::{BufReader, ErrorKind, Write},
   path::{Path, PathBuf},
-  process::{exit, Command, Stdio},
+  process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
     mpsc::channel,
@@ -256,9 +256,52 @@ fn command_internal(options: Options) -> Result<()> {
     }
   }
 
+  let product_name = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .package
+    .product_name
+    .clone();
+
+  let app_settings =
+    crate::interface::rust::AppSettings::new(config.lock().unwrap().as_ref().unwrap())?;
+
+  let out_dir = app_settings
+    .get_out_dir(options.target.clone(), !options.release_mode)
+    .with_context(|| "failed to get project out directory")?;
+  let bin_name = app_settings
+    .cargo_package_settings()
+    .name
+    .clone()
+    .expect("Cargo manifest must have the `package.name` field");
+  let target: String = if let Some(target) = options.target.clone() {
+    target
+  } else {
+    tauri_utils::platform::target_triple()?
+  };
+  let binary_extension: String = if target.contains("windows") {
+    "exe"
+  } else {
+    ""
+  }
+  .into();
+
+  let bin_path = out_dir.join(&bin_name).with_extension(&binary_extension);
+  let product_path = product_name
+    .as_ref()
+    .map(|name| out_dir.join(&name).with_extension(&binary_extension));
+
+  let dev_options = DevOptions {
+    runner,
+    product_path,
+    bin_path,
+  };
+
   let process = start_app(
     &options,
-    &runner,
+    dev_options.clone(),
     &manifest,
     &cargo_features,
     manually_killed_app.clone(),
@@ -271,7 +314,7 @@ fn command_internal(options: Options) -> Result<()> {
     merge_config,
     config,
     options,
-    runner,
+    dev_options,
     manifest,
     cargo_features,
   ) {
@@ -329,13 +372,13 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
 #[allow(clippy::too_many_arguments)]
 fn watch(
-  process: Arc<Mutex<Arc<SharedChild>>>,
+  process: Arc<Mutex<Dev>>,
   manually_killed_app: Arc<AtomicBool>,
   tauri_path: PathBuf,
   merge_config: Option<String>,
   config: ConfigHandle,
   options: Options,
-  runner: String,
+  dev_options: DevOptions,
   mut manifest: Manifest,
   cargo_features: Vec<String>,
 ) -> Result<()> {
@@ -384,7 +427,7 @@ fn watch(
           }
           *p = start_app(
             &options,
-            &runner,
+            dev_options.clone(),
             &manifest,
             &cargo_features,
             manually_killed_app.clone(),
@@ -430,15 +473,45 @@ fn kill_before_dev_process() {
   }
 }
 
+#[derive(Clone)]
+struct DevOptions {
+  runner: String,
+  product_path: Option<PathBuf>,
+  bin_path: PathBuf,
+}
+
+struct Dev {
+  build_child: Arc<SharedChild>,
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+}
+
+impl Dev {
+  pub fn kill(&self) -> std::io::Result<()> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.kill()
+    } else {
+      self.build_child.kill()
+    }
+  }
+
+  pub fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.try_wait()
+    } else {
+      self.build_child.try_wait()
+    }
+  }
+}
+
 fn start_app(
   options: &Options,
-  runner: &str,
+  dev_options: DevOptions,
   manifest: &Manifest,
   features: &[String],
   manually_killed_app: Arc<AtomicBool>,
-) -> Result<Arc<SharedChild>> {
-  let mut command = Command::new(runner);
-  command
+) -> Result<Dev> {
+  let mut build_cmd = Command::new(&dev_options.runner);
+  build_cmd
     .env(
       "CARGO_TERM_PROGRESS_WIDTH",
       terminal::stderr_width()
@@ -453,7 +526,7 @@ fn start_app(
         .to_string(),
     )
     .env("CARGO_TERM_PROGRESS_WHEN", "always");
-  command.arg("run").arg("--color").arg("always");
+  build_cmd.arg("build").arg("--color").arg("always");
 
   if !options.args.contains(&"--no-default-features".into()) {
     let manifest_features = manifest.features();
@@ -470,39 +543,47 @@ fn start_app(
         }
       })
       .collect();
-    command.arg("--no-default-features");
+    build_cmd.arg("--no-default-features");
     if !enable_features.is_empty() {
-      command.args(&["--features", &enable_features.join(",")]);
+      build_cmd.args(&["--features", &enable_features.join(",")]);
     }
   }
 
   if options.release_mode {
-    command.args(&["--release"]);
+    build_cmd.args(&["--release"]);
   }
 
   if let Some(target) = &options.target {
-    command.args(&["--target", target]);
+    build_cmd.args(&["--target", target]);
   }
 
   if !features.is_empty() {
-    command.args(&["--features", &features.join(",")]);
+    build_cmd.args(&["--features", &features.join(",")]);
   }
 
-  if !options.args.is_empty() {
-    command.args(&options.args);
+  let mut run_args = Vec::new();
+  let mut reached_run_args = false;
+  for arg in options.args.clone() {
+    if reached_run_args {
+      run_args.push(arg);
+    } else if arg == "--" {
+      reached_run_args = true;
+    } else {
+      build_cmd.arg(arg);
+    }
   }
 
-  command.stdout(os_pipe::dup_stdout().unwrap());
-  command.stderr(Stdio::piped());
+  build_cmd.stdout(os_pipe::dup_stdout()?);
+  build_cmd.stderr(Stdio::piped());
 
-  let child = match SharedChild::spawn(&mut command) {
+  let build_child = match SharedChild::spawn(&mut build_cmd) {
     Ok(c) => c,
     Err(e) => {
       if e.kind() == ErrorKind::NotFound {
         return Err(anyhow::anyhow!(
           "`{}` command not found.{}",
-          runner,
-          if runner == "cargo" {
+          dev_options.runner,
+          if dev_options.runner == "cargo" {
             " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
           } else {
             ""
@@ -513,9 +594,9 @@ fn start_app(
       }
     }
   };
-  let child_arc = Arc::new(child);
-  let child_stderr = child_arc.take_stderr().unwrap();
-  let mut stderr = BufReader::new(child_stderr);
+  let build_child = Arc::new(build_child);
+  let build_child_stderr = build_child.take_stderr().unwrap();
+  let mut stderr = BufReader::new(build_child_stderr);
   let stderr_lines = Arc::new(Mutex::new(Vec::new()));
   let stderr_lines_ = stderr_lines.clone();
   std::thread::spawn(move || {
@@ -536,12 +617,39 @@ fn start_app(
     }
   });
 
-  let child_clone = child_arc.clone();
+  let build_child_ = build_child.clone();
   let exit_on_panic = options.exit_on_panic;
+  let app_child = Arc::new(Mutex::new(None));
+  let app_child_ = app_child.clone();
   std::thread::spawn(move || {
-    let status = child_clone.wait().expect("failed to wait on child");
+    let status = build_child_.wait().expect("failed to wait on build");
 
-    if exit_on_panic {
+    if status.success() {
+      let bin_path = if let Some(product_path) = dev_options.product_path {
+        rename(&dev_options.bin_path, &product_path).unwrap();
+        product_path
+      } else {
+        dev_options.bin_path
+      };
+
+      let mut app = Command::new(bin_path);
+      app.stdout(os_pipe::dup_stdout().unwrap());
+      app.stderr(os_pipe::dup_stderr().unwrap());
+      app.args(run_args);
+      let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
+      let app_child_t = app_child.clone();
+      std::thread::spawn(move || {
+        let status = app_child_t.wait().expect("failed to wait on app");
+        if !manually_killed_app.load(Ordering::Relaxed) {
+          kill_before_dev_process();
+          #[cfg(not(debug_assertions))]
+          let _ = check_for_updates();
+          exit(status.code().unwrap_or(0));
+        }
+      });
+
+      app_child_.lock().unwrap().replace(app_child);
+    } else if exit_on_panic {
       if !manually_killed_app.load(Ordering::Relaxed) {
         kill_before_dev_process();
         #[cfg(not(debug_assertions))]
@@ -558,10 +666,9 @@ fn start_app(
       stderr_lines.lock().unwrap().clear();
 
       // if we're no exiting on panic, we only exit if:
-      // - the status is a success code (app closed)
       // - status code is the Cargo error code
       //    - and error is not a cargo compilation error (using stderr heuristics)
-      if status.success() || (status.code() == Some(101) && !is_cargo_compile_error) {
+      if status.code() == Some(101) && !is_cargo_compile_error {
         kill_before_dev_process();
         #[cfg(not(debug_assertions))]
         let _ = check_for_updates();
@@ -570,7 +677,10 @@ fn start_app(
     }
   });
 
-  Ok(child_arc)
+  Ok(Dev {
+    build_child,
+    app_child,
+  })
 }
 
 // taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L514

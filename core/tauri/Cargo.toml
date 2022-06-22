@@ -104,7 +104,7 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.16.0"
+webview2-com = "0.17.0"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.37.0"

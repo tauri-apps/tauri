@@ -15,11 +15,9 @@ use crate::{
 };
 use anyhow::{bail, Context};
 use clap::Parser;
-#[cfg(target_os = "linux")]
-use heck::ToKebabCase;
 use log::warn;
 use log::{error, info};
-use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
+use std::{env::set_current_dir, path::PathBuf, process::Command};
 use tauri_bundler::bundle::{bundle_project, PackageType};
 
 #[derive(Debug, Clone, Parser)]
@@ -162,57 +160,21 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   let interface = AppInterface::new(config_)?;
-
   let app_settings = interface.app_settings();
-
   let interface_options = options.clone().into();
 
-  let out_dir = app_settings
-    .get_out_dir(&interface_options)
-    .with_context(|| "failed to get project out directory")?;
-
-  let target: String = if let Some(target) = options.target.clone() {
-    target
-  } else {
-    tauri_utils::platform::target_triple()?
-  };
-  let binary_extension: String = if target.contains("windows") {
-    "exe"
-  } else {
-    ""
-  }
-  .into();
-
-  let bin_path = out_dir
-    .join(&app_settings.bin_name())
-    .with_extension(&binary_extension);
+  let bin_path = app_settings.app_binary_path(&interface_options)?;
+  let out_dir = bin_path.parent().unwrap();
 
   interface
     .build(interface_options)
     .with_context(|| "failed to build app")?;
 
-  if let Some(product_name) = config_.package.product_name.clone() {
-    #[cfg(target_os = "linux")]
-    let product_name = product_name.to_kebab_case();
-
-    let product_path = out_dir
-      .join(&product_name)
-      .with_extension(&binary_extension);
-
-    rename(&bin_path, &product_path).with_context(|| {
-      format!(
-        "failed to rename `{}` to `{}`",
-        bin_path.display(),
-        product_path.display(),
-      )
-    })?;
-  }
-
   if config_.tauri.bundle.active {
     let package_types = if let Some(names) = &options.bundles {
       let mut types = vec![];
       for name in names
-        .into_iter()
+        .iter()
         .flat_map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
       {
         if name == "none" {
@@ -247,7 +209,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let settings = app_settings
-      .get_bundler_settings(&options.into(), &manifest, config_, &out_dir, package_types)
+      .get_bundler_settings(&options.into(), &manifest, config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
 
     // set env vars used by the bundler

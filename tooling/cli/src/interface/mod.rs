@@ -4,7 +4,10 @@
 
 pub mod rust;
 
-use std::path::{Path, PathBuf};
+use std::{
+  path::{Path, PathBuf},
+  process::ExitStatus,
+};
 
 use crate::helpers::{config::Config, manifest::Manifest};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
@@ -20,7 +23,7 @@ pub trait AppSettings {
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
   fn get_out_dir(&self, options: &Options) -> crate::Result<PathBuf>;
-  fn bin_name(&self) -> String;
+  fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
   fn get_binaries(
     &self,
     config: &Config,
@@ -62,10 +65,32 @@ pub trait AppSettings {
   }
 }
 
+pub trait DevProcess {
+  fn kill(&self) -> std::io::Result<()>;
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
+}
+
+#[derive(Debug)]
+pub enum ExitReason {
+  /// Killed manually.
+  TriggeredKill,
+  /// App compilation failed.
+  CompilationFailed,
+  /// Regular exit.
+  NormalExit,
+}
+
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
+  type Dev: DevProcess;
 
   fn new(config: &Config) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
   fn build(&self, options: Options) -> crate::Result<()>;
+  fn dev<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+    &self,
+    options: Options,
+    manifest: &Manifest,
+    on_exit: F,
+  ) -> crate::Result<Self::Dev>;
 }

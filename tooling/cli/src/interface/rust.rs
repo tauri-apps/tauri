@@ -146,7 +146,7 @@ impl Interface for Rust {
         lipo_cmd.arg(triple_out_dir.join(&bin_name));
       }
 
-      let lipo_status = lipo_cmd.status()?;
+      let lipo_status = lipo_cmd.output_ok()?.status;
       if !lipo_status.success() {
         return Err(anyhow::anyhow!(format!(
           "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
@@ -362,6 +362,11 @@ impl Rust {
 
     if !options.debug {
       args.push("--release".into());
+    }
+
+    if let Some(target) = options.target {
+      args.push("--target".into());
+      args.push(target);
     }
 
     match Command::new(&runner)

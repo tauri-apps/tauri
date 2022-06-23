@@ -18,9 +18,12 @@ use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
 use serde::Deserialize;
-use std::ffi::OsString;
 use std::io::{BufReader, Write};
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, ExitStatus, Output, Stdio};
+use std::{
+  ffi::OsString,
+  sync::{Arc, Mutex},
+};
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {
@@ -177,7 +180,7 @@ pub trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
   // show the command output in the Node.js wrapper.
   fn piped(&mut self) -> std::io::Result<ExitStatus>;
-  fn output_ok(&mut self) -> crate::Result<()>;
+  fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
 impl CommandExt for Command {
@@ -190,7 +193,7 @@ impl CommandExt for Command {
     self.status().map_err(Into::into)
   }
 
-  fn output_ok(&mut self) -> crate::Result<()> {
+  fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
     debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
 
@@ -200,8 +203,11 @@ impl CommandExt for Command {
     let mut child = self.spawn()?;
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
+    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
+    let stdout_lines_ = stdout_lines.clone();
     std::thread::spawn(move || {
       let mut buf = Vec::new();
+      let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
         match tauri_utils::io::read_line(&mut stdout, &mut buf) {
@@ -209,12 +215,17 @@ impl CommandExt for Command {
           _ => (),
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
       }
     });
 
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
+    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+    let stderr_lines_ = stderr_lines.clone();
     std::thread::spawn(move || {
       let mut buf = Vec::new();
+      let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
         match tauri_utils::io::read_line(&mut stderr, &mut buf) {
@@ -222,13 +233,21 @@ impl CommandExt for Command {
           _ => (),
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
       }
     });
 
     let status = child.wait()?;
 
-    if status.success() {
-      Ok(())
+    let output = Output {
+      status,
+      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
+      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+    };
+
+    if output.status.success() {
+      Ok(output)
     } else {
       Err(anyhow::anyhow!("failed to run {}", program))
     }

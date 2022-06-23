@@ -496,10 +496,6 @@ impl AppSettings for RustAppSettings {
     )
   }
 
-  fn get_out_dir(&self, options: &Options) -> crate::Result<PathBuf> {
-    self.out_dir(options.target.clone(), options.debug)
-  }
-
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
     let bin_name = self
       .cargo_package_settings()
@@ -508,7 +504,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .get_out_dir(options)
+      .out_dir(options.target.clone(), options.debug)
       .with_context(|| "failed to get project out directory")?;
     let target: String = if let Some(target) = options.target.clone() {
       target

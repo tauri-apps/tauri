@@ -22,7 +22,6 @@ pub trait AppSettings {
     manifest: &Manifest,
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
-  fn get_out_dir(&self, options: &Options) -> crate::Result<PathBuf>;
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
   fn get_binaries(
     &self,

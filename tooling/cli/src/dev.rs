@@ -9,6 +9,7 @@ use crate::{
     config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
     manifest::{rewrite_manifest, Manifest},
   },
+  interface::{AppInterface, AppSettings, Interface},
   Result,
 };
 use clap::Parser;
@@ -42,18 +43,18 @@ const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh"
 
 const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watcher.gitignore");
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
   /// Binary to use to run the application
   #[clap(short, long)]
-  runner: Option<String>,
+  pub runner: Option<String>,
   /// Target triple to build against
   #[clap(short, long)]
-  target: Option<String>,
+  pub target: Option<String>,
   /// List of cargo features to activate
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
-  features: Option<Vec<String>>,
+  pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
   exit_on_panic: bool,
@@ -62,9 +63,9 @@ pub struct Options {
   config: Option<String>,
   /// Run the code in release mode
   #[clap(long = "release")]
-  release_mode: bool,
+  pub release_mode: bool,
   /// Command line arguments passed to the runner
-  args: Vec<String>,
+  pub args: Vec<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -265,17 +266,15 @@ fn command_internal(options: Options) -> Result<()> {
     .product_name
     .clone();
 
-  let app_settings =
-    crate::interface::rust::AppSettings::new(config.lock().unwrap().as_ref().unwrap())?;
+  let interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
+
+  let app_settings = interface.app_settings();
+
+  let interface_options = options.clone().into();
 
   let out_dir = app_settings
-    .get_out_dir(options.target.clone(), !options.release_mode)
+    .get_out_dir(&interface_options)
     .with_context(|| "failed to get project out directory")?;
-  let bin_name = app_settings
-    .cargo_package_settings()
-    .name
-    .clone()
-    .expect("Cargo manifest must have the `package.name` field");
   let target: String = if let Some(target) = options.target.clone() {
     target
   } else {
@@ -288,7 +287,9 @@ fn command_internal(options: Options) -> Result<()> {
   }
   .into();
 
-  let bin_path = out_dir.join(&bin_name).with_extension(&binary_extension);
+  let bin_path = out_dir
+    .join(&app_settings.bin_name())
+    .with_extension(&binary_extension);
   let product_path = product_name
     .as_ref()
     .map(|name| out_dir.join(&name).with_extension(&binary_extension));

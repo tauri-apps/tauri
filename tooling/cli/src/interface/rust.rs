@@ -15,7 +15,12 @@ use anyhow::Context;
 use heck::ToKebabCase;
 use log::warn;
 use serde::Deserialize;
+use tauri_bundler::{
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
+  UpdaterSettings, WindowsSettings,
+};
 
+use super::{AppSettings, Interface};
 use crate::{
   helpers::{
     app_paths::tauri_dir,
@@ -24,10 +29,164 @@ use crate::{
   },
   CommandExt,
 };
-use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
-};
+
+#[derive(Debug, Clone)]
+pub struct Options {
+  pub runner: Option<String>,
+  pub debug: bool,
+  pub target: Option<String>,
+  pub features: Option<Vec<String>>,
+  pub args: Vec<String>,
+}
+
+impl From<crate::build::Options> for Options {
+  fn from(options: crate::build::Options) -> Self {
+    Self {
+      runner: options.runner,
+      debug: options.debug,
+      target: options.target,
+      features: options.features,
+      args: options.args,
+    }
+  }
+}
+
+impl From<crate::dev::Options> for Options {
+  fn from(options: crate::dev::Options) -> Self {
+    Self {
+      runner: options.runner,
+      debug: !options.release_mode,
+      target: options.target,
+      features: options.features,
+      args: options.args,
+    }
+  }
+}
+
+pub struct Rust {
+  app_settings: RustAppSettings,
+}
+
+impl Interface for Rust {
+  type AppSettings = RustAppSettings;
+
+  fn new(config: &Config) -> crate::Result<Self> {
+    Ok(Self {
+      app_settings: RustAppSettings::new(config)?,
+    })
+  }
+
+  fn app_settings(&self) -> &Self::AppSettings {
+    &self.app_settings
+  }
+
+  fn build(&self, options: Options) -> crate::Result<()> {
+    let out_dir = self
+      .app_settings
+      .out_dir(options.target.clone(), options.debug)
+      .with_context(|| "failed to get project out directory")?;
+
+    let bin_name = self
+      .app_settings
+      .cargo_package_settings()
+      .name
+      .clone()
+      .expect("Cargo manifest must have the `package.name` field");
+
+    if options.target == Some("universal-apple-darwin".into()) {
+      std::fs::create_dir_all(&out_dir)
+        .with_context(|| "failed to create project out directory")?;
+
+      let mut lipo_cmd = Command::new("lipo");
+      lipo_cmd
+        .arg("-create")
+        .arg("-output")
+        .arg(out_dir.join(&bin_name));
+      for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
+        let mut options = options.clone();
+        options.target.replace(triple.into());
+
+        let triple_out_dir = self
+          .app_settings
+          .out_dir(Some(triple.into()), options.debug)
+          .with_context(|| format!("failed to get {} out dir", triple))?;
+        self
+          .build_app(options)
+          .with_context(|| format!("failed to build {} binary", triple))?;
+
+        lipo_cmd.arg(triple_out_dir.join(&bin_name));
+      }
+
+      let lipo_status = lipo_cmd.status()?;
+      if !lipo_status.success() {
+        return Err(anyhow::anyhow!(format!(
+          "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
+          lipo_status
+        )));
+      }
+    } else {
+      self
+        .build_app(options.clone())
+        .with_context(|| "failed to build app")?;
+    }
+    Ok(())
+  }
+}
+
+impl Rust {
+  fn build_app(&self, options: Options) -> crate::Result<()> {
+    let runner = options.runner.unwrap_or_else(|| "cargo".into());
+
+    let mut args = Vec::new();
+    if !options.args.is_empty() {
+      args.extend(options.args);
+    }
+
+    if let Some(features) = options.features {
+      if !features.is_empty() {
+        args.push("--features".into());
+        args.push(features.join(","));
+      }
+    }
+
+    if !options.debug {
+      args.push("--release".into());
+    }
+
+    match Command::new(&runner)
+      .args(&["build", "--features=custom-protocol"])
+      .args(args)
+      .env("STATIC_VCRUNTIME", "true")
+      .piped()
+    {
+      Ok(status) => {
+        if status.success() {
+          Ok(())
+        } else {
+          Err(anyhow::anyhow!(
+            "Result of `{} build` operation was unsuccessful",
+            runner
+          ))
+        }
+      }
+      Err(e) => {
+        if e.kind() == ErrorKind::NotFound {
+          Err(anyhow::anyhow!(
+            "`{}` command not found.{}",
+            runner,
+            if runner == "cargo" {
+              " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+            } else {
+              ""
+            }
+          ))
+        } else {
+          Err(e.into())
+        }
+      }
+    }
+  }
+}
 
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
@@ -100,94 +259,18 @@ struct CargoConfig {
   build: Option<CargoBuildConfig>,
 }
 
-pub fn build_project(runner: String, args: Vec<String>) -> crate::Result<()> {
-  match Command::new(&runner)
-    .args(&["build", "--features=custom-protocol"])
-    .args(args)
-    .env("STATIC_VCRUNTIME", "true")
-    .piped()
-  {
-    Ok(status) => {
-      if status.success() {
-        Ok(())
-      } else {
-        Err(anyhow::anyhow!(
-          "Result of `{} build` operation was unsuccessful",
-          runner
-        ))
-      }
-    }
-    Err(e) => {
-      if e.kind() == ErrorKind::NotFound {
-        Err(anyhow::anyhow!(
-          "`{}` command not found.{}",
-          runner,
-          if runner == "cargo" {
-            " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
-          } else {
-            ""
-          }
-        ))
-      } else {
-        Err(e.into())
-      }
-    }
-  }
-}
-
-pub struct AppSettings {
+pub struct RustAppSettings {
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
 }
 
-impl AppSettings {
-  pub fn new(config: &Config) -> crate::Result<Self> {
-    let cargo_settings =
-      CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
-    let cargo_package_settings = match &cargo_settings.package {
-      Some(package_info) => package_info.clone(),
-      None => {
-        return Err(anyhow::anyhow!(
-          "No package info in the config file".to_owned(),
-        ))
-      }
-    };
-
-    let package_settings = PackageSettings {
-      product_name: config.package.product_name.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .name
-          .clone()
-          .expect("Cargo manifest must have the `package.name` field")
-      }),
-      version: config.package.version.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .version
-          .clone()
-          .expect("Cargo manifest must have the `package.version` field")
-      }),
-      description: cargo_package_settings
-        .description
-        .clone()
-        .unwrap_or_default(),
-      homepage: cargo_package_settings.homepage.clone(),
-      authors: cargo_package_settings.authors.clone(),
-      default_run: cargo_package_settings.default_run.clone(),
-    };
-
-    Ok(Self {
-      cargo_settings,
-      cargo_package_settings,
-      package_settings,
-    })
+impl AppSettings for RustAppSettings {
+  fn get_package_settings(&self) -> PackageSettings {
+    self.package_settings.clone()
   }
 
-  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
-    &self.cargo_package_settings
-  }
-
-  pub fn get_bundle_settings(
+  fn get_bundle_settings(
     &self,
     config: &Config,
     manifest: &Manifest,
@@ -202,17 +285,19 @@ impl AppSettings {
     )
   }
 
-  pub fn get_out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
-    let tauri_dir = tauri_dir();
-    let workspace_dir = get_workspace_dir(&tauri_dir);
-    get_target_dir(&workspace_dir, target, !debug)
+  fn get_out_dir(&self, options: &Options) -> crate::Result<PathBuf> {
+    self.out_dir(options.target.clone(), options.debug)
   }
 
-  pub fn get_package_settings(&self) -> PackageSettings {
-    self.package_settings.clone()
+  fn bin_name(&self) -> String {
+    self
+      .cargo_package_settings()
+      .name
+      .clone()
+      .expect("Cargo manifest must have the `package.name` field")
   }
 
-  pub fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
+  fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
 
     let binary_extension: String = if target.contains("windows") {
@@ -314,6 +399,59 @@ impl AppSettings {
     }
 
     Ok(binaries)
+  }
+}
+
+impl RustAppSettings {
+  pub fn new(config: &Config) -> crate::Result<Self> {
+    let cargo_settings =
+      CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
+    let cargo_package_settings = match &cargo_settings.package {
+      Some(package_info) => package_info.clone(),
+      None => {
+        return Err(anyhow::anyhow!(
+          "No package info in the config file".to_owned(),
+        ))
+      }
+    };
+
+    let package_settings = PackageSettings {
+      product_name: config.package.product_name.clone().unwrap_or_else(|| {
+        cargo_package_settings
+          .name
+          .clone()
+          .expect("Cargo manifest must have the `package.name` field")
+      }),
+      version: config.package.version.clone().unwrap_or_else(|| {
+        cargo_package_settings
+          .version
+          .clone()
+          .expect("Cargo manifest must have the `package.version` field")
+      }),
+      description: cargo_package_settings
+        .description
+        .clone()
+        .unwrap_or_default(),
+      homepage: cargo_package_settings.homepage.clone(),
+      authors: cargo_package_settings.authors.clone(),
+      default_run: cargo_package_settings.default_run.clone(),
+    };
+
+    Ok(Self {
+      cargo_settings,
+      cargo_package_settings,
+      package_settings,
+    })
+  }
+
+  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
+    &self.cargo_package_settings
+  }
+
+  pub fn out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
+    let tauri_dir = tauri_dir();
+    let workspace_dir = get_workspace_dir(&tauri_dir);
+    get_target_dir(&workspace_dir, target, !debug)
   }
 }
 

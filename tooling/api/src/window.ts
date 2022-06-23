@@ -663,7 +663,10 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * Gets the window's current theme.
    *
-   * Only implemented on Windows and macOS 10.14+.
+   * #### Platform-specific
+   *
+   * - **Linux:** Not implemented, always returns `light`.
+   * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
    *
    * @example
    * ```typescript

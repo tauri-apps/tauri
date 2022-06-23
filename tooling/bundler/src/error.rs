@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{io, num, path};
+use std::{io::Error as StdIoError, num, path};
 use thiserror::Error as DeriveError;
 
 /// Errors returned by the bundler.
@@ -17,7 +17,7 @@ pub enum Error {
   BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]
-  IoError(#[from] io::Error),
+  IoError(#[from] StdIoError),
   /// Image error.
   #[error("`{0}`")]
   ImageError(#[from] image::ImageError),

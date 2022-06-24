@@ -19,7 +19,7 @@ use env_logger::Builder;
 use log::{debug, log_enabled, Level};
 use serde::Deserialize;
 use std::io::{BufReader, Write};
-use std::process::{Command, ExitStatus, Output, Stdio};
+use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
   sync::{Arc, Mutex},
@@ -85,7 +85,18 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
 /// The passed `bin_name` parameter should be how you want the help messages to display the command.
 /// This defaults to `cargo-tauri`, but should be set to how the program was called, such as
 /// `cargo tauri`.
-pub fn run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
+pub fn run<I, A>(args: I, bin_name: Option<String>)
+where
+  I: IntoIterator<Item = A>,
+  A: Into<OsString> + Clone,
+{
+  if let Err(e) = try_run(args, bin_name) {
+    log::error!("{:#}", e);
+    exit(1);
+  }
+}
+
+fn try_run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
 where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,

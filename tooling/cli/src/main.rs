@@ -8,7 +8,7 @@ use std::ffi::OsStr;
 use std::path::Path;
 use std::process::exit;
 
-fn main() -> tauri_cli::Result<()> {
+fn main() {
   let mut args = args_os().peekable();
   let bin_name = match args
     .next()
@@ -33,5 +33,5 @@ fn main() -> tauri_cli::Result<()> {
     }
   };
 
-  tauri_cli::run(args, bin_name).context("Try running with --verbose to see command output")
+  tauri_cli::run(args, bin_name)
 }

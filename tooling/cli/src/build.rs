@@ -160,16 +160,16 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let interface = AppInterface::new(config_)?;
+  let mut interface = AppInterface::new(config_)?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
 
-  interface
-    .build(interface_options)
-    .with_context(|| "failed to build app")?;
+  interface.build(interface_options)?;
+
+  let app_settings = interface.app_settings();
 
   if config_.tauri.bundle.active {
     let package_types = if let Some(names) = &options.bundles {

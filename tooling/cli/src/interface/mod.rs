@@ -85,9 +85,9 @@ pub trait Interface: Sized {
 
   fn new(config: &Config) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
-  fn build(&self, options: Options) -> crate::Result<()>;
+  fn build(&mut self, options: Options) -> crate::Result<()>;
   fn dev<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
-    &self,
+    &mut self,
     options: Options,
     manifest: &Manifest,
     on_exit: F,

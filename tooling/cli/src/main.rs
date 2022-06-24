@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use std::env::args_os;
 use std::ffi::OsStr;
 use std::path::Path;

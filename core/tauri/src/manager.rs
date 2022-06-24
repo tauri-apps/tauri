@@ -1192,14 +1192,16 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     // let plugins know that a new window has been added to the manager
-    {
-      self
-        .inner
+    let manager = self.inner.clone();
+    let window_ = window.clone();
+    // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
+    let _ = window.run_on_main_thread(move || {
+      manager
         .plugins
         .lock()
         .expect("poisoned plugin store")
-        .created(window.clone());
-    }
+        .created(window_);
+    });
 
     window
   }

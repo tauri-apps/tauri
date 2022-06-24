@@ -4,7 +4,7 @@
 
 //! Items specific to the [`Runtime`](crate::Runtime)'s webview.
 
-use crate::{menu::Menu, window::DetachedWindow, WindowIcon};
+use crate::{menu::Menu, window::DetachedWindow, Icon};
 
 use tauri_utils::{
   config::{WindowConfig, WindowUrl},
@@ -153,7 +153,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn always_on_top(self, always_on_top: bool) -> Self;
 
   /// Sets the window icon.
-  fn icon(self, icon: WindowIcon) -> crate::Result<Self>;
+  fn icon(self, icon: Icon) -> crate::Result<Self>;
 
   /// Sets whether or not the window icon should be added to the taskbar.
   #[must_use]

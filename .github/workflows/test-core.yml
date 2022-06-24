@@ -40,7 +40,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: install webkit2gtk (ubuntu only)
+      - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
@@ -57,7 +57,7 @@ jobs:
       - name: Cache cargo state
         uses: actions/cache@v2
         env:
-          cache-name: cargo-state
+          cache-name: cargo_state
         with:
           path: |
             ~/.cargo/registry
@@ -73,7 +73,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo-core
+          cache-name: cargo_core
         with:
           path: target
           # Add date to the cache to keep it up to date
@@ -89,4 +89,4 @@ jobs:
         run: |
           cargo test
           cargo test --features api-all
-          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart
+          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart

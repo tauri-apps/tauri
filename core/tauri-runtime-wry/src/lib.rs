@@ -16,8 +16,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent, WindowIcon,
+  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
+  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -39,7 +39,7 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -225,16 +225,15 @@ impl<T: UserEvent> Context<T> {
 
     self.prepare_window(window_id);
 
-    // we cannot use `send_user_message` here, see https://github.com/tauri-apps/wry/issues/583
-    self
-      .proxy
-      .send_event(Message::CreateWebview(
+    send_user_message(
+      self,
+      Message::CreateWebview(
         window_id,
         Box::new(move |event_loop, web_context| {
           create_webview(window_id, event_loop, web_context, context, pending)
         }),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)?;
+      ),
+    )?;
 
     let dispatcher = WryDispatcher {
       window_id,
@@ -487,9 +486,9 @@ fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
 }
 
-impl TryFrom<WindowIcon> for WryIcon {
+impl TryFrom<Icon> for WryIcon {
   type Error = Error;
-  fn try_from(icon: WindowIcon) -> std::result::Result<Self, Self::Error> {
+  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
     WryWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
       .map(Self)
       .map_err(icon_err)
@@ -758,7 +757,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     if config.transparent {
       eprintln!(
         "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.studio/docs/api/config#tauri.macOSPrivateApi>
+        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
     }
 
@@ -904,7 +903,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  fn icon(mut self, icon: WindowIcon) -> Result<Self> {
+  fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
       .with_window_icon(Some(WryIcon::try_from(icon)?.0));
@@ -924,7 +923,7 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "macos"))]
     {
       self.inner = self.inner.with_theme(if let Some(t) = theme {
         match t {
@@ -935,6 +934,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         None
       });
     }
+
     self
   }
 
@@ -1111,7 +1111,7 @@ pub enum WebviewEvent {
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
   UpdateMenu(SystemTrayMenu),
-  UpdateIcon(TrayIcon),
+  UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Close,
@@ -1315,7 +1315,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::Theme)
   }
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1453,15 +1453,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   fn set_size(&self, size: Size) -> Result<()> {
-    // NOTE: set_size cannot use the `send_user_message` function because tao freezes on Windows
-    self
-      .context
-      .proxy
-      .send_event(Message::Window(
-        self.window_id,
-        WindowMessage::SetSize(size),
-      ))
-      .map_err(|_| Error::FailedToSendMessage)
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetSize(size)),
+    )
   }
 
   fn set_min_size(&self, size: Option<Size>) -> Result<()> {
@@ -1499,7 +1494,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  fn set_icon(&self, icon: WindowIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(
@@ -1589,8 +1584,9 @@ impl fmt::Debug for TrayContext {
   }
 }
 
+#[derive(Clone)]
 enum WindowHandle {
-  Webview(WebView),
+  Webview(Arc<WebView>),
   Window(Arc<Window>),
 }
 
@@ -1600,14 +1596,19 @@ impl fmt::Debug for WindowHandle {
   }
 }
 
-impl WindowHandle {
-  fn window(&self) -> &Window {
+impl Deref for WindowHandle {
+  type Target = Window;
+
+  #[inline(always)]
+  fn deref(&self) -> &Window {
     match self {
       Self::Webview(w) => w.window(),
       Self::Window(w) => w,
     }
   }
+}
 
+impl WindowHandle {
   fn inner_size(&self) -> WryPhysicalSize<u32> {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
@@ -1767,7 +1768,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   #[cfg(all(windows, feature = "system-tray"))]
-  /// Deprecated. (not needed anymore)
   fn remove_system_tray(&self) -> Result<()> {
     send_user_message(&self.context, Message::Tray(TrayMessage::Close))
   }
@@ -1973,33 +1973,26 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(feature = "system-tray")]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let icon = system_tray
-      .icon
-      .expect("tray icon not set")
-      .into_platform_icon();
+    let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
 
     let mut items = HashMap::new();
 
-    #[cfg(target_os = "macos")]
-    let tray = SystemTrayBuilder::new(
-      icon,
+    #[allow(unused_mut)]
+    let mut tray_builder = SystemTrayBuilder::new(
+      icon.0,
       system_tray
         .menu
         .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .with_icon_as_template(system_tray.icon_as_template)
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    );
 
-    #[cfg(not(target_os = "macos"))]
-    let tray = SystemTrayBuilder::new(
-      icon,
-      system_tray
-        .menu
-        .map(|menu| to_wry_context_menu(&mut items, menu)),
-    )
-    .build(&self.event_loop)
-    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+    #[cfg(target_os = "macos")]
+    {
+      tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+    }
+
+    let tray = tray_builder
+      .build(&self.event_loop)
+      .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
     *self.tray_context.items.lock().unwrap() = items;
     *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
@@ -2241,201 +2234,212 @@ fn handle_user_message<T: UserEvent>(
   match message {
     Message::Task(task) => task(),
     Message::Window(id, window_message) => {
-      if let Some((Some(window_handle), menu_items)) = windows
-        .lock()
-        .expect("poisoned webview collection")
-        .get_mut(&id)
-        .map(|w| (w.inner.as_ref(), &mut w.menu_items))
-      {
-        let window = window_handle.window();
-        match window_message {
-          WindowMessage::WithWebview(f) => {
-            if let WindowHandle::Webview(w) = window_handle {
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              {
-                use wry::webview::WebviewExtUnix;
-                f(w.webview());
-              }
+      if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
+        if let Some(menu_items) = windows
+          .lock()
+          .expect("poisoned webview collection")
+          .get_mut(&id)
+          .map(|w| &mut w.menu_items)
+        {
+          if let Some(menu_items) = menu_items.as_mut() {
+            let item = menu_items.get_mut(&item_id).expect("menu item not found");
+            match update {
+              MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+              MenuUpdate::SetTitle(title) => item.set_title(&title),
+              MenuUpdate::SetSelected(selected) => item.set_selected(selected),
               #[cfg(target_os = "macos")]
-              {
-                use wry::webview::WebviewExtMacOS;
-                f(Webview {
-                  webview: w.webview(),
-                  manager: w.manager(),
-                  ns_window: w.ns_window(),
-                });
-              }
-
-              #[cfg(windows)]
-              {
-                f(Webview {
-                  controller: w.controller(),
-                });
+              MenuUpdate::SetNativeImage(image) => {
+                item.set_native_image(NativeImageWrapper::from(image).0)
               }
             }
           }
-
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WindowMessage::OpenDevTools => {
-            if let WindowHandle::Webview(w) = &window_handle {
-              w.open_devtools();
-            }
-          }
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WindowMessage::CloseDevTools => {
-            if let WindowHandle::Webview(w) = &window_handle {
-              w.close_devtools();
-            }
-          }
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WindowMessage::IsDevToolsOpen(tx) => {
-            if let WindowHandle::Webview(w) = &window_handle {
-              tx.send(w.is_devtools_open()).unwrap();
-            } else {
-              tx.send(false).unwrap();
-            }
-          }
-          // Getters
-          WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
-          WindowMessage::InnerPosition(tx) => tx
-            .send(
-              window
-                .inner_position()
-                .map(|p| PhysicalPositionWrapper(p).into())
-                .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::OuterPosition(tx) => tx
-            .send(
-              window
-                .outer_position()
-                .map(|p| PhysicalPositionWrapper(p).into())
-                .map_err(|_| Error::FailedToSendMessage),
-            )
-            .unwrap(),
-          WindowMessage::InnerSize(tx) => tx
-            .send(PhysicalSizeWrapper(window_handle.inner_size()).into())
-            .unwrap(),
-          WindowMessage::OuterSize(tx) => tx
-            .send(PhysicalSizeWrapper(window.outer_size()).into())
-            .unwrap(),
-          WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
-          WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
-          WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
-          WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
-          WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
-          WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
-          WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
-          WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::AvailableMonitors(tx) => {
-            tx.send(window.available_monitors().collect()).unwrap()
-          }
-          #[cfg(target_os = "macos")]
-          WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
-          #[cfg(windows)]
-          WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
-          #[cfg(any(
-            target_os = "linux",
-            target_os = "dragonfly",
-            target_os = "freebsd",
-            target_os = "netbsd",
-            target_os = "openbsd"
-          ))]
-          WindowMessage::GtkWindow(tx) => tx.send(GtkWindow(window.gtk_window().clone())).unwrap(),
-          WindowMessage::Theme(tx) => {
-            #[cfg(windows)]
-            tx.send(map_theme(&window.theme())).unwrap();
-            #[cfg(not(windows))]
-            tx.send(Theme::Light).unwrap();
-          }
-          // Setters
-          WindowMessage::Center(tx) => {
-            tx.send(center_window(window, window_handle.inner_size()))
-              .unwrap();
-          }
-          WindowMessage::RequestUserAttention(request_type) => {
-            window.request_user_attention(request_type.map(|r| r.0));
-          }
-          WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
-          WindowMessage::SetTitle(title) => window.set_title(&title),
-          WindowMessage::Maximize => window.set_maximized(true),
-          WindowMessage::Unmaximize => window.set_maximized(false),
-          WindowMessage::Minimize => window.set_minimized(true),
-          WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::ShowMenu => window.show_menu(),
-          WindowMessage::HideMenu => window.hide_menu(),
-          WindowMessage::Show => window.set_visible(true),
-          WindowMessage::Hide => window.set_visible(false),
-          WindowMessage::Close => panic!("cannot handle `WindowMessage::Close` on the main thread"),
-          WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
-          WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
-          WindowMessage::SetSize(size) => {
-            window.set_inner_size(SizeWrapper::from(size).0);
-          }
-          WindowMessage::SetMinSize(size) => {
-            window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
-          }
-          WindowMessage::SetMaxSize(size) => {
-            window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
-          }
-          WindowMessage::SetPosition(position) => {
-            window.set_outer_position(PositionWrapper::from(position).0)
-          }
-          WindowMessage::SetFullscreen(fullscreen) => {
-            if fullscreen {
-              window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-            } else {
-              window.set_fullscreen(None)
-            }
-          }
-          WindowMessage::SetFocus => {
-            window.set_focus();
-          }
-          WindowMessage::SetIcon(icon) => {
-            window.set_window_icon(Some(icon));
-          }
-          #[allow(unused_variables)]
-          WindowMessage::SetSkipTaskbar(skip) => {
-            #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(skip);
-          }
-          WindowMessage::SetCursorGrab(grab) => {
-            let _ = window.set_cursor_grab(grab);
-          }
-          WindowMessage::SetCursorVisible(visible) => {
-            window.set_cursor_visible(visible);
-          }
-          WindowMessage::SetCursorIcon(icon) => {
-            window.set_cursor_icon(CursorIconWrapper::from(icon).0);
-          }
-          WindowMessage::SetCursorPosition(position) => {
-            let _ = window.set_cursor_position(PositionWrapper::from(position).0);
-          }
-          WindowMessage::DragWindow => {
-            let _ = window.drag_window();
-          }
-          WindowMessage::UpdateMenuItem(id, update) => {
-            if let Some(menu_items) = menu_items.as_mut() {
-              let item = menu_items.get_mut(&id).expect("menu item not found");
-              match update {
-                MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
-                MenuUpdate::SetTitle(title) => item.set_title(&title),
-                MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+        }
+      } else {
+        let windows_lock = windows.lock().expect("poisoned webview collection");
+        if let Some(window) = windows_lock.get(&id).and_then(|w| w.inner.clone()) {
+          drop(windows_lock);
+          match window_message {
+            WindowMessage::WithWebview(f) => {
+              if let WindowHandle::Webview(w) = window {
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd"
+                ))]
+                {
+                  use wry::webview::WebviewExtUnix;
+                  f(w.webview());
+                }
                 #[cfg(target_os = "macos")]
-                MenuUpdate::SetNativeImage(image) => {
-                  item.set_native_image(NativeImageWrapper::from(image).0)
+                {
+                  use wry::webview::WebviewExtMacOS;
+                  f(Webview {
+                    webview: w.webview(),
+                    manager: w.manager(),
+                    ns_window: w.ns_window(),
+                  });
+                }
+
+                #[cfg(windows)]
+                {
+                  f(Webview {
+                    controller: w.controller(),
+                  });
                 }
               }
             }
-          }
-          WindowMessage::RequestRedraw => {
-            window.request_redraw();
+
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WindowMessage::OpenDevTools => {
+              if let WindowHandle::Webview(w) = &window {
+                w.open_devtools();
+              }
+            }
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WindowMessage::CloseDevTools => {
+              if let WindowHandle::Webview(w) = &window {
+                w.close_devtools();
+              }
+            }
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WindowMessage::IsDevToolsOpen(tx) => {
+              if let WindowHandle::Webview(w) = &window {
+                tx.send(w.is_devtools_open()).unwrap();
+              } else {
+                tx.send(false).unwrap();
+              }
+            }
+            // Getters
+            WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
+            WindowMessage::InnerPosition(tx) => tx
+              .send(
+                window
+                  .inner_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::OuterPosition(tx) => tx
+              .send(
+                window
+                  .outer_position()
+                  .map(|p| PhysicalPositionWrapper(p).into())
+                  .map_err(|_| Error::FailedToSendMessage),
+              )
+              .unwrap(),
+            WindowMessage::InnerSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.inner_size()).into())
+              .unwrap(),
+            WindowMessage::OuterSize(tx) => tx
+              .send(PhysicalSizeWrapper(window.outer_size()).into())
+              .unwrap(),
+            WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
+            WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
+            WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
+            WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
+            WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
+            WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+            WindowMessage::AvailableMonitors(tx) => {
+              tx.send(window.available_monitors().collect()).unwrap()
+            }
+            #[cfg(target_os = "macos")]
+            WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
+            #[cfg(windows)]
+            WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            WindowMessage::GtkWindow(tx) => {
+              tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
+            }
+            WindowMessage::Theme(tx) => {
+              #[cfg(any(windows, target_os = "macos"))]
+              tx.send(map_theme(&window.theme())).unwrap();
+              #[cfg(not(windows))]
+              tx.send(Theme::Light).unwrap();
+            }
+            // Setters
+            WindowMessage::Center(tx) => {
+              tx.send(center_window(&window, window.inner_size()))
+                .unwrap();
+            }
+            WindowMessage::RequestUserAttention(request_type) => {
+              window.request_user_attention(request_type.map(|r| r.0));
+            }
+            WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+            WindowMessage::SetTitle(title) => window.set_title(&title),
+            WindowMessage::Maximize => window.set_maximized(true),
+            WindowMessage::Unmaximize => window.set_maximized(false),
+            WindowMessage::Minimize => window.set_minimized(true),
+            WindowMessage::Unminimize => window.set_minimized(false),
+            WindowMessage::ShowMenu => window.show_menu(),
+            WindowMessage::HideMenu => window.hide_menu(),
+            WindowMessage::Show => window.set_visible(true),
+            WindowMessage::Hide => window.set_visible(false),
+            WindowMessage::Close => {
+              panic!("cannot handle `WindowMessage::Close` on the main thread")
+            }
+            WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+            WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetSize(size) => {
+              window.set_inner_size(SizeWrapper::from(size).0);
+            }
+            WindowMessage::SetMinSize(size) => {
+              window.set_min_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetMaxSize(size) => {
+              window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+            }
+            WindowMessage::SetPosition(position) => {
+              window.set_outer_position(PositionWrapper::from(position).0)
+            }
+            WindowMessage::SetFullscreen(fullscreen) => {
+              if fullscreen {
+                window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+              } else {
+                window.set_fullscreen(None)
+              }
+            }
+            WindowMessage::SetFocus => {
+              window.set_focus();
+            }
+            WindowMessage::SetIcon(icon) => {
+              window.set_window_icon(Some(icon));
+            }
+            #[allow(unused_variables)]
+            WindowMessage::SetSkipTaskbar(skip) => {
+              #[cfg(any(windows, target_os = "linux"))]
+              window.set_skip_taskbar(skip);
+            }
+            WindowMessage::SetCursorGrab(grab) => {
+              let _ = window.set_cursor_grab(grab);
+            }
+            WindowMessage::SetCursorVisible(visible) => {
+              window.set_cursor_visible(visible);
+            }
+            WindowMessage::SetCursorIcon(icon) => {
+              window.set_cursor_icon(CursorIconWrapper::from(icon).0);
+            }
+            WindowMessage::SetCursorPosition(position) => {
+              let _ = window.set_cursor_position(PositionWrapper::from(position).0);
+            }
+            WindowMessage::DragWindow => {
+              let _ = window.drag_window();
+            }
+            WindowMessage::UpdateMenuItem(_id, _update) => {
+              // already handled
+            }
+            WindowMessage::RequestRedraw => {
+              window.request_redraw();
+            }
           }
         }
       }
@@ -2449,8 +2453,7 @@ fn handle_user_message<T: UserEvent>(
           .and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
-            #[cfg(debug_assertions)]
-            eprintln!("{}", e);
+            debug_eprintln!("{}", e);
           }
         }
       }
@@ -2466,15 +2469,15 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::WebviewEvent(event) => {
         if let Some(event) = WindowEventWrapper::from(&event).0 {
-          for handler in window_event_listeners
+          let shared_listeners = window_event_listeners
             .lock()
             .unwrap()
             .get(&id)
             .unwrap()
-            .lock()
-            .unwrap()
-            .values()
-          {
+            .clone();
+          let listeners = shared_listeners.lock().unwrap();
+          let handlers = listeners.values();
+          for handler in handlers {
             handler(&event);
           }
         }
@@ -2488,8 +2491,7 @@ fn handle_user_message<T: UserEvent>(
           .insert(window_id, webview);
       }
       Err(e) => {
-        #[cfg(debug_assertions)]
-        eprintln!("{}", e);
+        debug_eprintln!("{}", e);
       }
     },
     Message::CreateWindow(window_id, handler, sender) => {
@@ -2550,7 +2552,9 @@ fn handle_user_message<T: UserEvent>(
       }
       TrayMessage::UpdateIcon(icon) => {
         if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon(icon.into_platform_icon());
+          if let Ok(icon) = TrayIcon::try_from(icon) {
+            tray.lock().unwrap().set_icon(icon.0);
+          }
         }
       }
       #[cfg(target_os = "macos")]
@@ -2662,7 +2666,9 @@ fn handle_event_loop<T: UserEvent>(
         let listeners = menu_event_listeners.lock().unwrap();
         listeners.get(&window_id).cloned().unwrap_or_default()
       };
-      for handler in window_menu_event_listeners.lock().unwrap().values() {
+      let listeners = window_menu_event_listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2696,7 +2702,9 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      for handler in tray_context.listeners.lock().unwrap().values() {
+      let listeners = tray_context.listeners.lock().unwrap();
+      let handlers = listeners.values();
+      for handler in handlers {
         handler(&event);
       }
     }
@@ -2734,15 +2742,15 @@ fn handle_event_loop<T: UserEvent>(
               label,
               event: event.clone(),
             });
-            for handler in window_event_listeners
+            let shared_listeners = window_event_listeners
               .lock()
               .unwrap()
               .get(&window_id)
               .unwrap()
-              .lock()
-              .unwrap()
-              .values()
-            {
+              .clone();
+            let listeners = shared_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
               handler(&event);
             }
           }
@@ -2780,8 +2788,7 @@ fn handle_event_loop<T: UserEvent>(
             .and_then(|w| w.inner.as_ref())
           {
             if let Err(e) = webview.resize() {
-              #[cfg(debug_assertions)]
-              eprintln!("{}", e);
+              debug_eprintln!("{}", e);
             }
           }
         }
@@ -2833,15 +2840,15 @@ fn on_close_requested<'a, T: UserEvent>(
   if let Some(w) = windows_guard.get(&window_id) {
     let label = w.label.clone();
     drop(windows_guard);
-    for handler in window_event_listeners
+    let shared_listeners = window_event_listeners
       .lock()
       .unwrap()
       .get(&window_id)
       .unwrap()
-      .lock()
-      .unwrap()
-      .values()
-    {
+      .clone();
+    let listeners = shared_listeners.lock().unwrap();
+    let handlers = listeners.values();
+    for handler in handlers {
       handler(&WindowEvent::CloseRequested {
         signal_tx: tx.clone(),
       });
@@ -2994,7 +3001,7 @@ fn create_webview<T: UserEvent>(
   let mut web_context = web_context.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
-  let web_context = match web_context.entry(
+  let entry = web_context.entry(
     // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
@@ -3003,7 +3010,8 @@ fn create_webview<T: UserEvent>(
       // random unique key
       Some(Uuid::new_v4().as_hyphenated().to_string().into())
     },
-  ) {
+  );
+  let web_context = match entry {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
       let mut web_context = WebContext::new(webview_attributes.data_directory);
@@ -3065,7 +3073,7 @@ fn create_webview<T: UserEvent>(
 
   Ok(WindowWrapper {
     label,
-    inner: Some(WindowHandle::Webview(webview)),
+    inner: Some(WindowHandle::Webview(Arc::new(webview))),
     menu_items,
   })
 }
@@ -3108,7 +3116,8 @@ fn create_file_drop_handler<T: UserEvent>(
     if let Some(window_listeners) = listeners.get(&webview_id_map.get(&window.id())) {
       let listeners_map = window_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
-      for listener in listeners_map.values() {
+      let handlers = listeners_map.values();
+      for listener in handlers {
         listener(&window_event);
       }
       // block the default OS action on file drop if we had a listener

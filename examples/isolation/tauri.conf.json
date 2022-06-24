@@ -1,7 +1,7 @@
 {
   "$schema": "../../tooling/cli/schema.json",
   "package": {
-    "productName": "isolation",
+    "productName": "Isolation",
     "version": "0.1.0"
   },
   "build": {

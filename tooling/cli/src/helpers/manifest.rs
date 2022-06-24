@@ -125,7 +125,27 @@ fn write_features(
         }
       }
     }
-    *manifest_features = Item::Value(Value::Array(toml_array(features)));
+    if let Some(features_array) = manifest_features.as_array_mut() {
+      // add features that aren't in the manifest
+      for feature in features.iter() {
+        if !features_array.iter().any(|f| f.as_str() == Some(feature)) {
+          features_array.insert(0, feature.as_str());
+        }
+      }
+
+      // remove features that shouldn't be in the manifest anymore
+      let mut i = 0;
+      while i < features_array.len() {
+        if let Some(f) = features_array.get(i).and_then(|f| f.as_str()) {
+          if !features.contains(f) {
+            features_array.remove(i);
+          }
+        }
+        i += 1;
+      }
+    } else {
+      *manifest_features = Item::Value(Value::Array(toml_array(features)));
+    }
     Ok(true)
   } else if let Some(dep) = item.as_value_mut() {
     match dep {

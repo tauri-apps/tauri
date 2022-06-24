@@ -115,7 +115,7 @@
   }
 
   function onLogoClick() {
-    open("https://tauri.studio/");
+    open("https://tauri.app/");
   }
 </script>
 
@@ -123,7 +123,7 @@
   <div class="flex row noselect just-around container" data-tauri-drag-region>
     <img class="logo" src="tauri logo.png" height="60" on:click={onLogoClick} alt="logo" />
     <div>
-      <a class="dark-link" target="_blank" href="https://tauri.studio/en/docs/get-started/intro">
+      <a class="dark-link" target="_blank" href="https://tauri.app/en/docs/get-started/intro">
         Documentation
       </a>
       <a class="dark-link" target="_blank" href="https://github.com/tauri-apps/tauri">

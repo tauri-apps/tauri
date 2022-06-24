@@ -55,6 +55,9 @@ pub enum EmbeddedAssetsError {
 
   #[error("OUT_DIR env var is not set, do you have a build script?")]
   OutDir,
+
+  #[error("version error: {0}")]
+  Version(#[from] semver::Error),
 }
 
 /// Represent a directory of assets that are compressed and embedded.
@@ -261,7 +264,7 @@ impl EmbeddedAssets {
       move |mut state, (prefix, entry)| {
         let (key, asset) = Self::compress_file(&prefix, entry.path(), &map, &mut state.csp_hashes)?;
         state.assets.insert(key, asset);
-        Ok(state)
+        Result::<_, EmbeddedAssetsError>::Ok(state)
       },
     )?;
 

@@ -7,6 +7,10 @@
     "beforeBuildCommand": "yarn package",
     "withGlobalTauri": true
   },
+  "package": {
+    "productName": "Sidecar",
+    "version": "0.1.0"
+  },
   "tauri": {
     "bundle": {
       "active": true,

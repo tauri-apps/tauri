@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+use std::{ffi::OsStr, str::FromStr};
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -177,7 +177,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     _ => unimplemented!(),
   };
 
-  #[cfg(any(windows, target_os = "linux"))]
   let out_dir = {
     let out_dir = std::env::var("OUT_DIR")
       .map_err(|_| EmbeddedAssetsError::OutDir)
@@ -199,7 +198,17 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       |i| i.ends_with(".ico"),
       "icons/icon.ico",
     );
-    ico_icon(&root, &out_dir, icon_path)?
+    if icon_path.exists() {
+      ico_icon(&root, &out_dir, icon_path)?
+    } else {
+      let icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".png"),
+        "icons/icon.png",
+      );
+      png_icon(&root, &out_dir, icon_path)?
+    }
   };
   #[cfg(target_os = "linux")]
   let default_window_icon = {
@@ -214,12 +223,36 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(any(windows, target_os = "linux")))]
   let default_window_icon = quote!(None);
 
+  #[cfg(target_os = "macos")]
+  let app_icon = if dev {
+    let mut icon_path = find_icon(
+      &config,
+      &config_parent,
+      |i| i.ends_with(".icns"),
+      "icons/icon.png",
+    );
+    if !icon_path.exists() {
+      icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".png"),
+        "icons/icon.png",
+      );
+    }
+    raw_icon(&out_dir, icon_path)?
+  } else {
+    quote!(None)
+  };
+  #[cfg(not(target_os = "macos"))]
+  let app_icon = quote!(None);
+
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
   } else {
     quote!(env!("CARGO_PKG_NAME").to_string())
   };
   let package_version = if let Some(version) = &config.package.version {
+    semver::Version::from_str(version)?;
     quote!(#version.to_string())
   } else {
     quote!(env!("CARGO_PKG_VERSION").to_string())
@@ -227,51 +260,24 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let package_info = quote!(
     #root::PackageInfo {
       name: #package_name,
-      version: #package_version,
+      version: #package_version.parse().unwrap(),
       authors: env!("CARGO_PKG_AUTHORS"),
       description: env!("CARGO_PKG_DESCRIPTION"),
     }
   );
 
-  #[cfg(target_os = "linux")]
   let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension("png");
-    if dev {
-      let system_tray_icon_path = config_parent
-        .join(system_tray_icon_path)
-        .display()
-        .to_string();
-      quote!(Some(#root::TrayIcon::File(::std::path::PathBuf::from(#system_tray_icon_path))))
+    let system_tray_icon_path = config_parent.join(&tray.icon_path);
+    let ext = system_tray_icon_path.extension();
+    if ext.map_or(false, |e| e == "ico") {
+      ico_icon(&root, &out_dir, system_tray_icon_path)?
+    } else if ext.map_or(false, |e| e == "png") {
+      png_icon(&root, &out_dir, system_tray_icon_path)?
     } else {
-      let system_tray_icon_file_path = system_tray_icon_path.to_string_lossy().to_string();
-      quote!(
-        Some(
-          #root::TrayIcon::File(
-            #root::api::path::resolve_path(
-              &#config,
-              &#package_info,
-              &Default::default(),
-              #system_tray_icon_file_path,
-              Some(#root::api::path::BaseDirectory::Resource)
-            ).expect("failed to resolve resource dir")
-          )
-        )
-      )
+      quote!(compile_error!(
+        "The tray icon extension must be either `.ico` or `.png`."
+      ))
     }
-  } else {
-    quote!(None)
-  };
-
-  #[cfg(not(target_os = "linux"))]
-  let system_tray_icon = if let Some(tray) = &config.tauri.system_tray {
-    let mut system_tray_icon_path = tray.icon_path.clone();
-    system_tray_icon_path.set_extension(if cfg!(windows) { "ico" } else { "png" });
-    let system_tray_icon_path = config_parent
-      .join(system_tray_icon_path)
-      .display()
-      .to_string();
-    quote!(Some(#root::TrayIcon::Raw(include_bytes!(#system_tray_icon_path).to_vec())))
   } else {
     quote!(None)
   };
@@ -280,14 +286,36 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let info_plist = {
     if dev {
       let info_plist_path = config_parent.join("Info.plist");
-      if info_plist_path.exists() {
-        let info_plist_path = info_plist_path.display().to_string();
-        quote!({
-          tauri::embed_plist::embed_info_plist!(#info_plist_path);
-        })
+      let mut info_plist = if info_plist_path.exists() {
+        plist::Value::from_file(&info_plist_path)
+          .unwrap_or_else(|e| panic!("failed to read plist {}: {}", info_plist_path.display(), e))
       } else {
-        quote!(())
+        plist::Value::Dictionary(Default::default())
+      };
+
+      if let Some(plist) = info_plist.as_dictionary_mut() {
+        if let Some(product_name) = &config.package.product_name {
+          plist.insert("CFBundleName".into(), product_name.clone().into());
+        }
+        if let Some(version) = &config.package.version {
+          plist.insert("CFBundleShortVersionString".into(), version.clone().into());
+        }
+        let format =
+          time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
+        if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
+          plist.insert("CFBundleVersion".into(), build_number.into());
+        }
       }
+
+      let out_path = out_dir.join("Info.plist");
+      info_plist
+        .to_file_xml(&out_path)
+        .expect("failed to write Info.plist");
+
+      let info_plist_path = out_path.display().to_string();
+      quote!({
+        tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      })
     } else {
       quote!(())
     }
@@ -358,6 +386,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #config,
     ::std::sync::Arc::new(#assets),
     #default_window_icon,
+    #app_icon,
     #system_tray_icon,
     #package_info,
     #info_plist,
@@ -366,7 +395,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   )))
 }
 
-#[cfg(windows)]
 fn ico_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -377,14 +405,14 @@ fn ico_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|_| panic!("failed to parse window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to parse icon {}", path.display()));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .unwrap_or_else(|_| panic!("failed to decode window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to decode icon {}", path.display()))
     .rgba_data()
     .to_vec();
   let width = entry.width();
@@ -409,7 +437,35 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "macos")]
+fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
+  use std::fs::File;
+  use std::io::Write;
+
+  let path = path.as_ref();
+  let bytes = std::fs::read(&path)
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .to_vec();
+
+  let out_path = out_dir.join(path.file_name().unwrap());
+  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: out_path.clone(),
+    error,
+  })?;
+
+  out_file
+    .write_all(&bytes)
+    .map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
+
+  let out_path = out_path.display().to_string();
+
+  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  Ok(icon)
+}
+
 fn png_icon<P: AsRef<Path>>(
   root: &TokenStream,
   out_dir: &Path,
@@ -420,12 +476,12 @@ fn png_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()))
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let mut reader = decoder
     .read_info()
-    .unwrap_or_else(|_| panic!("failed to read window icon {}", path.display()));
+    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());
@@ -452,13 +508,12 @@ fn png_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(any(windows, target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,
   predicate: F,
   default: &str,
-) -> String {
+) -> PathBuf {
   let icon_path = config
     .tauri
     .bundle
@@ -467,7 +522,7 @@ fn find_icon<F: Fn(&&String) -> bool>(
     .find(|i| predicate(i))
     .cloned()
     .unwrap_or_else(|| default.to_string());
-  config_parent.join(icon_path).display().to_string()
+  config_parent.join(icon_path)
 }
 
 #[cfg(feature = "shell-scope")]

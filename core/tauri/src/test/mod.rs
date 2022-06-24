@@ -67,10 +67,11 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     assets: Arc::new(assets),
     default_window_icon: None,
+    app_icon: None,
     system_tray_icon: None,
     package_info: crate::PackageInfo {
       name: "test".into(),
-      version: "0.1.0".into(),
+      version: "0.1.0".parse().unwrap(),
       authors: "Tauri",
       description: "Tauri test",
     },

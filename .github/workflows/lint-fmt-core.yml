@@ -50,12 +50,8 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,ayatana-tray,http-multipart',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart',
               key: 'all'
-            }
-          - {
-              args: '--no-default-features --features ayatana-tray',
-              key: 'no-default'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
           - { args: '--features api-all', key: 'api-all' }
@@ -85,7 +81,7 @@ jobs:
       - name: Cache cargo state
         uses: actions/cache@v2
         env:
-          cache-name: cargo-state
+          cache-name: cargo_state
         with:
           path: |
             ~/.cargo/registry
@@ -101,7 +97,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo-core
+          cache-name: cargo_core
         with:
           path: target
           # Add date to the cache to keep it up to date

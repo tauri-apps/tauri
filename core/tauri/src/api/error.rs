@@ -53,9 +53,6 @@ pub enum Error {
   /// JSON error.
   #[error(transparent)]
   Json(#[from] serde_json::Error),
-  /// Bincode error.
-  #[error(transparent)]
-  Bincode(#[from] Box<bincode::ErrorKind>),
   /// IO error.
   #[error(transparent)]
   Io(#[from] std::io::Error),

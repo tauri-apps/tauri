@@ -8,7 +8,7 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
-use anyhow::Context;
+use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
 use log::info;
 use regex::Regex;
@@ -30,7 +30,7 @@ pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
 
-// For Cross Platform Complilation.
+// For Cross Platform Compilation.
 
 // const VC_REDIST_X86_URL: &str =
 //     "https://download.visualstudio.microsoft.com/download/pr/c8edbb87-c7ec-4500-a461-71e8912d25e9/99ba493d660597490cbb8b3211d2cae4/vc_redist.x86.exe";
@@ -348,6 +348,24 @@ fn run_light(
 //   Ok(())
 // }
 
+fn validate_version(version: &str) -> anyhow::Result<()> {
+  let version = semver::Version::parse(version).context("invalid app version")?;
+  if version.major > 255 {
+    bail!("app version major number cannot be greater than 255");
+  }
+  if version.minor > 255 {
+    bail!("app version minor number cannot be greater than 255");
+  }
+  if version.patch > 65535 {
+    bail!("app version patch number cannot be greater than 65535");
+  }
+  if !(version.pre.is_empty() && version.build.is_empty()) {
+    bail!("app version cannot have build metadata or pre-release identifier");
+  }
+
+  Ok(())
+}
+
 // Entry point for bundling and creating the MSI installer. For now the only supported platform is Windows x64.
 pub fn build_wix_app_installer(
   settings: &Settings,
@@ -363,6 +381,8 @@ pub fn build_wix_app_installer(
       )))
     }
   };
+
+  validate_version(settings.version_string())?;
 
   // target only supports x64.
   info!("Target: {}", arch);

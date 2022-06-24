@@ -94,10 +94,17 @@ impl DevProcess for DevChild {
   }
 }
 
+#[derive(Debug)]
+struct Target {
+  name: String,
+  installed: bool,
+}
+
 pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
+  available_targets: Option<Vec<Target>>,
 }
 
 impl Interface for Rust {
@@ -109,6 +116,7 @@ impl Interface for Rust {
       app_settings: RustAppSettings::new(config)?,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
+      available_targets: None,
     })
   }
 
@@ -116,7 +124,7 @@ impl Interface for Rust {
     &self.app_settings
   }
 
-  fn build(&self, options: Options) -> crate::Result<()> {
+  fn build(&mut self, options: Options) -> crate::Result<()> {
     let bin_path = self.app_settings.app_binary_path(&options)?;
     let out_dir = bin_path.parent().unwrap();
 
@@ -165,7 +173,7 @@ impl Interface for Rust {
   }
 
   fn dev<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
-    &self,
+    &mut self,
     options: Options,
     manifest: &Manifest,
     on_exit: F,
@@ -174,6 +182,12 @@ impl Interface for Rust {
     let product_name = self.product_name.clone();
 
     let runner = options.runner.unwrap_or_else(|| "cargo".into());
+
+    if let Some(target) = &options.target {
+      self.fetch_available_targets();
+      self.validate_target(target)?;
+    }
+
     let mut build_cmd = Command::new(&runner);
     build_cmd
       .env(
@@ -345,8 +359,51 @@ impl Interface for Rust {
 }
 
 impl Rust {
-  fn build_app(&self, options: Options) -> crate::Result<()> {
+  fn fetch_available_targets(&mut self) {
+    if let Ok(output) = Command::new("rustup").args(["target", "list"]).output() {
+      let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+      self.available_targets.replace(
+        stdout
+          .split('\n')
+          .map(|t| {
+            let mut s = t.split(' ');
+            let name = s.next().unwrap().to_string();
+            let installed = s.next().map(|v| v == "(installed)").unwrap_or_default();
+            Target { name, installed }
+          })
+          .filter(|t| !t.name.is_empty())
+          .collect(),
+      );
+    }
+  }
+
+  fn validate_target(&self, target: &str) -> crate::Result<()> {
+    if let Some(available_targets) = &self.available_targets {
+      if let Some(target) = available_targets.iter().find(|t| t.name == target) {
+        if !target.installed {
+          anyhow::bail!(
+            "Target {target} is not installed (installed targets: {installed}). Please run `rustup target add {target}`.",
+            target = target.name,
+            installed = available_targets.iter().filter(|t| t.installed).map(|t| t.name.as_str()).collect::<Vec<&str>>().join(", ")
+          );
+        }
+      }
+      if !available_targets.iter().any(|t| t.name == target) {
+        anyhow::bail!("Target {target} does not exist. Please run `rustup target list` to see the available targets.", target = target);
+      }
+    }
+    Ok(())
+  }
+
+  fn build_app(&mut self, options: Options) -> crate::Result<()> {
     let runner = options.runner.unwrap_or_else(|| "cargo".into());
+
+    if let Some(target) = &options.target {
+      if self.available_targets.is_none() {
+        self.fetch_available_targets();
+      }
+      self.validate_target(target)?;
+    }
 
     let mut args = Vec::new();
     if !options.args.is_empty() {

@@ -42,11 +42,15 @@ fn main() {
     .setup(|app| {
       let window = app.get_window("main").unwrap();
 
+      #[cfg(any(windows, target_os = "macos"))]
       let _ = window_shadows::set_shadow(&window, true);
       #[cfg(target_os = "windows")]
       let _ = window_vibrancy::apply_blur(&window, Some((0, 0, 0, 0)));
       #[cfg(target_os = "macos")]
-      let _ =  window_vibrancy::apply_vibrancy(&window, window_vibrancy::NSVisualEffectMaterial::HudWindow);
+      let _ = window_vibrancy::apply_vibrancy(
+        &window,
+        window_vibrancy::NSVisualEffectMaterial::HudWindow,
+      );
 
       #[cfg(debug_assertions)]
       window.open_devtools();

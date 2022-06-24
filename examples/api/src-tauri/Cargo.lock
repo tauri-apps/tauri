@@ -3233,6 +3233,7 @@ dependencies = [
  "sha2",
  "tauri-utils",
  "thiserror",
+ "time",
  "uuid 1.1.2",
  "walkdir",
 ]

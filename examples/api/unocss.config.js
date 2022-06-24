@@ -54,7 +54,7 @@ export default defineConfig({
     `
   }],
   shortcuts: {
-    'btn': `select-none outline-none shadow-md p-2 rd-1 text-textPrimary border-none font-700
+    'btn': `select-none outline-none shadow-md p-2 rd-1 text-primaryText border-none font-600
             bg-accent hover:bg-accentDarker active:bg-accentDarkest text-accentText
             dark:bg-darkAccent dark:hover:bg-darkAccentDarker dark:active:bg-darkAccentDarkest dark:text-darkAccentText`,
     'nv': `decoration-none flex items-center relative p-2 rd-1

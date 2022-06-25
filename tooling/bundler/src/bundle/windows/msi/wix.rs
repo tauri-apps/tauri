@@ -21,7 +21,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::resources::resource_relpath;
+use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 use zip::ZipArchive;
 
@@ -29,6 +29,9 @@ use zip::ZipArchive;
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
+const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
 
 // For Cross Platform Compilation.
 
@@ -151,7 +154,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
-  std::fs::create_dir_all(&resource_dir)?;
+  create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
   let icon_path = std::env::current_dir()?.join(&path);
@@ -168,14 +171,15 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   Ok(icon_target_path)
 }
 
-/// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
-fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
+fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
-
   let response = attohttpc::get(url).send()?;
+  response.bytes().map_err(Into::into)
+}
 
-  let data: Vec<u8> = response.bytes()?;
-
+/// Function used to download Wix. Checks SHA256 to verify the download.
+fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
+  let data = download(url)?;
   info!("validating hash");
 
   let mut hasher = sha2::Sha256::new();
@@ -421,12 +425,72 @@ pub fn build_wix_app_installer(
 
   try_sign(&app_exe_source)?;
 
-  // ensure that `target/{release, debug}/wix` folder exists
-  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
-
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
+  if output_path.exists() {
+    remove_dir_all(&output_path)?;
+  }
+  create_dir_all(&output_path)?;
+
   let mut data = BTreeMap::new();
+
+  let mut webview_install_mode = settings.windows().webview_install_mode.clone();
+  if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
+    webview_install_mode = WebviewInstallMode::FixedRuntime { path: fixed_runtime_path };
+  }
+  if let Some(wix) = &settings.windows().wix {
+    if wix.skip_webview_install && !settings.windows().webview_fixed_runtime_path.is_some() {
+      webview_install_mode = WebviewInstallMode::Skip;
+    }
+  }
+
+  data.insert("install_webview", to_json(true));
+
+  match webview_install_mode {
+    WebviewInstallMode::Skip | WebviewInstallMode::FixedRuntime { .. } => {
+      data.insert("install_webview", to_json(false));
+    }
+    WebviewInstallMode::DownloadBootstrapper => {
+      data.insert("download_bootstrapper", to_json(true));
+    }
+    WebviewInstallMode::EmbedBootstrapper => {
+      let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
+      std::fs::write(
+        &webview2_bootstrapper_path,
+        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
+      )?;
+      data.insert(
+        "webview2_bootstrapper_path",
+        to_json(webview2_bootstrapper_path),
+      );
+    }
+    WebviewInstallMode::OfflineInstaller => {
+      let guid = if arch == "x64" {
+        WEBVIEW2_X64_INSTALLER_GUID
+      } else {
+        WEBVIEW2_X86_INSTALLER_GUID
+      };
+      let mut offline_installer_path = dirs_next::cache_dir().unwrap();
+      offline_installer_path.push("tauri");
+      offline_installer_path.push(guid);
+      offline_installer_path.push(arch);
+      create_dir_all(&offline_installer_path)?;
+      let webview2_installer_path =
+        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
+      if !webview2_installer_path.exists() {
+        std::fs::write(
+          &webview2_installer_path,
+          download(
+            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
+              guid,
+              arch.to_uppercase(),
+            ),
+          )?,
+        )?;
+      }
+      data.insert("webview2_installer_path", to_json(webview2_installer_path));
+    }
+  }
 
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();
@@ -521,7 +585,6 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
-  let mut install_webview = settings.windows().webview_fixed_runtime_path.is_none();
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -531,9 +594,6 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
-    if wix.skip_webview_install {
-      install_webview = false;
-    }
     enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
@@ -576,16 +636,6 @@ pub fn build_wix_app_installer(
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
-
-  if install_webview {
-    data.insert("install_webview", to_json(true));
-  }
-
-  if output_path.exists() {
-    remove_dir_all(&output_path)?;
-  }
-
-  create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
     data.insert(

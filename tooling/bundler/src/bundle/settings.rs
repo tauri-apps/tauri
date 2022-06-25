@@ -4,6 +4,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::BundleType,
   resources::{external_binaries, ResourcePaths},
@@ -220,7 +221,7 @@ pub struct WixSettings {
   pub feature_refs: Vec<String>,
   /// The Merge element ids you want to reference from the fragments.
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install.
+  /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
   pub skip_webview_install: bool,
   /// The path to the LICENSE file.
   pub license: Option<PathBuf>,
@@ -254,7 +255,13 @@ pub struct WindowsSettings {
   pub wix: Option<WixSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
   pub icon_path: PathBuf,
+  /// The installation mode for the Webview2 runtime.
+  pub webview_install_mode: WebviewInstallMode,
   /// Path to the webview fixed runtime to use.
+  ///
+  /// Overwrites [`Self::webview_install_mode`] if set.
+  ///
+  /// Will be removed in v2, use [`Self::webview_install_mode`] instead.
   pub webview_fixed_runtime_path: Option<PathBuf>,
   /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
   ///
@@ -273,6 +280,7 @@ impl Default for WindowsSettings {
       tsp: false,
       wix: None,
       icon_path: PathBuf::from("icons/icon.ico"),
+      webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
     }

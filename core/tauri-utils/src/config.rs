@@ -405,6 +405,41 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Install modes for the Webview2 runtime.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum WebviewInstallMode {
+  /// Do not install the Webview2 as part of the Windows Installer.
+  Skip,
+  /// Download the bootstrapper and run it.
+  /// Requires internet connection.
+  /// Results in a smaller installer size, but is not recommended on Windows 7.
+  DownloadBootstrapper,
+  /// Embed the bootstrapper and run it.
+  /// Requires internet connection.
+  /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
+  EmbedBootstrapper,
+  /// Embed the offline installer and run it.
+  /// Does not require internet connection.
+  /// Increases the installer size by around 127MB.
+  OfflineInstaller,
+  /// Embed a fixed webview2 version and use it at runtime.
+  FixedRuntime {
+    /// The path to the fixed runtime to use.
+    ///
+    /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
+    /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
+    path: PathBuf
+  },
+}
+
+impl Default for WebviewInstallMode {
+  fn default() -> Self {
+    Self::EmbedBootstrapper
+  }
+}
+
 /// Windows bundler configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -421,7 +456,12 @@ pub struct WindowsConfig {
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
   #[serde(default)]
   pub tsp: bool,
-  /// Path to the webview fixed runtime to use.
+  /// The installation mode for the Webview2 runtime.
+  #[serde(default)]
+  pub webview_install_mode: WebviewInstallMode,
+  /// Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.
+  ///
+  /// Will be removed in v2, prefer the [`Self::webview_install_mode`] option.
   ///
   /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
   /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
@@ -444,6 +484,7 @@ impl Default for WindowsConfig {
       certificate_thumbprint: None,
       timestamp_url: None,
       tsp: false,
+      webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: default_allow_downgrades(),
       wix: None,
@@ -2873,17 +2914,32 @@ mod build {
     }
   }
 
+  impl ToTokens for WebviewInstallMode {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::WebviewInstallMode };
+
+      tokens.append_all(match self {
+        Self::Skip => quote! { #prefix::Skip },
+        Self::DownloadBootstrapper => quote! { #prefix::DownloadBootstrapper },
+        Self::EmbedBootstrapper => quote! { #prefix::EmbedBootstrapper },
+        Self::OfflineInstaller => quote! { #prefix::OfflineInstaller },
+        Self::FixedRuntime { path } => {
+          let path = path_buf_lit(&path);
+          quote! { #prefix::FixedRuntim { path: #path } }
+        }
+      })
+    }
+  }
+
   impl ToTokens for WindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let webview_fixed_runtime_path = opt_lit(
-        self
-          .webview_fixed_runtime_path
-          .as_ref()
-          .map(path_buf_lit)
-          .as_ref(),
-      );
+      let webview_install_mode = if let Some(fixed_runtime_path) = &self.webview_fixed_runtime_path {
+        WebviewInstallMode::FixedRuntime { path: fixed_runtime_path.clone() }
+      } else {
+        self.webview_install_mode.clone()
+      };
       tokens.append_all(quote! { ::tauri::utils::config::WindowsConfig {
-        webview_fixed_runtime_path: #webview_fixed_runtime_path,
+        webview_install_mode: #webview_install_mode,
         ..Default::default()
       }})
     }

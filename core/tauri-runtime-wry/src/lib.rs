@@ -2354,7 +2354,7 @@ fn handle_user_message<T: UserEvent>(
               tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
             }
             WindowMessage::RawWindowHandle(tx) => tx
-              .send(RawWindowHandle(window.raw_window_handle().clone()))
+              .send(RawWindowHandle(window.raw_window_handle()))
               .unwrap(),
             WindowMessage::Theme(tx) => {
               #[cfg(any(windows, target_os = "macos"))]

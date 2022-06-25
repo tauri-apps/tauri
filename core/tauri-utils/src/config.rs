@@ -2925,7 +2925,7 @@ mod build {
         Self::OfflineInstaller => quote! { #prefix::OfflineInstaller },
         Self::FixedRuntime { path } => {
           let path = path_buf_lit(&path);
-          quote! { #prefix::FixedRuntim { path: #path } }
+          quote! { #prefix::FixedRuntime { path: #path } }
         }
       })
     }

@@ -117,18 +117,7 @@
         "scope": ["http://localhost:3003"]
       }
     },
-    "windows": [
-      {
-        "title": "Tauri API Validation",
-        "decorations": false,
-        "transparent": true,
-        "resizable": true,
-        "width": 1000,
-        "height": 800,
-        "minWidth": 600,
-        "minHeight": 400
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",

@@ -3,7 +3,7 @@ import {
   presetIcons,
   presetUno,
   extractorSvelte,
-  presetWebFonts
+  presetWebFonts,
 } from 'unocss'
 
 export default defineConfig({
@@ -50,6 +50,11 @@ export default defineConfig({
       background-color: ${theme.colors.darkAccent};
     }
 
+    code,
+    code * {
+      font-family: ${theme.fontFamily.mono}
+    }
+
     code {
       border-radius: ${theme.borderRadius['DEFAULT']};
       background-color: ${theme.colors.code};
@@ -84,6 +89,11 @@ export default defineConfig({
     input:
       'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText'
   },
-  presets: [presetUno(), presetIcons(), presetWebFonts({ fonts: ['Rubik'] })],
+  presets: [presetUno(), presetIcons(), presetWebFonts({
+    fonts: {
+      sans: 'Rubik',
+      mono: ['Fira Code', 'Fira Mono:400,700'],
+    }
+  })],
   extractors: [extractorSvelte]
 })

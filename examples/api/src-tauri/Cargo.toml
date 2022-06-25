@@ -14,6 +14,8 @@ serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "global-shortcut", "http-multipart", "icon-ico", "icon-png", "isolation", "macos-private-api", "reqwest-client", "system-tray", "updater"] }
 tiny_http = "0.11"
+
+[target."cfg(target_os = \"windows\")".dependencies]
 window-vibrancy = "0.1"
 window-shadows= "0.1"
 

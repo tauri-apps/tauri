@@ -21,12 +21,6 @@
   border-radius: 0.25rem;
 }
 
-code,
-code * {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', 'Courier New', monospace;
-}
-
 code {
   padding: 0 0.25rem;
 }

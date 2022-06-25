@@ -38,19 +38,27 @@ fn main() {
   let is_menu1 = AtomicBool::new(true);
 
   #[allow(unused_mut)]
-  let mut app = tauri::Builder::default()
+  let mut builder = tauri::Builder::default()
     .setup(|app| {
-      let window = app.get_window("main").unwrap();
+      #[allow(unused_mut)]
+      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
+        .title("Tauri API Validation")
+        .inner_size(1000., 800.)
+        .min_inner_size(600., 400.);
 
-      #[cfg(any(windows, target_os = "macos"))]
-      let _ = window_shadows::set_shadow(&window, true);
       #[cfg(target_os = "windows")]
-      let _ = window_vibrancy::apply_blur(&window, Some((0, 0, 0, 0)));
-      #[cfg(target_os = "macos")]
-      let _ = window_vibrancy::apply_vibrancy(
-        &window,
-        window_vibrancy::NSVisualEffectMaterial::HudWindow,
-      );
+      {
+        window_builder = window_builder.transparent(true);
+      }
+
+      let window = window_builder.build().unwrap();
+
+      #[cfg(target_os = "windows")]
+      {
+        let _ = window.set_decorations(false);
+        let _ = window_shadows::set_shadow(&window, true);
+        let _ = window_vibrancy::apply_blur(&window, Some((0, 0, 0, 0)));
+      }
 
       #[cfg(debug_assertions)]
       window.open_devtools();
@@ -167,7 +175,15 @@ fn main() {
         }
       }
       _ => {}
-    })
+    });
+
+  #[cfg(target_os = "macos")]
+  {
+    builder = builder.menu(tauri::Menu::os_default("Tauri API Validation"));
+  }
+
+  #[allow(unused_mut)]
+  let mut app = builder
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,

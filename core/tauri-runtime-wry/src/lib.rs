@@ -100,6 +100,8 @@ use std::{
 };
 
 pub type WebviewId = u64;
+type IpcHandler = dyn Fn(&Window, String) + 'static;
+type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 
 mod webview;
 pub use webview::Webview;
@@ -3067,7 +3069,7 @@ fn create_ipc_handler<T: UserEvent>(
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
   handler: WebviewIpcHandler<T, Wry<T>>,
-) -> Box<dyn Fn(&Window, String) + 'static> {
+) -> Box<IpcHandler> {
   Box::new(move |window, request| {
     let window_id = context.webview_id_map.get(&window.id());
     handler(
@@ -3086,9 +3088,7 @@ fn create_ipc_handler<T: UserEvent>(
 }
 
 /// Create a wry file drop handler.
-fn create_file_drop_handler<T: UserEvent>(
-  context: &Context<T>,
-) -> Box<dyn Fn(&Window, WryFileDropEvent) -> bool + 'static> {
+fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropHandler> {
   let window_event_listeners = context.window_event_listeners.clone();
   let webview_id_map = context.webview_id_map.clone();
   Box::new(move |window, event| {

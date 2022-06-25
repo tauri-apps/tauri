@@ -46,6 +46,8 @@ use std::{
   process::{exit, Command},
 };
 
+type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RemoteReleaseInner {
@@ -209,7 +211,7 @@ pub struct UpdateBuilder<R: Runtime> {
   pub target: Option<String>,
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
-  should_install: Option<Box<dyn FnOnce(&Version, &RemoteRelease) -> bool + Send>>,
+  should_install: Option<Box<ShouldInstall>>,
   timeout: Option<Duration>,
   headers: HeaderMap,
 }

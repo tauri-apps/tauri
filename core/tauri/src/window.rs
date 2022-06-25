@@ -45,6 +45,8 @@ use std::{
   sync::Arc,
 };
 
+pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
@@ -103,7 +105,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
-  web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+  web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {

@@ -25,7 +25,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::app::{GlobalMenuEventListener, WindowMenuEvent};
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
@@ -50,6 +49,10 @@ use crate::{
   },
   Context, EventLoopMessage, Icon, Invoke, Manager, Pattern, Runtime, Scopes, StateManager, Window,
   WindowEvent,
+};
+use crate::{
+  app::{GlobalMenuEventListener, WindowMenuEvent},
+  window::WebResourceRequestHandler,
 };
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
@@ -390,9 +393,7 @@ impl<R: Runtime> WindowManager<R> {
     label: &str,
     window_labels: &[String],
     app_handle: AppHandle<R>,
-    web_resource_request_handler: Option<
-      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
-    >,
+    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
     let plugin_init = self
@@ -1045,9 +1046,7 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
     mut pending: PendingWindow<EventLoopMessage, R>,
     window_labels: &[String],
-    web_resource_request_handler: Option<
-      Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>,
-    >,
+    web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     if self.windows_lock().contains_key(&pending.label) {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));

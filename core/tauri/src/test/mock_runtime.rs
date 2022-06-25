@@ -20,6 +20,8 @@ use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
   SystemTray, SystemTrayEvent,
 };
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
@@ -253,17 +255,12 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "macos")]
-  fn transparent_titlebar(self, transparent: bool) -> Self {
+  fn title_bar_style(self, style: TitleBarStyle) -> Self {
     self
   }
 
   #[cfg(target_os = "macos")]
   fn hidden_title(self, transparent: bool) -> Self {
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  fn fullsize_content_view(self, fullsize: bool) -> Self {
     self
   }
 

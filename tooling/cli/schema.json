@@ -138,7 +138,7 @@
             "tsp": false,
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
-              "type": "EmbedBootstrapper"
+              "type": "embedBootstrapper"
             },
             "wix": null
           }
@@ -272,7 +272,7 @@
               "tsp": false,
               "webviewFixedRuntimePath": null,
               "webviewInstallMode": {
-                "type": "EmbedBootstrapper"
+                "type": "embedBootstrapper"
               },
               "wix": null
             }
@@ -1020,7 +1020,7 @@
             "tsp": false,
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
-              "type": "EmbedBootstrapper"
+              "type": "embedBootstrapper"
             },
             "wix": null
           },
@@ -1201,7 +1201,7 @@
         "webviewInstallMode": {
           "description": "The installation mode for the Webview2 runtime.",
           "default": {
-            "type": "EmbedBootstrapper"
+            "type": "embedBootstrapper"
           },
           "allOf": [
             {
@@ -1248,10 +1248,11 @@
             "type": {
               "type": "string",
               "enum": [
-                "Skip"
+                "skip"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Download the bootstrapper and run it. Requires internet connection. Results in a smaller installer size, but is not recommended on Windows 7.",
@@ -1263,10 +1264,11 @@
             "type": {
               "type": "string",
               "enum": [
-                "DownloadBootstrapper"
+                "downloadBootstrapper"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Embed the bootstrapper and run it. Requires internet connection. Increases the installer size by around 1.8MB, but offers better support on Windows 7.",
@@ -1278,10 +1280,11 @@
             "type": {
               "type": "string",
               "enum": [
-                "EmbedBootstrapper"
+                "embedBootstrapper"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Embed the offline installer and run it. Does not require internet connection. Increases the installer size by around 127MB.",
@@ -1293,10 +1296,11 @@
             "type": {
               "type": "string",
               "enum": [
-                "OfflineInstaller"
+                "offlineInstaller"
               ]
             }
-          }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Embed a fixed webview2 version and use it at runtime.",
@@ -1309,14 +1313,15 @@
             "type": {
               "type": "string",
               "enum": [
-                "FixedRuntime"
+                "fixedRuntime"
               ]
             },
             "path": {
               "description": "The path to the fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
               "type": "string"
             }
-          }
+          },
+          "additionalProperties": false
         }
       ]
     },

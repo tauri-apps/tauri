@@ -407,7 +407,7 @@ pub struct WixConfig {
 
 /// Install modes for the Webview2 runtime.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum WebviewInstallMode {
   /// Do not install the Webview2 as part of the Windows Installer.

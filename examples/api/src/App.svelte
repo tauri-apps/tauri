@@ -100,12 +100,12 @@
   }
 
   // Window controls
-  let is_window_maximized
+  let isWindowMaximized
   onMount(async () => {
     const window = getCurrent()
-    is_window_maximized = await window.isMaximized()
+    isWindowMaximized = await window.isMaximized()
     listen('tauri://resize', async () => {
-      is_window_maximized = await window.isMaximized()
+      isWindowMaximized = await window.isMaximized()
     })
   })
 
@@ -206,7 +206,7 @@
 
   let isWindows
   onMount(async () => {
-    isWindows = (await os.platform()) === 'windows'
+    isWindows = (await os.platform()) === 'win32'
   })
 </script>
 
@@ -223,32 +223,36 @@
       children:items-center children:justify-center"
     >
       <span
+        title={isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
         class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
         on:click={toggleDark}
       >
         {#if isDark}
-          <div class="i-ph-moon" />
-        {:else}
           <div class="i-ph-sun" />
+        {:else}
+          <div class="i-ph-moon" />
         {/if}
       </span>
       <span
+        title="Minimize"
         class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
         on:click={minimize}
       >
         <div class="i-codicon-chrome-minimize" />
       </span>
       <span
+        title={isWindowMaximized ? 'Restore' : 'Maximize'}
         class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
         on:click={toggleMaximize}
       >
-        {#if is_window_maximized}
+        {#if isWindowMaximized}
           <div class="i-codicon-chrome-restore" />
         {:else}
           <div class="i-codicon-chrome-maximize" />
         {/if}
       </span>
       <span
+        title="Close"
         class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText"
         on:click={close}
       >
@@ -274,11 +278,12 @@
     />
     {#if !isWindows}
       <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
-        Toggle dark mode
         {#if isDark}
-          <div class="i-ph-moon" />
-        {:else}
+          Switch to Light mode
           <div class="i-ph-sun" />
+        {:else}
+          Switch to Dark mode
+          <div class="i-ph-moon" />
         {/if}
       </a>
       <br />

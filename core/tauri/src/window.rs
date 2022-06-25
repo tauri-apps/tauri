@@ -489,23 +489,9 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
 }
 
-#[cfg(any(windows, target_os = "macos"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  #[cfg(windows)]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::Win32Handle::empty();
-    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`").0 as *mut _;
-    raw_window_handle::RawWindowHandle::Win32(handle)
-  }
-
-  #[cfg(target_os = "macos")]
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::AppKitHandle::empty();
-    handle.ns_window = self
-      .ns_window()
-      .expect("failed to get window's `ns_window`");
-    raw_window_handle::RawWindowHandle::AppKit(handle)
+    self.window.dispatcher.raw_window_handle().unwrap()
   }
 }
 

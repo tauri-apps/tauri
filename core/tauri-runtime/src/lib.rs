@@ -451,6 +451,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
 
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
+
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;
 

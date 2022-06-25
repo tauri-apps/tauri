@@ -4,6 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
+use raw_window_handle::HasRawWindowHandle;
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -1006,6 +1007,9 @@ pub struct GtkWindow(gtk::ApplicationWindow);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
+pub struct RawWindowHandle(raw_window_handle::RawWindowHandle);
+unsafe impl Send for RawWindowHandle {}
+
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools
@@ -1042,6 +1046,7 @@ pub enum WindowMessage {
     target_os = "openbsd"
   ))]
   GtkWindow(Sender<GtkWindow>),
+  RawWindowHandle(Sender<RawWindowHandle>),
   Theme(Sender<Theme>),
   // Setters
   Center(Sender<Result<()>>),
@@ -1309,6 +1314,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
     window_getter!(self, WindowMessage::GtkWindow).map(|w| w.0)
+  }
+
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
+    window_getter!(self, WindowMessage::RawWindowHandle).map(|w| w.0)
   }
 
   // Setters
@@ -2344,6 +2353,9 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::GtkWindow(tx) => {
               tx.send(GtkWindow(window.gtk_window().clone())).unwrap()
             }
+            WindowMessage::RawWindowHandle(tx) => tx
+              .send(RawWindowHandle(window.raw_window_handle().clone()))
+              .unwrap(),
             WindowMessage::Theme(tx) => {
               #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();

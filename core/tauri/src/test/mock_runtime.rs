@@ -380,6 +380,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     unimplemented!()
   }
 
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
+    unimplemented!()
+  }
+
   fn center(&self) -> Result<()> {
     Ok(())
   }

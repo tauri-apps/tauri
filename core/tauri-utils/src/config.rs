@@ -430,7 +430,7 @@ pub enum WebviewInstallMode {
     ///
     /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
     /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
-    path: PathBuf
+    path: PathBuf,
   },
 }
 
@@ -2933,8 +2933,11 @@ mod build {
 
   impl ToTokens for WindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let webview_install_mode = if let Some(fixed_runtime_path) = &self.webview_fixed_runtime_path {
-        WebviewInstallMode::FixedRuntime { path: fixed_runtime_path.clone() }
+      let webview_install_mode = if let Some(fixed_runtime_path) = &self.webview_fixed_runtime_path
+      {
+        WebviewInstallMode::FixedRuntime {
+          path: fixed_runtime_path.clone(),
+        }
       } else {
         self.webview_install_mode.clone()
       };

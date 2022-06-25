@@ -436,7 +436,9 @@ pub fn build_wix_app_installer(
 
   let mut webview_install_mode = settings.windows().webview_install_mode.clone();
   if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
-    webview_install_mode = WebviewInstallMode::FixedRuntime { path: fixed_runtime_path };
+    webview_install_mode = WebviewInstallMode::FixedRuntime {
+      path: fixed_runtime_path,
+    };
   }
   if let Some(wix) = &settings.windows().wix {
     if wix.skip_webview_install && !settings.windows().webview_fixed_runtime_path.is_some() {

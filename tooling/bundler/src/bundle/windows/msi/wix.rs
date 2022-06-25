@@ -29,6 +29,8 @@ use zip::ZipArchive;
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+pub const MSI_FOLDER_NAME: &str = "msi";
+pub const MSI_UPDATER_FOLDER_NAME: &str = "msi-updater";
 const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
 const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
@@ -196,7 +198,11 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
 }
 
 /// The app installer output path.
-fn app_installer_output_path(settings: &Settings, language: &str) -> crate::Result<PathBuf> {
+fn app_installer_output_path(
+  settings: &Settings,
+  language: &str,
+  updater: bool,
+) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
     "x86" => "x86",
     "x86_64" => "x64",
@@ -216,12 +222,15 @@ fn app_installer_output_path(settings: &Settings, language: &str) -> crate::Resu
     language,
   );
 
-  Ok(
-    settings
-      .project_out_directory()
-      .to_path_buf()
-      .join(format!("bundle/msi/{}.msi", package_base_name)),
-  )
+  Ok(settings.project_out_directory().to_path_buf().join(format!(
+    "bundle/{}/{}.msi",
+    if updater {
+      MSI_UPDATER_FOLDER_NAME
+    } else {
+      MSI_FOLDER_NAME
+    },
+    package_base_name
+  )))
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
@@ -374,6 +383,7 @@ fn validate_version(version: &str) -> anyhow::Result<()> {
 pub fn build_wix_app_installer(
   settings: &Settings,
   wix_toolset_path: &Path,
+  updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -434,17 +444,21 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  let mut webview_install_mode = settings.windows().webview_install_mode.clone();
-  if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
-    webview_install_mode = WebviewInstallMode::FixedRuntime {
-      path: fixed_runtime_path,
-    };
-  }
-  if let Some(wix) = &settings.windows().wix {
-    if wix.skip_webview_install && settings.windows().webview_fixed_runtime_path.is_none() {
-      webview_install_mode = WebviewInstallMode::Skip;
+  let webview_install_mode = if updater {
+    WebviewInstallMode::DownloadBootstrapper
+  } else {
+    let mut webview_install_mode = settings.windows().webview_install_mode.clone();
+    if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
+      webview_install_mode = WebviewInstallMode::FixedRuntime {
+        path: fixed_runtime_path,
+      };
+    } else if let Some(wix) = &settings.windows().wix {
+      if wix.skip_webview_install {
+        webview_install_mode = WebviewInstallMode::Skip;
+      }
     }
-  }
+    webview_install_mode
+  };
 
   data.insert("install_webview", to_json(true));
 
@@ -767,7 +781,7 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language)?;
+    let msi_path = app_installer_output_path(settings, &language, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", msi_path.display());

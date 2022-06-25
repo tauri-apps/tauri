@@ -406,6 +406,7 @@ pub struct WixConfig {
 }
 
 /// Install modes for the Webview2 runtime.
+/// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

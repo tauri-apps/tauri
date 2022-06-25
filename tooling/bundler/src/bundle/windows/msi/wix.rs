@@ -441,7 +441,7 @@ pub fn build_wix_app_installer(
     };
   }
   if let Some(wix) = &settings.windows().wix {
-    if wix.skip_webview_install && !settings.windows().webview_fixed_runtime_path.is_some() {
+    if wix.skip_webview_install && settings.windows().webview_fixed_runtime_path.is_none() {
       webview_install_mode = WebviewInstallMode::Skip;
     }
   }

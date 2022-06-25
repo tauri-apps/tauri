@@ -425,6 +425,7 @@ pub enum WebviewInstallMode {
   /// Increases the installer size by around 127MB.
   OfflineInstaller,
   /// Embed a fixed webview2 version and use it at runtime.
+  /// Increases the installer size by around 180MB.
   FixedRuntime {
     /// The path to the fixed runtime to use.
     ///

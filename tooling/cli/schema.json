@@ -1303,7 +1303,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Embed a fixed webview2 version and use it at runtime.",
+          "description": "Embed a fixed webview2 version and use it at runtime. Increases the installer size by around 180MB.",
           "type": "object",
           "required": [
             "path",

@@ -49,6 +49,25 @@ impl PackageInfo {
   }
 }
 
+/// How the window title bar should be displayed.
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone)]
+pub enum TitleBarStyle {
+  /// A normal title bar.
+  Visible,
+  /// Makes the title bar transparent, so the window background color is shown instead.
+  ///
+  /// Useful if you don't need to have actual HTML under the title bar. This lets you avoid the caveats of using `TitleBarStyle::Overlay`. Will be more useful when Tauri lets you set a custom window background color.
+  Transparent,
+  /// Shows the title bar as a transparent overlay over the window's content.
+  ///
+  /// Keep in mind:
+  /// - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect.
+  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316).
+  /// - The color of the window title depends on the system theme.
+  Overlay,
+}
+
 /// System theme.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

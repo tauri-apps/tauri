@@ -8,6 +8,8 @@ pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
 
+#[cfg(target_os = "macos")]
+use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -435,8 +437,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Hide the titlebar. Titlebar buttons will still be visible.
   #[cfg(target_os = "macos")]
   #[must_use]
-  pub fn transparent_titlebar(mut self, transparent: bool) -> Self {
-    self.window_builder = self.window_builder.transparent_titlebar(transparent);
+  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.window_builder = self.window_builder.title_bar_style(style);
     self
   }
 
@@ -445,14 +447,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn hidden_title(mut self, hidden: bool) -> Self {
     self.window_builder = self.window_builder.hidden_title(hidden);
-    self
-  }
-
-  /// Make the content of the window take up the whole window.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn fullsize_content_view(mut self, fullsize: bool) -> Self {
-    self.window_builder = self.window_builder.fullsize_content_view(fullsize);
     self
   }
 

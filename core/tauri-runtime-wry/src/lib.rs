@@ -39,6 +39,8 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 #[cfg(feature = "system-tray")]
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
@@ -886,20 +888,29 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "macos")]
-  fn transparent_titlebar(mut self, transparent: bool) -> Self {
-    self.inner = self.inner.with_titlebar_transparent(transparent);
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    println!("{:?}", style);
+    match style {
+      TitleBarStyle::Visible => {
+        self.inner = self.inner.with_titlebar_transparent(false);
+        // Fixes rendering issue when resizing window with devtools open (https://github.com/tauri-apps/tauri/issues/3914)
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      TitleBarStyle::Transparent => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(false);
+      }
+      TitleBarStyle::Overlay => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+    }
     self
   }
 
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  fn fullsize_content_view(mut self, fullsize: bool) -> Self {
-    self.inner = self.inner.with_fullsize_content_view(fullsize);
     self
   }
 
@@ -2947,11 +2958,6 @@ fn create_webview<T: UserEvent>(
   let webview_id_map = context.webview_id_map.clone();
   #[cfg(windows)]
   let proxy = context.proxy.clone();
-
-  #[cfg(target_os = "macos")]
-  {
-    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
-  }
 
   let is_window_transparent = window_builder.inner.window.transparent;
   let menu_items = if let Some(menu) = window_builder.menu {

@@ -200,6 +200,8 @@ pub use runtime::http;
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
 
+#[cfg(target_os = "macos")]
+pub use self::utils::TitleBarStyle;
 #[cfg(feature = "system-tray")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {

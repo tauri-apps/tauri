@@ -3,4 +3,4 @@
 "tauri-runtime-wry": minor
 ---
 
-Add `transparent_titlebar` option for macOS windows.
+Add `title_bar_style` option for macOS windows.

@@ -1413,7 +1413,7 @@
           }
         },
         "skipWebviewInstall": {
-          "description": "Disables the Webview2 runtime installation after app install.",
+          "description": "Disables the Webview2 runtime installation after app install.\n\nWill be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.",
           "default": false,
           "type": "boolean"
         },

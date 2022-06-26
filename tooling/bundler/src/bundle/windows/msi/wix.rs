@@ -473,6 +473,14 @@ pub fn build_wix_app_installer(
   };
 
   data.insert("install_webview", to_json(true));
+  data.insert(
+    "webview_installer_args",
+    to_json(if silent_webview_install {
+      "/silent"
+    } else {
+      ""
+    }),
+  );
 
   match webview_install_mode {
     WebviewInstallMode::Skip | WebviewInstallMode::FixedRuntime { .. } => {
@@ -480,6 +488,14 @@ pub fn build_wix_app_installer(
     }
     WebviewInstallMode::DownloadBootstrapper { silent: _ } => {
       data.insert("download_bootstrapper", to_json(true));
+      data.insert(
+        "webview_installer_args",
+        to_json(if silent_webview_install {
+          "&apos;/silent&apos;,"
+        } else {
+          ""
+        }),
+      );
     }
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
       let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
@@ -519,15 +535,6 @@ pub fn build_wix_app_installer(
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }
-
-  data.insert(
-    "webview_installer_args",
-    to_json(if silent_webview_install {
-      "/silent"
-    } else {
-      ""
-    }),
-  );
 
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();

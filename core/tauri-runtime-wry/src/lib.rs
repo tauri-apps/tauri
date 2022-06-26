@@ -977,18 +977,6 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   }
 }
 
-#[cfg(target_os = "macos")]
-pub struct NSWindow(*mut std::ffi::c_void);
-#[cfg(target_os = "macos")]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for NSWindow {}
-
-#[cfg(windows)]
-pub struct Hwnd(HWND);
-#[cfg(windows)]
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl Send for Hwnd {}
-
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -1034,10 +1022,6 @@ pub enum WindowMessage {
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
-  #[cfg(target_os = "macos")]
-  NSWindow(Sender<NSWindow>),
-  #[cfg(windows)]
-  Hwnd(Sender<Hwnd>),
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1288,16 +1272,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
         .map(|m| MonitorHandleWrapper(m).into())
         .collect(),
     )
-  }
-
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    window_getter!(self, WindowMessage::NSWindow).map(|w| w.0)
-  }
-
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND> {
-    window_getter!(self, WindowMessage::Hwnd).map(|w| w.0)
   }
 
   fn theme(&self) -> Result<Theme> {
@@ -2339,10 +2313,6 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::AvailableMonitors(tx) => {
               tx.send(window.available_monitors().collect()).unwrap()
             }
-            #[cfg(target_os = "macos")]
-            WindowMessage::NSWindow(tx) => tx.send(NSWindow(window.ns_window())).unwrap(),
-            #[cfg(windows)]
-            WindowMessage::Hwnd(tx) => tx.send(Hwnd(HWND(window.hwnd() as _))).unwrap(),
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",

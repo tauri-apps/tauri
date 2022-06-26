@@ -4,4 +4,4 @@
 "tauri-runtime-wry": "patch"
 ---
 
-Implement `raw_window_handle::HasRawWindowHanlde` on Linux
+Implement `raw_window_handle::HasRawWindowHandle` on Linux.

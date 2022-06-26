@@ -841,13 +841,35 @@ impl<R: Runtime> Window<R> {
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self.window.dispatcher.ns_window().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+          Ok(h.ns_window)
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
   }
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  pub fn hwnd(&self) -> crate::Result<HWND> {
-    self.window.dispatcher.hwnd().map_err(Into::into)
+  pub fn hwnd(&self) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
+          Ok(h.hwnd)
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.

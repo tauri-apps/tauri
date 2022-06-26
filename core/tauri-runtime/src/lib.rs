@@ -11,9 +11,6 @@ use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use uuid::Uuid;
 
-#[cfg(windows)]
-use windows::Win32::Foundation::HWND;
-
 pub mod http;
 /// Create window and system tray menus.
 pub mod menu;
@@ -432,14 +429,6 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
-
-  /// Returns the native handle that is used by this window.
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND>;
-
-  /// Returns the native handle that is used by this window.
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
 
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(

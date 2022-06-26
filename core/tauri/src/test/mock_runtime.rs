@@ -355,18 +355,8 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(Vec::new())
   }
 
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND> {
-    unimplemented!()
-  }
-
   fn theme(&self) -> Result<Theme> {
     Ok(Theme::Light)
-  }
-
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    unimplemented!()
   }
 
   #[cfg(any(

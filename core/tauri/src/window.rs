@@ -857,7 +857,7 @@ impl<R: Runtime> Window<R> {
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
-  pub fn hwnd(&self) -> crate::Result<()> {
+  pub fn hwnd(&self) -> crate::Result<HWND> {
     self
       .window
       .dispatcher

@@ -865,7 +865,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
-          Ok(h.hwnd)
+          Ok(HWND(h.hwnd as _))
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }

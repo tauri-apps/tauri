@@ -31,6 +31,7 @@ use crate::{
 use crate::scope::ShellScope;
 
 use raw_window_handle::HasRawDisplayHandle;
+use serde_json::to_string;
 use tauri_macros::default_runtime;
 use tauri_runtime::window::{
   dpi::{PhysicalPosition, PhysicalSize},
@@ -178,8 +179,8 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Emitted when a file is opened by application.
-  OpenFile(PathBuf),
+  /// Emitted when urls are opened by application.
+  OpenURLs(Vec<String>),
   /// Updater event.
   #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
@@ -1609,8 +1610,8 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     manager.on_window_close(label);
   }
 
-  if let RuntimeRunEvent::OpenFile(file_path) = &event {
-    app_handle.trigger_global("open-file", Some(file_path.to_string_lossy().to_string()));
+  if let RuntimeRunEvent::OpenURLs(urls) = &event {
+    app_handle.trigger_global("open-urls", Some(to_string(urls).unwrap()));
   }
 
   let event = match event {
@@ -1648,7 +1649,7 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
-    RuntimeRunEvent::OpenFile(file_path) => RunEvent::OpenFile(file_path),
+    RuntimeRunEvent::OpenURLs(urls) => RunEvent::OpenURLs(urls),
     _ => unimplemented!(),
   };
 

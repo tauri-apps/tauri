@@ -8,28 +8,40 @@
 )]
 
 use std::env;
-
 use tauri::{api::dialog::MessageDialogBuilder, Manager};
 
-fn handle_open_file(file: &str) {
-  MessageDialogBuilder::new("File open", format!("You opened: {}", file))
-    .show(|_| {});
+fn handle_open_files(files: &[String]) {
+  MessageDialogBuilder::new("Files open", format!("You opened: {:?}", files)).show(|_| {});
 }
 
 fn main() {
   tauri::Builder::default()
     .setup(|app| {
       // macOS
-      app.listen_global("open-file", |f| {
-        handle_open_file(f.payload().unwrap());
+      app.listen_global("open-urls", |f| {
+        let urls: Vec<_> = serde_json::from_str::<Vec<String>>(f.payload().unwrap())
+          .unwrap()
+          .iter()
+          .map(|s| url::Url::parse(s).unwrap())
+          .collect();
+
+        // filter out non-file:// urls, you may need to handle them by another method
+        let file_paths: Vec<_> = urls.iter().filter_map(|url| {
+          if url.scheme() == "file" {
+            Some(url.path().into())
+          } else {
+            None
+          }
+        }).collect();
+
+        handle_open_files(&file_paths);
       });
 
       // Windows and Linux
       let argv = env::args().collect::<Vec<_>>();
       if argv.len() > 1 {
-        for file in argv[1..].iter() {
-          handle_open_file(file);
-        }
+        // NOTICE: you may need to exclude the `--` from the command line if you're using a shell
+        handle_open_files(&argv[1..]);
       }
       Ok(())
     })

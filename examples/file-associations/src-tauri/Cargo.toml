@@ -12,6 +12,7 @@ tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
 tauri = { path = "../../../core/tauri", features = ["dialog"] }
+url = "2.2.2"
 
 [features]
 default = [ "custom-protocol" ]

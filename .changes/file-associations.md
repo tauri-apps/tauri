@@ -5,4 +5,4 @@
 "tauri-runtime-wry": minor
 ---
 
-Add file associations and `open-file` event.
+Add file associations and `open-urls` event.

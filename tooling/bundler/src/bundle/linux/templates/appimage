@@ -70,4 +70,4 @@ chmod +x linuxdeploy-${ARCH}.AppImage
 
 OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk ${gst_plugin}  --output appimage
 rm -r "{{app_name}}.AppDir"
-mv "{{appimage_filename}}" $OUTDIR
+mv "{{appimage_filename}}" "$OUTDIR"

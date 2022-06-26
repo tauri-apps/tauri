@@ -4,7 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
-use raw_window_handle::HasRawWindowHandle;
+pub use raw_window_handle::HasRawWindowHandle;
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -483,7 +483,7 @@ impl From<NativeImage> for NativeImageWrapper {
 }
 
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
-pub struct WryIcon(WryWindowIcon);
+pub struct WryIcon(pub WryWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
@@ -519,7 +519,7 @@ impl WindowEventWrapper {
   }
 }
 
-fn map_theme(theme: &WryTheme) -> Theme {
+pub fn map_theme(theme: &WryTheme) -> Theme {
   match theme {
     WryTheme::Light => Theme::Light,
     WryTheme::Dark => Theme::Dark,
@@ -560,7 +560,7 @@ impl From<&WebviewEvent> for WindowEventWrapper {
   }
 }
 
-pub struct MonitorHandleWrapper(MonitorHandle);
+pub struct MonitorHandleWrapper(pub MonitorHandle);
 
 impl From<MonitorHandleWrapper> for Monitor {
   fn from(monitor: MonitorHandleWrapper) -> Monitor {
@@ -573,7 +573,7 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-struct PhysicalPositionWrapper<T>(WryPhysicalPosition<T>);
+pub struct PhysicalPositionWrapper<T>(pub WryPhysicalPosition<T>);
 
 impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
   fn from(position: PhysicalPositionWrapper<T>) -> Self {
@@ -604,7 +604,7 @@ impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
   }
 }
 
-struct PhysicalSizeWrapper<T>(WryPhysicalSize<T>);
+pub struct PhysicalSizeWrapper<T>(pub WryPhysicalSize<T>);
 
 impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
   fn from(size: PhysicalSizeWrapper<T>) -> Self {
@@ -635,7 +635,7 @@ impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
   }
 }
 
-struct SizeWrapper(WrySize);
+pub struct SizeWrapper(pub WrySize);
 
 impl From<Size> for SizeWrapper {
   fn from(size: Size) -> Self {
@@ -646,7 +646,7 @@ impl From<Size> for SizeWrapper {
   }
 }
 
-struct PositionWrapper(WryPosition);
+pub struct PositionWrapper(pub WryPosition);
 
 impl From<Position> for PositionWrapper {
   fn from(position: Position) -> Self {
@@ -658,7 +658,7 @@ impl From<Position> for PositionWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub struct UserAttentionTypeWrapper(WryUserAttentionType);
+pub struct UserAttentionTypeWrapper(pub WryUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
   fn from(request_type: UserAttentionType) -> Self {
@@ -671,7 +671,7 @@ impl From<UserAttentionType> for UserAttentionTypeWrapper {
 }
 
 #[derive(Debug)]
-pub struct CursorIconWrapper(WryCursorIcon);
+pub struct CursorIconWrapper(pub WryCursorIcon);
 
 impl From<CursorIcon> for CursorIconWrapper {
   fn from(icon: CursorIcon) -> Self {
@@ -984,7 +984,7 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkWindow(gtk::ApplicationWindow);
+pub struct GtkWindow(pub gtk::ApplicationWindow);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -995,7 +995,7 @@ pub struct GtkWindow(gtk::ApplicationWindow);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
-pub struct RawWindowHandle(raw_window_handle::RawWindowHandle);
+pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
 pub enum WindowMessage {
@@ -1033,7 +1033,7 @@ pub enum WindowMessage {
   RawWindowHandle(Sender<RawWindowHandle>),
   Theme(Sender<Theme>),
   // Setters
-  Center(Sender<Result<()>>),
+  Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
   SetTitle(String),
@@ -1297,7 +1297,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   // Setters
 
   fn center(&self) -> Result<()> {
-    window_getter!(self, WindowMessage::Center)?
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Center),
+    )
   }
 
   fn print(&self) -> Result<()> {
@@ -1603,6 +1606,11 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   }
 }
 
+pub trait PluginBuilder<T: UserEvent> {
+  type Plugin: Plugin<T>;
+  fn build(self, proxy: WryEventLoopProxy<Message<T>>) -> Self::Plugin;
+}
+
 pub trait Plugin<T: UserEvent> {
   fn on_event(
     &mut self,
@@ -1818,8 +1826,10 @@ impl<T: UserEvent> Wry<T> {
     })
   }
 
-  pub fn plugin<P: Plugin<T> + 'static>(&mut self, plugin: P) {
-    self.plugins.push(Box::new(plugin));
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P) {
+    self
+      .plugins
+      .push(Box::new(plugin.build(self.event_loop.create_proxy())));
   }
 }
 
@@ -2333,9 +2343,8 @@ fn handle_user_message<T: UserEvent>(
               tx.send(Theme::Light).unwrap();
             }
             // Setters
-            WindowMessage::Center(tx) => {
-              tx.send(center_window(&window, window.inner_size()))
-                .unwrap();
+            WindowMessage::Center => {
+              let _ = center_window(&window, window.inner_size());
             }
             WindowMessage::RequestUserAttention(request_type) => {
               window.request_user_attention(request_type.map(|r| r.0));
@@ -2842,7 +2851,7 @@ fn on_window_close(
   }
 }
 
-fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
+pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
     let monitor_pos = monitor.position();

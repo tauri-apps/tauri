@@ -568,12 +568,12 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`].
+  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
   ///
   /// # Stability
   ///
   /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + 'static>(
     &mut self,
     plugin: P,
   ) {

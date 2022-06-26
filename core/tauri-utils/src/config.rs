@@ -384,6 +384,8 @@ pub struct WixConfig {
   #[serde(default)]
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install.
+  ///
+  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
   #[serde(default)]
   pub skip_webview_install: bool,
   /// The path to the license file to render on the installer.

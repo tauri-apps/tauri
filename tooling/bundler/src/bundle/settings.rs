@@ -187,7 +187,7 @@ pub struct MacOsSettings {
 /// Configuration for a target language for the WiX build.
 #[derive(Debug, Clone, Default)]
 pub struct WixLanguageConfig {
-  /// The path to a locale (`.wxl`) file. See https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html.
+  /// The path to a locale (`.wxl`) file. See <https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html>.
   pub locale_path: Option<PathBuf>,
 }
 
@@ -204,7 +204,7 @@ impl Default for WixLanguage {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
-  /// The app languages to build. See https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables.
+  /// The app languages to build. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.
   pub language: WixLanguage,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own wix file.
@@ -309,7 +309,7 @@ pub struct BundleSettings {
   /// the app's long description.
   pub long_description: Option<String>,
   // Bundles for other binaries:
-  /// Configuration map for the possible [bin] apps to bundle.
+  /// Configuration map for the apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
   /// External binaries to add to the bundle.
   ///
@@ -324,7 +324,7 @@ pub struct BundleSettings {
   /// If you are building a universal binary for MacOS, the bundler expects
   /// your external binary to also be universal, and named after the target triple,
   /// e.g. `sqlite3-universal-apple-darwin`. See
-  /// https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary
+  /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,

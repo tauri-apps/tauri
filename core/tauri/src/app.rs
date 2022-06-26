@@ -1441,16 +1441,19 @@ impl<R: Runtime> Builder<R> {
 
     #[cfg(windows)]
     {
-      if let Some(w) = &app
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } = &app
         .manager
         .config()
         .tauri
         .bundle
         .windows
-        .webview_fixed_runtime_path
+        .webview_install_mode
       {
         if let Some(resource_dir) = app.path_resolver().resource_dir() {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", resource_dir.join(w));
+          std::env::set_var(
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
+            resource_dir.join(path),
+          );
         } else {
           #[cfg(debug_assertions)]
           eprintln!(

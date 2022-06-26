@@ -482,7 +482,7 @@ impl From<NativeImage> for NativeImageWrapper {
   }
 }
 
-/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`WindowIcon`].
+/// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
 pub struct WryIcon(WryWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {

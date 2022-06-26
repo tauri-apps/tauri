@@ -137,6 +137,10 @@
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
+            "webviewInstallMode": {
+              "silent": true,
+              "type": "downloadBootstrapper"
+            },
             "wix": null
           }
         },
@@ -268,6 +272,10 @@
               "timestampUrl": null,
               "tsp": false,
               "webviewFixedRuntimePath": null,
+              "webviewInstallMode": {
+                "silent": true,
+                "type": "downloadBootstrapper"
+              },
               "wix": null
             }
           },
@@ -1013,6 +1021,10 @@
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
+            "webviewInstallMode": {
+              "silent": true,
+              "type": "downloadBootstrapper"
+            },
             "wix": null
           },
           "allOf": [
@@ -1189,8 +1201,20 @@
           "default": false,
           "type": "boolean"
         },
+        "webviewInstallMode": {
+          "description": "The installation mode for the Webview2 runtime.",
+          "default": {
+            "silent": true,
+            "type": "downloadBootstrapper"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/WebviewInstallMode"
+            }
+          ]
+        },
         "webviewFixedRuntimePath": {
-          "description": "Path to the webview fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
+          "description": "Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.\n\nWill be removed in v2, prefer the [`Self::webview_install_mode`] option.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
           "type": [
             "string",
             "null"
@@ -1214,6 +1238,111 @@
         }
       },
       "additionalProperties": false
+    },
+    "WebviewInstallMode": {
+      "description": "Install modes for the Webview2 runtime. Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.",
+      "oneOf": [
+        {
+          "description": "Do not install the Webview2 as part of the Windows Installer.",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "skip"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Download the bootstrapper and run it. Requires internet connection. Results in a smaller installer size, but is not recommended on Windows 7.",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "downloadBootstrapper"
+              ]
+            },
+            "silent": {
+              "description": "Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.",
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Embed the bootstrapper and run it. Requires internet connection. Increases the installer size by around 1.8MB, but offers better support on Windows 7.",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "embedBootstrapper"
+              ]
+            },
+            "silent": {
+              "description": "Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.",
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Embed the offline installer and run it. Does not require internet connection. Increases the installer size by around 127MB.",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "offlineInstaller"
+              ]
+            },
+            "silent": {
+              "description": "Instructs the installer to run the installer in silent mode. Defaults to `true`.",
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Embed a fixed webview2 version and use it at runtime. Increases the installer size by around 180MB.",
+          "type": "object",
+          "required": [
+            "path",
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixedRuntime"
+              ]
+            },
+            "path": {
+              "description": "The path to the fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     },
     "WixConfig": {
       "description": "Configuration for the MSI bundle using WiX.",
@@ -1284,7 +1413,7 @@
           }
         },
         "skipWebviewInstall": {
-          "description": "Disables the Webview2 runtime installation after app install.",
+          "description": "Disables the Webview2 runtime installation after app install.\n\nWill be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.",
           "default": false,
           "type": "boolean"
         },

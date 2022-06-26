@@ -416,15 +416,27 @@ pub enum WebviewInstallMode {
   /// Download the bootstrapper and run it.
   /// Requires internet connection.
   /// Results in a smaller installer size, but is not recommended on Windows 7.
-  DownloadBootstrapper,
+  DownloadBootstrapper {
+    /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool
+  },
   /// Embed the bootstrapper and run it.
   /// Requires internet connection.
   /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
-  EmbedBootstrapper,
+  EmbedBootstrapper {
+    /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool
+  },
   /// Embed the offline installer and run it.
   /// Does not require internet connection.
   /// Increases the installer size by around 127MB.
-  OfflineInstaller,
+  OfflineInstaller  {
+    /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool
+  },
   /// Embed a fixed webview2 version and use it at runtime.
   /// Increases the installer size by around 180MB.
   FixedRuntime {
@@ -436,9 +448,13 @@ pub enum WebviewInstallMode {
   },
 }
 
+fn default_webview_install_silent() -> bool {
+  true
+}
+
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::EmbedBootstrapper
+    Self::EmbedBootstrapper { silent: default_webview_install_silent() }
   }
 }
 
@@ -2922,9 +2938,9 @@ mod build {
 
       tokens.append_all(match self {
         Self::Skip => quote! { #prefix::Skip },
-        Self::DownloadBootstrapper => quote! { #prefix::DownloadBootstrapper },
-        Self::EmbedBootstrapper => quote! { #prefix::EmbedBootstrapper },
-        Self::OfflineInstaller => quote! { #prefix::OfflineInstaller },
+        Self::DownloadBootstrapper { silent } => quote! { #prefix::DownloadBootstrapper { silent: #silent } },
+        Self::EmbedBootstrapper { silent } => quote! { #prefix::EmbedBootstrapper { silent: #silent } },
+        Self::OfflineInstaller { silent } => quote! { #prefix::OfflineInstaller { silent: #silent } },
         Self::FixedRuntime { path } => {
           let path = path_buf_lit(&path);
           quote! { #prefix::FixedRuntime { path: #path } }

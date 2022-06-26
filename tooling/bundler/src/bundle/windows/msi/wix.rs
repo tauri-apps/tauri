@@ -444,8 +444,14 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
+  let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent } | WebviewInstallMode::EmbedBootstrapper { silent } | WebviewInstallMode::OfflineInstaller { silent } = settings.windows().webview_install_mode {
+    silent
+  } else {
+    true
+  };
+
   let webview_install_mode = if updater {
-    WebviewInstallMode::DownloadBootstrapper
+    WebviewInstallMode::DownloadBootstrapper { silent: silent_webview_install }
   } else {
     let mut webview_install_mode = settings.windows().webview_install_mode.clone();
     if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
@@ -466,10 +472,10 @@ pub fn build_wix_app_installer(
     WebviewInstallMode::Skip | WebviewInstallMode::FixedRuntime { .. } => {
       data.insert("install_webview", to_json(false));
     }
-    WebviewInstallMode::DownloadBootstrapper => {
+    WebviewInstallMode::DownloadBootstrapper { silent: _ } => {
       data.insert("download_bootstrapper", to_json(true));
     }
-    WebviewInstallMode::EmbedBootstrapper => {
+    WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
       let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
       std::fs::write(
         &webview2_bootstrapper_path,
@@ -480,7 +486,7 @@ pub fn build_wix_app_installer(
         to_json(webview2_bootstrapper_path),
       );
     }
-    WebviewInstallMode::OfflineInstaller => {
+    WebviewInstallMode::OfflineInstaller { silent: _ } => {
       let guid = if arch == "x64" {
         WEBVIEW2_X64_INSTALLER_GUID
       } else {
@@ -507,6 +513,15 @@ pub fn build_wix_app_installer(
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }
+
+  data.insert(
+    "webview_installer_args",
+    to_json(if silent_webview_install {
+      "/silent"
+    } else {
+      ""
+    }),
+  );
 
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();

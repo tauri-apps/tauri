@@ -246,7 +246,7 @@
         </Property>
 
         {{#if download_bootstrapper}}
-        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; &amp; $env:TEMP\MicrosoftEdgeWebview2Setup.exe /install' Return='check'/>
+        <CustomAction Id='DownloadAndInvokeBootstrapper' Directory="INSTALLDIR" Execute="deferred" ExeCommand='powershell.exe -NoProfile -windowstyle hidden Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$env:TEMP\MicrosoftEdgeWebview2Setup.exe" ; &amp; $env:TEMP\MicrosoftEdgeWebview2Setup.exe {{{webview_installer_args}}} /install' Return='check'/>
         <InstallExecuteSequence>
             <Custom Action='DownloadAndInvokeBootstrapper' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
@@ -257,7 +257,7 @@
         <!-- Embedded webview bootstrapper mode -->
         {{#if webview2_bootstrapper_path}}
         <Binary Id="MicrosoftEdgeWebview2Setup.exe" SourceFile="{{{webview2_bootstrapper_path}}}"/>
-        <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand=' /install' Return='check' />
+        <CustomAction Id='InvokeBootstrapper' BinaryKey='MicrosoftEdgeWebview2Setup.exe' Execute="deferred" ExeCommand='{{{webview_installer_args}}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeBootstrapper' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>
@@ -268,7 +268,7 @@
         <!-- Embedded offline installer -->
         {{#if webview2_installer_path}}
         <Binary Id="MicrosoftEdgeWebView2RuntimeInstaller.exe" SourceFile="{{{webview2_installer_path}}}"/>
-        <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand=' /install' Return='check' />
+        <CustomAction Id='InvokeStandalone' BinaryKey='MicrosoftEdgeWebView2RuntimeInstaller.exe' Execute="deferred" ExeCommand='{{{webview_installer_args}}} /install' Return='check' />
         <InstallExecuteSequence>
             <Custom Action='InvokeStandalone' Before='InstallFinalize'>
                 <![CDATA[NOT(REMOVE OR WVRTINSTALLED)]]>

@@ -139,7 +139,7 @@
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
-              "type": "embedBootstrapper"
+              "type": "downloadBootstrapper"
             },
             "wix": null
           }
@@ -274,7 +274,7 @@
               "webviewFixedRuntimePath": null,
               "webviewInstallMode": {
                 "silent": true,
-                "type": "embedBootstrapper"
+                "type": "downloadBootstrapper"
               },
               "wix": null
             }
@@ -1023,7 +1023,7 @@
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
-              "type": "embedBootstrapper"
+              "type": "downloadBootstrapper"
             },
             "wix": null
           },
@@ -1205,7 +1205,7 @@
           "description": "The installation mode for the Webview2 runtime.",
           "default": {
             "silent": true,
-            "type": "embedBootstrapper"
+            "type": "downloadBootstrapper"
           },
           "allOf": [
             {

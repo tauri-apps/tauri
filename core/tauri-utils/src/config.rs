@@ -454,7 +454,7 @@ fn default_webview_install_silent() -> bool {
 
 impl Default for WebviewInstallMode {
   fn default() -> Self {
-    Self::EmbedBootstrapper {
+    Self::DownloadBootstrapper {
       silent: default_webview_install_silent(),
     }
   }

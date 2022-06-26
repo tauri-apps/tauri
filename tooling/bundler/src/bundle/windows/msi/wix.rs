@@ -444,14 +444,20 @@ pub fn build_wix_app_installer(
 
   let mut data = BTreeMap::new();
 
-  let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent } | WebviewInstallMode::EmbedBootstrapper { silent } | WebviewInstallMode::OfflineInstaller { silent } = settings.windows().webview_install_mode {
+  let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
+  | WebviewInstallMode::EmbedBootstrapper { silent }
+  | WebviewInstallMode::OfflineInstaller { silent } =
+    settings.windows().webview_install_mode
+  {
     silent
   } else {
     true
   };
 
   let webview_install_mode = if updater {
-    WebviewInstallMode::DownloadBootstrapper { silent: silent_webview_install }
+    WebviewInstallMode::DownloadBootstrapper {
+      silent: silent_webview_install,
+    }
   } else {
     let mut webview_install_mode = settings.windows().webview_install_mode.clone();
     if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {

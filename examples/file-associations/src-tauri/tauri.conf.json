@@ -24,7 +24,8 @@
       "category": "DeveloperTool",
       "fileAssociations": [
         {
-          "ext": ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"]
+          "ext": ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"],
+          "mime_type": ["image/png", "image/jpg", "image/jpeg", "image/gif", "image/bmp", "image/webp", "image/svg+xml"]
         }
       ],
       "shortDescription": "",

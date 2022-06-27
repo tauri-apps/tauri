@@ -152,11 +152,21 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if !settings.short_description().is_empty() {
     writeln!(file, "Comment={}", settings.short_description())?;
   }
-  writeln!(file, "Exec={}", bin_name)?;
+  writeln!(file, "Exec={} %U", bin_name)?;
   writeln!(file, "Icon={}", bin_name)?;
   writeln!(file, "Name={}", settings.product_name())?;
   writeln!(file, "Terminal=false")?;
   writeln!(file, "Type=Application")?;
+
+  if let Some(associations) = settings.file_associations() {
+    let mime_types: Vec<&str> = associations
+      .iter()
+      .filter_map(|association| association.mime_type.as_ref())
+      .flatten()
+      .map(|s| s.as_str())
+      .collect();
+    writeln!(file, "MimeType={}", mime_types.join(";"))?;
+  }
   Ok(())
 }
 

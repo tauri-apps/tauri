@@ -40,7 +40,7 @@ fn main() {
       // Windows and Linux
       let argv = env::args().collect::<Vec<_>>();
       if argv.len() > 1 {
-        // NOTICE: you may need to exclude the `--` from the command line if you're using a shell
+        // NOTICE: `argv` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
         handle_open_files(&argv[1..]);
       }
       Ok(())

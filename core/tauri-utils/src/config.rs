@@ -563,12 +563,14 @@ impl Display for BundleTypeRole {
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct FileAssociation {
-  /// File extensions to associate with this app.
+  /// File extensions to associate with this app. e.g. 'png'
   pub ext: Vec<String>,
   /// The name. Default to ext[0]
   pub name: Option<String>,
-  /// macOS-only The app’s role with respect to the type.
+  /// macOS-only. The app’s role with respect to the type.
   pub role: Option<BundleTypeRole>,
+  /// Linux-only. The mime-type. e.g. 'image/png'
+  pub mime_type: Option<Vec<String>>,
 }
 
 /// Configuration for tauri-bundler.

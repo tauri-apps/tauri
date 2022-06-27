@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test CLI
+name: test cli.js
 
 on:
   push:
@@ -11,8 +11,9 @@ on:
       - next
   pull_request:
     paths:
-      - '.github/workflows/test-cli.yml'
-      - 'tooling/cli/**'
+      - '.github/workflows/test-cli-js.yml'
+      # currently cli.js only tests the template
+      - 'tooling/cli/templates/app'
 
 env:
   RUST_BACKTRACE: 1
@@ -24,73 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-cli:
-    runs-on: ${{ matrix.platform }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev
-
-      - name: Get current date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
-
-      - name: Get current date
-        if: matrix.platform == 'windows-latest'
-        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Cache cargo state
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_state
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
-
-      - name: Cache CLI cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_cli
-        with:
-          path: tooling/cli/target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
-
-      - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
-
   test-tauri-js-cli:
     runs-on: ${{ matrix.platform }}
 

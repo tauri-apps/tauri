@@ -1789,9 +1789,9 @@ impl<T: UserEvent> Wry<T> {
         window_target: event_loop.deref().clone(),
         web_context,
         #[cfg(feature = "global-shortcut")]
-        global_shortcut_manager: global_shortcut_manager.clone(),
+        global_shortcut_manager,
         #[cfg(feature = "clipboard")]
-        clipboard_manager: clipboard_manager.clone(),
+        clipboard_manager,
         windows,
         #[cfg(feature = "system-tray")]
         tray_context: tray_context.clone(),

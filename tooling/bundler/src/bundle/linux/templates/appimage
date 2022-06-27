@@ -68,6 +68,8 @@ wget -q -4 -N -O linuxdeploy-${ARCH}.AppImage https://github.com/linuxdeploy/lin
 chmod +x linuxdeploy-plugin-gtk.sh
 chmod +x linuxdeploy-${ARCH}.AppImage
 
+dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of=linuxdeploy-${ARCH}.AppImage
+
 OUTPUT="{{appimage_filename}}" ./linuxdeploy-${ARCH}.AppImage --appimage-extract-and-run --appdir "{{app_name}}.AppDir" --plugin gtk ${gst_plugin}  --output appimage
 rm -r "{{app_name}}.AppDir"
 mv "{{appimage_filename}}" "$OUTDIR"

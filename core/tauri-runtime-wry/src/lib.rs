@@ -4,7 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
-use raw_window_handle::HasRawWindowHandle;
+pub use raw_window_handle::HasRawWindowHandle;
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -198,10 +198,23 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
 pub struct Context<T: UserEvent> {
   pub webview_id_map: WebviewIdStore,
   main_thread_id: ThreadId,
-  proxy: WryEventLoopProxy<Message<T>>,
-  window_event_listeners: WindowEventListeners,
-  menu_event_listeners: MenuEventListeners,
+  pub proxy: WryEventLoopProxy<Message<T>>,
+  pub window_event_listeners: WindowEventListeners,
+  pub menu_event_listeners: MenuEventListeners,
   main_thread: DispatcherMainThreadContext<T>,
+}
+
+impl<T: UserEvent> Context<T> {
+  pub fn run_threaded<R, F>(&self, f: F) -> R
+  where
+    F: FnOnce(Option<&DispatcherMainThreadContext<T>>) -> R,
+  {
+    f(if current_thread().id() == self.main_thread_id {
+      Some(&self.main_thread)
+    } else {
+      None
+    })
+  }
 }
 
 impl<T: UserEvent> Context<T> {
@@ -252,21 +265,25 @@ impl<T: UserEvent> Context<T> {
 }
 
 #[derive(Debug, Clone)]
-struct DispatcherMainThreadContext<T: UserEvent> {
-  window_target: EventLoopWindowTarget<Message<T>>,
-  web_context: WebContextStore,
+pub struct DispatcherMainThreadContext<T: UserEvent> {
+  pub window_target: EventLoopWindowTarget<Message<T>>,
+  pub web_context: WebContextStore,
   #[cfg(feature = "global-shortcut")]
-  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
-  clipboard_manager: Arc<Mutex<Clipboard>>,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  pub clipboard_manager: Arc<Mutex<Clipboard>>,
+  pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(feature = "system-tray")]
-  tray_context: TrayContext,
+  pub tray_context: TrayContext,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Send for DispatcherMainThreadContext<T> {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl<T: UserEvent> Sync for DispatcherMainThreadContext<T> {}
 
 impl<T: UserEvent> fmt::Debug for Context<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -483,7 +500,7 @@ impl From<NativeImage> for NativeImageWrapper {
 }
 
 /// Wrapper around a [`wry::application::window::Icon`] that can be created from an [`Icon`].
-pub struct WryIcon(WryWindowIcon);
+pub struct WryIcon(pub WryWindowIcon);
 
 fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
   Error::InvalidIcon(Box::new(e))
@@ -519,7 +536,7 @@ impl WindowEventWrapper {
   }
 }
 
-fn map_theme(theme: &WryTheme) -> Theme {
+pub fn map_theme(theme: &WryTheme) -> Theme {
   match theme {
     WryTheme::Light => Theme::Light,
     WryTheme::Dark => Theme::Dark,
@@ -560,7 +577,7 @@ impl From<&WebviewEvent> for WindowEventWrapper {
   }
 }
 
-pub struct MonitorHandleWrapper(MonitorHandle);
+pub struct MonitorHandleWrapper(pub MonitorHandle);
 
 impl From<MonitorHandleWrapper> for Monitor {
   fn from(monitor: MonitorHandleWrapper) -> Monitor {
@@ -573,7 +590,7 @@ impl From<MonitorHandleWrapper> for Monitor {
   }
 }
 
-struct PhysicalPositionWrapper<T>(WryPhysicalPosition<T>);
+pub struct PhysicalPositionWrapper<T>(pub WryPhysicalPosition<T>);
 
 impl<T> From<PhysicalPositionWrapper<T>> for PhysicalPosition<T> {
   fn from(position: PhysicalPositionWrapper<T>) -> Self {
@@ -604,7 +621,7 @@ impl<T> From<LogicalPosition<T>> for LogicalPositionWrapper<T> {
   }
 }
 
-struct PhysicalSizeWrapper<T>(WryPhysicalSize<T>);
+pub struct PhysicalSizeWrapper<T>(pub WryPhysicalSize<T>);
 
 impl<T> From<PhysicalSizeWrapper<T>> for PhysicalSize<T> {
   fn from(size: PhysicalSizeWrapper<T>) -> Self {
@@ -635,7 +652,7 @@ impl<T> From<LogicalSize<T>> for LogicalSizeWrapper<T> {
   }
 }
 
-struct SizeWrapper(WrySize);
+pub struct SizeWrapper(pub WrySize);
 
 impl From<Size> for SizeWrapper {
   fn from(size: Size) -> Self {
@@ -646,7 +663,7 @@ impl From<Size> for SizeWrapper {
   }
 }
 
-struct PositionWrapper(WryPosition);
+pub struct PositionWrapper(pub WryPosition);
 
 impl From<Position> for PositionWrapper {
   fn from(position: Position) -> Self {
@@ -658,7 +675,7 @@ impl From<Position> for PositionWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub struct UserAttentionTypeWrapper(WryUserAttentionType);
+pub struct UserAttentionTypeWrapper(pub WryUserAttentionType);
 
 impl From<UserAttentionType> for UserAttentionTypeWrapper {
   fn from(request_type: UserAttentionType) -> Self {
@@ -671,7 +688,7 @@ impl From<UserAttentionType> for UserAttentionTypeWrapper {
 }
 
 #[derive(Debug)]
-pub struct CursorIconWrapper(WryCursorIcon);
+pub struct CursorIconWrapper(pub WryCursorIcon);
 
 impl From<CursorIcon> for CursorIconWrapper {
   fn from(icon: CursorIcon) -> Self {
@@ -984,7 +1001,7 @@ impl From<FileDropEventWrapper> for FileDropEvent {
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-pub struct GtkWindow(gtk::ApplicationWindow);
+pub struct GtkWindow(pub gtk::ApplicationWindow);
 #[cfg(any(
   target_os = "linux",
   target_os = "dragonfly",
@@ -995,7 +1012,7 @@ pub struct GtkWindow(gtk::ApplicationWindow);
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl Send for GtkWindow {}
 
-pub struct RawWindowHandle(raw_window_handle::RawWindowHandle);
+pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
 pub enum WindowMessage {
@@ -1033,7 +1050,7 @@ pub enum WindowMessage {
   RawWindowHandle(Sender<RawWindowHandle>),
   Theme(Sender<Theme>),
   // Setters
-  Center(Sender<Result<()>>),
+  Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
   SetResizable(bool),
   SetTitle(String),
@@ -1297,7 +1314,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   // Setters
 
   fn center(&self) -> Result<()> {
-    window_getter!(self, WindowMessage::Center)?
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::Center),
+    )
   }
 
   fn print(&self) -> Result<()> {
@@ -1603,6 +1623,11 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   }
 }
 
+pub trait PluginBuilder<T: UserEvent> {
+  type Plugin: Plugin<T>;
+  fn build(self, context: Context<T>) -> Self::Plugin;
+}
+
 pub trait Plugin<T: UserEvent> {
   fn on_event(
     &mut self,
@@ -1617,51 +1642,46 @@ pub trait Plugin<T: UserEvent> {
 
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
-  main_thread_id: ThreadId,
+  context: Context<T>,
 
   plugins: Vec<Box<dyn Plugin<T>>>,
 
   #[cfg(feature = "global-shortcut")]
-  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  #[cfg(feature = "global-shortcut")]
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
-  #[cfg(feature = "clipboard")]
-  clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(feature = "clipboard")]
   clipboard_manager_handle: ClipboardManagerWrapper<T>,
 
   event_loop: EventLoop<Message<T>>,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  webview_id_map: WebviewIdStore,
-  web_context: WebContextStore,
-  window_event_listeners: WindowEventListeners,
-  menu_event_listeners: MenuEventListeners,
-  #[cfg(feature = "system-tray")]
-  tray_context: TrayContext,
 }
 
 impl<T: UserEvent> fmt::Debug for Wry<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Wry");
-    d.field("main_thread_id", &self.main_thread_id)
+    d.field("main_thread_id", &self.context.main_thread_id)
       .field("event_loop", &self.event_loop)
-      .field("windows", &self.windows)
-      .field("web_context", &self.web_context);
+      .field("windows", &self.context.main_thread.windows)
+      .field("web_context", &self.context.main_thread.web_context);
 
     #[cfg(feature = "system-tray")]
-    d.field("tray_context", &self.tray_context);
+    d.field("tray_context", &self.context.main_thread.tray_context);
 
     #[cfg(feature = "global-shortcut")]
-    d.field("global_shortcut_manager", &self.global_shortcut_manager)
-      .field(
-        "global_shortcut_manager_handle",
-        &self.global_shortcut_manager_handle,
-      );
+    d.field(
+      "global_shortcut_manager",
+      &self.context.main_thread.global_shortcut_manager,
+    )
+    .field(
+      "global_shortcut_manager_handle",
+      &self.global_shortcut_manager_handle,
+    );
 
     #[cfg(feature = "clipboard")]
-    d.field("clipboard_manager", &self.clipboard_manager)
-      .field("clipboard_manager_handle", &self.clipboard_manager_handle);
+    d.field(
+      "clipboard_manager",
+      &self.context.main_thread.clipboard_manager,
+    )
+    .field("clipboard_manager_handle", &self.clipboard_manager_handle);
 
     d.finish()
   }
@@ -1759,67 +1779,57 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "system-tray")]
     let tray_context = TrayContext::default();
 
-    #[allow(unused_variables)]
-    let event_loop_context = Context {
-      webview_id_map: webview_id_map.clone(),
+    let context = Context {
+      webview_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       window_event_listeners: window_event_listeners.clone(),
       menu_event_listeners: menu_event_listeners.clone(),
       main_thread: DispatcherMainThreadContext {
         window_target: event_loop.deref().clone(),
-        web_context: web_context.clone(),
+        web_context,
         #[cfg(feature = "global-shortcut")]
-        global_shortcut_manager: global_shortcut_manager.clone(),
+        global_shortcut_manager,
         #[cfg(feature = "clipboard")]
-        clipboard_manager: clipboard_manager.clone(),
-        windows: windows.clone(),
+        clipboard_manager,
+        windows,
         #[cfg(feature = "system-tray")]
-        tray_context: tray_context.clone(),
+        tray_context,
       },
     };
 
     #[cfg(feature = "global-shortcut")]
-    let global_shortcut_listeners = GlobalShortcutListeners::default();
+    let global_shortcut_manager_handle = GlobalShortcutManagerHandle {
+      context: context.clone(),
+      shortcuts: Default::default(),
+      listeners: Default::default(),
+    };
 
     #[cfg(feature = "clipboard")]
     #[allow(clippy::redundant_clone)]
     let clipboard_manager_handle = ClipboardManagerWrapper {
-      context: event_loop_context.clone(),
+      context: context.clone(),
     };
 
     Ok(Self {
-      main_thread_id,
+      context,
 
       plugins: Default::default(),
 
       #[cfg(feature = "global-shortcut")]
-      global_shortcut_manager,
-      #[cfg(feature = "global-shortcut")]
-      global_shortcut_manager_handle: GlobalShortcutManagerHandle {
-        context: event_loop_context,
-        shortcuts: Default::default(),
-        listeners: global_shortcut_listeners,
-      },
+      global_shortcut_manager_handle,
 
-      #[cfg(feature = "clipboard")]
-      clipboard_manager,
       #[cfg(feature = "clipboard")]
       clipboard_manager_handle,
 
       event_loop,
-      windows,
-      webview_id_map,
-      web_context,
-      window_event_listeners,
-      menu_event_listeners,
-      #[cfg(feature = "system-tray")]
-      tray_context,
     })
   }
 
-  pub fn plugin<P: Plugin<T> + 'static>(&mut self, plugin: P) {
-    self.plugins.push(Box::new(plugin));
+  pub fn plugin<P: PluginBuilder<T> + 'static>(&mut self, plugin: P) {
+    self
+      .plugins
+      .push(Box::new(plugin.build(self.context.clone())));
   }
 }
 
@@ -1859,24 +1869,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn handle(&self) -> Self::Handle {
     WryHandle {
-      context: Context {
-        webview_id_map: self.webview_id_map.clone(),
-        main_thread_id: self.main_thread_id,
-        proxy: self.event_loop.create_proxy(),
-        window_event_listeners: self.window_event_listeners.clone(),
-        menu_event_listeners: self.menu_event_listeners.clone(),
-        main_thread: DispatcherMainThreadContext {
-          window_target: self.event_loop.deref().clone(),
-          web_context: self.web_context.clone(),
-          #[cfg(feature = "global-shortcut")]
-          global_shortcut_manager: self.global_shortcut_manager.clone(),
-          #[cfg(feature = "clipboard")]
-          clipboard_manager: self.clipboard_manager.clone(),
-          windows: self.windows.clone(),
-          #[cfg(feature = "system-tray")]
-          tray_context: self.tray_context.clone(),
-        },
-      },
+      context: self.context.clone(),
     }
   }
 
@@ -1894,41 +1887,30 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
-    let proxy = self.event_loop.create_proxy();
     let window_id = rand::random();
 
-    let context = Context {
-      webview_id_map: self.webview_id_map.clone(),
-      main_thread_id: self.main_thread_id,
-      proxy,
-      window_event_listeners: self.window_event_listeners.clone(),
-      menu_event_listeners: self.menu_event_listeners.clone(),
-      main_thread: DispatcherMainThreadContext {
-        window_target: self.event_loop.deref().clone(),
-        web_context: self.web_context.clone(),
-        #[cfg(feature = "global-shortcut")]
-        global_shortcut_manager: self.global_shortcut_manager.clone(),
-        #[cfg(feature = "clipboard")]
-        clipboard_manager: self.clipboard_manager.clone(),
-        windows: self.windows.clone(),
-        #[cfg(feature = "system-tray")]
-        tray_context: self.tray_context.clone(),
-      },
-    };
-
-    context.prepare_window(window_id);
+    self.context.prepare_window(window_id);
 
     let webview = create_webview(
       window_id,
       &self.event_loop,
-      &self.web_context,
-      context.clone(),
+      &self.context.main_thread.web_context,
+      self.context.clone(),
       pending,
     )?;
 
-    let dispatcher = WryDispatcher { window_id, context };
+    let dispatcher = WryDispatcher {
+      window_id,
+      context: self.context.clone(),
+    };
 
-    self.windows.lock().unwrap().insert(window_id, webview);
+    self
+      .context
+      .main_thread
+      .windows
+      .lock()
+      .unwrap()
+      .insert(window_id, webview);
 
     Ok(DetachedWindow {
       label,
@@ -1961,8 +1943,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .build(&self.event_loop)
       .map_err(|e| Error::SystemTray(Box::new(e)))?;
 
-    *self.tray_context.items.lock().unwrap() = items;
-    *self.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
+    *self.context.main_thread.tray_context.items.lock().unwrap() = items;
+    *self.context.main_thread.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
 
     Ok(SystemTrayHandle {
       proxy: self.event_loop.create_proxy(),
@@ -1973,6 +1955,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
     let id = Uuid::new_v4();
     self
+      .context
+      .main_thread
       .tray_context
       .listeners
       .lock()
@@ -1995,22 +1979,22 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
-    let windows = self.windows.clone();
-    let webview_id_map = self.webview_id_map.clone();
-    let web_context = &self.web_context;
+    let windows = self.context.main_thread.windows.clone();
+    let webview_id_map = self.context.webview_id_map.clone();
+    let web_context = &self.context.main_thread.web_context;
     let plugins = &mut self.plugins;
-    let window_event_listeners = self.window_event_listeners.clone();
-    let menu_event_listeners = self.menu_event_listeners.clone();
+    let window_event_listeners = self.context.window_event_listeners.clone();
+    let menu_event_listeners = self.context.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
-    let tray_context = self.tray_context.clone();
+    let tray_context = self.context.main_thread.tray_context.clone();
 
     #[cfg(feature = "global-shortcut")]
-    let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
     #[cfg(feature = "global-shortcut")]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     #[cfg(feature = "clipboard")]
-    let clipboard_manager = self.clipboard_manager.clone();
+    let clipboard_manager = self.context.main_thread.clipboard_manager.clone();
     let mut iteration = RunIteration::default();
 
     let proxy = self.event_loop.create_proxy();
@@ -2078,23 +2062,23 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
-    let windows = self.windows.clone();
-    let webview_id_map = self.webview_id_map.clone();
-    let web_context = self.web_context;
+    let windows = self.context.main_thread.windows.clone();
+    let webview_id_map = self.context.webview_id_map.clone();
+    let web_context = self.context.main_thread.web_context;
     let mut plugins = self.plugins;
-    let window_event_listeners = self.window_event_listeners.clone();
-    let menu_event_listeners = self.menu_event_listeners.clone();
+    let window_event_listeners = self.context.window_event_listeners.clone();
+    let menu_event_listeners = self.context.menu_event_listeners.clone();
 
     #[cfg(feature = "system-tray")]
-    let tray_context = self.tray_context;
+    let tray_context = self.context.main_thread.tray_context;
 
     #[cfg(feature = "global-shortcut")]
-    let global_shortcut_manager = self.global_shortcut_manager.clone();
+    let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
     #[cfg(feature = "global-shortcut")]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     #[cfg(feature = "clipboard")]
-    let clipboard_manager = self.clipboard_manager.clone();
+    let clipboard_manager = self.context.main_thread.clipboard_manager.clone();
 
     let proxy = self.event_loop.create_proxy();
 
@@ -2333,9 +2317,8 @@ fn handle_user_message<T: UserEvent>(
               tx.send(Theme::Light).unwrap();
             }
             // Setters
-            WindowMessage::Center(tx) => {
-              tx.send(center_window(&window, window.inner_size()))
-                .unwrap();
+            WindowMessage::Center => {
+              let _ = center_window(&window, window.inner_size());
             }
             WindowMessage::RequestUserAttention(request_type) => {
               window.request_user_attention(request_type.map(|r| r.0));
@@ -2842,7 +2825,7 @@ fn on_window_close(
   }
 }
 
-fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
+pub fn center_window(window: &Window, window_size: WryPhysicalSize<u32>) -> Result<()> {
   if let Some(monitor) = window.current_monitor() {
     let screen_size = monitor.size();
     let monitor_pos = monitor.position();

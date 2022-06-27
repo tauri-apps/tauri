@@ -277,96 +277,206 @@ pub fn resolve_path<P: AsRef<Path>>(
 }
 
 /// Returns the path to the user's audio directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_MUSIC_DIR`.
+/// - **macOS:** Resolves to `$HOME/Music`.
+/// - **Windows:** Resolves to `{FOLDERID_Music}`.
 pub fn audio_dir() -> Option<PathBuf> {
   dirs_next::audio_dir()
 }
 
 /// Returns the path to the user's cache directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_CACHE_HOME` or `$HOME/.cache`.
+/// - **macOS:** Resolves to `$HOME/Library/Caches`.
+/// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
 pub fn cache_dir() -> Option<PathBuf> {
   dirs_next::cache_dir()
 }
 
 /// Returns the path to the user's config directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
+/// - **macOS:** Resolves to `$HOME/Library/Application Support`.
+/// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
 pub fn config_dir() -> Option<PathBuf> {
   dirs_next::config_dir()
 }
 
 /// Returns the path to the user's data directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
+/// - **macOS:** Resolves to `$HOME/Library/Application Support`.
+/// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
 pub fn data_dir() -> Option<PathBuf> {
   dirs_next::data_dir()
 }
 
 /// Returns the path to the user's local data directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
+/// - **macOS:** Resolves to `$HOME/Library/Application Support`.
+/// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
 pub fn local_data_dir() -> Option<PathBuf> {
   dirs_next::data_local_dir()
 }
 
 /// Returns the path to the user's desktop directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
+/// - **macOS:** Resolves to `$HOME/Library/Desktop`.
+/// - **Windows:** Resolves to `{FOLDERID_Desktop}`.
 pub fn desktop_dir() -> Option<PathBuf> {
   dirs_next::desktop_dir()
 }
 
 /// Returns the path to the user's document directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOCUMENTS_DIR`.
+/// - **macOS:** Resolves to `$HOME/Documents`.
+/// - **Windows:** Resolves to `{FOLDERID_Documents}`.
 pub fn document_dir() -> Option<PathBuf> {
   dirs_next::document_dir()
 }
 
 /// Returns the path to the user's download directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOWNLOAD_DIR`.
+/// - **macOS:** Resolves to `$HOME/Downloads`.
+/// - **Windows:** Resolves to `{FOLDERID_Downloads}`.
 pub fn download_dir() -> Option<PathBuf> {
   dirs_next::download_dir()
 }
 
 /// Returns the path to the user's executable directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
+/// - **macOS:** Not supported.
+/// - **Windows:** Not supported.
 pub fn executable_dir() -> Option<PathBuf> {
   dirs_next::executable_dir()
 }
 
 /// Returns the path to the user's font directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
+/// - **macOS:** Resolves to `$HOME/Library/Fonts`.
+/// - **Windows:** Not supported.
 pub fn font_dir() -> Option<PathBuf> {
   dirs_next::font_dir()
 }
 
 /// Returns the path to the user's home directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$HOME`.
+/// - **macOS:** Resolves to `$HOME`.
+/// - **Windows:** Resolves to `{FOLDERID_Profile}`.
 pub fn home_dir() -> Option<PathBuf> {
   dirs_next::home_dir()
 }
 
 /// Returns the path to the user's picture directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PICTURES_DIR`.
+/// - **macOS:** Resolves to `$HOME/Pictures`.
+/// - **Windows:** Resolves to `{FOLDERID_Pictures}`.
 pub fn picture_dir() -> Option<PathBuf> {
   dirs_next::picture_dir()
 }
 
 /// Returns the path to the user's public directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PUBLICSHARE_DIR`.
+/// - **macOS:** Resolves to `$HOME/Public`.
+/// - **Windows:** Resolves to `{FOLDERID_Public}`.
 pub fn public_dir() -> Option<PathBuf> {
   dirs_next::public_dir()
 }
 
 /// Returns the path to the user's runtime directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `$XDG_RUNTIME_DIR`.
+/// - **macOS:** Not supported.
+/// - **Windows:** Not supported.
 pub fn runtime_dir() -> Option<PathBuf> {
   dirs_next::runtime_dir()
 }
 
 /// Returns the path to the user's template directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_TEMPLATES_DIR`.
+/// - **macOS:** Not supported.
+/// - **Windows:** Resolves to `{FOLDERID_Templates}`.
 pub fn template_dir() -> Option<PathBuf> {
   dirs_next::template_dir()
 }
 
 /// Returns the path to the user's video dir
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_VIDEOS_DIR`.
+/// - **macOS:** Resolves to `$HOME/Movies`.
+/// - **Windows:** Resolves to `{FOLDERID_Videos}`.
 pub fn video_dir() -> Option<PathBuf> {
   dirs_next::video_dir()
 }
 
 /// Returns the path to the resource directory of this app.
+///
+/// See [`PathResolver::resource_dir`](crate::PathResolver#method.resource_dir) for a more convenient helper function.
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
   crate::utils::platform::resource_dir(package_info, env).ok()
 }
 
 /// Returns the path to the suggested directory for your app config files.
+///
+/// Resolves to `${config_dir}/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_dir`](crate::PathResolver#method.app_dir) for a more convenient helper function.
 pub fn app_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested log directory.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to `${config_dir}/${bundle_identifier}`.
+/// - **macOS:** Resolves to `${home_dir}//Library/Logs/{bundle_identifier}`
+/// - **Windows:** Resolves to `${config_dir}/${bundle_identifier}`.
+///
+/// See [`PathResolver::log_dir`](crate::PathResolver#method.log_dir) for a more convenient helper function.
 pub fn log_dir(config: &Config) -> Option<PathBuf> {
   #[cfg(target_os = "macos")]
   let path = dirs_next::home_dir().map(|dir| {

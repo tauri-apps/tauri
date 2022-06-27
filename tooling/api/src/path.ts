@@ -110,7 +110,7 @@ async function cacheDir(): Promise<string> {
  *
  * - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
  * - **macOS:** Resolves to `$HOME/Library/Application Support`.
- * - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
+ * - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
  * @example
  * ```typescript
  * import { configDir } from '@tauri-apps/api/path';
@@ -695,7 +695,7 @@ async function basename(path: string, ext?: string): Promise<string> {
  * @example
  * ```typescript
  * import { isAbsolute } from '@tauri-apps/api/path';
- * assert(await ibsolute('/home/tauri'));
+ * assert(await isAbsolute('/home/tauri'));
  * ```
  */
 async function isAbsolute(path: string): Promise<boolean> {

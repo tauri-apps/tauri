@@ -1794,7 +1794,7 @@ impl<T: UserEvent> Wry<T> {
         clipboard_manager,
         windows,
         #[cfg(feature = "system-tray")]
-        tray_context: tray_context.clone(),
+        tray_context,
       },
     };
 

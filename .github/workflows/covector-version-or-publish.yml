@@ -96,6 +96,14 @@ jobs:
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
 
+      - name: run CLI tests
+        timeout-minutes: 30
+        run: |
+          cd ./tooling/cli/node
+          yarn
+          yarn build
+          yarn test
+
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65

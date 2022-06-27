@@ -91,6 +91,7 @@ use std::{
     HashMap, HashSet,
   },
   fmt,
+  marker::PhantomData,
   ops::Deref,
   path::PathBuf,
   sync::{
@@ -124,12 +125,10 @@ use clipboard::*;
 
 pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
-type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
-type WindowEventListenersMap = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
-pub type WindowEventListeners = Arc<Mutex<HashMap<WebviewId, WindowEventListenersMap>>>;
+pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
+pub type WindowEventListeners = Arc<Mutex<HashMap<Uuid, WindowEventHandler>>>;
 // menu
 pub type MenuEventHandler = Box<dyn Fn(&MenuEvent) + Send>;
-pub type MenuEventListeners = Arc<Mutex<HashMap<WebviewId, WindowMenuEventListeners>>>;
 pub type WindowMenuEventListeners = Arc<Mutex<HashMap<Uuid, MenuEventHandler>>>;
 
 #[derive(Debug, Clone, Default)]
@@ -172,13 +171,12 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
       &context.main_thread.window_target,
       message,
       UserMessageContext {
+        marker: &PhantomData,
         webview_id_map: context.webview_id_map.clone(),
-        window_event_listeners: &context.window_event_listeners,
         #[cfg(feature = "global-shortcut")]
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
         #[cfg(feature = "clipboard")]
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
-        menu_event_listeners: &context.menu_event_listeners,
         windows: context.main_thread.windows.clone(),
         #[cfg(feature = "system-tray")]
         tray_context: &context.main_thread.tray_context,
@@ -199,8 +197,6 @@ pub struct Context<T: UserEvent> {
   pub webview_id_map: WebviewIdStore,
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
-  pub window_event_listeners: WindowEventListeners,
-  pub menu_event_listeners: MenuEventListeners,
   main_thread: DispatcherMainThreadContext<T>,
 }
 
@@ -218,28 +214,12 @@ impl<T: UserEvent> Context<T> {
 }
 
 impl<T: UserEvent> Context<T> {
-  fn prepare_window(&self, window_id: WebviewId) {
-    self
-      .window_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowEventListenersMap::default());
-
-    self
-      .menu_event_listeners
-      .lock()
-      .unwrap()
-      .insert(window_id, WindowMenuEventListeners::default());
-  }
-
   fn create_webview(&self, pending: PendingWindow<T, Wry<T>>) -> Result<DetachedWindow<T, Wry<T>>> {
     let label = pending.label.clone();
     let menu_ids = pending.menu_ids.clone();
     let js_event_listeners = pending.js_event_listeners.clone();
     let context = self.clone();
     let window_id = rand::random();
-
-    self.prepare_window(window_id);
 
     send_user_message(
       self,
@@ -1017,6 +997,8 @@ unsafe impl Send for RawWindowHandle {}
 
 pub enum WindowMessage {
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
+  AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
+  AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
   OpenDevTools,
@@ -1176,31 +1158,29 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) -> Uuid {
     let id = Uuid::new_v4();
-    self
-      .context
-      .window_event_listeners
-      .lock()
-      .unwrap()
-      .get(&self.window_id)
-      .unwrap()
-      .lock()
-      .unwrap()
-      .insert(id, Box::new(f));
+    let _ = self.context.proxy.send_event(Message::Window(
+      self.window_id,
+      WindowMessage::AddEventListener(id, Box::new(f)),
+    ));
+    /* self
+    .context
+    .window_event_listeners
+    .lock()
+    .unwrap()
+    .get(&self.window_id)
+    .unwrap()
+    .lock()
+    .unwrap()
+    .insert(id, Box::new(f));*/
     id
   }
 
   fn on_menu_event<F: Fn(&MenuEvent) + Send + 'static>(&self, f: F) -> Uuid {
     let id = Uuid::new_v4();
-    self
-      .context
-      .menu_event_listeners
-      .lock()
-      .unwrap()
-      .get(&self.window_id)
-      .unwrap()
-      .lock()
-      .unwrap()
-      .insert(id, Box::new(f));
+    let _ = self.context.proxy.send_event(Message::Window(
+      self.window_id,
+      WindowMessage::AddMenuEventListener(id, Box::new(f)),
+    ));
     id
   }
 
@@ -1604,11 +1584,22 @@ impl WindowHandle {
   }
 }
 
-#[derive(Debug)]
 pub struct WindowWrapper {
   label: String,
   inner: Option<WindowHandle>,
   menu_items: Option<HashMap<u16, WryCustomMenuItem>>,
+  window_event_listeners: WindowEventListeners,
+  menu_event_listeners: WindowMenuEventListeners,
+}
+
+impl fmt::Debug for WindowWrapper {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("WindowWrapper")
+      .field("label", &self.label)
+      .field("inner", &self.inner)
+      .field("menu_items", &self.menu_items)
+      .finish()
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -1773,8 +1764,6 @@ impl<T: UserEvent> Wry<T> {
 
     let windows = Arc::new(Mutex::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
-    let window_event_listeners = WindowEventListeners::default();
-    let menu_event_listeners = MenuEventListeners::default();
 
     #[cfg(feature = "system-tray")]
     let tray_context = TrayContext::default();
@@ -1783,8 +1772,6 @@ impl<T: UserEvent> Wry<T> {
       webview_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
-      window_event_listeners: window_event_listeners.clone(),
-      menu_event_listeners: menu_event_listeners.clone(),
       main_thread: DispatcherMainThreadContext {
         window_target: event_loop.deref().clone(),
         web_context,
@@ -1889,8 +1876,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let js_event_listeners = pending.js_event_listeners.clone();
     let window_id = rand::random();
 
-    self.context.prepare_window(window_id);
-
     let webview = create_webview(
       window_id,
       &self.event_loop,
@@ -1983,8 +1968,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
     let plugins = &mut self.plugins;
-    let window_event_listeners = self.context.window_event_listeners.clone();
-    let menu_event_listeners = self.context.menu_event_listeners.clone();
     #[cfg(feature = "system-tray")]
     let tray_context = self.context.main_thread.tray_context.clone();
 
@@ -2017,14 +2000,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               callback: &mut callback,
               webview_id_map: webview_id_map.clone(),
               windows: windows.clone(),
-              window_event_listeners: &window_event_listeners,
               #[cfg(feature = "global-shortcut")]
               global_shortcut_manager: global_shortcut_manager.clone(),
               #[cfg(feature = "global-shortcut")]
               global_shortcut_manager_handle: &global_shortcut_manager_handle,
               #[cfg(feature = "clipboard")]
               clipboard_manager: clipboard_manager.clone(),
-              menu_event_listeners: &menu_event_listeners,
               #[cfg(feature = "system-tray")]
               tray_context: &tray_context,
             },
@@ -2043,14 +2024,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             windows: windows.clone(),
             webview_id_map: webview_id_map.clone(),
-            window_event_listeners: &window_event_listeners,
             #[cfg(feature = "global-shortcut")]
             global_shortcut_manager: global_shortcut_manager.clone(),
             #[cfg(feature = "global-shortcut")]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
-            menu_event_listeners: &menu_event_listeners,
             #[cfg(feature = "system-tray")]
             tray_context: &tray_context,
           },
@@ -2066,8 +2045,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context;
     let mut plugins = self.plugins;
-    let window_event_listeners = self.context.window_event_listeners.clone();
-    let menu_event_listeners = self.context.menu_event_listeners.clone();
 
     #[cfg(feature = "system-tray")]
     let tray_context = self.context.main_thread.tray_context;
@@ -2093,14 +2070,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             webview_id_map: webview_id_map.clone(),
             windows: windows.clone(),
-            window_event_listeners: &window_event_listeners,
             #[cfg(feature = "global-shortcut")]
             global_shortcut_manager: global_shortcut_manager.clone(),
             #[cfg(feature = "global-shortcut")]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
-            menu_event_listeners: &menu_event_listeners,
             #[cfg(feature = "system-tray")]
             tray_context: &tray_context,
           },
@@ -2118,14 +2093,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           callback: &mut callback,
           webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
-          window_event_listeners: &window_event_listeners,
           #[cfg(feature = "global-shortcut")]
           global_shortcut_manager: global_shortcut_manager.clone(),
           #[cfg(feature = "global-shortcut")]
           global_shortcut_manager_handle: &global_shortcut_manager_handle,
           #[cfg(feature = "clipboard")]
           clipboard_manager: clipboard_manager.clone(),
-          menu_event_listeners: &menu_event_listeners,
           #[cfg(feature = "system-tray")]
           tray_context: &tray_context,
         },
@@ -2139,26 +2112,24 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
   pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  pub window_event_listeners: &'a WindowEventListeners,
   #[cfg(feature = "global-shortcut")]
   pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "global-shortcut")]
   pub global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle<T>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  pub menu_event_listeners: &'a MenuEventListeners,
   #[cfg(feature = "system-tray")]
   pub tray_context: &'a TrayContext,
 }
 
 struct UserMessageContext<'a> {
+  #[allow(dead_code)]
+  marker: &'a PhantomData<()>,
   webview_id_map: WebviewIdStore,
-  window_event_listeners: &'a WindowEventListeners,
   #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   clipboard_manager: Arc<Mutex<Clipboard>>,
-  menu_event_listeners: &'a MenuEventListeners,
   windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(feature = "system-tray")]
   tray_context: &'a TrayContext,
@@ -2171,9 +2142,8 @@ fn handle_user_message<T: UserEvent>(
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
+    marker: _,
     webview_id_map,
-    window_event_listeners,
-    menu_event_listeners,
     #[cfg(feature = "global-shortcut")]
     global_shortcut_manager,
     #[cfg(feature = "clipboard")]
@@ -2207,7 +2177,15 @@ fn handle_user_message<T: UserEvent>(
         }
       } else {
         let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some(window) = windows_lock.get(&id).and_then(|w| w.inner.clone()) {
+        if let Some((Some(window), window_event_listeners, menu_event_listeners)) =
+          windows_lock.get(&id).map(|w| {
+            (
+              w.inner.clone(),
+              w.window_event_listeners.clone(),
+              w.menu_event_listeners.clone(),
+            )
+          })
+        {
           drop(windows_lock);
           match window_message {
             WindowMessage::WithWebview(f) => {
@@ -2240,6 +2218,14 @@ fn handle_user_message<T: UserEvent>(
                   });
                 }
               }
+            }
+
+            WindowMessage::AddEventListener(id, listener) => {
+              window_event_listeners.lock().unwrap().insert(id, listener);
+            }
+
+            WindowMessage::AddMenuEventListener(id, listener) => {
+              menu_event_listeners.lock().unwrap().insert(id, listener);
             }
 
             #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -2417,17 +2403,17 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::WebviewEvent(event) => {
-        if let Some(event) = WindowEventWrapper::from(&event).0 {
-          let shared_listeners = window_event_listeners
-            .lock()
-            .unwrap()
-            .get(&id)
-            .unwrap()
-            .clone();
-          let listeners = shared_listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
+        if let Some(window) = windows
+          .lock()
+          .expect("poisoned webview collection")
+          .get(&id)
+        {
+          if let Some(event) = WindowEventWrapper::from(&event).0 {
+            let listeners = window.window_event_listeners.lock().unwrap();
+            let handlers = listeners.values();
+            for handler in handlers {
+              handler(&event);
+            }
           }
         }
       }
@@ -2446,16 +2432,6 @@ fn handle_user_message<T: UserEvent>(
     Message::CreateWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
       if let Ok(window) = builder.build(event_loop) {
-        window_event_listeners
-          .lock()
-          .unwrap()
-          .insert(window_id, WindowEventListenersMap::default());
-
-        menu_event_listeners
-          .lock()
-          .unwrap()
-          .insert(window_id, WindowMenuEventListeners::default());
-
         webview_id_map.insert(window.id(), window_id);
 
         let w = Arc::new(window);
@@ -2466,6 +2442,8 @@ fn handle_user_message<T: UserEvent>(
             label,
             inner: Some(WindowHandle::Window(w.clone())),
             menu_items: Default::default(),
+            window_event_listeners: Default::default(),
+            menu_event_listeners: Default::default(),
           },
         );
         sender.send(Ok(Arc::downgrade(&w))).unwrap();
@@ -2544,14 +2522,12 @@ fn handle_event_loop<T: UserEvent>(
     callback,
     webview_id_map,
     windows,
-    window_event_listeners,
     #[cfg(feature = "global-shortcut")]
     global_shortcut_manager,
     #[cfg(feature = "global-shortcut")]
     global_shortcut_manager_handle,
     #[cfg(feature = "clipboard")]
     clipboard_manager,
-    menu_event_listeners,
     #[cfg(feature = "system-tray")]
     tray_context,
   } = context;
@@ -2612,8 +2588,13 @@ fn handle_event_loop<T: UserEvent>(
         } else {
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
         };
-        let listeners = menu_event_listeners.lock().unwrap();
-        listeners.get(&window_id).cloned().unwrap_or_default()
+        windows
+          .lock()
+          .unwrap()
+          .get(&window_id)
+          .unwrap()
+          .menu_event_listeners
+          .clone()
       };
       let listeners = window_menu_event_listeners.lock().unwrap();
       let handlers = listeners.values();
@@ -2681,23 +2662,16 @@ fn handle_event_loop<T: UserEvent>(
 
       {
         let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some((label, window_handle)) =
-          windows_lock.get(&window_id).map(|w| (&w.label, &w.inner))
-        {
-          if let Some(event) = WindowEventWrapper::parse(window_handle, &event).0 {
-            let label = label.clone();
+        if let Some(window) = windows_lock.get(&window_id) {
+          if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
+            let label = window.label.clone();
+            let window_event_listeners = window.window_event_listeners.clone();
             drop(windows_lock);
             callback(RunEvent::WindowEvent {
               label,
               event: event.clone(),
             });
-            let shared_listeners = window_event_listeners
-              .lock()
-              .unwrap()
-              .get(&window_id)
-              .unwrap()
-              .clone();
-            let listeners = shared_listeners.lock().unwrap();
+            let listeners = window_event_listeners.lock().unwrap();
             let handlers = listeners.values();
             for handler in handlers {
               handler(&event);
@@ -2708,13 +2682,10 @@ fn handle_event_loop<T: UserEvent>(
 
       match event {
         WryWindowEvent::CloseRequested => {
-          on_close_requested(callback, window_id, windows.clone(), window_event_listeners);
+          on_close_requested(callback, window_id, windows.clone());
         }
         WryWindowEvent::Destroyed => {
           if windows.lock().unwrap().remove(&window_id).is_some() {
-            menu_event_listeners.lock().unwrap().remove(&window_id);
-            window_event_listeners.lock().unwrap().remove(&window_id);
-
             let is_empty = windows.lock().unwrap().is_empty();
             if is_empty {
               let (tx, rx) = channel();
@@ -2754,13 +2725,12 @@ fn handle_event_loop<T: UserEvent>(
           event_loop,
           message,
           UserMessageContext {
+            marker: &PhantomData,
             webview_id_map,
-            window_event_listeners,
             #[cfg(feature = "global-shortcut")]
             global_shortcut_manager,
             #[cfg(feature = "clipboard")]
             clipboard_manager,
-            menu_event_listeners,
             windows,
             #[cfg(feature = "system-tray")]
             tray_context,
@@ -2782,20 +2752,14 @@ fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
   windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  window_event_listeners: &WindowEventListeners,
 ) {
   let (tx, rx) = channel();
   let windows_guard = windows.lock().expect("poisoned webview collection");
   if let Some(w) = windows_guard.get(&window_id) {
     let label = w.label.clone();
+    let window_event_listeners = w.window_event_listeners.clone();
     drop(windows_guard);
-    let shared_listeners = window_event_listeners
-      .lock()
-      .unwrap()
-      .get(&window_id)
-      .unwrap()
-      .clone();
-    let listeners = shared_listeners.lock().unwrap();
+    let listeners = window_event_listeners.lock().unwrap();
     let handlers = listeners.values();
     for handler in handlers {
       handler(&WindowEvent::CloseRequested {
@@ -3024,6 +2988,8 @@ fn create_webview<T: UserEvent>(
     label,
     inner: Some(WindowHandle::Webview(Arc::new(webview))),
     menu_items,
+    window_event_listeners: Default::default(),
+    menu_event_listeners: Default::default(),
   })
 }
 
@@ -3054,14 +3020,14 @@ fn create_ipc_handler<T: UserEvent>(
 
 /// Create a wry file drop handler.
 fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropHandler> {
-  let window_event_listeners = context.window_event_listeners.clone();
+  let windows = context.main_thread.windows.clone();
   let webview_id_map = context.webview_id_map.clone();
   Box::new(move |window, event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
-    let listeners = window_event_listeners.lock().unwrap();
-    if let Some(window_listeners) = listeners.get(&webview_id_map.get(&window.id())) {
-      let listeners_map = window_listeners.lock().unwrap();
+    let windows = windows.lock().unwrap();
+    if let Some(window) = windows.get(&webview_id_map.get(&window.id())) {
+      let listeners_map = window.window_event_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
       let handlers = listeners_map.values();
       for listener in handlers {

@@ -65,6 +65,10 @@ pub enum Error {
   /// HTTP error.
   #[error(transparent)]
   Http(#[from] http::Error),
+  /// Temp dir is not on same mount mount. This prevents our updater to rename the AppImage to a temp file.
+  #[cfg(target_os = "linux")]
+  #[error("temp directory is not on the same mount point as the AppImage")]
+  TempDirNotOnSameMountPoint,
 }
 
 pub type Result<T = ()> = std::result::Result<T, Error>;

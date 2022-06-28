@@ -229,13 +229,13 @@ pub fn command(mut options: Options) -> Result<()> {
             "TRAY_LIBRARY_PATH",
             if tray == "ayatana" {
               format!(
-                "{}/libayatana-appindicator3.so",
+                "{}/libayatana-appindicator3.so.1",
                 pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
                   .expect("failed to get ayatana-appindicator library path using pkg-config.")
               )
             } else {
               format!(
-                "{}/libappindicator3.so",
+                "{}/libappindicator3.so.1",
                 pkgconfig_utils::get_library_path("appindicator3-0.1")
                   .expect("failed to get libappindicator-gtk library path using pkg-config.")
               )
@@ -301,9 +301,9 @@ mod pkgconfig_utils {
 
   pub fn get_appindicator_library_path() -> PathBuf {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{}/libayatana-appindicator3.so", p).into(),
+      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{}/libappindicator3.so", p).into(),
+        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
         None => panic!("Can't detect any appindicator library"),
       },
     }

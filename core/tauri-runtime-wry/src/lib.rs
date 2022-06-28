@@ -2700,18 +2700,6 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
         }
-        WryWindowEvent::Resized(_) => {
-          if let Some(WindowHandle::Webview(webview)) = windows
-            .lock()
-            .expect("poisoned webview collection")
-            .get(&window_id)
-            .and_then(|w| w.inner.as_ref())
-          {
-            if let Err(e) = webview.resize() {
-              debug_eprintln!("{}", e);
-            }
-          }
-        }
         _ => {}
       }
     }

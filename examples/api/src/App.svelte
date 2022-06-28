@@ -224,7 +224,7 @@
     >
       <span
         title={isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
-        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
         on:click={toggleDark}
       >
         {#if isDark}
@@ -235,14 +235,14 @@
       </span>
       <span
         title="Minimize"
-        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
         on:click={minimize}
       >
         <div class="i-codicon-chrome-minimize" />
       </span>
       <span
         title={isWindowMaximized ? 'Restore' : 'Maximize'}
-        class="hover:bg-hoverOverlay  dark:hover:bg-darkHoverOverlay"
+        class="hover:bg-hoverOverlay active:bg-hoverOverlayDarker dark:hover:bg-darkHoverOverlay dark:active:bg-darkHoverOverlayDarker"
         on:click={toggleMaximize}
       >
         {#if isWindowMaximized}
@@ -253,7 +253,7 @@
       </span>
       <span
         title="Close"
-        class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText"
+        class="hover:bg-red-700 dark:hover:bg-red-700 hover:text-darkPrimaryText active:bg-red-700/90 dark:active:bg-red-700/90 active:text-darkPrimaryText  "
         on:click={close}
       >
         <div class="i-codicon-chrome-close" />
@@ -324,7 +324,7 @@
       {#each views as view}
         <a
           href="##"
-          class="mr-1 nv {selected === view ? 'nv_selected' : ''}"
+          class="nv {selected === view ? 'nv_selected' : ''}"
           on:click={() => select(view)}
         >
           <div class="{view.icon} mr-2" />
@@ -370,7 +370,7 @@
           <div class="i-codicon-clear-all" />
         </div>
       </div>
-      <div class="px-2 overflow-y-auto all:font-mono">
+      <div class="px-2 overflow-y-auto all:font-mono code-block all:text-xs">
         {#each $messages as r}
           {@html r.html}
         {/each}

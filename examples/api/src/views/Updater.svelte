@@ -60,7 +60,7 @@
   {:else}
     <button
       class="btn text-accentText dark:text-darkAccentText flex items-center justify-center"
-      ><div class="spinner" /></button
+      ><div class="spinner animate-spin" /></button
     >
   {/if}
 </div>
@@ -69,18 +69,8 @@
   .spinner {
     height: 1.2rem;
     width: 1.2rem;
-    animation: rotate 2s linear infinite;
     border-radius: 50rem;
     color: currentColor;
     border: 2px dashed currentColor;
-  }
-
-  @keyframes rotate {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
   }
 </style>

@@ -36,9 +36,9 @@
 <br />
 <br />
 <pre>
+App name: <code>{appName}</code>
 App version: <code>{version}</code>
 Tauri version: <code>{tauriVersion}</code>
-App name: <code>{appName}</code>
 </pre>
 <br />
 <div class="flex flex-wrap gap-1 shadow-">

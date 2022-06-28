@@ -34,13 +34,16 @@ export default defineConfig({
       darkAccentLightest: '#c2eff8',
       darkAccentText: '#1C1E21',
       code: '#d6d8da',
-      codeDark: '#282c34',
+      codeDark: '#282a2e',
       hoverOverlay: 'rgba(0,0,0,.05)',
-      darkHoverOverlay: 'hsla(0,0%,100%,.05)'
+      hoverOverlayDarker: 'rgba(0,0,0,.1)',
+      darkHoverOverlay: 'hsla(0,0%,100%,.05)',
+      darkHoverOverlayDarker: 'hsla(0,0%,100%,.1)'
     }
   },
   preflights: [
     {
+
       getCSS: ({ theme }) => `
     ::-webkit-scrollbar-thumb {
       background-color: ${theme.colors.accent};
@@ -50,14 +53,16 @@ export default defineConfig({
       background-color: ${theme.colors.darkAccent};
     }
 
-    code,
-    code * {
-      font-family: ${theme.fontFamily.mono}
-    }
-
     code {
+      font-size: ${theme.fontSize.xs[0]};
+      font-family: ${theme.fontFamily.mono};
       border-radius: ${theme.borderRadius['DEFAULT']};
       background-color: ${theme.colors.code};
+    }
+
+    .code-block {
+      font-family: ${theme.fontFamily.mono};
+      font-size: ${theme.fontSize.sm[0]};
     }
 
     .dark code {
@@ -67,27 +72,21 @@ export default defineConfig({
     }
   ],
   shortcuts: {
-    btn: `select-none outline-none shadow-md p-2 rd-1 text-primaryText border-none font-600
+    btn: `select-none outline-none shadow-md p-2 rd-1 text-primaryText border-none font-400 dark:font-600
             bg-accent hover:bg-accentDarker active:bg-accentDarkest text-accentText
             dark:bg-darkAccent dark:hover:bg-darkAccentDarker dark:active:bg-darkAccentDarkest dark:text-darkAccentText`,
-    nv: `decoration-none flex items-center relative p-2 rd-1
+    nv: `decoration-none flex items-center relative p-2 rd-1 transition-all-125 ease
             text-darkSecondaryText
             hover:text-accent dark:hover:text-darkAccent
-            hover:bg-darkHoverOverlay`,
-    nv_selected: `nv bg-darkHoverOverlay
-                    text-accent dark:text-darkAccent
-                    after:absolute after:top-0 after:left-0 after:w-1
-                    after:h-100% after:content-empty after:rd-l-1
-                    after:bg-accent dark:after:bg-darkAccent`,
+            hover:bg-darkHoverOverlay hover:border-l-4`,
+    nv_selected: `nv bg-darkHoverOverlay text-accent dark:text-darkAccent border-l-4`,
     note: `decoration-none flex-inline items-center relative p-2 rd-1
-             bg-accent/10 dark:bg-darkAccent/10
-             after:absolute after:top-0 after:left-0 after:w-1
-             after:h-100% after:content-empty after:rd-l-1
-             after:bg-accent dark:after:bg-darkAccent`,
+             border-l-4 border-accent dark:border-darkAccent
+             bg-accent/10 dark:bg-darkAccent/10`,
     'note-red':
       'note bg-red-700/10 dark:bg-red-700/10 after:bg-red-700 dark:after:bg-red-700',
     input:
-      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText'
+      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText',
   },
   presets: [presetUno(), presetIcons(), presetWebFonts({
     fonts: {

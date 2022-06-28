@@ -116,6 +116,8 @@
   }
 
   function createWindow() {
+    if (!newWindowLabel) return
+
     const webview = new WebviewWindow(newWindowLabel)
     windowMap[newWindowLabel] = webview
     webview.once('tauri://error', function () {

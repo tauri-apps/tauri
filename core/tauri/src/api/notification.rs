@@ -129,10 +129,7 @@ impl Notification {
   pub fn notify<R: crate::Runtime>(self, app: &crate::AppHandle<R>) -> crate::api::Result<()> {
     #[cfg(windows)]
     {
-      let is_windows7 = sys_info::os_release()
-        .map(|release| release.starts_with("6.1"))
-        .unwrap_or_default();
-      if is_windows7 {
+      if crate::utils::platform::is_windows_7() {
         self.notify_win7(app)
       } else {
         #[allow(deprecated)]

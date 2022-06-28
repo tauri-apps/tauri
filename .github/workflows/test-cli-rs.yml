@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: test core
+name: test cli.rs
 
 on:
   push:
@@ -11,9 +11,7 @@ on:
       - next
   pull_request:
     paths:
-      - '.github/workflows/test-core.yml'
-      - 'core/**'
-      - 'examples/**'
+      - '.github/workflows/test-cli-rs.yml'
       - 'tooling/cli/**'
 
 env:
@@ -26,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-tauri-core:
+  test-tauri-cli:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -40,11 +38,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          override: true
+
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev
 
       - name: Get current date
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
@@ -70,23 +70,23 @@ jobs:
             ${{ matrix.platform }}-stable-
             ${{ matrix.platform }}-
 
-      - name: Cache core cargo target
+      - name: Cache CLI cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo_cli
         with:
-          path: target
+          path: tooling/cli/target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}
             ${{ matrix.platform }}-stable-${{ env.cache-name }}-
             ${{ matrix.platform }}-stable-
             ${{ matrix.platform }}-
 
-      - name: test
-        run: |
-          cargo test
-          cargo test --features api-all
-          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./tooling/cli/Cargo.toml

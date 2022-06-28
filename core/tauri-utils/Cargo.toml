@@ -38,6 +38,17 @@ semver = "1"
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
 
+[target."cfg(windows)".dependencies.windows]
+version = "0.37.0"
+features = [
+  "alloc",
+  "implement",
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_System_SystemInformation"
+]
+
 [features]
 build = [ "proc-macro2", "quote" ]
 compression = [ "brotli" ]

@@ -218,14 +218,12 @@
     "tauri-runtime": {
       "path": "./core/tauri-runtime",
       "manager": "rust",
-      "dependencies": ["tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": ["tauri-utils"]
     },
     "tauri-runtime-wry": {
       "path": "./core/tauri-runtime-wry",
       "manager": "rust",
-      "dependencies": ["tauri-utils", "tauri-runtime"],
-      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "dependencies": ["tauri-utils", "tauri-runtime"]
     },
     "tauri-codegen": {
       "path": "./core/tauri-codegen",
@@ -277,8 +275,7 @@
     },
     "tauri-driver": {
       "path": "./tooling/webdriver",
-      "manager": "rust",
-      "postversion": "node ../../.scripts/covector/sync-prerelease.js ${ pkg.pkg } ${ release.type }"
+      "manager": "rust"
     }
   }
 }

@@ -29,7 +29,7 @@ jobs:
         clippy:
           - {
               path: './core/tauri/Cargo.toml',
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart'
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart'
             }
           - { path: './core/tauri-build/Cargo.toml', args: '--all-features' }
           - { path: './core/tauri-codegen/Cargo.toml', args: '--all-features' }

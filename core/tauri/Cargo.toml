@@ -24,6 +24,7 @@ features = [
   "wry",
   "custom-protocol",
   "api-all",
+  "windows7-compat",
   "cli",
   "updater",
   "fs-extract-api",
@@ -105,10 +106,11 @@ objc = "0.2"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.16.0"
+win7-notifications = { version = "0.3.0", optional = true }
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.37.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.37.0"
+features = [ "Win32_Foundation" ]
 
 [build-dependencies]
 heck = "0.4"
@@ -162,6 +164,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
+windows7-compat = [ "win7-notifications" ]
 window-data-url = [ "data-url" ]
 api-all = [
   "clipboard-all",

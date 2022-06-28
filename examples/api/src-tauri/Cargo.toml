@@ -12,8 +12,24 @@ tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "global-shortcut", "http-multipart", "icon-ico", "icon-png", "isolation", "macos-private-api", "reqwest-client", "system-tray", "updater"] }
 tiny_http = "0.11"
+
+[dependencies.tauri]
+path = "../../../core/tauri"
+features = [
+  "api-all",
+  "cli",
+  "global-shortcut",
+  "http-multipart",
+  "icon-ico",
+  "icon-png",
+  "isolation",
+  "macos-private-api",
+  "windows7-compat",
+  "reqwest-client",
+  "system-tray",
+  "updater"
+]
 
 [target."cfg(target_os = \"windows\")".dependencies]
 window-vibrancy = "0.1"

@@ -74,6 +74,20 @@ impl Notification {
 
   /// Shows the notification.
   ///
+  /// # Examples
+  ///
+  /// ```no_run
+  /// use tauri::api::notification::Notification;
+  ///
+  /// // on an actual app, remove the string argument
+  /// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  /// Notification::new(&context.config().tauri.bundle.identifier)
+  ///   .title("Tauri")
+  ///   .body("Tauri is awesome!")
+  ///   .show()
+  ///   .unwrap();
+  /// ```
+  ///
   /// ## Platform-specific
   ///
   /// - **Windows**: Not supported on Windows 7. If your app targets it, enable the `windows7-compat` feature and use [`Self::notify`].
@@ -123,6 +137,28 @@ impl Notification {
   }
 
   /// Shows the notification. This API is similar to [`Self::show`], but it also works on Windows 7.
+  ///
+  /// # Examples
+  ///
+  /// ```no_run
+  /// use tauri::api::notification::Notification;
+  ///
+  /// // on an actual app, remove the string argument
+  /// let context = tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json");
+  /// let identifier = context.config().tauri.bundle.identifier.clone();
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     Notification::new(&identifier)
+  ///       .title("Tauri")
+  ///       .body("Tauri is awesome!")
+  ///       .notify(&app.handle())
+  ///       .unwrap();
+  ///     Ok(())
+  ///   })
+  ///   .run(context)
+  ///   .expect("error while running tauri application");
+  /// ```
   #[cfg(feature = "windows7-compat")]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "windows7-compat")))]
   #[allow(unused_variables)]

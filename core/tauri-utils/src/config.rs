@@ -243,7 +243,7 @@ impl BundleTarget {
 /// Configuration for AppImage bundles.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct AppImageConfig {
   /// Include additional gstreamer dependencies needed for audio and video playback.
   /// This increases the bundle size by ~15-35MB depending on your build system.
@@ -255,7 +255,7 @@ pub struct AppImageConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
@@ -279,7 +279,7 @@ where
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct MacConfig {
   /// A list of strings indicating any macOS X frameworks that need to be bundled with the application.
   ///
@@ -330,7 +330,7 @@ fn minimum_system_version() -> Option<String> {
 /// Configuration for a target language for the WiX build.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct WixLanguageConfig {
   /// The path to a locale (`.wxl`) file. See <https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html>.
   pub locale_path: Option<String>,
@@ -358,7 +358,7 @@ impl Default for WixLanguage {
 /// Configuration for the MSI bundle using WiX.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct WixConfig {
   /// The installer languages to build. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.
   #[serde(default)]
@@ -410,7 +410,7 @@ pub struct WixConfig {
 /// Install modes for the Webview2 runtime.
 /// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum WebviewInstallMode {
   /// Do not install the Webview2 as part of the Windows Installer.
@@ -465,7 +465,7 @@ impl Default for WebviewInstallMode {
 /// Windows bundler configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct WindowsConfig {
   /// Specifies the file digest algorithm to use for creating file signatures.
   /// Required for code signing. SHA-256 is recommended.
@@ -522,7 +522,7 @@ fn default_allow_downgrades() -> bool {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
@@ -584,7 +584,7 @@ pub struct BundleConfig {
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct CliArg {
   /// The short version of the argument, without the preceding -.
   ///
@@ -690,7 +690,7 @@ pub struct CliArg {
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct CliConfig {
   /// Command description which will be shown on the help information.
   pub description: Option<String>,
@@ -750,7 +750,7 @@ impl CliConfig {
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct WindowConfig {
   /// The window identifier. It must be alphanumeric.
   #[serde(default = "default_window_label")]
@@ -1034,7 +1034,7 @@ impl Default for DisabledCspModificationKind {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct SecurityConfig {
   /// The Content Security Policy that will be injected on all HTML files on the built application.
   /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
@@ -1134,7 +1134,7 @@ impl FsAllowlistScope {
 /// Allowlist for the file system APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct FsAllowlistConfig {
   /// The access scope for the filesystem APIs.
   #[serde(default)]
@@ -1208,7 +1208,7 @@ impl Allowlist for FsAllowlistConfig {
 /// Allowlist for the window APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct WindowAllowlistConfig {
   /// Use this flag to enable all window API features.
   #[serde(default)]
@@ -1432,7 +1432,7 @@ impl<'de> Deserialize<'de> for ShellAllowedCommand {
 /// be passed to the attached command configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
+#[serde(untagged)]
 #[non_exhaustive]
 pub enum ShellAllowedArgs {
   /// Use a simple boolean to allow all or disable all arguments to this command configuration.
@@ -1451,7 +1451,7 @@ impl Default for ShellAllowedArgs {
 /// A command argument allowed to be executed by the webview API.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
+#[serde(untagged)]
 #[non_exhaustive]
 pub enum ShellAllowedArg {
   /// A non-configurable argument that is passed to the command in the order it was specified.
@@ -1479,7 +1479,7 @@ pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
 /// Defines the `shell > open` api scope.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
+#[serde(untagged)]
 #[non_exhaustive]
 pub enum ShellAllowlistOpen {
   /// If the shell open API should be enabled.
@@ -1503,7 +1503,7 @@ impl Default for ShellAllowlistOpen {
 /// Allowlist for the shell APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct ShellAllowlistConfig {
   /// Access scope for the binary execution APIs.
   /// Sidecars are automatically enabled.
@@ -1559,7 +1559,7 @@ impl Allowlist for ShellAllowlistConfig {
 /// Allowlist for the dialog APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct DialogAllowlistConfig {
   /// Use this flag to enable all dialog API features.
   #[serde(default)]
@@ -1627,7 +1627,7 @@ pub struct HttpAllowlistScope(pub Vec<Url>);
 /// Allowlist for the HTTP APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct HttpAllowlistConfig {
   /// The access scope for the HTTP APIs.
   #[serde(default)]
@@ -1666,7 +1666,7 @@ impl Allowlist for HttpAllowlistConfig {
 /// Allowlist for the notification APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct NotificationAllowlistConfig {
   /// Use this flag to enable all notification API features.
   #[serde(default)]
@@ -1693,7 +1693,7 @@ impl Allowlist for NotificationAllowlistConfig {
 /// Allowlist for the global shortcut APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct GlobalShortcutAllowlistConfig {
   /// Use this flag to enable all global shortcut API features.
   #[serde(default)]
@@ -1720,7 +1720,7 @@ impl Allowlist for GlobalShortcutAllowlistConfig {
 /// Allowlist for the OS APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct OsAllowlistConfig {
   /// Use this flag to enable all OS API features.
   #[serde(default)]
@@ -1747,7 +1747,7 @@ impl Allowlist for OsAllowlistConfig {
 /// Allowlist for the path APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct PathAllowlistConfig {
   /// Use this flag to enable all path API features.
   #[serde(default)]
@@ -1774,7 +1774,7 @@ impl Allowlist for PathAllowlistConfig {
 /// Allowlist for the custom protocols.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct ProtocolAllowlistConfig {
   /// The access scope for the asset protocol.
   #[serde(default)]
@@ -1813,7 +1813,7 @@ impl Allowlist for ProtocolAllowlistConfig {
 /// Allowlist for the process APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct ProcessAllowlistConfig {
   /// Use this flag to enable all process APIs.
   #[serde(default)]
@@ -1866,7 +1866,7 @@ impl Allowlist for ProcessAllowlistConfig {
 /// Allowlist for the clipboard APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct ClipboardAllowlistConfig {
   /// Use this flag to enable all clipboard APIs.
   #[serde(default)]
@@ -1906,7 +1906,7 @@ impl Allowlist for ClipboardAllowlistConfig {
 /// Allowlist configuration.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct AllowlistConfig {
   /// Use this flag to enable all API features.
   #[serde(default)]
@@ -2015,7 +2015,7 @@ impl Default for PatternKind {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct TauriConfig {
   /// The pattern to use.
   #[serde(default)]
@@ -2192,7 +2192,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterWindowsConfig {
   /// The installation mode for the update on Windows. Defaults to `passive`.
   #[serde(default)]
@@ -2203,7 +2203,7 @@ pub struct UpdaterWindowsConfig {
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterConfig {
   /// Whether the updater is active or not.
   #[serde(default)]
@@ -2282,7 +2282,7 @@ impl Default for UpdaterConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct SystemTrayConfig {
   /// Path to the icon to use on the system tray.
   ///
@@ -2303,7 +2303,7 @@ fn default_dialog() -> bool {
 /// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged, deny_unknown_fields)]
+#[serde(untagged)]
 #[non_exhaustive]
 pub enum AppUrl {
   /// The app's external URL, or the path to the directory containing the app assets.
@@ -2325,7 +2325,7 @@ impl std::fmt::Display for AppUrl {
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct BuildConfig {
   /// The binary used to build and run the application.
   pub runner: Option<String>,
@@ -2449,7 +2449,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 /// The package configuration.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct PackageConfig {
   /// App name.
   pub product_name: Option<String>,
@@ -2540,7 +2540,7 @@ impl PackageConfig {
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Config {
   /// The JSON schema for the Tauri config.
   #[serde(rename = "$schema")]

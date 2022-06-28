@@ -641,50 +641,54 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
   let extract_path_metadata = extract_path.metadata()?;
 
-  let mut tmp_dir = tempfile::Builder::new()
-    .prefix("tauri_current_app")
-    .tempdir()?;
-  let mut tmp_dir_metadata = tmp_dir.path().metadata()?;
+  let tmp_dir_locations = vec![
+    Box::new(|| Some(env::temp_dir())) as Box<dyn FnOnce() -> Option<PathBuf>>,
+    Box::new(dirs_next::cache_dir),
+    Box::new(|| Some(extract_path.parent().unwrap().to_path_buf())),
+  ];
 
-  // fallback to cache_dir or CWD if the tmp directory is not in the same mount point
-  if extract_path_metadata.dev() != tmp_dir_metadata.dev() {
-    let fallback_dir =
-      dirs_next::cache_dir().unwrap_or_else(|| extract_path.parent().unwrap().to_path_buf());
-    tmp_dir = tempfile::Builder::new()
-      .prefix("tauri_current_app")
-      .tempdir_in(fallback_dir)?;
-    tmp_dir_metadata = tmp_dir.path().metadata()?
+  for tmp_dir_location in tmp_dir_locations {
+    if let Some(tmp_dir_location) = tmp_dir_location() {
+      let tmp_dir = tempfile::Builder::new()
+        .prefix("tauri_current_app")
+        .tempdir_in(tmp_dir_location)?;
+      let tmp_dir_metadata = tmp_dir.path().metadata()?;
+
+      if extract_path_metadata.dev() == tmp_dir_metadata.dev() {
+        let mut perms = tmp_dir_metadata.permissions();
+        perms.set_mode(0o700);
+        std::fs::set_permissions(tmp_dir.path(), perms)?;
+
+        let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
+
+        // create a backup of our current app image
+        Move::from_source(extract_path).to_dest(tmp_app_image)?;
+
+        // extract the buffer to the tmp_dir
+        // we extract our signed archive into our final directory without any temp file
+        let mut extractor =
+          Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+
+        return extractor
+          .with_files(|entry| {
+            let path = entry.path()?;
+            if path.extension() == Some(OsStr::new("AppImage")) {
+              // if something went wrong during the extraction, we should restore previous app
+              if let Err(err) = entry.extract(extract_path) {
+                Move::from_source(tmp_app_image).to_dest(extract_path)?;
+                return Err(crate::api::Error::Extract(err.to_string()));
+              }
+              // early finish we have everything we need here
+              return Ok(true);
+            }
+            Ok(false)
+          })
+          .map_err(Into::into);
+      }
+    }
   }
 
-  let mut perms = tmp_dir_metadata.permissions();
-  perms.set_mode(0o700);
-  std::fs::set_permissions(tmp_dir.path(), perms)?;
-
-  let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
-
-  // create a backup of our current app image
-  Move::from_source(extract_path).to_dest(tmp_app_image)?;
-
-  // extract the buffer to the tmp_dir
-  // we extract our signed archive into our final directory without any temp file
-  let mut extractor =
-    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
-
-  extractor
-    .with_files(|entry| {
-      let path = entry.path()?;
-      if path.extension() == Some(OsStr::new("AppImage")) {
-        // if something went wrong during the extraction, we should restore previous app
-        if let Err(err) = entry.extract(extract_path) {
-          Move::from_source(tmp_app_image).to_dest(extract_path)?;
-          return Err(crate::api::Error::Extract(err.to_string()));
-        }
-        // early finish we have everything we need here
-        return Ok(true);
-      }
-      Ok(false)
-    })
-    .map_err(Into::into)
+  Err(Error::TempDirNotOnSameMountPoint)
 }
 
 // Windows

@@ -56,7 +56,7 @@ impl Cmd {
     if let Some(icon) = options.icon {
       notification = notification.icon(icon);
     }
-    notification.show()?;
+    notification.notify(&context.window.app_handle)?;
     Ok(())
   }
 

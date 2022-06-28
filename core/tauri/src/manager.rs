@@ -208,7 +208,7 @@ pub struct InnerWindowManager<R: Runtime> {
 
   config: Arc<Config>,
   assets: Arc<dyn Assets>,
-  default_window_icon: Option<Icon>,
+  pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
 
   package_info: PackageInfo,

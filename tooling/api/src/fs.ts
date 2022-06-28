@@ -357,12 +357,12 @@ async function writeBinaryFile(
  * @example Reads the `$APPDIR/users` directory recursively
  * ```typescript
  * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
- * const entries = await readDir('users', new Uint8Array([]), { dir: BaseDirectory.App, recursive: true });
+ * const entries = await readDir('users', { dir: BaseDirectory.App, recursive: true });
  *
  * function processEntries(entries) {
  *   for (const entry of entries) {
  *     console.log(`Entry: ${entry.path}`);
- *     if (entry.children !== null) {
+ *     if (entry.children) {
  *       processEntries(entry.children)
  *     }
  *   }

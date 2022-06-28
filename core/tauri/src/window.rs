@@ -1356,7 +1356,6 @@ impl<R: Runtime> Window<R> {
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<()> {
-    println!("emit internal {:?} {:?}", event, source_window_label);
     self.eval(&format!(
       "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
       self.manager.event_emit_function_name(),

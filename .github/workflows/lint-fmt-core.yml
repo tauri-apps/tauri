@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart',
+              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
               key: 'all'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }

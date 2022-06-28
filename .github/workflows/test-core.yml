@@ -89,4 +89,4 @@ jobs:
         run: |
           cargo test
           cargo test --features api-all
-          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart
+          cargo test --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart

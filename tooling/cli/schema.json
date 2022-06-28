@@ -1437,11 +1437,16 @@
           ]
         },
         "dialogImagePath": {
-          "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs. The required dimensions are 493px × 312px.",
+          "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs.\n\nThe required dimensions are 493px × 312px.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "perMachine": {
+          "description": "Install for all users on the machine.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

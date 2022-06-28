@@ -22,7 +22,7 @@
                  InstallerVersion="450"
                  Languages="0"
                  Compressed="yes"
-                 InstallScope="perMachine"
+                 InstallScope="{{{install_scope}}}"
                  SummaryCodepage="!(loc.TauriCodepage)"/>
 
         <!-- https://docs.microsoft.com/en-us/windows/win32/msi/reinstallmode -->
@@ -58,7 +58,7 @@
 
         <!-- initialize with previous InstallDir -->
         <Property Id="INSTALLDIR">
-            <RegistrySearch Id="PrevInstallDirReg" Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="InstallDir" Type="raw"/>
+            <RegistrySearch Id="PrevInstallDirReg" Root="{{{registry_root}}}" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="InstallDir" Type="raw"/>
         </Property>
 
         <!-- launch app checkbox -->
@@ -94,12 +94,18 @@
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
-                    <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
+                    <RegistryValue Root="{{{registry_root}}}" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Desktop Shortcut" Type="integer" Value="1" {{#if per_machine}}KeyPath="yes"{{/if}} />
                 </Component>
             </Directory>
+            {{#if per_machine}}
             <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
                 <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
             </Directory>
+            {{else}}
+            <Directory Id="LocalAppDataFolder" Name="LData">
+                <Directory Id="INSTALLDIR" Name="{{{product_name}}}"/>
+            </Directory>
+            {{/if}}
             <Directory Id="ProgramMenuFolder">
                 <Directory Id="ApplicationProgramsFolder" Name="{{{product_name}}}"/>
             </Directory>
@@ -107,27 +113,62 @@
 
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">
-                <RegistryKey Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}">
-                    <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+                <RegistryKey Root="{{{registry_root}}}" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}">
+                    <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" {{#if per_machine}}KeyPath="yes"{{/if}} />
                 </RegistryKey>
             </Component>
             <Component Id="Path" Guid="{{{path_component_guid}}}" Win64="$(var.Win64)">
-                <File Id="Path" Source="{{{app_exe_source}}}" KeyPath="yes" Checksum="yes"/>
+                {{#unless per_machine}}
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+                        Name="InstallDir"
+                        Value="[INSTALLDIR]"
+                        Type="string"
+                        KeyPath="yes" />
+                {{/unless}}
+                <File Id="Path" Source="{{{app_exe_source}}}" {{#if per_machine}}KeyPath="yes"{{/if}} Checksum="yes"/>
             </Component>
             {{#each binaries as |bin| ~}}
             <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
-                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}" KeyPath="yes"/>
+                {{#unless per_machine}}
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+                        Name="InstallDir"
+                        Value="[INSTALLDIR]"
+                        Type="string"
+                        KeyPath="yes" />
+                {{/unless}}
+                <File Id="Path_{{ bin.id }}" Source="{{bin.path}}" {{#if per_machine}}KeyPath="yes"{{/if}}/>
             </Component>
             {{/each~}}
             {{#if enable_elevated_update_task}}
             <Component Id="UpdateTask" Guid="C492327D-9720-4CD5-8DB8-F09082AF44BE" Win64="$(var.Win64)">
-                <File Id="UpdateTask" Source="update.xml" KeyPath="yes" Checksum="yes"/>
+                {{#unless per_machine}}
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+                        Name="InstallDir"
+                        Value="[INSTALLDIR]"
+                        Type="string"
+                        KeyPath="yes" />
+                {{/unless}}
+                <File Id="UpdateTask" Source="update.xml" {{#if per_machine}}KeyPath="yes"{{/if}} Checksum="yes"/>
             </Component>
             <Component Id="UpdateTaskInstaller" Guid="011F25ED-9BE3-50A7-9E9B-3519ED2B9932" Win64="$(var.Win64)">
-                <File Id="UpdateTaskInstaller" Source="install-task.ps1" KeyPath="yes" Checksum="yes"/>
+                {{#unless per_machine}}
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+                        Name="InstallDir"
+                        Value="[INSTALLDIR]"
+                        Type="string"
+                        KeyPath="yes" />
+                {{/unless}}
+                <File Id="UpdateTaskInstaller" Source="install-task.ps1" {{#if per_machine}}KeyPath="yes"{{/if}} Checksum="yes"/>
             </Component>
             <Component Id="UpdateTaskUninstaller" Guid="D4F6CC3F-32DC-5FD0-95E8-782FFD7BBCE1" Win64="$(var.Win64)">
-                <File Id="UpdateTaskUninstaller" Source="uninstall-task.ps1" KeyPath="yes" Checksum="yes"/>
+                {{#unless per_machine}}
+                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
+                        Name="InstallDir"
+                        Value="[INSTALLDIR]"
+                        Type="string"
+                        KeyPath="yes" />
+                {{/unless}}
+                <File Id="UpdateTaskUninstaller" Source="uninstall-task.ps1" {{#if per_machine}}KeyPath="yes"{{/if}} Checksum="yes"/>
             </Component>
             {{/if}}
             {{{resources}}}
@@ -142,12 +183,12 @@
 				<RemoveFolder Id="INSTALLDIR"
 							  On="uninstall" />
 
-				<RegistryValue Root="HKCU"
+				<RegistryValue Root="{{{registry_root}}}"
 							   Key="Software\\{{{manufacturer}}}\\{{{product_name}}}"
 							   Name="Uninstaller Shortcut"
 							   Type="integer"
 							   Value="1"
-							   KeyPath="yes" />
+							   KeyPath="yes"/>
             </Component>
         </DirectoryRef>
 
@@ -162,7 +203,7 @@
                     <ShortcutProperty Key="System.AppUserModel.ID" Value="{{{bundle_id}}}"/>
                 </Shortcut>
                 <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-                <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
+                <RegistryValue Root="{{{registry_root}}}" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
            </Component>
         </DirectoryRef>
 

@@ -402,9 +402,12 @@ pub struct WixConfig {
   pub banner_path: Option<PathBuf>,
   /// Path to a bitmap file to use on the installation user interface dialogs.
   /// It is used on the welcome and completion dialogs.
-
+  ///
   /// The required dimensions are 493px × 312px.
   pub dialog_image_path: Option<PathBuf>,
+  /// Install for all users on the machine.
+  #[serde(default)]
+  pub per_machine: bool,
 }
 
 /// Install modes for the Webview2 runtime.

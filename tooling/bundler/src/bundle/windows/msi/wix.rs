@@ -637,6 +637,14 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
+    if wix.per_machine {
+      data.insert("per_machine", to_json(true));
+      data.insert("install_scope", to_json("perMachine"));
+      data.insert("registry_root", to_json("HKLM"));
+    } else {
+      data.insert("install_scope", to_json("perUser"));
+      data.insert("registry_root", to_json("HKCU"));
+    }
     fragment_paths = wix.fragment_paths.clone();
     enable_elevated_update_task = wix.enable_elevated_update_task;
 

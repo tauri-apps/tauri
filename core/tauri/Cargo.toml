@@ -24,6 +24,7 @@ features = [
   "wry",
   "custom-protocol",
   "api-all",
+  "windows7-compat",
   "cli",
   "updater",
   "fs-extract-api",
@@ -155,7 +156,7 @@ global-shortcut = [
 ]
 clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
 dialog = [ "rfd" ]
-notification = [ "notify-rust", "win7-notifications", "sys-info" ]
+notification = [ "notify-rust" ]
 cli = [ "clap" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
@@ -164,6 +165,7 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry/macos-private-api"
 ]
+windows7-compat = [ "win7-notifications", "sys-info" ]
 window-data-url = [ "data-url" ]
 api-all = [
   "clipboard-all",

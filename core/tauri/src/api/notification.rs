@@ -4,7 +4,6 @@
 
 //! Types and functions related to desktop notifications.
 
-use crate::{AppHandle, Runtime};
 #[cfg(windows)]
 use std::path::MAIN_SEPARATOR;
 
@@ -73,55 +72,15 @@ impl Notification {
     self
   }
 
-  /// Shows the notification. This API is only available when the app because it offers compatibility with Windows 7.
+  /// Shows the notification.
   ///
-  /// If your app does not run on Windows 7, you can use [`Self::show`] which can be executed in other contexts.
-  #[allow(unused_variables)]
-  pub fn notify<R: Runtime>(self, app: &AppHandle<R>) -> crate::api::Result<()> {
-    #[cfg(windows)]
-    {
-      let is_windows7 = sys_info::os_release()
-        .map(|release| release.starts_with("6.1"))
-        .unwrap_or_default();
-      if is_windows7 {
-        self.notify_win7(app)
-      } else {
-        self.show()
-      }
-    }
-    #[cfg(not(windows))]
-    {
-      self.show()
-    }
-  }
-
-  #[cfg(windows)]
-  fn notify_win7<R: Runtime>(self, app: &AppHandle<R>) -> crate::api::Result<()> {
-    let app = app.clone();
-    let default_window_icon = app.manager.inner.default_window_icon.clone();
-    let _ = app.run_on_main_thread(move || {
-      let mut notification = win7_notifications::Notification::new();
-      if let Some(body) = self.body {
-        notification.body(&body);
-      }
-      if let Some(title) = self.title {
-        notification.summary(&title);
-      }
-      if let Some(crate::Icon::Rgba {
-        rgba,
-        width,
-        height,
-      }) = default_window_icon
-      {
-        notification.icon(rgba, width, height);
-      }
-      let _ = notification.show();
-    });
-
-    Ok(())
-  }
-
-  /// Shows the notification. If you need Windows 7 support, use [`Self::notify`] instead.
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: Not supported on Windows 7. If your app targets it, enable the `windows7-compat` feature and use [`Self::notify`].
+  #[cfg_attr(
+    all(not(doc_cfg), feature = "windows7-compat"),
+    deprecated = "This function does not work on Windows 7. Use `Self::notify` instead."
+  )]
   pub fn show(self) -> crate::api::Result<()> {
     let mut notification = notify_rust::Notification::new();
     if let Some(body) = self.body {
@@ -157,6 +116,56 @@ impl Notification {
     }
 
     crate::async_runtime::spawn(async move {
+      let _ = notification.show();
+    });
+
+    Ok(())
+  }
+
+  /// Shows the notification. This API is similar to [`Self::show`], but it also works on Windows 7.
+  #[cfg(feature = "windows7-compat")]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "windows7-compat")))]
+  #[allow(unused_variables)]
+  pub fn notify<R: crate::Runtime>(self, app: &crate::AppHandle<R>) -> crate::api::Result<()> {
+    #[cfg(windows)]
+    {
+      let is_windows7 = sys_info::os_release()
+        .map(|release| release.starts_with("6.1"))
+        .unwrap_or_default();
+      if is_windows7 {
+        self.notify_win7(app)
+      } else {
+        #[allow(deprecated)]
+        self.show()
+      }
+    }
+    #[cfg(not(windows))]
+    {
+      #[allow(deprecated)]
+      self.show()
+    }
+  }
+
+  #[cfg(all(windows, feature = "windows7-compat"))]
+  fn notify_win7<R: crate::Runtime>(self, app: &crate::AppHandle<R>) -> crate::api::Result<()> {
+    let app = app.clone();
+    let default_window_icon = app.manager.inner.default_window_icon.clone();
+    let _ = app.run_on_main_thread(move || {
+      let mut notification = win7_notifications::Notification::new();
+      if let Some(body) = self.body {
+        notification.body(&body);
+      }
+      if let Some(title) = self.title {
+        notification.summary(&title);
+      }
+      if let Some(crate::Icon::Rgba {
+        rgba,
+        width,
+        height,
+      }) = default_window_icon
+      {
+        notification.icon(rgba, width, height);
+      }
       let _ = notification.show();
     });
 

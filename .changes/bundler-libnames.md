@@ -1,5 +1,6 @@
 ---
-"tauri-cli": patch
+"cli.rs": patch
+"cli.js": patch
 "tauri-bundler": patch
 ---
 

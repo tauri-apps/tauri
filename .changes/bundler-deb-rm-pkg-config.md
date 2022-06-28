@@ -1,6 +1,6 @@
 ---
-'cli.js': minor
-'cli.rs': minor
+'cli.js': patch
+'cli.rs': patch
 ---
 
 No longer adds the `pkg-config` dependency to `.deb` packages when the `systemTray` is used.

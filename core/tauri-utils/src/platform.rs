@@ -196,3 +196,75 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 
   res
 }
+
+#[cfg(windows)]
+pub use windows_platform::is_windows_7;
+
+#[cfg(windows)]
+mod windows_platform {
+  use windows::Win32::{
+    Foundation::FARPROC,
+    System::{
+      LibraryLoader::{GetProcAddress, LoadLibraryA},
+      SystemInformation::OSVERSIONINFOW,
+    },
+  };
+
+  /// Checks if we're running on Windows 7.
+  pub fn is_windows_7() -> bool {
+    if let Some(v) = get_windows_ver() {
+      // windows 7 is 6.1
+      if v.0 == 6 && v.1 == 1 {
+        return true;
+      }
+    }
+    false
+  }
+
+  fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
+    assert_eq!(library.chars().last(), Some('\0'));
+    assert_eq!(function.chars().last(), Some('\0'));
+
+    let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
+    if module.is_invalid() {
+      None
+    } else {
+      Some(unsafe { GetProcAddress(module, function) })
+    }
+  }
+
+  macro_rules! get_function {
+    ($lib:expr, $func:ident) => {
+      get_function_impl(concat!($lib, '\0'), concat!(stringify!($func), '\0'))
+        .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
+    };
+  }
+
+  /// Returns a tuple of (major, minor, buildnumber)
+  fn get_windows_ver() -> Option<(u32, u32, u32)> {
+    type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
+    let handle = get_function!("ntdll.dll", RtlGetVersion);
+    if let Some(rtl_get_version) = handle {
+      unsafe {
+        let mut vi = OSVERSIONINFOW {
+          dwOSVersionInfoSize: 0,
+          dwMajorVersion: 0,
+          dwMinorVersion: 0,
+          dwBuildNumber: 0,
+          dwPlatformId: 0,
+          szCSDVersion: [0; 128],
+        };
+
+        let status = (rtl_get_version)(&mut vi as _);
+
+        if status >= 0 {
+          Some((vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber))
+        } else {
+          None
+        }
+      }
+    } else {
+      None
+    }
+  }
+}

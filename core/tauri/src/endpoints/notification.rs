@@ -56,6 +56,11 @@ impl Cmd {
     if let Some(icon) = options.icon {
       notification = notification.icon(icon);
     }
+    #[cfg(feature = "windows7-compat")]
+    {
+      notification.notify(&context.window.app_handle)?;
+    }
+    #[cfg(not(feature = "windows7-compat"))]
     notification.show()?;
     Ok(())
   }

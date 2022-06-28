@@ -321,7 +321,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
-  manager: WindowManager<R>,
+  pub(crate) manager: WindowManager<R>,
   #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]

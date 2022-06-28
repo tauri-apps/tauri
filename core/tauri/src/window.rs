@@ -520,7 +520,24 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn emit_to<S: Serialize + Clone>(
+    &self,
+    label: &str,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
+  }
+
+  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |_| true)
+  }
+}
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &WindowManager<R> {
     &self.manager
@@ -1339,6 +1356,7 @@ impl<R: Runtime> Window<R> {
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<()> {
+    println!("emit internal {:?} {:?}", event, source_window_label);
     self.eval(&format!(
       "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
       self.manager.event_emit_function_name(),

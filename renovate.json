@@ -76,7 +76,8 @@
       "lockFileMaintenance": {
         "enabled": true
       },
-      "rebaseConflictedPrs": false
+      "rebaseConflictedPrs": false,
+      "matchManagers": ["cargo"]
     },
     {
       "enabled": true,

@@ -409,7 +409,7 @@ pub struct WixConfig {
 
 /// Install modes for the Webview2 runtime.
 /// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
-/// 
+///
 /// For more information see <https://tauri.app/v1/guides/building/windows>.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]

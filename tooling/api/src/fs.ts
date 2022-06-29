@@ -33,14 +33,14 @@
  *
  * This module prevents path traversal, not allowing absolute paths or parent dir components
  * (i.e. "/usr/path/to/file" or "../path/to/file" paths are not allowed).
- * Paths accessed with this API must be relative to one of the [[BaseDirectory | base directories]]
+ * Paths accessed with this API must be relative to one of the {@link BaseDirectory | base directories}
  * so if you need access to arbitrary filesystem paths, you must write such logic on the core layer instead.
  *
  * The API has a scope configuration that forces you to restrict the paths that can be accessed using glob patterns.
  *
  * The scope configuration is an array of glob patterns describing folder paths that are allowed.
  * For instance, this scope configuration only allows accessing files on the
- * *databases* folder of the [[path.appDir | $APP directory]]:
+ * *databases* folder of the {@link path.appDir | $APP directory}:
  * ```json
  * {
  *   "tauri": {
@@ -53,14 +53,14 @@
  * }
  * ```
  *
- * Notice the use of the `$APP` variable. The value is injected at runtime, resolving to the [[path.appDir | app directory]].
+ * Notice the use of the `$APP` variable. The value is injected at runtime, resolving to the {@link path.appDir | app directory}.
  * The available variables are:
- * [[path.audioDir | `$AUDIO`]], [[path.cacheDir | `$CACHE`]], [[path.configDir | `$CONFIG`]], [[path.dataDir | `$DATA`]],
- * [[path.localDataDir | `$LOCALDATA`]], [[path.desktopDir | `$DESKTOP`]], [[path.documentDir | `$DOCUMENT`]],
- * [[path.downloadDir | `$DOWNLOAD`]], [[path.executableDir | `$EXE`]], [[path.fontDir | `$FONT`]], [[path.homeDir | `$HOME`]],
- * [[path.pictureDir | `$PICTURE`]], [[path.publicDir | `$PUBLIC`]], [[path.runtimeDir | `$RUNTIME`]],
- * [[path.templateDir | `$TEMPLATE`]], [[path.videoDir | `$VIDEO`]], [[path.resourceDir | `$RESOURCE`]], [[path.appDir | `$APP`]],
- * [[path.logDir | `$LOG`]], [[os.tempdir | `$TEMP`]].
+ * {@link path.audioDir | `$AUDIO`}, {@link path.cacheDir | `$CACHE`}, {@link path.configDir | `$CONFIG`}, {@link path.dataDir | `$DATA`},
+ * {@link path.localDataDir | `$LOCALDATA`}, {@link path.desktopDir | `$DESKTOP`}, {@link path.documentDir | `$DOCUMENT`},
+ * {@link path.downloadDir | `$DOWNLOAD`}, {@link path.executableDir | `$EXE`}, {@link path.fontDir | `$FONT`}, {@link path.homeDir | `$HOME`},
+ * {@link path.pictureDir | `$PICTURE`}, {@link path.publicDir | `$PUBLIC`}, {@link path.runtimeDir | `$RUNTIME`},
+ * {@link path.templateDir | `$TEMPLATE`}, {@link path.videoDir | `$VIDEO`}, {@link path.resourceDir | `$RESOURCE`}, {@link path.appDir | `$APP`},
+ * {@link path.logDir | `$LOG`}, {@link os.tempdir | `$TEMP`}.
  *
  * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
  *

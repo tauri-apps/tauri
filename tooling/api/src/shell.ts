@@ -29,18 +29,18 @@
  *
  * This API has a scope configuration that forces you to restrict the programs and arguments that can be used.
  *
- * ### Restricting access to the [[open | `open`]] API
+ * ### Restricting access to the {@link open | `open`} API
  *
- * On the allowlist, `open: true` means that the [[open]] API can be used with any URL,
+ * On the allowlist, `open: true` means that the {@link open} API can be used with any URL,
  * as the argument is validated with the `^https?://` regex.
  * You can change that regex by changing the boolean value to a string, e.g. `open: ^https://github.com/`.
  *
- * ### Restricting access to the [[Command | `Command`]] APIs
+ * ### Restricting access to the {@link Command | `Command`} APIs
  *
  * The `shell` allowlist object has a `scope` field that defines an array of CLIs that can be used.
  * Each CLI is a configuration object `{ name: string, cmd: string, sidecar?: bool, args?: boolean | Arg[] }`.
  *
- * - `name`: the unique identifier of the command, passed to the [[Command.constructor | Command constructor]].
+ * - `name`: the unique identifier of the command, passed to the {@link Command.constructor | Command constructor}.
  * If it's a sidecar, this must be the value defined on `tauri.conf.json > tauri > bundle > externalBin`.
  * - `cmd`: the program that is executed on this configuration. If it's a sidecar, this value is ignored.
  * - `sidecar`: whether the object configures a sidecar or a system program.

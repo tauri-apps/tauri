@@ -14,7 +14,11 @@
 pub extern "C" fn run_tauri() {
   let context = tauri::generate_context!("./tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
+    .menu(if cfg!(target_os = "macos") {
+      tauri::Menu::os_default(&context.package_info().name)
+    } else {
+      tauri::Menu::default()
+    })
     .run(context)
     .expect("error while running tauri application");
 }

@@ -41,7 +41,11 @@ fn main() {
   let context = tauri::generate_context!("../../examples/streaming/tauri.conf.json");
 
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
+    .menu(if cfg!(target_os = "macos") {
+      tauri::Menu::os_default(&context.package_info().name)
+    } else {
+      tauri::Menu::default()
+    })
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();

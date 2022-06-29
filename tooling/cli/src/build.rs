@@ -114,7 +114,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
       if !status.success() {
         bail!(
-          "beforeDevCommand `{}` failed with exit code {}",
+          "beforeBuildCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
         );

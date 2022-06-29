@@ -862,7 +862,6 @@ fn tauri_config_to_bundle_settings(
   #[cfg(target_os = "linux")]
   {
     if let Some(system_tray_config) = &system_tray_config {
-      depends.push("pkg-config".to_string());
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());

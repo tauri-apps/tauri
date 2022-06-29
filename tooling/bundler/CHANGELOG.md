@@ -1,5 +1,26 @@
 # Changelog
 
+## \[1.0.1]
+
+- Fix AppImage bundling when appimagelauncher is enabled.
+  - [b0133083](https://www.github.com/tauri-apps/tauri/commit/b0133083dd4d22b0b7fdee02000ef8ecab26694b) Fix appimage creation in container when host has appimagelauncher enabled ([#4457](https://www.github.com/tauri-apps/tauri/pull/4457)) on 2022-06-27
+- Fixes AppImage bundler crashes when the file path contains whitespace.
+  - [82eb6e79](https://www.github.com/tauri-apps/tauri/commit/82eb6e79e8098bccd2b3d3581056b5350beb46c6) fix(bundler): Fix appimage bundler crashing if path has spaces ([#4471](https://www.github.com/tauri-apps/tauri/pull/4471)) on 2022-06-26
+- Ensure `usr/lib` is a directory in the AppImage bundle.
+  - [aa0336d6](https://www.github.com/tauri-apps/tauri/commit/aa0336d6c5764f1357d845f2bf3763a89a3771a1) fix(bundler): ensure AppImage usr/lib is a dir ([#4419](https://www.github.com/tauri-apps/tauri/pull/4419)) on 2022-06-21
+- AppImage bundling will now prefer bundling correctly named appincidator library (including `.1` version suffix). With a symlink for compatibility with the old naming.
+  - [bf45ca1d](https://www.github.com/tauri-apps/tauri/commit/bf45ca1df6691c05bdf72c5716cc01e89a7791d4) fix(cli,bundler): prefer AppImage libraries with ABI version ([#4505](https://www.github.com/tauri-apps/tauri/pull/4505)) on 2022-06-29
+- Fix language code for korean (ko-KR).
+  - [08a73acd](https://www.github.com/tauri-apps/tauri/commit/08a73acde877453ca5b45ea7548cdd3d407366a2) fix(bundler): fix language code. closes [#4437](https://www.github.com/tauri-apps/tauri/pull/4437) ([#4444](https://www.github.com/tauri-apps/tauri/pull/4444)) on 2022-06-24
+- Use the plist crate instead of the `PlistBuddy` binary to merge user Info.plist file.
+  - [45076b3e](https://www.github.com/tauri-apps/tauri/commit/45076b3ede4c5a3c14ffc0e4277c2c87639690cb) refactor(bundler): use the `plist` crate to create and merge Info.plist ([#4412](https://www.github.com/tauri-apps/tauri/pull/4412)) on 2022-06-21
+- Validate app version before bundling WiX.
+  - [672174b8](https://www.github.com/tauri-apps/tauri/commit/672174b822fcd2dff4a4aeeab370be3748e13843) feat(bundler): validate version before bundling with WiX ([#4429](https://www.github.com/tauri-apps/tauri/pull/4429)) on 2022-06-21
+- Check if `$HOME\AppData\Local\tauri\WixTools` directory has all the required files and redownload WiX if something is missing.
+  - [956af4f3](https://www.github.com/tauri-apps/tauri/commit/956af4f30f665a1d059aad15d070b4bab9ca49b3) feat(bundler): validate wix toolset files, ref [#4474](https://www.github.com/tauri-apps/tauri/pull/4474) ([#4475](https://www.github.com/tauri-apps/tauri/pull/4475)) on 2022-06-26
+- Added webview install mode options.
+  - [2ca762d2](https://www.github.com/tauri-apps/tauri/commit/2ca762d207030a892a6d128b519e150e2d733468) feat(bundler): extend webview2 installation options, closes [#2882](https://www.github.com/tauri-apps/tauri/pull/2882) [#2452](https://www.github.com/tauri-apps/tauri/pull/2452) ([#4466](https://www.github.com/tauri-apps/tauri/pull/4466)) on 2022-06-26
+
 ## \[1.0.0]
 
 - Upgrade to `stable`!

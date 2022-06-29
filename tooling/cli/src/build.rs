@@ -114,7 +114,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
       if !status.success() {
         bail!(
-          "beforeDevCommand `{}` failed with exit code {}",
+          "beforeBuildCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
         );
@@ -248,9 +248,9 @@ pub fn command(mut options: Options) -> Result<()> {
           );
         }
       }
-    }
-    if config_.tauri.bundle.appimage.bundle_media_framework {
-      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      if config_.tauri.bundle.appimage.bundle_media_framework {
+        std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      }
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;

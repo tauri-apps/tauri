@@ -28,6 +28,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "3.2", features = [ "derive" ] }
+clap_complete = "3.2.3"
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.1", path = "../bundler" }
 colored = "2.0"

@@ -12,6 +12,7 @@ mod init;
 mod interface;
 mod plugin;
 mod signer;
+mod completions;
 
 use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
 use env_logger::fmt::Color;
@@ -39,6 +40,17 @@ pub struct PackageJson {
   product_name: Option<String>,
 }
 
+#[derive(Subcommand)]
+enum Commands {
+  Build(build::Options),
+  Dev(dev::Options),
+  Info(info::Options),
+  Init(init::Options),
+  Plugin(plugin::Cli),
+  Signer(signer::Cli),
+  Completions(completions::Options)
+}
+
 #[derive(Parser)]
 #[clap(
   author,
@@ -50,27 +62,12 @@ pub struct PackageJson {
   propagate_version(true),
   no_binary_name(true)
 )]
-struct Cli {
+pub(crate) struct Cli {
   /// Enables verbose logging
   #[clap(short, long, global = true, parse(from_occurrences))]
   verbose: usize,
   #[clap(subcommand)]
   command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-  Build(build::Options),
-  Dev(dev::Options),
-  Info(info::Options),
-  Init(init::Options),
-  Plugin(plugin::Cli),
-  Signer(signer::Cli),
-}
-
-fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
-  let mut app = I::command();
-  err.format(&mut app)
 }
 
 /// Run the Tauri CLI with the passed arguments.
@@ -161,6 +158,7 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Completions(options) => completions::command(options)?
   }
 
   Ok(())
@@ -185,6 +183,11 @@ fn prettyprint_level(lvl: Level) -> &'static str {
     Level::Debug => "Debug",
     Level::Trace => "Trace",
   }
+}
+
+fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
+  let mut app = I::command();
+  err.format(&mut app)
 }
 
 pub trait CommandExt {

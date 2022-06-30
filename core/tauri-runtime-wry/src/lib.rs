@@ -2403,13 +2403,14 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::WebviewEvent(event) => {
-        if let Some(window) = windows
+        let window_event_listeners = windows
           .lock()
           .expect("poisoned webview collection")
           .get(&id)
-        {
+          .map(|w| w.window_event_listeners.clone());
+        if let Some(window_event_listeners) = window_event_listeners {
           if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window.window_event_listeners.lock().unwrap();
+            let listeners = window_event_listeners.lock().unwrap();
             let handlers = listeners.values();
             for handler in handlers {
               handler(&event);

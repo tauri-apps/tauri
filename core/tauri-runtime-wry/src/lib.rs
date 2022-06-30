@@ -2299,7 +2299,7 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::Theme(tx) => {
               #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();
-              #[cfg(not(windows))]
+              #[cfg(not(any(windows, target_os = "macos")))]
               tx.send(Theme::Light).unwrap();
             }
             // Setters

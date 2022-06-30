@@ -1162,16 +1162,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       self.window_id,
       WindowMessage::AddEventListener(id, Box::new(f)),
     ));
-    /* self
-    .context
-    .window_event_listeners
-    .lock()
-    .unwrap()
-    .get(&self.window_id)
-    .unwrap()
-    .lock()
-    .unwrap()
-    .insert(id, Box::new(f));*/
     id
   }
 

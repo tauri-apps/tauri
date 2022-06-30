@@ -240,8 +240,8 @@ mod windows_platform {
     };
   }
 
-  /// Returns a tuple of (major, minor, buildnumber)
-  fn windows_version() -> Option<(u32, u32, u32)> {
+  /// Returns a tuple of (major, minor, buildnumber) for the Windows version.
+  pub fn windows_version() -> Option<(u32, u32, u32)> {
     type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
     let handle = get_function!("ntdll.dll", RtlGetVersion);
     if let Some(rtl_get_version) = handle {

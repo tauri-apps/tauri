@@ -19,7 +19,7 @@ import type {
 
 /**
  * Listen to an event from the backend.
- * @example Listen to the `error` event expecting a string payload
+ * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
@@ -43,7 +43,7 @@ async function listen<T>(
 
 /**
  * Listen to an one-off event from the backend.
- * @example Listen to the `loaded` event that is only triggered once
+ * @example
  * ```typescript
  * import { once } from '@tauri-apps/api/event';
  * interface LoadedPayload {
@@ -68,7 +68,7 @@ async function once<T>(
 
 /**
  * Emits an event to the backend.
- * @example Emits the `frontend-loaded` event with the given payload
+ * @example
  * ```typescript
  * import { emit } from '@tauri-apps/api/event';
  * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });

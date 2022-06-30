@@ -3013,9 +3013,13 @@ fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropH
   Box::new(move |window, event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
-    let windows = windows.lock().unwrap();
-    if let Some(window) = windows.get(&webview_id_map.get(&window.id())) {
-      let listeners_map = window.window_event_listeners.lock().unwrap();
+    let window_event_listeners = windows
+      .lock()
+      .unwrap()
+      .get(&webview_id_map.get(&window.id()))
+      .map(|w| w.window_event_listeners.clone());
+    if let Some(window_event_listeners) = window_event_listeners {
+      let listeners_map = window_event_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
       let handlers = listeners_map.values();
       for listener in handlers {

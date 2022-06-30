@@ -7,8 +7,8 @@ use std::io;
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Shell completions")]
 pub struct Options {
-  /// Shell to generate a completion script for. 
-  /// 
+  /// Shell to generate a completion script for.
+  ///
   /// Can be one of the following:
   /// - bash
   /// - elvish

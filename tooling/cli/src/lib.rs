@@ -5,6 +5,7 @@
 pub use anyhow::Result;
 
 mod build;
+mod completions;
 mod dev;
 mod helpers;
 mod info;
@@ -12,7 +13,6 @@ mod init;
 mod interface;
 mod plugin;
 mod signer;
-mod completions;
 
 use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
 use env_logger::fmt::Color;
@@ -48,7 +48,7 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
-  Completions(completions::Options)
+  Completions(completions::Options),
 }
 
 #[derive(Parser)]
@@ -158,7 +158,7 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
-    Commands::Completions(options) => completions::command(options)?
+    Commands::Completions(options) => completions::command(options)?,
   }
 
   Ok(())

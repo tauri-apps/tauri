@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.2]
+
+- Fixes a crash on the `signer sign` command.
+  - [8e808fec](https://www.github.com/tauri-apps/tauri/commit/8e808fece95f2e506acf2c446d37b9913fd67d50) fix(cli.rs): conflicts_with arg doesn't exist closes  ([#4538](https://www.github.com/tauri-apps/tauri/pull/4538)) on 2022-06-30
+
 ## \[1.0.1]
 
 - No longer adds the `pkg-config` dependency to `.deb` packages when the `systemTray` is used.

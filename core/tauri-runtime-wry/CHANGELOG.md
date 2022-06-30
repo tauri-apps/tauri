@@ -1,5 +1,14 @@
 # Changelog
 
+## \[0.10.1]
+
+- Fixes a deadlock on the file drop handler.
+  - [23a48007](https://www.github.com/tauri-apps/tauri/commit/23a48007c0df7346fa45c76dfaf9235a157f59ec) fix(tauri-runtime-wry): deadlock on file drop, closes [#4527](https://www.github.com/tauri-apps/tauri/pull/4527) ([#4535](https://www.github.com/tauri-apps/tauri/pull/4535)) on 2022-06-30
+- Send theme value only once on the getter function implementation on macOS.
+  - [63841c10](https://www.github.com/tauri-apps/tauri/commit/63841c10609c3d7337ba6cd68ae126b18987014d) fix(tauri-runtime-wry): do not send theme twice on macOS, closes [#4532](https://www.github.com/tauri-apps/tauri/pull/4532) ([#4540](https://www.github.com/tauri-apps/tauri/pull/4540)) on 2022-06-30
+- Fixes a deadlock when the window focus change on Windows.
+  - [185b0e31](https://www.github.com/tauri-apps/tauri/commit/185b0e314ece9563cd7c83a16466b2b8b9167eb3) fix(tauri-runtime-wry): deadlock when window focus change, closes [#4533](https://www.github.com/tauri-apps/tauri/pull/4533) ([#4539](https://www.github.com/tauri-apps/tauri/pull/4539)) on 2022-06-30
+
 ## \[0.10.0]
 
 - Implement `raw_window_handle::HasRawWindowHandle` on Linux.

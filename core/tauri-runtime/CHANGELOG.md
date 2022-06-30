@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.10.1]
+
+- Expose `platform::windows_version` function.
+  - Bumped due to a bump in tauri-utils.
+  - [bf764e83](https://www.github.com/tauri-apps/tauri/commit/bf764e83e01e7443e6cc54572001e1c98c357465) feat(utils): expose `windows_version` function ([#4534](https://www.github.com/tauri-apps/tauri/pull/4534)) on 2022-06-30
+
 ## \[0.10.0]
 
 - Added `fn new` constructors for `PhysicalSize`, `LogicalSize`, `PhysicalPosition` and `LogicalPosition` and missing conversion methods.

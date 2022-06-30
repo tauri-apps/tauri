@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.2]
+
+- Fixes check for local URL when an external URL is provided to the window and it is based on the configured devPath.
+  - [2e74d20e](https://www.github.com/tauri-apps/tauri/commit/2e74d20e834c0cb8c19fed25f8e7968f758ca8b1) fix(core): check whether external url is local, ref [#4449](https://www.github.com/tauri-apps/tauri/pull/4449) ([#4536](https://www.github.com/tauri-apps/tauri/pull/4536)) on 2022-06-30
+
 ## \[1.0.1]
 
 - Added `fn new` constructors for `PhysicalSize`, `LogicalSize`, `PhysicalPosition` and `LogicalPosition` and missing conversion methods.

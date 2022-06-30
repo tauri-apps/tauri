@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.2]
+
+- Enhance the `DownloadedBootstrapper` Webview2 install mode compatibility with Windows 8.
+  - [3df6c8c6](https://www.github.com/tauri-apps/tauri/commit/3df6c8c6454a052047b9f766691048860b50ea70) feat(bundler): enable TLS 1.2 before downloading webview2 bootstrapper ([#4543](https://www.github.com/tauri-apps/tauri/pull/4543)) on 2022-06-30
+
 ## \[1.0.1]
 
 - Fix AppImage bundling when appimagelauncher is enabled.

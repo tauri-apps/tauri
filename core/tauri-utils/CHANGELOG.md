@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.2]
+
+- Expose `platform::windows_version` function.
+  - [bf764e83](https://www.github.com/tauri-apps/tauri/commit/bf764e83e01e7443e6cc54572001e1c98c357465) feat(utils): expose `windows_version` function ([#4534](https://www.github.com/tauri-apps/tauri/pull/4534)) on 2022-06-30
+
 ## \[1.0.1]
 
 - Changed the `BundleConfig::targets` to a `BundleTarget` enum to enhance generated documentation.

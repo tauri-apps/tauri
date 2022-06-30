@@ -198,7 +198,7 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 }
 
 #[cfg(windows)]
-pub use windows_platform::is_windows_7;
+pub use windows_platform::{is_windows_7, windows_version};
 
 #[cfg(windows)]
 mod windows_platform {
@@ -212,7 +212,7 @@ mod windows_platform {
 
   /// Checks if we're running on Windows 7.
   pub fn is_windows_7() -> bool {
-    if let Some(v) = get_windows_ver() {
+    if let Some(v) = windows_version() {
       // windows 7 is 6.1
       if v.0 == 6 && v.1 == 1 {
         return true;
@@ -240,8 +240,8 @@ mod windows_platform {
     };
   }
 
-  /// Returns a tuple of (major, minor, buildnumber)
-  fn get_windows_ver() -> Option<(u32, u32, u32)> {
+  /// Returns a tuple of (major, minor, buildnumber) for the Windows version.
+  pub fn windows_version() -> Option<(u32, u32, u32)> {
     type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
     let handle = get_function!("ntdll.dll", RtlGetVersion);
     if let Some(rtl_get_version) = handle {

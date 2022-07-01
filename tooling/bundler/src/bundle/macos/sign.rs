@@ -278,7 +278,7 @@ pub fn notarize(
   let mut stdout = std::str::from_utf8(&output.stdout)?.to_string();
   stdout.push('\n');
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(stdout)
+    .captures_iter(&stdout)
     .next()
   {
     info!("notarization started; waiting for Apple response...");
@@ -326,9 +326,10 @@ fn get_notarization_status(
     .output_ok();
 
   if let Ok(output) = result {
-    let stdout = std::str::from_utf8(&output.stdout)?;
+    let mut stdout = std::str::from_utf8(&output.stdout)?.to_string();
+    stdout.push('\n');
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
-      .captures_iter(stdout)
+      .captures_iter(&stdout)
       .next()
     {
       let status = status[1].to_string();

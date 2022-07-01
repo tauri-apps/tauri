@@ -275,7 +275,8 @@ pub fn notarize(
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  let stdout = std::str::from_utf8(&output.stdout)?;
+  let mut stdout = std::str::from_utf8(&output.stdout)?.to_string();
+  stdout.push('\n');
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
     .captures_iter(stdout)
     .next()

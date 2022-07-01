@@ -78,6 +78,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #function
 
     #maybe_macro_export
+    #[doc(hidden)]
     macro_rules! #wrapper {
         // double braces because the item is expected to be a block expression
         ($path:path, $invoke:ident) => {{

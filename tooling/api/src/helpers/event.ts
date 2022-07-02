@@ -5,7 +5,6 @@
 import { WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
-import { LiteralUnion } from 'type-fest'
 
 export interface Event<T> {
   /** Event name */
@@ -18,25 +17,7 @@ export interface Event<T> {
   payload: T
 }
 
-export type EventName = LiteralUnion<
-  | 'tauri://update'
-  | 'tauri://update-available'
-  | 'tauri://update-download-progress'
-  | 'tauri://update-install'
-  | 'tauri://update-status'
-  | 'tauri://resize'
-  | 'tauri://move'
-  | 'tauri://close-requested'
-  | 'tauri://focus'
-  | 'tauri://blur'
-  | 'tauri://scale-change'
-  | 'tauri://menu'
-  | 'tauri://file-drop'
-  | 'tauri://file-drop-hover'
-  | 'tauri://file-drop-cancelled'
-  | 'tauri://theme-changed',
-  string
->
+export type EventName = string
 
 export type EventCallback<T> = (event: Event<T>) => void
 

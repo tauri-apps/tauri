@@ -29,6 +29,14 @@ interface UpdateResult {
   shouldUpdate: boolean
 }
 
+async function onUpdaterEvent(
+  handler: (status: UpdateStatusResult) => void
+): Promise<UnlistenFn> {
+  return listen('tauri://update-status', (data: { payload: any }) => {
+    handler(data?.payload as UpdateStatusResult)
+  })
+}
+
 /**
  * Install the update if there's one available.
  * @example
@@ -68,9 +76,7 @@ async function installUpdate(): Promise<void> {
     }
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -144,9 +150,7 @@ async function checkUpdate(): Promise<UpdateResult> {
     })
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -167,4 +171,4 @@ async function checkUpdate(): Promise<UpdateResult> {
 
 export type { UpdateStatus, UpdateStatusResult, UpdateManifest, UpdateResult }
 
-export { installUpdate, checkUpdate }
+export { onUpdaterEvent, installUpdate, checkUpdate }

@@ -53,67 +53,8 @@
  *
  * Events can be listened using `appWindow.listen`:
  * ```typescript
- * import { appWindow } from "@tauri-apps/api/window"
- * appWindow.listen("tauri://move", ({ event, payload }) => {
- *   const { x, y } = payload; // payload here is a `PhysicalPosition`
- * });
- * ```
- *
- * Window-specific events emitted by the backend:
- *
- * #### 'tauri://resize'
- * Emitted when the size of the window has changed.
- * *EventPayload*:
- * ```typescript
- * type ResizePayload = PhysicalSize
- * ```
- *
- * #### 'tauri://move'
- * Emitted when the position of the window has changed.
- * *EventPayload*:
- * ```typescript
- * type MovePayload = PhysicalPosition
- * ```
- *
- * #### 'tauri://close-requested'
- * Emitted when the user requests the window to be closed.
- * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
- * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
- * import { confirm } from '@tauri-apps/api/dialog';
- * appWindow.listen("tauri://close-requested", async ({ event, payload }) => {
- *   const confirmed = await confirm('Are you sure?');
- *   if (confirmed) {
- *     await appWindow.close();
- *   }
- * });
- * ```
- *
- * #### 'tauri://focus'
- * Emitted when the window gains focus.
- *
- * #### 'tauri://blur'
- * Emitted when the window loses focus.
- *
- * #### 'tauri://scale-change'
- * Emitted when the window's scale factor has changed.
- * The following user actions can cause DPI changes:
- * - Changing the display's resolution.
- * - Changing the display's scale factor (e.g. in Control Panel on Windows).
- * - Moving the window to a display with a different scale factor.
- * *Event payload*:
- * ```typescript
- * interface ScaleFactorChanged {
- *   scaleFactor: number
- *   size: PhysicalSize
- * }
- * ```
- *
- * #### 'tauri://menu'
- * Emitted when a menu item is clicked.
- * *EventPayload*:
- * ```typescript
- * type MenuClicked = string
+ * appWindow.listen("my-window-event", ({ event, payload }) => { });
  * ```
  *
  * @module
@@ -121,7 +62,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, listen, once } from './helpers/event'
+import { emit, Event, listen, once } from './helpers/event'
 
 type Theme = 'light' | 'dark'
 
@@ -136,6 +77,20 @@ interface Monitor {
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   scaleFactor: number
 }
+
+/** The payload for the `scaleChange` event. */
+interface ScaleFactorChanged {
+  /** The new window scale factor. */
+  scaleFactor: number
+  /** The new window size */
+  size: PhysicalSize
+}
+
+/** The file drop event types. */
+type FileDropEvent =
+  | { type: 'hover'; paths: string[] }
+  | { type: 'drop'; paths: string[] }
+  | { type: 'cancel' }
 
 /** A size represented in logical pixels. */
 class LogicalSize {
@@ -1517,6 +1472,236 @@ class WindowManager extends WebviewWindowHandle {
       }
     })
   }
+
+  // Listeners
+
+  /**
+   * Listen to window resize.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onResize(({ payload: size }) => {
+   *  console.log('Window resized', size);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onResize(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
+    return this.listen<PhysicalSize>('tauri://resize', handler)
+  }
+
+  /**
+   * Listen to window move.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onMove(({ payload: position }) => {
+   *  console.log('Window moved', position);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onMove(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
+    return this.listen<PhysicalPosition>('tauri://move', handler)
+  }
+
+  /**
+   * Listen to window close requested. Emitted when the user requests to closes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * import { confirm } from '@tauri-apps/api/dialog';
+   * appWindow.onCloseRequested(async (event) => {
+   *   const confirmed = await confirm('Are you sure?');
+   *   if (!confirmed) {
+   *     // user did not confirm closing the window; let's prevent it
+   *     event.preventDefault();
+   *   }
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onCloseRequested(
+    handler: (event: CloseRequestedEvent) => void
+  ): Promise<UnlistenFn> {
+    return this.listen<null>('tauri://close-requested', (event) => {
+      const evt = new CloseRequestedEvent(event)
+      void Promise.resolve(handler(evt)).then(() => {
+        if (!evt.isPreventDefault()) {
+          return this.close()
+        }
+      })
+    })
+  }
+
+  /**
+   * Listen to window focus change.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onFocusChange(({ payload: focused }) => {
+   *  console.log('Focus changed, window is focused? ' + focused);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onFocusChange(handler: EventCallback<boolean>): Promise<UnlistenFn> {
+    const unlistenFocus = await this.listen<PhysicalPosition>(
+      'tauri://focus',
+      (event) => {
+        handler({ ...event, payload: true })
+      }
+    )
+    const unlistenBlur = await this.listen<PhysicalPosition>(
+      'tauri://blur',
+      (event) => {
+        handler({ ...event, payload: false })
+      }
+    )
+    return () => {
+      unlistenFocus()
+      unlistenBlur()
+    }
+  }
+
+  /**
+   * Listen to window scale change. Emitted when the window's scale factor has changed.
+   * The following user actions can cause DPI changes:
+   * - Changing the display's resolution.
+   * - Changing the display's scale factor (e.g. in Control Panel on Windows).
+   * - Moving the window to a display with a different scale factor.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onScaleChange(({ payload }) => {
+   *  console.log('Scale changed', payload.scaleFactor, payload.size);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onScaleChange(
+    handler: EventCallback<ScaleFactorChanged>
+  ): Promise<UnlistenFn> {
+    return this.listen<ScaleFactorChanged>('tauri://scale-change', handler)
+  }
+
+  /**
+   * Listen to the window menu item click. The payload is the item id.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onMenuClick(({ payload: menuId }) => {
+   *  console.log('Menu clicked: ' + menuId);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onMenuClick(handler: EventCallback<string>): Promise<UnlistenFn> {
+    return this.listen<string>('tauri://menu', handler)
+  }
+
+  /**
+   * Listen to a file drop event.
+   * The listener is triggered when the user hovers the selected files on the window,
+   * drops the files or cancels the operation.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onFileDrop((event) => {
+   *  if (event.payload.type === 'hover') {
+   *    console.log('User hovering', event.payload.paths);
+   *  } else if (event.payload.type === 'drop') {
+   *    console.log('User dropped', event.payload.paths);
+   *  } else {
+   *    console.log('File drop cancelled');
+   *  }
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onFileDrop(handler: EventCallback<FileDropEvent>): Promise<UnlistenFn> {
+    const unlistenFileDrop = await this.listen<string[]>(
+      'tauri://file-drop',
+      (event) => {
+        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+      }
+    )
+
+    const unlistenFileHover = await this.listen<string[]>(
+      'tauri://file-drop-hover',
+      (event) => {
+        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+      }
+    )
+
+    const unlistenCancel = await this.listen<null>(
+      'tauri://file-drop-cancelled',
+      (event) => {
+        handler({ ...event, payload: { type: 'cancel' } })
+      }
+    )
+
+    return () => {
+      unlistenFileDrop()
+      unlistenFileHover()
+      unlistenCancel()
+    }
+  }
+
+  /**
+   * Listen to the system theme change.
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * appWindow.onThemeChange(({ payload: theme }) => {
+   *  console.log('New theme: ' + theme);
+   * });
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   */
+  async onThemeChange(handler: EventCallback<Theme>): Promise<UnlistenFn> {
+    return this.listen<Theme>('tauri://theme-changed', handler)
+  }
+}
+
+class CloseRequestedEvent {
+  /** Event name */
+  event: EventName
+  /** The label of the window that emitted this event. */
+  windowLabel: string
+  /** Event identifier used to unlisten */
+  id: number
+  private _preventDefault = false
+
+  constructor(event: Event<null>) {
+    this.event = event.event
+    this.windowLabel = event.windowLabel
+    this.id = event.id
+  }
+
+  preventDefault(): void {
+    this._preventDefault = true
+  }
+
+  isPreventDefault(): boolean {
+    return this._preventDefault
+  }
 }
 
 /**
@@ -1769,6 +1954,7 @@ export {
   WebviewWindow,
   WebviewWindowHandle,
   WindowManager,
+  CloseRequestedEvent,
   getCurrent,
   getAll,
   appWindow,
@@ -1782,4 +1968,4 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, WindowOptions }
+export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }

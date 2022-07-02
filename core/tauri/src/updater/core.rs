@@ -784,14 +784,34 @@ fn copy_files_and_run<R: Read + Seek>(
         }
       }
 
-      // restart should be handled by WIX as we exit the process
-      Command::new("msiexec.exe")
-        .arg("/i")
-        .arg(found_path)
-        .args(msiexec_args)
-        .arg("/promptrestart")
-        .spawn()
-        .expect("installer failed to start");
+      // run the installer and relaunch the application
+      let powershell_install_res = Command::new("powershell.exe")
+        .args(["-NoProfile", "-windowstyle", "hidden"])
+        .args([
+          "Start-Process",
+          "-Wait",
+          "-FilePath",
+          "msiexec",
+          "-ArgumentList",
+        ])
+        .arg(format!(
+          "/i, \"{}\", {}, /promptrestart;",
+          found_path.display(),
+          msiexec_args.join(", ")
+        ))
+        .arg("Start-Process")
+        .arg(current_exe()?)
+        .spawn();
+      if powershell_install_res.is_err() {
+        // fallback to running msiexec directly - relaunch won't be available
+        // we use this here in case powershell fails in an older machine somehow
+        let _ = Command::new("msiexec.exe")
+          .arg("/i")
+          .arg(found_path)
+          .args(msiexec_args)
+          .arg("/promptrestart")
+          .spawn();
+      }
 
       exit(0);
     }

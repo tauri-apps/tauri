@@ -7,7 +7,6 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, AppUrl, WindowUrl},
-    manifest::rewrite_manifest,
     updater_signature::sign_file_from_env_variables,
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -55,7 +54,7 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let merge_config = if let Some(config) = &options.config {
+  options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
@@ -68,9 +67,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let config = get_config(merge_config.as_deref())?;
-
-  let manifest = rewrite_manifest(config.clone())?;
+  let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -210,7 +207,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let settings = app_settings
-      .get_bundler_settings(&options.into(), &manifest, config_, out_dir, package_types)
+      .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
 
     // set env vars used by the bundler

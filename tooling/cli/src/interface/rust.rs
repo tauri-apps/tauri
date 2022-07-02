@@ -203,59 +203,8 @@ impl Interface for Rust {
     let child = self.run_dev(options.clone(), move |status, reason| {
       on_exit_(status, reason)
     })?;
-    let process = Arc::new(Mutex::new(child));
-    let (tx, rx) = channel();
-    let tauri_path = tauri_dir();
 
-    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-    lookup(&tauri_path, |file_type, path| {
-      if path != tauri_path {
-        let _ = watcher.watch(
-          path,
-          if file_type.is_dir() {
-            RecursiveMode::Recursive
-          } else {
-            RecursiveMode::NonRecursive
-          },
-        );
-      }
-    });
-
-    loop {
-      let on_exit = on_exit.clone();
-      if let Ok(event) = rx.recv() {
-        let event_path = match event {
-          DebouncedEvent::Create(path) => Some(path),
-          DebouncedEvent::Remove(path) => Some(path),
-          DebouncedEvent::Rename(_, dest) => Some(dest),
-          DebouncedEvent::Write(path) => Some(path),
-          _ => None,
-        };
-
-        if let Some(event_path) = event_path {
-          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-            let config = reload_config(options.config.as_deref())?;
-            self.app_settings.manifest =
-              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-          } else {
-            // When tauri.conf.json is changed, rewrite_manifest will be called
-            // which will trigger the watcher again
-            // So the app should only be started when a file other than tauri.conf.json is changed
-            let mut p = process.lock().unwrap();
-            p.kill().with_context(|| "failed to kill app process")?;
-            // wait for the process to exit
-            loop {
-              if let Ok(Some(_)) = p.try_wait() {
-                break;
-              }
-            }
-            *p = self.run_dev(options.clone(), move |status, reason| {
-              on_exit(status, reason)
-            })?;
-          }
-        }
-      }
-    }
+    self.run_dev_watcher(child, options, on_exit)
   }
 }
 
@@ -501,6 +450,67 @@ impl Rust {
       build_child,
       app_child,
     })
+  }
+
+  fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+    &mut self,
+    child: DevChild,
+    options: Options,
+    on_exit: Arc<F>,
+  ) -> crate::Result<()> {
+    let process = Arc::new(Mutex::new(child));
+    let (tx, rx) = channel();
+    let tauri_path = tauri_dir();
+
+    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+    lookup(&tauri_path, |file_type, path| {
+      if path != tauri_path {
+        let _ = watcher.watch(
+          path,
+          if file_type.is_dir() {
+            RecursiveMode::Recursive
+          } else {
+            RecursiveMode::NonRecursive
+          },
+        );
+      }
+    });
+
+    loop {
+      let on_exit = on_exit.clone();
+      if let Ok(event) = rx.recv() {
+        let event_path = match event {
+          DebouncedEvent::Create(path) => Some(path),
+          DebouncedEvent::Remove(path) => Some(path),
+          DebouncedEvent::Rename(_, dest) => Some(dest),
+          DebouncedEvent::Write(path) => Some(path),
+          _ => None,
+        };
+
+        if let Some(event_path) = event_path {
+          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+            let config = reload_config(options.config.as_deref())?;
+            self.app_settings.manifest =
+              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+          } else {
+            // When tauri.conf.json is changed, rewrite_manifest will be called
+            // which will trigger the watcher again
+            // So the app should only be started when a file other than tauri.conf.json is changed
+            let mut p = process.lock().unwrap();
+            p.kill().with_context(|| "failed to kill app process")?;
+            // wait for the process to exit
+            loop {
+              if let Ok(Some(_)) = p.try_wait() {
+                break;
+              }
+            }
+            *p = self.run_dev(options.clone(), move |status, reason| {
+              on_exit(status, reason)
+            })?;
+          }
+        }
+      }
+    }
   }
 
   fn build_app(&mut self, options: Options) -> crate::Result<()> {

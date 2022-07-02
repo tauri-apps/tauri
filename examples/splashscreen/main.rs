@@ -17,7 +17,6 @@ mod rust {
   fn close_splashscreen() {}
 
   pub fn main() {
-    let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
     tauri::Builder::default()
       .setup(|app| {
         let splashscreen_window = app.get_window("splashscreen").unwrap();
@@ -35,7 +34,7 @@ mod rust {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(context)
+      .run(tauri::generate_context!("../../examples/splashscreen/tauri.conf.json"))
       .expect("failed to run app");
   }
 }

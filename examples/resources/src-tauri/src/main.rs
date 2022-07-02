@@ -13,8 +13,6 @@ fn main() {
     Manager,
   };
 
-  let context = tauri::generate_context!();
-
   tauri::Builder::default()
     .setup(move |app| {
       let window = app.get_window("main").unwrap();
@@ -42,6 +40,6 @@ fn main() {
 
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

@@ -21,9 +21,10 @@ fn main() {
 
 #[cfg(feature = "isolation")]
 fn main() {
-  let context = tauri::generate_context!("../../examples/isolation/tauri.conf.json");
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![ping])
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/isolation/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

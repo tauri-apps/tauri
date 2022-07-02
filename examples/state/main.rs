@@ -69,7 +69,6 @@ fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
 }
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/state/tauri.conf.json");
   tauri::Builder::default()
     .manage(Counter(AtomicUsize::new(0)))
     .manage(Database(Default::default()))
@@ -82,6 +81,8 @@ fn main() {
       disconnect,
       connection_send
     ])
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/state/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

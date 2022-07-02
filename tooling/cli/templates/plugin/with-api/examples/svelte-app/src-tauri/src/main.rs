@@ -4,9 +4,8 @@
 )]
 
 fn main() {
-  let context = tauri::generate_context!();
   tauri::Builder::default()
     .plugin(tauri_plugin_{{ plugin_name_snake_case }}::init())
-    .run(context)
+    .run(tauri::generate_context!())
     .expect("failed to run app");
 }

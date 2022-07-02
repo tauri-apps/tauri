@@ -38,8 +38,6 @@ fn main() {
     assert!(video_file.exists());
   }
 
-  let context = tauri::generate_context!("../../examples/streaming/tauri.conf.json");
-
   tauri::Builder::default()
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
@@ -114,6 +112,8 @@ fn main() {
 
       response.mimetype("video/mp4").status(status_code).body(buf)
     })
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/streaming/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

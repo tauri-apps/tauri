@@ -102,7 +102,6 @@ pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
   get_internal(merge_config, false)
 }
 
-pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
-  get_internal(merge_config, true)?;
-  Ok(())
+pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+  get_internal(merge_config, true)
 }

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{
+use crate::helpers::{
   app_paths::tauri_dir,
-  config::{ConfigHandle, PatternKind},
+  config::{Config, PatternKind},
 };
 
 use anyhow::Context;
@@ -184,12 +184,9 @@ fn write_features(
   }
 }
 
-pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
+pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
   let manifest_path = tauri_dir().join("Cargo.toml");
   let mut manifest = read_manifest(&manifest_path)?;
-
-  let config_guard = config.lock().unwrap();
-  let config = config_guard.as_ref().unwrap();
 
   let mut tauri_build_features = HashSet::new();
   if let PatternKind::Isolation { .. } = config.tauri.pattern {
@@ -209,7 +206,7 @@ pub fn rewrite_manifest(config: ConfigHandle) -> crate::Result<Manifest> {
 
   let mut tauri_features =
     HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
-  let cli_managed_tauri_features = super::config::TauriConfig::all_features();
+  let cli_managed_tauri_features = crate::helpers::config::TauriConfig::all_features();
   let res = match write_features(
     manifest
       .as_table_mut()

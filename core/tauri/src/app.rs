@@ -867,6 +867,7 @@ pub struct Builder<R: Runtime> {
   menu: Option<Menu>,
 
   /// Enable macOS default menu creation
+  #[allow(unused)]
   enable_macos_default_menu: bool,
 
   /// Menu event handlers that listens to all windows.

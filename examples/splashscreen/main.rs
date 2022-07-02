@@ -34,7 +34,9 @@ mod rust {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(tauri::generate_context!("../../examples/splashscreen/tauri.conf.json"))
+      .run(tauri::generate_context!(
+        "../../examples/splashscreen/tauri.conf.json"
+      ))
       .expect("failed to run app");
   }
 }

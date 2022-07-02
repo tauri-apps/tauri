@@ -866,6 +866,9 @@ pub struct Builder<R: Runtime> {
   /// The menu set to all windows.
   menu: Option<Menu>,
 
+  /// Enable macOS default menu creation
+  enable_macos_default_menu: bool,
+
   /// Menu event handlers that listens to all windows.
   menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
 
@@ -902,6 +905,7 @@ impl<R: Runtime> Builder<R> {
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       menu: None,
+      enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
@@ -1332,6 +1336,11 @@ impl<R: Runtime> Builder<R> {
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
+    #[cfg(target_os = "macos")]
+    if self.menu.is_none() && self.enable_macos_default_menu {
+      self.menu = Some(Menu::os_default(&context.package_info().name));
+    }
+
     #[cfg(feature = "system-tray")]
     let system_tray_icon = context.system_tray_icon.clone();
 

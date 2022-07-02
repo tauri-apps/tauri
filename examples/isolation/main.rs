@@ -23,11 +23,6 @@ fn main() {
 fn main() {
   let context = tauri::generate_context!("../../examples/isolation/tauri.conf.json");
   tauri::Builder::default()
-    .menu(if cfg!(target_os = "macos") {
-      tauri::Menu::os_default(&context.package_info().name)
-    } else {
-      tauri::Menu::default()
-    })
     .invoke_handler(tauri::generate_handler![ping])
     .run(context)
     .expect("error while running tauri application");

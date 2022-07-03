@@ -510,6 +510,7 @@ impl Rust {
       )
       .env("CARGO_TERM_PROGRESS_WHEN", "always");
     build_cmd.arg("build").arg("--color").arg("always");
+    build_cmd.args(args);
 
     build_cmd.stdout(os_pipe::dup_stdout()?);
     build_cmd.stderr(Stdio::piped());

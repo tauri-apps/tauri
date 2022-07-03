@@ -1480,7 +1480,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onResize(({ payload: size }) => {
+   * appWindow.onResized(({ payload: size }) => {
    *  console.log('Window resized', size);
    * });
    * ```
@@ -1488,7 +1488,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onResize(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
+  async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>('tauri://resize', handler)
   }
 
@@ -1497,7 +1497,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onMove(({ payload: position }) => {
+   * appWindow.onMoved(({ payload: position }) => {
    *  console.log('Window moved', position);
    * });
    * ```
@@ -1505,7 +1505,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onMove(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
+  async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>('tauri://move', handler)
   }
 
@@ -1545,7 +1545,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onFocusChange(({ payload: focused }) => {
+   * appWindow.onFocusChanged(({ payload: focused }) => {
    *  console.log('Focus changed, window is focused? ' + focused);
    * });
    * ```
@@ -1553,7 +1553,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onFocusChange(handler: EventCallback<boolean>): Promise<UnlistenFn> {
+  async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
       'tauri://focus',
       (event) => {
@@ -1581,7 +1581,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onScaleChange(({ payload }) => {
+   * appWindow.onScaleChanged(({ payload }) => {
    *  console.log('Scale changed', payload.scaleFactor, payload.size);
    * });
    * ```
@@ -1589,7 +1589,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onScaleChange(
+  async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
   ): Promise<UnlistenFn> {
     return this.listen<ScaleFactorChanged>('tauri://scale-change', handler)
@@ -1600,7 +1600,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onMenuClick(({ payload: menuId }) => {
+   * appWindow.onMenuClicked(({ payload: menuId }) => {
    *  console.log('Menu clicked: ' + menuId);
    * });
    * ```
@@ -1608,7 +1608,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onMenuClick(handler: EventCallback<string>): Promise<UnlistenFn> {
+  async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
     return this.listen<string>('tauri://menu', handler)
   }
 
@@ -1619,7 +1619,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onFileDrop((event) => {
+   * appWindow.onFileDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -1633,7 +1633,9 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onFileDrop(handler: EventCallback<FileDropEvent>): Promise<UnlistenFn> {
+  async onFileDropEvent(
+    handler: EventCallback<FileDropEvent>
+  ): Promise<UnlistenFn> {
     const unlistenFileDrop = await this.listen<string[]>(
       'tauri://file-drop',
       (event) => {
@@ -1667,7 +1669,7 @@ class WindowManager extends WebviewWindowHandle {
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onThemeChange(({ payload: theme }) => {
+   * appWindow.onThemeChanged(({ payload: theme }) => {
    *  console.log('New theme: ' + theme);
    * });
    * ```
@@ -1675,7 +1677,7 @@ class WindowManager extends WebviewWindowHandle {
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    */
-  async onThemeChange(handler: EventCallback<Theme>): Promise<UnlistenFn> {
+  async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
     return this.listen<Theme>('tauri://theme-changed', handler)
   }
 }

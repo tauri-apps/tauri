@@ -784,6 +784,11 @@ fn copy_files_and_run<R: Read + Seek>(
         }
       }
 
+      // we need to wrap the current exe path in quotes for Start-Process
+      let mut current_exe_arg = std::ffi::OsString::new();
+      current_exe_arg.push("\"");
+      current_exe_arg.push(current_exe()?);
+      current_exe_arg.push("\"");
       // run the installer and relaunch the application
       let powershell_install_res = Command::new("powershell.exe")
         .args(["-NoProfile", "-windowstyle", "hidden"])
@@ -798,7 +803,7 @@ fn copy_files_and_run<R: Read + Seek>(
         .arg(&found_path)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
-        .arg(current_exe()?)
+        .arg(current_exe_arg)
         .spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available

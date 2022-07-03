@@ -90,9 +90,10 @@ interface MessageDialogOptions {
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
- * @example Open a selection dialog for image files
+ * @example
  * ```typescript
  * import { open } from '@tauri-apps/api/dialog';
+ * // Open a selection dialog for image files
  * const selected = await open({
  *   multiple: true,
  *   filters: [{
@@ -109,10 +110,11 @@ interface MessageDialogOptions {
  * }
  * ```
  *
- * @example Open a selection dialog for directories
+ * @example
  * ```typescript
  * import { open } from '@tauri-apps/api/dialog';
  * import { appDir } from '@tauri-apps/api/path';
+ * // Open a selection dialog for directories
  * const selected = await open({
  *   directory: true,
  *   multiple: true,
@@ -154,7 +156,7 @@ async function open(
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
- * @example Open a save dialog with a defined file extension
+ * @example
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({

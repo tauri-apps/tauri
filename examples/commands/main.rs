@@ -159,7 +159,11 @@ fn borrow_cmd_async(argument: &str) -> &str {
 fn main() {
   let context = tauri::generate_context!("../../examples/commands/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
+    .menu(if cfg!(target_os = "macos") {
+      tauri::Menu::os_default(&context.package_info().name)
+    } else {
+      tauri::Menu::default()
+    })
     .manage(MyState {
       value: 0,
       label: "Tauri!".into(),

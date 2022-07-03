@@ -19,7 +19,11 @@ mod rust {
   pub fn main() {
     let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
     tauri::Builder::default()
-      .menu(tauri::Menu::os_default(&context.package_info().name))
+      .menu(if cfg!(target_os = "macos") {
+        tauri::Menu::os_default(&context.package_info().name)
+      } else {
+        tauri::Menu::default()
+      })
       .setup(|app| {
         let splashscreen_window = app.get_window("splashscreen").unwrap();
         let main_window = app.get_window("main").unwrap();
@@ -66,7 +70,11 @@ mod ui {
   pub fn main() {
     let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
     tauri::Builder::default()
-      .menu(tauri::Menu::os_default(&context.package_info().name))
+      .menu(if cfg!(target_os = "macos") {
+        tauri::Menu::os_default(&context.package_info().name)
+      } else {
+        tauri::Menu::default()
+      })
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(

@@ -6,33 +6,26 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, AppUrl, ConfigHandle, WindowUrl},
-    manifest::{rewrite_manifest, Manifest},
+    config::{get as get_config, AppUrl, WindowUrl},
   },
-  interface::{AppInterface, DevProcess, ExitReason, Interface},
+  interface::{AppInterface, ExitReason, Interface},
   Result,
 };
 use clap::Parser;
 
 use anyhow::Context;
 use log::{error, info, warn};
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
 
 use std::{
   env::set_current_dir,
-  ffi::OsStr,
-  fs::FileType,
   io::Write,
-  path::{Path, PathBuf},
   process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::channel,
     Arc, Mutex,
   },
-  time::Duration,
 };
 
 static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
@@ -41,7 +34,7 @@ static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
 #[cfg(unix)]
 const KILL_CHILDREN_SCRIPT: &[u8] = include_bytes!("../scripts/kill-children.sh");
 
-const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watcher.gitignore");
+pub const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watcher.gitignore");
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
@@ -60,7 +53,7 @@ pub struct Options {
   exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  config: Option<String>,
+  pub config: Option<String>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -80,7 +73,7 @@ pub fn command(options: Options) -> Result<()> {
 
 fn command_internal(mut options: Options) -> Result<()> {
   let tauri_path = tauri_dir();
-  let merge_config = if let Some(config) = &options.config {
+  options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
@@ -92,7 +85,7 @@ fn command_internal(mut options: Options) -> Result<()> {
 
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let config = get_config(merge_config.as_deref())?;
+  let config = get_config(options.config.as_deref())?;
 
   if let Some(before_dev) = &config
     .lock()
@@ -166,19 +159,6 @@ fn command_internal(mut options: Options) -> Result<()> {
       .runner
       .clone();
   }
-
-  let manifest = {
-    let (tx, rx) = channel();
-    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-    watcher.watch(tauri_path.join("Cargo.toml"), RecursiveMode::Recursive)?;
-    let manifest = rewrite_manifest(config.clone())?;
-    loop {
-      if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
-        break;
-      }
-    }
-    manifest
-  };
 
   let mut cargo_features = config
     .lock()
@@ -255,29 +235,9 @@ fn command_internal(mut options: Options) -> Result<()> {
   let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
 
   let exit_on_panic = options.exit_on_panic;
-  let process = interface.dev(options.clone().into(), &manifest, move |status, reason| {
+  interface.dev(options.into(), move |status, reason| {
     on_dev_exit(status, reason, exit_on_panic)
-  })?;
-  let shared_process = Arc::new(Mutex::new(process));
-
-  if let Err(e) = watch(
-    interface,
-    shared_process.clone(),
-    tauri_path,
-    merge_config,
-    config,
-    options,
-    manifest,
-  ) {
-    shared_process
-      .lock()
-      .unwrap()
-      .kill()
-      .with_context(|| "failed to kill app process")?;
-    Err(e)
-  } else {
-    Ok(())
-  }
+  })
 }
 
 fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool) {
@@ -307,92 +267,6 @@ fn check_for_updates() -> Result<()> {
     };
   }
   Ok(())
-}
-
-fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
-  let mut default_gitignore = std::env::temp_dir();
-  default_gitignore.push(".tauri-dev");
-  let _ = std::fs::create_dir_all(&default_gitignore);
-  default_gitignore.push(".gitignore");
-  if !default_gitignore.exists() {
-    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(TAURI_DEV_WATCHER_GITIGNORE);
-    }
-  }
-
-  let mut builder = ignore::WalkBuilder::new(dir);
-  let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
-    builder.add_ignore(ignore_file);
-  }
-  builder.require_git(false).ignore(false).max_depth(Some(1));
-
-  for entry in builder.build().flatten() {
-    f(entry.file_type().unwrap(), dir.join(entry.path()));
-  }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn watch<P: DevProcess, I: Interface<Dev = P>>(
-  mut interface: I,
-  process: Arc<Mutex<P>>,
-  tauri_path: PathBuf,
-  merge_config: Option<String>,
-  config: ConfigHandle,
-  options: Options,
-  mut manifest: Manifest,
-) -> Result<()> {
-  let (tx, rx) = channel();
-
-  let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-  lookup(&tauri_path, |file_type, path| {
-    if path != tauri_path {
-      let _ = watcher.watch(
-        path,
-        if file_type.is_dir() {
-          RecursiveMode::Recursive
-        } else {
-          RecursiveMode::NonRecursive
-        },
-      );
-    }
-  });
-
-  let exit_on_panic = options.exit_on_panic;
-
-  loop {
-    if let Ok(event) = rx.recv() {
-      let event_path = match event {
-        DebouncedEvent::Create(path) => Some(path),
-        DebouncedEvent::Remove(path) => Some(path),
-        DebouncedEvent::Rename(_, dest) => Some(dest),
-        DebouncedEvent::Write(path) => Some(path),
-        _ => None,
-      };
-
-      if let Some(event_path) = event_path {
-        if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-          reload_config(merge_config.as_deref())?;
-          manifest = rewrite_manifest(config.clone())?;
-        } else {
-          // When tauri.conf.json is changed, rewrite_manifest will be called
-          // which will trigger the watcher again
-          // So the app should only be started when a file other than tauri.conf.json is changed
-          let mut p = process.lock().unwrap();
-          p.kill().with_context(|| "failed to kill app process")?;
-          // wait for the process to exit
-          loop {
-            if let Ok(Some(_)) = p.try_wait() {
-              break;
-            }
-          }
-          *p = interface.dev(options.clone().into(), &manifest, move |status, reason| {
-            on_dev_exit(status, reason, exit_on_panic)
-          })?;
-        }
-      }
-    }
-  }
 }
 
 fn kill_before_dev_process() {

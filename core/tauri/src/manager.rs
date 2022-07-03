@@ -1069,7 +1069,10 @@ impl<R: Runtime> WindowManager<R> {
           },
         )
       }
-      WindowUrl::External(url) => (url.scheme() == "tauri", url.clone()),
+      WindowUrl::External(url) => {
+        let config_url = self.get_url();
+        (config_url.make_relative(url).is_some(), url.clone())
+      }
       _ => unimplemented!(),
     };
 

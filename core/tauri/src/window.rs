@@ -655,7 +655,7 @@ impl Window<crate::Wry> {
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/latest/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.17.0/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///

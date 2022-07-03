@@ -2130,6 +2130,8 @@ pub enum WindowsUpdateInstallMode {
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
+  // to add more modes, we need to check if the updater relaunch makes sense
+  // i.e. for a full UI mode, the user can also mark the installer to start the app
 }
 
 impl WindowsUpdateInstallMode {

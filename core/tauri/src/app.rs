@@ -866,7 +866,7 @@ pub struct Builder<R: Runtime> {
   /// The menu set to all windows.
   menu: Option<Menu>,
 
-  /// Enable macOS default menu creation
+  /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
 

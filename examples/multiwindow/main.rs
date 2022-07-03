@@ -10,13 +10,7 @@
 use tauri::WindowBuilder;
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
   tauri::Builder::default()
-    .menu(if cfg!(target_os = "macos") {
-      tauri::Menu::os_default(&context.package_info().name)
-    } else {
-      tauri::Menu::default()
-    })
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
@@ -33,6 +27,8 @@ fn main() {
       .build()?;
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/multiwindow/tauri.conf.json"
+    ))
     .expect("failed to run tauri application");
 }

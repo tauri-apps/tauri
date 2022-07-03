@@ -21,6 +21,7 @@ use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use log::warn;
+use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use serde::Deserialize;
 use shared_child::SharedChild;
@@ -461,20 +462,43 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = channel();
     let tauri_path = tauri_dir();
+    let workspace_path = get_workspace_dir(&tauri_path);
+
+    let watch_folders = if tauri_path == workspace_path {
+      vec![tauri_path]
+    } else {
+      let cargo_settings = CargoSettings::load(&workspace_path)?;
+      cargo_settings
+        .workspace
+        .as_ref()
+        .map(|w| {
+          w.members
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| workspace_path.join(p))
+            .collect()
+        })
+        .unwrap_or_else(|| vec![tauri_path])
+    };
 
     let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-    lookup(&tauri_path, |file_type, path| {
-      if path != tauri_path {
-        let _ = watcher.watch(
-          path,
-          if file_type.is_dir() {
-            RecursiveMode::Recursive
-          } else {
-            RecursiveMode::NonRecursive
-          },
-        );
-      }
-    });
+    for path in watch_folders {
+      info!("Watching {} for changes...", path.display());
+      lookup(&path, |file_type, p| {
+        if p != path {
+          debug!("Watching {} for changes...", p.display());
+          let _ = watcher.watch(
+            p,
+            if file_type.is_dir() {
+              RecursiveMode::Recursive
+            } else {
+              RecursiveMode::NonRecursive
+            },
+          );
+        }
+      });
+    }
 
     loop {
       let on_exit = on_exit.clone();

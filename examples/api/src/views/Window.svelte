@@ -10,8 +10,10 @@
   import { open as openDialog } from '@tauri-apps/api/dialog'
   import { open } from '@tauri-apps/api/shell'
 
-  let selectedWindow
-  const windowMap = {}
+  let selectedWindow = appWindow.label
+  const windowMap = {
+    [appWindow.label]: appWindow
+  }
 
   const cursorIconOptions = [
     'default',

@@ -275,11 +275,13 @@ pub fn notarize(
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  let mut stdout = std::str::from_utf8(&output.stdout)?.to_string();
-  stdout.push('\n');
-  println!("notarize status: {:?}", stdout);
+  let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
+  notarize_status.push('\n');
+  notarize_status.push(std::str::from_utf8(&output.stderr)?.to_string());
+  notarize_status.push('\n');
+  println!("notarize status: {:?}", notarize_status);
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(&stdout)
+    .captures_iter(&notarize_status)
     .next()
   {
     info!("notarization started; waiting for Apple response...");

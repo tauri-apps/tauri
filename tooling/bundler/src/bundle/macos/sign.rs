@@ -291,7 +291,11 @@ pub fn notarize(
     staple_app(app_bundle_path.clone())?;
   } else {
     return Err(
-      anyhow::anyhow!("failed to parse RequestUUID from upload output. {}", stdout).into(),
+      anyhow::anyhow!(
+        "failed to parse RequestUUID from upload output. {}",
+        notarize_status
+      )
+      .into(),
     );
   }
 

@@ -67,14 +67,14 @@
   let decorations = true
   let alwaysOnTop = false
   let fullscreen = false
-  let width = 900
-  let height = 700
-  let minWidth = 600
-  let minHeight = 600
+  let width = null
+  let height = null
+  let minWidth = null
+  let minHeight = null
   let maxWidth = null
   let maxHeight = null
-  let x = 100
-  let y = 100
+  let x = null
+  let y = null
   let scaleFactor = 1
   let innerPosition = new PhysicalPosition(x, y)
   let outerPosition = new PhysicalPosition(x, y)
@@ -84,8 +84,8 @@
   let moveEventUnlisten
   let cursorGrab = false
   let cursorVisible = true
-  let cursorX = 600
-  let cursorY = 800
+  let cursorX = null
+  let cursorY = null
   let cursorIcon = 'default'
   let windowTitle = 'Awesome Tauri Example!'
 
@@ -127,7 +127,7 @@
     })
   }
 
-  function handleWindowResize() {
+  function loadWindowSize() {
     windowMap[selectedWindow].innerSize().then((response) => {
       innerSize = response
       width = innerSize.width
@@ -138,7 +138,7 @@
     })
   }
 
-  function handleWindowMove() {
+  function loadWindowPosition() {
     windowMap[selectedWindow].innerPosition().then((response) => {
       innerPosition = response
     })
@@ -157,11 +157,8 @@
     if (moveEventUnlisten) {
       moveEventUnlisten()
     }
-    moveEventUnlisten = await window.listen('tauri://move', handleWindowMove)
-    resizeEventUnlisten = await window.listen(
-      'tauri://resize',
-      handleWindowResize
-    )
+    moveEventUnlisten = await window.listen('tauri://move', loadWindowPosition)
+    resizeEventUnlisten = await window.listen('tauri://resize', loadWindowSize)
   }
 
   async function requestUserAttention_() {
@@ -173,6 +170,11 @@
     await windowMap[selectedWindow].requestUserAttention(null)
   }
 
+  $: {
+    windowMap[selectedWindow]
+    loadWindowPosition()
+    loadWindowSize()
+  }
   $: windowMap[selectedWindow]?.setResizable(resizable)
   $: maximized
     ? windowMap[selectedWindow]?.maximize()
@@ -181,18 +183,22 @@
   $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
   $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
-  $: windowMap[selectedWindow]?.setSize(new PhysicalSize(width, height))
+  $: width &&
+    height &&
+    windowMap[selectedWindow]?.setSize(new PhysicalSize(width, height))
   $: minWidth && minHeight
     ? windowMap[selectedWindow]?.setMinSize(
         new LogicalSize(minWidth, minHeight)
       )
     : windowMap[selectedWindow]?.setMinSize(null)
-  $: maxWidth && maxHeight
+  $: maxWidth > 800 && maxHeight > 400
     ? windowMap[selectedWindow]?.setMaxSize(
         new LogicalSize(maxWidth, maxHeight)
       )
     : windowMap[selectedWindow]?.setMaxSize(null)
-  $: windowMap[selectedWindow]?.setPosition(new PhysicalPosition(x, y))
+  $: x !== null &&
+    y !== null &&
+    windowMap[selectedWindow]?.setPosition(new PhysicalPosition(x, y))
   $: windowMap[selectedWindow]
     ?.scaleFactor()
     .then((factor) => (scaleFactor = factor))
@@ -201,9 +207,11 @@
   $: windowMap[selectedWindow]?.setCursorGrab(cursorGrab)
   $: windowMap[selectedWindow]?.setCursorVisible(cursorVisible)
   $: windowMap[selectedWindow]?.setCursorIcon(cursorIcon)
-  $: windowMap[selectedWindow]?.setCursorPosition(
-    new PhysicalPosition(cursorX, cursorY)
-  )
+  $: cursorX !== null &&
+    cursorY !== null &&
+    windowMap[selectedWindow]?.setCursorPosition(
+      new PhysicalPosition(cursorX, cursorY)
+    )
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -319,7 +327,7 @@
       <div class="flex children:grow flex-col">
         <div>
           Max width
-          <input class="input" type="number" bind:value={maxWidth} min="400" />
+          <input class="input" type="number" bind:value={maxWidth} min="800" />
         </div>
         <div>
           Max height

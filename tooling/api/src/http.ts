@@ -173,9 +173,14 @@ class Body {
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: Iterable<number> | ArrayLike<number>): Body {
+  static bytes(
+    bytes: Iterable<number> | ArrayLike<number> | ArrayBuffer
+  ): Body {
     // stringifying Uint8Array doesn't return an array of numbers, so we create one here
-    return new Body('Bytes', Array.from(bytes))
+    return new Body(
+      'Bytes',
+      Array.from(bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes)
+    )
   }
 }
 

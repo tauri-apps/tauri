@@ -112,7 +112,7 @@ interface FsTextFileOption {
   contents: string
 }
 
-type BinaryFileContents = Iterable<number> | ArrayLike<number>
+type BinaryFileContents = Iterable<number> | ArrayLike<number> | ArrayBuffer
 
 /** Options object used to write a binary data to a file. */
 interface FsBinaryFileOption {
@@ -352,7 +352,11 @@ async function writeBinaryFile(
     message: {
       cmd: 'writeFile',
       path: file.path,
-      contents: Array.from(file.contents),
+      contents: Array.from(
+        file.contents instanceof ArrayBuffer
+          ? new Uint8Array(file.contents)
+          : file.contents
+      ),
       options: fileOptions
     }
   })

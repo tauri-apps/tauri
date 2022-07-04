@@ -277,7 +277,7 @@ pub fn notarize(
 
   let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
   notarize_status.push('\n');
-  notarize_status.push(std::str::from_utf8(&output.stderr)?.to_string());
+  notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
   notarize_status.push('\n');
   println!("notarize status: {:?}", notarize_status);
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?

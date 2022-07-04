@@ -103,7 +103,10 @@ impl Runtime {
     F::Output: Send + 'static,
   {
     match self {
-      Self::Tokio(r) => JoinHandle::Tokio(r.spawn(task)),
+      Self::Tokio(r) => {
+        let _guard = r.enter();
+        JoinHandle::Tokio(tokio::spawn(task))
+      }
     }
   }
 
@@ -193,7 +196,10 @@ impl RuntimeHandle {
     F::Output: Send + 'static,
   {
     match self {
-      Self::Tokio(h) => JoinHandle::Tokio(h.spawn(task)),
+      Self::Tokio(h) => {
+        let _guard = h.enter();
+        JoinHandle::Tokio(tokio::spawn(task))
+      }
     }
   }
 

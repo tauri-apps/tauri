@@ -731,13 +731,13 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Exit => {
-        app_handle.cleanup_before_exit();
         on_event_loop_event(
           &app_handle,
           RuntimeRunEvent::Exit,
           &manager,
           Some(&mut callback),
         );
+        app_handle.cleanup_before_exit();
       }
       _ => {
         on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));

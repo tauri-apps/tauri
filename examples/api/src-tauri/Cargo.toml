@@ -31,6 +31,10 @@ features = [
   "updater"
 ]
 
+[target."cfg(target_os = \"windows\")".dependencies]
+window-vibrancy = "0.1"
+window-shadows= "0.1"
+
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

@@ -2,7 +2,7 @@
   "extends": ["config:base"],
   "schedule": "after 3am on Wednesday",
   "ignorePaths": [],
-  "labels": ["chore"],
+  "labels": ["type: chore"],
   "enabledManagers": ["cargo", "npm"],
   "cargo": {
     "enabled": true

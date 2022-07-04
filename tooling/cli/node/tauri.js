@@ -43,4 +43,7 @@ if (binStem === 'node' || binStem === 'nodejs') {
   arguments.unshift(bin)
 }
 
-cli.run(arguments, binName)
+cli.run(arguments, binName).catch((err) => {
+  cli.logError(err.message)
+  process.exit(1)
+})

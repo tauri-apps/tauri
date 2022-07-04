@@ -79,20 +79,28 @@
   }
 </script>
 
-<form on:submit|preventDefault={read}>
-  <select class="button" id="dir">
-    <option value="">None</option>
-    {#each DirOptions as dir}
-      <option value={dir[1]}>{dir[0]}</option>
-    {/each}
-  </select>
-  <input
-    id="path-to-read"
-    placeholder="Type the path to read..."
-    bind:value={pathToRead}
-  />
-  <button class="button" id="read">Read</button>
-  <button class="button" type="button" on:click={setSrc}>Use as img src</button>
-
-  <img alt="file" bind:this={img} />
+<form class="flex flex-col" on:submit|preventDefault={read}>
+  <div class="flex gap-1">
+    <select class="input" id="dir">
+      <option value="">None</option>
+      {#each DirOptions as dir}
+        <option value={dir[1]}>{dir[0]}</option>
+      {/each}
+    </select>
+    <input
+      class="input grow"
+      id="path-to-read"
+      placeholder="Type the path to read..."
+      bind:value={pathToRead}
+    />
+  </div>
+  <br />
+  <div>
+    <button class="btn" id="read">Read</button>
+    <button class="btn" type="button" on:click={setSrc}>Use as img src</button>
+  </div>
 </form>
+
+<br />
+
+<img alt="" bind:this={img} />

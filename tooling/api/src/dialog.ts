@@ -207,8 +207,8 @@ async function message(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -237,8 +237,8 @@ async function ask(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'askDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -267,8 +267,8 @@ async function confirm(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'confirmDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })

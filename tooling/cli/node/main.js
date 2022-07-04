@@ -1,4 +1,4 @@
-const { run } = require('./index')
+const { run, logError } = require('./index')
 
 module.exports.run = (args, binName) => {
   return new Promise((resolve, reject) => {
@@ -11,3 +11,5 @@ module.exports.run = (args, binName) => {
     })
   })
 }
+
+module.exports.logError = logError

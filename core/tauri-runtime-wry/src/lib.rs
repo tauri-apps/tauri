@@ -1162,16 +1162,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       self.window_id,
       WindowMessage::AddEventListener(id, Box::new(f)),
     ));
-    /* self
-    .context
-    .window_event_listeners
-    .lock()
-    .unwrap()
-    .get(&self.window_id)
-    .unwrap()
-    .lock()
-    .unwrap()
-    .insert(id, Box::new(f));*/
     id
   }
 
@@ -2299,7 +2289,7 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::Theme(tx) => {
               #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();
-              #[cfg(not(windows))]
+              #[cfg(not(any(windows, target_os = "macos")))]
               tx.send(Theme::Light).unwrap();
             }
             // Setters
@@ -2403,13 +2393,14 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::WebviewEvent(event) => {
-        if let Some(window) = windows
+        let window_event_listeners = windows
           .lock()
           .expect("poisoned webview collection")
           .get(&id)
-        {
+          .map(|w| w.window_event_listeners.clone());
+        if let Some(window_event_listeners) = window_event_listeners {
           if let Some(event) = WindowEventWrapper::from(&event).0 {
-            let listeners = window.window_event_listeners.lock().unwrap();
+            let listeners = window_event_listeners.lock().unwrap();
             let handlers = listeners.values();
             for handler in handlers {
               handler(&event);
@@ -3013,9 +3004,13 @@ fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropH
   Box::new(move |window, event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
-    let windows = windows.lock().unwrap();
-    if let Some(window) = windows.get(&webview_id_map.get(&window.id())) {
-      let listeners_map = window.window_event_listeners.lock().unwrap();
+    let window_event_listeners = windows
+      .lock()
+      .unwrap()
+      .get(&webview_id_map.get(&window.id()))
+      .map(|w| w.window_event_listeners.clone());
+    if let Some(window_event_listeners) = window_event_listeners {
+      let listeners_map = window_event_listeners.lock().unwrap();
       let has_listener = !listeners_map.is_empty();
       let handlers = listeners_map.values();
       for listener in handlers {

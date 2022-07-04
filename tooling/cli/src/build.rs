@@ -7,7 +7,6 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, AppUrl, WindowUrl},
-    manifest::rewrite_manifest,
     updater_signature::sign_file_from_env_variables,
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -55,7 +54,7 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let merge_config = if let Some(config) = &options.config {
+  options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
       config.to_string()
     } else {
@@ -68,9 +67,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let config = get_config(merge_config.as_deref())?;
-
-  let manifest = rewrite_manifest(config.clone())?;
+  let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -114,7 +111,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
       if !status.success() {
         bail!(
-          "beforeDevCommand `{}` failed with exit code {}",
+          "beforeBuildCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
         );
@@ -210,7 +207,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let settings = app_settings
-      .get_bundler_settings(&options.into(), &manifest, config_, out_dir, package_types)
+      .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
 
     // set env vars used by the bundler
@@ -229,13 +226,13 @@ pub fn command(mut options: Options) -> Result<()> {
             "TRAY_LIBRARY_PATH",
             if tray == "ayatana" {
               format!(
-                "{}/libayatana-appindicator3.so",
+                "{}/libayatana-appindicator3.so.1",
                 pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
                   .expect("failed to get ayatana-appindicator library path using pkg-config.")
               )
             } else {
               format!(
-                "{}/libappindicator3.so",
+                "{}/libappindicator3.so.1",
                 pkgconfig_utils::get_library_path("appindicator3-0.1")
                   .expect("failed to get libappindicator-gtk library path using pkg-config.")
               )
@@ -248,9 +245,9 @@ pub fn command(mut options: Options) -> Result<()> {
           );
         }
       }
-    }
-    if config_.tauri.bundle.appimage.bundle_media_framework {
-      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      if config_.tauri.bundle.appimage.bundle_media_framework {
+        std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      }
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
@@ -301,9 +298,9 @@ mod pkgconfig_utils {
 
   pub fn get_appindicator_library_path() -> PathBuf {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{}/libayatana-appindicator3.so", p).into(),
+      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{}/libappindicator3.so", p).into(),
+        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
         None => panic!("Can't detect any appindicator library"),
       },
     }

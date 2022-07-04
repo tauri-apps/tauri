@@ -8,9 +8,9 @@
 )]
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/navigation/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/navigation/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

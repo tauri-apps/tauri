@@ -409,6 +409,8 @@ pub struct WixConfig {
 
 /// Install modes for the Webview2 runtime.
 /// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
+///
+/// For more information see <https://tauri.app/v1/guides/building/windows>.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2128,6 +2130,8 @@ pub enum WindowsUpdateInstallMode {
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
+  // to add more modes, we need to check if the updater relaunch makes sense
+  // i.e. for a full UI mode, the user can also mark the installer to start the app
 }
 
 impl WindowsUpdateInstallMode {

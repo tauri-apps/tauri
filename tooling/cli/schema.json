@@ -2409,6 +2409,11 @@
           "description": "A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.",
           "default": false,
           "type": "boolean"
+        },
+        "menuOnLeftClick": {
+          "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
+          "default": true,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

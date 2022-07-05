@@ -1911,7 +1911,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     #[cfg(target_os = "macos")]
     {
-      tray_builder = tray_builder.with_icon_as_template(system_tray.icon_as_template);
+      tray_builder = tray_builder
+        .with_icon_as_template(system_tray.icon_as_template)
+        .with_menu_on_left_click(system_tray.menu_on_left_click);
     }
 
     let tray = tray_builder
@@ -2843,6 +2845,12 @@ fn create_webview<T: UserEvent>(
   #[cfg(target_os = "macos")]
   {
     window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
+  }
+  #[cfg(windows)]
+  {
+    window_builder.inner = window_builder
+      .inner
+      .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
   let is_window_transparent = window_builder.inner.window.transparent;

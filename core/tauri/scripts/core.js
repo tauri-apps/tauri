@@ -251,7 +251,7 @@
       __tauriModule: 'Dialog',
       message: {
         cmd: 'messageDialog',
-        message: message
+        message: message.toString()
       }
     })
   }
@@ -261,7 +261,7 @@
       __tauriModule: 'Dialog',
       message: {
         cmd: 'confirmDialog',
-        message: message
+        message: message.toString()
       }
     })
   }

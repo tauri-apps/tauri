@@ -529,15 +529,15 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Hides the window.
   fn hide(&self) -> Result<()>;
 
-  /// Shows the application on MacOS (independent of current window).
+  /// Shows the application on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   fn show_application(&self) -> crate::Result<()>;
 
-  /// Hides the application on MacOS (independent of current window).
+  /// Hides the application on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   fn hide_application(&self) -> crate::Result<()>;
 
-  /// Sets the activation policy at runtime on MacOS (independent of current window).
+  /// Sets the activation policy at runtime on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   fn set_activation_policy_at_runtime(
     &self,

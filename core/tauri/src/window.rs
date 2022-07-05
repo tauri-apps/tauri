@@ -1061,7 +1061,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.hide().map_err(Into::into)
   }
 
-  /// Shows the application on MacOS (independent of current window).
+  /// Shows the application on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   pub fn show_application(&self) -> crate::Result<()> {
     self
@@ -1071,7 +1071,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Hides the application on MacOS (independent of current window).
+  /// Hides the application on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   pub fn hide_application(&self) -> crate::Result<()> {
     self
@@ -1081,7 +1081,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Sets the activation policy at runtime on MacOS (independent of current window).
+  /// Sets the activation policy at runtime on macOS (independent of current window).
   #[cfg(target_os = "macos")]
   pub fn set_activation_policy_at_runtime(
     &self,

@@ -10,12 +10,54 @@ use serde_json::Value as JsonValue;
 pub use tauri_utils::config::*;
 
 use std::{
+  collections::HashMap,
   env::set_var,
   process::exit,
   sync::{Arc, Mutex},
 };
 
-pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
+pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
+
+pub struct ConfigMetadata {
+  /// The actual configuration, merged with any extension.
+  inner: Config,
+  /// The config extensions (platform-specific config files or the config CLI argument).
+  /// Maps the extension name to its value.
+  extensions: HashMap<&'static str, JsonValue>,
+}
+
+impl std::ops::Deref for ConfigMetadata {
+  type Target = Config;
+
+  #[inline(always)]
+  fn deref(&self) -> &Config {
+    &self.inner
+  }
+}
+
+impl ConfigMetadata {
+  /// Checks which config is overwriting the bundle identifier.
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<&'static str> {
+    for (ext, config) in &self.extensions {
+      if let Some(identifier) = config
+        .as_object()
+        .and_then(|config| config.get("tauri"))
+        .and_then(|tauri_config| tauri_config.as_object())
+        .and_then(|tauri_config| tauri_config.get("bundle"))
+        .and_then(|bundle_config| bundle_config.as_object())
+        .and_then(|bundle_config| bundle_config.get("identifier"))
+        .and_then(|id| id.as_str())
+      {
+        if identifier == self.inner.tauri.bundle.identifier {
+          return Some(ext);
+        }
+      }
+    }
+    None
+  }
+}
+
+pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
@@ -63,13 +105,24 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     return Ok(config_handle().clone());
   }
 
-  let mut config = tauri_utils::config::parse::read_from(super::app_paths::tauri_dir())?;
+  let tauri_dir = super::app_paths::tauri_dir();
+  let mut config = tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?;
+  let mut extensions = HashMap::new();
+
+  if let Some(platform_config) = tauri_utils::config::parse::read_platform(tauri_dir)? {
+    merge(&mut config, &platform_config);
+    extensions.insert(
+      tauri_utils::config::parse::get_platform_config_filename(),
+      platform_config,
+    );
+  }
 
   if let Some(merge_config) = merge_config {
     let merge_config: JsonValue =
       serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
-  }
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME, merge_config);
+  };
 
   let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
   let mut scope = valico::json_schema::Scope::new();
@@ -93,7 +146,11 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
 
   let config: Config = serde_json::from_value(config)?;
   set_var("TAURI_CONFIG", serde_json::to_string(&config)?);
-  *config_handle().lock().unwrap() = Some(config);
+
+  *config_handle().lock().unwrap() = Some(ConfigMetadata {
+    inner: config,
+    extensions,
+  });
 
   Ok(config_handle().clone())
 }

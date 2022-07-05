@@ -280,7 +280,6 @@ pub fn notarize(
   notarize_response.push('\n');
   notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
   notarize_response.push('\n');
-  println!("notarize response: {:?}", notarize_response);
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
     .captures_iter(&notarize_response)
     .next()
@@ -339,7 +338,6 @@ fn get_notarization_status(
     notarize_status.push('\n');
     notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
     notarize_status.push('\n');
-    println!("notarize status: {:?}", notarize_status);
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
       .captures_iter(&notarize_status)
       .next()

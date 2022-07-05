@@ -338,7 +338,6 @@ fn get_notarization_status(
     notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
     notarize_status.push('\n');
     println!("notarize status: {:?}", notarize_status);
-    stdout.push('\n');
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
       .captures_iter(&notarize_status)
       .next()

@@ -794,21 +794,27 @@ impl<R: Runtime> App<R> {
     // check if updater is active or not
     if updater_config.active {
       if updater_config.dialog {
-        // if updater dialog is enabled spawn a new task
-        self.run_updater_dialog();
-        // When dialog is enabled, if user want to recheck
-        // if an update is available after first start
-        // invoke the Event `tauri://update` from JS or rust side.
-        handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
-          let handle = handle_.clone();
-          // re-spawn task inside tokyo to launch the download
-          // we don't need to emit anything as everything is handled
-          // by the process (user is asked to restart at the end)
-          // and it's handled by the updater
-          crate::async_runtime::spawn(
-            async move { updater::check_update_with_dialog(handle).await },
-          );
-        });
+        #[cfg(not(target_os = "linux"))]
+        let updater_enabled = true;
+        #[cfg(target_os = "linux")]
+        let updater_enabled = cfg!(dev) || self.state::<Env>().appimage.is_some();
+        if updater_enabled {
+          // if updater dialog is enabled spawn a new task
+          self.run_updater_dialog();
+          // When dialog is enabled, if user want to recheck
+          // if an update is available after first start
+          // invoke the Event `tauri://update` from JS or rust side.
+          handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
+            let handle = handle_.clone();
+            // re-spawn task inside tokyo to launch the download
+            // we don't need to emit anything as everything is handled
+            // by the process (user is asked to restart at the end)
+            // and it's handled by the updater
+            crate::async_runtime::spawn(
+              async move { updater::check_update_with_dialog(handle).await },
+            );
+          });
+        }
       } else {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
@@ -1346,12 +1352,12 @@ impl<R: Runtime> Builder<R> {
     let system_tray_icon = context.system_tray_icon.clone();
 
     #[cfg(all(feature = "system-tray", target_os = "macos"))]
-    let system_tray_icon_as_template = context
+    let (system_tray_icon_as_template, system_tray_menu_on_left_click) = context
       .config
       .tauri
       .system_tray
       .as_ref()
-      .map(|t| t.icon_as_template)
+      .map(|t| (t.icon_as_template, t.menu_on_left_click))
       .unwrap_or_default();
 
     #[cfg(shell_scope)]
@@ -1492,7 +1498,9 @@ impl<R: Runtime> Builder<R> {
         tray = tray.with_menu(menu);
       }
       #[cfg(target_os = "macos")]
-      let tray = tray.with_icon_as_template(system_tray_icon_as_template);
+      let tray = tray
+        .with_icon_as_template(system_tray_icon_as_template)
+        .with_menu_on_left_click(system_tray_menu_on_left_click);
 
       let tray_handler = app
         .runtime

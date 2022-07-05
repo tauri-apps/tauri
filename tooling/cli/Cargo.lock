@@ -2805,6 +2805,7 @@ dependencies = [
 name = "tauri-cli-node"
 version = "0.0.0"
 dependencies = [
+ "log",
  "napi",
  "napi-build",
  "napi-derive",

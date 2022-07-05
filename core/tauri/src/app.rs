@@ -1346,12 +1346,12 @@ impl<R: Runtime> Builder<R> {
     let system_tray_icon = context.system_tray_icon.clone();
 
     #[cfg(all(feature = "system-tray", target_os = "macos"))]
-    let system_tray_icon_as_template = context
+    let (system_tray_icon_as_template, system_tray_menu_on_left_click) = context
       .config
       .tauri
       .system_tray
       .as_ref()
-      .map(|t| t.icon_as_template)
+      .map(|t| (t.icon_as_template, t.menu_on_left_click))
       .unwrap_or_default();
 
     #[cfg(shell_scope)]
@@ -1492,7 +1492,9 @@ impl<R: Runtime> Builder<R> {
         tray = tray.with_menu(menu);
       }
       #[cfg(target_os = "macos")]
-      let tray = tray.with_icon_as_template(system_tray_icon_as_template);
+      let tray = tray
+        .with_icon_as_template(system_tray_icon_as_template)
+        .with_menu_on_left_click(system_tray_menu_on_left_click);
 
       let tray_handler = app
         .runtime

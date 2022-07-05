@@ -129,7 +129,8 @@
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
     }
   }
 }

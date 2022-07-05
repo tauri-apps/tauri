@@ -29,6 +29,23 @@ interface UpdateResult {
   shouldUpdate: boolean
 }
 
+/**
+ * Listen to an updater event.
+ * @example
+ * ```typescript
+ * import { onUpdaterEvent } from "@tauri-apps/api/updater";
+ * const unlisten = await onUpdaterEvent(({ error, status }) => {
+ *  console.log('Updater event', error, status);
+ * });
+ *
+ * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * unlisten();
+ * ```
+ *
+ * @param handler
+ * @returns A promise resolving to a function to unlisten to the event.
+ * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ */
 async function onUpdaterEvent(
   handler: (status: UpdateStatusResult) => void
 ): Promise<UnlistenFn> {

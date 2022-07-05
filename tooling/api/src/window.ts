@@ -290,9 +290,21 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const unlisten = await appWindow.listen<string>('state-changed', (event) => {
+   *   console.log(`Got error: ${payload}`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async listen<T>(
     event: EventName,
@@ -311,9 +323,21 @@ class WebviewWindowHandle {
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const unlisten = await appWindow.once<null>('initialized', (event) => {
+   *   console.log(`Window initialized!`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -328,6 +352,11 @@ class WebviewWindowHandle {
 
   /**
    * Emits an event to the backend, tied to the webview window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
@@ -1477,16 +1506,21 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to window resize.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onResized(({ payload: size }) => {
+   * const unlisten = await appWindow.onResized(({ payload: size }) => {
    *  console.log('Window resized', size);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>('tauri://resize', handler)
@@ -1494,16 +1528,21 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to window move.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onMoved(({ payload: position }) => {
+   * const unlisten = await appWindow.onMoved(({ payload: position }) => {
    *  console.log('Window moved', position);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>('tauri://move', handler)
@@ -1511,21 +1550,26 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to window close requested. Emitted when the user requests to closes the window.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
    * import { confirm } from '@tauri-apps/api/dialog';
-   * appWindow.onCloseRequested(async (event) => {
+   * const unlisten = await appWindow.onCloseRequested(async (event) => {
    *   const confirmed = await confirm('Are you sure?');
    *   if (!confirmed) {
    *     // user did not confirm closing the window; let's prevent it
    *     event.preventDefault();
    *   }
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void
@@ -1542,16 +1586,21 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to window focus change.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onFocusChanged(({ payload: focused }) => {
+   * const unlisten = await appWindow.onFocusChanged(({ payload: focused }) => {
    *  console.log('Focus changed, window is focused? ' + focused);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
@@ -1578,16 +1627,21 @@ class WindowManager extends WebviewWindowHandle {
    * - Changing the display's resolution.
    * - Changing the display's scale factor (e.g. in Control Panel on Windows).
    * - Moving the window to a display with a different scale factor.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onScaleChanged(({ payload }) => {
+   * const unlisten = await appWindow.onScaleChanged(({ payload }) => {
    *  console.log('Scale changed', payload.scaleFactor, payload.size);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
@@ -1597,16 +1651,21 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to the window menu item click. The payload is the item id.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onMenuClicked(({ payload: menuId }) => {
+   * const unlisten = await appWindow.onMenuClicked(({ payload: menuId }) => {
    *  console.log('Menu clicked: ' + menuId);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
     return this.listen<string>('tauri://menu', handler)
@@ -1616,10 +1675,11 @@ class WindowManager extends WebviewWindowHandle {
    * Listen to a file drop event.
    * The listener is triggered when the user hovers the selected files on the window,
    * drops the files or cancels the operation.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onFileDropEvent((event) => {
+   * const unlisten = await appWindow.onFileDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -1628,10 +1688,14 @@ class WindowManager extends WebviewWindowHandle {
    *    console.log('File drop cancelled');
    *  }
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
@@ -1666,16 +1730,21 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Listen to the system theme change.
+   *
    * @example
    * ```typescript
    * import { appWindow } from "@tauri-apps/api/window";
-   * appWindow.onThemeChanged(({ payload: theme }) => {
+   * const unlisten = await appWindow.onThemeChanged(({ payload: theme }) => {
    *  console.log('New theme: ' + theme);
    * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
    * ```
    *
    * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
     return this.listen<Theme>('tauri://theme-changed', handler)

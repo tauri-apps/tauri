@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, WindowUrl},
+    config::{get as get_config, AppUrl, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
     updater_signature::sign_file_from_env_variables,
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -54,15 +54,22 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  options.config = if let Some(config) = &options.config {
-    Some(if config.starts_with('{') {
-      config.to_string()
+  let (merge_config, merge_config_path) = if let Some(config) = &options.config {
+    if config.starts_with('{') {
+      (Some(config.to_string()), None)
     } else {
-      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
-    })
+      (
+        Some(
+          std::fs::read_to_string(&config)
+            .with_context(|| "failed to read custom configuration")?,
+        ),
+        Some(config.clone()),
+      )
+    }
   } else {
-    None
+    (None, None)
   };
+  options.config = merge_config;
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
@@ -72,8 +79,19 @@ pub fn command(mut options: Options) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
+    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => {
+      merge_config_path.unwrap_or_else(|| source.into())
+    }
+    Some(source) => source.into(),
+    None => "tauri.conf.json".into(),
+  };
+
   if config_.tauri.bundle.identifier == "com.tauri.dev" {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    error!(
+      "You must change the bundle identifier in `{} > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      bundle_identifier_source
+    );
     std::process::exit(1);
   }
 
@@ -84,7 +102,11 @@ pub fn command(mut options: Options) -> Result<()> {
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).");
+    error!(
+      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
+      config_.tauri.bundle.identifier,
+      bundle_identifier_source
+    );
     std::process::exit(1);
   }
 

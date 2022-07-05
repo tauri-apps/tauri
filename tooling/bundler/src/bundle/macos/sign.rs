@@ -275,13 +275,13 @@ pub fn notarize(
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
-  notarize_status.push('\n');
-  notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
-  notarize_status.push('\n');
-  println!("notarize status: {:?}", notarize_status);
+  let mut notarize_response = std::str::from_utf8(&output.stdout)?.to_string();
+  notarize_response.push('\n');
+  notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
+  notarize_response.push('\n');
+  println!("notarize response: {:?}", notarize_response);
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(&notarize_status)
+    .captures_iter(&notarize_response)
     .next()
   {
     info!("notarization started; waiting for Apple response...");
@@ -293,7 +293,7 @@ pub fn notarize(
     return Err(
       anyhow::anyhow!(
         "failed to parse RequestUUID from upload output. {}",
-        notarize_status
+        notarize_response
       )
       .into(),
     );
@@ -333,10 +333,14 @@ fn get_notarization_status(
     .output_ok();
 
   if let Ok(output) = result {
-    let mut stdout = std::str::from_utf8(&output.stdout)?.to_string();
+    let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
+    notarize_status.push('\n');
+    notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
+    notarize_status.push('\n');
+    println!("notarize status: {:?}", notarize_status);
     stdout.push('\n');
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
-      .captures_iter(&stdout)
+      .captures_iter(&notarize_status)
       .next()
     {
       let status = status[1].to_string();
@@ -346,7 +350,7 @@ fn get_notarization_status(
         Err(
           anyhow::anyhow!(format!(
             "Apple failed to notarize your app. {}",
-            std::str::from_utf8(&output.stdout)?
+            notarize_status
           ))
           .into(),
         )
@@ -354,8 +358,7 @@ fn get_notarization_status(
         Err(
           anyhow::anyhow!(format!(
             "Unknown notarize status {}. {}",
-            status,
-            std::str::from_utf8(&output.stdout)?
+            status, notarize_status
           ))
           .into(),
         )

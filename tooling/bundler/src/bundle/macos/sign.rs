@@ -275,6 +275,7 @@ pub fn notarize(
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
+  // combine both stdout and stderr to support macOS below 10.15
   let mut notarize_response = std::str::from_utf8(&output.stdout)?.to_string();
   notarize_response.push('\n');
   notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
@@ -333,6 +334,7 @@ fn get_notarization_status(
     .output_ok();
 
   if let Ok(output) = result {
+    // combine both stdout and stderr to support macOS below 10.15
     let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
     notarize_status.push('\n');
     notarize_status.push_str(std::str::from_utf8(&output.stderr)?);

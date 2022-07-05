@@ -2844,7 +2844,7 @@ fn create_webview<T: UserEvent>(
   {
     window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
   }
-  #[cfg(target_os = "windows")]
+  #[cfg(windows)]
   {
     window_builder.inner = window_builder
       .inner

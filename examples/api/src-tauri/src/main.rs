@@ -214,24 +214,27 @@ fn main() {
       event: WindowEvent::CloseRequested { api, .. },
       ..
     } => {
-      let app_handle = app_handle.clone();
-      let window = app_handle.get_window(&label).unwrap();
-      // use the exposed close api, and prevent the event loop to close
-      api.prevent_close();
-      // ask the user if he wants to quit
-      ask(
-        Some(&window),
-        "Tauri API",
-        "Are you sure that you want to close this window?",
-        move |answer| {
-          if answer {
-            // .close() cannot be called on the main thread
-            std::thread::spawn(move || {
-              app_handle.get_window(&label).unwrap().close().unwrap();
-            });
-          }
-        },
-      );
+      // for other windows, we handle it in JS
+      if label == "main" {
+        let app_handle = app_handle.clone();
+        let window = app_handle.get_window(&label).unwrap();
+        // use the exposed close api, and prevent the event loop to close
+        api.prevent_close();
+        // ask the user if he wants to quit
+        ask(
+          Some(&window),
+          "Tauri API",
+          "Are you sure that you want to close this window?",
+          move |answer| {
+            if answer {
+              // .close() cannot be called on the main thread
+              std::thread::spawn(move || {
+                app_handle.get_window(&label).unwrap().close().unwrap();
+              });
+            }
+          },
+        );
+      }
     }
 
     // Keep the event loop running even if all windows are closed

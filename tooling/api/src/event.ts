@@ -19,6 +19,7 @@ import type {
 
 /**
  * Listen to an event from the backend.
+ *
  * @example
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
@@ -26,13 +27,14 @@ import type {
  *   console.log(`Got error in window ${event.windowLabel}, payload: ${payload}`);
  * });
  *
- * // removes the listener later
- * await unlisten();
+ * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
  * @return A promise resolving to a function to unlisten to the event.
+ * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  */
 async function listen<T>(
   event: EventName,
@@ -43,6 +45,7 @@ async function listen<T>(
 
 /**
  * Listen to an one-off event from the backend.
+ *
  * @example
  * ```typescript
  * import { once } from '@tauri-apps/api/event';
@@ -53,11 +56,15 @@ async function listen<T>(
  * const unlisten = await once<LoadedPayload>('loaded', (event) => {
  *   console.log(`App is loaded, logggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
  * });
+ *
+ * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * unlisten();
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
  * @returns A promise resolving to a function to unlisten to the event.
+ * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
  */
 async function once<T>(
   event: EventName,

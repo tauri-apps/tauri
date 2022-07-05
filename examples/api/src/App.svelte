@@ -22,8 +22,18 @@
   import { listen } from '@tauri-apps/api/event'
   import { ask } from '@tauri-apps/api/dialog'
 
-  appWindow.listen('tauri://file-drop', function (event) {
-    onMessage(`File drop: ${event.payload}`)
+  if (appWindow.label !== 'main') {
+    appWindow.onCloseRequested(async (event) => {
+      const confirmed = await confirm('Are you sure?')
+      if (!confirmed) {
+        // user did not confirm closing the window; let's prevent it
+        event.preventDefault()
+      }
+    })
+  }
+
+  appWindow.onFileDropEvent((event) => {
+    onMessage(`File drop: ${JSON.stringify(event.payload)}`)
   })
 
   const views = [

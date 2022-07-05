@@ -185,13 +185,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
 
-  let config: Config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
-    serde_json::from_str(&env)?
-  } else {
-    serde_json::from_value(tauri_utils::config::parse::read_from(
-      std::env::current_dir().unwrap(),
-    )?)?
-  };
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    std::env::current_dir().unwrap(),
+  )?)?;
+  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
+  let config: Config = serde_json::from_value(config)?;
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 

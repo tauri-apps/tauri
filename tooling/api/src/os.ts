@@ -26,7 +26,8 @@
 import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
 
-type Platform = 'linux'
+type Platform =
+  | 'linux'
   | 'darwin'
   | 'ios'
   | 'freebsd'
@@ -39,7 +40,8 @@ type Platform = 'linux'
 
 type OsType = 'Linux' | 'Darwin' | 'Windows_NT'
 
-type Arch = 'x86'
+type Arch =
+  | 'x86'
   | 'x86_64'
   | 'arm'
   | 'aarch64'

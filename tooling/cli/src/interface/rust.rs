@@ -155,7 +155,10 @@ impl Interface for Rust {
       .features
       .get_or_insert(Vec::new())
       .push("custom-protocol".into());
-    std::env::set_var("STATIC_VCRUNTIME", "true");
+
+    if !std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "false") {
+      std::env::set_var("STATIC_VCRUNTIME", "true");
+    }
 
     if options.target == Some("universal-apple-darwin".into()) {
       std::fs::create_dir_all(&out_dir)

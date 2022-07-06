@@ -131,16 +131,24 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   let state = schema.validate(&config);
   if !state.errors.is_empty() {
     for error in state.errors {
-      eprintln!(
-        "`tauri.conf.json` error on `{}`: {}",
-        error
-          .get_path()
-          .chars()
-          .skip(1)
-          .collect::<String>()
-          .replace('/', " > "),
-        error.get_detail().unwrap_or_else(|| error.get_title()),
-      );
+      let path = error
+        .get_path()
+        .chars()
+        .skip(1)
+        .collect::<String>()
+        .replace('/', " > ");
+      if path.is_empty() {
+        eprintln!(
+          "`tauri.conf.json` error: {}",
+          error.get_detail().unwrap_or_else(|| error.get_title()),
+        );
+      } else {
+        eprintln!(
+          "`tauri.conf.json` error on `{}`: {}",
+          path,
+          error.get_detail().unwrap_or_else(|| error.get_title()),
+        );
+      }
     }
     exit(1);
   }

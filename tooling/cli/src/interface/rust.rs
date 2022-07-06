@@ -14,7 +14,7 @@ use std::{
     mpsc::channel,
     Arc, Mutex,
   },
-  time::Duration,
+  time::{Duration, Instant},
 };
 
 use anyhow::Context;
@@ -126,8 +126,13 @@ impl Interface for Rust {
       let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
       watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
       let manifest = rewrite_manifest(config)?;
+      let now = Instant::now();
+      let timeout = Duration::from_secs(2);
       loop {
-        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.recv() {
+        if now.elapsed() >= timeout {
+          break;
+        }
+        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.try_recv() {
           break;
         }
       }

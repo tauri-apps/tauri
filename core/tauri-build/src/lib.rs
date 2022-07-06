@@ -169,7 +169,15 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    panic!("error found during tauri-build: {:#?}", error);
+    let error = format!("{:#}", error);
+    println!("{}", error);
+    if error.starts_with("unknown field") {
+      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
+      println!(
+        "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
+      );
+    }
+    std::process::exit(1);
   }
 }
 

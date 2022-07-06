@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.3]
+
+- Add `#[doc(hidden)]` attribute to the `#[command]` generated macro.
+  - [d4cdf807](https://www.github.com/tauri-apps/tauri/commit/d4cdf80781a7955ac620fe6d394e82d067178c4d) feat(macros): hide command macro from docs, closes [#4550](https://www.github.com/tauri-apps/tauri/pull/4550) ([#4556](https://www.github.com/tauri-apps/tauri/pull/4556)) on 2022-07-01
+
 ## \[1.0.2]
 
 - Expose `platform::windows_version` function.

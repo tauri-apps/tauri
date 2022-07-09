@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use heck::AsShoutySnakeCase;
+use heck::AsSnakeCase;
 use heck::ToSnakeCase;
+
 use once_cell::sync::OnceCell;
 
 use std::{path::Path, sync::Mutex};
@@ -19,12 +22,9 @@ fn has_feature(feature: &str) -> bool {
 
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!(
-    "CARGO_FEATURE_{}",
-    feature.to_snake_case().to_uppercase()
-  ))
-  .map(|x| x == "1")
-  .unwrap_or(false)
+  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
+    .map(|x| x == "1")
+    .unwrap_or(false)
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -148,11 +148,11 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   for api in apis {
     let has = has_feature(&format!("{}-{}", module, api)) || all;
     alias(
-      &format!("{}_{}", module.to_snake_case(), api.to_snake_case()),
+      &format!("{}_{}", AsSnakeCase(module), AsSnakeCase(api)),
       has,
     );
     any = any || has;
   }
 
-  alias(&format!("{}_any", module.to_snake_case()), any);
+  alias(&format!("{}_any", AsSnakeCase(module)), any);
 }

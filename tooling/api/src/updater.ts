@@ -10,7 +10,7 @@
  */
 
 import { once, listen, emit } from './event'
-import { UnlistenFn } from "./helpers/event"
+import { UnlistenFn } from './helpers/event'
 
 type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 

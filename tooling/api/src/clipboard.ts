@@ -5,14 +5,14 @@
 /**
  * Read and write to the system clipboard.
  *
- * This package is also accessible with `window.__TAURI__.clipboard` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.clipboard` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
 
 /**
- * Writes a plain text to the clipboard.
+ * Writes plain text to the clipboard.
  * @example
  * ```typescript
  * import { writeText, readText } from '@tauri-apps/api/clipboard';

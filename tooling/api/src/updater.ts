@@ -30,7 +30,41 @@ interface UpdateResult {
 }
 
 /**
+ * Listen to an updater event.
+ * @example
+ * ```typescript
+ * import { onUpdaterEvent } from "@tauri-apps/api/updater";
+ * const unlisten = await onUpdaterEvent(({ error, status }) => {
+ *  console.log('Updater event', error, status);
+ * });
+ *
+ * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+ * unlisten();
+ * ```
+ *
+ * @param handler
+ * @returns A promise resolving to a function to unlisten to the event.
+ * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ */
+async function onUpdaterEvent(
+  handler: (status: UpdateStatusResult) => void
+): Promise<UnlistenFn> {
+  return listen('tauri://update-status', (data: { payload: any }) => {
+    handler(data?.payload as UpdateStatusResult)
+  })
+}
+
+/**
  * Install the update if there's one available.
+ * @example
+ * ```typescript
+ * import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * if (update.shouldUpdate) {
+ *   console.log(`Installing update ${update.manifest?.version}, ${update.manifest?.date}, ${update.manifest.body}`);
+ *   await installUpdate();
+ * }
+ * ```
  *
  * @return A promise indicating the success or failure of the operation.
  */
@@ -59,9 +93,7 @@ async function installUpdate(): Promise<void> {
     }
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -83,6 +115,12 @@ async function installUpdate(): Promise<void> {
 
 /**
  * Checks if an update is available.
+ * @example
+ * ```typescript
+ * import { checkUpdate } from '@tauri-apps/api/updater';
+ * const update = await checkUpdate();
+ * // now run installUpdate() if needed
+ * ```
  *
  * @return Promise resolving to the update status.
  */
@@ -129,9 +167,7 @@ async function checkUpdate(): Promise<UpdateResult> {
     })
 
     // listen status change
-    listen('tauri://update-status', (data: { payload: any }) => {
-      onStatusChange(data?.payload as UpdateStatusResult)
-    })
+    onUpdaterEvent(onStatusChange)
       .then((fn) => {
         unlistenerFn = fn
       })
@@ -152,4 +188,4 @@ async function checkUpdate(): Promise<UpdateResult> {
 
 export type { UpdateStatus, UpdateStatusResult, UpdateManifest, UpdateResult }
 
-export { installUpdate, checkUpdate }
+export { onUpdaterEvent, installUpdate, checkUpdate }

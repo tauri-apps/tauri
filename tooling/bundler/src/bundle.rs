@@ -25,7 +25,7 @@ pub use self::{
 use log::{info, warn};
 pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
-use std::path::PathBuf;
+use std::{fmt::Write, path::PathBuf};
 
 /// Generated bundle metadata.
 #[derive(Debug)]
@@ -49,7 +49,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi => windows::msi::bundle_project(&settings)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
@@ -86,7 +86,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       if bundle.package_type == crate::PackageType::Updater {
         note = " (updater)";
       }
-      printable_paths.push_str(&format!("        {}{}\n", path.display(), note));
+      writeln!(printable_paths, "        {}{}", path.display(), note).unwrap();
     }
   }
 

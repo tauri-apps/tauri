@@ -125,26 +125,48 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
 // No assets are replaced
 #[cfg(target_os = "windows")]
 fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  // find our .msi or rebuild
-  let mut bundle_paths = bundles
-    .iter()
-    .find(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
-    .map(|bundle| bundle.bundle_paths.clone())
-    .unwrap_or_default();
+  use crate::bundle::settings::WebviewInstallMode;
 
-  // we expect our .msi files to be on `bundle_paths`
-  if bundle_paths.is_empty() {
-    bundle_paths.extend(msi::bundle_project(settings)?);
-  }
+  // find our .msi or rebuild
+  let bundle_paths = if matches!(
+    settings.windows().webview_install_mode,
+    WebviewInstallMode::OfflineInstaller { .. } | WebviewInstallMode::EmbedBootstrapper { .. }
+  ) {
+    msi::bundle_project(settings, true)?
+  } else {
+    let paths = bundles
+      .iter()
+      .find(|bundle| bundle.package_type == crate::PackageType::WindowsMsi)
+      .map(|bundle| bundle.bundle_paths.clone())
+      .unwrap_or_default();
+
+    // we expect our .msi files to be on `bundle_paths`
+    if paths.is_empty() {
+      msi::bundle_project(settings, false)?
+    } else {
+      paths
+    }
+  };
 
   let mut msi_archived_paths = Vec::new();
 
   for source_path in bundle_paths {
     // add .zip to our path
-    let msi_archived = format!("{}.zip", source_path.display());
-    let msi_archived_path = PathBuf::from(&msi_archived);
+    let msi_archived_path = source_path
+      .components()
+      .fold(PathBuf::new(), |mut p, c| {
+        if let std::path::Component::Normal(name) = c {
+          if name == msi::MSI_UPDATER_FOLDER_NAME {
+            p.push(msi::MSI_FOLDER_NAME);
+            return p;
+          }
+        }
+        p.push(c);
+        p
+      })
+      .with_extension("msi.zip");
 
-    info!(action = "Bundling"; "{} ({})", msi_archived, msi_archived_path.display());
+    info!(action = "Bundling"; "{}", msi_archived_path.display());
 
     // Create our gzip file
     create_zip(&source_path, &msi_archived_path).with_context(|| "Failed to zip update MSI")?;

@@ -8,9 +8,9 @@ pub use crate::{
       MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
     },
     window::dpi::{PhysicalPosition, PhysicalSize},
-    SystemTray, TrayIcon,
+    SystemTray,
   },
-  Runtime,
+  Icon, Runtime,
 };
 
 use tauri_macros::default_runtime;
@@ -119,7 +119,9 @@ impl<R: Runtime> Clone for SystemTrayMenuItemHandle<R> {
 impl<R: Runtime> SystemTrayHandle<R> {
   /// Gets a handle to the menu item that has the specified `id`.
   pub fn get_item(&self, id: MenuIdRef<'_>) -> SystemTrayMenuItemHandle<R> {
-    for (raw, item_id) in self.ids.lock().unwrap().iter() {
+    let ids = self.ids.lock().unwrap();
+    let iter = ids.iter();
+    for (raw, item_id) in iter {
       if item_id == id {
         return SystemTrayMenuItemHandle {
           id: *raw,
@@ -130,9 +132,9 @@ impl<R: Runtime> SystemTrayHandle<R> {
     panic!("item id not found")
   }
 
-  /// Updates the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
-  pub fn set_icon(&self, icon: TrayIcon) -> crate::Result<()> {
-    self.inner.set_icon(icon).map_err(Into::into)
+  /// Updates the tray icon.
+  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+    self.inner.set_icon(icon.try_into()?).map_err(Into::into)
   }
 
   /// Updates the tray menu.

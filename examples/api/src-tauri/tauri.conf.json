@@ -117,12 +117,7 @@
         "scope": ["http://localhost:3003"]
       }
     },
-    "windows": [
-      {
-        "title": "Tauri API Validation",
-        "transparent": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
@@ -134,7 +129,8 @@
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
     }
   }
 }

@@ -43,10 +43,15 @@ type Permission = 'granted' | 'denied' | 'default'
 
 /**
  * Checks if the permission to send notifications is granted.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted } from '@tauri-apps/api/notification';
+ * const permissionGranted = await isPermissionGranted();
+ * ```
  *
  * @returns
  */
-async function isPermissionGranted(): Promise<boolean | null> {
+async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
   }
@@ -60,6 +65,15 @@ async function isPermissionGranted(): Promise<boolean | null> {
 
 /**
  * Requests the permission to send notifications.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted, requestPermission } from '@tauri-apps/api/notification';
+ * let permissionGranted = await isPermissionGranted();
+ * if (!permissionGranted) {
+ *   const permission = await requestPermission();
+ *   permissionGranted = permission === 'granted';
+ * }
+ * ```
  *
  * @returns A promise resolving to whether the user granted the permission or not.
  */
@@ -69,6 +83,19 @@ async function requestPermission(): Promise<Permission> {
 
 /**
  * Sends a notification to the user.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
+ * let permissionGranted = await isPermissionGranted();
+ * if (!permissionGranted) {
+ *   const permission = await requestPermission();
+ *   permissionGranted = permission === 'granted';
+ * }
+ * if (permissionGranted) {
+ *   sendNotification('Tauri is awesome!');
+ *   sendNotification({ title: 'TAURI', body: 'Tauri is awesome!' });
+ * }
+ * ```
  *
  * @param options Notification options.
  */

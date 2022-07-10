@@ -32,6 +32,7 @@
 //! - **cli**: Enables usage of `clap` for CLI argument parsing. Enabled by default if the `cli` config is defined on the `tauri.conf.json` file.
 //! - **system-tray**: Enables application system tray API. Enabled by default if the `systemTray` config is defined on the `tauri.conf.json` file.
 //! - **macos-private-api**: Enables features only available in **macOS**'s private APIs, currently the `transparent` window functionality and the `fullScreenEnabled` preference setting to `true`. Enabled by default if the `tauri > macosPrivateApi` config flag is set to `true` on the `tauri.conf.json` file.
+//! - **windows7-compat**: Enables compatibility with Windows 7 for the notification API.
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
@@ -47,57 +48,57 @@
 //!
 //! ### Clipboard allowlist
 //!
-//! - **clipboard-all**: Enables all [Clipboard APIs](https://tauri.studio/en/docs/api/js/modules/clipboard/).
-//! - **clipboard-read-text**: Enables the [`readText` API](https://tauri.studio/en/docs/api/js/modules/clipboard/#readtext).
-//! - **clipboard-write-text**: Enables the [`writeText` API](https://tauri.studio/en/docs/api/js/modules/clipboard/#writetext).
+//! - **clipboard-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/clipboard/).
+//! - **clipboard-read-text**: Enables the [`readText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#readtext).
+//! - **clipboard-write-text**: Enables the [`writeText` API](https://tauri.app/en/docs/api/js/modules/clipboard/#writetext).
 //!
 //! ### Dialog allowlist
 //!
-//! - **dialog-all**: Enables all [Dialog APIs](https://tauri.studio/en/docs/api/js/modules/dialog).
-//! - **dialog-ask**: Enables the [`ask` API](https://tauri.studio/en/docs/api/js/modules/dialog#ask).
-//! - **dialog-confirm**: Enables the [`confirm` API](https://tauri.studio/en/docs/api/js/modules/dialog#confirm).
-//! - **dialog-message**: Enables the [`message` API](https://tauri.studio/en/docs/api/js/modules/dialog#message).
-//! - **dialog-open**: Enables the [`open` API](https://tauri.studio/en/docs/api/js/modules/dialog#open).
-//! - **dialog-save**: Enables the [`save` API](https://tauri.studio/en/docs/api/js/modules/dialog#save).
+//! - **dialog-all**: Enables all [Dialog APIs](https://tauri.app/en/docs/api/js/modules/dialog).
+//! - **dialog-ask**: Enables the [`ask` API](https://tauri.app/en/docs/api/js/modules/dialog#ask).
+//! - **dialog-confirm**: Enables the [`confirm` API](https://tauri.app/en/docs/api/js/modules/dialog#confirm).
+//! - **dialog-message**: Enables the [`message` API](https://tauri.app/en/docs/api/js/modules/dialog#message).
+//! - **dialog-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/dialog#open).
+//! - **dialog-save**: Enables the [`save` API](https://tauri.app/en/docs/api/js/modules/dialog#save).
 //!
 //! ### Filesystem allowlist
 //!
-//! - **fs-all**: Enables all [Filesystem APIs](https://tauri.studio/en/docs/api/js/modules/fs).
-//! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.studio/en/docs/api/js/modules/fs#copyfile).
-//! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.studio/en/docs/api/js/modules/fs#createdir).
-//! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.studio/en/docs/api/js/modules/fs#readdir).
-//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.studio/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.studio/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.studio/en/docs/api/js/modules/fs#removedir).
-//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.studio/en/docs/api/js/modules/fs#removefile).
-//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.studio/en/docs/api/js/modules/fs#renamefile).
-//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.studio/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.studio/en/docs/api/js/modules/fs#writebinaryfile).
+//! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
+//! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
+//! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
+//! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
+//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
+//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
+//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.app/en/docs/api/js/modules/fs#removefile).
+//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
+//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
 //!
 //! ### Global shortcut allowlist
 //!
-//! - **global-shortcut-all**: Enables all [GlobalShortcut APIs](https://tauri.studio/en/docs/api/js/modules/globalShortcut).
+//! - **global-shortcut-all**: Enables all [GlobalShortcut APIs](https://tauri.app/en/docs/api/js/modules/globalShortcut).
 //!
 //! ### HTTP allowlist
 //!
-//! - **http-all**: Enables all [HTTP APIs](https://tauri.studio/en/docs/api/js/modules/http).
-//! - **http-request**: Enables the [`request` APIs](https://tauri.studio/en/docs/api/js/classes/http.client/).
+//! - **http-all**: Enables all [HTTP APIs](https://tauri.app/en/docs/api/js/modules/http).
+//! - **http-request**: Enables the [`request` APIs](https://tauri.app/en/docs/api/js/classes/http.client/).
 //!
 //! ### Notification allowlist
 //!
-//! - **notification-all**: Enables all [Notification APIs](https://tauri.studio/en/docs/api/js/modules/notification).
+//! - **notification-all**: Enables all [Notification APIs](https://tauri.app/en/docs/api/js/modules/notification).
 //!
 //! ### OS allowlist
 //!
-//! - **os-all**: Enables all [OS APIs](https://tauri.studio/en/docs/api/js/modules/os).
+//! - **os-all**: Enables all [OS APIs](https://tauri.app/en/docs/api/js/modules/os).
 //!
 //! ### Path allowlist
 //!
-//! - **path-all**: Enables all [Path APIs](https://tauri.studio/en/docs/api/js/modules/path).
+//! - **path-all**: Enables all [Path APIs](https://tauri.app/en/docs/api/js/modules/path).
 //!
 //! ### Process allowlist
 //!
-//! - **process-all**: Enables all [Process APIs](https://tauri.studio/en/docs/api/js/modules/process).
-//! - **process-exit**: Enables the [`exit` API](https://tauri.studio/en/docs/api/js/modules/process#exit).
-//! - **process-relaunch**: Enables the [`relaunch` API](https://tauri.studio/en/docs/api/js/modules/process#relaunch).
+//! - **process-all**: Enables all [Process APIs](https://tauri.app/en/docs/api/js/modules/process).
+//! - **process-exit**: Enables the [`exit` API](https://tauri.app/en/docs/api/js/modules/process#exit).
+//! - **process-relaunch**: Enables the [`relaunch` API](https://tauri.app/en/docs/api/js/modules/process#relaunch).
 //!
 //! ### Protocol allowlist
 //!
@@ -106,42 +107,42 @@
 //!
 //! ### Shell allowlist
 //!
-//! - **shell-all**: Enables all [Clipboard APIs](https://tauri.studio/en/docs/api/js/modules/shell).
-//! - **shell-execute**: Enables [executing arbitrary programs](https://tauri.studio/en/docs/api/js/classes/shell.Command#constructor).
-//! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.studio/en/docs/api/js/classes/shell.Command#sidecar).
-//! - **shell-open**: Enables the [`open` API](https://tauri.studio/en/docs/api/js/modules/shell#open).
+//! - **shell-all**: Enables all [Clipboard APIs](https://tauri.app/en/docs/api/js/modules/shell).
+//! - **shell-execute**: Enables [executing arbitrary programs](https://tauri.app/en/docs/api/js/classes/shell.Command#constructor).
+//! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.app/en/docs/api/js/classes/shell.Command#sidecar).
+//! - **shell-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/shell#open).
 //!
 //! ### Window allowlist
 //!
-//! - **window-all**: Enables all [Window APIs](https://tauri.studio/en/docs/api/js/modules/window).
-//! - **window-create**: Enables the API used to [create new windows](https://tauri.studio/en/docs/api/js/classes/window.webviewwindow/).
-//! - **window-center**: Enables the [`center` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#center).
-//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
-//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setresizable).
-//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#settitle).
-//! - **window-maximize**: Enables the [`maximize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#maximize).
-//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
-//! - **window-minimize**: Enables the [`minimize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#minimize).
-//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#unminimize).
-//! - **window-show**: Enables the [`show` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#show).
-//! - **window-hide**: Enables the [`hide` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#hide).
-//! - **window-close**: Enables the [`close` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#close).
-//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
-//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
-//! - **window-set-size**: Enables the [`setSize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setsize).
-//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setminsize).
-//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
-//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setposition).
-//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
-//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setfocus).
-//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#seticon).
-//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
-//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
-//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
-//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
-//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
-//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#startdragging).
-//! - **window-print**: Enables the [`print` API](https://tauri.studio/en/docs/api/js/classes/window.WebviewWindow#print).
+//! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
+//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.webviewwindow/).
+//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
+//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
+//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
+//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
+//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
+//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
+//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#minimize).
+//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unminimize).
+//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#show).
+//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
+//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
+//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
+//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
+//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
+//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
+//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setposition).
+//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
+//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfocus).
+//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#seticon).
+//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
+//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
+//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
+//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
+//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
+//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
+//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -172,7 +173,6 @@ pub mod window;
 use tauri_runtime as runtime;
 /// The allowlist scopes.
 pub mod scope;
-pub mod settings;
 mod state;
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
@@ -232,7 +232,7 @@ pub use {
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
       CursorIcon, FileDropEvent,
     },
-    RunIteration, TrayIcon, UserAttentionType,
+    RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -373,7 +373,7 @@ pub enum Icon {
   },
 }
 
-impl TryFrom<Icon> for runtime::WindowIcon {
+impl TryFrom<Icon> for runtime::Icon {
   type Error = Error;
 
   fn try_from(icon: Icon) -> Result<Self> {
@@ -446,7 +446,8 @@ pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
-  pub(crate) system_tray_icon: Option<TrayIcon>,
+  pub(crate) app_icon: Option<Vec<u8>>,
+  pub(crate) system_tray_icon: Option<Icon>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -459,6 +460,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
+      .field("app_icon", &self.app_icon)
       .field("system_tray_icon", &self.system_tray_icon)
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
@@ -507,13 +509,13 @@ impl<A: Assets> Context<A> {
 
   /// The icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon(&self) -> Option<&TrayIcon> {
+  pub fn system_tray_icon(&self) -> Option<&Icon> {
     self.system_tray_icon.as_ref()
   }
 
   /// A mutable reference to the icon to use on the system tray UI.
   #[inline(always)]
-  pub fn system_tray_icon_mut(&mut self) -> &mut Option<TrayIcon> {
+  pub fn system_tray_icon_mut(&mut self) -> &mut Option<Icon> {
     &mut self.system_tray_icon
   }
 
@@ -549,7 +551,8 @@ impl<A: Assets> Context<A> {
     config: Config,
     assets: Arc<A>,
     default_window_icon: Option<Icon>,
-    system_tray_icon: Option<TrayIcon>,
+    app_icon: Option<Vec<u8>>,
+    system_tray_icon: Option<Icon>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
@@ -559,6 +562,7 @@ impl<A: Assets> Context<A> {
       config,
       assets,
       default_window_icon,
+      app_icon,
       system_tray_icon,
       package_info,
       _info_plist: info_plist,

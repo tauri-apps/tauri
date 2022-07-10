@@ -217,7 +217,12 @@ pub fn command(mut options: Options) -> Result<()> {
         let mut map = serde_json::Map::default();
         map.insert(
           "$schema".into(),
-          serde_json::Value::String(cli_node_module_path.display().to_string()),
+          serde_json::Value::String(
+            cli_node_module_path
+              .display()
+              .to_string()
+              .replace('\\', "/"),
+          ),
         );
         let merge_config = serde_json::Value::Object(map);
         json_patch::merge(&mut config, &merge_config);

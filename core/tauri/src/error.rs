@@ -72,7 +72,7 @@ pub enum Error {
   #[error("http client dropped or not initialized")]
   HttpClientNotInitialized,
   /// API not whitelisted on tauri.conf.json
-  #[error("'{0}' not in the allowlist (https://tauri.studio/docs/api/config#tauri.allowlist)")]
+  #[error("'{0}' not in the allowlist (https://tauri.app/docs/api/config#tauri.allowlist)")]
   ApiNotAllowlisted(String),
   /// Invalid args when running a command.
   #[error("invalid args `{1}` for command `{0}`: {2}")]
@@ -128,6 +128,9 @@ pub enum Error {
   #[cfg(feature = "icon-png")]
   #[error("failed to decode PNG: {0}")]
   PngDecode(#[from] png::DecodingError),
+  /// The Window's raw handle is invalid for the platform.
+  #[error("Unexpected `raw_window_handle` for the current platform")]
+  InvalidWindowHandle,
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

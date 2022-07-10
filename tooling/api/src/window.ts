@@ -53,57 +53,8 @@
  *
  * Events can be listened using `appWindow.listen`:
  * ```typescript
- * import { appWindow } from '@tauri-apps/api/window'
- * appWindow.listen('tauri://move', ({ event, payload }) => {
- *   const { x, y } = payload // payload here is a `PhysicalPosition`
- * })
- * ```
- *
- * Window-specific events emitted by the backend:
- *
- * #### 'tauri://resize'
- * Emitted when the size of the window has changed.
- * *EventPayload*:
- * ```typescript
- * type ResizePayload = PhysicalSize
- * ```
- *
- * #### 'tauri://move'
- * Emitted when the position of the window has changed.
- * *EventPayload*:
- * ```typescript
- * type MovePayload = PhysicalPosition
- * ```
- *
- * #### 'tauri://close-requested'
- * Emitted when the user requests the window to be closed.
- * If a listener is registered for this event, Tauri won't close the window so you must call `appWindow.close()` manually.
- *
- * #### 'tauri://focus'
- * Emitted when the window gains focus.
- *
- * #### 'tauri://blur'
- * Emitted when the window loses focus.
- *
- * #### 'tauri://scale-change'
- * Emitted when the window's scale factor has changed.
- * The following user actions can cause DPI changes:
- * - Changing the display's resolution.
- * - Changing the display's scale factor (e.g. in Control Panel on Windows).
- * - Moving the window to a display with a different scale factor.
- * *Event payload*:
- * ```typescript
- * interface ScaleFactorChanged {
- *   scaleFactor: number
- *   size: PhysicalSize
- * }
- * ```
- *
- * #### 'tauri://menu'
- * Emitted when a menu item is clicked.
- * *EventPayload*:
- * ```typescript
- * type MenuClicked = string
+ * import { appWindow } from "@tauri-apps/api/window";
+ * appWindow.listen("my-window-event", ({ event, payload }) => { });
  * ```
  *
  * @module
@@ -111,7 +62,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, listen, once } from './helpers/event'
+import { emit, Event, listen, once } from './helpers/event'
 
 type Theme = 'light' | 'dark'
 
@@ -126,6 +77,20 @@ interface Monitor {
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   scaleFactor: number
 }
+
+/** The payload for the `scaleChange` event. */
+interface ScaleFactorChanged {
+  /** The new window scale factor. */
+  scaleFactor: number
+  /** The new window size */
+  size: PhysicalSize
+}
+
+/** The file drop event types. */
+type FileDropEvent =
+  | { type: 'hover'; paths: string[] }
+  | { type: 'drop'; paths: string[] }
+  | { type: 'cancel' }
 
 /** A size represented in logical pixels. */
 class LogicalSize {
@@ -150,7 +115,16 @@ class PhysicalSize {
     this.height = height
   }
 
-  /** Converts the physical size to a logical one. */
+  /**
+   * Converts the physical size to a logical one.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const factor = await appWindow.scaleFactor();
+   * const size = await appWindow.innerSize();
+   * const logical = size.toLogical(factor);
+   * ```
+   *  */
   toLogical(scaleFactor: number): LogicalSize {
     return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
   }
@@ -179,7 +153,16 @@ class PhysicalPosition {
     this.y = y
   }
 
-  /** Converts the physical position to a logical one. */
+  /**
+   * Converts the physical position to a logical one.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const factor = await appWindow.scaleFactor();
+   * const position = await appWindow.innerPosition();
+   * const logical = position.toLogical(factor);
+   * ```
+   * */
   toLogical(scaleFactor: number): LogicalPosition {
     return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor)
   }
@@ -307,9 +290,21 @@ class WebviewWindowHandle {
   /**
    * Listen to an event emitted by the backend that is tied to the webview window.
    *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const unlisten = await appWindow.listen<string>('state-changed', (event) => {
+   *   console.log(`Got error: ${payload}`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async listen<T>(
     event: EventName,
@@ -328,9 +323,21 @@ class WebviewWindowHandle {
   /**
    * Listen to an one-off event emitted by the backend that is tied to the webview window.
    *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const unlisten = await appWindow.once<null>('initialized', (event) => {
+   *   console.log(`Window initialized!`);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param handler Event handler.
    * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
@@ -345,6 +352,11 @@ class WebviewWindowHandle {
 
   /**
    * Emits an event to the backend, tied to the webview window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
@@ -380,7 +392,16 @@ class WebviewWindowHandle {
  */
 class WindowManager extends WebviewWindowHandle {
   // Getters
-  /** The scale factor that can be used to map physical pixels to logical pixels. */
+  /**
+   * The scale factor that can be used to map physical pixels to logical pixels.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const factor = await appWindow.scaleFactor();
+   * ```
+   *
+   * @returns The window's monitor scale factor.
+   * */
   async scaleFactor(): Promise<number> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -396,7 +417,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop. */
+  /**
+   * The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const position = await appWindow.innerPosition();
+   * ```
+   *
+   * @returns The window's inner position.
+   *  */
   async innerPosition(): Promise<PhysicalPosition> {
     return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
@@ -412,7 +442,16 @@ class WindowManager extends WebviewWindowHandle {
     }).then(({ x, y }) => new PhysicalPosition(x, y))
   }
 
-  /** The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop. */
+  /**
+   * The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const position = await appWindow.outerPosition();
+   * ```
+   *
+   * @returns The window's outer position.
+   *  */
   async outerPosition(): Promise<PhysicalPosition> {
     return invokeTauriCommand<{ x: number; y: number }>({
       __tauriModule: 'Window',
@@ -431,6 +470,13 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * The physical size of the window's client area.
    * The client area is the content of the window, excluding the title bar and borders.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const size = await appWindow.innerSize();
+   * ```
+   *
+   * @returns The window's inner size.
    */
   async innerSize(): Promise<PhysicalSize> {
     return invokeTauriCommand<{ width: number; height: number }>({
@@ -450,6 +496,13 @@ class WindowManager extends WebviewWindowHandle {
   /**
    * The physical size of the entire window.
    * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const size = await appWindow.outerSize();
+   * ```
+   *
+   * @returns The window's outer size.
    */
   async outerSize(): Promise<PhysicalSize> {
     return invokeTauriCommand<{ width: number; height: number }>({
@@ -466,7 +519,16 @@ class WindowManager extends WebviewWindowHandle {
     }).then(({ width, height }) => new PhysicalSize(width, height))
   }
 
-  /** Gets the window's current fullscreen state. */
+  /**
+   * Gets the window's current fullscreen state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const fullscreen = await appWindow.isFullscreen();
+   * ```
+   *
+   * @returns Whether the window is in fullscreen mode or not.
+   *  */
   async isFullscreen(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -482,7 +544,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** Gets the window's current maximized state. */
+  /**
+   * Gets the window's current maximized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const maximized = await appWindow.isMaximized();
+   * ```
+   *
+   * @returns Whether the window is maximized or not.
+   * */
   async isMaximized(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -498,7 +569,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** Gets the window's current decorated state. */
+  /**
+   * Gets the window's current decorated state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const decorated = await appWindow.isDecorated();
+   * ```
+   *
+   * @returns Whether the window is decorated or not.
+   *  */
   async isDecorated(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -514,7 +594,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** Gets the window's current resizable state. */
+  /**
+   * Gets the window's current resizable state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const resizable = await appWindow.isResizable();
+   * ```
+   *
+   * @returns Whether the window is resizable or not.
+   *  */
   async isResizable(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -530,7 +619,16 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** Gets the window's current visible state. */
+  /**
+   * Gets the window's current visible state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const visible = await appWindow.isVisible();
+   * ```
+   *
+   * @returns Whether the window is visible or not.
+   *  */
   async isVisible(): Promise<boolean> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -546,7 +644,22 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-  /** Gets the window's current visible state. */
+  /**
+   * Gets the window's current theme.
+   *
+   * #### Platform-specific
+   *
+   * - **Linux:** Not implemented, always returns `light`.
+   * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const theme = await appWindow.theme();
+   * ```
+   *
+   * @returns The window theme.
+   * */
   async theme(): Promise<Theme | null> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
@@ -566,6 +679,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Centers the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.center();
+   * ```
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -597,6 +715,11 @@ class WindowManager extends WebviewWindowHandle {
    *
    * - **macOS:** `null` has no effect.
    * - **Linux:** Urgency levels have the same effect.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.requestUserAttention();
+   * ```
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -629,6 +752,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Updates the window resizable flag.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setResizable(false);
+   * ```
    *
    * @param resizable
    * @returns A promise indicating the success or failure of the operation.
@@ -651,6 +779,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets the window title.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setTitle('Tauri');
+   * ```
    *
    * @param title The new title
    * @returns A promise indicating the success or failure of the operation.
@@ -673,6 +806,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Maximizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.maximize();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -693,6 +831,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Unmaximizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.unmaximize();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -713,6 +856,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Toggles the window maximized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.toggleMaximize();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -733,6 +881,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Minimizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.minimize();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -753,6 +906,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Unminimizes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.unminimize();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -773,6 +931,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets the window visibility to true.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.show();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -793,6 +956,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets the window visibility to false.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.hide();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -813,6 +981,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Closes the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.close();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -833,6 +1006,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Whether the window should have borders and bars.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setDecorations(false);
+   * ```
    *
    * @param decorations Whether the window should have borders and bars.
    * @returns A promise indicating the success or failure of the operation.
@@ -855,6 +1033,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Whether the window should always be on top of other windows.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setAlwaysOnTop(true);
+   * ```
    *
    * @param alwaysOnTop Whether the window should always be on top of other windows or not.
    * @returns A promise indicating the success or failure of the operation.
@@ -879,8 +1062,8 @@ class WindowManager extends WebviewWindowHandle {
    * Resizes the window with a new inner size.
    * @example
    * ```typescript
-   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
-   * await appWindow.setSize(new LogicalSize(600, 500))
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window';
+   * await appWindow.setSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size.
@@ -917,8 +1100,8 @@ class WindowManager extends WebviewWindowHandle {
    * Sets the window minimum inner size. If the `size` argument is not provided, the constraint is unset.
    * @example
    * ```typescript
-   * import { appWindow, PhysicalSize } from '@tauri-apps/api/window'
-   * await appWindow.setMinSize(new PhysicalSize(600, 500))
+   * import { appWindow, PhysicalSize } from '@tauri-apps/api/window';
+   * await appWindow.setMinSize(new PhysicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
@@ -959,8 +1142,8 @@ class WindowManager extends WebviewWindowHandle {
    * Sets the window maximum inner size. If the `size` argument is undefined, the constraint is unset.
    * @example
    * ```typescript
-   * import { appWindow, LogicalSize } from '@tauri-apps/api/window'
-   * await appWindow.setMaxSize(new LogicalSize(600, 500))
+   * import { appWindow, LogicalSize } from '@tauri-apps/api/window';
+   * await appWindow.setMaxSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
@@ -1001,8 +1184,8 @@ class WindowManager extends WebviewWindowHandle {
    * Sets the window outer position.
    * @example
    * ```typescript
-   * import { appWindow, LogicalPosition } from '@tauri-apps/api/window'
-   * await appWindow.setPosition(new LogicalPosition(600, 500))
+   * import { appWindow, LogicalPosition } from '@tauri-apps/api/window';
+   * await appWindow.setPosition(new LogicalPosition(600, 500));
    * ```
    *
    * @param position The new position, in logical or physical pixels.
@@ -1042,6 +1225,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets the window fullscreen state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setFullscreen(true);
+   * ```
    *
    * @param fullscreen Whether the window should go to fullscreen or not.
    * @returns A promise indicating the success or failure of the operation.
@@ -1064,6 +1252,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Bring the window to front and focus.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setFocus();
+   * ```
    *
    * @returns A promise indicating the success or failure of the operation.
    */
@@ -1084,6 +1277,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Sets the window icon.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setIcon('/tauri/awesome.png');
+   * ```
    *
    * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
@@ -1116,6 +1314,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Whether to show the window icon in the task bar or not.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setSkipTaskbar(true);
+   * ```
    *
    * @param skip true to hide window icon, false to show it.
    * @returns A promise indicating the success or failure of the operation.
@@ -1146,6 +1349,11 @@ class WindowManager extends WebviewWindowHandle {
    *
    * - **Linux:** Unsupported.
    * - **macOS:** This locks the cursor in a fixed location, which looks visually awkward.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setCursorGrab(true);
+   * ```
    *
    * @param grab `true` to grab the cursor icon, `false` to release it.
    * @returns A promise indicating the success or failure of the operation.
@@ -1174,6 +1382,11 @@ class WindowManager extends WebviewWindowHandle {
    * - **Windows:** The cursor is only hidden within the confines of the window.
    * - **macOS:** The cursor is hidden as long as the window has input focus, even if the cursor is
    *   outside of the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setCursorVisible(false);
+   * ```
    *
    * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
    * @returns A promise indicating the success or failure of the operation.
@@ -1196,6 +1409,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Modifies the cursor icon of the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setCursorIcon('help');
+   * ```
    *
    * @param icon The new cursor icon.
    * @returns A promise indicating the success or failure of the operation.
@@ -1218,6 +1436,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Changes the position of the cursor in window coordinates.
+   * @example
+   * ```typescript
+   * import { appWindow, LogicalPosition } from '@tauri-apps/api/window';
+   * await appWindow.setCursorPosition(new LogicalPosition(600, 300));
+   * ```
    *
    * @param position The new cursor position.
    * @returns A promise indicating the success or failure of the operation.
@@ -1256,6 +1479,11 @@ class WindowManager extends WebviewWindowHandle {
 
   /**
    * Starts dragging the window.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.startDragging();
+   * ```
    *
    * @return A promise indicating the success or failure of the operation.
    */
@@ -1273,6 +1501,278 @@ class WindowManager extends WebviewWindowHandle {
       }
     })
   }
+
+  // Listeners
+
+  /**
+   * Listen to window resize.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onResized(({ payload: size }) => {
+   *  console.log('Window resized', size);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
+    return this.listen<PhysicalSize>('tauri://resize', handler)
+  }
+
+  /**
+   * Listen to window move.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onMoved(({ payload: position }) => {
+   *  console.log('Window moved', position);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
+    return this.listen<PhysicalPosition>('tauri://move', handler)
+  }
+
+  /**
+   * Listen to window close requested. Emitted when the user requests to closes the window.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * import { confirm } from '@tauri-apps/api/dialog';
+   * const unlisten = await appWindow.onCloseRequested(async (event) => {
+   *   const confirmed = await confirm('Are you sure?');
+   *   if (!confirmed) {
+   *     // user did not confirm closing the window; let's prevent it
+   *     event.preventDefault();
+   *   }
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onCloseRequested(
+    handler: (event: CloseRequestedEvent) => void
+  ): Promise<UnlistenFn> {
+    return this.listen<null>('tauri://close-requested', (event) => {
+      const evt = new CloseRequestedEvent(event)
+      void Promise.resolve(handler(evt)).then(() => {
+        if (!evt.isPreventDefault()) {
+          return this.close()
+        }
+      })
+    })
+  }
+
+  /**
+   * Listen to window focus change.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onFocusChanged(({ payload: focused }) => {
+   *  console.log('Focus changed, window is focused? ' + focused);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
+    const unlistenFocus = await this.listen<PhysicalPosition>(
+      'tauri://focus',
+      (event) => {
+        handler({ ...event, payload: true })
+      }
+    )
+    const unlistenBlur = await this.listen<PhysicalPosition>(
+      'tauri://blur',
+      (event) => {
+        handler({ ...event, payload: false })
+      }
+    )
+    return () => {
+      unlistenFocus()
+      unlistenBlur()
+    }
+  }
+
+  /**
+   * Listen to window scale change. Emitted when the window's scale factor has changed.
+   * The following user actions can cause DPI changes:
+   * - Changing the display's resolution.
+   * - Changing the display's scale factor (e.g. in Control Panel on Windows).
+   * - Moving the window to a display with a different scale factor.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onScaleChanged(({ payload }) => {
+   *  console.log('Scale changed', payload.scaleFactor, payload.size);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onScaleChanged(
+    handler: EventCallback<ScaleFactorChanged>
+  ): Promise<UnlistenFn> {
+    return this.listen<ScaleFactorChanged>('tauri://scale-change', handler)
+  }
+
+  /**
+   * Listen to the window menu item click. The payload is the item id.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onMenuClicked(({ payload: menuId }) => {
+   *  console.log('Menu clicked: ' + menuId);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
+    return this.listen<string>('tauri://menu', handler)
+  }
+
+  /**
+   * Listen to a file drop event.
+   * The listener is triggered when the user hovers the selected files on the window,
+   * drops the files or cancels the operation.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onFileDropEvent((event) => {
+   *  if (event.payload.type === 'hover') {
+   *    console.log('User hovering', event.payload.paths);
+   *  } else if (event.payload.type === 'drop') {
+   *    console.log('User dropped', event.payload.paths);
+   *  } else {
+   *    console.log('File drop cancelled');
+   *  }
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onFileDropEvent(
+    handler: EventCallback<FileDropEvent>
+  ): Promise<UnlistenFn> {
+    const unlistenFileDrop = await this.listen<string[]>(
+      'tauri://file-drop',
+      (event) => {
+        handler({ ...event, payload: { type: 'drop', paths: event.payload } })
+      }
+    )
+
+    const unlistenFileHover = await this.listen<string[]>(
+      'tauri://file-drop-hover',
+      (event) => {
+        handler({ ...event, payload: { type: 'hover', paths: event.payload } })
+      }
+    )
+
+    const unlistenCancel = await this.listen<null>(
+      'tauri://file-drop-cancelled',
+      (event) => {
+        handler({ ...event, payload: { type: 'cancel' } })
+      }
+    )
+
+    return () => {
+      unlistenFileDrop()
+      unlistenFileHover()
+      unlistenCancel()
+    }
+  }
+
+  /**
+   * Listen to the system theme change.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from "@tauri-apps/api/window";
+   * const unlisten = await appWindow.onThemeChanged(({ payload: theme }) => {
+   *  console.log('New theme: ' + theme);
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @param handler
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
+    return this.listen<Theme>('tauri://theme-changed', handler)
+  }
+}
+
+class CloseRequestedEvent {
+  /** Event name */
+  event: EventName
+  /** The label of the window that emitted this event. */
+  windowLabel: string
+  /** Event identifier used to unlisten */
+  id: number
+  private _preventDefault = false
+
+  constructor(event: Event<null>) {
+    this.event = event.event
+    this.windowLabel = event.windowLabel
+    this.id = event.id
+  }
+
+  preventDefault(): void {
+    this._preventDefault = true
+  }
+
+  isPreventDefault(): boolean {
+    return this._preventDefault
+  }
 }
 
 /**
@@ -1286,29 +1786,43 @@ class WindowManager extends WebviewWindowHandle {
  * // loading embedded asset:
  * const webview = new WebviewWindow('theUniqueLabel', {
  *   url: 'path/to/page.html'
- * })
+ * });
  * // alternatively, load a remote URL:
  * const webview = new WebviewWindow('theUniqueLabel', {
  *   url: 'https://github.com/tauri-apps/tauri'
- * })
+ * });
  *
  * webview.once('tauri://created', function () {
  *  // webview window successfully created
- * })
+ * });
  * webview.once('tauri://error', function (e) {
  *  // an error happened creating the webview window
- * })
+ * });
  *
  * // emit an event to the backend
- * await webview.emit("some event", "data")
+ * await webview.emit("some event", "data");
  * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {})
- * unlisten()
+ * const unlisten = await webview.listen("event name", e => {});
+ * unlisten();
  * ```
  */
 class WebviewWindow extends WindowManager {
   /**
    * Creates a new WebviewWindow.
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   * const webview = new WebviewWindow('my-label', {
+   *   url: 'https://github.com/tauri-apps/tauri'
+   * });
+   * webview.once('tauri://created', function () {
+   *  // webview window successfully created
+   * });
+   * webview.once('tauri://error', function (e) {
+   *  // an error happened creating the webview window
+   * });
+   * ```
+   *
    * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
    * @returns The WebviewWindow instance to communicate with the webview.
    */
@@ -1335,6 +1849,11 @@ class WebviewWindow extends WindowManager {
 
   /**
    * Gets the WebviewWindow for the webview associated with the given label.
+   * @example
+   * ```typescript
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   * const mainWindow = WebviewWindow.getByLabel('main');
+   * ```
    *
    * @param label The webview window label.
    * @returns The WebviewWindow instance to communicate with the webview or null if the webview doesn't exist.
@@ -1427,9 +1946,9 @@ interface WindowOptions {
    */
   fileDropEnabled?: boolean
   /**
-   *  The initial window theme. Defaults to the system theme.
+   * The initial window theme. Defaults to the system theme.
    *
-   * Only implemented on Windows.
+   * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
 }
@@ -1437,6 +1956,11 @@ interface WindowOptions {
 /**
  * Returns the monitor on which the window currently resides.
  * Returns `null` if current monitor can't be detected.
+ * @example
+ * ```typescript
+ * import { currentMonitor } from '@tauri-apps/api/window';
+ * const monitor = currentMonitor();
+ * ```
  */
 async function currentMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
@@ -1455,6 +1979,11 @@ async function currentMonitor(): Promise<Monitor | null> {
 /**
  * Returns the primary monitor of the system.
  * Returns `null` if it can't identify any monitor as a primary one.
+ * @example
+ * ```typescript
+ * import { primaryMonitor } from '@tauri-apps/api/window';
+ * const monitor = primaryMonitor();
+ * ```
  */
 async function primaryMonitor(): Promise<Monitor | null> {
   return invokeTauriCommand({
@@ -1470,7 +1999,14 @@ async function primaryMonitor(): Promise<Monitor | null> {
   })
 }
 
-/** Returns the list of all the monitors available on the system. */
+/**
+ * Returns the list of all the monitors available on the system.
+ * @example
+ * ```typescript
+ * import { availableMonitors } from '@tauri-apps/api/window';
+ * const monitors = availableMonitors();
+ * ```
+ * */
 async function availableMonitors(): Promise<Monitor[]> {
   return invokeTauriCommand({
     __tauriModule: 'Window',
@@ -1489,6 +2025,7 @@ export {
   WebviewWindow,
   WebviewWindowHandle,
   WindowManager,
+  CloseRequestedEvent,
   getCurrent,
   getAll,
   appWindow,
@@ -1502,4 +2039,4 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, WindowOptions }
+export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }

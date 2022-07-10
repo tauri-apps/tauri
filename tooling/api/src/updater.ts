@@ -9,7 +9,8 @@
  * @module
  */
 
-import { once, listen, emit, UnlistenFn } from './event'
+import { once, listen, emit } from './event'
+import { UnlistenFn } from "./helpers/event"
 
 type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 

@@ -13,17 +13,10 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-<<<<<<< HEAD
-      - uses: actions/setup-node@v2
-        with:
-          node-version: 14
-          registry-url: 'https://registry.npmjs.org'
-=======
 
       - name: cargo login
         run: cargo login ${{ secrets.CRATE_TOKEN }}
 
->>>>>>> dev
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"

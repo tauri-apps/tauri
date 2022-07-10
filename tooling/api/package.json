@@ -36,58 +36,24 @@
     "access": "public"
   },
   "engines": {
-<<<<<<< HEAD
     "node": ">= 14.6.0",
-=======
-    "node": ">= 12.22.0",
->>>>>>> dev
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-<<<<<<< HEAD
-    "@typescript-eslint/eslint-plugin": "5.27.0",
-    "@typescript-eslint/parser": "5.27.0",
-    "eslint": "8.16.0",
-=======
-    "@babel/core": "7.18.6",
-    "@babel/preset-env": "7.18.6",
-    "@babel/preset-typescript": "7.18.6",
-    "@rollup/plugin-babel": "5.3.1",
-    "@rollup/plugin-commonjs": "22.0.1",
-    "@rollup/plugin-node-resolve": "13.3.0",
-    "@rollup/plugin-sucrase": "4.0.4",
-    "@rollup/plugin-typescript": "8.3.3",
     "@typescript-eslint/eslint-plugin": "5.30.5",
     "@typescript-eslint/parser": "5.30.5",
     "eslint": "8.19.0",
->>>>>>> dev
     "eslint-config-prettier": "8.5.0",
     "eslint-config-standard-with-typescript": "21.0.1",
     "eslint-plugin-import": "2.26.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.0.0",
     "eslint-plugin-security": "1.5.0",
-<<<<<<< HEAD
-    "lockfile-lint": "4.7.4",
-    "prettier": "2.6.2",
-    "tsup": "6.0.1",
-    "typedoc": "0.22.17",
-    "typedoc-plugin-markdown": "3.12.1",
-    "typescript": "4.7.2"
-  },
-  "dependencies": {
-    "type-fest": "2.13.0"
-=======
     "prettier": "2.7.1",
-    "regenerator-runtime": "0.13.9",
-    "rimraf": "3.0.2",
-    "rollup": "2.75.7",
-    "rollup-plugin-terser": "7.0.2",
-    "tslib": "2.4.0",
+    "tsup": "6.0.1",
     "typedoc": "0.23.5",
     "typedoc-plugin-markdown": "3.13.3",
     "typescript": "4.7.4"
->>>>>>> dev
   }
 }

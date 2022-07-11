@@ -58,7 +58,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.load();
   let template_target_path = PathBuf::from(options.directory).join(&format!(
     "tauri-plugin-{}",
-    AsKebabCase(options.plugin_name)
+    AsKebabCase(&options.plugin_name)
   ));
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json"))?;
   if template_target_path.exists() {

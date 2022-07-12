@@ -833,7 +833,13 @@ pub fn build_wix_app_installer(
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(wix_toolset_path, &output_path, arguments, &fragment_extensions, &msi_output_path)?;
+    run_light(
+      wix_toolset_path,
+      &output_path,
+      arguments,
+      &fragment_extensions,
+      &msi_output_path,
+    )?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);

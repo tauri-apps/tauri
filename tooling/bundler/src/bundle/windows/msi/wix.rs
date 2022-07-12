@@ -285,7 +285,8 @@ fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
   cwd: &Path,
-  wxs_file_path: &Path,
+  wxs_file_path: PathBuf,
+  extensions: Vec<PathBuf>,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -317,7 +318,12 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  cmd
     .args(&args)
     .current_dir(cwd)
     .output_ok()
@@ -331,6 +337,7 @@ fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
+  extensions: &Vec<PathBuf>,
   output_path: &Path,
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
@@ -344,11 +351,14 @@ fn run_light(
     output_path.display().to_string(),
   ];
 
-  for p in arguments {
-    args.push(p);
-  }
+  args.extend(arguments);
 
-  Command::new(&light_exe)
+  let mut cmd = Command::new(&light_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  cmd
     .args(&args)
     .current_dir(build_path)
     .output_ok()
@@ -732,15 +742,24 @@ pub fn build_wix_app_installer(
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let mut candle_inputs = vec!["main.wxs".into()];
+  let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
   let current_dir = std::env::current_dir()?;
+  let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
   for fragment_path in fragment_paths {
-    candle_inputs.push(current_dir.join(fragment_path));
+    let fragment_path = current_dir.join(fragment_path);
+    let fragment = read_to_string(&fragment_path)?;
+    let mut extensions = Vec::new();
+    for cap in extension_regex.captures_iter(&fragment) {
+      extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
+    }
+    candle_inputs.push((fragment_path, extensions));
   }
 
-  for wxs in &candle_inputs {
-    run_candle(settings, wix_toolset_path, &output_path, wxs)?;
+  let mut fragment_extensions = Vec::new();
+  for (path, extensions) in candle_inputs {
+    fragment_extensions.extend(extensions.clone());
+    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
   }
 
   let mut output_paths = Vec::new();
@@ -814,7 +833,7 @@ pub fn build_wix_app_installer(
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(wix_toolset_path, &output_path, arguments, &msi_output_path)?;
+    run_light(wix_toolset_path, &output_path, arguments, &fragment_extensions, &msi_output_path)?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);

@@ -6,6 +6,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
+  ext::IdentExt,
   parse::{Parse, ParseBuffer},
   parse_macro_input,
   spanned::Spanned,
@@ -164,7 +165,7 @@ fn parse_arg(command: &Ident, arg: &FnArg, message: &Ident) -> syn::Result<Token
 
   // we only support patterns that allow us to extract some sort of keyed identifier
   let mut key = match &mut arg {
-    Pat::Ident(arg) => arg.ident.to_string(),
+    Pat::Ident(arg) => arg.ident.unraw().to_string(),
     Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
     Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),

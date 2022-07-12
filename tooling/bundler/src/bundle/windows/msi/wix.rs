@@ -853,6 +853,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
+  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -861,7 +862,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
       .expect("failed to extract external binary filename")
       .to_string_lossy()
       .replace(&format!("-{}", settings.target()), "");
-    let dest = tmp_dir.join(dest_filename);
+    let dest = tmp_dir.join(&dest_filename);
     std::fs::copy(binary_path, &dest)?;
 
     binaries.push(Binary {
@@ -870,7 +871,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: format!("I{}", Uuid::new_v4().as_simple()),
+      id: regex
+        .replace_all(&dest_filename.replace('-', "_"), "")
+        .to_string(),
     });
   }
 
@@ -883,7 +886,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: format!("I{}", Uuid::new_v4().as_simple()),
+        id: regex
+          .replace_all(&bin.name().replace('-', "_"), "")
+          .to_string(),
       })
     }
   }

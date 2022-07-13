@@ -3,21 +3,26 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  fs::{rename, File},
+  ffi::OsStr,
+  fs::{rename, File, FileType},
   io::{BufReader, ErrorKind, Read, Write},
   path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
+    mpsc::channel,
     Arc, Mutex,
   },
+  time::{Duration, Instant},
 };
 
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use log::warn;
+use log::{debug, info};
+use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
@@ -25,15 +30,17 @@ use tauri_bundler::{
   UpdaterSettings, WindowsSettings,
 };
 
-use super::{AppSettings, DevProcess, ExitReason, Interface};
+use super::{AppSettings, ExitReason, Interface};
 use crate::{
   helpers::{
     app_paths::tauri_dir,
-    config::{wix_settings, Config},
-    manifest::Manifest,
+    config::{reload as reload_config, wix_settings, Config},
   },
   CommandExt,
 };
+
+mod manifest;
+use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -42,6 +49,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
+  pub config: Option<String>,
 }
 
 impl From<crate::build::Options> for Options {
@@ -52,6 +60,7 @@ impl From<crate::build::Options> for Options {
       target: options.target,
       features: options.features,
       args: options.args,
+      config: options.config,
     }
   }
 }
@@ -64,6 +73,7 @@ impl From<crate::dev::Options> for Options {
       target: options.target,
       features: options.features,
       args: options.args,
+      config: options.config,
     }
   }
 }
@@ -74,7 +84,7 @@ pub struct DevChild {
   app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
 }
 
-impl DevProcess for DevChild {
+impl DevChild {
   fn kill(&self) -> std::io::Result<()> {
     if let Some(child) = &*self.app_child.lock().unwrap() {
       child.kill()?;
@@ -109,11 +119,27 @@ pub struct Rust {
 
 impl Interface for Rust {
   type AppSettings = RustAppSettings;
-  type Dev = DevChild;
 
   fn new(config: &Config) -> crate::Result<Self> {
+    let manifest = {
+      let (tx, rx) = channel();
+      let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
+      let manifest = rewrite_manifest(config)?;
+      let now = Instant::now();
+      let timeout = Duration::from_secs(2);
+      loop {
+        if now.elapsed() >= timeout {
+          break;
+        }
+        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.try_recv() {
+          break;
+        }
+      }
+      manifest
+    };
     Ok(Self {
-      app_settings: RustAppSettings::new(config)?,
+      app_settings: RustAppSettings::new(config, manifest)?,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
@@ -124,11 +150,20 @@ impl Interface for Rust {
     &self.app_settings
   }
 
-  fn build(&mut self, options: Options) -> crate::Result<()> {
+  fn build(&mut self, mut options: Options) -> crate::Result<()> {
     let bin_path = self.app_settings.app_binary_path(&options)?;
     let out_dir = bin_path.parent().unwrap();
 
     let bin_name = bin_path.file_stem().unwrap();
+
+    options
+      .features
+      .get_or_insert(Vec::new())
+      .push("custom-protocol".into());
+
+    if !std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "false") {
+      std::env::set_var("STATIC_VCRUNTIME", "true");
+    }
 
     if options.target == Some("universal-apple-darwin".into()) {
       std::fs::create_dir_all(&out_dir)
@@ -148,7 +183,7 @@ impl Interface for Rust {
           .out_dir(Some(triple.into()), options.debug)
           .with_context(|| format!("failed to get {} out dir", triple))?;
         self
-          .build_app(options)
+          .build_production_app(options)
           .with_context(|| format!("failed to build {} binary", triple))?;
 
         lipo_cmd.arg(triple_out_dir.join(&bin_name));
@@ -163,198 +198,51 @@ impl Interface for Rust {
       }
     } else {
       self
-        .build_app(options)
+        .build_production_app(options)
         .with_context(|| "failed to build app")?;
     }
 
-    rename_app(bin_path, self.product_name.as_deref())?;
+    rename_app(&bin_path, self.product_name.as_deref())?;
 
     Ok(())
   }
 
-  fn dev<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+  fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    manifest: &Manifest,
     on_exit: F,
-  ) -> crate::Result<Self::Dev> {
-    let bin_path = self.app_settings.app_binary_path(&options)?;
-    let product_name = self.product_name.clone();
+  ) -> crate::Result<()> {
+    let on_exit = Arc::new(on_exit);
 
-    let runner = options.runner.unwrap_or_else(|| "cargo".into());
+    let on_exit_ = on_exit.clone();
+    let child = self.run_dev(options.clone(), move |status, reason| {
+      on_exit_(status, reason)
+    })?;
 
-    if let Some(target) = &options.target {
-      self.fetch_available_targets();
-      self.validate_target(target)?;
+    self.run_dev_watcher(child, options, on_exit)
+  }
+}
+
+fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
+  let mut default_gitignore = std::env::temp_dir();
+  default_gitignore.push(".tauri-dev");
+  let _ = std::fs::create_dir_all(&default_gitignore);
+  default_gitignore.push(".gitignore");
+  if !default_gitignore.exists() {
+    if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
+      let _ = file.write_all(crate::dev::TAURI_DEV_WATCHER_GITIGNORE);
     }
+  }
 
-    let mut build_cmd = Command::new(&runner);
-    build_cmd
-      .env(
-        "CARGO_TERM_PROGRESS_WIDTH",
-        terminal::stderr_width()
-          .map(|width| {
-            if cfg!(windows) {
-              std::cmp::min(60, width)
-            } else {
-              width
-            }
-          })
-          .unwrap_or(if cfg!(windows) { 60 } else { 80 })
-          .to_string(),
-      )
-      .env("CARGO_TERM_PROGRESS_WHEN", "always");
-    build_cmd.arg("build").arg("--color").arg("always");
+  let mut builder = ignore::WalkBuilder::new(dir);
+  let _ = builder.add_ignore(default_gitignore);
+  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+    builder.add_ignore(ignore_file);
+  }
+  builder.require_git(false).ignore(false).max_depth(Some(1));
 
-    if !options.args.contains(&"--no-default-features".into()) {
-      let manifest_features = manifest.features();
-      let enable_features: Vec<String> = manifest_features
-        .get("default")
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|feature| {
-          if let Some(manifest_feature) = manifest_features.get(feature) {
-            !manifest_feature.contains(&"tauri/custom-protocol".into())
-          } else {
-            feature != "tauri/custom-protocol"
-          }
-        })
-        .collect();
-      build_cmd.arg("--no-default-features");
-      if !enable_features.is_empty() {
-        build_cmd.args(&["--features", &enable_features.join(",")]);
-      }
-    }
-
-    if !options.debug {
-      build_cmd.args(&["--release"]);
-    }
-
-    if let Some(target) = &options.target {
-      build_cmd.args(&["--target", target]);
-    }
-
-    let mut features = self.config_features.clone();
-    if let Some(f) = options.features {
-      features.extend(f);
-    }
-    if !features.is_empty() {
-      build_cmd.args(&["--features", &features.join(",")]);
-    }
-
-    let mut run_args = Vec::new();
-    let mut reached_run_args = false;
-    for arg in options.args.clone() {
-      if reached_run_args {
-        run_args.push(arg);
-      } else if arg == "--" {
-        reached_run_args = true;
-      } else {
-        build_cmd.arg(arg);
-      }
-    }
-
-    build_cmd.stdout(os_pipe::dup_stdout()?);
-    build_cmd.stderr(Stdio::piped());
-
-    let manually_killed_app = Arc::new(AtomicBool::default());
-    let manually_killed_app_ = manually_killed_app.clone();
-
-    let build_child = match SharedChild::spawn(&mut build_cmd) {
-      Ok(c) => c,
-      Err(e) => {
-        if e.kind() == ErrorKind::NotFound {
-          return Err(anyhow::anyhow!(
-            "`{}` command not found.{}",
-            runner,
-            if runner == "cargo" {
-              " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
-            } else {
-              ""
-            }
-          ));
-        } else {
-          return Err(e.into());
-        }
-      }
-    };
-    let build_child = Arc::new(build_child);
-    let build_child_stderr = build_child.take_stderr().unwrap();
-    let mut stderr = BufReader::new(build_child_stderr);
-    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-    let stderr_lines_ = stderr_lines.clone();
-    std::thread::spawn(move || {
-      let mut buf = Vec::new();
-      let mut lines = stderr_lines_.lock().unwrap();
-      let mut io_stderr = std::io::stderr();
-      loop {
-        buf.clear();
-        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-          Ok(s) if s == 0 => break,
-          _ => (),
-        }
-        let _ = io_stderr.write_all(&buf);
-        if !buf.ends_with(&[b'\r']) {
-          let _ = io_stderr.write_all(b"\n");
-        }
-        lines.push(String::from_utf8_lossy(&buf).into_owned());
-      }
-    });
-
-    let build_child_ = build_child.clone();
-    let app_child = Arc::new(Mutex::new(None));
-    let app_child_ = app_child.clone();
-    std::thread::spawn(move || {
-      let status = build_child_.wait().expect("failed to wait on build");
-
-      if status.success() {
-        let bin_path = rename_app(bin_path, product_name.as_deref()).expect("failed to rename app");
-
-        let mut app = Command::new(bin_path);
-        app.stdout(os_pipe::dup_stdout().unwrap());
-        app.stderr(os_pipe::dup_stderr().unwrap());
-        app.args(run_args);
-        let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
-        let app_child_t = app_child.clone();
-        std::thread::spawn(move || {
-          let status = app_child_t.wait().expect("failed to wait on app");
-          on_exit(
-            status,
-            if manually_killed_app_.load(Ordering::Relaxed) {
-              ExitReason::TriggeredKill
-            } else {
-              ExitReason::NormalExit
-            },
-          );
-        });
-
-        app_child_.lock().unwrap().replace(app_child);
-      } else {
-        let is_cargo_compile_error = stderr_lines
-          .lock()
-          .unwrap()
-          .last()
-          .map(|l| l.contains("could not compile"))
-          .unwrap_or_default();
-        stderr_lines.lock().unwrap().clear();
-
-        on_exit(
-          status,
-          if status.code() == Some(101) && is_cargo_compile_error {
-            ExitReason::CompilationFailed
-          } else {
-            ExitReason::NormalExit
-          },
-        );
-      }
-    });
-
-    Ok(DevChild {
-      manually_killed_app,
-      build_child,
-      app_child,
-    })
+  for entry in builder.build().flatten() {
+    f(entry.file_type().unwrap(), dir.join(entry.path()));
   }
 }
 
@@ -395,7 +283,289 @@ impl Rust {
     Ok(())
   }
 
-  fn build_app(&mut self, options: Options) -> crate::Result<()> {
+  fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+    &mut self,
+    mut options: Options,
+    on_exit: F,
+  ) -> crate::Result<DevChild> {
+    let bin_path = self.app_settings.app_binary_path(&options)?;
+    let product_name = self.product_name.clone();
+
+    if !options.args.contains(&"--no-default-features".into()) {
+      let manifest_features = self.app_settings.manifest.features();
+      let enable_features: Vec<String> = manifest_features
+        .get("default")
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|feature| {
+          if let Some(manifest_feature) = manifest_features.get(feature) {
+            !manifest_feature.contains(&"tauri/custom-protocol".into())
+          } else {
+            feature != "tauri/custom-protocol"
+          }
+        })
+        .collect();
+      options.args.push("--no-default-features".into());
+      if !enable_features.is_empty() {
+        options
+          .features
+          .get_or_insert(Vec::new())
+          .extend(enable_features);
+      }
+    }
+
+    let mut args = Vec::new();
+    let mut run_args = Vec::new();
+    let mut reached_run_args = false;
+    for arg in options.args.clone() {
+      if reached_run_args {
+        run_args.push(arg);
+      } else if arg == "--" {
+        reached_run_args = true;
+      } else {
+        args.push(arg);
+      }
+    }
+    options.args = args;
+
+    let manually_killed_app = Arc::new(AtomicBool::default());
+    let manually_killed_app_ = manually_killed_app.clone();
+    let app_child = Arc::new(Mutex::new(None));
+    let app_child_ = app_child.clone();
+
+    let build_child = self.build_dev_app(options, move |status, reason| {
+      if status.success() {
+        let bin_path =
+          rename_app(&bin_path, product_name.as_deref()).expect("failed to rename app");
+        let mut app = Command::new(bin_path);
+        app.stdout(os_pipe::dup_stdout().unwrap());
+        app.stderr(os_pipe::dup_stderr().unwrap());
+        app.args(run_args);
+        let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
+        let app_child_t = app_child.clone();
+        std::thread::spawn(move || {
+          let status = app_child_t.wait().expect("failed to wait on app");
+          on_exit(
+            status,
+            if manually_killed_app_.load(Ordering::Relaxed) {
+              ExitReason::TriggeredKill
+            } else {
+              ExitReason::NormalExit
+            },
+          );
+        });
+
+        app_child_.lock().unwrap().replace(app_child);
+      } else {
+        on_exit(status, reason);
+      }
+    })?;
+
+    Ok(DevChild {
+      manually_killed_app,
+      build_child,
+      app_child,
+    })
+  }
+
+  fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+    &mut self,
+    child: DevChild,
+    options: Options,
+    on_exit: Arc<F>,
+  ) -> crate::Result<()> {
+    let process = Arc::new(Mutex::new(child));
+    let (tx, rx) = channel();
+    let tauri_path = tauri_dir();
+    let workspace_path = get_workspace_dir(&tauri_path);
+
+    let watch_folders = if tauri_path == workspace_path {
+      vec![tauri_path]
+    } else {
+      let cargo_settings = CargoSettings::load(&workspace_path)?;
+      cargo_settings
+        .workspace
+        .as_ref()
+        .map(|w| {
+          w.members
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| workspace_path.join(p))
+            .collect()
+        })
+        .unwrap_or_else(|| vec![tauri_path])
+    };
+
+    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+    for path in watch_folders {
+      info!("Watching {} for changes...", path.display());
+      lookup(&path, |file_type, p| {
+        if p != path {
+          debug!("Watching {} for changes...", p.display());
+          let _ = watcher.watch(
+            p,
+            if file_type.is_dir() {
+              RecursiveMode::Recursive
+            } else {
+              RecursiveMode::NonRecursive
+            },
+          );
+        }
+      });
+    }
+
+    loop {
+      let on_exit = on_exit.clone();
+      if let Ok(event) = rx.recv() {
+        let event_path = match event {
+          DebouncedEvent::Create(path) => Some(path),
+          DebouncedEvent::Remove(path) => Some(path),
+          DebouncedEvent::Rename(_, dest) => Some(dest),
+          DebouncedEvent::Write(path) => Some(path),
+          _ => None,
+        };
+
+        if let Some(event_path) = event_path {
+          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+            let config = reload_config(options.config.as_deref())?;
+            self.app_settings.manifest =
+              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+          } else {
+            // When tauri.conf.json is changed, rewrite_manifest will be called
+            // which will trigger the watcher again
+            // So the app should only be started when a file other than tauri.conf.json is changed
+            let mut p = process.lock().unwrap();
+            p.kill().with_context(|| "failed to kill app process")?;
+            // wait for the process to exit
+            loop {
+              if let Ok(Some(_)) = p.try_wait() {
+                break;
+              }
+            }
+            *p = self.run_dev(options.clone(), move |status, reason| {
+              on_exit(status, reason)
+            })?;
+          }
+        }
+      }
+    }
+  }
+
+  fn build_production_app(&mut self, options: Options) -> crate::Result<()> {
+    let mut build_cmd = self.build_command(options)?;
+    let runner = build_cmd.get_program().to_string_lossy().into_owned();
+    match build_cmd.piped() {
+      Ok(status) if status.success() => Ok(()),
+      Ok(_) => Err(anyhow::anyhow!("failed to build app")),
+      Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
+        "`{}` command not found.{}",
+        runner,
+        if runner == "cargo" {
+          " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+        } else {
+          ""
+        }
+      )),
+      Err(e) => Err(e.into()),
+    }
+  }
+
+  fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+    &mut self,
+    options: Options,
+    on_exit: F,
+  ) -> crate::Result<Arc<SharedChild>> {
+    let mut build_cmd = self.build_command(options)?;
+    let runner = build_cmd.get_program().to_string_lossy().into_owned();
+    build_cmd
+      .env(
+        "CARGO_TERM_PROGRESS_WIDTH",
+        terminal::stderr_width()
+          .map(|width| {
+            if cfg!(windows) {
+              std::cmp::min(60, width)
+            } else {
+              width
+            }
+          })
+          .unwrap_or(if cfg!(windows) { 60 } else { 80 })
+          .to_string(),
+      )
+      .env("CARGO_TERM_PROGRESS_WHEN", "always");
+    build_cmd.arg("--color");
+    build_cmd.arg("always");
+
+    build_cmd.stdout(os_pipe::dup_stdout()?);
+    build_cmd.stderr(Stdio::piped());
+
+    let build_child = match SharedChild::spawn(&mut build_cmd) {
+      Ok(c) => Ok(c),
+      Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
+        "`{}` command not found.{}",
+        runner,
+        if runner == "cargo" {
+          " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+        } else {
+          ""
+        }
+      )),
+      Err(e) => Err(e.into()),
+    }?;
+    let build_child = Arc::new(build_child);
+    let build_child_stderr = build_child.take_stderr().unwrap();
+    let mut stderr = BufReader::new(build_child_stderr);
+    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+    let stderr_lines_ = stderr_lines.clone();
+    std::thread::spawn(move || {
+      let mut buf = Vec::new();
+      let mut lines = stderr_lines_.lock().unwrap();
+      let mut io_stderr = std::io::stderr();
+      loop {
+        buf.clear();
+        match tauri_utils::io::read_line(&mut stderr, &mut buf) {
+          Ok(s) if s == 0 => break,
+          _ => (),
+        }
+        let _ = io_stderr.write_all(&buf);
+        if !buf.ends_with(&[b'\r']) {
+          let _ = io_stderr.write_all(b"\n");
+        }
+        lines.push(String::from_utf8_lossy(&buf).into_owned());
+      }
+    });
+
+    let build_child_ = build_child.clone();
+    std::thread::spawn(move || {
+      let status = build_child_.wait().expect("failed to wait on build");
+
+      if status.success() {
+        on_exit(status, ExitReason::NormalExit);
+      } else {
+        let is_cargo_compile_error = stderr_lines
+          .lock()
+          .unwrap()
+          .last()
+          .map(|l| l.contains("could not compile"))
+          .unwrap_or_default();
+        stderr_lines.lock().unwrap().clear();
+
+        on_exit(
+          status,
+          if status.code() == Some(101) && is_cargo_compile_error {
+            ExitReason::CompilationFailed
+          } else {
+            ExitReason::NormalExit
+          },
+        );
+      }
+    });
+
+    Ok(build_child)
+  }
+
+  fn build_command(&mut self, options: Options) -> crate::Result<Command> {
     let runner = options.runner.unwrap_or_else(|| "cargo".into());
 
     if let Some(target) = &options.target {
@@ -410,11 +580,13 @@ impl Rust {
       args.extend(options.args);
     }
 
-    if let Some(features) = options.features {
-      if !features.is_empty() {
-        args.push("--features".into());
-        args.push(features.join(","));
-      }
+    let mut features = self.config_features.clone();
+    if let Some(f) = options.features {
+      features.extend(f);
+    }
+    if !features.is_empty() {
+      args.push("--features".into());
+      args.push(features.join(","));
     }
 
     if !options.debug {
@@ -426,38 +598,11 @@ impl Rust {
       args.push(target);
     }
 
-    match Command::new(&runner)
-      .args(&["build", "--features=custom-protocol"])
-      .args(args)
-      .env("STATIC_VCRUNTIME", "true")
-      .piped()
-    {
-      Ok(status) => {
-        if status.success() {
-          Ok(())
-        } else {
-          Err(anyhow::anyhow!(
-            "Result of `{} build` operation was unsuccessful",
-            runner
-          ))
-        }
-      }
-      Err(e) => {
-        if e.kind() == ErrorKind::NotFound {
-          Err(anyhow::anyhow!(
-            "`{}` command not found.{}",
-            runner,
-            if runner == "cargo" {
-              " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
-            } else {
-              ""
-            }
-          ))
-        } else {
-          Err(e.into())
-        }
-      }
-    }
+    let mut build_cmd = Command::new(&runner);
+    build_cmd.arg("build");
+    build_cmd.args(args);
+
+    Ok(build_cmd)
   }
 }
 
@@ -533,6 +678,7 @@ struct CargoConfig {
 }
 
 pub struct RustAppSettings {
+  manifest: Manifest,
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
@@ -546,11 +692,10 @@ impl AppSettings for RustAppSettings {
   fn get_bundle_settings(
     &self,
     config: &Config,
-    manifest: &Manifest,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
     tauri_config_to_bundle_settings(
-      manifest,
+      &self.manifest,
       features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
@@ -690,7 +835,7 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
-  pub fn new(config: &Config) -> crate::Result<Self> {
+  pub fn new(config: &Config, manifest: Manifest) -> crate::Result<Self> {
     let cargo_settings =
       CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
@@ -725,6 +870,7 @@ impl RustAppSettings {
     };
 
     Ok(Self {
+      manifest,
       cargo_settings,
       cargo_package_settings,
       package_settings,
@@ -862,7 +1008,6 @@ fn tauri_config_to_bundle_settings(
   #[cfg(target_os = "linux")]
   {
     if let Some(system_tray_config) = &system_tray_config {
-      depends.push("pkg-config".to_string());
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends.push("libayatana-appindicator3-1".into());
@@ -880,6 +1025,10 @@ fn tauri_config_to_bundle_settings(
   {
     if let Some(webview_fixed_runtime_path) = &config.windows.webview_fixed_runtime_path {
       resources.push(webview_fixed_runtime_path.display().to_string());
+    } else if let crate::helpers::config::WebviewInstallMode::FixedRuntime { path } =
+      &config.windows.webview_install_mode
+    {
+      resources.push(path.display().to_string());
     }
   }
 
@@ -958,6 +1107,7 @@ fn tauri_config_to_bundle_settings(
         wix
       }),
       icon_path: windows_icon_path,
+      webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
     },
@@ -976,7 +1126,7 @@ fn tauri_config_to_bundle_settings(
   })
 }
 
-fn rename_app(bin_path: PathBuf, product_name: Option<&str>) -> crate::Result<PathBuf> {
+fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<PathBuf> {
   if let Some(product_name) = product_name {
     #[cfg(target_os = "linux")]
     let product_name = product_name.to_kebab_case();
@@ -996,7 +1146,7 @@ fn rename_app(bin_path: PathBuf, product_name: Option<&str>) -> crate::Result<Pa
     })?;
     Ok(product_path)
   } else {
-    Ok(bin_path)
+    Ok(bin_path.to_path_buf())
   }
 }
 

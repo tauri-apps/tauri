@@ -5,9 +5,9 @@
 /**
  * Native system dialogs for opening and saving files.
  *
- * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.dialog` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.dialog`](https://tauri.app/v1/api/config/#allowlistconfig.dialog) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -90,9 +90,10 @@ interface MessageDialogOptions {
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
- * @example Open a selection dialog for image files
+ * @example
  * ```typescript
  * import { open } from '@tauri-apps/api/dialog';
+ * // Open a selection dialog for image files
  * const selected = await open({
  *   multiple: true,
  *   filters: [{
@@ -109,10 +110,11 @@ interface MessageDialogOptions {
  * }
  * ```
  *
- * @example Open a selection dialog for directories
+ * @example
  * ```typescript
  * import { open } from '@tauri-apps/api/dialog';
  * import { appDir } from '@tauri-apps/api/path';
+ * // Open a selection dialog for directories
  * const selected = await open({
  *   directory: true,
  *   multiple: true,
@@ -154,7 +156,7 @@ async function open(
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
- * @example Open a save dialog with a defined file extension
+ * @example
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
@@ -205,8 +207,8 @@ async function message(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -235,8 +237,8 @@ async function ask(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'askDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -265,8 +267,8 @@ async function confirm(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'confirmDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })

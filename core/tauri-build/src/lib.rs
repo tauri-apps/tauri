@@ -5,7 +5,8 @@
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
-use heck::ToSnakeCase;
+use heck::AsShoutySnakeCase;
+
 use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
@@ -68,12 +69,9 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
 fn has_feature(feature: &str) -> bool {
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!(
-    "CARGO_FEATURE_{}",
-    feature.to_snake_case().to_uppercase()
-  ))
-  .map(|x| x == "1")
-  .unwrap_or(false)
+  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
+    .map(|x| x == "1")
+    .unwrap_or(false)
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -169,7 +167,15 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    panic!("error found during tauri-build: {:#?}", error);
+    let error = format!("{:#}", error);
+    println!("{}", error);
+    if error.starts_with("unknown field") {
+      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
+      println!(
+        "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
+      );
+    }
+    std::process::exit(1);
   }
 }
 
@@ -185,13 +191,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
 
-  let config: Config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
-    serde_json::from_str(&env)?
-  } else {
-    serde_json::from_value(tauri_utils::config::parse::read_from(
-      std::env::current_dir().unwrap(),
-    )?)?
-  };
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    std::env::current_dir().unwrap(),
+  )?)?;
+  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
+  let config: Config = serde_json::from_value(config)?;
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 

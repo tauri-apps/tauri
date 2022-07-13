@@ -8,7 +8,6 @@
 )]
 
 mod cmd;
-mod menu;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -21,11 +20,6 @@ use tauri::{
 #[derive(Clone, Serialize)]
 struct Reply {
   data: String,
-}
-
-#[tauri::command]
-async fn menu_toggle(window: tauri::Window) {
-  window.menu_handle().toggle().unwrap();
 }
 
 fn main() {
@@ -44,10 +38,30 @@ fn main() {
   let is_menu1 = AtomicBool::new(true);
 
   #[allow(unused_mut)]
-  let mut app = tauri::Builder::default()
+  let mut builder = tauri::Builder::default()
     .setup(|app| {
+      #[allow(unused_mut)]
+      let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
+        .title("Tauri API Validation")
+        .inner_size(1000., 800.)
+        .min_inner_size(600., 400.);
+
+      #[cfg(target_os = "windows")]
+      {
+        window_builder = window_builder.transparent(true);
+        window_builder = window_builder.decorations(false);
+      }
+
+      let window = window_builder.build().unwrap();
+
+      #[cfg(target_os = "windows")]
+      {
+        let _ = window_shadows::set_shadow(&window, true);
+        let _ = window_vibrancy::apply_blur(&window, Some((0, 0, 0, 0)));
+      }
+
       #[cfg(debug_assertions)]
-      app.get_window("main").unwrap().open_devtools();
+      window.open_devtools();
 
       std::thread::spawn(|| {
         let server = match tiny_http::Server::http("localhost:3003") {
@@ -87,10 +101,6 @@ fn main() {
           .emit("rust-event", Some(reply))
           .expect("failed to emit");
       });
-    })
-    .menu(menu::get_menu())
-    .on_menu_event(|event| {
-      println!("{:?}", event.menu_item_id());
     })
     .system_tray(SystemTray::new().with_menu(tray_menu1.clone()))
     .on_system_tray_event(move |app, event| match event {
@@ -165,11 +175,18 @@ fn main() {
         }
       }
       _ => {}
-    })
+    });
+
+  #[cfg(target_os = "macos")]
+  {
+    builder = builder.menu(tauri::Menu::os_default("Tauri API Validation"));
+  }
+
+  #[allow(unused_mut)]
+  let mut app = builder
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
-      menu_toggle,
     ])
     .build(tauri::generate_context!())
     .expect("error while building tauri application");
@@ -197,24 +214,27 @@ fn main() {
       event: WindowEvent::CloseRequested { api, .. },
       ..
     } => {
-      let app_handle = app_handle.clone();
-      let window = app_handle.get_window(&label).unwrap();
-      // use the exposed close api, and prevent the event loop to close
-      api.prevent_close();
-      // ask the user if he wants to quit
-      ask(
-        Some(&window),
-        "Tauri API",
-        "Are you sure that you want to close this window?",
-        move |answer| {
-          if answer {
-            // .close() cannot be called on the main thread
-            std::thread::spawn(move || {
-              app_handle.get_window(&label).unwrap().close().unwrap();
-            });
-          }
-        },
-      );
+      // for other windows, we handle it in JS
+      if label == "main" {
+        let app_handle = app_handle.clone();
+        let window = app_handle.get_window(&label).unwrap();
+        // use the exposed close api, and prevent the event loop to close
+        api.prevent_close();
+        // ask the user if he wants to quit
+        ask(
+          Some(&window),
+          "Tauri API",
+          "Are you sure that you want to close this window?",
+          move |answer| {
+            if answer {
+              // .close() cannot be called on the main thread
+              std::thread::spawn(move || {
+                app_handle.get_window(&label).unwrap().close().unwrap();
+              });
+            }
+          },
+        );
+      }
     }
 
     // Keep the event loop running even if all windows are closed

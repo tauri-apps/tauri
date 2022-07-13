@@ -11,9 +11,6 @@ use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use uuid::Uuid;
 
-#[cfg(windows)]
-use windows::Win32::Foundation::HWND;
-
 pub mod http;
 /// Create window and system tray menus.
 pub mod menu;
@@ -44,6 +41,8 @@ pub struct SystemTray {
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
+  #[cfg(target_os = "macos")]
+  pub menu_on_left_click: bool,
 }
 
 #[cfg(feature = "system-tray")]
@@ -57,7 +56,7 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray icon. Must be a [`TrayIcon::File`] on Linux and a [`TrayIcon::Raw`] on Windows and macOS.
+  /// Sets the tray icon.
   #[must_use]
   pub fn with_icon(mut self, icon: Icon) -> Self {
     self.icon.replace(icon);
@@ -69,6 +68,14 @@ impl SystemTray {
   #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
     self.icon_as_template = is_template;
+    self
+  }
+
+  /// Sets whether the menu should appear when the tray receives a left click. Defaults to `true`.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
+    self.menu_on_left_click = menu_on_left_click;
     self
   }
 
@@ -433,14 +440,6 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
-  /// Returns the native handle that is used by this window.
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND>;
-
-  /// Returns the native handle that is used by this window.
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void>;
-
   /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   #[cfg(any(
     target_os = "linux",
@@ -450,6 +449,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow>;
+
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
 
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;

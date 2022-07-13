@@ -384,6 +384,8 @@ pub struct WixConfig {
   #[serde(default)]
   pub merge_refs: Vec<String>,
   /// Disables the Webview2 runtime installation after app install.
+  ///
+  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
   #[serde(default)]
   pub skip_webview_install: bool,
   /// The path to the license file to render on the installer.
@@ -405,6 +407,63 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Install modes for the Webview2 runtime.
+/// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
+///
+/// For more information see <https://tauri.app/v1/guides/building/windows>.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum WebviewInstallMode {
+  /// Do not install the Webview2 as part of the Windows Installer.
+  Skip,
+  /// Download the bootstrapper and run it.
+  /// Requires internet connection.
+  /// Results in a smaller installer size, but is not recommended on Windows 7.
+  DownloadBootstrapper {
+    /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool,
+  },
+  /// Embed the bootstrapper and run it.
+  /// Requires internet connection.
+  /// Increases the installer size by around 1.8MB, but offers better support on Windows 7.
+  EmbedBootstrapper {
+    /// Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool,
+  },
+  /// Embed the offline installer and run it.
+  /// Does not require internet connection.
+  /// Increases the installer size by around 127MB.
+  OfflineInstaller {
+    /// Instructs the installer to run the installer in silent mode. Defaults to `true`.
+    #[serde(default = "default_webview_install_silent")]
+    silent: bool,
+  },
+  /// Embed a fixed webview2 version and use it at runtime.
+  /// Increases the installer size by around 180MB.
+  FixedRuntime {
+    /// The path to the fixed runtime to use.
+    ///
+    /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
+    /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
+    path: PathBuf,
+  },
+}
+
+fn default_webview_install_silent() -> bool {
+  true
+}
+
+impl Default for WebviewInstallMode {
+  fn default() -> Self {
+    Self::DownloadBootstrapper {
+      silent: default_webview_install_silent(),
+    }
+  }
+}
+
 /// Windows bundler configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -421,7 +480,12 @@ pub struct WindowsConfig {
   /// use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.
   #[serde(default)]
   pub tsp: bool,
-  /// Path to the webview fixed runtime to use.
+  /// The installation mode for the Webview2 runtime.
+  #[serde(default)]
+  pub webview_install_mode: WebviewInstallMode,
+  /// Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.
+  ///
+  /// Will be removed in v2, prefer the [`Self::webview_install_mode`] option.
   ///
   /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
   /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
@@ -444,6 +508,7 @@ impl Default for WindowsConfig {
       certificate_thumbprint: None,
       timestamp_url: None,
       tsp: false,
+      webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: default_allow_downgrades(),
       wix: None,
@@ -2065,6 +2130,8 @@ pub enum WindowsUpdateInstallMode {
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
+  // to add more modes, we need to check if the updater relaunch makes sense
+  // i.e. for a full UI mode, the user can also mark the installer to start the app
 }
 
 impl WindowsUpdateInstallMode {
@@ -2228,6 +2295,13 @@ pub struct SystemTrayConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default)]
   pub icon_as_template: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.
+  #[serde(default = "default_tray_menu_on_left_click")]
+  pub menu_on_left_click: bool,
+}
+
+fn default_tray_menu_on_left_click() -> bool {
+  true
 }
 
 // We enable the unnecessary_wraps because we need
@@ -2873,17 +2947,41 @@ mod build {
     }
   }
 
+  impl ToTokens for WebviewInstallMode {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::WebviewInstallMode };
+
+      tokens.append_all(match self {
+        Self::Skip => quote! { #prefix::Skip },
+        Self::DownloadBootstrapper { silent } => {
+          quote! { #prefix::DownloadBootstrapper { silent: #silent } }
+        }
+        Self::EmbedBootstrapper { silent } => {
+          quote! { #prefix::EmbedBootstrapper { silent: #silent } }
+        }
+        Self::OfflineInstaller { silent } => {
+          quote! { #prefix::OfflineInstaller { silent: #silent } }
+        }
+        Self::FixedRuntime { path } => {
+          let path = path_buf_lit(&path);
+          quote! { #prefix::FixedRuntime { path: #path } }
+        }
+      })
+    }
+  }
+
   impl ToTokens for WindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let webview_fixed_runtime_path = opt_lit(
-        self
-          .webview_fixed_runtime_path
-          .as_ref()
-          .map(path_buf_lit)
-          .as_ref(),
-      );
+      let webview_install_mode = if let Some(fixed_runtime_path) = &self.webview_fixed_runtime_path
+      {
+        WebviewInstallMode::FixedRuntime {
+          path: fixed_runtime_path.clone(),
+        }
+      } else {
+        self.webview_install_mode.clone()
+      };
       tokens.append_all(quote! { ::tauri::utils::config::WindowsConfig {
-        webview_fixed_runtime_path: #webview_fixed_runtime_path,
+        webview_install_mode: #webview_install_mode,
         ..Default::default()
       }})
     }
@@ -3093,8 +3191,15 @@ mod build {
   impl ToTokens for SystemTrayConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let icon_as_template = self.icon_as_template;
+      let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
-      literal_struct!(tokens, SystemTrayConfig, icon_path, icon_as_template);
+      literal_struct!(
+        tokens,
+        SystemTrayConfig,
+        icon_path,
+        icon_as_template,
+        menu_on_left_click
+      );
     }
   }
 

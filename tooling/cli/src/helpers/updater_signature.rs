@@ -109,6 +109,7 @@ pub fn sign_file<P>(
 where
   P: AsRef<Path>,
 {
+  let bin_path = bin_path.as_ref();
   let decoded_secret = decode_key(private_key)?;
   let sk_box = SecretKeyBox::from_string(&decoded_secret)
     .with_context(|| "failed to load updater private key")?;
@@ -117,15 +118,16 @@ where
     .with_context(|| "incorrect updater private key password")?;
 
   // We need to append .sig at the end it's where the signature will be stored
-  let signature_path_string = format!("{}.sig", bin_path.as_ref().display());
-  let signature_path = Path::new(&signature_path_string);
+  let mut extension = bin_path.extension().unwrap().to_os_string();
+  extension.push(".sig");
+  let signature_path = bin_path.with_extension(extension);
 
-  let mut signature_box_writer = create_file(signature_path)?;
+  let mut signature_box_writer = create_file(&signature_path)?;
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
     unix_timestamp(),
-    bin_path.as_ref().display()
+    bin_path.file_name().unwrap().to_string_lossy()
   );
 
   let data_reader = open_data_file(bin_path)?;

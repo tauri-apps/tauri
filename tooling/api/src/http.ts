@@ -5,7 +5,7 @@
 /**
  * Access the HTTP client written in Rust.
  *
- * This package is also accessible with `window.__TAURI__.http` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.http` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * The APIs must be allowlisted on `tauri.conf.json`:
  * ```json
@@ -173,9 +173,14 @@ class Body {
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: Iterable<number> | ArrayLike<number>): Body {
+  static bytes(
+    bytes: Iterable<number> | ArrayLike<number> | ArrayBuffer
+  ): Body {
     // stringifying Uint8Array doesn't return an array of numbers, so we create one here
-    return new Body('Bytes', Array.from(bytes))
+    return new Body(
+      'Bytes',
+      Array.from(bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes)
+    )
   }
 }
 

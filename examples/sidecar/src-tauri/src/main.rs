@@ -13,9 +13,7 @@ use tauri::{
 };
 
 fn main() {
-  let context = tauri::generate_context!();
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .setup(|app| {
       let window = app.get_window("main").unwrap();
       tauri::async_runtime::spawn(async move {
@@ -41,6 +39,6 @@ fn main() {
 
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

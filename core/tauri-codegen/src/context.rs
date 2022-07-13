@@ -330,13 +330,28 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       let dir = config_parent.join(dir);
       if !dir.exists() {
         panic!(
-          "The isolation dir configuration is set to `{:?}` but this path doesn't exist",
+          "The isolation application path is set to `{:?}` but it does not exist",
           dir
         )
       }
 
+      let mut sets_isolation_hook = false;
+
       let key = uuid::Uuid::new_v4().to_string();
-      let assets = EmbeddedAssets::new(dir.clone(), &options, map_isolation(&options, dir))?;
+      let map_isolation = map_isolation(&options, dir.clone());
+      let assets = EmbeddedAssets::new(dir, &options, |key, path, input, csp_hashes| {
+        // we check if `__TAURI_ISOLATION_HOOK__` exists in the isolation code
+        // before modifying the files since we inject our own `__TAURI_ISOLATION_HOOK__` reference in HTML files
+        if String::from_utf8_lossy(input).contains("__TAURI_ISOLATION_HOOK__") {
+          sets_isolation_hook = true;
+        }
+        map_isolation(key, path, input, csp_hashes)
+      })?;
+
+      if !sets_isolation_hook {
+        panic!("The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value.");
+      }
+
       let schema = options.isolation_schema;
 
       quote!(#root::Pattern::Isolation {

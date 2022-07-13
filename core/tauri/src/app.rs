@@ -321,7 +321,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
   runtime_handle: R::Handle,
-  manager: WindowManager<R>,
+  pub(crate) manager: WindowManager<R>,
   #[cfg(feature = "global-shortcut")]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
@@ -568,12 +568,12 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl App<crate::Wry> {
-  /// Adds a [`tauri_runtime_wry::Plugin`].
+  /// Adds a [`tauri_runtime_wry::Plugin`] using its [`tauri_runtime_wry::PluginBuilder`].
   ///
   /// # Stability
   ///
   /// This API is unstable.
-  pub fn wry_plugin<P: tauri_runtime_wry::Plugin<EventLoopMessage> + 'static>(
+  pub fn wry_plugin<P: tauri_runtime_wry::PluginBuilder<EventLoopMessage> + 'static>(
     &mut self,
     plugin: P,
   ) {
@@ -731,13 +731,13 @@ impl<R: Runtime> App<R> {
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Exit => {
-        app_handle.cleanup_before_exit();
         on_event_loop_event(
           &app_handle,
           RuntimeRunEvent::Exit,
           &manager,
           Some(&mut callback),
         );
+        app_handle.cleanup_before_exit();
       }
       _ => {
         on_event_loop_event(&app_handle, event, &manager, Some(&mut callback));
@@ -794,21 +794,27 @@ impl<R: Runtime> App<R> {
     // check if updater is active or not
     if updater_config.active {
       if updater_config.dialog {
-        // if updater dialog is enabled spawn a new task
-        self.run_updater_dialog();
-        // When dialog is enabled, if user want to recheck
-        // if an update is available after first start
-        // invoke the Event `tauri://update` from JS or rust side.
-        handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
-          let handle = handle_.clone();
-          // re-spawn task inside tokyo to launch the download
-          // we don't need to emit anything as everything is handled
-          // by the process (user is asked to restart at the end)
-          // and it's handled by the updater
-          crate::async_runtime::spawn(
-            async move { updater::check_update_with_dialog(handle).await },
-          );
-        });
+        #[cfg(not(target_os = "linux"))]
+        let updater_enabled = true;
+        #[cfg(target_os = "linux")]
+        let updater_enabled = cfg!(dev) || self.state::<Env>().appimage.is_some();
+        if updater_enabled {
+          // if updater dialog is enabled spawn a new task
+          self.run_updater_dialog();
+          // When dialog is enabled, if user want to recheck
+          // if an update is available after first start
+          // invoke the Event `tauri://update` from JS or rust side.
+          handle.listen_global(updater::EVENT_CHECK_UPDATE, move |_msg| {
+            let handle = handle_.clone();
+            // re-spawn task inside tokyo to launch the download
+            // we don't need to emit anything as everything is handled
+            // by the process (user is asked to restart at the end)
+            // and it's handled by the updater
+            crate::async_runtime::spawn(
+              async move { updater::check_update_with_dialog(handle).await },
+            );
+          });
+        }
       } else {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
@@ -866,6 +872,10 @@ pub struct Builder<R: Runtime> {
   /// The menu set to all windows.
   menu: Option<Menu>,
 
+  /// Enable macOS default menu creation.
+  #[allow(unused)]
+  enable_macos_default_menu: bool,
+
   /// Menu event handlers that listens to all windows.
   menu_event_listeners: Vec<GlobalMenuEventListener<R>>,
 
@@ -902,6 +912,7 @@ impl<R: Runtime> Builder<R> {
       uri_scheme_protocols: Default::default(),
       state: StateManager::new(),
       menu: None,
+      enable_macos_default_menu: true,
       menu_event_listeners: Vec::new(),
       window_event_listeners: Vec::new(),
       #[cfg(feature = "system-tray")]
@@ -1332,16 +1343,21 @@ impl<R: Runtime> Builder<R> {
   /// Builds the application.
   #[allow(clippy::type_complexity)]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
+    #[cfg(target_os = "macos")]
+    if self.menu.is_none() && self.enable_macos_default_menu {
+      self.menu = Some(Menu::os_default(&context.package_info().name));
+    }
+
     #[cfg(feature = "system-tray")]
     let system_tray_icon = context.system_tray_icon.clone();
 
     #[cfg(all(feature = "system-tray", target_os = "macos"))]
-    let system_tray_icon_as_template = context
+    let (system_tray_icon_as_template, system_tray_menu_on_left_click) = context
       .config
       .tauri
       .system_tray
       .as_ref()
-      .map(|t| t.icon_as_template)
+      .map(|t| (t.icon_as_template, t.menu_on_left_click))
       .unwrap_or_default();
 
     #[cfg(shell_scope)]
@@ -1441,16 +1457,19 @@ impl<R: Runtime> Builder<R> {
 
     #[cfg(windows)]
     {
-      if let Some(w) = &app
+      if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } = &app
         .manager
         .config()
         .tauri
         .bundle
         .windows
-        .webview_fixed_runtime_path
+        .webview_install_mode
       {
         if let Some(resource_dir) = app.path_resolver().resource_dir() {
-          std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", resource_dir.join(w));
+          std::env::set_var(
+            "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
+            resource_dir.join(path),
+          );
         } else {
           #[cfg(debug_assertions)]
           eprintln!(
@@ -1479,7 +1498,9 @@ impl<R: Runtime> Builder<R> {
         tray = tray.with_menu(menu);
       }
       #[cfg(target_os = "macos")]
-      let tray = tray.with_icon_as_template(system_tray_icon_as_template);
+      let tray = tray
+        .with_icon_as_template(system_tray_icon_as_template)
+        .with_menu_on_left_click(system_tray_menu_on_left_click);
 
       let tray_handler = app
         .runtime

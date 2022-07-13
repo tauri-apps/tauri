@@ -73,7 +73,7 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurrs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///
@@ -96,7 +96,10 @@ where
   }
 }
 
-fn try_run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
+/// Run the Tauri CLI with the passed arguments.
+///
+/// It is similar to [`run`], but instead of exiting on an error, it returns a result.
+pub fn try_run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
 where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,

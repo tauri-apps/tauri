@@ -6,8 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, WindowUrl},
-    manifest::rewrite_manifest,
+    config::{get as get_config, AppUrl, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
     updater_signature::sign_file_from_env_variables,
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -55,28 +54,44 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let merge_config = if let Some(config) = &options.config {
-    Some(if config.starts_with('{') {
-      config.to_string()
+  let (merge_config, merge_config_path) = if let Some(config) = &options.config {
+    if config.starts_with('{') {
+      (Some(config.to_string()), None)
     } else {
-      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
-    })
+      (
+        Some(
+          std::fs::read_to_string(&config)
+            .with_context(|| "failed to read custom configuration")?,
+        ),
+        Some(config.clone()),
+      )
+    }
   } else {
-    None
+    (None, None)
   };
+  options.config = merge_config;
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let config = get_config(merge_config.as_deref())?;
-
-  let manifest = rewrite_manifest(config.clone())?;
+  let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
+    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => {
+      merge_config_path.unwrap_or_else(|| source.into())
+    }
+    Some(source) => source.into(),
+    None => "tauri.conf.json".into(),
+  };
+
   if config_.tauri.bundle.identifier == "com.tauri.dev" {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    error!(
+      "You must change the bundle identifier in `{} > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      bundle_identifier_source
+    );
     std::process::exit(1);
   }
 
@@ -87,7 +102,11 @@ pub fn command(mut options: Options) -> Result<()> {
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).");
+    error!(
+      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
+      config_.tauri.bundle.identifier,
+      bundle_identifier_source
+    );
     std::process::exit(1);
   }
 
@@ -114,7 +133,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
       if !status.success() {
         bail!(
-          "beforeDevCommand `{}` failed with exit code {}",
+          "beforeBuildCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
         );
@@ -210,7 +229,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let settings = app_settings
-      .get_bundler_settings(&options.into(), &manifest, config_, out_dir, package_types)
+      .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
 
     // set env vars used by the bundler
@@ -229,13 +248,13 @@ pub fn command(mut options: Options) -> Result<()> {
             "TRAY_LIBRARY_PATH",
             if tray == "ayatana" {
               format!(
-                "{}/libayatana-appindicator3.so",
+                "{}/libayatana-appindicator3.so.1",
                 pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
                   .expect("failed to get ayatana-appindicator library path using pkg-config.")
               )
             } else {
               format!(
-                "{}/libappindicator3.so",
+                "{}/libappindicator3.so.1",
                 pkgconfig_utils::get_library_path("appindicator3-0.1")
                   .expect("failed to get libappindicator-gtk library path using pkg-config.")
               )
@@ -248,9 +267,9 @@ pub fn command(mut options: Options) -> Result<()> {
           );
         }
       }
-    }
-    if config_.tauri.bundle.appimage.bundle_media_framework {
-      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      if config_.tauri.bundle.appimage.bundle_media_framework {
+        std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      }
     }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
@@ -301,9 +320,9 @@ mod pkgconfig_utils {
 
   pub fn get_appindicator_library_path() -> PathBuf {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{}/libayatana-appindicator3.so", p).into(),
+      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{}/libappindicator3.so", p).into(),
+        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
         None => panic!("Can't detect any appindicator library"),
       },
     }

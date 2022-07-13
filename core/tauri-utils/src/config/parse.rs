@@ -82,20 +82,34 @@ pub enum ConfigError {
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
 pub fn read_from(root_dir: PathBuf) -> Result<Value, ConfigError> {
   let mut config: Value = parse_value(root_dir.join("tauri.conf.json"))?;
+  if let Some(platform_config) = read_platform(root_dir)? {
+    merge(&mut config, &platform_config);
+  }
+  Ok(config)
+}
 
-  let platform_config_filename = if cfg!(target_os = "macos") {
+/// Gets the platform configuration file name.
+pub fn get_platform_config_filename() -> &'static str {
+  if cfg!(target_os = "macos") {
     "tauri.macos.conf.json"
   } else if cfg!(windows) {
     "tauri.windows.conf.json"
   } else {
     "tauri.linux.conf.json"
-  };
-  let platform_config_path = root_dir.join(platform_config_filename);
+  }
+}
+
+/// Reads the platform-specific configuration file from the given root directory if it exists.
+///
+/// Check [`read_from`] for more information.
+pub fn read_platform(root_dir: PathBuf) -> Result<Option<Value>, ConfigError> {
+  let platform_config_path = root_dir.join(get_platform_config_filename());
   if does_supported_extension_exist(&platform_config_path) {
     let platform_config: Value = parse_value(platform_config_path)?;
-    merge(&mut config, &platform_config);
+    Ok(Some(platform_config))
+  } else {
+    Ok(None)
   }
-  Ok(config)
 }
 
 /// Check if a supported config file exists at path.

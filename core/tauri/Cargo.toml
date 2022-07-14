@@ -16,7 +16,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.0.3"
+version = "1.0.4"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -56,7 +56,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1.12"
 tauri-runtime = { version = "0.10.2", path = "../tauri-runtime" }
-tauri-macros = { version = "1.0.3", path = "../tauri-macros" }
+tauri-macros = { version = "1.0.4", path = "../tauri-macros" }
 tauri-utils = { version = "1.0.3", features = [ "resources" ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "0.10.2", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"

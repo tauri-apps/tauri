@@ -134,6 +134,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -269,6 +270,7 @@
               "allowDowngrades": true,
               "certificateThumbprint": null,
               "digestAlgorithm": null,
+              "nsis": null,
               "timestampUrl": null,
               "tsp": false,
               "webviewFixedRuntimePath": null,
@@ -911,7 +913,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1018,6 +1020,7 @@
             "allowDowngrades": true,
             "certificateThumbprint": null,
             "digestAlgorithm": null,
+            "nsis": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -1069,6 +1072,7 @@
         "deb",
         "appimage",
         "msi",
+        "nsis",
         "app",
         "dmg",
         "updater"
@@ -1230,6 +1234,17 @@
           "anyOf": [
             {
               "$ref": "#/definitions/WixConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nsis": {
+          "description": "Configuration for the installer generated with NSIS.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NsisConfig"
             },
             {
               "type": "null"
@@ -1479,6 +1494,46 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NsisConfig": {
+      "description": "Configuration for the Installer bundle using NSIS.",
+      "type": "object",
+      "properties": {
+        "license": {
+          "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headerImage": {
+          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150pxx57px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sidebarImage": {
+          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164pxx314px.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "installerIcon": {
+          "description": "The path to an icon file used as the installer icon.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "perMachine": {
+          "description": "Whether the installation will be for all users or just the current user.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

@@ -76,6 +76,8 @@ pub enum BundleType {
   AppImage,
   /// The Microsoft Installer bundle (.msi).
   Msi,
+  /// The NSIS bundle (.exe).
+  Nsis,
   /// The macOS application bundle (.app).
   App,
   /// The Apple Disk Image bundle (.dmg).
@@ -93,6 +95,7 @@ impl Display for BundleType {
         Self::Deb => "deb",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
+        Self::Nsis => "nsis",
         Self::App => "app",
         Self::Dmg => "dmg",
         Self::Updater => "updater",
@@ -120,6 +123,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "deb" => Ok(Self::Deb),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
+      "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
       "dmg" => Ok(Self::Dmg),
       "updater" => Ok(Self::Updater),
@@ -407,6 +411,30 @@ pub struct WixConfig {
   pub dialog_image_path: Option<PathBuf>,
 }
 
+/// Configuration for the Installer bundle using NSIS.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NsisConfig {
+  /// The path to the license file to render on the installer.
+  ///
+  /// Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.
+  pub license: Option<PathBuf>,
+  /// The path to a bitmap file to display on the header of installers pages.
+  ///
+  /// The recommended dimensions are 150pxx57px.
+  pub header_image: Option<PathBuf>,
+  /// The path to a bitmap file for the Welcome page and the Finish page.
+  ///
+  /// The recommended dimensions are 164pxx314px.
+  pub sidebar_image: Option<PathBuf>,
+  /// The path to an icon file used as the installer icon.
+  pub installer_icon: Option<PathBuf>,
+  /// Whether the installation will be for all users or just the current user.
+  #[serde(default)]
+  pub per_machine: bool,
+}
+
 /// Install modes for the Webview2 runtime.
 /// Note that for the updater bundle [`Self::DownloadBootstrapper`] is used.
 ///
@@ -499,6 +527,8 @@ pub struct WindowsConfig {
   pub allow_downgrades: bool,
   /// Configuration for the MSI generated with WiX.
   pub wix: Option<WixConfig>,
+  /// Configuration for the installer generated with NSIS.
+  pub nsis: Option<NsisConfig>,
 }
 
 impl Default for WindowsConfig {
@@ -512,6 +542,7 @@ impl Default for WindowsConfig {
       webview_fixed_runtime_path: None,
       allow_downgrades: default_allow_downgrades(),
       wix: None,
+      nsis: None,
     }
   }
 }
@@ -529,7 +560,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).

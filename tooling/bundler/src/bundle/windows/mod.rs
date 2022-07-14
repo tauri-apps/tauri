@@ -3,4 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 pub mod msi;
+pub mod nsis;
 pub mod sign;
+mod util;

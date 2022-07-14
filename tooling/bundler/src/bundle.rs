@@ -23,7 +23,7 @@ pub use self::{
   },
 };
 use log::{info, warn};
-pub use settings::{WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
+pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{fmt::Write, path::PathBuf};
 
@@ -50,6 +50,8 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
+      #[cfg(target_os = "windows")]
+      PackageType::Nsis => windows::nsis::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]

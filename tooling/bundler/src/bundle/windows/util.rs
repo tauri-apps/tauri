@@ -106,7 +106,13 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
   for i in 0..zipa.len() {
     let mut file = zipa.by_index(i)?;
+
     let dest_path = path.join(file.name());
+    if file.is_dir() {
+      create_dir_all(&dest_path)?;
+      continue;
+    }
+
     let parent = dest_path.parent().expect("Failed to get parent");
 
     if !parent.exists() {
@@ -128,9 +134,9 @@ const URL_7ZR: &str = "https://www.7-zip.org/a/7zr.exe";
 pub fn extract_7z(data: &[u8], path: &Path) -> crate::Result<()> {
   let bin_7z = {
     debug!("checking for 7z.exe or 7zr.exe is in $PATH");
-    if let Ok(_) = Command::new("7z.exe").spawn() {
+    if let Ok(_) = Command::new("7z.exe").output() {
       "7z.exe".to_string()
-    } else if let Ok(_) = Command::new("7zr.exe").spawn() {
+    } else if let Ok(_) = Command::new("7zr.exe").output() {
       "7zr.exe".to_string()
     } else {
       get_or_download_7zr_bin()?.to_string_lossy().to_string()

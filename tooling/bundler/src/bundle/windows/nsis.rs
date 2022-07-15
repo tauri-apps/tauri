@@ -19,7 +19,7 @@ use tauri_utils::resources::resource_relpath;
 
 use std::{
   collections::BTreeMap,
-  fs::{create_dir_all, remove_dir_all, rename, write},
+  fs::{copy, create_dir_all, remove_dir_all, rename, write},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -30,12 +30,14 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NS_CURL_URL: &str =
   "https://github.com/negrutiu/nsis-nscurl/releases/download/v1.2022.6.7/NScurl-1.2022.6.7.7z";
+const NSIS_APPLICATION_ID_URL: &str = "https://github.com/connectiblutz/NSIS-ApplicationID/releases/download/1.1/NSIS-ApplicationID.zip";
 
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
   "Bin/makensis.exe",
   "Stubs/zlib-x86-unicode",
   "Plugins/x86-unicode/NScurl.dll",
+  "Plugins/x86-unicode/ApplicationID.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
@@ -44,36 +46,47 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let nsis_path = dirs_next::cache_dir().unwrap().join("tauri").join("NSIS");
-  let nsis_toolset_path = nsis_path.join("nsis-3.08");
+  let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
+  let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
-  if !nsis_path.exists() {
-    get_and_extract_nsis(&nsis_path)?;
+  if !nsis_toolset_path.exists() {
+    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES
     .iter()
     .any(|p| !nsis_toolset_path.join(p).exists())
   {
     warn!("NSIS directory is missing some files. Recreating it.");
-    std::fs::remove_dir_all(&nsis_path)?;
-    get_and_extract_nsis(&nsis_path)?;
+    std::fs::remove_dir_all(&nsis_toolset_path)?;
+    get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   }
 
   build_nsis_app_installer(settings, &nsis_toolset_path)
 }
 
-// Gets NSIS and verifies the download via Sha256
-fn get_and_extract_nsis(path: &Path) -> crate::Result<()> {
+// Gets NSIS and verifies the download via Sha1
+fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> crate::Result<()> {
   info!("Verifying NSIS package");
 
   let data = download_and_verify(NSIS_URL, NSIS_SHA1, "sha1")?;
-
   info!("extracting NSIS");
-  extract_zip(&data, path)?;
+  extract_zip(&data, tauri_tools_path)?;
+  rename(tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+
+  let nsis_plugins = nsis_toolset_path.join("Plugins");
 
   let data = download(NS_CURL_URL)?;
-
   info!("extracting NScurl");
-  extract_7z(&data, &path.join("nsis-3.08").join("Plugins"))?;
+  extract_7z(&data, &nsis_plugins)?;
+
+  let data = download(NSIS_APPLICATION_ID_URL)?;
+  info!("extracting NSIS-ApplicationID");
+  extract_zip(&data, &nsis_plugins)?;
+  copy(
+    nsis_plugins
+      .join("ReleaseUnicode")
+      .join("ApplicationID.dll"),
+    nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
+  )?;
 
   Ok(())
 }

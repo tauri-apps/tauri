@@ -170,6 +170,8 @@ Section Install
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
     CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "{{{bundle_id}}}"
+
   !insertmacro MUI_STARTMENU_WRITE_END
 
 SectionEnd

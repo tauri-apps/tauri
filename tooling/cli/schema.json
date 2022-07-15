@@ -1503,7 +1503,7 @@
       "type": "object",
       "properties": {
         "license": {
-          "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
+          "description": "The path to the license file to render on the installer.",
           "type": [
             "string",
             "null"

@@ -16,7 +16,7 @@
 !define SIDEBARIMAGE "{{{sidebar_image}}}"
 !define HEADERIMAGE "{{{header_image}}}"
 !define MAINBINARYNAME "{{{main_binary_name}}}"
-!define MAINBINARYPATH "{{{main_binary_path}}}"
+!define MAINBINARYSRCPATH "{{{main_binary_path}}}"
 !define APR "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 Var AppStartMenuFolder ; Will be set through `MUI_PAGE_STARTMENU` page. Used to determine where to create the start menu shortcut
 ; ---
@@ -64,7 +64,7 @@ OutFile "{{{out_file}}}"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION "createDesktopShortcut"
 
 ; Show run app after installation.
-!define MUI_FINISHPAGE_RUN $INSTDIR\Resources.exe
+!define MUI_FINISHPAGE_RUN $INSTDIR\${MAINBINARYNAME}.exe
 
 ; Installer pages, must be ordered as they appear
 !insertmacro MUI_PAGE_WELCOME
@@ -131,7 +131,7 @@ Section Install
   SetOutPath $INSTDIR
 
   ; Main executable
-  File "${MAINBINARYPATH}"
+  File "${MAINBINARYSRCPATH}"
 
   ; Copy resources
   {{#each resources}}

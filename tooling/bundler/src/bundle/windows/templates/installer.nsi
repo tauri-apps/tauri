@@ -17,6 +17,7 @@
 !define HEADERIMAGE "{{{header_image}}}"
 !define MAINBINARYNAME "{{{main_binary_name}}}"
 !define MAINBINARYSRCPATH "{{{main_binary_path}}}"
+!define BUNDLEID "{{{bundle_id}}}"
 !define APR "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 Var AppStartMenuFolder ; Will be set through `MUI_PAGE_STARTMENU` page. Used to determine where to create the start menu shortcut
 ; ---
@@ -85,6 +86,7 @@ OutFile "{{{out_file}}}"
 
 Function createDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
 FunctionEnd
 
 Section Webview2
@@ -170,7 +172,7 @@ Section Install
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
     CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-    ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "{{{bundle_id}}}"
+    ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
 
   !insertmacro MUI_STARTMENU_WRITE_END
 

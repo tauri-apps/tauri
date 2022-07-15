@@ -133,7 +133,14 @@ Section Install
   ; Main executable
   File "${MAINBINARYPATH}"
 
-  ; Copy resources and external binaries
+  ; Copy resources
+  {{#each resources}}
+    ${GetParent} "{{this}}" $R1
+    CreateDirectory "$INSTDIR\$R1"
+    File /a /oname={{this}} {{@key}}
+  {{/each}}
+
+  ; Copy external binaries
 
   ; Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"

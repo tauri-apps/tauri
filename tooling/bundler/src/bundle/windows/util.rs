@@ -168,6 +168,6 @@ fn get_or_download_7zr_bin() -> crate::Result<PathBuf> {
   Ok(bin_7zr_path)
 }
 
-pub fn remove_unc<P: AsRef<Path>>(p: P) -> PathBuf {
+pub fn remove_unc_lossy<P: AsRef<Path>>(p: P) -> PathBuf {
   PathBuf::from(p.as_ref().to_string_lossy().replacen(r"\\?\", "", 1))
 }

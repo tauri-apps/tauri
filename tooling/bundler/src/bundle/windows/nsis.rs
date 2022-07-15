@@ -3,13 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  bundle::windows::util::{
-    download, download_and_verify, extract_7z, extract_zip, remove_unc, try_sign, validate_version,
+  bundle::{
+    common::CommandExt,
+    windows::util::{
+      download, download_and_verify, extract_7z, extract_zip, remove_unc_lossy, try_sign,
+      validate_version,
+    },
   },
   Settings,
 };
+use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
+use tauri_utils::resources::resource_relpath;
 
 use std::{
   collections::BTreeMap,
@@ -133,24 +139,27 @@ fn build_nsis_app_installer(
     );
 
     if let Some(license) = &nsis.license {
-      data.insert("license", to_json(remove_unc(license.canonicalize()?)));
+      data.insert(
+        "license",
+        to_json(remove_unc_lossy(license.canonicalize()?)),
+      );
     }
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
-        to_json(remove_unc(installer_icon.canonicalize()?)),
+        to_json(remove_unc_lossy(installer_icon.canonicalize()?)),
       );
     }
     if let Some(header_image) = &nsis.header_image {
       data.insert(
         "header_image",
-        to_json(remove_unc(header_image.canonicalize()?)),
+        to_json(remove_unc_lossy(header_image.canonicalize()?)),
       );
     }
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
-        to_json(remove_unc(sidebar_image.canonicalize()?)),
+        to_json(remove_unc_lossy(sidebar_image.canonicalize()?)),
       );
     }
   }
@@ -171,6 +180,9 @@ fn build_nsis_app_installer(
 
   let out_file = "nsis-output.exe";
   data.insert("out_file", to_json(&out_file));
+
+  let resources = generate_resource_data(&settings)?;
+  data.insert("resources", to_json(resources));
 
   let mut handlebars = Handlebars::new();
   handlebars
@@ -197,13 +209,45 @@ fn build_nsis_app_installer(
     .join(format!("bundle/nsis/{}.exe", package_base_name));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  info!(action = "Running"; "makensis to produce {}", nsis_installer_path.display());
+  info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());
   Command::new(nsis_toolset_path.join("makensis.exe"))
     .args(&[installer_nsi_path])
-    .output()?;
+    .current_dir(output_path)
+    .output_ok()
+    .context("error running makensis.exe")?;
 
   rename(&nsis_output_path, &nsis_installer_path)?;
   try_sign(&nsis_installer_path, &settings)?;
 
   Ok(vec![nsis_installer_path])
+}
+
+/// Key is the original path and the value is the target path
+type ResourcesMap = BTreeMap<PathBuf, PathBuf>;
+fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
+  let mut resources = ResourcesMap::new();
+  let cwd = std::env::current_dir()?;
+
+  let mut added_resources = Vec::new();
+
+  for src in settings.resource_files() {
+    let src = src?;
+
+    let resource_path = remove_unc_lossy(cwd.join(src.clone()).canonicalize()?);
+
+    // In some glob resource paths like `assets/**/*` a file might appear twice
+    // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
+    // when it finds one. So we must check it before processing the file.
+    if added_resources.contains(&resource_path) {
+      continue;
+    }
+
+    added_resources.push(resource_path.clone());
+
+    let target_path = resource_relpath(&src);
+
+    resources.insert(resource_path, target_path);
+  }
+
+  Ok(resources)
 }

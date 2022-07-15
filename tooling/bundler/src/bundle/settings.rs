@@ -250,8 +250,6 @@ pub struct WixSettings {
 #[derive(Clone, Debug, Default)]
 pub struct NsisSettings {
   /// The path to the license file to render on the installer.
-  ///
-  /// Must be an RTF file, so if a different extension is provided, we convert it to the RTF format.
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///

@@ -184,6 +184,9 @@ fn build_nsis_app_installer(
   let resources = generate_resource_data(&settings)?;
   data.insert("resources", to_json(resources));
 
+  let binaries = generate_binaries_data(settings)?;
+  data.insert("binaries", to_json(binaries));
+
   let mut handlebars = Handlebars::new();
   handlebars
     .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
@@ -217,12 +220,12 @@ fn build_nsis_app_installer(
     .context("error running makensis.exe")?;
 
   rename(&nsis_output_path, &nsis_installer_path)?;
-  try_sign(&nsis_installer_path, &settings)?;
+  try_sign(&nsis_installer_path, settings)?;
 
   Ok(vec![nsis_installer_path])
 }
 
-/// Key is the original path and the value is the target path
+/// BTreeMap<OriginalPath, TargetPath>
 type ResourcesMap = BTreeMap<PathBuf, PathBuf>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
@@ -232,8 +235,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
 
   for src in settings.resource_files() {
     let src = src?;
-
-    let resource_path = remove_unc_lossy(cwd.join(src.clone()).canonicalize()?);
+    let resource_path = remove_unc_lossy(cwd.join(&src).canonicalize()?);
 
     // In some glob resource paths like `assets/**/*` a file might appear twice
     // because the `tauri_utils::resources::ResourcePaths` iterator also reads a directory
@@ -241,13 +243,45 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     if added_resources.contains(&resource_path) {
       continue;
     }
-
     added_resources.push(resource_path.clone());
 
     let target_path = resource_relpath(&src);
-
     resources.insert(resource_path, target_path);
   }
 
   Ok(resources)
+}
+
+/// BTreeMap<OriginalPath, TargetFileName>
+type BinariesMap = BTreeMap<PathBuf, String>;
+fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
+  let mut binaries = BinariesMap::new();
+  let cwd = std::env::current_dir()?;
+
+  for src in settings.external_binaries() {
+    let src = src?;
+    let binary_path = remove_unc_lossy(cwd.join(&src).canonicalize()?);
+    let dest_filename = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", settings.target()), "");
+    binaries.insert(binary_path, dest_filename);
+  }
+
+  for bin in settings.binaries() {
+    if !bin.main() {
+      let bin_path = settings.binary_path(bin);
+      binaries.insert(
+        bin_path.clone(),
+        bin_path
+          .file_name()
+          .expect("failed to extract external binary filename")
+          .to_string_lossy()
+          .to_string(),
+      );
+    }
+  }
+
+  Ok(binaries)
 }

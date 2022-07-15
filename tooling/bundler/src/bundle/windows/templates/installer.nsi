@@ -141,6 +141,9 @@ Section Install
   {{/each}}
 
   ; Copy external binaries
+  {{#each binaries}}
+    File /a /oname={{this}} {{@key}}
+  {{/each}}
 
   ; Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"

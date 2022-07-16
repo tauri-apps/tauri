@@ -35,7 +35,8 @@ const NSIS_APPLICATION_ID_URL: &str = "https://github.com/connectiblutz/NSIS-App
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
   "Bin/makensis.exe",
-  "Stubs/zlib-x86-unicode",
+  "Stubs/lzma-x86-unicode",
+  "Stubs/lzma_solid-x86-unicode",
   "Plugins/x86-unicode/NScurl.dll",
   "Plugins/x86-unicode/ApplicationID.dll",
   "Include/MUI2.nsh",
@@ -130,6 +131,7 @@ fn build_nsis_app_installer(
   let bundle_id = settings.bundle_identifier();
   let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
 
+  data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
@@ -140,6 +142,12 @@ fn build_nsis_app_installer(
   let mut s = version.split(".");
   data.insert("version_major", to_json(s.next().unwrap()));
   data.insert("version_minor", to_json(s.next().unwrap()));
+  data.insert("version_build", to_json(s.next().unwrap()));
+
+  data.insert(
+    "allow_downgrades",
+    to_json(settings.windows().allow_downgrades),
+  );
 
   if let Some(nsis) = &settings.windows().nsis {
     data.insert(
@@ -212,7 +220,7 @@ fn build_nsis_app_installer(
   )?;
 
   let package_base_name = format!(
-    "{}_{}_{}",
+    "{}_{}_{}-setup",
     main_binary.name().replace(".exe", ""),
     settings.version_string(),
     arch,

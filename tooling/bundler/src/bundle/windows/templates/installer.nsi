@@ -254,14 +254,16 @@ Function PageReinstall
     !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
     StrCpy $R0 "1"
   ; Downgrading
-  !if "${ALLOWDOWNGRADES}" == "true"
   ${ElseIf} $R0 == 2
     StrCpy $R1 "A newer version of ${PRODUCTNAME} is already installed! It is not recommended that you install an older version. If you really want to install this older version, it's better to uninstall the current version first. Select the operation you want to perform and click Next to continue."
     StrCpy $R2 "Uninstall before installing"
+    !if "${ALLOWDOWNGRADES}" == "true"
     StrCpy $R3 "Do not uninstall"
+    !else
+    StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
+    !endif
     !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
     StrCpy $R0 "1"
-  !endif
   ${Else}
     Abort
   ${EndIf}
@@ -278,6 +280,10 @@ Function PageReinstall
 
   ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
   Pop $R3
+  ; disable this radio button if downgards are not allowed
+  !if "${ALLOWDOWNGRADES}" == "false"
+  EnableWindow $R3 0
+  !endif
   ${NSD_OnClick} $R3 PageReinstallUpdateSelection
 
   ${If} $ReinstallPageCheck != 2

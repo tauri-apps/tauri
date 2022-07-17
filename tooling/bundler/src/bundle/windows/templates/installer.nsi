@@ -25,6 +25,10 @@
 !define OUTFILE "{{{out_file}}}"
 !define ARCH "{{{arch}}}"
 !define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
+!define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
+!define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
+!define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
+!define WEBVIEW2INSTALLERPATH "{{{webview2_installer_path}}}"
 !define APR "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 
 ;--------------------------------
@@ -133,7 +137,7 @@ Section SilentChecks
 SectionEnd
 
 Section Webview2
-  ; Check if Webview2 is already installed
+  ; Check if Webview2 is already installed and skip this section
   ${If} ${RunningX64}
     ReadRegStr $4 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
   ${Else}
@@ -141,34 +145,56 @@ Section Webview2
   ${EndIf}
   ReadRegStr $5 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
 
-  ${If} $4 == ""
-  ${AndIf} $5 == ""
-    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+  StrCmp $4 "" 0 done
+  StrCmp $5 "" 0 done
 
-    DetailPrint "Downloading Webview2 installer..."
+  ;--------------------------------
+  ; Webview2 install modes
+
+  !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
+    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    DetailPrint "Downloading Webview2 bootstrapper..."
     NScurl::http GET "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe" /CANCEL /END
     Pop $0
     ${If} $0 == "OK"
-      DetailPrint "Webview2 installer downloaded sucessfully"
+      DetailPrint "Webview2 bootstrapper downloaded sucessfully"
     ${Else}
       DetailPrint "Error: Downloading Webview2 Failed - $0"
-      Goto abort
+      Abort "Failed to install Webview2. The app can't run without it. Try restarting the installer"
     ${EndIf}
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    Goto install_webview2
+  !endif
 
+  !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
+    CreateDirectory "$INSTDIR\redist"
+    File /oname="$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "WEBVIEW2BOOTSTRAPPERPATH"
     DetailPrint "Installing Webview2..."
-    ExecWait "$TEMP\MicrosoftEdgeWebview2Setup.exe /install" $1
+    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
+    Goto install_webview2
+  !endif
+
+  !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
+    CreateDirectory "$INSTDIR\redist"
+    File /oname="$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "WEBVIEW2INSTALLERPATH"
+    DetailPrint "Installing Webview2..."
+    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    Goto install_webview2
+  !endif
+
+  Goto done
+
+  install_webview2:
+    DetailPrint "Installing Webview2..."
+    ; $6 holds the path to the webview2 installer
+    ExecWait "$6 /install ${WEBVIEW2INSTALLERARGS}" $1
     ${If} $1 == 0
       DetailPrint "Webview2 installed sucessfully"
     ${Else}
       DetailPrint "Error: Installing Webview2 Failed with exit code $1"
-      Goto abort
+      Abort "Failed to install Webview2. The app can't run without it. Try restarting the installer"
     ${EndIf}
-  ${EndIf}
 
-  Goto done
-
-  abort:
-    Abort "Failed to install Webview2. The app can't run without it. Try restarting the installer"
   done:
 SectionEnd
 

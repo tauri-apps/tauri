@@ -6,7 +6,10 @@ use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
   settings::Settings,
-  windows::util::{download, download_and_verify, extract_zip, try_sign, validate_version},
+  windows::util::{
+    download, download_and_verify, extract_zip, try_sign, validate_version,
+    WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+  },
 };
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
@@ -29,9 +32,6 @@ pub const WIX_URL: &str =
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
 pub const MSI_FOLDER_NAME: &str = "msi";
 pub const MSI_UPDATER_FOLDER_NAME: &str = "msi-updater";
-const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
-const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
-const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
 
 // For Cross Platform Compilation.
 
@@ -420,10 +420,12 @@ pub fn build_wix_app_installer(
       } else {
         WEBVIEW2_X86_INSTALLER_GUID
       };
-      let mut offline_installer_path = dirs_next::cache_dir().unwrap();
-      offline_installer_path.push("tauri");
-      offline_installer_path.push(guid);
-      offline_installer_path.push(arch);
+      let offline_installer_path = dirs_next::cache_dir()
+        .unwrap()
+        .join("tauri")
+        .join("Webview2OfflineInstaller")
+        .join(guid)
+        .join(arch);
       create_dir_all(&offline_installer_path)?;
       let webview2_installer_path =
         offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");

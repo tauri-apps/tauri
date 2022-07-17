@@ -7,7 +7,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, extract_7z, extract_zip, remove_unc_lossy, try_sign,
-      validate_version,
+      validate_version, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
+      WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -15,7 +16,7 @@ use crate::{
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::resources::resource_relpath;
+use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 
 use std::{
   collections::BTreeMap,
@@ -46,7 +47,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
 
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
-pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
@@ -61,7 +62,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   }
 
-  build_nsis_app_installer(settings, &nsis_toolset_path)
+  build_nsis_app_installer(settings, &nsis_toolset_path, &tauri_tools_path, updater)
 }
 
 // Gets NSIS and verifies the download via Sha1
@@ -95,6 +96,8 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
 fn build_nsis_app_installer(
   settings: &Settings,
   nsis_toolset_path: &Path,
+  tauri_tools_path: &Path,
+  updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -207,6 +210,92 @@ fn build_nsis_app_installer(
 
   let binaries = generate_binaries_data(settings)?;
   data.insert("binaries", to_json(binaries));
+
+  let silent_webview2_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
+  | WebviewInstallMode::EmbedBootstrapper { silent }
+  | WebviewInstallMode::OfflineInstaller { silent } =
+    settings.windows().webview_install_mode
+  {
+    silent
+  } else {
+    true
+  };
+
+  let webview2_install_mode = if updater {
+    WebviewInstallMode::DownloadBootstrapper {
+      silent: silent_webview2_install,
+    }
+  } else {
+    let mut webview_install_mode = settings.windows().webview_install_mode.clone();
+    if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
+      webview_install_mode = WebviewInstallMode::FixedRuntime {
+        path: fixed_runtime_path,
+      };
+    } else if let Some(wix) = &settings.windows().wix {
+      if wix.skip_webview_install {
+        webview_install_mode = WebviewInstallMode::Skip;
+      }
+    }
+    webview_install_mode
+  };
+
+  let webview2_installer_args = to_json(if silent_webview2_install {
+    "/silent"
+  } else {
+    ""
+  });
+
+  data.insert("webview2_installer_args", to_json(webview2_installer_args));
+  data.insert(
+    "install_webview2_mode",
+    to_json(match webview2_install_mode {
+      WebviewInstallMode::DownloadBootstrapper { silent: _ } => "downloadBootstrapper",
+      WebviewInstallMode::EmbedBootstrapper { silent: _ } => "embedBootstrapper",
+      WebviewInstallMode::OfflineInstaller { silent: _ } => "offlineInstaller",
+      _ => "",
+    }),
+  );
+
+  match webview2_install_mode {
+    WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
+      let webview2_bootstrapper_path = tauri_tools_path.join("MicrosoftEdgeWebview2Setup.exe");
+      std::fs::write(
+        &webview2_bootstrapper_path,
+        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
+      )?;
+      data.insert(
+        "webview2_bootstrapper_path",
+        to_json(webview2_bootstrapper_path),
+      );
+    }
+    WebviewInstallMode::OfflineInstaller { silent: _ } => {
+      let guid = if arch == "x64" {
+        WEBVIEW2_X64_INSTALLER_GUID
+      } else {
+        WEBVIEW2_X86_INSTALLER_GUID
+      };
+      let offline_installer_path = tauri_tools_path
+        .join("Webview2OfflineInstaller")
+        .join(guid)
+        .join(arch);
+      create_dir_all(&offline_installer_path)?;
+      let webview2_installer_path =
+        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
+      if !webview2_installer_path.exists() {
+        std::fs::write(
+          &webview2_installer_path,
+          download(
+            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
+              guid,
+              arch.to_uppercase(),
+            ),
+          )?,
+        )?;
+      }
+      data.insert("webview2_installer_path", to_json(webview2_installer_path));
+    }
+    _ => {}
+  }
 
   let mut handlebars = Handlebars::new();
   handlebars

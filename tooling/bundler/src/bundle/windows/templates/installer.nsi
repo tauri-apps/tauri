@@ -116,6 +116,22 @@ Page custom PageReinstall PageLeaveReinstall
 ;--------------------------------
 ;Installer Sections
 
+Section SilentChecks
+  ; Abort silent installer if downgrades is disabled
+  !if "${ALLOWDOWNGRADES}" == "false"
+  IfSilent 0 silent_checks_done
+    System::Call 'kernel32::AttachConsole(i -1)i.r0' ;attach to parent console
+    ${If} $0 != 0
+      System::Call 'kernel32::GetStdHandle(i -11)i.r0' ;console attached -- get stdout
+      System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)'; set red color
+      FileWrite $0 "A newer version is already installed! Automatic silent downgrades are disabled for this installer.$\nIt is not recommended that you install an older version. If you really want to install this older version, you have to uninstall the current version first.$\n"
+      System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)'; set red color
+    ${EndIf}
+    Abort
+  !endif
+  silent_checks_done:
+SectionEnd
+
 Section Webview2
   ; Check if Webview2 is already installed
   ${If} ${RunningX64}
@@ -258,9 +274,9 @@ Function PageReinstall
     StrCpy $R1 "A newer version of ${PRODUCTNAME} is already installed! It is not recommended that you install an older version. If you really want to install this older version, it's better to uninstall the current version first. Select the operation you want to perform and click Next to continue."
     StrCpy $R2 "Uninstall before installing"
     !if "${ALLOWDOWNGRADES}" == "true"
-    StrCpy $R3 "Do not uninstall"
+      StrCpy $R3 "Do not uninstall"
     !else
-    StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
+      StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
     !endif
     !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
     StrCpy $R0 "1"
@@ -280,7 +296,7 @@ Function PageReinstall
 
   ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
   Pop $R3
-  ; disable this radio button if downgards are not allowed
+  ; disable this radio button if downgrades are not allowed
   !if "${ALLOWDOWNGRADES}" == "false"
   EnableWindow $R3 0
   !endif

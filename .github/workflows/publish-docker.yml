@@ -54,6 +54,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          override: true
+          target: ${{ matrix.target.name }}
 
       - name: Setup node
         uses: actions/setup-node@v3

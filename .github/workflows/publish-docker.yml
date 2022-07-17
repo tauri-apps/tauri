@@ -44,11 +44,21 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64' }
+          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64', platform: 'linux/arm64' }
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -84,16 +94,19 @@ jobs:
 
       - name: Test
         run: |
-          cd examples/api
+          cd tooling/api
+          yarn && yarn build
+          cd ../../examples/api
+          yarn
           . .setup-cross.sh
           chmod +x cargo-tauri
           ./cargo-tauri build --runner cross --bundles deb --target ${{ matrix.target.name }} --verbose
 
-      #- name: Build and push
-      #  uses: docker/build-push-action@v3
-      #  with:
-      #    context: .docker/cross
-      #    file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
-      #    platforms: linux/amd64,linux/arm64
-      #    push: true
-      #    tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .docker/cross
+          file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
+          platforms: ${{ matrix.target.platform }}
+          push: true
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest

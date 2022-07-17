@@ -1,12 +1,13 @@
-name: publish docker
+name: docker
 
 on:
   pull_request:
     paths:
       - '.docker/**'
+      - '.github/workflows/docker.yml'
 
 jobs:
-  build-cli:
+  setup:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,6 +24,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
+      - name: install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Upload cross
+        uses: actions/upload-artifact@v3
+        with:
+          name: cross
+          path: '$HOME/.cargo/bin/cross'
+          if-no-files-found: error
+
       - name: build CLI
         uses: actions-rs/cargo@v1
         with:
@@ -37,7 +48,7 @@ jobs:
           if-no-files-found: error
 
   docker:
-    needs: build-cli
+    needs: setup
     runs-on: ubuntu-latest
 
     strategy:
@@ -61,6 +72,18 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
+
+      - name: Download cross
+        uses: actions/download-artifact@v3
+        with:
+          name: cross
+          path: '$HOME/.cargo/bin'
+
+      - name: Download CLI
+        uses: actions/download-artifact@v3
+        with:
+          name: cargo-tauri
+          path: 'examples/api'
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -88,12 +111,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - name: Download CLI
-        uses: actions/download-artifact@v3
-        with:
-          name: cargo-tauri
-          path: 'examples/api'
-
       - name: Test
         run: |
           cd tooling/api
@@ -102,6 +119,7 @@ jobs:
           yarn
           . .setup-cross.sh
           chmod +x cargo-tauri
+          chmod +x $HOME/.cargo/bin/cross
           ./cargo-tauri build --runner cross --bundles deb --target ${{ matrix.target.name }} --verbose
 
       - name: Build and push

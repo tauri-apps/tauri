@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker build -t tauri:arm64 --file .docker/cross/aarch64.Dockerfile .docker/cross
+docker build -t aarch64-unknown-linux-gnu:latest --file .docker/cross/aarch64.Dockerfile .docker/cross

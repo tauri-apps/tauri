@@ -183,7 +183,7 @@ impl Interface for Rust {
           .out_dir(Some(triple.into()), options.debug)
           .with_context(|| format!("failed to get {} out dir", triple))?;
         self
-          .build_app_blocking(options)
+          .build_production_app(options)
           .with_context(|| format!("failed to build {} binary", triple))?;
 
         lipo_cmd.arg(triple_out_dir.join(&bin_name));
@@ -198,7 +198,7 @@ impl Interface for Rust {
       }
     } else {
       self
-        .build_app_blocking(options)
+        .build_production_app(options)
         .with_context(|| "failed to build app")?;
     }
 
@@ -334,7 +334,7 @@ impl Rust {
     let app_child = Arc::new(Mutex::new(None));
     let app_child_ = app_child.clone();
 
-    let build_child = self.build_app(options, move |status, reason| {
+    let build_child = self.build_dev_app(options, move |status, reason| {
       if status.success() {
         let bin_path =
           rename_app(&bin_path, product_name.as_deref()).expect("failed to rename app");
@@ -453,55 +453,32 @@ impl Rust {
     }
   }
 
-  fn build_app_blocking(&mut self, options: Options) -> crate::Result<()> {
-    let (tx, rx) = channel();
-    self.build_app(options, move |status, _| tx.send(status).unwrap())?;
-    let status = rx.recv().unwrap();
-    if status.success() {
-      Ok(())
-    } else {
-      Err(anyhow::anyhow!("failed to build app"))
+  fn build_production_app(&mut self, options: Options) -> crate::Result<()> {
+    let mut build_cmd = self.build_command(options)?;
+    let runner = build_cmd.get_program().to_string_lossy().into_owned();
+    match build_cmd.piped() {
+      Ok(status) if status.success() => Ok(()),
+      Ok(_) => Err(anyhow::anyhow!("failed to build app")),
+      Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
+        "`{}` command not found.{}",
+        runner,
+        if runner == "cargo" {
+          " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+        } else {
+          ""
+        }
+      )),
+      Err(e) => Err(e.into()),
     }
   }
 
-  fn build_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
+  fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
     &mut self,
     options: Options,
     on_exit: F,
   ) -> crate::Result<Arc<SharedChild>> {
-    let runner = options.runner.unwrap_or_else(|| "cargo".into());
-
-    if let Some(target) = &options.target {
-      if self.available_targets.is_none() {
-        self.fetch_available_targets();
-      }
-      self.validate_target(target)?;
-    }
-
-    let mut args = Vec::new();
-    if !options.args.is_empty() {
-      args.extend(options.args);
-    }
-
-    let mut features = self.config_features.clone();
-    if let Some(f) = options.features {
-      features.extend(f);
-    }
-    if !features.is_empty() {
-      args.push("--features".into());
-      args.push(features.join(","));
-    }
-
-    if !options.debug {
-      args.push("--release".into());
-    }
-
-    if let Some(target) = options.target {
-      args.push("--target".into());
-      args.push(target);
-    }
-
-    let mut build_cmd = Command::new(&runner);
+    let mut build_cmd = self.build_command(options)?;
+    let runner = build_cmd.get_program().to_string_lossy().into_owned();
     build_cmd
       .env(
         "CARGO_TERM_PROGRESS_WIDTH",
@@ -517,30 +494,25 @@ impl Rust {
           .to_string(),
       )
       .env("CARGO_TERM_PROGRESS_WHEN", "always");
-    build_cmd.arg("build").arg("--color").arg("always");
-    build_cmd.args(args);
+    build_cmd.arg("--color");
+    build_cmd.arg("always");
 
     build_cmd.stdout(os_pipe::dup_stdout()?);
     build_cmd.stderr(Stdio::piped());
 
     let build_child = match SharedChild::spawn(&mut build_cmd) {
-      Ok(c) => c,
-      Err(e) => {
-        if e.kind() == ErrorKind::NotFound {
-          return Err(anyhow::anyhow!(
-            "`{}` command not found.{}",
-            runner,
-            if runner == "cargo" {
-              " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
-            } else {
-              ""
-            }
-          ));
+      Ok(c) => Ok(c),
+      Err(e) if e.kind() == ErrorKind::NotFound => Err(anyhow::anyhow!(
+        "`{}` command not found.{}",
+        runner,
+        if runner == "cargo" {
+          " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
         } else {
-          return Err(e.into());
+          ""
         }
-      }
-    };
+      )),
+      Err(e) => Err(e.into()),
+    }?;
     let build_child = Arc::new(build_child);
     let build_child_stderr = build_child.take_stderr().unwrap();
     let mut stderr = BufReader::new(build_child_stderr);
@@ -591,6 +563,46 @@ impl Rust {
     });
 
     Ok(build_child)
+  }
+
+  fn build_command(&mut self, options: Options) -> crate::Result<Command> {
+    let runner = options.runner.unwrap_or_else(|| "cargo".into());
+
+    if let Some(target) = &options.target {
+      if self.available_targets.is_none() {
+        self.fetch_available_targets();
+      }
+      self.validate_target(target)?;
+    }
+
+    let mut args = Vec::new();
+    if !options.args.is_empty() {
+      args.extend(options.args);
+    }
+
+    let mut features = self.config_features.clone();
+    if let Some(f) = options.features {
+      features.extend(f);
+    }
+    if !features.is_empty() {
+      args.push("--features".into());
+      args.push(features.join(","));
+    }
+
+    if !options.debug {
+      args.push("--release".into());
+    }
+
+    if let Some(target) = options.target {
+      args.push("--target".into());
+      args.push(target);
+    }
+
+    let mut build_cmd = Command::new(&runner);
+    build_cmd.arg("build");
+    build_cmd.args(args);
+
+    Ok(build_cmd)
   }
 }
 

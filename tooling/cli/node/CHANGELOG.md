@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.4]
+
+- Do not capture and force colors of `cargo build` output.
+  - [c635a0da](https://www.github.com/tauri-apps/tauri/commit/c635a0dad437860d54109adffaf245b7c21bc684) refactor(cli): do not capture and force colors of cargo build output ([#4627](https://www.github.com/tauri-apps/tauri/pull/4627)) on 2022-07-12
+- Reduce the amount of allocations when converting cases.
+  - [bc370e32](https://www.github.com/tauri-apps/tauri/commit/bc370e326810446e15b1f50fb962b980114ba16b) feat: reduce the amount of `heck`-related allocations ([#4634](https://www.github.com/tauri-apps/tauri/pull/4634)) on 2022-07-11
+
 ## \[1.0.3]
 
 - Changed the app template to not set the default app menu as it is now set automatically on macOS which is the platform that needs a menu to function properly.

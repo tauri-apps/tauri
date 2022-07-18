@@ -325,10 +325,11 @@ fn build_nsis_app_installer(
   );
 
   let nsis_output_path = output_path.join(out_file);
-  let nsis_installer_path = settings
-    .project_out_directory()
-    .to_path_buf()
-    .join(format!("bundle/nsis/{}.exe", package_base_name));
+  let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
+    "bundle/{}/{}.exe",
+    if updater { "nsis-updater" } else { "nsis" },
+    package_base_name
+  ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());

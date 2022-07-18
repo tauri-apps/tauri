@@ -30,8 +30,6 @@ use uuid::Uuid;
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
-pub const MSI_FOLDER_NAME: &str = "msi";
-pub const MSI_UPDATER_FOLDER_NAME: &str = "msi-updater";
 
 // For Cross Platform Compilation.
 
@@ -198,11 +196,7 @@ fn app_installer_output_path(
 
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.msi",
-    if updater {
-      MSI_UPDATER_FOLDER_NAME
-    } else {
-      MSI_FOLDER_NAME
-    },
+    if updater { "msi-updater" } else { "msi" },
     package_base_name
   )))
 }

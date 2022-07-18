@@ -4,8 +4,6 @@
 
 mod wix;
 
-pub use wix::{MSI_FOLDER_NAME, MSI_UPDATER_FOLDER_NAME};
-
 use crate::Settings;
 use log::warn;
 

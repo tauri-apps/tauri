@@ -165,8 +165,8 @@ Section EarlyChecks
       FileWrite $0 "A newer version is already installed! Automatic silent downgrades are disabled for this installer.$\nIt is not recommended that you install an older version. If you really want to install this older version, you have to uninstall the current version first.$\n"
     ${EndIf}
     Abort
-  !endif
   done:
+  !endif
 SectionEnd
 
 Section Webview2

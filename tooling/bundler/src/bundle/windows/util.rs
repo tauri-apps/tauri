@@ -135,7 +135,7 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
 const URL_7ZR: &str = "https://www.7-zip.org/a/7zr.exe";
 
-pub fn extract_7z(data: &[u8], path: &Path) -> crate::Result<()> {
+pub fn extract_with_7z(data: &[u8], path: &Path) -> crate::Result<()> {
   let bin_7z = {
     debug!("checking for 7z.exe or 7zr.exe is in $PATH");
     if let Ok(_) = Command::new("7z.exe").output() {

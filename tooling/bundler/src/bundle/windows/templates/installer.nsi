@@ -88,7 +88,7 @@ SetCompressor /SOLID lzma
 ; Use show readme button in the finish page to create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Create desktop shortcut"
-!define MUI_FINISHPAGE_SHOWREADME_FUNCTION "createDesktopShortcut"
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION "CreateDesktopShortcut"
 
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN $INSTDIR\${MAINBINARYNAME}.exe
@@ -117,23 +117,56 @@ Page custom PageReinstall PageLeaveReinstall
 ;Languages
 !insertmacro MUI_LANGUAGE English
 
+
+;--------------------------------
+; Macros
+
+!macro CheckIfAppIsRunning
+  nsProcess::_FindProcess "${MAINBINARYNAME}.exe"
+  Pop $R0
+  ${If} $R0 = 0
+    IfSilent silent ui
+    silent:
+      System::Call 'kernel32::AttachConsole(i -1)i.r0'
+      ${If} $0 != 0
+        System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+        System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+        FileWrite $0 "${PRODUCTNAME} is running. Please close it first then try again.$\n"
+      ${EndIf}
+      Abort
+    ui:
+      MessageBox MB_OKCANCEL "${PRODUCTNAME} is running$\nClick OK to kill it" IDOK ok IDCANCEL cancel
+      ok:
+        nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
+        Pop $R0
+        Sleep 500
+        ${If} $R0 = 0
+          Goto done
+        ${Else}
+          Abort "Failed to kill ${PRODUCTNAME}. Please close it first then try again"
+        ${EndIf}
+      cancel:
+        Abort "${PRODUCTNAME} is running. Please close it first then try again"
+  ${EndIf}
+  done:
+!macroend
+
 ;--------------------------------
 ;Installer Sections
 
-Section SilentChecks
+Section EarlyChecks
   ; Abort silent installer if downgrades is disabled
   !if "${ALLOWDOWNGRADES}" == "false"
-  IfSilent 0 silent_checks_done
-    System::Call 'kernel32::AttachConsole(i -1)i.r0' ;attach to parent console
+  IfSilent 0 done
+    System::Call 'kernel32::AttachConsole(i -1)i.r0'
     ${If} $0 != 0
-      System::Call 'kernel32::GetStdHandle(i -11)i.r0' ;console attached -- get stdout
-      System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)'; set red color
+      System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+      System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
       FileWrite $0 "A newer version is already installed! Automatic silent downgrades are disabled for this installer.$\nIt is not recommended that you install an older version. If you really want to install this older version, you have to uninstall the current version first.$\n"
-      System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)'; set red color
     ${EndIf}
     Abort
   !endif
-  silent_checks_done:
+  done:
 SectionEnd
 
 Section Webview2
@@ -201,7 +234,9 @@ SectionEnd
 Section Install
   SetOutPath $INSTDIR
 
-  ; Main executable
+  !insertmacro CheckIfAppIsRunning
+
+  ; Copy main executable
   File "${MAINBINARYSRCPATH}"
 
   ; Copy resources
@@ -249,6 +284,8 @@ Section Install
 SectionEnd
 
 Section Uninstall
+  !insertmacro CheckIfAppIsRunning
+
   ; Delete the app directory and its content from disk
   RMDir /r "$INSTDIR"
 
@@ -262,9 +299,9 @@ Section Uninstall
 SectionEnd
 
 ;--------------------------------
-;Installer Functions
+; Functions
 
-Function createDesktopShortcut
+Function CreateDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
 FunctionEnd
@@ -360,10 +397,8 @@ Function PageLeaveReinstall
   ; $R0 == "2" -> same version
   ;
   ; $R1 holds the radio buttons state. its meaning is dependant on the context
-
   StrCmp $R0 "1" 0 +2 ; Existing install is not the same version?
     StrCmp $R1 "1" reinst_uninstall reinst_done
-
   StrCmp $R1 "1" reinst_done ; Same version, skip to add/reinstall components?
 
   reinst_uninstall:

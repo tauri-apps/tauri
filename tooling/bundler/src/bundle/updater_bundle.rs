@@ -174,7 +174,6 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
         .fold((PathBuf::new(), String::new()), |(mut p, mut b), c| {
           if let std::path::Component::Normal(name) = c {
             if let Some(name) = name.to_str() {
-              dbg!(name);
               // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
               if matches!(name, "msi-updater" | "nsis-updater") {
                 b = name.strip_suffix("-updater").unwrap().to_string();

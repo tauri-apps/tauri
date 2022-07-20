@@ -1,8 +1,8 @@
 ---
-"tauri-bundler": patch
-"tauri-utils": patch
-"cli.rs": patch
-"cli.js": patch
+"tauri-bundler": minor
+"tauri-utils": minor
+"cli.rs": minor
+"cli.js": minor
 ---
 
 Add `nsis` bundle target

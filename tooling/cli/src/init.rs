@@ -60,6 +60,12 @@ pub struct Options {
   /// Url of your dev server
   #[clap(short = 'P', long)]
   dev_path: Option<String>,
+  /// A shell command to run before `tauri dev` kicks in.
+  #[clap(long)]
+  before_dev_command: Option<String>,
+  /// A shell command to run before `tauri build` kicks in.
+  #[clap(long)]
+  before_build_command: Option<String>,
 }
 
 #[derive(Default)]
@@ -114,6 +120,27 @@ impl Options {
         self.ci,
       )
     })?;
+
+    self.before_dev_command = self
+      .before_dev_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        request_input(
+          "What is your frontend dev command?",
+          Some("npm dev".to_string()),
+          self.ci,
+        )
+      })?;
+    self.before_build_command = self
+      .before_build_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        request_input(
+          "What is your frontend build command?",
+          Some("npm build".to_string()),
+          self.ci,
+        )
+      })?;
 
     Ok(self)
   }
@@ -178,6 +205,14 @@ pub fn command(mut options: Options) -> Result<()> {
       "window_title",
       to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
     );
+    data.insert(
+      "before_dev_command",
+      to_json(options.before_dev_command.unwrap_or_default()),
+    );
+    data.insert(
+      "before_build_command",
+      to_json(options.before_build_command.unwrap_or_default()),
+    );
 
     let mut config = serde_json::from_str(
       &handlebars
@@ -241,20 +276,20 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn request_input<T>(prompt: &str, default: Option<T>, skip: bool) -> Result<Option<T>>
+fn request_input<T>(prompt: &str, initial: Option<T>, skip: bool) -> Result<Option<T>>
 where
   T: Clone + FromStr + Display + ToString,
   T::Err: Display + std::fmt::Debug,
 {
   if skip {
-    Ok(default)
+    Ok(initial)
   } else {
     let theme = dialoguer::theme::ColorfulTheme::default();
     let mut builder = Input::with_theme(&theme);
     builder.with_prompt(prompt);
+    builder.allow_empty(true);
 
-    if let Some(v) = default {
-      builder.default(v.clone());
+    if let Some(v) = initial {
       builder.with_initial_text(v.to_string());
     }
 

@@ -19,6 +19,13 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
   pub fn inner(&self) -> &'r T {
     self.0
   }
+
+  /// Create a State for testing commands in unittests
+  #[cfg(test)]
+  pub fn new_testonly(r: &'r T) -> Self {
+      State(r)
+  }
+
 }
 
 impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {

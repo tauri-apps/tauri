@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.5]
+
+- Escape the MSI file path when running msiexec via powershell.
+  - [9af43134](https://www.github.com/tauri-apps/tauri/commit/9af43134e1e58369907281024d31bdb4d16ee6f6) fix(updater): escape MSI path ([#4737](https://www.github.com/tauri-apps/tauri/pull/4737)) on 2022-07-22
+
 ## \[1.0.4]
 
 - Reduce the amount of allocations when converting cases.

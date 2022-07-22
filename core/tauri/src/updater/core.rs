@@ -802,7 +802,7 @@ fn copy_files_and_run<R: Read + Seek>(
           "Start-Process",
           "-Wait",
           "-FilePath",
-          "msiexec",
+          "C:\\Windows\\system32\\msiexec.exe",
           "-ArgumentList",
         ])
         .arg("/i,")
@@ -814,7 +814,7 @@ fn copy_files_and_run<R: Read + Seek>(
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow
-        let _ = Command::new("msiexec.exe")
+        let _ = Command::new("C:\\Windows\\system32\\msiexec.exe")
           .arg("/i")
           .arg(found_path)
           .args(msiexec_args)

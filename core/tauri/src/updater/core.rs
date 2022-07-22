@@ -789,6 +789,14 @@ fn copy_files_and_run<R: Read + Seek>(
       current_exe_arg.push("\"");
       current_exe_arg.push(current_exe()?);
       current_exe_arg.push("\"");
+
+      let mut msi_path_arg = std::ffi::OsString::new();
+      msi_path_arg.push("\"\"\"");
+      msi_path_arg.push(&found_path);
+      msi_path_arg.push("\"\"\"");
+
+      println!("arg {:?}", msi_path_arg);
+
       // run the installer and relaunch the application
       let powershell_install_res = Command::new("powershell.exe")
         .args(["-NoProfile", "-windowstyle", "hidden"])
@@ -800,7 +808,7 @@ fn copy_files_and_run<R: Read + Seek>(
           "-ArgumentList",
         ])
         .arg("/i,")
-        .arg(&found_path)
+        .arg(msi_path_arg)
         .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
         .arg("Start-Process")
         .arg(current_exe_arg)

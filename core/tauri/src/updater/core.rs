@@ -795,8 +795,6 @@ fn copy_files_and_run<R: Read + Seek>(
       msi_path_arg.push(&found_path);
       msi_path_arg.push("\"\"\"");
 
-      println!("arg {:?}", msi_path_arg);
-
       // run the installer and relaunch the application
       let powershell_install_res = Command::new("powershell.exe")
         .args(["-NoProfile", "-windowstyle", "hidden"])

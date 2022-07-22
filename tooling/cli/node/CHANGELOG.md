@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.0.5]
+
+- Correctly fill the architecture when building Debian packages targeting ARM64 (aarch64).
+  - Bumped due to a bump in cli.rs.
+  - [635f23b8](https://www.github.com/tauri-apps/tauri/commit/635f23b88adbb8726d628f67840709cd870836dc) fix(bundler): correctly set debian architecture for aarch64 ([#4700](https://www.github.com/tauri-apps/tauri/pull/4700)) on 2022-07-17
+
 ## \[1.0.4]
 
 - Do not capture and force colors of `cargo build` output.

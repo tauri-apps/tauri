@@ -127,7 +127,7 @@ impl Options {
       .unwrap_or_else(|| {
         request_input(
           "What is your frontend dev command?",
-          Some("npm dev".to_string()),
+          Some("npm run dev".to_string()),
           self.ci,
         )
       })?;
@@ -137,7 +137,7 @@ impl Options {
       .unwrap_or_else(|| {
         request_input(
           "What is your frontend build command?",
-          Some("npm build".to_string()),
+          Some("npm run build".to_string()),
           self.ci,
         )
       })?;

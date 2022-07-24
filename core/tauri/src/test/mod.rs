@@ -11,14 +11,15 @@ pub use mock_runtime::*;
 use std::collections::HashMap;
 use std::{borrow::Cow, sync::Arc};
 
+use crate::Pattern;
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
-use crate::{Manager, Pattern};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
 
+/// An empty [`Assets`] implementation.
 pub struct NoopAsset {
   csp_hashes: Vec<CspHash<'static>>,
 }
@@ -33,12 +34,14 @@ impl Assets for NoopAsset {
   }
 }
 
+/// Creates a new empty [`Assets`] implementation.
 pub fn noop_assets() -> NoopAsset {
   NoopAsset {
     csp_hashes: Default::default(),
   }
 }
 
+/// Creates a new [`crate::Context`] for testing.
 pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   crate::Context {
     config: Config {
@@ -85,13 +88,16 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   }
 }
 
+/// Creates a new [`crate::App`] for testing.
 pub fn mock_app() -> crate::App<MockRuntime> {
   crate::Builder::<MockRuntime>::new()
     .build(mock_context(noop_assets()))
     .unwrap()
 }
 
+#[cfg(test)]
 pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRuntime> {
+  use crate::Manager;
   let app = mock_app();
   crate::endpoints::InvokeContext {
     window: app.get_window("main").unwrap(),

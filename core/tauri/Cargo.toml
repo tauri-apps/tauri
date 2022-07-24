@@ -130,6 +130,7 @@ cargo_toml = "0.11"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
+test = []
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]

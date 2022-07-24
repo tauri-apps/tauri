@@ -212,7 +212,7 @@ fn command_internal(mut options: Options) -> Result<()> {
         if std::net::TcpStream::connect(addrs).is_ok() {
           break;
         }
-        if i != 0 && i % 3 == 0 {
+        if i % 3 == 1 {
           warn!(
             "Waiting for your frontend dev server to start on {}...",
             dev_server_url

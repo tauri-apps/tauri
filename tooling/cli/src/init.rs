@@ -96,6 +96,7 @@ impl Options {
         "What is your app name?",
         init_defaults.app_name.clone(),
         self.ci,
+        false,
       )
     })?;
 
@@ -104,13 +105,15 @@ impl Options {
         "What should the window title be?",
         init_defaults.app_name.clone(),
         self.ci,
+        false,
       )
     })?;
 
     self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
       init_defaults.framework.as_ref().map(|f| f.dist_dir()),
-      self.ci
+      self.ci,
+      false,
     ))?;
 
     self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| {
@@ -118,6 +121,7 @@ impl Options {
         "What is the url of your dev server?",
         init_defaults.framework.map(|f| f.dev_path()),
         self.ci,
+        false,
       )
     })?;
 
@@ -129,6 +133,7 @@ impl Options {
           "What is your frontend dev command?",
           Some("npm run dev".to_string()),
           self.ci,
+          true,
         )
       })?;
     self.before_build_command = self
@@ -139,6 +144,7 @@ impl Options {
           "What is your frontend build command?",
           Some("npm run build".to_string()),
           self.ci,
+          true,
         )
       })?;
 
@@ -276,7 +282,12 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn request_input<T>(prompt: &str, initial: Option<T>, skip: bool) -> Result<Option<T>>
+fn request_input<T>(
+  prompt: &str,
+  initial: Option<T>,
+  skip: bool,
+  allow_empty: bool,
+) -> Result<Option<T>>
 where
   T: Clone + FromStr + Display + ToString,
   T::Err: Display + std::fmt::Debug,
@@ -287,7 +298,7 @@ where
     let theme = dialoguer::theme::ColorfulTheme::default();
     let mut builder = Input::with_theme(&theme);
     builder.with_prompt(prompt);
-    builder.allow_empty(true);
+    builder.allow_empty(allow_empty);
 
     if let Some(v) = initial {
       builder.with_initial_text(v.to_string());

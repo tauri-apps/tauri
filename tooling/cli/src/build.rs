@@ -21,7 +21,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_bundler::bundle::{bundle_project, PackageType};
+use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
@@ -278,8 +278,12 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active
-    if config_.tauri.updater.active {
+    let updater_bundles: Vec<&Bundle> = bundles
+      .iter()
+      .filter(|bundle| bundle.package_type == PackageType::Updater)
+      .collect();
+    // If updater is active and we bundled it
+    if config_.tauri.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
       let password = var_os("TAURI_KEY_PASSWORD").map(|v| v.to_str().unwrap().to_string());
       // get the private key
@@ -305,10 +309,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
-      for elem in bundles
-        .iter()
-        .filter(|bundle| bundle.package_type == PackageType::Updater)
-      {
+      for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add
         // another type of updater package who require multiple file signature
         for path in elem.bundle_paths.iter() {
@@ -323,9 +324,7 @@ pub fn command(mut options: Options) -> Result<()> {
         }
       }
 
-      if !signed_paths.is_empty() {
-        print_signed_updater_archive(&signed_paths)?;
-      }
+      print_signed_updater_archive(&signed_paths)?;
     }
   }
 

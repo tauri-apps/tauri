@@ -134,45 +134,158 @@ async function execute(
 }
 
 class EventEmitter<E extends string> {
-  /** @ignore  */
+  /** @ignore */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  private eventListeners: {
-    [key: string]: Array<(arg: any) => void>
-  } = Object.create(null)
+  private eventListeners: Record<E, Array<(...args: any[]) => void>> =
+    Object.create(null)
 
-  /** @ignore  */
-  private addEventListener(event: string, handler: (arg: any) => void): void {
-    if (event in this.eventListeners) {
-      // eslint-disable-next-line security/detect-object-injection
-      this.eventListeners[event].push(handler)
-    } else {
-      // eslint-disable-next-line security/detect-object-injection
-      this.eventListeners[event] = [handler]
-    }
-  }
-
-  /** @ignore  */
-  _emit(event: E, payload: any): void {
-    if (event in this.eventListeners) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const listeners = this.eventListeners[event as any]
-      for (const listener of listeners) {
-        listener(payload)
-      }
-    }
+  /**
+   * Alias for `emitter.on(eventName, listener)`.
+   */
+  addListener(eventName: E, listener: (...args: any[]) => void): this {
+    return this.on(eventName, listener)
   }
 
   /**
-   * Listen to an event from the child process.
-   *
-   * @param event The event name.
-   * @param handler The event handler.
-   *
-   * @return The `this` instance for chained calls.
+   * Alias for `emitter.off(eventName, listener)`.
    */
-  on(event: E, handler: (arg: any) => void): EventEmitter<E> {
-    this.addEventListener(event, handler)
+  removeListener(eventName: E, listener: (...args: any[]) => void): this {
+    return this.off(eventName, listener)
+  }
+
+  /**
+   * Adds the `listener` function to the end of the listeners array for the
+   * event named `eventName`. No checks are made to see if the `listener` has
+   * already been added. Multiple calls passing the same combination of `eventName`and `listener` will result in the `listener` being added, and called, multiple
+   * times.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   * @param eventName The name of the event.
+   * @param listener The callback function
+   */
+  on(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName].push(listener)
+    } else {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = [listener]
+    }
     return this
+  }
+
+  /**
+   * Adds a **one-time**`listener` function for the event named `eventName`. The
+   * next time `eventName` is triggered, this listener is removed and then invoked.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @param eventName The name of the event.
+   * @param listener The callback function
+   */
+  once(eventName: E, listener: (...args: any[]) => void): this {
+    const wrapper = (...args: any[]): void => {
+      this.removeListener(eventName, wrapper)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      listener(...args)
+    }
+    return this.addListener(eventName, wrapper)
+  }
+
+  /**
+   * Removes the all specified listener from the listener array for the event eventName
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   */
+  off(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+        (l) => l !== listener
+      )
+    }
+    return this
+  }
+
+  /**
+   * Removes all listeners, or those of the specified eventName.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   */
+  removeAllListeners(event?: E): this {
+    if (event) {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete,security/detect-object-injection
+      delete this.eventListeners[event]
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      this.eventListeners = Object.create(null)
+    }
+    return this
+  }
+
+  /**
+   * @ignore
+   * Synchronously calls each of the listeners registered for the event named`eventName`, in the order they were registered, passing the supplied arguments
+   * to each.
+   *
+   * Returns `true` if the event had listeners, `false` otherwise.
+   */
+  emit(eventName: E, ...args: any[]): boolean {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment,security/detect-object-injection
+      const listeners = this.eventListeners[eventName]
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      for (const listener of listeners) listener(...args)
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Returns the number of listeners listening to the event named `eventName`.
+   */
+  listenerCount(eventName: E): number {
+    if (eventName in this.eventListeners)
+      // eslint-disable-next-line security/detect-object-injection
+      return this.eventListeners[eventName].length
+    return 0
+  }
+
+  /**
+   * Adds the `listener` function to the _beginning_ of the listeners array for the
+   * event named `eventName`. No checks are made to see if the `listener` has
+   * already been added. Multiple calls passing the same combination of `eventName`and `listener` will result in the `listener` being added, and called, multiple
+   * times.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   * @param eventName The name of the event.
+   * @param listener The callback function
+   */
+  prependListener(eventName: E, listener: (...args: any[]) => void): this {
+    if (eventName in this.eventListeners) {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName].unshift(listener)
+    } else {
+      // eslint-disable-next-line security/detect-object-injection
+      this.eventListeners[eventName] = [listener]
+    }
+    return this
+  }
+
+  /**
+   * Adds a **one-time**`listener` function for the event named `eventName` to the_beginning_ of the listeners array. The next time `eventName` is triggered, this
+   * listener is removed, and then invoked.
+   *
+   * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   * @param eventName The name of the event.
+   * @param listener The callback function
+   */
+  prependOnceListener(eventName: E, listener: (...args: any[]) => void): this {
+    const wrapper = (...args: any[]): void => {
+      this.removeListener(eventName, wrapper)
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+      listener(...args)
+    }
+    return this.prependListener(eventName, wrapper)
   }
 }
 
@@ -311,16 +424,16 @@ class Command extends EventEmitter<'close' | 'error'> {
       (event) => {
         switch (event.event) {
           case 'Error':
-            this._emit('error', event.payload)
+            this.emit('error', event.payload)
             break
           case 'Terminated':
-            this._emit('close', event.payload)
+            this.emit('close', event.payload)
             break
           case 'Stdout':
-            this.stdout._emit('data', event.payload)
+            this.stdout.emit('data', event.payload)
             break
           case 'Stderr':
-            this.stderr._emit('data', event.payload)
+            this.stderr.emit('data', event.payload)
             break
         }
       },

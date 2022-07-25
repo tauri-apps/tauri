@@ -122,7 +122,7 @@ where
 
   let signature_box = sign(
     None,
-    &secret_key,
+    secret_key,
     data_reader,
     Some(trusted_comment.as_str()),
     Some("signature from tauri secret key"),

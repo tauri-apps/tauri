@@ -104,7 +104,7 @@ jobs:
           context: .docker/cross
           file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
           load: true
-          tags: ${{ matrix.target.name }}:latest
+          tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest
 
       - name: install dependencies
         run: |

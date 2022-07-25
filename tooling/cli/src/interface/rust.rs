@@ -358,7 +358,14 @@ impl Rust {
 
         app_child_.lock().unwrap().replace(app_child);
       } else {
-        on_exit(status, reason);
+        on_exit(
+          status,
+          if manually_killed_app_.load(Ordering::Relaxed) {
+            ExitReason::TriggeredKill
+          } else {
+            reason
+          },
+        );
       }
     })?;
 

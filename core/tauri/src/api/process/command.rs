@@ -20,6 +20,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -95,6 +96,7 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
+  encoding: Option<String>,
 }
 
 /// Spawned child process.
@@ -171,6 +173,7 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
+      encoding: None,
     }
   }
 
@@ -216,6 +219,13 @@ impl Command {
     self
   }
 
+  /// Sets the character encoding for stdout/stderr.
+  #[must_use]
+  pub fn encoding(mut self, encoding: String) -> Self {
+    self.encoding.replace(encoding);
+    self
+  }
+
   /// Spawns the command.
   ///
   /// # Examples
@@ -242,6 +252,11 @@ impl Command {
   /// });
   /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
+    let character_encoding = match self.encoding {
+      Some(encoding_label) => Encoding::for_label(encoding_label.as_bytes()),
+      None => None,
+    };
+
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
@@ -264,12 +279,14 @@ impl Command {
       guard.clone(),
       stdout_reader,
       CommandEvent::Stdout,
+      character_encoding,
     );
     spawn_pipe_reader(
       tx.clone(),
       guard.clone(),
       stderr_reader,
       CommandEvent::Stderr,
+      character_encoding,
     );
 
     spawn(move || {
@@ -378,6 +395,7 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
   guard: Arc<RwLock<()>>,
   pipe_reader: PipeReader,
   wrapper: F,
+  character_encoding: Option<&'static Encoding>,
 ) {
   spawn(move || {
     let _lock = guard.read().unwrap();
@@ -392,7 +410,10 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
             break;
           }
           let tx_ = tx.clone();
-          let line = String::from_utf8(buf.clone());
+          let line = match character_encoding {
+            Some(encoding) => Ok(encoding.decode_with_bom_removal(&buf).0.into()),
+            None => String::from_utf8(buf.clone()),
+          };
           block_on_task(async move {
             let _ = match line {
               Ok(line) => tx_.send(wrapper(line)).await,

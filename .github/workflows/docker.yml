@@ -55,7 +55,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64', platform: 'linux/arm64' }
+          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64' }
 
     steps:
       - name: Checkout
@@ -104,7 +104,7 @@ jobs:
           context: .docker/cross
           file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
           load: true
-          tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest
+          tags: ${{ matrix.target.name }}:latest
 
       - name: install dependencies
         run: |
@@ -127,6 +127,5 @@ jobs:
         with:
           context: .docker/cross
           file: .docker/cross/${{ matrix.target.filename }}.Dockerfile
-          platforms: ${{ matrix.target.platform }}
           push: true
           tags: ghcr.io/${{ github.repository }}/${{ matrix.target.name }}:latest

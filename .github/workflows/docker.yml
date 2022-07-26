@@ -1,10 +1,11 @@
 name: docker
 
 on:
-  pull_request:
-    paths:
-      - '.docker/**'
-      - '.github/workflows/docker.yml'
+  workflow_dispatch:
+  #pull_request:
+  #  paths:
+  #    - '.docker/**'
+  #    - '.github/workflows/docker.yml'
 
 jobs:
   setup:

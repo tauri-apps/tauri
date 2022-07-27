@@ -83,6 +83,8 @@ interface SpawnOptions {
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
   env?: { [name: string]: string }
+  /** Character encoding for stdout/stderr */
+  encoding?: string
 }
 
 /** @ignore */

@@ -1,5 +1,6 @@
 <script>
   import { Command } from '@tauri-apps/api/shell'
+
   const windows = navigator.userAgent.includes('Windows')
   let cmd = windows ? 'cmd' : 'sh'
   let args = windows ? ['/C'] : ['-c']
@@ -9,6 +10,7 @@
   let script = 'echo "hello world"'
   let cwd = null
   let env = 'SOMETHING=value ANOTHER=2'
+  let encoding = ''
   let stdin = ''
   let child
 
@@ -26,7 +28,8 @@
     child = null
     const command = new Command(cmd, [...args, script], {
       cwd: cwd || null,
-      env: _getEnv()
+      env: _getEnv(),
+      encoding,
     })
 
     command.on('close', (data) => {
@@ -64,6 +67,10 @@
   <div class="flex items-center gap-1">
     Script:
     <input class="grow input" bind:value={script} />
+  </div>
+  <div class="flex items-center gap-1">
+    Encoding:
+    <input class="grow input" bind:value={encoding} />
   </div>
   <div class="flex items-center gap-1">
     Working directory:

@@ -54,6 +54,8 @@ pub struct CommandOptions {
   // but the env is an `Option` so when it's `None` we clear the env.
   #[serde(default = "default_env")]
   env: Option<HashMap<String, String>>,
+  // Character encoding for stdout/stderr
+  encoding: Option<String>,
 }
 
 /// The API descriptor.
@@ -148,6 +150,13 @@ impl Cmd {
       } else {
         command = command.env_clear();
       }
+      if let Some(encoding) = options.encoding {
+        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
+          command = command.encoding(encoding);
+        } else {
+          return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
+        }
+      }
       let (mut rx, child) = command.spawn()?;
 
       let pid = child.pid();
@@ -229,6 +238,7 @@ mod tests {
         sidecar: false,
         cwd: Option::arbitrary(g),
         env: Option::arbitrary(g),
+        encoding: Option::arbitrary(g),
       }
     }
   }

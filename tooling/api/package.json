@@ -61,7 +61,7 @@
     "prettier": "2.7.1",
     "regenerator-runtime": "0.13.9",
     "rimraf": "3.0.2",
-    "rollup": "2.77.1",
+    "rollup": "2.77.2",
     "rollup-plugin-terser": "7.0.2",
     "tslib": "2.4.0",
     "typedoc": "0.23.9",

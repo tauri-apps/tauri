@@ -151,7 +151,11 @@ impl Cmd {
         command = command.env_clear();
       }
       if let Some(encoding) = options.encoding {
-        command = command.encoding(encoding);
+        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
+          command = command.encoding(encoding);
+        } else {
+          return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
+        }
       }
       let (mut rx, child) = command.spawn()?;
 

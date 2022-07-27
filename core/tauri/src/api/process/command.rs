@@ -20,7 +20,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
-use encoding_rs::Encoding;
+pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -96,7 +96,7 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
-  encoding: Option<String>,
+  encoding: Option<&'static Encoding>,
 }
 
 /// Spawned child process.
@@ -221,7 +221,7 @@ impl Command {
 
   /// Sets the character encoding for stdout/stderr.
   #[must_use]
-  pub fn encoding(mut self, encoding: String) -> Self {
+  pub fn encoding(mut self, encoding: &'static Encoding) -> Self {
     self.encoding.replace(encoding);
     self
   }
@@ -252,11 +252,6 @@ impl Command {
   /// });
   /// ```
   pub fn spawn(self) -> crate::api::Result<(Receiver<CommandEvent>, CommandChild)> {
-    let character_encoding = match self.encoding {
-      Some(encoding_label) => Encoding::for_label(encoding_label.as_bytes()),
-      None => None,
-    };
-
     let mut command = get_std_command!(self);
     let (stdout_reader, stdout_writer) = pipe()?;
     let (stderr_reader, stderr_writer) = pipe()?;
@@ -279,14 +274,14 @@ impl Command {
       guard.clone(),
       stdout_reader,
       CommandEvent::Stdout,
-      character_encoding,
+      self.encoding,
     );
     spawn_pipe_reader(
       tx.clone(),
       guard.clone(),
       stderr_reader,
       CommandEvent::Stderr,
-      character_encoding,
+      self.encoding,
     );
 
     spawn(move || {

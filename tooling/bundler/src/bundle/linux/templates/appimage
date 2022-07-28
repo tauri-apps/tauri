@@ -47,8 +47,11 @@ find /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \; -e
 find /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-wget -q -4 -N -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -N -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
-chmod +x "{{tauri_tools_path}}/AppRun"
+if [[ ! -f "{{tauri_tools_path}}/AppRun" ]]; then
+  wget -q -4 -N -O "{{tauri_tools_path}}/AppRun.tmp" https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -N -O "{{tauri_tools_path}}/AppRun" https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH}
+  chmod +x "{{tauri_tools_path}}/AppRun.tmp"
+  mv "{{tauri_tools_path}}/AppRun.tmp" "{{tauri_tools_path}}/AppRun"
+fi
 
 # We need AppRun to be installed as {{app_name}}.AppDir/AppRun.
 # Otherwise the linuxdeploy scripts will default to symlinking our main bin instead and will crash on trying to launch.
@@ -69,11 +72,17 @@ else
   gst_plugin=""
 fi
 
-wget -q -4 -N -O "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh" https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
-wget -q -4 -N -O "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-${linuxdeploy_arch}.AppImage
+if [[ ! -f "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh" ]]; then
+  wget -q -4 -N -O "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh.tmp" https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+  chmod +x "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh.tmp"
+  mv "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh.tmp" "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh"
+fi
 
-chmod +x "{{tauri_tools_path}}/linuxdeploy-plugin-gtk.sh"
-chmod +x "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage"
+if [[ ! -f "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage" ]]; then
+  wget -q -4 -N -O "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage.tmp" https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy/linuxdeploy-${linuxdeploy_arch}.AppImage
+  chmod +x "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage.tmp"
+  mv "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage.tmp" "{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage"
+fi
 
 dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of="{{tauri_tools_path}}/linuxdeploy-${ARCH}.AppImage"
 

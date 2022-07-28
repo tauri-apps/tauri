@@ -83,6 +83,7 @@ pub fn restart(env: &Env) {
 
   if let Ok(path) = current_binary(env) {
     Command::new(path)
+      .args(&env.args)
       .spawn()
       .expect("application failed to start");
   }

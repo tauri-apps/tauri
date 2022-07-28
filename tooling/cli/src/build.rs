@@ -7,7 +7,7 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{get as get_config, AppUrl, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
-    updater_signature::sign_file_from_env_variables,
+    updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
   CommandExt, Result,
@@ -16,8 +16,12 @@ use anyhow::{bail, Context};
 use clap::Parser;
 use log::warn;
 use log::{error, info};
-use std::{env::set_current_dir, path::PathBuf, process::Command};
-use tauri_bundler::bundle::{bundle_project, PackageType};
+use std::{
+  env::{set_current_dir, var_os},
+  path::{Path, PathBuf},
+  process::Command,
+};
+use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
@@ -274,26 +278,53 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active
-    if config_.tauri.updater.active {
+    let updater_bundles: Vec<&Bundle> = bundles
+      .iter()
+      .filter(|bundle| bundle.package_type == PackageType::Updater)
+      .collect();
+    // If updater is active and we bundled it
+    if config_.tauri.updater.active && !updater_bundles.is_empty() {
+      // if no password provided we use an empty string
+      let password = var_os("TAURI_KEY_PASSWORD").map(|v| v.to_str().unwrap().to_string());
+      // get the private key
+      let secret_key = if let Some(mut private_key) =
+        var_os("TAURI_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
+      {
+        // check if env var points to a file..
+        let pk_dir = Path::new(&private_key);
+        // Check if user provided a path or a key
+        // We validate if the path exist or not.
+        if pk_dir.exists() {
+          // read file content and use it as private key
+          private_key = read_key_from_file(pk_dir)?;
+        }
+        updater_secret_key(private_key, password)
+      } else {
+        Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
+      }?;
+
+      let pubkey = base64::decode(&config_.tauri.updater.pubkey)?;
+      let pub_key_decoded = String::from_utf8_lossy(&pubkey);
+      let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
+
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
-      for elem in bundles
-        .iter()
-        .filter(|bundle| bundle.package_type == PackageType::Updater)
-      {
+      for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add
         // another type of updater package who require multiple file signature
         for path in elem.bundle_paths.iter() {
           // sign our path from environment variables
-          let (signature_path, _signature) = sign_file_from_env_variables(path)?;
+          let (signature_path, signature) = sign_file(&secret_key, path)?;
+          if signature.keynum() != public_key.keynum() {
+            return Err(anyhow::anyhow!(
+              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
+            ));
+          }
           signed_paths.append(&mut vec![signature_path]);
         }
       }
 
-      if !signed_paths.is_empty() {
-        print_signed_updater_archive(&signed_paths)?;
-      }
+      print_signed_updater_archive(&signed_paths)?;
     }
   }
 

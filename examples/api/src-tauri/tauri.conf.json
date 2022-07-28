@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Tauri API",
-    "version": "../package.json"
+    "version": "1.0.0"
   },
   "tauri": {
     "pattern": {

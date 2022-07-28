@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.4]
+
+- Validate `__TAURI_ISOLATION_HOOK__` being set by a file in the isolation application.
+  - [3b4ed970](https://www.github.com/tauri-apps/tauri/commit/3b4ed970e663f5bffbfe0358610f9c3f157c513f) feat(codegen): validate `__TAURI_ISOLATION_HOOK__` is referenced ([#4631](https://www.github.com/tauri-apps/tauri/pull/4631)) on 2022-07-11
+
 ## \[1.0.3]
 
 - The `TAURI_CONFIG` environment variable now represents the configuration to be merged instead of the entire JSON.

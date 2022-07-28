@@ -235,6 +235,7 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
+  builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
   if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
     builder.add_ignore(ignore_file);

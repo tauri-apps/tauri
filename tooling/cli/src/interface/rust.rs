@@ -221,7 +221,7 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options.clone(), move |status, reason| {
+      self.run_dev(options, move |status, reason| {
         tx.send(()).unwrap();
         on_exit_(status, reason)
       })?;

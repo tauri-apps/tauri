@@ -1,6 +1,5 @@
 ---
-"cli.rs": patch
-"cli.js": patch
+"tauri-bundler": patch
 ---
 
 Avoid re-downloading AppImage build tools on every build.

@@ -85,6 +85,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn remove_system_tray(&self) -> Result<()> {
     Ok(())
   }
+
+  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+    unimplemented!()
+  }
 }
 
 #[derive(Debug, Clone)]

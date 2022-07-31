@@ -4,7 +4,7 @@
 
 //! The [`wry`] Tauri [`Runtime`].
 
-pub use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -1738,6 +1738,10 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   #[cfg(all(windows, feature = "system-tray"))]
   fn remove_system_tray(&self) -> Result<()> {
     send_user_message(&self.context, Message::Tray(TrayMessage::Close))
+  }
+
+  fn raw_display_handle(&self) -> RawDisplayHandle {
+    self.context.main_thread.window_target.raw_display_handle()
   }
 }
 

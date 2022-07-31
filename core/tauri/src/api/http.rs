@@ -84,7 +84,11 @@ impl ClientBuilder {
     let mut client_builder = reqwest::Client::builder();
 
     if let Some(max_redirections) = self.max_redirections {
-      client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(max_redirections))
+      client_builder = client_builder.redirect(if max_redirections == 0 {
+        reqwest::redirect::Policy::none()
+      } else {
+        reqwest::redirect::Policy::limited(max_redirections)
+      });
     }
 
     if let Some(connect_timeout) = self.connect_timeout {
@@ -142,7 +146,11 @@ impl Client {
     }
 
     if let Some(max_redirections) = self.0.max_redirections {
-      request_builder = request_builder.max_redirections(max_redirections as u32);
+      if max_redirections == 0 {
+        request_builder = request_builder.follow_redirects(false);
+      } else {
+        request_builder = request_builder.max_redirections(max_redirections as u32);
+      }
     }
 
     if let Some(timeout) = request.timeout {

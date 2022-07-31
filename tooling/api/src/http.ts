@@ -52,6 +52,10 @@ interface Duration {
 
 interface ClientOptions {
   maxRedirections?: number
+  /**
+   * Defines the maximum number of redirects the client should follow.
+   * If set to 0, no redirects will be followed.
+   */
   connectTimeout?: number | Duration
 }
 

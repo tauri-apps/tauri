@@ -66,14 +66,14 @@ fn get_tauri_dir() -> PathBuf {
   }
 
   lookup(&cwd, |path, file_type| if file_type.is_dir() {
-    path.join("tauri.conf.json").exists() || path.join("tauri.conf.json5").exists()
+    path.join("tauri.conf.json").exists() || path.join("tauri.conf.json5").exists() || path.join("tauri.conf.toml").exists()
   } else if let Some(file_name) = path.file_name() {
     file_name == OsStr::new("tauri.conf.json") || file_name == OsStr::new("tauri.conf.json5")
   } else {
     false
   })
   .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
-  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json` or `tauri.conf.json5` file in any subfolder.")
+  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json`, `tauri.conf.json5` or `tauri.conf.toml` file in any subfolder.")
 }
 
 fn get_app_dir() -> Option<PathBuf> {

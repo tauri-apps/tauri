@@ -2933,6 +2933,7 @@ dependencies = [
  "serde_with 1.14.0",
  "serialize-to-javascript",
  "thiserror",
+ "toml",
  "url",
  "walkdir",
  "windows",

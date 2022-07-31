@@ -190,6 +190,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
+  #[cfg(feature = "config-toml")]
+  println!("cargo:rerun-if-changed=tauri.conf.toml");
 
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
     std::env::current_dir().unwrap(),

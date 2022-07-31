@@ -11,13 +11,15 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// All extensions that are possibly supported, but perhaps not enabled.
-pub const EXTENSIONS_SUPPORTED: &[&str] = &["json", "json5"];
+pub const EXTENSIONS_SUPPORTED: &[&str] = &["json", "json5", "toml"];
 
 /// All extensions that are currently enabled.
 pub const EXTENSIONS_ENABLED: &[&str] = &[
   "json",
   #[cfg(feature = "config-json5")]
   "json5",
+  #[cfg(feature = "config-toml")]
+  "toml",
 ];
 
 /// Represents all the errors that can happen while reading the config.
@@ -43,6 +45,17 @@ pub enum ConfigError {
 
     /// The parsing [`json5::Error`].
     error: ::json5::Error,
+  },
+
+  /// Failed to parse from TOML.
+  #[cfg(feature = "config-toml")]
+  #[error("unable to parse toml Tauri config file at {path} because {error}")]
+  FormatToml {
+    /// The path that failed to parse into TOML.
+    path: PathBuf,
+
+    /// The parsing [`toml::Error`].
+    error: ::toml::de::Error,
   },
 
   /// Unknown file extension encountered.
@@ -145,6 +158,7 @@ pub fn parse_value(path: impl Into<PathBuf>) -> Result<Value, ConfigError> {
 
 fn do_parse<D: DeserializeOwned>(path: PathBuf) -> Result<D, ConfigError> {
   let json5 = path.with_extension("json5");
+  let toml = path.with_extension("toml");
   let path_ext = path
     .extension()
     .map(OsStr::to_string_lossy)
@@ -183,6 +197,18 @@ fn do_parse<D: DeserializeOwned>(path: PathBuf) -> Result<D, ConfigError> {
     Err(ConfigError::DisabledFormat {
       extension: ".json5".into(),
       feature: "config-json5".into(),
+    })
+  } else if toml.exists() {
+    #[cfg(feature = "config-toml")]
+    {
+      let raw = read_to_string(&toml)?;
+      do_parse_toml(&raw, &path)
+    }
+
+    #[cfg(not(feature = "config-toml"))]
+    Err(ConfigError::DisabledFormat {
+      extension: ".toml".into(),
+      feature: "config-toml".into(),
     })
   } else if !EXTENSIONS_SUPPORTED.contains(&path_ext.as_ref()) {
     Err(ConfigError::UnsupportedFormat(path_ext.to_string()))
@@ -236,6 +262,14 @@ pub fn parse_json5_value(raw: &str, path: &Path) -> Result<Value, ConfigError> {
 #[cfg(feature = "config-json5")]
 fn do_parse_json5<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, ConfigError> {
   ::json5::from_str(raw).map_err(|error| ConfigError::FormatJson5 {
+    path: path.into(),
+    error,
+  })
+}
+
+#[cfg(feature = "config-toml")]
+fn do_parse_toml<D: DeserializeOwned>(raw: &str, path: &Path) -> Result<D, ConfigError> {
+  ::toml::from_str(raw).map_err(|error| ConfigError::FormatToml {
     path: path.into(),
     error,
   })

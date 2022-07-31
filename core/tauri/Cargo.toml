@@ -283,6 +283,7 @@ window-set-cursor-position = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
+config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]
 icon-png = [ "infer", "png" ]
 

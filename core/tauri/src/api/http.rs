@@ -141,6 +141,10 @@ impl Client {
       }
     }
 
+    if let Some(max_redirections) = self.0.max_redirections {
+      request_builder = request_builder.max_redirections(max_redirections as u32);
+    }
+
     if let Some(timeout) = request.timeout {
       request_builder = request_builder.timeout(timeout);
       #[cfg(windows)]

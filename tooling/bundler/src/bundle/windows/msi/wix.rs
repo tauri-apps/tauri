@@ -287,6 +287,11 @@ fn clear_env_for_wix(cmd: &mut Command) {
       cmd.env(var, value);
     }
   }
+  for (k, v) in std::env::vars_os() {
+    if k.to_string_lossy().starts_with("TAURI") {
+      cmd.env(k, v);
+    }
+  }
 }
 
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.

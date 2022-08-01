@@ -2,7 +2,6 @@ name: publish cli.rs
 env:
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
-  push:
   workflow_dispatch:
   repository_dispatch:
     types: [publish-clirs]

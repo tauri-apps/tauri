@@ -35,17 +35,29 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
+fn copy_binaries<'a>(
+  binaries: ResourcePaths<'a>,
+  target_triple: &str,
+  path: &Path,
+  package_name: Option<&String>,
+) -> Result<()> {
   for src in binaries {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
-    let dest = path.join(
-      src
-        .file_name()
-        .expect("failed to extract external binary filename")
-        .to_string_lossy()
-        .replace(&format!("-{}", target_triple), ""),
-    );
+    let file_name = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", target_triple), "");
+
+    if package_name.map_or(false, |n| n == &file_name) {
+      return Err(anyhow::anyhow!(
+        "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
+        file_name
+      ));
+    }
+
+    let dest = path.join(file_name);
     if dest.exists() {
       std::fs::remove_file(&dest).unwrap();
     }
@@ -270,6 +282,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
+      manifest.package.as_ref().map(|p| &p.name),
     )?;
   }
 

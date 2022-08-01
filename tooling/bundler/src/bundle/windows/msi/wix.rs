@@ -326,6 +326,7 @@ fn run_candle(
   cmd
     .args(&args)
     .current_dir(cwd)
+    .env_clear()
     .output_ok()
     .context("error running candle.exe")?;
 
@@ -361,6 +362,7 @@ fn run_light(
   cmd
     .args(&args)
     .current_dir(build_path)
+    .env_clear()
     .output_ok()
     .context("error running light.exe")?;
 

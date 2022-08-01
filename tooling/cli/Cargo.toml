@@ -85,3 +85,14 @@ url = { version = "2.2", features = [ "serde" ] }
 
 [profile.release]
 lto = true
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/cli.rs-v{ version }/{ bin }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-fmt = "zip"

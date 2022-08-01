@@ -23,7 +23,7 @@ pub struct ConfigMetadata {
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
   /// Maps the extension name to its value.
-  extensions: HashMap<&'static str, JsonValue>,
+  extensions: HashMap<String, JsonValue>,
 }
 
 impl std::ops::Deref for ConfigMetadata {
@@ -37,7 +37,7 @@ impl std::ops::Deref for ConfigMetadata {
 
 impl ConfigMetadata {
   /// Checks which config is overwriting the bundle identifier.
-  pub fn find_bundle_identifier_overwriter(&self) -> Option<&'static str> {
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
@@ -49,7 +49,7 @@ impl ConfigMetadata {
         .and_then(|id| id.as_str())
       {
         if identifier == self.inner.tauri.bundle.identifier {
-          return Some(ext);
+          return Some(ext.clone());
         }
       }
     }
@@ -106,13 +106,15 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   }
 
   let tauri_dir = super::app_paths::tauri_dir();
-  let mut config = tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?;
+  let mut config = tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?.0;
   let mut extensions = HashMap::new();
 
-  if let Some(platform_config) = tauri_utils::config::parse::read_platform(tauri_dir)? {
+  if let Some((platform_config, config_path)) =
+    tauri_utils::config::parse::read_platform(tauri_dir)?
+  {
     merge(&mut config, &platform_config);
     extensions.insert(
-      tauri_utils::config::parse::get_platform_config_filename(),
+      config_path.file_name().unwrap().to_str().unwrap().into(),
       platform_config,
     );
   }
@@ -122,7 +124,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     let merge_config: JsonValue =
       serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
-    extensions.insert(MERGE_CONFIG_EXTENSION_NAME, merge_config);
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   };
 
   let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;

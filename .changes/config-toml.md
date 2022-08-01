@@ -8,4 +8,4 @@
 "cli.js": minor
 ---
 
-Added support to configuration files in TOML format (tauri.conf.toml file).
+Added support to configuration files in TOML format (Tauri.toml file).

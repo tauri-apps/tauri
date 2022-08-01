@@ -71,9 +71,13 @@ jobs:
       - name: Pack archives
         run: ./.scripts/ci/pack-cli.sh
 
+      - name: Get CLI version
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
+
       - name: Publish release
         uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
         with:
+          tag_name: cli.rs-v${{ env.CLI_VERSION }}
           files: |
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

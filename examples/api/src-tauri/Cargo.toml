@@ -32,8 +32,8 @@ features = [
 ]
 
 [target."cfg(target_os = \"windows\")".dependencies]
-window-vibrancy = "0.1"
-window-shadows= "0.1"
+window-vibrancy = "0.2"
+window-shadows= "0.2"
 
 [features]
 default = [ "custom-protocol" ]

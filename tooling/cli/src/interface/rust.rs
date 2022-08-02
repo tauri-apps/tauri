@@ -118,6 +118,7 @@ pub struct Rust {
   config_features: Vec<String>,
   product_name: Option<String>,
   available_targets: Option<Vec<Target>>,
+  minimum_macos_system_version: Option<String>,
 }
 
 impl Interface for Rust {
@@ -146,6 +147,7 @@ impl Interface for Rust {
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
+      minimum_macos_system_version: config.tauri.bundle.macos.minimum_system_version.clone(),
     })
   }
 
@@ -166,6 +168,9 @@ impl Interface for Rust {
 
     if !std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "false") {
       std::env::set_var("STATIC_VCRUNTIME", "true");
+    }
+    if let Some(minimum_system_version) = &self.minimum_macos_system_version {
+      std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
     if options.target == Some("universal-apple-darwin".into()) {

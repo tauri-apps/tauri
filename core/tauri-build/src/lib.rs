@@ -334,6 +334,26 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if window_icon_path.exists() {
       let mut res = WindowsResource::new();
+
+      res.set_manifest(
+        r#"
+        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+          <dependency>
+              <dependentAssembly>
+                  <assemblyIdentity
+                      type="win32"
+                      name="Microsoft.Windows.Common-Controls"
+                      version="6.0.0.0"
+                      processorArchitecture="*"
+                      publicKeyToken="6595b64144ccf1df"
+                      language="*"
+                  />
+              </dependentAssembly>
+          </dependency>
+        </assembly>
+        "#,
+      );
+
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
           res.set_toolkit_path(sdk_dir_str);

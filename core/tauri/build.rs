@@ -40,6 +40,11 @@ fn main() {
   alias("dev", !has_feature("custom-protocol"));
   alias("updater", has_feature("updater"));
 
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  alias("desktop", !mobile);
+  alias("mobile", mobile);
+
   let api_all = has_feature("api-all");
   alias("api_all", api_all);
 
@@ -99,18 +104,22 @@ fn main() {
   alias("shell_script", shell_script);
   alias("shell_scope", has_feature("shell-open-api") || shell_script);
 
-  alias_module(
-    "dialog",
-    &["open", "save", "message", "ask", "confirm"],
-    api_all,
-  );
+  if !mobile {
+    alias_module(
+      "dialog",
+      &["open", "save", "message", "ask", "confirm"],
+      api_all,
+    );
+  }
 
   alias_module("http", &["request"], api_all);
 
   alias("cli", has_feature("cli"));
 
-  alias_module("notification", &[], api_all);
-  alias_module("global-shortcut", &[], api_all);
+  if !mobile {
+    alias_module("notification", &[], api_all);
+    alias_module("global-shortcut", &[], api_all);
+  }
   alias_module("os", &[], api_all);
   alias_module("path", &[], api_all);
 

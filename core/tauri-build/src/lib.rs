@@ -203,6 +203,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
 
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  cfg_alias("desktop", !mobile);
+  cfg_alias("mobile", mobile);
+
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
     std::env::current_dir().unwrap(),
   )?)?;

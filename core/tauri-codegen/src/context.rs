@@ -523,6 +523,7 @@ fn png_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 fn find_icon<F: Fn(&&String) -> bool>(
   config: &Config,
   config_parent: &Path,

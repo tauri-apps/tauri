@@ -98,6 +98,11 @@ fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
   root_dir.join(format!("target/debug/bundle/macos/app-updater.app"))
 }
 
+#[cfg(target_os = "ios")]
+fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
+  root_dir.join(format!("target/debug/bundle/ios/app-updater.app"))
+}
+
 #[cfg(windows)]
 fn bundle_path(root_dir: &Path, version: &str) -> PathBuf {
   root_dir.join(format!(

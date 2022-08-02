@@ -6,14 +6,14 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, WindowUrl},
+    config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
   interface::{AppInterface, ExitReason, Interface},
-  Result,
+  CommandExt, Result,
 };
 use clap::Parser;
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use log::{error, info, warn};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
@@ -89,65 +89,92 @@ fn command_internal(mut options: Options) -> Result<()> {
 
   let config = get_config(options.config.as_deref())?;
 
-  if let Some(before_dev) = &config
+  if let Some(before_dev) = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
     .before_dev_command
+    .clone()
   {
-    if !before_dev.is_empty() {
+    let (script, script_cwd, wait) = match before_dev {
+      BeforeDevCommand::Script(s) if s.is_empty() => (None, None, false),
+      BeforeDevCommand::Script(s) => (Some(s), None, false),
+      BeforeDevCommand::ScriptWithOptions { script, cwd, wait } => {
+        (Some(script), cwd.map(Into::into), wait)
+      }
+    };
+    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+    if let Some(before_dev) = script {
       info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
-      #[cfg(target_os = "windows")]
+      #[cfg(windows)]
       let mut command = {
         let mut command = Command::new("cmd");
         command
           .arg("/S")
           .arg("/C")
-          .arg(before_dev)
-          .current_dir(app_dir())
+          .arg(&before_dev)
+          .current_dir(cwd)
           .envs(command_env(true));
         command
       };
-      #[cfg(not(target_os = "windows"))]
+      #[cfg(not(windows))]
       let mut command = {
         let mut command = Command::new("sh");
         command
           .arg("-c")
-          .arg(before_dev)
-          .current_dir(app_dir())
+          .arg(&before_dev)
+          .current_dir(cwd)
           .envs(command_env(true));
         command
       };
-      command.stdin(Stdio::piped());
-      command.stdout(os_pipe::dup_stdout()?);
-      command.stderr(os_pipe::dup_stderr()?);
 
-      let child = SharedChild::spawn(&mut command)
-        .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
-      let child = Arc::new(child);
-      let child_ = child.clone();
-
-      std::thread::spawn(move || {
-        let status = child_
-          .wait()
-          .expect("failed to wait on \"beforeDevCommand\"");
-        if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-          error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
-          exit(status.code().unwrap_or(1));
+      if wait {
+        let status = command.piped().with_context(|| {
+          format!(
+            "failed to run `{}` with `{}`",
+            before_dev,
+            if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
+          )
+        })?;
+        if !status.success() {
+          bail!(
+            "beforeDevCommand `{}` failed with exit code {}",
+            before_dev,
+            status.code().unwrap_or_default()
+          );
         }
-      });
+      } else {
+        command.stdin(Stdio::piped());
+        command.stdout(os_pipe::dup_stdout()?);
+        command.stderr(os_pipe::dup_stderr()?);
 
-      BEFORE_DEV.set(Mutex::new(child)).unwrap();
-      KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
+        let child = SharedChild::spawn(&mut command)
+          .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+        let child = Arc::new(child);
+        let child_ = child.clone();
 
-      let _ = ctrlc::set_handler(move || {
-        kill_before_dev_process();
-        #[cfg(not(debug_assertions))]
-        let _ = check_for_updates();
-        exit(130);
-      });
+        std::thread::spawn(move || {
+          let status = child_
+            .wait()
+            .expect("failed to wait on \"beforeDevCommand\"");
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
+            error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
+            exit(status.code().unwrap_or(1));
+          }
+        });
+
+        BEFORE_DEV.set(Mutex::new(child)).unwrap();
+        KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
+
+        let _ = ctrlc::set_handler(move || {
+          kill_before_dev_process();
+          #[cfg(not(debug_assertions))]
+          let _ = check_for_updates();
+          exit(130);
+        });
+      }
     }
   }
 

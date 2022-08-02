@@ -907,17 +907,14 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    #[cfg(any(windows, target_os = "macos"))]
-    {
-      self.inner = self.inner.with_theme(if let Some(t) = theme {
-        match t {
-          Theme::Dark => Some(WryTheme::Dark),
-          _ => Some(WryTheme::Light),
-        }
-      } else {
-        None
-      });
-    }
+    self.inner = self.inner.with_theme(if let Some(t) = theme {
+      match t {
+        Theme::Dark => Some(WryTheme::Dark),
+        _ => Some(WryTheme::Light),
+      }
+    } else {
+      None
+    });
 
     self
   }
@@ -2304,10 +2301,7 @@ fn handle_user_message<T: UserEvent>(
               .send(RawWindowHandle(window.raw_window_handle()))
               .unwrap(),
             WindowMessage::Theme(tx) => {
-              #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();
-              #[cfg(not(any(windows, target_os = "macos")))]
-              tx.send(Theme::Light).unwrap();
             }
             // Setters
             WindowMessage::Center => {

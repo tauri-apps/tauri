@@ -119,14 +119,13 @@ pub enum WindowEvent {
   },
   /// An event associated with the file drop action.
   FileDrop(FileDropEvent),
-  /// The system window theme has changed.
+  /// The system window theme has changed. Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS / Linux**: Not supported.
-  /// - **Windows**: Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
+  /// - **Linux**: Not supported.
   ThemeChanged(Theme),
 }
 

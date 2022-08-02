@@ -352,7 +352,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, the value is ignored.
   #[must_use]
   pub fn theme(mut self, theme: Option<Theme>) -> Self {
     self.window_builder = self.window_builder.theme(theme);
@@ -937,7 +936,6 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, always return [`Theme::Light`].
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
   }

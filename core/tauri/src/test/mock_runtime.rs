@@ -12,13 +12,13 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, EventLoopProxy, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
-  WindowIcon,
+  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
+  UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
-  SystemTray, SystemTrayEvent, TrayIcon,
+  SystemTray, SystemTrayEvent,
 };
 use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
@@ -84,6 +84,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> Result<()> {
     Ok(())
+  }
+
+  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+    unimplemented!()
   }
 }
 
@@ -229,7 +233,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn icon(self, icon: WindowIcon) -> Result<Self> {
+  fn icon(self, icon: Icon) -> Result<Self> {
     Ok(self)
   }
 
@@ -355,18 +359,8 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(Vec::new())
   }
 
-  #[cfg(windows)]
-  fn hwnd(&self) -> Result<HWND> {
-    unimplemented!()
-  }
-
   fn theme(&self) -> Result<Theme> {
     Ok(Theme::Light)
-  }
-
-  #[cfg(target_os = "macos")]
-  fn ns_window(&self) -> Result<*mut std::ffi::c_void> {
-    unimplemented!()
   }
 
   #[cfg(any(
@@ -377,6 +371,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     target_os = "openbsd"
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
+    unimplemented!()
+  }
+
+  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle> {
     unimplemented!()
   }
 
@@ -475,7 +473,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
-  fn set_icon(&self, icon: WindowIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     Ok(())
   }
 
@@ -520,7 +518,7 @@ pub struct MockTrayHandler {
 
 #[cfg(all(desktop, feature = "system-tray"))]
 impl TrayHandle for MockTrayHandler {
-  fn set_icon(&self, icon: TrayIcon) -> Result<()> {
+  fn set_icon(&self, icon: Icon) -> Result<()> {
     Ok(())
   }
   fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {

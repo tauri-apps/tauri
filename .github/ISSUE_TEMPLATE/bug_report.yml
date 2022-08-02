@@ -1,7 +1,7 @@
 name: 🐞 Bug Report
 title: '[bug] '
 description: Report a bug
-labels: 'type: bug'
+labels: ['type: bug', 'status: needs triage']
 
 body:
   - type: markdown
@@ -43,7 +43,6 @@ body:
     attributes:
       label: Platform and versions
       description: "Output of `npm run tauri info` or `cargo tauri info`"
-      render: shell
     validations:
       required: true
 

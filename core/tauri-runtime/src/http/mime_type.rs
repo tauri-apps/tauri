@@ -57,7 +57,7 @@ impl MimeType {
       Some("rtf") => Self::Rtf,
       Some("svg") => Self::Svg,
       Some("mp4") => Self::Mp4,
-      // Assume HTML when a TLD is found for eg. `wry:://tauri.studio` | `wry://hello.com`
+      // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
       Some(_) => Self::Html,
       // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
       // using octet stream according to this:
@@ -101,7 +101,7 @@ mod tests {
       MimeType::parse_from_uri("https://icons.duckduckgo.com/ip3/microsoft.com.ico").to_string();
     assert_eq!(ico, String::from("image/vnd.microsoft.icon"));
 
-    let html: String = MimeType::parse_from_uri("https://tauri.studio/index.html").to_string();
+    let html: String = MimeType::parse_from_uri("https://tauri.app/index.html").to_string();
     assert_eq!(html, String::from("text/html"));
 
     let js: String =
@@ -128,7 +128,7 @@ mod tests {
     let mp4: String = MimeType::parse_from_uri("https://example.com/video.mp4").to_string();
     assert_eq!(mp4, String::from("video/mp4"));
 
-    let custom_scheme = MimeType::parse_from_uri("wry://tauri.studio").to_string();
+    let custom_scheme = MimeType::parse_from_uri("wry://tauri.app").to_string();
     assert_eq!(custom_scheme, String::from("text/html"));
   }
 }

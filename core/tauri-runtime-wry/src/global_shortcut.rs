@@ -17,7 +17,7 @@ use crate::{getter, Context, Message};
 
 use tauri_runtime::{Error, GlobalShortcutManager, Result, UserEvent};
 #[cfg(desktop)]
-use wry::application::{
+pub use wry::application::{
   accelerator::{Accelerator, AcceleratorId},
   global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
 };

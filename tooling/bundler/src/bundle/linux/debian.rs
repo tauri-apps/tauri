@@ -25,8 +25,8 @@
 use super::super::common;
 use crate::Settings;
 use anyhow::Context;
-use heck::ToKebabCase;
-use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
+use heck::AsKebabCase;
+use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
 use walkdir::WalkDir;
@@ -55,6 +55,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "x86_64" => "amd64",
     // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
     "arm" => "armhf",
+    "aarch64" => "arm64",
     other => other,
   };
   let package_base_name = format!(
@@ -170,11 +171,7 @@ fn generate_control_file(
   // https://www.debian.org/doc/debian-policy/ch-controlfields.html
   let dest_path = control_dir.join("control");
   let mut file = common::create_file(&dest_path)?;
-  writeln!(
-    file,
-    "Package: {}",
-    settings.product_name().to_kebab_case().to_ascii_lowercase()
-  )?;
+  writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {}", arch)?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
@@ -276,76 +273,33 @@ fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BT
       "{}x{}{}/apps/{}.png",
       width,
       height,
-      if is_high_density { "@2x" } else { "" },
+      if is_high_density { "@2" } else { "" },
       settings.main_binary_name()
     ))
   };
   let mut icons = BTreeSet::new();
-  // Prefer PNG files.
   for icon_path in settings.icon_files() {
     let icon_path = icon_path?;
     if icon_path.extension() != Some(OsStr::new("png")) {
       continue;
     }
-    let decoder = PngDecoder::new(File::open(&icon_path)?)?;
-    let width = decoder.dimensions().0;
-    let height = decoder.dimensions().1;
-    let is_high_density = common::is_retina(&icon_path);
-    let dest_path = get_dest_path(width, height, is_high_density);
-    let deb_icon = DebIcon {
-      width,
-      height,
-      is_high_density,
-      path: dest_path,
-    };
-    if !icons.contains(&deb_icon) {
-      common::copy_file(&icon_path, &deb_icon.path)?;
-      icons.insert(deb_icon);
-    }
-  }
-  // Fall back to non-PNG files for any missing sizes.
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() == Some(OsStr::new("png")) {
-      continue;
-    } else if icon_path.extension() == Some(OsStr::new("icns")) {
-      let icon_family = icns::IconFamily::read(File::open(&icon_path)?)?;
-      for icon_type in icon_family.available_icons() {
-        let width = icon_type.screen_width();
-        let height = icon_type.screen_height();
-        let is_high_density = icon_type.pixel_density() > 1;
-        let dest_path = get_dest_path(width, height, is_high_density);
-        let deb_icon = DebIcon {
-          width,
-          height,
-          is_high_density,
-          path: dest_path,
-        };
-        if !icons.contains(&deb_icon) {
-          if let Ok(icon) = icon_family.get_icon_with_type(icon_type) {
-            icon.write_png(common::create_file(&deb_icon.path)?)?;
-            icons.insert(deb_icon);
-          }
-        }
-      }
-    } else {
-      let icon = image::open(&icon_path)?;
-      let (width, height) = icon.dimensions();
+    // Put file in scope so that it's closed when copying it
+    let deb_icon = {
+      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+      let width = decoder.dimensions().0;
+      let height = decoder.dimensions().1;
       let is_high_density = common::is_retina(&icon_path);
       let dest_path = get_dest_path(width, height, is_high_density);
-      let deb_icon = DebIcon {
+      DebIcon {
         width,
         height,
         is_high_density,
         path: dest_path,
-      };
-      if !icons.contains(&deb_icon) {
-        icon.write_to(
-          &mut common::create_file(&deb_icon.path)?,
-          image::ImageOutputFormat::Png,
-        )?;
-        icons.insert(deb_icon);
       }
+    };
+    if !icons.contains(&deb_icon) {
+      common::copy_file(&icon_path, &deb_icon.path)?;
+      icons.insert(deb_icon);
     }
   }
   Ok(icons)

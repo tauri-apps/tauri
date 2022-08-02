@@ -8,11 +8,6 @@
 use std::{env, fs, io::Write, path::Path};
 
 pub fn build() {
-  // Early exit if not msvc or release
-  if env::var("CARGO_CFG_TARGET_ENV").as_deref() != Ok("msvc") {
-    return;
-  }
-
   override_msvcrt_lib();
 
   // Disable conflicting libraries that aren't hard coded by Rust.

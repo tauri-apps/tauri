@@ -20,6 +20,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
 use shared_child::SharedChild;
@@ -36,7 +37,9 @@ fn commands() -> &'static ChildStore {
 /// Kills all child processes created with [`Command`].
 /// By default it's called before the [`crate::App`] exits.
 pub fn kill_children() {
-  for child in commands().lock().unwrap().values() {
+  let commands = commands().lock().unwrap();
+  let children = commands.values();
+  for child in children {
     let _ = child.kill();
   }
 }
@@ -93,6 +96,7 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
+  encoding: Option<&'static Encoding>,
 }
 
 /// Spawned child process.
@@ -169,6 +173,7 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
+      encoding: None,
     }
   }
 
@@ -211,6 +216,13 @@ impl Command {
   #[must_use]
   pub fn current_dir(mut self, current_dir: PathBuf) -> Self {
     self.current_dir.replace(current_dir);
+    self
+  }
+
+  /// Sets the character encoding for stdout/stderr.
+  #[must_use]
+  pub fn encoding(mut self, encoding: &'static Encoding) -> Self {
+    self.encoding.replace(encoding);
     self
   }
 
@@ -262,12 +274,14 @@ impl Command {
       guard.clone(),
       stdout_reader,
       CommandEvent::Stdout,
+      self.encoding,
     );
     spawn_pipe_reader(
       tx.clone(),
       guard.clone(),
       stderr_reader,
       CommandEvent::Stderr,
+      self.encoding,
     );
 
     spawn(move || {
@@ -275,7 +289,7 @@ impl Command {
         Ok(status) => {
           let _l = guard.write().unwrap();
           commands().lock().unwrap().remove(&child_.id());
-          let _ = block_on_task(async move {
+          block_on_task(async move {
             tx.send(CommandEvent::Terminated(TerminatedPayload {
               code: status.code(),
               #[cfg(windows)]
@@ -284,11 +298,11 @@ impl Command {
               signal: status.signal(),
             }))
             .await
-          });
+          })
         }
         Err(e) => {
           let _l = guard.write().unwrap();
-          let _ = block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await });
+          block_on_task(async move { tx.send(CommandEvent::Error(e.to_string())).await })
         }
       };
     });
@@ -376,6 +390,7 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
   guard: Arc<RwLock<()>>,
   pipe_reader: PipeReader,
   wrapper: F,
+  character_encoding: Option<&'static Encoding>,
 ) {
   spawn(move || {
     let _lock = guard.read().unwrap();
@@ -390,7 +405,10 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
             break;
           }
           let tx_ = tx.clone();
-          let line = String::from_utf8(buf.clone());
+          let line = match character_encoding {
+            Some(encoding) => Ok(encoding.decode_with_bom_removal(&buf).0.into()),
+            None => String::from_utf8(buf.clone()),
+          };
           block_on_task(async move {
             let _ = match line {
               Ok(line) => tx_.send(wrapper(line)).await,

@@ -5,7 +5,7 @@
 /**
  * Access the HTTP client written in Rust.
  *
- * This package is also accessible with `window.__TAURI__.http` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.http` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * The APIs must be allowlisted on `tauri.conf.json`:
  * ```json
@@ -52,6 +52,10 @@ interface Duration {
 
 interface ClientOptions {
   maxRedirections?: number
+  /**
+   * Defines the maximum number of redirects the client should follow.
+   * If set to 0, no redirects will be followed.
+   */
   connectTimeout?: number | Duration
 }
 
@@ -62,7 +66,7 @@ enum ResponseType {
 }
 
 interface FilePart<T> {
-  value: string | T
+  file: string | T
   mime?: string
   fileName?: string
 }
@@ -88,19 +92,17 @@ class Body {
    * but you can set it to `multipart/form-data` if the Cargo feature `http-multipart` is enabled.
    *
    * Note that a file path must be allowed in the `fs` allowlist scope.
-   *
-   * # Examples
-   *
-   * ```js
+   * @example
+   * ```typescript
    * import { Body } from "@tauri-apps/api/http"
    * Body.form({
    *   key: 'value',
    *   image: {
-   *     file: '/path/to/file', // either a path of an array buffer of the file contents
+   *     file: '/path/to/file', // either a path or an array buffer of the file contents
    *     mime: 'image/jpeg', // optional
    *     fileName: 'image.jpg' // optional
    *   }
-   * })
+   * });
    * ```
    *
    * @param data The body data.
@@ -117,10 +119,10 @@ class Body {
         r = v
       } else if (v instanceof Uint8Array || Array.isArray(v)) {
         r = Array.from(v)
-      } else if (typeof v.value === 'string') {
-        r = { value: v.value, mime: v.mime, fileName: v.fileName }
+      } else if (typeof v.file === 'string') {
+        r = { file: v.file, mime: v.mime, fileName: v.fileName }
       } else {
-        r = { value: Array.from(v.value), mime: v.mime, fileName: v.fileName }
+        r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
       }
       // eslint-disable-next-line security/detect-object-injection
       form[key] = r
@@ -130,6 +132,14 @@ class Body {
 
   /**
    * Creates a new JSON body.
+   * @example
+   * ```typescript
+   * import { Body } from "@tauri-apps/api/http"
+   * Body.json({
+   *   registered: true,
+   *   name: 'tauri'
+   * });
+   * ```
    *
    * @param data The body JSON object.
    *
@@ -141,6 +151,11 @@ class Body {
 
   /**
    * Creates a new UTF-8 string body.
+   * @example
+   * ```typescript
+   * import { Body } from "@tauri-apps/api/http"
+   * Body.text('The body content as a string');
+   * ```
    *
    * @param data The body string.
    *
@@ -152,14 +167,24 @@ class Body {
 
   /**
    * Creates a new byte array body.
+   * @example
+   * ```typescript
+   * import { Body } from "@tauri-apps/api/http"
+   * Body.bytes(new Uint8Array([1, 2, 3]));
+   * ```
    *
    * @param data The body byte array.
    *
    * @return The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: Uint8Array): Body {
+  static bytes(
+    bytes: Iterable<number> | ArrayLike<number> | ArrayBuffer
+  ): Body {
     // stringifying Uint8Array doesn't return an array of numbers, so we create one here
-    return new Body('Bytes', Array.from(bytes))
+    return new Body(
+      'Bytes',
+      Array.from(bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes)
+    )
   }
 }
 
@@ -235,6 +260,12 @@ class Client {
 
   /**
    * Drops the client instance.
+   * @example
+   * ```typescript
+   * import { getClient } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * await client.drop();
+   * ```
    *
    * @returns
    */
@@ -250,6 +281,15 @@ class Client {
 
   /**
    * Makes an HTTP request.
+   * @example
+   * ```typescript
+   * import { getClient } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.request({
+   *   method: 'GET',
+   *   url: 'http://localhost:3003/users',
+   * });
+   * ```
    *
    * @param options The request options.
    * @returns A promise resolving to the response.
@@ -294,6 +334,16 @@ class Client {
 
   /**
    * Makes a GET request.
+   * @example
+   * ```typescript
+   * import { getClient, ResponseType } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.get('http://localhost:3003/users', {
+   *   timeout: 30,
+   *   // the expected response type
+   *   responseType: ResponseType.JSON
+   * });
+   * ```
    *
    * @param url The request URL.
    * @param options The request options.
@@ -309,6 +359,19 @@ class Client {
 
   /**
    * Makes a POST request.
+   * @example
+   * ```typescript
+   * import { getClient, Body, ResponseType } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.post('http://localhost:3003/users', {
+   *   body: Body.json({
+   *     name: 'tauri',
+   *     password: 'awesome'
+   *   }),
+   *   // in this case the server returns a simple string
+   *   responseType: ResponseType.Text,
+   * });
+   * ```
    *
    * @param url The request URL.
    * @param body The body of the request.
@@ -330,6 +393,20 @@ class Client {
 
   /**
    * Makes a PUT request.
+   * @example
+   * ```typescript
+   * import { getClient, Body } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.put('http://localhost:3003/users/1', {
+   *   body: Body.form({
+   *     file: {
+   *       file: '/home/tauri/avatar.png',
+   *       mime: 'image/png',
+   *       fileName: 'avatar.png'
+   *     }
+   *   })
+   * });
+   * ```
    *
    * @param url The request URL.
    * @param body The body of the request.
@@ -351,6 +428,14 @@ class Client {
 
   /**
    * Makes a PATCH request.
+   * @example
+   * ```typescript
+   * import { getClient, Body } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.patch('http://localhost:3003/users/1', {
+   *   body: Body.json({ email: 'contact@tauri.app' })
+   * });
+   * ```
    *
    * @param url The request URL.
    * @param options The request options.
@@ -366,6 +451,12 @@ class Client {
 
   /**
    * Makes a DELETE request.
+   * @example
+   * ```typescript
+   * import { getClient } from '@tauri-apps/api/http';
+   * const client = await getClient();
+   * const response = await client.delete('http://localhost:3003/users/1');
+   * ```
    *
    * @param url The request URL.
    * @param options The request options.
@@ -382,6 +473,11 @@ class Client {
 
 /**
  * Creates a new client using the specified options.
+ * @example
+ * ```typescript
+ * import { getClient } from '@tauri-apps/api/http';
+ * const client = await getClient();
+ * ```
  *
  * @param options Client configuration.
  *
@@ -402,6 +498,14 @@ let defaultClient: Client | null = null
 
 /**
  * Perform an HTTP request using the default client.
+ * @example
+ * ```typescript
+ * import { fetch } from '@tauri-apps/api/http';
+ * const response = await fetch('http://localhost:3003/users/2', {
+ *   method: 'GET',
+ *   timeout: 30,
+ * });
+ * ```
  *
  * @param url The request URL.
  * @param options The fetch options.

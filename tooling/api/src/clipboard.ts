@@ -5,14 +5,20 @@
 /**
  * Read and write to the system clipboard.
  *
- * This package is also accessible with `window.__TAURI__.clipboard` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.clipboard` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
 
 /**
- * Writes a plain text to the clipboard.
+ * Writes plain text to the clipboard.
+ * @example
+ * ```typescript
+ * import { writeText, readText } from '@tauri-apps/api/clipboard';
+ * await writeText('Tauri is awesome!');
+ * assert(await readText(), 'Tauri is awesome!');
+ * ```
  *
  * @returns A promise indicating the success or failure of the operation.
  */
@@ -28,6 +34,11 @@ async function writeText(text: string): Promise<void> {
 
 /**
  * Gets the clipboard content as plain text.
+ * @example
+ * ```typescript
+ * import { readText } from '@tauri-apps/api/clipboard';
+ * const clipboardText = await readText();
+ * ```
  *
  * @returns A promise resolving to the clipboard content as plain text.
  */

@@ -105,11 +105,14 @@ pub struct Env {
   /// The APPDIR environment variable.
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
+  /// The command line arguments of the current process.
+  pub args: Vec<String>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
+    let args = std::env::args().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -117,6 +120,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
+        args,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -139,7 +143,7 @@ impl Default for Env {
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self {}
+      Self { args }
     }
   }
 }
@@ -198,4 +202,32 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
+}
+
+/// Suppresses the unused-variable warnings of the given inputs.
+///
+/// This does not move any values. Instead, it just suppresses the warning by taking a
+/// reference to the value.
+#[macro_export]
+macro_rules! consume_unused_variable {
+  ($($arg:expr),*) => {
+    $(
+      let _ = &$arg;
+    )*
+    ()
+  };
+}
+
+/// Prints to the standard error, with a newline.
+///
+/// Equivalent to the [`eprintln!`] macro, except that it's only effective for debug builds.
+#[macro_export]
+macro_rules! debug_eprintln {
+  () => ($crate::debug_eprintln!(""));
+  ($($arg:tt)*) => {
+    #[cfg(debug_assertions)]
+    eprintln!($($arg)*);
+    #[cfg(not(debug_assertions))]
+    $crate::consume_unused_variable!($($arg)*);
+  };
 }

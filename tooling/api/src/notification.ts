@@ -6,9 +6,9 @@
  * Send toast notifications (brief auto-expiring OS window element) to your user.
  * Can also be used with the Notification Web API.
  *
- * This package is also accessible with `window.__TAURI__.notification` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.notification` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.notification`](https://tauri.app/v1/api/config/#allowlistconfig.notification) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -43,10 +43,15 @@ type Permission = 'granted' | 'denied' | 'default'
 
 /**
  * Checks if the permission to send notifications is granted.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted } from '@tauri-apps/api/notification';
+ * const permissionGranted = await isPermissionGranted();
+ * ```
  *
  * @returns
  */
-async function isPermissionGranted(): Promise<boolean | null> {
+async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
     return Promise.resolve(window.Notification.permission === 'granted')
   }
@@ -60,6 +65,15 @@ async function isPermissionGranted(): Promise<boolean | null> {
 
 /**
  * Requests the permission to send notifications.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted, requestPermission } from '@tauri-apps/api/notification';
+ * let permissionGranted = await isPermissionGranted();
+ * if (!permissionGranted) {
+ *   const permission = await requestPermission();
+ *   permissionGranted = permission === 'granted';
+ * }
+ * ```
  *
  * @returns A promise resolving to whether the user granted the permission or not.
  */
@@ -69,6 +83,19 @@ async function requestPermission(): Promise<Permission> {
 
 /**
  * Sends a notification to the user.
+ * @example
+ * ```typescript
+ * import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/api/notification';
+ * let permissionGranted = await isPermissionGranted();
+ * if (!permissionGranted) {
+ *   const permission = await requestPermission();
+ *   permissionGranted = permission === 'granted';
+ * }
+ * if (permissionGranted) {
+ *   sendNotification('Tauri is awesome!');
+ *   sendNotification({ title: 'TAURI', body: 'Tauri is awesome!' });
+ * }
+ * ```
  *
  * @param options Notification options.
  */

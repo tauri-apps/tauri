@@ -26,6 +26,7 @@ fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<P
   }
 
   let mut builder = WalkBuilder::new(dir);
+  builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
   builder
     .require_git(false)

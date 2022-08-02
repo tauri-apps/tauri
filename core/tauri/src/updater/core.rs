@@ -45,6 +45,8 @@ use std::{
   process::{exit, Command},
 };
 
+type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum RemoteReleaseInner {
@@ -208,7 +210,7 @@ pub struct UpdateBuilder<R: Runtime> {
   pub target: Option<String>,
   /// The current executable path. Default is automatically extracted.
   pub executable_path: Option<PathBuf>,
-  should_install: Option<Box<dyn FnOnce(&Version, &RemoteRelease) -> bool + Send>>,
+  should_install: Option<Box<ShouldInstall>>,
   timeout: Option<Duration>,
   headers: HeaderMap,
 }
@@ -363,10 +365,10 @@ impl<R: Runtime> UpdateBuilder<R> {
       // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
       // this is usefull if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
-      // will be transleted into ->
+      // will be translated into ->
       // https://releases.myapp.com/update/darwin/aarch64/1.0.0
       // The main objective is if the update URL is defined via the Cargo.toml
-      // the URL will be generated dynamicly
+      // the URL will be generated dynamically
       let fixed_link = url
         .replace("{{current_version}}", &self.current_version.to_string())
         .replace("{{target}}", &target)
@@ -623,6 +625,7 @@ impl<R: Runtime> Update<R> {
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
     }
+
     // We are done!
     Ok(())
   }
@@ -640,35 +643,58 @@ impl<R: Runtime> Update<R> {
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
 fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
-  let tmp_dir = tempfile::Builder::new()
-    .prefix("tauri_current_app")
-    .tempdir()?;
+  use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
-  let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
+  let extract_path_metadata = extract_path.metadata()?;
 
-  // create a backup of our current app image
-  Move::from_source(extract_path).to_dest(tmp_app_image)?;
+  let tmp_dir_locations = vec![
+    Box::new(|| Some(env::temp_dir())) as Box<dyn FnOnce() -> Option<PathBuf>>,
+    Box::new(dirs_next::cache_dir),
+    Box::new(|| Some(extract_path.parent().unwrap().to_path_buf())),
+  ];
 
-  // extract the buffer to the tmp_dir
-  // we extract our signed archive into our final directory without any temp file
-  let mut extractor =
-    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+  for tmp_dir_location in tmp_dir_locations {
+    if let Some(tmp_dir_location) = tmp_dir_location() {
+      let tmp_dir = tempfile::Builder::new()
+        .prefix("tauri_current_app")
+        .tempdir_in(tmp_dir_location)?;
+      let tmp_dir_metadata = tmp_dir.path().metadata()?;
 
-  extractor.with_files(|entry| {
-    let path = entry.path()?;
-    if path.extension() == Some(OsStr::new("AppImage")) {
-      // if something went wrong during the extraction, we should restore previous app
-      if let Err(err) = entry.extract(extract_path) {
-        Move::from_source(tmp_app_image).to_dest(extract_path)?;
-        return Err(crate::api::Error::Extract(err.to_string()));
+      if extract_path_metadata.dev() == tmp_dir_metadata.dev() {
+        let mut perms = tmp_dir_metadata.permissions();
+        perms.set_mode(0o700);
+        std::fs::set_permissions(tmp_dir.path(), perms)?;
+
+        let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
+
+        // create a backup of our current app image
+        Move::from_source(extract_path).to_dest(tmp_app_image)?;
+
+        // extract the buffer to the tmp_dir
+        // we extract our signed archive into our final directory without any temp file
+        let mut extractor =
+          Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+
+        return extractor
+          .with_files(|entry| {
+            let path = entry.path()?;
+            if path.extension() == Some(OsStr::new("AppImage")) {
+              // if something went wrong during the extraction, we should restore previous app
+              if let Err(err) = entry.extract(extract_path) {
+                Move::from_source(tmp_app_image).to_dest(extract_path)?;
+                return Err(crate::api::Error::Extract(err.to_string()));
+              }
+              // early finish we have everything we need here
+              return Ok(true);
+            }
+            Ok(false)
+          })
+          .map_err(Into::into);
       }
-      // early finish we have everything we need here
-      return Ok(true);
     }
-    Ok(false)
-  })?;
+  }
 
-  Ok(())
+  Err(Error::TempDirNotOnSameMountPoint)
 }
 
 // Windows
@@ -764,14 +790,43 @@ fn copy_files_and_run<R: Read + Seek>(
         }
       }
 
-      // restart should be handled by WIX as we exit the process
-      Command::new("msiexec.exe")
-        .arg("/i")
-        .arg(found_path)
-        .args(msiexec_args)
-        .arg("/promptrestart")
-        .spawn()
-        .expect("installer failed to start");
+      // we need to wrap the current exe path in quotes for Start-Process
+      let mut current_exe_arg = std::ffi::OsString::new();
+      current_exe_arg.push("\"");
+      current_exe_arg.push(current_exe()?);
+      current_exe_arg.push("\"");
+
+      let mut msi_path_arg = std::ffi::OsString::new();
+      msi_path_arg.push("\"\"\"");
+      msi_path_arg.push(&found_path);
+      msi_path_arg.push("\"\"\"");
+
+      // run the installer and relaunch the application
+      let powershell_install_res = Command::new("powershell.exe")
+        .args(["-NoProfile", "-windowstyle", "hidden"])
+        .args([
+          "Start-Process",
+          "-Wait",
+          "-FilePath",
+          "msiexec",
+          "-ArgumentList",
+        ])
+        .arg("/i,")
+        .arg(msi_path_arg)
+        .arg(format!(", {}, /promptrestart;", msiexec_args.join(", ")))
+        .arg("Start-Process")
+        .arg(current_exe_arg)
+        .spawn();
+      if powershell_install_res.is_err() {
+        // fallback to running msiexec directly - relaunch won't be available
+        // we use this here in case powershell fails in an older machine somehow
+        let _ = Command::new("msiexec.exe")
+          .arg("/i")
+          .arg(found_path)
+          .args(msiexec_args)
+          .arg("/promptrestart")
+          .spawn();
+      }
 
       exit(0);
     }
@@ -1104,7 +1159,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 
@@ -1130,7 +1185,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 
@@ -1175,7 +1230,7 @@ mod test {
       .with_body(generate_sample_with_elevated_task_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
         true,
       ))
       .create();
@@ -1202,7 +1257,7 @@ mod test {
       .with_body(generate_sample_platform_json(
         "2.0.0",
         "SampleTauriKey",
-        "https://tauri.studio",
+        "https://tauri.app",
       ))
       .create();
 

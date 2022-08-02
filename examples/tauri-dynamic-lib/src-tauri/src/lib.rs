@@ -11,10 +11,8 @@
 )]
 
 #[no_mangle]
-pub extern fn run_tauri() {
+pub extern "C" fn run_tauri() {
   tauri::Builder::default()
-    .run(tauri::generate_context!(
-      "./tauri.conf.json"
-    ))
+    .run(tauri::generate_context!("./tauri.conf.json"))
     .expect("error while running tauri application");
 }

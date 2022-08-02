@@ -2,72 +2,115 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
-  command_env,
-  config::{get as get_config, AppUrl, WindowUrl},
-  manifest::rewrite_manifest,
-  updater_signature::sign_file_from_env_variables,
+use crate::{
+  helpers::{
+    app_paths::{app_dir, tauri_dir},
+    command_env,
+    config::{get as get_config, AppUrl, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
+    updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
+  },
+  interface::{AppInterface, AppSettings, Interface},
+  CommandExt, Result,
 };
-use crate::{CommandExt, Result};
 use anyhow::{bail, Context};
 use clap::Parser;
-#[cfg(target_os = "linux")]
-use heck::ToKebabCase;
+use log::warn;
 use log::{error, info};
-use std::{env::set_current_dir, fs::rename, path::PathBuf, process::Command};
-use tauri_bundler::bundle::{bundle_project, PackageType};
+use std::{
+  env::{set_current_dir, var_os},
+  path::{Path, PathBuf},
+  process::Command,
+};
+use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
-  runner: Option<String>,
+  pub runner: Option<String>,
   /// Builds with the debug flag
   #[clap(short, long)]
-  debug: bool,
+  pub debug: bool,
   /// Target triple to build against.
+  ///
   /// It must be one of the values outputted by `$rustc --print target-list` or `universal-apple-darwin` for an universal macOS application.
+  ///
   /// Note that compiling an universal macOS application requires both `aarch64-apple-darwin` and `x86_64-apple-darwin` targets to be installed.
   #[clap(short, long)]
-  target: Option<String>,
+  pub target: Option<String>,
   /// Space or comma separated list of features to activate
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
-  features: Option<Vec<String>>,
-  /// Space or comma separated list of bundles to package
+  pub features: Option<Vec<String>>,
+  /// Space or comma separated list of bundles to package.
+  ///
+  /// Each bundle must be one of `deb`, `appimage`, `msi`, `app` or `dmg` on MacOS and `updater` on all platforms.
+  /// If `none` is specified, the bundler will be skipped.
+  ///
+  /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
-  bundles: Option<Vec<String>>,
+  pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  config: Option<String>,
+  pub config: Option<String>,
   /// Command line arguments passed to the runner
-  args: Vec<String>,
+  pub args: Vec<String>,
 }
 
-pub fn command(options: Options) -> Result<()> {
-  let merge_config = if let Some(config) = &options.config {
-    Some(if config.starts_with('{') {
-      config.to_string()
+pub fn command(mut options: Options) -> Result<()> {
+  let (merge_config, merge_config_path) = if let Some(config) = &options.config {
+    if config.starts_with('{') {
+      (Some(config.to_string()), None)
     } else {
-      std::fs::read_to_string(&config).with_context(|| "failed to read custom configuration")?
-    })
+      (
+        Some(
+          std::fs::read_to_string(&config)
+            .with_context(|| "failed to read custom configuration")?,
+        ),
+        Some(config.clone()),
+      )
+    }
   } else {
-    None
+    (None, None)
   };
+  options.config = merge_config;
 
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
-  let config = get_config(merge_config.as_deref())?;
-
-  let manifest = rewrite_manifest(config.clone())?;
+  let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
+    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => {
+      merge_config_path.unwrap_or_else(|| source.into())
+    }
+    Some(source) => source.into(),
+    None => "tauri.conf.json".into(),
+  };
+
   if config_.tauri.bundle.identifier == "com.tauri.dev" {
-    error!("You must change the bundle identifier in `tauri.conf.json > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.");
+    error!(
+      "You must change the bundle identifier in `{} > tauri > bundle > identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+      bundle_identifier_source
+    );
+    std::process::exit(1);
+  }
+
+  if config_
+    .tauri
+    .bundle
+    .identifier
+    .chars()
+    .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
+  {
+    error!(
+      "The bundle identifier \"{}\" set in `{} > tauri > bundle > identifier`. The bundle identifier string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
+      config_.tauri.bundle.identifier,
+      bundle_identifier_source
+    );
     std::process::exit(1);
   }
 
@@ -81,8 +124,7 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
       let status = Command::new("sh")
@@ -90,13 +132,12 @@ pub fn command(options: Options) -> Result<()> {
         .arg(before_build)
         .current_dir(app_dir())
         .envs(command_env(options.debug))
-        .pipe()?
-        .status()
+        .piped()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
 
       if !status.success() {
         bail!(
-          "beforeDevCommand `{}` failed with exit code {}",
+          "beforeBuildCommand `{}` failed with exit code {}",
           before_build,
           status.code().unwrap_or_default()
         );
@@ -134,116 +175,30 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  let runner_from_config = config_.build.runner.clone();
-  let runner = options
-    .runner
-    .or(runner_from_config)
-    .unwrap_or_else(|| "cargo".to_string());
-
-  let mut features = config_.build.features.clone().unwrap_or_default();
-  if let Some(list) = options.features {
-    features.extend(list);
+  if options.runner.is_none() {
+    options.runner = config_.build.runner.clone();
   }
 
-  let mut args = Vec::new();
-  if !options.args.is_empty() {
-    args.extend(options.args);
+  if let Some(list) = options.features.as_mut() {
+    list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  if !features.is_empty() {
-    args.push("--features".into());
-    args.push(features.join(","));
-  }
+  let mut interface = AppInterface::new(config_)?;
+  let app_settings = interface.app_settings();
+  let interface_options = options.clone().into();
 
-  if !options.debug {
-    args.push("--release".into());
-  }
+  let bin_path = app_settings.app_binary_path(&interface_options)?;
+  let out_dir = bin_path.parent().unwrap();
 
-  let app_settings = crate::interface::rust::AppSettings::new(config_)?;
+  interface.build(interface_options)?;
 
-  let out_dir = app_settings
-    .get_out_dir(options.target.clone(), options.debug)
-    .with_context(|| "failed to get project out directory")?;
-
-  let bin_name = app_settings
-    .cargo_package_settings()
-    .name
-    .clone()
-    .expect("Cargo manifest must have the `package.name` field");
-
-  let target: String = if let Some(target) = options.target.clone() {
-    target
-  } else {
-    tauri_utils::platform::target_triple()?
-  };
-  let binary_extension: String = if target.contains("windows") {
-    "exe"
-  } else {
-    ""
-  }
-  .into();
-
-  let bin_path = out_dir.join(&bin_name).with_extension(&binary_extension);
-
-  let no_default_features = args.contains(&"--no-default-features".into());
-
-  if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
-
-    let mut lipo_cmd = Command::new("lipo");
-    lipo_cmd
-      .arg("-create")
-      .arg("-output")
-      .arg(out_dir.join(&bin_name));
-    for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
-      let mut args_ = args.clone();
-      args_.push("--target".into());
-      args_.push(triple.into());
-      crate::interface::rust::build_project(runner.clone(), args_)
-        .with_context(|| format!("failed to build {} binary", triple))?;
-      let triple_out_dir = app_settings
-        .get_out_dir(Some(triple.into()), options.debug)
-        .with_context(|| format!("failed to get {} out dir", triple))?;
-      lipo_cmd.arg(triple_out_dir.join(&bin_name));
-    }
-
-    let lipo_status = lipo_cmd.status()?;
-    if !lipo_status.success() {
-      return Err(anyhow::anyhow!(format!(
-        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
-        lipo_status
-      )));
-    }
-  } else {
-    if let Some(target) = &options.target {
-      args.push("--target".into());
-      args.push(target.clone());
-    }
-    crate::interface::rust::build_project(runner, args).with_context(|| "failed to build app")?;
-  }
-
-  if let Some(product_name) = config_.package.product_name.clone() {
-    #[cfg(target_os = "linux")]
-    let product_name = product_name.to_kebab_case();
-
-    let product_path = out_dir
-      .join(&product_name)
-      .with_extension(&binary_extension);
-
-    rename(&bin_path, &product_path).with_context(|| {
-      format!(
-        "failed to rename `{}` to `{}`",
-        bin_path.display(),
-        product_path.display(),
-      )
-    })?;
-  }
+  let app_settings = interface.app_settings();
 
   if config_.tauri.bundle.active {
-    let package_types = if let Some(names) = options.bundles {
+    let package_types = if let Some(names) = &options.bundles {
       let mut types = vec![];
       for name in names
-        .into_iter()
+        .iter()
         .flat_map(|n| n.split(',').map(|s| s.to_string()).collect::<Vec<String>>())
       {
         if name == "none" {
@@ -262,68 +217,114 @@ pub fn command(options: Options) -> Result<()> {
         }
       }
       Some(types)
-    } else if let Some(targets) = &config_.tauri.bundle.targets {
-      let mut types = vec![];
-      let targets = targets.to_vec();
-      if !targets.contains(&"all".into()) {
-        for name in targets {
-          match PackageType::from_short_name(&name) {
-            Some(package_type) => {
-              types.push(package_type);
-            }
-            None => {
-              return Err(anyhow::anyhow!(format!(
-                "Unsupported bundle format: {}",
-                name
-              )));
-            }
-          }
-        }
-        Some(types)
-      } else {
-        None
-      }
     } else {
-      None
+      let targets = config_.tauri.bundle.targets.to_vec();
+      if targets.is_empty() {
+        None
+      } else {
+        Some(targets.into_iter().map(Into::into).collect())
+      }
     };
 
-    let mut enabled_features = features.clone();
-    if !no_default_features {
-      enabled_features.push("default".into());
+    if let Some(types) = &package_types {
+      if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
+        warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
+      }
     }
-    let settings = crate::interface::get_bundler_settings(
-      app_settings,
-      target,
-      &enabled_features,
-      &manifest,
-      config_,
-      &out_dir,
-      package_types,
-    )
-    .with_context(|| "failed to build bundler settings")?;
+
+    let settings = app_settings
+      .get_bundler_settings(&options.into(), config_, out_dir, package_types)
+      .with_context(|| "failed to build bundler settings")?;
+
+    // set env vars used by the bundler
+    #[cfg(target_os = "linux")]
+    {
+      use crate::helpers::config::ShellAllowlistOpen;
+      if matches!(
+        config_.tauri.allowlist.shell.open,
+        ShellAllowlistOpen::Flag(true) | ShellAllowlistOpen::Validate(_)
+      ) {
+        std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
+      }
+      if config_.tauri.system_tray.is_some() {
+        if let Ok(tray) = std::env::var("TAURI_TRAY") {
+          std::env::set_var(
+            "TRAY_LIBRARY_PATH",
+            if tray == "ayatana" {
+              format!(
+                "{}/libayatana-appindicator3.so.1",
+                pkgconfig_utils::get_library_path("ayatana-appindicator3-0.1")
+                  .expect("failed to get ayatana-appindicator library path using pkg-config.")
+              )
+            } else {
+              format!(
+                "{}/libappindicator3.so.1",
+                pkgconfig_utils::get_library_path("appindicator3-0.1")
+                  .expect("failed to get libappindicator-gtk library path using pkg-config.")
+              )
+            },
+          );
+        } else {
+          std::env::set_var(
+            "TRAY_LIBRARY_PATH",
+            pkgconfig_utils::get_appindicator_library_path(),
+          );
+        }
+      }
+      if config_.tauri.bundle.appimage.bundle_media_framework {
+        std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
+      }
+    }
 
     let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
 
-    // If updater is active
-    if config_.tauri.updater.active {
+    let updater_bundles: Vec<&Bundle> = bundles
+      .iter()
+      .filter(|bundle| bundle.package_type == PackageType::Updater)
+      .collect();
+    // If updater is active and we bundled it
+    if config_.tauri.updater.active && !updater_bundles.is_empty() {
+      // if no password provided we use an empty string
+      let password = var_os("TAURI_KEY_PASSWORD").map(|v| v.to_str().unwrap().to_string());
+      // get the private key
+      let secret_key = if let Some(mut private_key) =
+        var_os("TAURI_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())
+      {
+        // check if env var points to a file..
+        let pk_dir = Path::new(&private_key);
+        // Check if user provided a path or a key
+        // We validate if the path exist or not.
+        if pk_dir.exists() {
+          // read file content and use it as private key
+          private_key = read_key_from_file(pk_dir)?;
+        }
+        updater_secret_key(private_key, password)
+      } else {
+        Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
+      }?;
+
+      let pubkey = base64::decode(&config_.tauri.updater.pubkey)?;
+      let pub_key_decoded = String::from_utf8_lossy(&pubkey);
+      let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
+
       // make sure we have our package builts
       let mut signed_paths = Vec::new();
-      for elem in bundles
-        .iter()
-        .filter(|bundle| bundle.package_type == PackageType::Updater)
-      {
+      for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add
         // another type of updater package who require multiple file signature
         for path in elem.bundle_paths.iter() {
           // sign our path from environment variables
-          let (signature_path, _signature) = sign_file_from_env_variables(path)?;
+          let (signature_path, signature) = sign_file(&secret_key, path)?;
+          if signature.keynum() != public_key.keynum() {
+            return Err(anyhow::anyhow!(
+              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
+            ));
+          }
           signed_paths.append(&mut vec![signature_path]);
         }
       }
 
-      if !signed_paths.is_empty() {
-        print_signed_updater_archive(&signed_paths)?;
-      }
+      print_signed_updater_archive(&signed_paths)?;
     }
   }
 
@@ -342,4 +343,38 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     info!("        {}", path.display());
   }
   Ok(())
+}
+
+#[cfg(target_os = "linux")]
+mod pkgconfig_utils {
+  use std::{path::PathBuf, process::Command};
+
+  pub fn get_appindicator_library_path() -> PathBuf {
+    match get_library_path("ayatana-appindicator3-0.1") {
+      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
+      None => match get_library_path("appindicator3-0.1") {
+        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
+        None => panic!("Can't detect any appindicator library"),
+      },
+    }
+  }
+
+  /// Gets the folder in which a library is located using `pkg-config`.
+  pub fn get_library_path(name: &str) -> Option<String> {
+    let mut cmd = Command::new("pkg-config");
+    cmd.env("PKG_CONFIG_ALLOW_SYSTEM_LIBS", "1");
+    cmd.arg("--libs-only-L");
+    cmd.arg(name);
+    if let Ok(output) = cmd.output() {
+      if !output.stdout.is_empty() {
+        // output would be "-L/path/to/library\n"
+        let word = output.stdout[2..].to_vec();
+        return Some(String::from_utf8_lossy(&word).trim().to_string());
+      } else {
+        None
+      }
+    } else {
+      None
+    }
+  }
 }

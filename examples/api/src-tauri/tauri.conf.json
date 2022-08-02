@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Tauri API",
-    "version": "../package.json"
+    "version": "1.0.0"
   },
   "tauri": {
     "pattern": {
@@ -92,6 +92,7 @@
         }
       },
       "shell": {
+        "open": true,
         "scope": [
           {
             "name": "sh",
@@ -116,12 +117,7 @@
         "scope": ["http://localhost:3003"]
       }
     },
-    "windows": [
-      {
-        "title": "Tauri API Validation",
-        "transparent": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
@@ -133,7 +129,8 @@
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
     }
   }
 }

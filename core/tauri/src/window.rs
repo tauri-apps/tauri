@@ -45,6 +45,8 @@ use std::{
   sync::Arc,
 };
 
+pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
   label: String,
@@ -103,7 +105,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   label: String,
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
-  web_resource_request_handler: Option<Box<dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync>>,
+  web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -120,6 +122,52 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in the setup hook:
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let window = tauri::WindowBuilder::new(app, "label", tauri::WindowUrl::App("index.html".into()))
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// - Create a window in a separate thread:
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     std::thread::spawn(move || {
+  ///       let window = tauri::WindowBuilder::new(&handle, "label", tauri::WindowUrl::App("index.html".into()))
+  ///         .build()
+  ///         .unwrap();
+  ///     });
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn create_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::new(&app, "label", tauri::WindowUrl::External("https://tauri.app/".parse().unwrap()))
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle();
@@ -303,7 +351,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS / Linux**: Not implemented, the value is ignored.
+  /// - **macOS**: Only supported on macOS 10.14+.
+  /// - **Linux**: Not implemented, the value is ignored.
   #[must_use]
   pub fn theme(mut self, theme: Option<Theme>) -> Self {
     self.window_builder = self.window_builder.theme(theme);
@@ -440,23 +489,9 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
 }
 
-#[cfg(any(windows, target_os = "macos"))]
-#[cfg_attr(doc_cfg, doc(cfg(any(windows, target_os = "macos"))))]
 unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  #[cfg(windows)]
   fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::Win32Handle::empty();
-    handle.hwnd = self.hwnd().expect("failed to get window `hwnd`").0 as *mut _;
-    raw_window_handle::RawWindowHandle::Win32(handle)
-  }
-
-  #[cfg(target_os = "macos")]
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    let mut handle = raw_window_handle::AppKitHandle::empty();
-    handle.ns_window = self
-      .ns_window()
-      .expect("failed to get window's `ns_window`");
-    raw_window_handle::RawWindowHandle::AppKit(handle)
+    self.window.dispatcher.raw_window_handle().unwrap()
   }
 }
 
@@ -485,7 +520,24 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn emit_to<S: Serialize + Clone>(
+    &self,
+    label: &str,
+    event: &str,
+    payload: S,
+  ) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
+  }
+
+  fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self
+      .manager()
+      .emit_filter(event, Some(self.label()), payload, |_| true)
+  }
+}
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &WindowManager<R> {
     &self.manager
@@ -551,7 +603,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn inner(&self) -> cocoa::base::id {
-    self.0.webview.clone()
+    self.0.webview
   }
 
   /// Returns WKWebView [controller] handle.
@@ -560,7 +612,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn controller(&self) -> cocoa::base::id {
-    self.0.manager.clone()
+    self.0.manager
   }
 
   /// Returns [NSWindow] associated with the WKWebView webview.
@@ -569,7 +621,7 @@ impl PlatformWebview {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   pub fn ns_window(&self) -> cocoa::base::id {
-    self.0.ns_window.clone()
+    self.0.ns_window
   }
 }
 
@@ -600,10 +652,10 @@ impl Window<crate::Wry> {
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
-  ///   
+  ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/latest/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.17.0/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -807,13 +859,35 @@ impl<R: Runtime> Window<R> {
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
-    self.window.dispatcher.ns_window().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
+          Ok(h.ns_window)
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
   }
 
   /// Returns the native handle that is used by this window.
   #[cfg(windows)]
   pub fn hwnd(&self) -> crate::Result<HWND> {
-    self.window.dispatcher.hwnd().map_err(Into::into)
+    self
+      .window
+      .dispatcher
+      .raw_window_handle()
+      .map_err(Into::into)
+      .and_then(|handle| {
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
+          Ok(HWND(h.hwnd as _))
+        } else {
+          Err(crate::Error::InvalidWindowHandle)
+        }
+      })
   }
 
   /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
@@ -834,7 +908,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS / Linux**: Not implemented, always return [`Theme::Light`].
+  /// - **macOS**: Only supported on macOS 10.14+.
+  /// - **Linux**: Not implemented, always return [`Theme::Light`].
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
   }
@@ -1141,7 +1216,8 @@ impl<R: Runtime> Window<R> {
   pub(crate) fn unregister_js_listener(&self, id: u64) {
     let mut empty = None;
     let mut js_listeners = self.window.js_event_listeners.lock().unwrap();
-    for (key, ids) in js_listeners.iter_mut() {
+    let iter = js_listeners.iter_mut();
+    for (key, ids) in iter {
       if ids.contains(&id) {
         ids.remove(&id);
         if ids.is_empty() {
@@ -1174,8 +1250,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1199,8 +1275,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1232,8 +1308,8 @@ impl<R: Runtime> Window<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **macOS:** This is a private API on macOS,
-  /// so you cannot use this if your application will be published on the App Store.
+  /// - **macOS:** Only supported on macOS 10.15+.
+  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples

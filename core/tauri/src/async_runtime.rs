@@ -7,7 +7,7 @@
 //! Tauri uses [`tokio`] Runtime to initialize code, such as
 //! [`Plugin::initialize`](../plugin/trait.Plugin.html#method.initialize) and [`crate::Builder::setup`] hooks.
 //! This module also re-export some common items most developers need from [`tokio`]. If there's
-//! one you need isn't here, you could use types in [`tokio`] dierectly.
+//! one you need isn't here, you could use types in [`tokio`] directly.
 //! For custom command handlers, it's recommended to use a plain `async fn` command.
 
 use futures_lite::future::FutureExt;
@@ -103,7 +103,10 @@ impl Runtime {
     F::Output: Send + 'static,
   {
     match self {
-      Self::Tokio(r) => JoinHandle::Tokio(r.spawn(task)),
+      Self::Tokio(r) => {
+        let _guard = r.enter();
+        JoinHandle::Tokio(tokio::spawn(task))
+      }
     }
   }
 
@@ -193,7 +196,10 @@ impl RuntimeHandle {
     F::Output: Send + 'static,
   {
     match self {
-      Self::Tokio(h) => JoinHandle::Tokio(h.spawn(task)),
+      Self::Tokio(h) => {
+        let _guard = h.enter();
+        JoinHandle::Tokio(tokio::spawn(task))
+      }
     }
   }
 
@@ -215,7 +221,7 @@ fn default_runtime() -> GlobalRuntime {
 }
 
 /// Sets the runtime to use to execute asynchronous tasks.
-/// For convinience, this method takes a [`TokioHandle`].
+/// For convenience, this method takes a [`TokioHandle`].
 /// Note that you cannot drop the underlying [`TokioRuntime`].
 ///
 /// # Examples

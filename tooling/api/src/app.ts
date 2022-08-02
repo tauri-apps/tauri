@@ -5,7 +5,7 @@
 /**
  * Get application metadata.
  *
- * This package is also accessible with `window.__TAURI__.app` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.app` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
@@ -13,6 +13,11 @@ import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Gets the application version.
+ * @example
+ * ```typescript
+ * import { getVersion } from '@tauri-apps/api/app';
+ * const appVersion = await getVersion();
+ * ```
  *
  * @returns A promise resolving to the application version.
  */
@@ -27,6 +32,11 @@ async function getVersion(): Promise<string> {
 
 /**
  * Gets the application name.
+ * @example
+ * ```typescript
+ * import { getName } from '@tauri-apps/api/app';
+ * const appName = await getName();
+ * ```
  *
  * @returns A promise resolving to application name.
  */
@@ -40,9 +50,15 @@ async function getName(): Promise<string> {
 }
 
 /**
- * Gets the tauri version.
+ * Gets the Tauri version.
  *
- * @returns A promise resolving to tauri version.
+ * @example
+ * ```typescript
+ * import { getTauriVersion } from '@tauri-apps/api/app';
+ * const tauriVersion = await getTauriVersion();
+ * ```
+ *
+ * @returns A promise resolving to Tauri version.
  */
 async function getTauriVersion(): Promise<string> {
   return invokeTauriCommand<string>({

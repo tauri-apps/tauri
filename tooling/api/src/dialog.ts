@@ -5,9 +5,9 @@
 /**
  * Native system dialogs for opening and saving files.
  *
- * This package is also accessible with `window.__TAURI__.dialog` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.dialog` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.dialog`](https://tauri.app/v1/api/config/#allowlistconfig.dialog) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -90,6 +90,44 @@ interface MessageDialogOptions {
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
+ * @example
+ * ```typescript
+ * import { open } from '@tauri-apps/api/dialog';
+ * // Open a selection dialog for image files
+ * const selected = await open({
+ *   multiple: true,
+ *   filters: [{
+ *     name: 'Image',
+ *     extensions: ['png', 'jpeg']
+ *   }]
+ * });
+ * if (Array.isArray(selected)) {
+ *   // user selected multiple files
+ * } else if (selected === null) {
+ *   // user cancelled the selection
+ * } else {
+ *   // user selected a single file
+ * }
+ * ```
+ *
+ * @example
+ * ```typescript
+ * import { open } from '@tauri-apps/api/dialog';
+ * import { appDir } from '@tauri-apps/api/path';
+ * // Open a selection dialog for directories
+ * const selected = await open({
+ *   directory: true,
+ *   multiple: true,
+ *   defaultPath: await appDir(),
+ * });
+ * if (Array.isArray(selected)) {
+ *   // user selected multiple directories
+ * } else if (selected === null) {
+ *   // user cancelled the selection
+ * } else {
+ *   // user selected a single directory
+ * }
+ * ```
  *
  * @returns A promise resolving to the selected path(s)
  */
@@ -118,6 +156,17 @@ async function open(
  *
  * Note that the allowlist scope change is not persisted, so the values are cleared when the application is restarted.
  * You can save it to the filesystem using [tauri-plugin-persisted-scope](https://github.com/tauri-apps/tauri-plugin-persisted-scope).
+ * @example
+ * ```typescript
+ * import { save } from '@tauri-apps/api/dialog';
+ * const filePath = await save({
+ *   multiple: true,
+ *   filters: [{
+ *     name: 'Image',
+ *     extensions: ['stronghold']
+ *   }]
+ * });
+ * ```
  *
  * @returns A promise resolving to the selected path.
  */
@@ -137,6 +186,12 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
 
 /**
  * Shows a message dialog with an `Ok` button.
+ * @example
+ * ```typescript
+ * import { message } from '@tauri-apps/api/dialog';
+ * await message('Tauri is awesome', 'Tauri');
+ * await message('File not found', { title: 'Tauri', type: 'error' });
+ * ```
  *
  * @param {string} message The message to show.
  * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
@@ -152,8 +207,8 @@ async function message(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'messageDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -161,6 +216,12 @@ async function message(
 
 /**
  * Shows a question dialog with `Yes` and `No` buttons.
+ * @example
+ * ```typescript
+ * import { ask } from '@tauri-apps/api/dialog';
+ * const yes = await ask('Are you sure?', 'Tauri');
+ * const yes2 = await ask('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
+ * ```
  *
  * @param {string} message The message to show.
  * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
@@ -176,8 +237,8 @@ async function ask(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'askDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })
@@ -185,6 +246,12 @@ async function ask(
 
 /**
  * Shows a question dialog with `Ok` and `Cancel` buttons.
+ * @example
+ * ```typescript
+ * import { confirm } from '@tauri-apps/api/dialog';
+ * const confirmed = await confirm('Are you sure?', 'Tauri');
+ * const confirmed2 = await confirm('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
+ * ```
  *
  * @param {string} message The message to show.
  * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
@@ -200,8 +267,8 @@ async function confirm(
     __tauriModule: 'Dialog',
     message: {
       cmd: 'confirmDialog',
-      message,
-      title: opts?.title,
+      message: message.toString(),
+      title: opts?.title?.toString(),
       type: opts?.type
     }
   })

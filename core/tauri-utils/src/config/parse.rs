@@ -38,7 +38,8 @@ pub enum ConfigFormat {
 }
 
 impl ConfigFormat {
-  fn into_file_name(self) -> &'static str {
+  /// Maps the config format to its file name.
+  pub fn into_file_name(self) -> &'static str {
     match self {
       Self::Json => "tauri.conf.json",
       Self::Json5 => "tauri.conf.json5",

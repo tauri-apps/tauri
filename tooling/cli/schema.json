@@ -2449,16 +2449,24 @@
         },
         "beforeDevCommand": {
           "description": "A shell command to run before `tauri dev` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BeforeDevCommand"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "beforeBuildCommand": {
           "description": "A shell command to run before `tauri build` kicks in.\n\nThe TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BeforeBuildCommand"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "features": {
@@ -2495,6 +2503,69 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      ]
+    },
+    "BeforeDevCommand": {
+      "description": "Describes the shell command to run before `tauri dev`.",
+      "anyOf": [
+        {
+          "description": "Run the given script with the default options.",
+          "type": "string"
+        },
+        {
+          "description": "Run the given script with custom options.",
+          "type": "object",
+          "required": [
+            "script"
+          ],
+          "properties": {
+            "script": {
+              "description": "The script to execute.",
+              "type": "string"
+            },
+            "cwd": {
+              "description": "The current working directory.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "wait": {
+              "description": "Whether `tauri dev` should wait for the command to finish or not. Defaults to `false`.",
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "BeforeBuildCommand": {
+      "description": "Describes the shell command to run before `tauri build`.",
+      "anyOf": [
+        {
+          "description": "Run the given script with the default options.",
+          "type": "string"
+        },
+        {
+          "description": "Run the given script with custom options.",
+          "type": "object",
+          "required": [
+            "script"
+          ],
+          "properties": {
+            "script": {
+              "description": "The script to execute.",
+              "type": "string"
+            },
+            "cwd": {
+              "description": "The current working directory.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         }
       ]

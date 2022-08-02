@@ -12,6 +12,7 @@ pub use tauri_utils::config::*;
 use std::{
   collections::HashMap,
   env::set_var,
+  ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex},
 };
@@ -106,7 +107,9 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   }
 
   let tauri_dir = super::app_paths::tauri_dir();
-  let mut config = tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?.0;
+  let (mut config, config_path) =
+    tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?;
+  let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
 
   if let Some((platform_config, config_path)) =
@@ -127,32 +130,36 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   };
 
-  let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
-  let mut scope = valico::json_schema::Scope::new();
-  let schema = scope.compile_and_return(schema, false).unwrap();
-  let state = schema.validate(&config);
-  if !state.errors.is_empty() {
-    for error in state.errors {
-      let path = error
-        .get_path()
-        .chars()
-        .skip(1)
-        .collect::<String>()
-        .replace('/', " > ");
-      if path.is_empty() {
-        eprintln!(
-          "`tauri.conf.json` error: {}",
-          error.get_detail().unwrap_or_else(|| error.get_title()),
-        );
-      } else {
-        eprintln!(
-          "`tauri.conf.json` error on `{}`: {}",
-          path,
-          error.get_detail().unwrap_or_else(|| error.get_title()),
-        );
+  if config_path.extension() == Some(OsStr::new("json"))
+    || config_path.extension() == Some(OsStr::new("json5"))
+  {
+    let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
+    let mut scope = valico::json_schema::Scope::new();
+    let schema = scope.compile_and_return(schema, false).unwrap();
+    let state = schema.validate(&config);
+    if !state.errors.is_empty() {
+      for error in state.errors {
+        let path = error
+          .get_path()
+          .chars()
+          .skip(1)
+          .collect::<String>()
+          .replace('/', " > ");
+        if path.is_empty() {
+          eprintln!(
+            "`{config_file_name}` error: {}",
+            error.get_detail().unwrap_or_else(|| error.get_title()),
+          );
+        } else {
+          eprintln!(
+            "`{config_file_name}` error on `{}`: {}",
+            path,
+            error.get_detail().unwrap_or_else(|| error.get_title()),
+          );
+        }
       }
+      exit(1);
     }
-    exit(1);
   }
 
   let config: Config = serde_json::from_value(config)?;

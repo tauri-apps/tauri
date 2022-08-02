@@ -39,7 +39,7 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.14"
 json-patch = "0.2"
-tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
+tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.5"
 valico = "3.6"
 handlebars = "4.3"

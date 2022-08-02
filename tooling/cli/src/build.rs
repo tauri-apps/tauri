@@ -84,10 +84,8 @@ pub fn command(mut options: Options) -> Result<()> {
   let config_ = config_guard.as_ref().unwrap();
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
-    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => {
-      merge_config_path.unwrap_or_else(|| source.into())
-    }
-    Some(source) => source.into(),
+    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
+    Some(source) => source,
     None => "tauri.conf.json".into(),
   };
 

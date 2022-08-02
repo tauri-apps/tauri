@@ -901,7 +901,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
   fn skip_taskbar(self, _skip: bool) -> Self {
     self
   }

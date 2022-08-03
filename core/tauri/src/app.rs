@@ -607,9 +607,40 @@ macro_rules! shared_app_impl {
         updater::builder(self.app_handle())
       }
 
+      /// Creates a system tray.
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      /// Gets a handle handle to the system tray.
+      pub fn system_tray(
+        &self,
+        mut tray: tray::SystemTray,
+      ) -> crate::Result<tray::SystemTrayHandle<R>> {
+        let mut ids = HashMap::new();
+        if let Some(menu) = tray.menu() {
+          tray::get_menu_ids(&mut ids, menu);
+        }
+        if tray.icon.is_none() {
+          if let Some(tray_icon) = &self.manager().inner.tray_icon {
+            tray = tray.with_icon(tray_icon.clone());
+          }
+        }
+
+        let tray_handler = match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.system_tray(tray.into()),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(tray.into()),
+          RuntimeOrDispatch::Dispatch(_) => unreachable!(),
+        }?;
+
+        let tray_handle = tray::SystemTrayHandle {
+          ids: Arc::new(std::sync::Mutex::new(ids)),
+          inner: tray_handler,
+        };
+
+        Ok(tray_handle)
+      }
+
+      #[cfg(all(desktop, feature = "system-tray"))]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+      /// Gets a handle handle to the system tray created with [`Builder#method.system_tray`].
       pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
         self
           .tray_handle
@@ -1352,7 +1383,7 @@ impl<R: Runtime> Builder<R> {
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_icon = context.system_tray_icon.clone();
 
-    #[cfg(all(feature = "system-tray", target_os = "macos"))]
+    #[cfg(all(desktop, feature = "system-tray", target_os = "macos"))]
     let (system_tray_icon_as_template, system_tray_menu_on_left_click) = context
       .config
       .tauri
@@ -1481,27 +1512,16 @@ impl<R: Runtime> Builder<R> {
     }
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    if let Some(system_tray) = self.system_tray {
+    if let Some(mut tray) = self.system_tray {
       let mut ids = HashMap::new();
-      if let Some(menu) = system_tray.menu() {
+      if let Some(menu) = tray.menu() {
         tray::get_menu_ids(&mut ids, menu);
       }
-      let tray_icon = if let Some(icon) = system_tray.icon {
-        Some(icon)
-      } else if let Some(tray_icon) = system_tray_icon {
-        Some(tray_icon.try_into()?)
-      } else {
-        None
-      };
-      let mut tray = tray::SystemTray::new()
-        .with_icon(tray_icon.expect("tray icon not found; please configure it on tauri.conf.json"));
-      if let Some(menu) = system_tray.menu {
-        tray = tray.with_menu(menu);
+      if tray.icon.is_none() {
+        if let Some(tray_icon) = system_tray_icon {
+          tray = tray.with_icon(tray_icon);
+        }
       }
-      #[cfg(target_os = "macos")]
-      let tray = tray
-        .with_icon_as_template(system_tray_icon_as_template)
-        .with_menu_on_left_click(system_tray_menu_on_left_click);
 
       let tray_handler = app
         .runtime

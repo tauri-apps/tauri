@@ -9,6 +9,7 @@ pub use tauri_runtime::{
   },
   Icon, SystemTrayEvent,
 };
+use wry::application::event_loop::EventLoopWindowTarget;
 pub use wry::application::{
   event::TrayEvent,
   event_loop::EventLoopProxy,
@@ -16,14 +17,17 @@ pub use wry::application::{
     ContextMenu as WryContextMenu, CustomMenuItem as WryCustomMenuItem, MenuItem as WryMenuItem,
   },
   system_tray::Icon as WryTrayIcon,
+  TrayId as WryTrayId,
 };
 
 #[cfg(target_os = "macos")]
 pub use wry::application::platform::macos::CustomMenuItemExtMacOS;
 
-use crate::{Error, Message, Result, TrayMessage};
+use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use tauri_runtime::{menu::MenuHash, UserEvent};
+use crate::{Error, Message, Result, TrayId, TrayMessage};
+
+use tauri_runtime::{menu::MenuHash, SystemTray, UserEvent};
 
 use uuid::Uuid;
 
@@ -48,8 +52,39 @@ impl TryFrom<Icon> for TrayIcon {
   }
 }
 
+pub fn create_tray<T>(
+  id: WryTrayId,
+  system_tray: SystemTray,
+  event_loop: &EventLoopWindowTarget<T>,
+) -> crate::Result<(WrySystemTray, HashMap<u16, WryCustomMenuItem>)> {
+  let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
+
+  let mut items = HashMap::new();
+
+  #[allow(unused_mut)]
+  let mut builder = SystemTrayBuilder::new(
+    icon.0,
+    system_tray
+      .menu
+      .map(|menu| to_wry_context_menu(&mut items, menu)),
+  )
+  .with_id(id);
+
+  #[cfg(target_os = "macos")]
+  {
+    builder = builder.with_icon_as_template(system_tray.icon_as_template)
+  }
+
+  let tray = builder
+    .build(event_loop)
+    .map_err(|e| Error::SystemTray(Box::new(e)))?;
+
+  Ok((tray, items))
+}
+
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
+  pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
 
@@ -57,28 +92,29 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: Icon) -> Result<()> {
     self
       .proxy
-      .send_event(Message::Tray(TrayMessage::UpdateIcon(icon)))
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateIcon(icon)))
       .map_err(|_| Error::FailedToSendMessage)
   }
   fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {
     self
       .proxy
-      .send_event(Message::Tray(TrayMessage::UpdateMenu(menu)))
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateMenu(menu)))
       .map_err(|_| Error::FailedToSendMessage)
   }
   fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     self
       .proxy
-      .send_event(Message::Tray(TrayMessage::UpdateItem(id, update)))
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateItem(id, update)))
       .map_err(|_| Error::FailedToSendMessage)
   }
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> tauri_runtime::Result<()> {
     self
       .proxy
-      .send_event(Message::Tray(TrayMessage::UpdateIconAsTemplate(
-        is_template,
-      )))
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateIconAsTemplate(is_template),
+      ))
       .map_err(|_| Error::FailedToSendMessage)
   }
 }

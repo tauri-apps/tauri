@@ -8,7 +8,7 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
-  
+
   # integration tests
   "core/tests/restart",
   "core/tests/app-updater"
@@ -30,3 +30,6 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+[patch.crates-io]
+tao = { git = "https://github.com/lucasfernog/tao", branch = "feat/tray-id" }

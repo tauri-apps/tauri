@@ -210,6 +210,7 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
@@ -236,6 +237,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
+      .field("tray_icon", &self.tray_icon)
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
       .field("pattern", &self.pattern)
@@ -309,6 +311,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
+        tray_icon: context.system_tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,

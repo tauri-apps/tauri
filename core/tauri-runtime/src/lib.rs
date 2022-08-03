@@ -36,7 +36,7 @@ use crate::http::{
 
 #[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SystemTray {
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
@@ -261,8 +261,16 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
+  /// Adds an icon to the system tray with the specified menu items.
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
+
+  #[cfg(all(desktop, windows, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, windows, feature = "system-tray"))))]
   fn remove_system_tray(&self) -> Result<()>;
 
   fn raw_display_handle(&self) -> RawDisplayHandle;

@@ -38,7 +38,7 @@ pub type TrayId = u16;
 
 #[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct SystemTray {
   pub id: TrayId,
   pub icon: Option<Icon>,
@@ -49,13 +49,25 @@ pub struct SystemTray {
   pub menu_on_left_click: bool,
 }
 
+impl Default for SystemTray {
+  fn default() -> Self {
+    Self {
+      id: rand::random(),
+      icon: None,
+      menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: false,
+    }
+  }
+}
+
 #[cfg(all(desktop, feature = "system-tray"))]
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
-    let mut tray = Self::default();
-    tray.id = rand::random();
-    tray
+    Default::default()
   }
 
   pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {

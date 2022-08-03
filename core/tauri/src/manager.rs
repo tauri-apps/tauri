@@ -1215,23 +1215,6 @@ impl<R: Runtime> WindowManager<R> {
     window
   }
 
-  #[cfg(all(desktop, feature = "system-tray"))]
-  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
-    self.inner.trays.lock().unwrap().insert(id, tray);
-  }
-
-  #[cfg(all(desktop, feature = "system-tray"))]
-  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
-    let trays = self.inner.trays.lock().unwrap();
-    let iter = trays.iter();
-    for (tray_id, tray) in iter {
-      if tray.id == id {
-        return Some((tray_id.clone(), tray.clone()));
-      }
-    }
-    None
-  }
-
   pub(crate) fn on_window_close(&self, label: &str) {
     self.windows_lock().remove(label);
   }
@@ -1310,6 +1293,33 @@ impl<R: Runtime> WindowManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.windows_lock().clone()
+  }
+}
+
+/// Tray APIs
+#[cfg(all(desktop, feature = "system-tray"))]
+impl<R: Runtime> WindowManager<R> {
+  pub fn get_tray(&self, id: &str) -> Option<crate::SystemTrayHandle<R>> {
+    self.inner.trays.lock().unwrap().get(id).cloned()
+  }
+
+  pub fn trays(&self) -> HashMap<String, crate::SystemTrayHandle<R>> {
+    self.inner.trays.lock().unwrap().clone()
+  }
+
+  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
+    self.inner.trays.lock().unwrap().insert(id, tray);
+  }
+
+  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
+    let trays = self.inner.trays.lock().unwrap();
+    let iter = trays.iter();
+    for (tray_id, tray) in iter {
+      if tray.id == id {
+        return Some((tray_id.clone(), tray.clone()));
+      }
+    }
+    None
   }
 }
 

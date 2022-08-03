@@ -37,7 +37,7 @@ pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTra
 }
 
 /// Represents a System Tray instance.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[non_exhaustive]
 pub struct SystemTray {
   /// The tray identifier. Defaults to a random string.
@@ -54,12 +54,24 @@ pub struct SystemTray {
   pub menu_on_left_click: bool,
 }
 
+impl Default for SystemTray {
+  fn default() -> Self {
+    Self {
+      id: Alphanumeric.sample_string(&mut rand::thread_rng(), 16),
+      icon: None,
+      menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: false,
+    }
+  }
+}
+
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
-    let mut tray = Self::default();
-    tray.id = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
-    tray
+    Default::default()
   }
 
   pub(crate) fn menu(&self) -> Option<&SystemTrayMenu> {

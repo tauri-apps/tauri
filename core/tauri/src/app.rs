@@ -635,20 +635,27 @@ macro_rules! shared_app_impl {
         Ok(tray_handle)
       }
 
+      /// Gets a handle to the first system tray.
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      /// Gets a handle handle to the system tray.
       pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
         self
           .manager()
-          .inner
-          .trays
-          .lock()
-          .unwrap()
+          .trays()
           .values()
           .next()
           .cloned()
-          .expect("tray not configured; use the `Builder#system_tray` API first.")
+          .expect("tray not configured; use the `Builder#system_tray`, `App#system_tray` or `AppHandle#system_tray` APIs first.")
+      }
+
+
+      /// Gets a handle to a system tray by its id.
+      #[cfg(all(desktop, feature = "system-tray"))]
+      #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+      pub fn tray_handle_by_id(&self, id: &str) -> Option<tray::SystemTrayHandle<R>> {
+        self
+          .manager()
+          .get_tray(id)
       }
 
       /// The path resolver for the application.
@@ -1552,8 +1559,7 @@ impl<R: Runtime> Builder<R> {
           .on_system_tray_event(move |tray_id, event| {
             if let Some((tray_id, tray)) = app_handle.manager().get_tray_by_runtime_id(tray_id) {
               let app_handle = app_handle.clone();
-              let event =
-                tray::SystemTrayEvent::from_runtime_event(event, tray_id.clone(), &tray.ids);
+              let event = tray::SystemTrayEvent::from_runtime_event(event, tray_id, &tray.ids);
               let listener = listener.clone();
               listener.lock().unwrap()(&app_handle, event);
             }

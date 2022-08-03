@@ -15,6 +15,7 @@ pub use crate::{
 
 use rand::distributions::{Alphanumeric, DistString};
 use tauri_macros::default_runtime;
+use tauri_runtime::TrayId;
 use tauri_utils::debug_eprintln;
 
 use std::{
@@ -229,6 +230,7 @@ impl SystemTrayEvent {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct SystemTrayHandle<R: Runtime> {
+  pub(crate) id: TrayId,
   pub(crate) ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   pub(crate) inner: R::TrayHandler,
 }
@@ -236,6 +238,7 @@ pub struct SystemTrayHandle<R: Runtime> {
 impl<R: Runtime> Clone for SystemTrayHandle<R> {
   fn clone(&self) -> Self {
     Self {
+      id: self.id,
       ids: self.ids.clone(),
       inner: self.inner.clone(),
     }

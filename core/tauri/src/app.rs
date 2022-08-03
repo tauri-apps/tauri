@@ -324,8 +324,6 @@ pub struct AppHandle<R: Runtime> {
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
-  #[cfg(all(desktop, feature = "system-tray"))]
-  tray_handle: Option<tray::SystemTrayHandle<R>>,
   /// The updater configuration.
   #[cfg(updater)]
   pub(crate) updater_settings: UpdaterSettings,
@@ -377,8 +375,6 @@ impl<R: Runtime> Clone for AppHandle<R> {
       global_shortcut_manager: self.global_shortcut_manager.clone(),
       #[cfg(feature = "clipboard")]
       clipboard_manager: self.clipboard_manager.clone(),
-      #[cfg(all(desktop, feature = "system-tray"))]
-      tray_handle: self.tray_handle.clone(),
       #[cfg(updater)]
       updater_settings: self.updater_settings.clone(),
     }
@@ -543,8 +539,6 @@ pub struct App<R: Runtime> {
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
-  #[cfg(all(desktop, feature = "system-tray"))]
-  tray_handle: Option<tray::SystemTrayHandle<R>>,
   handle: AppHandle<R>,
 }
 
@@ -622,27 +616,38 @@ macro_rules! shared_app_impl {
           }
         }
 
+        let tray_id = tray.id.clone();
+        let tray: tauri_runtime::SystemTray = tray.into();
+        let id = tray.id;
         let tray_handler = match self.runtime() {
-          RuntimeOrDispatch::Runtime(r) => r.system_tray(tray.into()),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(tray.into()),
+          RuntimeOrDispatch::Runtime(r) => r.system_tray(tray),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(tray),
           RuntimeOrDispatch::Dispatch(_) => unreachable!(),
         }?;
 
         let tray_handle = tray::SystemTrayHandle {
+          id,
           ids: Arc::new(std::sync::Mutex::new(ids)),
           inner: tray_handler,
         };
+        self.manager().attach_tray(tray_id, tray_handle.clone());
 
         Ok(tray_handle)
       }
 
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-      /// Gets a handle handle to the system tray created with [`Builder#method.system_tray`].
+      /// Gets a handle handle to the system tray.
       pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
         self
-          .tray_handle
-          .clone()
+          .manager()
+          .inner
+          .trays
+          .lock()
+          .unwrap()
+          .values()
+          .next()
+          .cloned()
           .expect("tray not configured; use the `Builder#system_tray` API first.")
       }
 
@@ -1447,8 +1452,6 @@ impl<R: Runtime> Builder<R> {
       global_shortcut_manager: global_shortcut_manager.clone(),
       #[cfg(feature = "clipboard")]
       clipboard_manager: clipboard_manager.clone(),
-      #[cfg(all(desktop, feature = "system-tray"))]
-      tray_handle: None,
       handle: AppHandle {
         runtime_handle,
         manager,
@@ -1456,8 +1459,6 @@ impl<R: Runtime> Builder<R> {
         global_shortcut_manager,
         #[cfg(feature = "clipboard")]
         clipboard_manager,
-        #[cfg(all(desktop, feature = "system-tray"))]
-        tray_handle: None,
         #[cfg(updater)]
         updater_settings: self.updater_settings,
       },
@@ -1510,47 +1511,52 @@ impl<R: Runtime> Builder<R> {
     }
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    if let Some(mut tray) = self.system_tray {
-      let mut ids = HashMap::new();
-      if let Some(menu) = tray.menu() {
-        tray::get_menu_ids(&mut ids, menu);
-      }
-      if tray.icon.is_none() {
-        if let Some(tray_icon) = system_tray_icon {
-          tray = tray.with_icon(tray_icon);
+    {
+      if let Some(mut tray) = self.system_tray {
+        let mut ids = HashMap::new();
+        if let Some(menu) = tray.menu() {
+          tray::get_menu_ids(&mut ids, menu);
         }
+        if tray.icon.is_none() {
+          if let Some(tray_icon) = system_tray_icon {
+            tray = tray.with_icon(tray_icon);
+          }
+        }
+
+        let tray_id = tray.id.clone();
+        let tray: tauri_runtime::SystemTray = tray.into();
+        let id = tray.id;
+
+        let tray_handler = app
+          .runtime
+          .as_ref()
+          .unwrap()
+          .system_tray(tray)
+          .expect("failed to run tray");
+
+        let tray_handle = tray::SystemTrayHandle {
+          id,
+          ids: Arc::new(std::sync::Mutex::new(ids)),
+          inner: tray_handler,
+        };
+        app.manager.attach_tray(tray_id, tray_handle);
       }
 
-      let tray_id = tray.id.clone();
-
-      let tray_handler = app
-        .runtime
-        .as_ref()
-        .unwrap()
-        .system_tray(tray.into())
-        .expect("failed to run tray");
-
-      let tray_handle = tray::SystemTrayHandle {
-        ids: Arc::new(std::sync::Mutex::new(ids)),
-        inner: tray_handler,
-      };
-      let ids = tray_handle.ids.clone();
-      app.tray_handle.replace(tray_handle.clone());
-      app.handle.tray_handle.replace(tray_handle);
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
-        let ids = ids.clone();
-        let tray_id = tray_id.clone();
         let listener = Arc::new(std::sync::Mutex::new(listener));
         app
           .runtime
           .as_mut()
           .unwrap()
-          .on_system_tray_event(move |_tray_id, event| {
-            let app_handle = app_handle.clone();
-            let event = tray::SystemTrayEvent::from_runtime_event(event, tray_id.clone(), &ids);
-            let listener = listener.clone();
-            listener.lock().unwrap()(&app_handle, event);
+          .on_system_tray_event(move |tray_id, event| {
+            if let Some((tray_id, tray)) = app_handle.manager().get_tray_by_runtime_id(tray_id) {
+              let app_handle = app_handle.clone();
+              let event =
+                tray::SystemTrayEvent::from_runtime_event(event, tray_id.clone(), &tray.ids);
+              let listener = listener.clone();
+              listener.lock().unwrap()(&app_handle, event);
+            }
           });
       }
     }

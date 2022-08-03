@@ -1730,7 +1730,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     &self,
     system_tray: SystemTray,
   ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
-    let id = rand::random();
+    let id = system_tray.id;
     let (tx, rx) = channel();
     send_user_message(
       &self.context,
@@ -1909,7 +1909,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(all(desktop, feature = "system-tray"))]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let id = rand::random();
+    let id = system_tray.id;
     let (tray, items) = create_tray(WryTrayId(id), system_tray, &self.event_loop)?;
     self
       .context

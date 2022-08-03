@@ -196,6 +196,8 @@ fn replace_csp_nonce(
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
+  #[cfg(all(desktop, feature = "system-tray"))]
+  pub(crate) trays: Mutex<HashMap<String, crate::SystemTrayHandle<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
@@ -302,6 +304,8 @@ impl<R: Runtime> WindowManager<R> {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
+        #[cfg(all(desktop, feature = "system-tray"))]
+        trays: Default::default(),
         plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
         state: Arc::new(state),
@@ -1209,6 +1213,23 @@ impl<R: Runtime> WindowManager<R> {
     });
 
     window
+  }
+
+  #[cfg(all(desktop, feature = "system-tray"))]
+  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
+    self.inner.trays.lock().unwrap().insert(id, tray);
+  }
+
+  #[cfg(all(desktop, feature = "system-tray"))]
+  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
+    let trays = self.inner.trays.lock().unwrap();
+    let iter = trays.iter();
+    for (tray_id, tray) in iter {
+      if tray.id == id {
+        return Some((tray_id.clone(), tray.clone()));
+      }
+    }
+    None
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {

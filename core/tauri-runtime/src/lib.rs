@@ -34,10 +34,13 @@ use crate::http::{
   InvalidUri,
 };
 
+pub type TrayId = u16;
+
 #[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
 #[derive(Debug, Clone, Default)]
 pub struct SystemTray {
+  pub id: TrayId,
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
@@ -50,11 +53,20 @@ pub struct SystemTray {
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
-    Default::default()
+    let mut tray = Self::default();
+    tray.id = rand::random();
+    tray
   }
 
   pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {
     self.menu.as_ref()
+  }
+
+  /// Sets the tray id.
+  #[must_use]
+  pub fn with_id(mut self, id: TrayId) -> Self {
+    self.id = id;
+    self
   }
 
   /// Sets the tray icon.
@@ -356,7 +368,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Registers a system tray event handler.
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(
+    &mut self,
+    f: F,
+  ) -> Uuid;
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]

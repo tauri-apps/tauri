@@ -8,15 +8,18 @@ pub use crate::{
       MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
     },
     window::dpi::{PhysicalPosition, PhysicalSize},
+    SystemTrayEvent as RuntimeSystemTrayEvent,
   },
   Icon, Runtime,
 };
 
+use rand::distributions::{Alphanumeric, DistString};
 use tauri_macros::default_runtime;
 use tauri_utils::debug_eprintln;
 
 use std::{
-  collections::HashMap,
+  collections::{hash_map::DefaultHasher, HashMap},
+  hash::{Hash, Hasher},
   sync::{Arc, Mutex},
 };
 
@@ -36,6 +39,8 @@ pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTra
 #[derive(Debug, Default)]
 #[non_exhaustive]
 pub struct SystemTray {
+  /// The tray identifier. Defaults to a random string.
+  pub id: String,
   /// The tray icon.
   pub icon: Option<tauri_runtime::Icon>,
   /// The tray menu.
@@ -51,7 +56,9 @@ pub struct SystemTray {
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
   pub fn new() -> Self {
-    Default::default()
+    let mut tray = Self::default();
+    tray.id = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+    tray
   }
 
   pub(crate) fn menu(&self) -> Option<&SystemTrayMenu> {
@@ -102,9 +109,16 @@ impl SystemTray {
   }
 }
 
+fn hash(id: &str) -> MenuHash {
+  let mut hasher = DefaultHasher::new();
+  id.hash(&mut hasher);
+  hasher.finish() as MenuHash
+}
+
 impl From<SystemTray> for tauri_runtime::SystemTray {
   fn from(tray: SystemTray) -> Self {
     let mut t = tauri_runtime::SystemTray::new();
+    t = t.with_id(hash(&tray.id));
     if let Some(i) = tray.icon {
       t = t.with_icon(i);
     }
@@ -130,6 +144,8 @@ pub enum SystemTrayEvent {
   /// Tray context menu item was clicked.
   #[non_exhaustive]
   MenuItemClick {
+    /// The tray id.
+    tray_id: String,
     /// The id of the menu item.
     id: MenuId,
   },
@@ -140,6 +156,8 @@ pub enum SystemTrayEvent {
   /// - **Linux:** Unsupported
   #[non_exhaustive]
   LeftClick {
+    /// The tray id.
+    tray_id: String,
     /// The position of the tray icon.
     position: PhysicalPosition<f64>,
     /// The size of the tray icon.
@@ -153,6 +171,8 @@ pub enum SystemTrayEvent {
   /// - **macOS:** `Ctrl` + `Left click` fire this event.
   #[non_exhaustive]
   RightClick {
+    /// The tray id.
+    tray_id: String,
     /// The position of the tray icon.
     position: PhysicalPosition<f64>,
     /// The size of the tray icon.
@@ -166,11 +186,43 @@ pub enum SystemTrayEvent {
   ///
   #[non_exhaustive]
   DoubleClick {
+    /// The tray id.
+    tray_id: String,
     /// The position of the tray icon.
     position: PhysicalPosition<f64>,
     /// The size of the tray icon.
     size: PhysicalSize<f64>,
   },
+}
+
+impl SystemTrayEvent {
+  pub(crate) fn from_runtime_event(
+    event: &RuntimeSystemTrayEvent,
+    tray_id: String,
+    menu_ids: &Arc<Mutex<HashMap<u16, String>>>,
+  ) -> Self {
+    match event {
+      RuntimeSystemTrayEvent::MenuItemClick(id) => Self::MenuItemClick {
+        tray_id,
+        id: menu_ids.lock().unwrap().get(id).unwrap().clone(),
+      },
+      RuntimeSystemTrayEvent::LeftClick { position, size } => Self::LeftClick {
+        tray_id,
+        position: *position,
+        size: *size,
+      },
+      RuntimeSystemTrayEvent::RightClick { position, size } => Self::RightClick {
+        tray_id,
+        position: *position,
+        size: *size,
+      },
+      RuntimeSystemTrayEvent::DoubleClick { position, size } => Self::DoubleClick {
+        tray_id,
+        position: *position,
+        size: *size,
+      },
+    }
+  }
 }
 
 /// A handle to a system tray. Allows updating the context menu items.

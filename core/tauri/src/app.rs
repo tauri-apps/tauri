@@ -47,8 +47,6 @@ use std::{
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
 
 use crate::runtime::RuntimeHandle;
-#[cfg(all(desktop, feature = "system-tray"))]
-use crate::runtime::SystemTrayEvent as RuntimeSystemTrayEvent;
 
 #[cfg(updater)]
 use crate::updater;
@@ -1523,6 +1521,8 @@ impl<R: Runtime> Builder<R> {
         }
       }
 
+      let tray_id = tray.id.clone();
+
       let tray_handler = app
         .runtime
         .as_ref()
@@ -1540,36 +1540,15 @@ impl<R: Runtime> Builder<R> {
       for listener in self.system_tray_event_listeners {
         let app_handle = app.handle();
         let ids = ids.clone();
+        let tray_id = tray_id.clone();
         let listener = Arc::new(std::sync::Mutex::new(listener));
         app
           .runtime
           .as_mut()
           .unwrap()
-          .on_system_tray_event(move |event| {
+          .on_system_tray_event(move |_tray_id, event| {
             let app_handle = app_handle.clone();
-            let event = match event {
-              RuntimeSystemTrayEvent::MenuItemClick(id) => tray::SystemTrayEvent::MenuItemClick {
-                id: ids.lock().unwrap().get(id).unwrap().clone(),
-              },
-              RuntimeSystemTrayEvent::LeftClick { position, size } => {
-                tray::SystemTrayEvent::LeftClick {
-                  position: *position,
-                  size: *size,
-                }
-              }
-              RuntimeSystemTrayEvent::RightClick { position, size } => {
-                tray::SystemTrayEvent::RightClick {
-                  position: *position,
-                  size: *size,
-                }
-              }
-              RuntimeSystemTrayEvent::DoubleClick { position, size } => {
-                tray::SystemTrayEvent::DoubleClick {
-                  position: *position,
-                  size: *size,
-                }
-              }
-            };
+            let event = tray::SystemTrayEvent::from_runtime_event(event, tray_id.clone(), &ids);
             let listener = listener.clone();
             listener.lock().unwrap()(&app_handle, event);
           });

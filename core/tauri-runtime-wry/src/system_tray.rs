@@ -33,12 +33,46 @@ use uuid::Uuid;
 
 use std::{
   collections::HashMap,
+  fmt,
   sync::{Arc, Mutex},
 };
+
+pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + Send>;
+pub type GlobalSystemTrayEventListeners =
+  Arc<Mutex<HashMap<Uuid, Arc<GlobalSystemTrayEventHandler>>>>;
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
 pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, Arc<SystemTrayEventHandler>>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
+
+#[derive(Clone, Default)]
+pub struct TrayContext {
+  pub tray: Arc<Mutex<Option<WrySystemTray>>>,
+  pub listeners: SystemTrayEventListeners,
+  pub items: SystemTrayItems,
+}
+
+impl fmt::Debug for TrayContext {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("TrayContext")
+      .field("items", &self.items)
+      .finish()
+  }
+}
+
+#[derive(Clone, Default)]
+pub struct SystemTrayManager {
+  pub trays: Arc<Mutex<HashMap<TrayId, TrayContext>>>,
+  pub global_listeners: GlobalSystemTrayEventListeners,
+}
+
+impl fmt::Debug for SystemTrayManager {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("SystemTrayManager")
+      .field("trays", &self.trays)
+      .finish()
+  }
+}
 
 /// Wrapper around a [`wry::application::system_tray::Icon`] that can be created from an [`WindowIcon`].
 pub struct TrayIcon(pub(crate) WryTrayIcon);

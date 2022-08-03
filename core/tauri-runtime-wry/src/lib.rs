@@ -37,9 +37,6 @@ use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
-#[cfg(all(desktop, feature = "system-tray"))]
-use wry::application::system_tray::SystemTray as WrySystemTray;
-
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
@@ -104,7 +101,7 @@ pub type WebviewId = u64;
 type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
-pub type TrayId = u16;
+pub use tauri_runtime::TrayId;
 
 #[cfg(desktop)]
 mod webview;
@@ -181,7 +178,7 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
         windows: context.main_thread.windows.clone(),
         #[cfg(all(desktop, feature = "system-tray"))]
-        system_trays: context.main_thread.system_trays.clone(),
+        system_tray_manager: context.main_thread.system_tray_manager.clone(),
       },
       &context.main_thread.web_context,
     );
@@ -256,7 +253,7 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
   pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  system_trays: Arc<Mutex<HashMap<TrayId, TrayContext>>>,
+  system_tray_manager: SystemTrayManager,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -1526,23 +1523,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 }
 
-#[cfg(all(desktop, feature = "system-tray"))]
-#[derive(Clone, Default)]
-pub struct TrayContext {
-  tray: Arc<Mutex<Option<WrySystemTray>>>,
-  listeners: SystemTrayEventListeners,
-  items: SystemTrayItems,
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl fmt::Debug for TrayContext {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("TrayContext")
-      .field("items", &self.items)
-      .finish()
-  }
-}
-
 #[derive(Clone)]
 enum WindowHandle {
   Webview(Arc<WebView>),
@@ -1651,7 +1631,10 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
       .field("web_context", &self.context.main_thread.web_context);
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    d.field("system_trays", &self.context.main_thread.system_trays);
+    d.field(
+      "system_tray_manager",
+      &self.context.main_thread.system_tray_manager,
+    );
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     #[cfg(feature = "global-shortcut")]
@@ -1785,7 +1768,7 @@ impl<T: UserEvent> Wry<T> {
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    let system_trays = Default::default();
+    let system_tray_manager = Default::default();
 
     let context = Context {
       webview_id_map,
@@ -1800,7 +1783,7 @@ impl<T: UserEvent> Wry<T> {
         clipboard_manager,
         windows,
         #[cfg(all(desktop, feature = "system-tray"))]
-        system_trays,
+        system_tray_manager,
       },
     };
 
@@ -1931,7 +1914,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self
       .context
       .main_thread
-      .system_trays
+      .system_tray_manager
+      .trays
       .lock()
       .unwrap()
       .insert(
@@ -1950,8 +1934,19 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, _f: F) -> Uuid {
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(
+    &mut self,
+    f: F,
+  ) -> Uuid {
     let id = Uuid::new_v4();
+    self
+      .context
+      .main_thread
+      .system_tray_manager
+      .global_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Arc::new(Box::new(f)));
     // TODO
     id
   }
@@ -1976,7 +1971,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = &self.context.main_thread.web_context;
     let plugins = &mut self.plugins;
     #[cfg(all(desktop, feature = "system-tray"))]
-    let system_trays = self.context.main_thread.system_trays.clone();
+    let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
@@ -2014,7 +2009,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               #[cfg(feature = "clipboard")]
               clipboard_manager: clipboard_manager.clone(),
               #[cfg(all(desktop, feature = "system-tray"))]
-              system_trays: system_trays.clone(),
+              system_tray_manager: system_tray_manager.clone(),
             },
             web_context,
           );
@@ -2038,7 +2033,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
-            system_trays: system_trays.clone(),
+            system_tray_manager: system_tray_manager.clone(),
           },
           web_context,
         );
@@ -2054,7 +2049,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let mut plugins = self.plugins;
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    let system_trays = self.context.main_thread.system_trays;
+    let system_tray_manager = self.context.main_thread.system_tray_manager;
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
@@ -2084,7 +2079,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
-            system_trays: system_trays.clone(),
+            system_tray_manager: system_tray_manager.clone(),
           },
           &web_context,
         );
@@ -2107,7 +2102,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           #[cfg(feature = "clipboard")]
           clipboard_manager: clipboard_manager.clone(),
           #[cfg(all(desktop, feature = "system-tray"))]
-          system_trays: system_trays.clone(),
+          system_tray_manager: system_tray_manager.clone(),
         },
         &web_context,
       );
@@ -2126,7 +2121,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  pub system_trays: Arc<Mutex<HashMap<TrayId, TrayContext>>>,
+  pub system_tray_manager: SystemTrayManager,
 }
 
 struct UserMessageContext {
@@ -2137,7 +2132,7 @@ struct UserMessageContext {
   clipboard_manager: Arc<Mutex<Clipboard>>,
   windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  system_trays: Arc<Mutex<HashMap<TrayId, TrayContext>>>,
+  system_tray_manager: SystemTrayManager,
 }
 
 fn handle_user_message<T: UserEvent>(
@@ -2154,7 +2149,7 @@ fn handle_user_message<T: UserEvent>(
     clipboard_manager,
     windows,
     #[cfg(all(desktop, feature = "system-tray"))]
-    system_trays,
+    system_tray_manager,
   } = context;
   match message {
     Message::Task(task) => task(),
@@ -2457,7 +2452,7 @@ fn handle_user_message<T: UserEvent>(
 
     #[cfg(all(desktop, feature = "system-tray"))]
     Message::Tray(tray_id, tray_message) => {
-      let mut trays = system_trays.lock().unwrap();
+      let mut trays = system_tray_manager.trays.lock().unwrap();
 
       if let TrayMessage::Create(tray, tx) = tray_message {
         match create_tray(WryTrayId(tray_id), tray, event_loop) {
@@ -2557,7 +2552,7 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(feature = "clipboard")]
     clipboard_manager,
     #[cfg(all(desktop, feature = "system-tray"))]
-    system_trays,
+    system_tray_manager,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2638,20 +2633,34 @@ fn handle_event_loop<T: UserEvent>(
       ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      let trays = system_trays.lock().unwrap();
-      let trays_iter = trays.values();
-      for tray_context in trays_iter {
+
+      let trays = system_tray_manager.trays.lock().unwrap();
+      let trays_iter = trays.iter();
+
+      let (mut listeners, mut tray_id) = (None, 0);
+      for (id, tray_context) in trays_iter {
         let has_menu = {
           let items = tray_context.items.lock().unwrap();
           items.contains_key(&menu_id.0)
         };
         if has_menu {
-          let listeners = tray_context.listeners.lock().unwrap();
-          let handlers = listeners.values();
-          for handler in handlers {
-            handler(&event);
-          }
+          listeners.replace(tray_context.listeners.clone());
+          tray_id = *id;
           break;
+        }
+      }
+      drop(trays);
+      if let Some(listeners) = listeners {
+        let listeners = listeners.lock().unwrap();
+        let handlers = listeners.values();
+        for handler in handlers {
+          handler(&event);
+        }
+
+        let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
+        let global_listeners_iter = global_listeners.values();
+        for global_listener in global_listeners_iter {
+          global_listener(tray_id, &event);
         }
       }
     }
@@ -2673,7 +2682,7 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      let trays = system_trays.lock().unwrap();
+      let trays = system_tray_manager.trays.lock().unwrap();
       if let Some(tray_context) = trays.get(&id.0) {
         let listeners = tray_context.listeners.lock().unwrap();
         let handlers = listeners.values();
@@ -2764,7 +2773,7 @@ fn handle_event_loop<T: UserEvent>(
             clipboard_manager,
             windows,
             #[cfg(all(desktop, feature = "system-tray"))]
-            system_trays,
+            system_tray_manager,
           },
           web_context,
         );

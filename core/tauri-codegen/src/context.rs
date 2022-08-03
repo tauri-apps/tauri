@@ -420,14 +420,14 @@ fn ico_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|_| panic!("failed to parse icon {}", path.display()));
+    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .unwrap_or_else(|_| panic!("failed to decode icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
     .rgba_data()
     .to_vec();
   let width = entry.width();
@@ -459,7 +459,7 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
 
   let out_path = out_dir.join(path.file_name().unwrap());
@@ -491,12 +491,12 @@ fn png_icon<P: AsRef<Path>>(
 
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let mut reader = decoder
     .read_info()
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()));
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());

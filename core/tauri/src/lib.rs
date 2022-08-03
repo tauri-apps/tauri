@@ -207,11 +207,8 @@ pub use runtime::{menu::NativeImage, ActivationPolicy};
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTrayEvent, SystemTrayHandle},
-  self::runtime::{
-    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-    SystemTray,
-  },
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
   self::app::WindowMenuEvent,

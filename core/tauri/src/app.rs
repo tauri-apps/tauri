@@ -1507,7 +1507,7 @@ impl<R: Runtime> Builder<R> {
         .runtime
         .as_ref()
         .unwrap()
-        .system_tray(tray)
+        .system_tray(tray.into())
         .expect("failed to run tray");
 
       let tray_handle = tray::SystemTrayHandle {

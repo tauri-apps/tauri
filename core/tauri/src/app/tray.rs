@@ -8,12 +8,12 @@ pub use crate::{
       MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
     },
     window::dpi::{PhysicalPosition, PhysicalSize},
-    SystemTray,
   },
   Icon, Runtime,
 };
 
 use tauri_macros::default_runtime;
+use tauri_utils::debug_eprintln;
 
 use std::{
   collections::HashMap,
@@ -29,6 +29,97 @@ pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTra
       SystemTrayMenuEntry::Submenu(s) => get_menu_ids(map, &s.inner),
       _ => {}
     }
+  }
+}
+
+/// Represents a System Tray instance.
+#[derive(Debug, Default)]
+#[non_exhaustive]
+pub struct SystemTray {
+  /// The tray icon.
+  pub icon: Option<tauri_runtime::Icon>,
+  /// The tray menu.
+  pub menu: Option<SystemTrayMenu>,
+  /// Whether the icon is a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) icon or not.
+  #[cfg(target_os = "macos")]
+  pub icon_as_template: bool,
+  /// Whether the menu should appear when the tray receives a left click. Defaults to `true`
+  #[cfg(target_os = "macos")]
+  pub menu_on_left_click: bool,
+}
+
+impl SystemTray {
+  /// Creates a new system tray that only renders an icon.
+  pub fn new() -> Self {
+    Default::default()
+  }
+
+  pub(crate) fn menu(&self) -> Option<&SystemTrayMenu> {
+    self.menu.as_ref()
+  }
+
+  /// Sets the tray icon.
+  #[must_use]
+  pub fn with_icon<I: TryInto<tauri_runtime::Icon>>(mut self, icon: I) -> Self
+  where
+    I::Error: std::error::Error,
+  {
+    match icon.try_into() {
+      Ok(icon) => {
+        self.icon.replace(icon);
+      }
+      Err(e) => {
+        debug_eprintln!("Failed to load tray icon: {}", e);
+      }
+    }
+    self
+  }
+
+  /// Sets the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc).
+  ///
+  /// Images you mark as template images should consist of only black and clear colors.
+  /// You can use the alpha channel in the image to adjust the opacity of black content.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.icon_as_template = is_template;
+    self
+  }
+
+  /// Sets whether the menu should appear when the tray receives a left click. Defaults to `true`.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
+    self.menu_on_left_click = menu_on_left_click;
+    self
+  }
+
+  /// Sets the menu to show when the system tray is right clicked.
+  #[must_use]
+  pub fn with_menu(mut self, menu: SystemTrayMenu) -> Self {
+    self.menu.replace(menu);
+    self
+  }
+}
+
+impl From<SystemTray> for tauri_runtime::SystemTray {
+  fn from(tray: SystemTray) -> Self {
+    let mut t = tauri_runtime::SystemTray::new();
+    if let Some(i) = tray.icon {
+      t = t.with_icon(i);
+    }
+
+    if let Some(menu) = tray.menu {
+      t = t.with_menu(menu);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      t = t.with_icon_as_template(tray.icon_as_template);
+      t = t.with_menu_on_left_click(tray.menu_on_left_click);
+    }
+
+    t
   }
 }
 

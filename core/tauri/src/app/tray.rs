@@ -8,10 +8,11 @@ pub use crate::{
       MenuHash, MenuId, MenuIdRef, MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, TrayHandle,
     },
     window::dpi::{PhysicalPosition, PhysicalSize},
-    SystemTrayEvent as RuntimeSystemTrayEvent,
+    RuntimeHandle, SystemTrayEvent as RuntimeSystemTrayEvent,
   },
   Icon, Runtime,
 };
+use crate::{sealed::RuntimeOrDispatch, Manager};
 
 use rand::distributions::{Alphanumeric, DistString};
 use tauri_macros::default_runtime;
@@ -52,6 +53,11 @@ pub struct SystemTray {
   /// Whether the menu should appear when the tray receives a left click. Defaults to `true`
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  // TODO: icon_as_template and menu_on_left_click should be an Option instead :(
+  #[cfg(target_os = "macos")]
+  menu_on_left_click_set: bool,
+  #[cfg(target_os = "macos")]
+  icon_as_template_set: bool,
 }
 
 impl Default for SystemTray {
@@ -102,6 +108,7 @@ impl SystemTray {
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
+    self.icon_as_template_set = true;
     self.icon_as_template = is_template;
     self
   }
@@ -110,6 +117,7 @@ impl SystemTray {
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
+    self.menu_on_left_click_set = true;
     self.menu_on_left_click = menu_on_left_click;
     self
   }
@@ -119,6 +127,60 @@ impl SystemTray {
   pub fn with_menu(mut self, menu: SystemTrayMenu) -> Self {
     self.menu.replace(menu);
     self
+  }
+
+  /// Builds and shows the system tray.
+  pub fn build<R: Runtime, M: Manager<R>>(
+    mut self,
+    manager: &M,
+  ) -> crate::Result<SystemTrayHandle<R>> {
+    let mut ids = HashMap::new();
+    if let Some(menu) = self.menu() {
+      get_menu_ids(&mut ids, menu);
+    }
+
+    if self.icon.is_none() {
+      if let Some(tray_icon) = &manager.manager().inner.tray_icon {
+        self = self.with_icon(tray_icon.clone());
+      }
+    }
+    #[cfg(target_os = "macos")]
+    {
+      if !self.icon_as_template_set {
+        self.icon_as_template = manager
+          .config()
+          .tauri
+          .system_tray
+          .as_ref()
+          .map_or(false, |t| t.icon_as_template);
+      }
+      if !self.menu_on_left_click_set {
+        self.menu_on_left_click = manager
+          .config()
+          .tauri
+          .system_tray
+          .as_ref()
+          .map_or(false, |t| t.menu_on_left_click);
+      }
+    }
+
+    let tray_id = self.id.clone();
+    let tray: tauri_runtime::SystemTray = self.into();
+    let id = tray.id;
+    let tray_handler = match manager.runtime() {
+      RuntimeOrDispatch::Runtime(r) => r.system_tray(tray),
+      RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(tray),
+      RuntimeOrDispatch::Dispatch(_) => manager.app_handle().runtime_handle.system_tray(tray),
+    }?;
+
+    let tray_handle = SystemTrayHandle {
+      id,
+      ids: Arc::new(Mutex::new(ids)),
+      inner: tray_handler,
+    };
+    manager.manager().attach_tray(tray_id, tray_handle.clone());
+
+    Ok(tray_handle)
   }
 }
 

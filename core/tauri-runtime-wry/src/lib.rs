@@ -1908,8 +1908,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, mut system_tray: SystemTray) -> Result<Self::TrayHandler> {
     let id = system_tray.id;
+    let mut listeners = Vec::new();
+    if let Some(l) = system_tray.on_event.take() {
+      listeners.push(Arc::new(l));
+    }
     let (tray, items) = create_tray(WryTrayId(id), system_tray, &self.event_loop)?;
     self
       .context
@@ -1922,7 +1926,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         id,
         TrayContext {
           tray: Arc::new(Mutex::new(Some(tray))),
-          listeners: Default::default(),
+          listeners: Arc::new(Mutex::new(listeners)),
           items: Arc::new(Mutex::new(items)),
         },
       );
@@ -1934,11 +1938,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(
-    &mut self,
-    f: F,
-  ) -> Uuid {
-    let id = Uuid::new_v4();
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {
     self
       .context
       .main_thread
@@ -1946,9 +1946,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .global_listeners
       .lock()
       .unwrap()
-      .insert(id, Arc::new(Box::new(f)));
-    // TODO
-    id
+      .push(Arc::new(Box::new(f)));
   }
 
   #[cfg(target_os = "macos")]
@@ -2652,13 +2650,13 @@ fn handle_event_loop<T: UserEvent>(
       drop(trays);
       if let Some(listeners) = listeners {
         let listeners = listeners.lock().unwrap();
-        let handlers = listeners.values();
+        let handlers = listeners.iter();
         for handler in handlers {
           handler(&event);
         }
 
         let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
-        let global_listeners_iter = global_listeners.values();
+        let global_listeners_iter = global_listeners.iter();
         for global_listener in global_listeners_iter {
           global_listener(tray_id, &event);
         }
@@ -2685,8 +2683,8 @@ fn handle_event_loop<T: UserEvent>(
       let trays = system_tray_manager.trays.lock().unwrap();
       if let Some(tray_context) = trays.get(&id.0) {
         let listeners = tray_context.listeners.lock().unwrap();
-        let handlers = listeners.values();
-        for handler in handlers {
+        let iter = listeners.iter();
+        for handler in iter {
           handler(&event);
         }
       }

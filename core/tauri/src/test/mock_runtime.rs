@@ -636,9 +636,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
 
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
-    Uuid::new_v4()
-  }
+  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]

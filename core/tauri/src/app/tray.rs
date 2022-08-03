@@ -21,9 +21,12 @@ use tauri_utils::debug_eprintln;
 
 use std::{
   collections::{hash_map::DefaultHasher, HashMap},
+  fmt,
   hash::{Hash, Hasher},
   sync::{Arc, Mutex},
 };
+
+type TrayEventHandler = dyn Fn(SystemTrayEvent) + Send + Sync + 'static;
 
 pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTrayMenu) {
   for item in &menu.items {
@@ -38,7 +41,7 @@ pub(crate) fn get_menu_ids(map: &mut HashMap<MenuHash, MenuId>, menu: &SystemTra
 }
 
 /// Represents a System Tray instance.
-#[derive(Debug)]
+#[derive(Clone)]
 #[non_exhaustive]
 pub struct SystemTray {
   /// The tray identifier. Defaults to a random string.
@@ -53,11 +56,28 @@ pub struct SystemTray {
   /// Whether the menu should appear when the tray receives a left click. Defaults to `true`
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  on_event: Option<Arc<TrayEventHandler>>,
   // TODO: icon_as_template and menu_on_left_click should be an Option instead :(
   #[cfg(target_os = "macos")]
   menu_on_left_click_set: bool,
   #[cfg(target_os = "macos")]
   icon_as_template_set: bool,
+}
+
+impl fmt::Debug for SystemTray {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("SystemTray");
+    d.field("id", &self.id)
+      .field("icon", &self.icon)
+      .field("menu", &self.menu);
+    #[cfg(target_os = "macos")]
+    {
+      d = d
+        .field("icon_as_template", &self.icon_as_template)
+        .field("menu_on_left_click", &self.menu_on_left_click);
+    }
+    d.finish()
+  }
 }
 
 impl Default for SystemTray {
@@ -66,10 +86,15 @@ impl Default for SystemTray {
       id: Alphanumeric.sample_string(&mut rand::thread_rng(), 16),
       icon: None,
       menu: None,
+      on_event: None,
       #[cfg(target_os = "macos")]
       icon_as_template: false,
       #[cfg(target_os = "macos")]
       menu_on_left_click: false,
+      #[cfg(target_os = "macos")]
+      icon_as_template_set: false,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click_set: false,
     }
   }
 }
@@ -82,6 +107,13 @@ impl SystemTray {
 
   pub(crate) fn menu(&self) -> Option<&SystemTrayMenu> {
     self.menu.as_ref()
+  }
+
+  /// Sets the tray identifier.
+  #[must_use]
+  pub fn with_id<I: Into<String>>(mut self, id: I) -> Self {
+    self.id = id.into();
+    self
   }
 
   /// Sets the tray icon.
@@ -122,6 +154,13 @@ impl SystemTray {
     self
   }
 
+  /// Sets the event listener for this system tray.
+  #[must_use]
+  pub fn on_event<F: Fn(SystemTrayEvent) + Send + Sync + 'static>(mut self, f: F) -> Self {
+    self.on_event.replace(Arc::new(f));
+    self
+  }
+
   /// Sets the menu to show when the system tray is right clicked.
   #[must_use]
   pub fn with_menu(mut self, menu: SystemTrayMenu) -> Self {
@@ -138,6 +177,7 @@ impl SystemTray {
     if let Some(menu) = self.menu() {
       get_menu_ids(&mut ids, menu);
     }
+    let ids = Arc::new(Mutex::new(ids));
 
     if self.icon.is_none() {
       if let Some(tray_icon) = &manager.manager().inner.tray_icon {
@@ -165,17 +205,48 @@ impl SystemTray {
     }
 
     let tray_id = self.id.clone();
-    let tray: tauri_runtime::SystemTray = self.into();
-    let id = tray.id;
+
+    let mut runtime_tray = tauri_runtime::SystemTray::new();
+    runtime_tray = runtime_tray.with_id(hash(&self.id));
+    if let Some(i) = self.icon {
+      runtime_tray = runtime_tray.with_icon(i);
+    }
+
+    if let Some(menu) = self.menu {
+      runtime_tray = runtime_tray.with_menu(menu);
+    }
+
+    if let Some(on_event) = self.on_event {
+      let ids_ = ids.clone();
+      let tray_id_ = tray_id.clone();
+      runtime_tray = runtime_tray.on_event(move |event| {
+        on_event(SystemTrayEvent::from_runtime_event(
+          event,
+          tray_id_.clone(),
+          &ids_,
+        ))
+      });
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      runtime_tray = runtime_tray.with_icon_as_template(self.icon_as_template);
+      runtime_tray = runtime_tray.with_menu_on_left_click(self.menu_on_left_click);
+    }
+
+    let id = runtime_tray.id;
     let tray_handler = match manager.runtime() {
-      RuntimeOrDispatch::Runtime(r) => r.system_tray(tray),
-      RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(tray),
-      RuntimeOrDispatch::Dispatch(_) => manager.app_handle().runtime_handle.system_tray(tray),
+      RuntimeOrDispatch::Runtime(r) => r.system_tray(runtime_tray),
+      RuntimeOrDispatch::RuntimeHandle(h) => h.system_tray(runtime_tray),
+      RuntimeOrDispatch::Dispatch(_) => manager
+        .app_handle()
+        .runtime_handle
+        .system_tray(runtime_tray),
     }?;
 
     let tray_handle = SystemTrayHandle {
       id,
-      ids: Arc::new(Mutex::new(ids)),
+      ids,
       inner: tray_handler,
     };
     manager.manager().attach_tray(tray_id, tray_handle.clone());
@@ -188,28 +259,6 @@ fn hash(id: &str) -> MenuHash {
   let mut hasher = DefaultHasher::new();
   id.hash(&mut hasher);
   hasher.finish() as MenuHash
-}
-
-impl From<SystemTray> for tauri_runtime::SystemTray {
-  fn from(tray: SystemTray) -> Self {
-    let mut t = tauri_runtime::SystemTray::new();
-    t = t.with_id(hash(&tray.id));
-    if let Some(i) = tray.icon {
-      t = t.with_icon(i);
-    }
-
-    if let Some(menu) = tray.menu {
-      t = t.with_menu(menu);
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-      t = t.with_icon_as_template(tray.icon_as_template);
-      t = t.with_menu_on_left_click(tray.menu_on_left_click);
-    }
-
-    t
-  }
 }
 
 /// System tray event.

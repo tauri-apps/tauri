@@ -29,8 +29,6 @@ use crate::{Error, Message, Result, TrayId, TrayMessage};
 
 use tauri_runtime::{menu::MenuHash, SystemTray, UserEvent};
 
-use uuid::Uuid;
-
 use std::{
   collections::HashMap,
   fmt,
@@ -38,11 +36,10 @@ use std::{
 };
 
 pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + Send>;
-pub type GlobalSystemTrayEventListeners =
-  Arc<Mutex<HashMap<Uuid, Arc<GlobalSystemTrayEventHandler>>>>;
+pub type GlobalSystemTrayEventListeners = Arc<Mutex<Vec<Arc<GlobalSystemTrayEventHandler>>>>;
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = Arc<Mutex<HashMap<Uuid, Arc<SystemTrayEventHandler>>>>;
+pub type SystemTrayEventListeners = Arc<Mutex<Vec<Arc<SystemTrayEventHandler>>>>;
 pub type SystemTrayItems = Arc<Mutex<HashMap<u16, WryCustomMenuItem>>>;
 
 #[derive(Clone, Default)]

@@ -34,11 +34,13 @@ use crate::http::{
   InvalidUri,
 };
 
+use std::fmt;
+
 pub type TrayId = u16;
+pub type TrayEventHandler = dyn Fn(&SystemTrayEvent) + Send + 'static;
 
 #[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
-#[derive(Debug, Clone)]
 pub struct SystemTray {
   pub id: TrayId,
   pub icon: Option<Icon>,
@@ -47,6 +49,38 @@ pub struct SystemTray {
   pub icon_as_template: bool,
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  pub on_event: Option<Box<TrayEventHandler>>,
+}
+
+impl fmt::Debug for SystemTray {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("SystemTray");
+    d.field("id", &self.id)
+      .field("icon", &self.icon)
+      .field("menu", &self.menu);
+    #[cfg(target_os = "macos")]
+    {
+      d = d
+        .field("icon_as_template", &self.icon_as_template)
+        .field("menu_on_left_click", &self.menu_on_left_click);
+    }
+    d.finish()
+  }
+}
+
+impl Clone for SystemTray {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id.clone(),
+      icon: self.icon.clone(),
+      menu: self.menu.clone(),
+      on_event: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: self.icon_as_template,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: self.menu_on_left_click,
+    }
+  }
 }
 
 impl Default for SystemTray {
@@ -59,6 +93,7 @@ impl Default for SystemTray {
       icon_as_template: false,
       #[cfg(target_os = "macos")]
       menu_on_left_click: false,
+      on_event: None,
     }
   }
 }
@@ -108,6 +143,12 @@ impl SystemTray {
   #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
+    self
+  }
+
+  #[must_use]
+  pub fn on_event<F: Fn(&SystemTrayEvent) + Send + 'static>(mut self, f: F) -> Self {
+    self.on_event.replace(Box::new(f));
     self
   }
 }
@@ -380,10 +421,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Registers a system tray event handler.
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(
-    &mut self,
-    f: F,
-  ) -> Uuid;
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]

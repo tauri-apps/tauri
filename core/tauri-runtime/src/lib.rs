@@ -71,7 +71,7 @@ impl fmt::Debug for SystemTray {
 impl Clone for SystemTray {
   fn clone(&self) -> Self {
     Self {
-      id: self.id.clone(),
+      id: self.id,
       icon: self.icon.clone(),
       menu: self.menu.clone(),
       on_event: None,

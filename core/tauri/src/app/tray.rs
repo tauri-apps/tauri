@@ -190,7 +190,7 @@ impl SystemTray {
   ///     {
   ///       tray_builder = tray_builder.with_icon_as_template(true);
   ///     }
-  ///     tray_handle = tray_builder.build(app)?;
+  ///     let tray_handle = tray_builder.build(app)?;
   ///     Ok(())
   ///   });
   /// ```
@@ -216,7 +216,7 @@ impl SystemTray {
   ///     {
   ///       tray_builder = tray_builder.with_menu_on_left_click(false);
   ///     }
-  ///     tray_handle = tray_builder.build(app)?;
+  ///     let tray_handle = tray_builder.build(app)?;
   ///     Ok(())
   ///   });
   /// ```

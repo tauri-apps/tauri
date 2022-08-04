@@ -239,6 +239,8 @@ pub struct WixSettings {
   pub dialog_image_path: Option<PathBuf>,
   /// Enables FIPS compliant algorithms.
   pub fips_compliant: bool,
+  /// Skip MSI validation.
+  pub skip_msi_validation: bool,
 }
 
 /// The Windows bundle settings.

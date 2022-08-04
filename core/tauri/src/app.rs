@@ -397,13 +397,6 @@ impl<R: Runtime> AppHandle<R> {
       .map_err(Into::into)
   }
 
-  /// Removes the system tray.
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> crate::Result<()> {
-    self.runtime_handle.remove_system_tray().map_err(Into::into)
-  }
-
   /// Adds a Tauri application plugin.
   /// This function can be used to register a plugin that is loaded dynamically e.g. after login.
   /// For plugins that are created when the app is started, prefer [`Builder::plugin`].
@@ -507,7 +500,9 @@ impl<R: Runtime> AppHandle<R> {
     }
     #[cfg(all(windows, feature = "system-tray"))]
     {
-      let _ = self.remove_system_tray();
+      for tray in self.manager().trays().values() {
+        let _ = tray.destroy();
+      }
     }
   }
 }

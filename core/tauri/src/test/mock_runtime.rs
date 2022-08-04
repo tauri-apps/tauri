@@ -89,12 +89,6 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
-  #[cfg(all(desktop, windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()> {
-    Ok(())
-  }
-
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     unimplemented!()
   }
@@ -538,6 +532,10 @@ impl TrayHandle for MockTrayHandler {
   }
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn destroy(&self) -> Result<()> {
     Ok(())
   }
 }

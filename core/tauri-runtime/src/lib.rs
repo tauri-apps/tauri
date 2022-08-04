@@ -337,10 +337,6 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
     system_tray: SystemTray,
   ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
 
-  #[cfg(all(desktop, windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()>;
-
   fn raw_display_handle(&self) -> RawDisplayHandle;
 }
 

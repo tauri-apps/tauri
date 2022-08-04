@@ -190,7 +190,7 @@ impl SystemTray {
   ///     {
   ///       tray_builder = tray_builder.with_icon_as_template(true);
   ///     }
-  ///     let tray_handle = tray_builder.build(app)?;
+  ///     tray_handle = tray_builder.build(app)?;
   ///     Ok(())
   ///   });
   /// ```
@@ -216,7 +216,7 @@ impl SystemTray {
   ///     {
   ///       tray_builder = tray_builder.with_menu_on_left_click(false);
   ///     }
-  ///     let tray_handle = tray_builder.build(app)?;
+  ///     tray_handle = tray_builder.build(app)?;
   ///     Ok(())
   ///   });
   /// ```
@@ -562,6 +562,11 @@ impl<R: Runtime> SystemTrayHandle<R> {
       .inner
       .set_icon_as_template(is_template)
       .map_err(Into::into)
+  }
+
+  /// Destroys this system tray.
+  pub fn destroy(&self) -> crate::Result<()> {
+    self.inner.destroy().map_err(Into::into)
   }
 }
 

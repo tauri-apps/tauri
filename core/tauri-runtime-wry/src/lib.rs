@@ -1082,7 +1082,7 @@ pub enum TrayMessage {
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Create(SystemTray, Sender<Result<()>>),
-  Close,
+  Destroy,
 }
 
 pub type CreateWebviewClosure<T> = Box<
@@ -1739,11 +1739,6 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       id,
       proxy: self.context.proxy.clone(),
     })
-  }
-
-  #[cfg(all(desktop, windows, feature = "system-tray"))]
-  fn remove_system_tray(&self) -> Result<()> {
-    send_user_message(&self.context, Message::Tray(TrayMessage::Close))
   }
 
   fn raw_display_handle(&self) -> RawDisplayHandle {
@@ -2507,7 +2502,7 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::Create(_tray, _tx) => {
             // already handled
           }
-          TrayMessage::Close => {
+          TrayMessage::Destroy => {
             *tray_context.tray.lock().unwrap() = None;
             tray_context.listeners.lock().unwrap().clear();
             tray_context.items.lock().unwrap().clear();

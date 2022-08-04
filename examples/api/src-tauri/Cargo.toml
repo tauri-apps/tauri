@@ -48,4 +48,4 @@ incremental = false
 opt-level = "s"
 
 [patch.crates-io]
-tao = { git = "https://github.com/lucasfernog/tao", branch = "feat/tray-id" }
+tao = { git = "https://github.com/tauri-apps/tao" }

@@ -600,6 +600,29 @@ macro_rules! shared_app_impl {
       }
 
       /// Gets a handle to the first system tray.
+      ///
+      /// Prefer [`Self::tray_handle_by_id`] when multiple system trays are created.
+      ///
+      /// # Examples
+      /// ```rust,no_run
+      /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+      ///
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     let app_handle = app.handle();
+      ///     SystemTray::new()
+      ///       .with_menu(
+      ///         SystemTrayMenu::new()
+      ///           .add_item(CustomMenuItem::new("quit", "Quit"))
+      ///           .add_item(CustomMenuItem::new("open", "Open"))
+      ///       )
+      ///       .on_event(move |event| {
+      ///         let tray_handle = app_handle.tray_handle();
+      ///       })
+      ///       .build(app)?;
+      ///     Ok(())
+      ///   });
+      /// ```
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
       pub fn tray_handle(&self) -> tray::SystemTrayHandle<R> {
@@ -1154,7 +1177,21 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Adds the icon configured on `tauri.conf.json` to the system tray with the specified menu items.
+  /// Sets the given system tray to be built before the app runs.
+  ///
+  /// Prefer the [`SystemTray#method.build`] method to create the tray at runtime instead.
+  ///
+  /// # Examples
+  /// ```rust,no_run
+  /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+  ///
+  /// tauri::Builder::default()
+  ///   .system_tray(SystemTray::new().with_menu(
+  ///     SystemTrayMenu::new()
+  ///       .add_item(CustomMenuItem::new("quit", "Quit"))
+  ///       .add_item(CustomMenuItem::new("open", "Open"))
+  ///   ));
+  /// ```
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   #[must_use]
@@ -1252,6 +1289,8 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Registers a system tray event handler.
+  ///
+  /// Prefer the [`SystemTray#method.on_event`] method when creating a tray at runtime instead.
   ///
   /// # Examples
   /// ```rust,no_run

@@ -3038,7 +3038,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.13.1"
-source = "git+https://github.com/lucasfernog/tao?branch=feat/tray-id#1f9bebc4951a50c3051549d4d9aba395e075268f"
+source = "git+https://github.com/tauri-apps/tao#4ea78bcb577f36ebd4f6b7ce4fcd31d7c02cafdb"
 dependencies = [
  "bitflags",
  "cairo-rs",

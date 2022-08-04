@@ -885,6 +885,10 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
     Ok(false)
   })?;
 
+  let _ = std::process::Command::new("touch")
+    .arg(&extract_path)
+    .status();
+
   Ok(())
 }
 

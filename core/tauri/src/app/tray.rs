@@ -101,6 +101,18 @@ impl Default for SystemTray {
 
 impl SystemTray {
   /// Creates a new system tray that only renders an icon.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new().build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn new() -> Self {
     Default::default()
   }
@@ -109,14 +121,43 @@ impl SystemTray {
     self.menu.as_ref()
   }
 
-  /// Sets the tray identifier.
+  /// Sets the tray identifier, used to retrieve its handle and to identify a tray event source.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new()
+  ///       .with_id("tray-id")
+  ///       .build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[must_use]
   pub fn with_id<I: Into<String>>(mut self, id: I) -> Self {
     self.id = id.into();
     self
   }
 
-  /// Sets the tray icon.
+  /// Sets the tray [`Icon`].
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::{Icon, SystemTray};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new()
+  ///       // dummy and invalid Rgba icon; see the Icon documentation for more information
+  ///       .with_icon(Icon::Rgba { rgba: Vec::new(), width: 0, height: 0 })
+  ///       .build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[must_use]
   pub fn with_icon<I: TryInto<tauri_runtime::Icon>>(mut self, icon: I) -> Self
   where
@@ -137,6 +178,23 @@ impl SystemTray {
   ///
   /// Images you mark as template images should consist of only black and clear colors.
   /// You can use the alpha channel in the image to adjust the opacity of black content.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let mut tray_builder = SystemTray::new();
+  ///     #[cfg(target_os = "macos")]
+  ///     {
+  ///       tray_builder = tray_builder.with_icon_as_template(true);
+  ///     }
+  ///     tray_handle = tray_builder.build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn with_icon_as_template(mut self, is_template: bool) -> Self {
@@ -146,6 +204,23 @@ impl SystemTray {
   }
 
   /// Sets whether the menu should appear when the tray receives a left click. Defaults to `true`.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let mut tray_builder = SystemTray::new();
+  ///     #[cfg(target_os = "macos")]
+  ///     {
+  ///       tray_builder = tray_builder.with_menu_on_left_click(false);
+  ///     }
+  ///     tray_handle = tray_builder.build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
@@ -155,6 +230,34 @@ impl SystemTray {
   }
 
   /// Sets the event listener for this system tray.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::{Icon, Manager, SystemTray, SystemTrayEvent};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let id = "tray-id";
+  ///     SystemTray::new()
+  ///       .with_id(id)
+  ///       .on_event(move |event| {
+  ///         let tray_handle = handle.tray_handle_by_id(id).unwrap();
+  ///         match event {
+  ///           // show window with id "main" when the tray is left clicked
+  ///           SystemTrayEvent::LeftClick { .. } => {
+  ///             let window = handle.get_window("main").unwrap();
+  ///             window.show().unwrap();
+  ///             window.set_focus().unwrap();
+  ///           }
+  ///           _ => {}
+  ///         }
+  ///       })
+  ///       .build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[must_use]
   pub fn on_event<F: Fn(SystemTrayEvent) + Send + Sync + 'static>(mut self, f: F) -> Self {
     self.on_event.replace(Arc::new(f));
@@ -162,6 +265,24 @@ impl SystemTray {
   }
 
   /// Sets the menu to show when the system tray is right clicked.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new()
+  ///       .with_menu(
+  ///         SystemTrayMenu::new()
+  ///           .add_item(CustomMenuItem::new("quit", "Quit"))
+  ///           .add_item(CustomMenuItem::new("open", "Open"))
+  ///       )
+  ///       .build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[must_use]
   pub fn with_menu(mut self, menu: SystemTrayMenu) -> Self {
     self.menu.replace(menu);
@@ -169,6 +290,26 @@ impl SystemTray {
   }
 
   /// Builds and shows the system tray.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let tray_handle = SystemTray::new()
+  ///       .with_menu(
+  ///         SystemTrayMenu::new()
+  ///           .add_item(CustomMenuItem::new("quit", "Quit"))
+  ///           .add_item(CustomMenuItem::new("open", "Open"))
+  ///       )
+  ///       .build(app)?;
+  ///
+  ///       tray_handle.get_item("quit").set_enabled(false);
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn build<R: Runtime, M: Manager<R>>(
     mut self,
     manager: &M,

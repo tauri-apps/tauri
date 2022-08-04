@@ -34,6 +34,7 @@ use crate::http::{
   InvalidUri,
 };
 
+#[cfg(all(desktop, feature = "system-tray"))]
 use std::fmt;
 
 pub type TrayId = u16;
@@ -52,6 +53,7 @@ pub struct SystemTray {
   pub on_event: Option<Box<TrayEventHandler>>,
 }
 
+#[cfg(all(desktop, feature = "system-tray"))]
 impl fmt::Debug for SystemTray {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("SystemTray");
@@ -68,6 +70,7 @@ impl fmt::Debug for SystemTray {
   }
 }
 
+#[cfg(all(desktop, feature = "system-tray"))]
 impl Clone for SystemTray {
   fn clone(&self) -> Self {
     Self {
@@ -83,6 +86,7 @@ impl Clone for SystemTray {
   }
 }
 
+#[cfg(all(desktop, feature = "system-tray"))]
 impl Default for SystemTray {
   fn default() -> Self {
     Self {

@@ -604,7 +604,7 @@ macro_rules! shared_app_impl {
       /// Prefer [`Self::tray_handle_by_id`] when multiple system trays are created.
       ///
       /// # Examples
-      /// ```rust,no_run
+      /// ```
       /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
       ///
       /// tauri::Builder::default()
@@ -637,6 +637,28 @@ macro_rules! shared_app_impl {
 
 
       /// Gets a handle to a system tray by its id.
+      ///
+      /// ```
+      /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+      ///
+      /// tauri::Builder::default()
+      ///   .setup(|app| {
+      ///     let app_handle = app.handle();
+      ///     let tray_id = "my-tray";
+      ///     SystemTray::new()
+      ///       .with_id(tray_id)
+      ///       .with_menu(
+      ///         SystemTrayMenu::new()
+      ///           .add_item(CustomMenuItem::new("quit", "Quit"))
+      ///           .add_item(CustomMenuItem::new("open", "Open"))
+      ///       )
+      ///       .on_event(move |event| {
+      ///         let tray_handle = app_handle.tray_handle_by_id(tray_id).unwrap();
+      ///       })
+      ///       .build(app)?;
+      ///     Ok(())
+      ///   });
+      /// ```
       #[cfg(all(desktop, feature = "system-tray"))]
       #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
       pub fn tray_handle_by_id(&self, id: &str) -> Option<tray::SystemTrayHandle<R>> {
@@ -700,7 +722,7 @@ impl<R: Runtime> App<R> {
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```,no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
@@ -723,7 +745,7 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
+  /// ```
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let matches = app.get_cli_matches()?;
@@ -742,7 +764,7 @@ impl<R: Runtime> App<R> {
   /// Runs the application.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```,no_run
   /// let app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
@@ -780,7 +802,7 @@ impl<R: Runtime> App<R> {
   /// Additionally, the cleanup calls [AppHandle#remove_system_tray](`AppHandle#method.remove_system_tray`) (Windows only).
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```no_run
   /// let mut app = tauri::Builder::default()
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
@@ -859,7 +881,7 @@ impl<R: Runtime> App<R> {
 /// Builds a Tauri application.
 ///
 /// # Examples
-/// ```rust,no_run
+/// ```,no_run
 /// tauri::Builder::default()
 ///   // on an actual app, remove the string argument
 ///   .run(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
@@ -969,7 +991,7 @@ impl<R: Runtime> Builder<R> {
   /// Defines the JS message handler callback.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// #[tauri::command]
   /// fn command_1() -> String {
   ///   return "hello world".to_string();
@@ -1008,7 +1030,7 @@ impl<R: Runtime> Builder<R> {
   /// Defines the setup hook.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// use tauri::Manager;
   /// tauri::Builder::default()
   ///   .setup(|app| {
@@ -1104,7 +1126,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// Since the managed state is global and must be [`Send`] + [`Sync`], mutations can only happen through interior mutability:
   ///
-  /// ```rust,no_run
+  /// ```,no_run
   /// use std::{collections::HashMap, sync::Mutex};
   /// use tauri::State;
   /// // here we use Mutex to achieve interior mutability
@@ -1139,7 +1161,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// # Examples
   ///
-  /// ```rust,no_run
+  /// ```,no_run
   /// use tauri::State;
   ///
   /// struct MyInt(isize);
@@ -1182,7 +1204,7 @@ impl<R: Runtime> Builder<R> {
   /// Prefer the [`SystemTray#method.build`] method to create the tray at runtime instead.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
   ///
   /// tauri::Builder::default()
@@ -1203,7 +1225,7 @@ impl<R: Runtime> Builder<R> {
   /// Sets the menu to use on all windows.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
   ///
   /// tauri::Builder::default()
@@ -1227,7 +1249,7 @@ impl<R: Runtime> Builder<R> {
   /// Registers a menu event handler for all windows.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// use tauri::{Menu, MenuEntry, Submenu, CustomMenuItem, api, Manager};
   /// tauri::Builder::default()
   ///   .menu(Menu::with_items([
@@ -1267,7 +1289,7 @@ impl<R: Runtime> Builder<R> {
   /// Registers a window event handler for all windows.
   ///
   /// # Examples
-  /// ```rust,no_run
+  /// ```
   /// tauri::Builder::default()
   ///   .on_window_event(|event| match event.event() {
   ///     tauri::WindowEvent::Focused(focused) => {
@@ -1293,12 +1315,12 @@ impl<R: Runtime> Builder<R> {
   /// Prefer the [`SystemTray#method.on_event`] method when creating a tray at runtime instead.
   ///
   /// # Examples
-  /// ```rust,no_run
-  /// use tauri::Manager;
+  /// ```
+  /// use tauri::{Manager, SystemTrayEvent};
   /// tauri::Builder::default()
   ///   .on_system_tray_event(|app, event| match event {
   ///     // show window with id "main" when the tray is left clicked
-  ///     tauri::SystemTrayEvent::LeftClick { .. } => {
+  ///     SystemTrayEvent::LeftClick { .. } => {
   ///       let window = app.get_window("main").unwrap();
   ///       window.show().unwrap();
   ///       window.set_focus().unwrap();
@@ -1357,7 +1379,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// - Use a macOS Universal binary target name:
   ///
-  /// ```no_run
+  /// ```
   /// let mut builder = tauri::Builder::default();
   /// #[cfg(target_os = "macos")]
   /// {
@@ -1367,7 +1389,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// - Append debug information to the target:
   ///
-  /// ```no_run
+  /// ```
   /// let kind = if cfg!(debug_assertions) { "debug" } else { "release" };
   /// tauri::Builder::default()
   ///   .updater_target(format!("{}-{}", tauri::updater::target().unwrap(), kind));
@@ -1375,7 +1397,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// - Use the platform's target triple:
   ///
-  /// ```no_run
+  /// ```
   /// tauri::Builder::default()
   ///   .updater_target(tauri::utils::platform::target_triple().unwrap());
   /// ```

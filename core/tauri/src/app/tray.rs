@@ -568,7 +568,7 @@ impl<R: Runtime> SystemTrayHandle<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux**: Not supported.
+  /// - **Linux / macOS**: Not supported.
   pub fn destroy(&self) -> crate::Result<()> {
     self.inner.destroy().map_err(Into::into)
   }

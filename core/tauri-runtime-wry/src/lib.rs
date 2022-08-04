@@ -28,8 +28,6 @@ use tauri_runtime::{SystemTray, SystemTrayEvent};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
-#[cfg(all(feature = "system-tray", target_os = "macos"))]
-use wry::application::platform::macos::SystemTrayBuilderExtMacOS;
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
 #[cfg(target_os = "linux")]
@@ -2502,8 +2500,8 @@ fn handle_user_message<T: UserEvent>(
           }
           #[cfg(target_os = "macos")]
           TrayMessage::UpdateIconAsTemplate(is_template) => {
-            if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-              tray.lock().unwrap().set_icon_as_template(is_template);
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_icon_as_template(is_template);
             }
           }
           TrayMessage::Create(_tray, _tx) => {

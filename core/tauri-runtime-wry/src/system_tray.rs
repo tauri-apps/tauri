@@ -21,7 +21,9 @@ pub use wry::application::{
 };
 
 #[cfg(target_os = "macos")]
-pub use wry::application::platform::macos::CustomMenuItemExtMacOS;
+pub use wry::application::platform::macos::{
+  CustomMenuItemExtMacOS, SystemTrayBuilderExtMacOS, SystemTrayExtMacOS,
+};
 
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 

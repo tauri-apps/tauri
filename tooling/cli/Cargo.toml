@@ -39,7 +39,7 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.14"
 json-patch = "0.2"
-tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5" ] }
+tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.5"
 valico = "3.6"
 handlebars = "4.3"
@@ -47,7 +47,7 @@ include_dir = "0.7"
 minisign = "0.7"
 base64 = "0.13.0"
 ureq = "2.5"
-os_info = "3.4"
+os_info = "3.5"
 semver = "1.0"
 regex = "1.6.0"
 lazy_static = "1"
@@ -85,3 +85,14 @@ url = { version = "2.2", features = [ "serde" ] }
 
 [profile.release]
 lto = true
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/cli.rs-v{ version }/{ bin }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-fmt = "zip"

@@ -73,14 +73,12 @@ dirs-next = "2.0"
 percent-encoding = "2.1"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
-notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }
-attohttpc = { version = "0.19", features = [ "json", "form" ], optional = true }
+attohttpc = { version = "0.20", features = [ "compress", "json", "form" ], optional = true }
 open = { version = "3.0", optional = true }
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1.0", optional = true }
-rfd = { version = "0.10", optional = true }
 raw-window-handle = "0.5"
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
@@ -94,6 +92,10 @@ infer = { version = "0.8", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.1", optional = true }
 encoding_rs = "0.8.31"
+
+[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+rfd = { version = "0.10", optional = true }
+notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
@@ -109,9 +111,9 @@ objc = "0.2"
 webview2-com = "0.16.0"
 win7-notifications = { version = "0.3.0", optional = true }
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.37.0"
-  features = [ "Win32_Foundation" ]
+[target."cfg(windows)".dependencies.windows]
+version = "0.37.0"
+features = [ "Win32_Foundation" ]
 
 [build-dependencies]
 heck = "0.4"
@@ -149,6 +151,8 @@ http-multipart = [ "attohttpc/multipart-form", "reqwest/multipart" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
 fs-extract-api = [ "zip" ]
 reqwest-client = [ "reqwest", "bytes" ]
+reqwest-native-tls-vendored = [ "reqwest-client", "reqwest/native-tls-vendored" ]
+native-tls-vendored = [ "attohttpc/tls-vendored" ]
 process-command-api = [ "shared_child", "os_pipe" ]
 global-shortcut = [
   "tauri-runtime/global-shortcut",
@@ -283,6 +287,7 @@ window-set-cursor-position = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
+config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]
 icon-png = [ "infer", "png" ]
 

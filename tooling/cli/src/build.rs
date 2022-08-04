@@ -6,7 +6,9 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
+    config::{
+      get as get_config, AppUrl, BeforeBuildCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME,
+    },
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -84,10 +86,8 @@ pub fn command(mut options: Options) -> Result<()> {
   let config_ = config_guard.as_ref().unwrap();
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
-    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => {
-      merge_config_path.unwrap_or_else(|| source.into())
-    }
-    Some(source) => source.into(),
+    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
+    Some(source) => source,
     None => "tauri.conf.json".into(),
   };
 
@@ -114,23 +114,29 @@ pub fn command(mut options: Options) -> Result<()> {
     std::process::exit(1);
   }
 
-  if let Some(before_build) = &config_.build.before_build_command {
-    if !before_build.is_empty() {
+  if let Some(before_build) = config_.build.before_build_command.clone() {
+    let (script, script_cwd) = match before_build {
+      BeforeBuildCommand::Script(s) if s.is_empty() => (None, None),
+      BeforeBuildCommand::Script(s) => (Some(s), None),
+      BeforeBuildCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+    };
+    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+    if let Some(before_build) = script {
       info!(action = "Running"; "beforeBuildCommand `{}`", before_build);
       #[cfg(target_os = "windows")]
       let status = Command::new("cmd")
         .arg("/S")
         .arg("/C")
-        .arg(before_build)
-        .current_dir(app_dir())
+        .arg(&before_build)
+        .current_dir(cwd)
         .envs(command_env(options.debug))
         .piped()
         .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
       #[cfg(not(target_os = "windows"))]
       let status = Command::new("sh")
         .arg("-c")
-        .arg(before_build)
-        .current_dir(app_dir())
+        .arg(&before_build)
+        .current_dir(cwd)
         .envs(command_env(options.debug))
         .piped()
         .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;

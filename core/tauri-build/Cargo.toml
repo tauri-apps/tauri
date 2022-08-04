@@ -34,3 +34,4 @@ semver = "1"
 codegen = [ "tauri-codegen", "quote" ]
 isolation = [ "tauri-codegen/isolation", "tauri-utils/isolation" ]
 config-json5 = [ "tauri-utils/config-json5" ]
+config-toml = [ "tauri-utils/config-toml" ]

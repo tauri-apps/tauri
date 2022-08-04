@@ -352,7 +352,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, the value is ignored.
   #[must_use]
   pub fn theme(mut self, theme: Option<Theme>) -> Self {
     self.window_builder = self.window_builder.theme(theme);
@@ -436,7 +435,35 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
   // ------------------------------------------- Webview attributes -------------------------------------------
 
-  /// Sets the init script.
+  /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{WindowBuilder, Runtime};
+  ///
+  /// const INIT_SCRIPT: &str = r#"
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
+  ///
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
+  /// "#;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let window = tauri::WindowBuilder::new(app, "label", tauri::WindowUrl::App("index.html".into()))
+  ///         .initialization_script(INIT_SCRIPT)
+  ///         .build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
     self
@@ -560,11 +587,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(feature = "wry")]
-#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
+#[cfg(all(desktop, feature = "wry"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "wry"))))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(feature = "wry")]
+#[cfg(all(desktop, feature = "wry"))]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -671,7 +698,8 @@ impl Window<crate::Wry> {
   ///   });
   /// }
   /// ```
-  #[cfg_attr(doc_cfg, doc(cfg(eature = "wry")))]
+  #[cfg(desktop)]
+  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", desktop))))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,
@@ -908,7 +936,6 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS**: Only supported on macOS 10.14+.
-  /// - **Linux**: Not implemented, always return [`Theme::Light`].
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
   }

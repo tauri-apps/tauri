@@ -319,7 +319,7 @@ fn run_candle(
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
 
-  let args = vec![
+  let mut args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_path.to_string_lossy().to_string(),
@@ -328,6 +328,16 @@ fn run_candle(
       settings.binary_path(main_binary).display()
     ),
   ];
+
+  if settings
+    .windows()
+    .wix
+    .as_ref()
+    .map(|w| w.fips_compliant)
+    .unwrap_or_default()
+  {
+    args.push("-fips".into());
+  }
 
   let candle_exe = wix_toolset_path.join("candle.exe");
 

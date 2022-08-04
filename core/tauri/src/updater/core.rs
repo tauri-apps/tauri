@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::error::{Error, Result};
+#[cfg(desktop)]
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
@@ -20,6 +21,7 @@ use tauri_utils::{platform::current_exe, Env};
 use time::OffsetDateTime;
 use url::Url;
 
+#[cfg(desktop)]
 use std::io::Seek;
 use std::{
   collections::HashMap,
@@ -31,10 +33,10 @@ use std::{
   time::Duration,
 };
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 use std::ffi::OsStr;
 
-#[cfg(all(feature = "updater", not(target_os = "windows")))]
+#[cfg(all(desktop, not(target_os = "windows")))]
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
@@ -599,26 +601,30 @@ impl<R: Runtime> Update<R> {
     // if there is no signature, bail out.
     verify_signature(&mut archive_buffer, &self.signature, &pub_key)?;
 
-    // we copy the files depending of the operating system
-    // we run the setup, appimage re-install or overwrite the
-    // macos .app
-    #[cfg(target_os = "windows")]
-    copy_files_and_run(
-      archive_buffer,
-      &self.extract_path,
-      self.with_elevated_task,
-      self
-        .app
-        .config()
-        .tauri
-        .updater
-        .windows
-        .install_mode
-        .clone()
-        .msiexec_args(),
-    )?;
-    #[cfg(not(target_os = "windows"))]
-    copy_files_and_run(archive_buffer, &self.extract_path)?;
+    // TODO: implement updater in mobile
+    #[cfg(desktop)]
+    {
+      // we copy the files depending of the operating system
+      // we run the setup, appimage re-install or overwrite the
+      // macos .app
+      #[cfg(target_os = "windows")]
+      copy_files_and_run(
+        archive_buffer,
+        &self.extract_path,
+        self.with_elevated_task,
+        self
+          .app
+          .config()
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .clone()
+          .msiexec_args(),
+      )?;
+      #[cfg(not(target_os = "windows"))]
+      copy_files_and_run(archive_buffer, &self.extract_path)?;
+    }
 
     // We are done!
     Ok(())
@@ -878,6 +884,10 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
     Ok(false)
   })?;
+
+  let _ = std::process::Command::new("touch")
+    .arg(&extract_path)
+    .status();
 
   Ok(())
 }

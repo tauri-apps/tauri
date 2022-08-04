@@ -141,6 +141,11 @@ impl Interface for Rust {
       }
       manifest
     };
+
+    if let Some(minimum_system_version) = &config.tauri.bundle.macos.minimum_system_version {
+      std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+    }
+
     Ok(Self {
       app_settings: RustAppSettings::new(config, manifest)?,
       config_features: config.build.features.clone().unwrap_or_default(),

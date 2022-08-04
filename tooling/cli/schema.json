@@ -1442,11 +1442,6 @@
             "string",
             "null"
           ]
-        },
-        "fipsCompliant": {
-          "description": "Enables FIPS compliant algorithms.",
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false

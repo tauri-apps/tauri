@@ -10,6 +10,9 @@
   "cpu": [
     "arm64"
   ],
+  "libc": [
+    "glibc"
+  ],
   "main": "cli.linux-arm64-gnu.node",
   "files": [
     "cli.linux-arm64-gnu.node"

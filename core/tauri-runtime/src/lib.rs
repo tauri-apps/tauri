@@ -62,8 +62,7 @@ impl fmt::Debug for SystemTray {
       .field("menu", &self.menu);
     #[cfg(target_os = "macos")]
     {
-      d = d
-        .field("icon_as_template", &self.icon_as_template)
+      d.field("icon_as_template", &self.icon_as_template)
         .field("menu_on_left_click", &self.menu_on_left_click);
     }
     d.finish()

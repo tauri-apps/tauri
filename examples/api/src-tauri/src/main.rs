@@ -178,12 +178,14 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
     .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("exit_app", "Quit"));
+    .add_item(CustomMenuItem::new("exit_app", "Quit"))
+    .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let tray_menu2 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("exit_app", "Quit"));
+    .add_item(CustomMenuItem::new("exit_app", "Quit"))
+    .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let is_menu1 = AtomicBool::new(true);
 
   let handle = app.handle();
@@ -209,6 +211,9 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             "exit_app" => {
               // exit the app
               handle.exit(0);
+            }
+            "destroy" => {
+              tray_handle.destroy().unwrap();
             }
             "toggle" => {
               let window = handle.get_window("main").unwrap();

@@ -360,7 +360,6 @@ fn run_candle(
 
 /// Runs the Light.exe file. Light takes the generated code from Candle and produces an MSI Installer.
 fn run_light(
-  settings: &Settings,
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
@@ -379,16 +378,6 @@ fn run_light(
   ];
 
   args.extend(arguments);
-
-  if settings
-    .windows()
-    .wix
-    .as_ref()
-    .map(|w| w.skip_msi_validation)
-    .unwrap_or_default()
-  {
-    args.push("-sval".into());
-  }
 
   let mut cmd = Command::new(&light_exe);
   for ext in extensions {
@@ -874,7 +863,6 @@ pub fn build_wix_app_installer(
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
     run_light(
-      settings,
       wix_toolset_path,
       &output_path,
       arguments,

@@ -1309,7 +1309,7 @@ mod test {
   }
 
   #[test]
-  fn http_updater_fallback_urls_withs_array() {
+  fn http_updater_fallback_urls_with_array() {
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")

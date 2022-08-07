@@ -520,7 +520,7 @@ impl<R: Runtime> Update<R> {
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
-    // anythin with it yet
+    // anything with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
       return Err(Error::UnsupportedLinuxPackage);

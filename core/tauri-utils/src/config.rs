@@ -2551,7 +2551,7 @@ pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file contaning the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }

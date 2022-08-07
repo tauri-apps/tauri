@@ -358,7 +358,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(

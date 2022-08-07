@@ -802,13 +802,18 @@ fn copy_files_and_run<R: Read + Seek>(
       msi_path_arg.push("\"\"\"");
 
       // run the installer and relaunch the application
-      let powershell_install_res = Command::new("powershell.exe")
+      let system_root = std::env::var("SYSTEMROOT");
+      let powershell_path = system_root.as_ref().map_or_else(
+        |_| "powershell.exe".to_string(),
+        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+      );
+      let powershell_install_res = Command::new(powershell_path)
         .args(["-NoProfile", "-windowstyle", "hidden"])
         .args([
           "Start-Process",
           "-Wait",
           "-FilePath",
-          "msiexec",
+          "$env:SYSTEMROOT\\System32\\msiexec.exe",
           "-ArgumentList",
         ])
         .arg("/i,")
@@ -820,7 +825,11 @@ fn copy_files_and_run<R: Read + Seek>(
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow
-        let _ = Command::new("msiexec.exe")
+        let msiexec_path = system_root.as_ref().map_or_else(
+          |_| "msiexec.exe".to_string(),
+          |p| format!("{p}\\System32\\msiexec.exe"),
+        );
+        let _ = Command::new(msiexec_path)
           .arg("/i")
           .arg(found_path)
           .args(msiexec_args)

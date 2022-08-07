@@ -930,7 +930,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> crate::Result<Pa
 
   if found.len() > 1 {
     return Err(anyhow::anyhow!(
-        "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
+        "only one package manager should be used, but found {}\nplease remove unused package manager lock files",
         found.join(" and ")
       ));
   }

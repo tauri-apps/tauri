@@ -420,7 +420,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     // Extracted remote metadata
     let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
-    // did the announced version is greater than our current one?
+    // is the announced version greater than our current one?
     let should_update = if let Some(comparator) = self.should_install.take() {
       comparator(&self.current_version, &final_release)
     } else {

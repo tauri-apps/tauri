@@ -363,7 +363,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     let mut last_error: Option<Error> = None;
     for url in &self.urls {
       // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
-      // this is usefull if we need to query example
+      // this is useful if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
       // will be translated into ->
       // https://releases.myapp.com/update/darwin/aarch64/1.0.0

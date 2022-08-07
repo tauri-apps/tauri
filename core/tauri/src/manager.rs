@@ -215,7 +215,7 @@ pub struct InnerWindowManager<R: Runtime> {
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
-  /// The webview protocols protocols available to all windows.
+  /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,

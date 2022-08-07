@@ -473,7 +473,7 @@ impl SettingsBuilder {
   ///
   /// Package settings will be read from Cargo.toml.
   ///
-  /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
+  /// Bundle settings will be read from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn build(self) -> crate::Result<Settings> {
     let target = if let Some(t) = self.target {
       t

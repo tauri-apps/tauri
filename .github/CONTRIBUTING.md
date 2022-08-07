@@ -87,4 +87,4 @@ The JS API provides bindings between the developer's JS in the Webview and the b
 
 ## Financial Contribution
 
-Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [Github Sponsors](https://github.com/sponsors/nothingismagick) or [Open Collective](https://opencollective.com/tauri). We prefer Github Sponsors as donations made are doubled through the matching fund program.
+Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [GitHub Sponsors](https://github.com/sponsors/nothingismagick) or [Open Collective](https://opencollective.com/tauri). We prefer GitHub Sponsors as donations made are doubled through the matching fund program.

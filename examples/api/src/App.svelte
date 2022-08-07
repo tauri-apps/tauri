@@ -314,7 +314,7 @@
       target="_blank"
       href="https://github.com/tauri-apps/tauri"
     >
-      Github
+      GitHub
       <span class="i-codicon-link-external" />
     </a>
     <a

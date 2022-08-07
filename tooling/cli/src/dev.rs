@@ -308,8 +308,7 @@ fn kill_before_dev_process() {
       .unwrap()
       .store(true, Ordering::Relaxed);
     #[cfg(windows)]
-    let system_root = std::env::var("SYSTEMROOT");
-    let powershell_path = system_root.as_ref().map_or_else(
+    let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
       |_| "powershell.exe".to_string(),
       |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
     );

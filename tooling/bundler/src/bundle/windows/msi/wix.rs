@@ -25,7 +25,7 @@ use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 use zip::ZipArchive;
 
-// URLS for the WIX toolchain.  Can be used for crossplatform compilation.
+// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";

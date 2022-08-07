@@ -844,7 +844,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }

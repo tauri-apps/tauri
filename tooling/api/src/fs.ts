@@ -456,7 +456,7 @@ async function removeDir(
 }
 
 /**
- * Copys a file to a destination.
+ * Copies a file to a destination.
  * @example
  * ```typescript
  * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';

@@ -52,13 +52,13 @@ impl CodegenContext {
   ///
   /// **Note:** This path should be relative to the `OUT_DIR`.
   ///
-  /// Don't set this if you are using [`tauri::include_codegen_context!`] as that helper macro
+  /// Don't set this if you are using [`tauri::tauri_build_context!`] as that helper macro
   /// expects the default value. This option can be useful if you are not using the helper and
   /// instead using [`std::include!`] on the generated code yourself.
   ///
   /// Defaults to `tauri-build-context.rs`.
   ///
-  /// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
+  /// [`tauri::tauri_build_context!`]: https://docs.rs/tauri/latest/tauri/macro.tauri_build_context.html
   #[must_use]
   pub fn out_file(mut self, filename: PathBuf) -> Self {
     self.out_file = filename;
@@ -98,7 +98,7 @@ impl CodegenContext {
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from
       // outside the tauri crate, making the ::tauri root valid.
-      root: quote::quote!(::tauri::Context),
+      root: quote::quote!(::tauri),
     })?;
 
     // get the full output file path

@@ -415,9 +415,6 @@ fn ico_icon<P: AsRef<Path>>(
   out_dir: &Path,
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
@@ -434,17 +431,10 @@ fn ico_icon<P: AsRef<Path>>(
   let height = entry.height();
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&rgba)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
@@ -454,26 +444,16 @@ fn ico_icon<P: AsRef<Path>>(
 
 #[cfg(target_os = "macos")]
 fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&bytes)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
@@ -486,9 +466,6 @@ fn png_icon<P: AsRef<Path>>(
   out_dir: &Path,
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
     .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
@@ -505,22 +482,29 @@ fn png_icon<P: AsRef<Path>>(
   let height = reader.info().height;
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&buffer)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
   let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
   Ok(icon)
+}
+
+fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
+  use std::fs::File;
+  use std::io::Write;
+
+  if let Ok(curr) = std::fs::read(&out_path) {
+    if curr == data {
+      return Ok(());
+    }
+  }
+
+  let mut out_file = File::create(&out_path)?;
+  out_file.write_all(data)
 }
 
 #[cfg(any(windows, target_os = "macos", target_os = "linux"))]

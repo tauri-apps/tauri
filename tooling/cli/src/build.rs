@@ -7,7 +7,8 @@ use crate::{
     app_paths::{app_dir, tauri_dir},
     command_env,
     config::{
-      get as get_config, AppUrl, BeforeBuildCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME,
+      get as get_config, AppUrl, BeforeBuildCommand, BeforeBundleCommand, WindowUrl,
+      MERGE_CONFIG_EXTENSION_NAME,
     },
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
@@ -197,6 +198,43 @@ pub fn command(mut options: Options) -> Result<()> {
   let out_dir = bin_path.parent().unwrap();
 
   interface.build(interface_options)?;
+
+  if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
+    let (script, script_cwd) = match before_bundle {
+      BeforeBundleCommand::Script(s) if s.is_empty() => (None, None),
+      BeforeBundleCommand::Script(s) => (Some(s), None),
+      BeforeBundleCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+    };
+    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+    if let Some(before_bundle) = script {
+      info!(action = "Running"; "beforeBundleCommand `{}`", before_bundle);
+      #[cfg(target_os = "windows")]
+      let status = Command::new("cmd")
+        .arg("/S")
+        .arg("/C")
+        .arg(&before_bundle)
+        .current_dir(cwd)
+        .envs(command_env(options.debug))
+        .piped()
+        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_bundle))?;
+      #[cfg(not(target_os = "windows"))]
+      let status = Command::new("sh")
+        .arg("-c")
+        .arg(&before_bundle)
+        .current_dir(cwd)
+        .envs(command_env(options.debug))
+        .piped()
+        .with_context(|| format!("failed to run `{}` with `sh -c`", before_bundle))?;
+
+      if !status.success() {
+        bail!(
+          "beforeBundleCommand `{}` failed with exit code {}",
+          before_bundle,
+          status.code().unwrap_or_default()
+        );
+      }
+    }
+  }
 
   let app_settings = interface.app_settings();
 

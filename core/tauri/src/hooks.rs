@@ -61,6 +61,7 @@ impl PageLoadPayload {
 #[derive(Debug, Deserialize)]
 pub struct InvokePayload {
   /// The invoke command.
+  #[serde(rename = "__cmd")]
   pub cmd: String,
   #[serde(rename = "__tauriModule")]
   #[doc(hidden)]

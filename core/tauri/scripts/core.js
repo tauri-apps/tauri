@@ -60,7 +60,7 @@
       }, true)
 
       if (typeof cmd === 'string') {
-        args.cmd = cmd
+        args.__cmd = cmd
       } else if (typeof cmd === 'object') {
         args = cmd
       } else {

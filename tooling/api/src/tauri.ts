@@ -82,7 +82,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     }, true)
 
     window.__TAURI_IPC__({
-      cmd,
+      __cmd: cmd,
       callback,
       error,
       ...args

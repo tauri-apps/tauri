@@ -15,7 +15,7 @@ if ((Test-Admin) -eq $false) {
     }
     else {
         $ArgList = ('-File "{0}" -Elevated' -f $myinvocation.MyCommand.Definition)
-        Start-Process powershell.exe -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
+        Start-Process "$env:SYSTEMROOT\System32\WindowsPowerShell\v1.0\powershell.exe" -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
     }
     exit
 }

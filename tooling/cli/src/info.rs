@@ -286,8 +286,12 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
 #[cfg(windows)]
 fn webview2_version() -> crate::Result<Option<String>> {
+  let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
+    |_| "powershell.exe".to_string(),
+    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+  );
   // check 64bit machine-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
       .args(&["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
@@ -297,7 +301,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
     ));
   }
   // check 32bit machine-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
         .args(&["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
@@ -307,7 +311,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
     ));
   }
   // check user-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
       .args(&["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;

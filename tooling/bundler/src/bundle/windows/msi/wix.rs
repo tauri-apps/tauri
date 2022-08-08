@@ -380,7 +380,7 @@ fn run_light(
 
   args.extend(arguments);
 
-  /*if settings
+  if settings
     .windows()
     .wix
     .as_ref()
@@ -388,8 +388,7 @@ fn run_light(
     .unwrap_or_default()
   {
     args.push("-sval".into());
-  }*/
-  args.push("-sval".into());
+  }
 
   let mut cmd = Command::new(&light_exe);
   for ext in extensions {

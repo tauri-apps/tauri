@@ -5,12 +5,10 @@
 name: Udeps
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/udeps.yml'
-      - 'core/**'
-      - 'tooling/bundler/**'
-      - 'tooling/cli/**'
+  push:
+    branches:
+      - dev
+      - next
 
 env:
   RUST_BACKTRACE: 1

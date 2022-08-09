@@ -6,10 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{
-      get as get_config, AppUrl, BeforeBuildCommand, BeforeBundleCommand, WindowUrl,
-      MERGE_CONFIG_EXTENSION_NAME,
-    },
+    config::{get as get_config, AppUrl, HookCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -117,9 +114,9 @@ pub fn command(mut options: Options) -> Result<()> {
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
     let (script, script_cwd) = match before_build {
-      BeforeBuildCommand::Script(s) if s.is_empty() => (None, None),
-      BeforeBuildCommand::Script(s) => (Some(s), None),
-      BeforeBuildCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+      HookCommand::Script(s) if s.is_empty() => (None, None),
+      HookCommand::Script(s) => (Some(s), None),
+      HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
     };
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
     if let Some(before_build) = script {
@@ -201,9 +198,9 @@ pub fn command(mut options: Options) -> Result<()> {
 
   if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
     let (script, script_cwd) = match before_bundle {
-      BeforeBundleCommand::Script(s) if s.is_empty() => (None, None),
-      BeforeBundleCommand::Script(s) => (Some(s), None),
-      BeforeBundleCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+      HookCommand::Script(s) if s.is_empty() => (None, None),
+      HookCommand::Script(s) => (Some(s), None),
+      HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
     };
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
     if let Some(before_bundle) = script {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -242,10 +243,12 @@ fn parse_arg(
     ));
   }
 
-  if let ArgumentCase::Camel = case {
-    // snake_case -> camelCase
-    if key.as_str().contains('_') {
-      key = snake_case_to_camel_case(key.as_str());
+  match case {
+    ArgumentCase::Camel => {
+      key = key.to_lower_camel_case();
+    }
+    ArgumentCase::Snake => {
+      key = key.to_snake_case();
     }
   }
 
@@ -256,20 +259,4 @@ fn parse_arg(
       message: &#message,
     }
   )))
-}
-
-/// Convert a snake_case string into camelCase, no underscores will be left.
-fn snake_case_to_camel_case(key: &str) -> String {
-  let mut camel = String::with_capacity(key.len());
-  let mut to_upper = false;
-
-  for c in key.chars() {
-    match c {
-      '_' => to_upper = true,
-      c if std::mem::take(&mut to_upper) => camel.push(c.to_ascii_uppercase()),
-      c => camel.push(c),
-    }
-  }
-
-  camel
 }

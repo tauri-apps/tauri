@@ -314,6 +314,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
       let info_plist_path = out_path.display().to_string();
       quote!({
+        #[cfg(desktop)]
         tauri::embed_plist::embed_info_plist!(#info_plist_path);
       })
     } else {

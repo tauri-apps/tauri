@@ -7,11 +7,54 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
   ext::IdentExt,
-  parse::{Parse, ParseBuffer},
+  parse::{Parse, ParseStream},
   parse_macro_input,
   spanned::Spanned,
-  FnArg, Ident, ItemFn, Pat, Token, Visibility,
+  Expr, ExprAssign, FnArg, Ident, ItemFn, Lit, Pat, Token, Visibility,
 };
+
+struct WrapperAttributes {
+  execution_context: ExecutionContext,
+  argument_case: ArgumentCase,
+}
+
+impl Parse for WrapperAttributes {
+  fn parse(input: ParseStream) -> syn::Result<Self> {
+    let execution_context = input
+      .parse::<Token![async]>()
+      .map(|_| ExecutionContext::Async)
+      .unwrap_or(ExecutionContext::Blocking);
+
+    let _ = input.parse::<Token![,]>();
+
+    let mut argument_case = ArgumentCase::Camel;
+    if let Ok(assign) = input.parse::<ExprAssign>() {
+      if let Expr::Path(i) = *assign.left {
+        if i.path.is_ident("rename_all") {
+          if let Expr::Lit(l) = *assign.right {
+            if let Lit::Str(s) = l.lit {
+              argument_case = match s.value().as_str() {
+                "snake_case" => ArgumentCase::Snake,
+                "camelCase" => ArgumentCase::Camel,
+                _ => {
+                  return Err(syn::Error::new(
+                    i.span(),
+                    "expected \"camelCase\" or \"snake_case\"",
+                  ))
+                }
+              };
+            }
+          }
+        }
+      }
+    }
+
+    Ok(Self {
+      execution_context,
+      argument_case,
+    })
+  }
+}
 
 /// The execution context of the command.
 enum ExecutionContext {
@@ -19,22 +62,11 @@ enum ExecutionContext {
   Blocking,
 }
 
-impl Parse for ExecutionContext {
-  fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
-    if input.is_empty() {
-      return Ok(Self::Blocking);
-    }
-
-    input
-      .parse::<Token![async]>()
-      .map(|_| Self::Async)
-      .map_err(|_| {
-        syn::Error::new(
-          input.span(),
-          "only a single item `async` is currently allowed",
-        )
-      })
-  }
+/// The case of each argument name.
+#[derive(Copy, Clone)]
+enum ArgumentCase {
+  Snake,
+  Camel,
 }
 
 /// The bindings we attach to `tauri::Invoke`.
@@ -61,14 +93,16 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   };
 
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
-  let body = syn::parse::<ExecutionContext>(attributes)
-    .map(|context| match function.sig.asyncness {
-      Some(_) => ExecutionContext::Async,
-      None => context,
+  let body = syn::parse::<WrapperAttributes>(attributes)
+    .and_then(|mut attrs| {
+      if function.sig.asyncness.is_some() {
+        attrs.execution_context = ExecutionContext::Async;
+      }
+      Ok(attrs)
     })
-    .and_then(|context| match context {
-      ExecutionContext::Async => body_async(&function, &invoke),
-      ExecutionContext::Blocking => body_blocking(&function, &invoke),
+    .and_then(|attrs| match attrs.execution_context {
+      ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),
+      ExecutionContext::Blocking => body_blocking(&function, &invoke, attrs.argument_case),
     })
     .unwrap_or_else(syn::Error::into_compile_error);
 
@@ -105,9 +139,9 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
-fn body_async(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
+fn body_async(function: &ItemFn, invoke: &Invoke, case: ArgumentCase) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
-  parse_args(function, message).map(|args| {
+  parse_args(function, message, case).map(|args| {
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
@@ -123,9 +157,13 @@ fn body_async(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
 /// See the [`tauri::command`] module for all the items and traits that make this possible.
 ///
 /// [`tauri::command`]: https://docs.rs/tauri/*/tauri/runtime/index.html
-fn body_blocking(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
+fn body_blocking(
+  function: &ItemFn,
+  invoke: &Invoke,
+  case: ArgumentCase,
+) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
-  let args = parse_args(function, message)?;
+  let args = parse_args(function, message, case)?;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -141,17 +179,26 @@ fn body_blocking(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2
 }
 
 /// Parse all arguments for the command wrapper to use from the signature of the command function.
-fn parse_args(function: &ItemFn, message: &Ident) -> syn::Result<Vec<TokenStream2>> {
+fn parse_args(
+  function: &ItemFn,
+  message: &Ident,
+  case: ArgumentCase,
+) -> syn::Result<Vec<TokenStream2>> {
   function
     .sig
     .inputs
     .iter()
-    .map(|arg| parse_arg(&function.sig.ident, arg, message))
+    .map(|arg| parse_arg(&function.sig.ident, arg, message, case))
     .collect()
 }
 
 /// Transform a [`FnArg`] into a command argument.
-fn parse_arg(command: &Ident, arg: &FnArg, message: &Ident) -> syn::Result<TokenStream2> {
+fn parse_arg(
+  command: &Ident,
+  arg: &FnArg,
+  message: &Ident,
+  case: ArgumentCase,
+) -> syn::Result<TokenStream2> {
   // we have no use for self arguments
   let mut arg = match arg {
     FnArg::Typed(arg) => arg.pat.as_ref().clone(),
@@ -185,9 +232,11 @@ fn parse_arg(command: &Ident, arg: &FnArg, message: &Ident) -> syn::Result<Token
     ));
   }
 
-  // snake_case -> camelCase
-  if key.as_str().contains('_') {
-    key = snake_case_to_camel_case(key.as_str());
+  if let ArgumentCase::Camel = case {
+    // snake_case -> camelCase
+    if key.as_str().contains('_') {
+      key = snake_case_to_camel_case(key.as_str());
+    }
   }
 
   Ok(quote!(::tauri::command::CommandArg::from_command(

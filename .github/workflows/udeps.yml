@@ -228,6 +228,8 @@ jobs:
           name: udeps
           path: '~/.cargo/bin'
 
+      - run: chmod +x $HOME/.cargo/bin/cargo-udeps
+
       - name: Install required packages
         run: |
           sudo apt-get update

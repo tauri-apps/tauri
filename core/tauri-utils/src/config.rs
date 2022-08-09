@@ -2455,7 +2455,7 @@ pub struct BuildConfig {
   /// A shell command to run before the bundling phase in `tauri build` kicks in.
   ///
   /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
-  #[serde(alias = "before-build-command")]
+  #[serde(alias = "before-bundle-command")]
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,

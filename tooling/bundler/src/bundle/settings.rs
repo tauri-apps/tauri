@@ -237,6 +237,8 @@ pub struct WixSettings {
 
   /// The required dimensions are 493px × 312px.
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  pub fips_compliant: bool,
 }
 
 /// The Windows bundle settings.

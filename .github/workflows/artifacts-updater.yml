@@ -11,10 +11,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
-      - 'core/tauri/**'
-      - 'tooling/cli/**'
-      - 'tooling/bundler/**'
       - 'examples/updater/**'
+  workflow_dispatch:
 
 env:
   RUST_BACKTRACE: 1

@@ -2394,11 +2394,11 @@ pub enum BeforeDevCommand {
   },
 }
 
-/// Describes the shell command to run before `tauri build`.
+/// Describes a shell command to be executed when a CLI hook is triggered.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", untagged)]
-pub enum BeforeBuildCommand {
+pub enum HookCommand {
   /// Run the given script with the default options.
   Script(String),
   /// Run the given script with custom options.
@@ -2449,7 +2449,12 @@ pub struct BuildConfig {
   ///
   /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
   #[serde(alias = "before-build-command")]
-  pub before_build_command: Option<BeforeBuildCommand>,
+  pub before_build_command: Option<HookCommand>,
+  /// A shell command to run before the bundling phase in `tauri build` kicks in.
+  ///
+  /// The TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG environment variables are set if you perform conditional compilation.
+  #[serde(alias = "before-build-command")]
+  pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
@@ -2465,6 +2470,7 @@ impl Default for BuildConfig {
       dist_dir: default_dist_dir(),
       before_dev_command: None,
       before_build_command: None,
+      before_bundle_command: None,
       features: None,
       with_global_tauri: false,
     }
@@ -2677,6 +2683,7 @@ fn default_build() -> BuildConfig {
     dist_dir: default_dist_dir(),
     before_dev_command: None,
     before_build_command: None,
+    before_bundle_command: None,
     features: None,
     with_global_tauri: false,
   }
@@ -3144,6 +3151,7 @@ mod build {
       let runner = quote!(None);
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
+      let before_bundle_command = quote!(None);
       let features = quote!(None);
 
       literal_struct!(
@@ -3155,6 +3163,7 @@ mod build {
         with_global_tauri,
         before_dev_command,
         before_build_command,
+        before_bundle_command,
         features
       );
     }
@@ -3555,6 +3564,7 @@ mod test {
       dist_dir: AppUrl::Url(WindowUrl::App("../dist".into())),
       before_dev_command: None,
       before_build_command: None,
+      before_bundle_command: None,
       features: None,
       with_global_tauri: false,
     };

@@ -100,50 +100,52 @@ jobs:
       matrix:
         clippy:
           - {
-              needs: 'tauri',
+              needs: "${{ needs.changes.outputs.tauri == 'true' }}",
               path: './core/tauri/Cargo.toml',
               args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart'
             }
           - {
-              needs: 'build',
+              needs: "${{ needs.changes.outputs.build == 'true' }}",
               path: './core/tauri-build/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'codegen',
+              needs: "${{ needs.changes.outputs.codegen == 'true' }}",
               path: './core/tauri-codegen/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'macros',
+              needs: "${{ needs.changes.outputs.macros == 'true' }}",
               path: './core/tauri-macros/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'runtime',
+              needs: "${{ needs.changes.outputs.runtime == 'true' }}",
               path: './core/tauri-runtime/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'wry',
+              needs: "${{ needs.changes.outputs.wry == 'true' }}",
               path: './core/tauri-runtime-wry/Cargo.toml',
               args: '--features devtools,system-tray,macos-private-api,objc-exception'
             }
           - {
-              needs: 'utils',
+              needs: "${{ needs.changes.outputs.utils == 'true' }}",
               path: './core/tauri-utils/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'bundler',
+              needs: "${{ needs.changes.outputs.bundler == 'true' }}",
               path: './tooling/bundler/Cargo.toml',
               args: '--all-features'
             }
           - {
-              needs: 'cli',
+              needs: "${{ needs.changes.outputs.cli == 'true' }}",
               path: './tooling/cli/Cargo.toml',
               args: '--all-features'
             }
+        exclude:
+          - clippy: { needs: 'false' }
     steps:
       - uses: actions/checkout@v2
 

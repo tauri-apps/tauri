@@ -107,16 +107,16 @@ jobs:
           CLI: ${{ needs.changes.outputs.cli == 'true' }}
         run: |
           crates=()
-          if [ ${TAURI} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri\""; fi
-          if [ ${BUILD} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-build\""; fi
-          if [ ${CODEGEN} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-codegen\""; fi
-          if [ ${MACROS} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-macros\""; fi
-          if [ ${RUNTIME} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime\""; fi
-          if [ {WRY} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime-wry\""; fi
-          if [ ${UTILS} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
-          if [ ${BUNDLER} == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
-          if [ ${CLI} == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
-          echo ::set-output name=matrix::{\"include\":[$crates]}
+          if [ "${TAURI}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri\""; fi
+          if [ "${BUILD}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-build\""; fi
+          if [ "${CODEGEN}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-codegen\""; fi
+          if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-macros\""; fi
+          if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime\""; fi
+          if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime-wry\""; fi
+          if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
+          if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
+          if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
+          echo ::set-output name=matrix::[$crates]
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 

@@ -31,7 +31,10 @@ struct Reply {
 fn main() {
   #[allow(unused_mut)]
   let mut builder = tauri::Builder::default()
-    .setup(|app| {
+    .setup(move |app| {
+      #[cfg(desktop)]
+      create_tray(app)?;
+
       #[allow(unused_mut)]
       let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
         .title("Tauri API Validation")
@@ -100,99 +103,6 @@ fn main() {
     builder = builder.menu(tauri::Menu::os_default("Tauri API Validation"));
   }
 
-  #[cfg(desktop)]
-  {
-    let tray_menu1 = SystemTrayMenu::new()
-      .add_item(CustomMenuItem::new("toggle", "Toggle"))
-      .add_item(CustomMenuItem::new("new", "New window"))
-      .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
-      .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
-      .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-      .add_item(CustomMenuItem::new("exit_app", "Quit"));
-    let tray_menu2 = SystemTrayMenu::new()
-      .add_item(CustomMenuItem::new("toggle", "Toggle"))
-      .add_item(CustomMenuItem::new("new", "New window"))
-      .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-      .add_item(CustomMenuItem::new("exit_app", "Quit"));
-    let is_menu1 = AtomicBool::new(true);
-
-    builder = builder
-      .system_tray(SystemTray::new().with_menu(tray_menu1.clone()))
-      .on_system_tray_event(move |app, event| match event {
-        SystemTrayEvent::LeftClick {
-          position: _,
-          size: _,
-          ..
-        } => {
-          let window = app.get_window("main").unwrap();
-          window.show().unwrap();
-          window.set_focus().unwrap();
-        }
-        SystemTrayEvent::MenuItemClick { id, .. } => {
-          let item_handle = app.tray_handle().get_item(&id);
-          match id.as_str() {
-            "exit_app" => {
-              // exit the app
-              app.exit(0);
-            }
-            "toggle" => {
-              let window = app.get_window("main").unwrap();
-              let new_title = if window.is_visible().unwrap() {
-                window.hide().unwrap();
-                "Show"
-              } else {
-                window.show().unwrap();
-                "Hide"
-              };
-              item_handle.set_title(new_title).unwrap();
-            }
-            "new" => {
-              WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
-                .title("Tauri")
-                .build()
-                .unwrap();
-            }
-            "icon_1" => {
-              #[cfg(target_os = "macos")]
-              app.tray_handle().set_icon_as_template(true).unwrap();
-
-              app
-                .tray_handle()
-                .set_icon(tauri::Icon::Raw(
-                  include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
-                ))
-                .unwrap();
-            }
-            "icon_2" => {
-              #[cfg(target_os = "macos")]
-              app.tray_handle().set_icon_as_template(true).unwrap();
-
-              app
-                .tray_handle()
-                .set_icon(tauri::Icon::Raw(
-                  include_bytes!("../../../.icons/icon.ico").to_vec(),
-                ))
-                .unwrap();
-            }
-            "switch_menu" => {
-              let flag = is_menu1.load(Ordering::Relaxed);
-              app
-                .tray_handle()
-                .set_menu(if flag {
-                  tray_menu2.clone()
-                } else {
-                  tray_menu1.clone()
-                })
-                .unwrap();
-              is_menu1.store(!flag, Ordering::Relaxed);
-            }
-            _ => {}
-          }
-        }
-        _ => {}
-      });
-  }
-
   #[allow(unused_mut)]
   let mut app = builder
     .invoke_handler(tauri::generate_handler![
@@ -258,4 +168,107 @@ fn main() {
     }
     _ => {}
   })
+}
+
+#[cfg(desktop)]
+fn create_tray(app: &tauri::App) -> tauri::Result<()> {
+  let tray_menu1 = SystemTrayMenu::new()
+    .add_item(CustomMenuItem::new("toggle", "Toggle"))
+    .add_item(CustomMenuItem::new("new", "New window"))
+    .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
+    .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
+    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("exit_app", "Quit"))
+    .add_item(CustomMenuItem::new("destroy", "Destroy"));
+  let tray_menu2 = SystemTrayMenu::new()
+    .add_item(CustomMenuItem::new("toggle", "Toggle"))
+    .add_item(CustomMenuItem::new("new", "New window"))
+    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("exit_app", "Quit"))
+    .add_item(CustomMenuItem::new("destroy", "Destroy"));
+  let is_menu1 = AtomicBool::new(true);
+
+  let handle = app.handle();
+  let tray_id = "my-tray".to_string();
+  SystemTray::new()
+    .with_id(&tray_id)
+    .with_menu(tray_menu1.clone())
+    .on_event(move |event| {
+      let tray_handle = handle.tray_handle_by_id(&tray_id).unwrap();
+      match event {
+        SystemTrayEvent::LeftClick {
+          position: _,
+          size: _,
+          ..
+        } => {
+          let window = handle.get_window("main").unwrap();
+          window.show().unwrap();
+          window.set_focus().unwrap();
+        }
+        SystemTrayEvent::MenuItemClick { id, .. } => {
+          let item_handle = tray_handle.get_item(&id);
+          match id.as_str() {
+            "exit_app" => {
+              // exit the app
+              handle.exit(0);
+            }
+            "destroy" => {
+              tray_handle.destroy().unwrap();
+            }
+            "toggle" => {
+              let window = handle.get_window("main").unwrap();
+              let new_title = if window.is_visible().unwrap() {
+                window.hide().unwrap();
+                "Show"
+              } else {
+                window.show().unwrap();
+                "Hide"
+              };
+              item_handle.set_title(new_title).unwrap();
+            }
+            "new" => {
+              WindowBuilder::new(&handle, "new", WindowUrl::App("index.html".into()))
+                .title("Tauri")
+                .build()
+                .unwrap();
+            }
+            "icon_1" => {
+              #[cfg(target_os = "macos")]
+              tray_handle.set_icon_as_template(true).unwrap();
+
+              tray_handle
+                .set_icon(tauri::Icon::Raw(
+                  include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
+                ))
+                .unwrap();
+            }
+            "icon_2" => {
+              #[cfg(target_os = "macos")]
+              tray_handle.set_icon_as_template(true).unwrap();
+
+              tray_handle
+                .set_icon(tauri::Icon::Raw(
+                  include_bytes!("../../../.icons/icon.ico").to_vec(),
+                ))
+                .unwrap();
+            }
+            "switch_menu" => {
+              let flag = is_menu1.load(Ordering::Relaxed);
+              tray_handle
+                .set_menu(if flag {
+                  tray_menu2.clone()
+                } else {
+                  tray_menu1.clone()
+                })
+                .unwrap();
+              is_menu1.store(!flag, Ordering::Relaxed);
+            }
+            _ => {}
+          }
+        }
+        _ => {}
+      }
+    })
+    .build(app)
+    .map(|_| ())
 }

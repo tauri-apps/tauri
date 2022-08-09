@@ -196,6 +196,8 @@ fn replace_csp_nonce(
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
+  #[cfg(all(desktop, feature = "system-tray"))]
+  pub(crate) trays: Mutex<HashMap<String, crate::SystemTrayHandle<R>>>,
   pub(crate) plugins: Mutex<PluginStore<R>>,
   listeners: Listeners,
   pub(crate) state: Arc<StateManager>,
@@ -210,6 +212,7 @@ pub struct InnerWindowManager<R: Runtime> {
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
+  pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
   /// The webview protocols protocols available to all windows.
@@ -236,6 +239,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
+      .field("tray_icon", &self.tray_icon)
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
       .field("pattern", &self.pattern)
@@ -300,6 +304,8 @@ impl<R: Runtime> WindowManager<R> {
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
+        #[cfg(all(desktop, feature = "system-tray"))]
+        trays: Default::default(),
         plugins: Mutex::new(plugins),
         listeners: Listeners::default(),
         state: Arc::new(state),
@@ -309,6 +315,7 @@ impl<R: Runtime> WindowManager<R> {
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
+        tray_icon: context.system_tray_icon,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
@@ -1286,6 +1293,33 @@ impl<R: Runtime> WindowManager<R> {
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
     self.windows_lock().clone()
+  }
+}
+
+/// Tray APIs
+#[cfg(all(desktop, feature = "system-tray"))]
+impl<R: Runtime> WindowManager<R> {
+  pub fn get_tray(&self, id: &str) -> Option<crate::SystemTrayHandle<R>> {
+    self.inner.trays.lock().unwrap().get(id).cloned()
+  }
+
+  pub fn trays(&self) -> HashMap<String, crate::SystemTrayHandle<R>> {
+    self.inner.trays.lock().unwrap().clone()
+  }
+
+  pub fn attach_tray(&self, id: String, tray: crate::SystemTrayHandle<R>) {
+    self.inner.trays.lock().unwrap().insert(id, tray);
+  }
+
+  pub fn get_tray_by_runtime_id(&self, id: u16) -> Option<(String, crate::SystemTrayHandle<R>)> {
+    let trays = self.inner.trays.lock().unwrap();
+    let iter = trays.iter();
+    for (tray_id, tray) in iter {
+      if tray.id == id {
+        return Some((tray_id.clone(), tray.clone()));
+      }
+    }
+    None
   }
 }
 

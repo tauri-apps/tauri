@@ -3037,9 +3037,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.13.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6901eece433f5ce79a60c2660e204d8b2ff4f76668db9aedb8ae6b2c5a57ae43"
+checksum = "8ad691ca9fca6c2c76c09ffcddf6ae6593fba65d95477cf31780910ed272f5b8"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3217,6 +3217,7 @@ dependencies = [
  "http",
  "http-range",
  "infer 0.7.0",
+ "rand 0.8.5",
  "raw-window-handle",
  "serde",
  "serde_json",

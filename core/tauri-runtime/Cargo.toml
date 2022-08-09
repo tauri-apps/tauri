@@ -32,6 +32,7 @@ http = "0.2.4"
 http-range = "0.1.4"
 infer = "0.7"
 raw-window-handle = "0.5"
+rand = "0.8"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.16.0"

@@ -2329,9 +2329,7 @@ impl Default for UpdaterConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SystemTrayConfig {
-  /// Path to the icon to use on the system tray.
-  ///
-  /// It is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.
+  /// Path to the default icon to use on the system tray.
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.

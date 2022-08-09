@@ -30,15 +30,10 @@ use webview2_com::FocusChangedEventHandler;
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
 #[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
-#[cfg(all(feature = "system-tray", target_os = "macos"))]
-use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
-
-#[cfg(all(desktop, feature = "system-tray"))]
-use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
@@ -91,7 +86,6 @@ use std::{
     HashMap, HashSet,
   },
   fmt,
-  marker::PhantomData,
   ops::Deref,
   path::PathBuf,
   sync::{
@@ -104,6 +98,8 @@ use std::{
 pub type WebviewId = u64;
 type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
+#[cfg(all(desktop, feature = "system-tray"))]
+pub use tauri_runtime::TrayId;
 
 #[cfg(desktop)]
 mod webview;
@@ -173,7 +169,6 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
       &context.main_thread.window_target,
       message,
       UserMessageContext {
-        marker: &PhantomData,
         webview_id_map: context.webview_id_map.clone(),
         #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
@@ -181,7 +176,7 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
         windows: context.main_thread.windows.clone(),
         #[cfg(all(desktop, feature = "system-tray"))]
-        tray_context: &context.main_thread.tray_context,
+        system_tray_manager: context.main_thread.system_tray_manager.clone(),
       },
       &context.main_thread.web_context,
     );
@@ -256,7 +251,7 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
   pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  pub tray_context: TrayContext,
+  system_tray_manager: SystemTrayManager,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -1086,7 +1081,8 @@ pub enum TrayMessage {
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
-  Close,
+  Create(SystemTray, Sender<Result<()>>),
+  Destroy,
 }
 
 pub type CreateWebviewClosure<T> = Box<
@@ -1098,7 +1094,7 @@ pub enum Message<T: 'static> {
   Window(WebviewId, WindowMessage),
   Webview(WebviewId, WebviewMessage),
   #[cfg(all(desktop, feature = "system-tray"))]
-  Tray(TrayMessage),
+  Tray(TrayId, TrayMessage),
   CreateWebview(WebviewId, CreateWebviewClosure<T>),
   CreateWindow(
     WebviewId,
@@ -1117,7 +1113,7 @@ impl<T: UserEvent> Clone for Message<T> {
     match self {
       Self::Webview(i, m) => Self::Webview(*i, m.clone()),
       #[cfg(all(desktop, feature = "system-tray"))]
-      Self::Tray(m) => Self::Tray(m.clone()),
+      Self::Tray(i, m) => Self::Tray(*i, m.clone()),
       #[cfg(all(desktop, feature = "global-shortcut"))]
       Self::GlobalShortcut(m) => Self::GlobalShortcut(m.clone()),
       #[cfg(feature = "clipboard")]
@@ -1525,23 +1521,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 }
 
-#[cfg(all(desktop, feature = "system-tray"))]
-#[derive(Clone, Default)]
-pub struct TrayContext {
-  tray: Arc<Mutex<Option<Arc<Mutex<WrySystemTray>>>>>,
-  listeners: SystemTrayEventListeners,
-  items: SystemTrayItems,
-}
-
-#[cfg(all(desktop, feature = "system-tray"))]
-impl fmt::Debug for TrayContext {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("TrayContext")
-      .field("items", &self.items)
-      .finish()
-  }
-}
-
 #[derive(Clone)]
 enum WindowHandle {
   Webview(Arc<WebView>),
@@ -1650,7 +1629,10 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
       .field("web_context", &self.context.main_thread.web_context);
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    d.field("tray_context", &self.context.main_thread.tray_context);
+    d.field(
+      "system_tray_manager",
+      &self.context.main_thread.system_tray_manager,
+    );
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     #[cfg(feature = "global-shortcut")]
@@ -1741,9 +1723,22 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  fn remove_system_tray(&self) -> Result<()> {
-    send_user_message(&self.context, Message::Tray(TrayMessage::Close))
+  #[cfg(all(desktop, feature = "system-tray"))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
+    let id = system_tray.id;
+    let (tx, rx) = channel();
+    send_user_message(
+      &self.context,
+      Message::Tray(id, TrayMessage::Create(system_tray, tx)),
+    )?;
+    rx.recv().unwrap()?;
+    Ok(SystemTrayHandle {
+      id,
+      proxy: self.context.proxy.clone(),
+    })
   }
 
   fn raw_display_handle(&self) -> RawDisplayHandle {
@@ -1766,7 +1761,7 @@ impl<T: UserEvent> Wry<T> {
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    let tray_context = TrayContext::default();
+    let system_tray_manager = Default::default();
 
     let context = Context {
       webview_id_map,
@@ -1781,7 +1776,7 @@ impl<T: UserEvent> Wry<T> {
         clipboard_manager,
         windows,
         #[cfg(all(desktop, feature = "system-tray"))]
-        tray_context,
+        system_tray_manager,
       },
     };
 
@@ -1906,50 +1901,45 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
-
-    let mut items = HashMap::new();
-
-    #[allow(unused_mut)]
-    let mut tray_builder = SystemTrayBuilder::new(
-      icon.0,
-      system_tray
-        .menu
-        .map(|menu| to_wry_context_menu(&mut items, menu)),
-    );
-
-    #[cfg(target_os = "macos")]
-    {
-      tray_builder = tray_builder
-        .with_icon_as_template(system_tray.icon_as_template)
-        .with_menu_on_left_click(system_tray.menu_on_left_click);
+  fn system_tray(&self, mut system_tray: SystemTray) -> Result<Self::TrayHandler> {
+    let id = system_tray.id;
+    let mut listeners = Vec::new();
+    if let Some(l) = system_tray.on_event.take() {
+      listeners.push(Arc::new(l));
     }
-
-    let tray = tray_builder
-      .build(&self.event_loop)
-      .map_err(|e| Error::SystemTray(Box::new(e)))?;
-
-    *self.context.main_thread.tray_context.items.lock().unwrap() = items;
-    *self.context.main_thread.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
+    let (tray, items) = create_tray(WryTrayId(id), system_tray, &self.event_loop)?;
+    self
+      .context
+      .main_thread
+      .system_tray_manager
+      .trays
+      .lock()
+      .unwrap()
+      .insert(
+        id,
+        TrayContext {
+          tray: Arc::new(Mutex::new(Some(tray))),
+          listeners: Arc::new(Mutex::new(listeners)),
+          items: Arc::new(Mutex::new(items)),
+        },
+      );
 
     Ok(SystemTrayHandle {
+      id,
       proxy: self.event_loop.create_proxy(),
     })
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
-    let id = Uuid::new_v4();
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {
     self
       .context
       .main_thread
-      .tray_context
-      .listeners
+      .system_tray_manager
+      .global_listeners
       .lock()
       .unwrap()
-      .insert(id, Arc::new(Box::new(f)));
-    id
+      .push(Arc::new(Box::new(f)));
   }
 
   #[cfg(target_os = "macos")]
@@ -1972,7 +1962,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = &self.context.main_thread.web_context;
     let plugins = &mut self.plugins;
     #[cfg(all(desktop, feature = "system-tray"))]
-    let tray_context = self.context.main_thread.tray_context.clone();
+    let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
@@ -2010,7 +2000,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               #[cfg(feature = "clipboard")]
               clipboard_manager: clipboard_manager.clone(),
               #[cfg(all(desktop, feature = "system-tray"))]
-              tray_context: &tray_context,
+              system_tray_manager: system_tray_manager.clone(),
             },
             web_context,
           );
@@ -2034,7 +2024,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
-            tray_context: &tray_context,
+            system_tray_manager: system_tray_manager.clone(),
           },
           web_context,
         );
@@ -2050,7 +2040,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let mut plugins = self.plugins;
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    let tray_context = self.context.main_thread.tray_context;
+    let system_tray_manager = self.context.main_thread.system_tray_manager;
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
@@ -2080,7 +2070,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
-            tray_context: &tray_context,
+            system_tray_manager: system_tray_manager.clone(),
           },
           &web_context,
         );
@@ -2103,7 +2093,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           #[cfg(feature = "clipboard")]
           clipboard_manager: clipboard_manager.clone(),
           #[cfg(all(desktop, feature = "system-tray"))]
-          tray_context: &tray_context,
+          system_tray_manager: system_tray_manager.clone(),
         },
         &web_context,
       );
@@ -2122,12 +2112,10 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  pub tray_context: &'a TrayContext,
+  pub system_tray_manager: SystemTrayManager,
 }
 
-struct UserMessageContext<'a> {
-  #[allow(dead_code)]
-  marker: &'a PhantomData<()>,
+struct UserMessageContext {
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
@@ -2135,17 +2123,16 @@ struct UserMessageContext<'a> {
   clipboard_manager: Arc<Mutex<Clipboard>>,
   windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
-  tray_context: &'a TrayContext,
+  system_tray_manager: SystemTrayManager,
 }
 
 fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
-  context: UserMessageContext<'_>,
+  context: UserMessageContext,
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
-    marker: _,
     webview_id_map,
     #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager,
@@ -2153,7 +2140,7 @@ fn handle_user_message<T: UserEvent>(
     clipboard_manager,
     windows,
     #[cfg(all(desktop, feature = "system-tray"))]
-    tray_context,
+    system_tray_manager,
   } = context;
   match message {
     Message::Task(task) => task(),
@@ -2455,49 +2442,74 @@ fn handle_user_message<T: UserEvent>(
     }
 
     #[cfg(all(desktop, feature = "system-tray"))]
-    Message::Tray(tray_message) => match tray_message {
-      TrayMessage::UpdateItem(menu_id, update) => {
-        let mut tray = tray_context.items.as_ref().lock().unwrap();
-        let item = tray.get_mut(&menu_id).expect("menu item not found");
-        match update {
-          MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
-          MenuUpdate::SetTitle(title) => item.set_title(&title),
-          MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+    Message::Tray(tray_id, tray_message) => {
+      let mut trays = system_tray_manager.trays.lock().unwrap();
+
+      if let TrayMessage::Create(tray, tx) = tray_message {
+        match create_tray(WryTrayId(tray_id), tray, event_loop) {
+          Ok((tray, items)) => {
+            trays.insert(
+              tray_id,
+              TrayContext {
+                tray: Arc::new(Mutex::new(Some(tray))),
+                listeners: Default::default(),
+                items: Arc::new(Mutex::new(items)),
+              },
+            );
+
+            tx.send(Ok(())).unwrap();
+          }
+
+          Err(e) => {
+            tx.send(Err(e)).unwrap();
+          }
+        }
+      } else if let Some(tray_context) = trays.get(&tray_id) {
+        match tray_message {
+          TrayMessage::UpdateItem(menu_id, update) => {
+            let mut tray = tray_context.items.as_ref().lock().unwrap();
+            let item = tray.get_mut(&menu_id).expect("menu item not found");
+            match update {
+              MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+              MenuUpdate::SetTitle(title) => item.set_title(&title),
+              MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+              #[cfg(target_os = "macos")]
+              MenuUpdate::SetNativeImage(image) => {
+                item.set_native_image(NativeImageWrapper::from(image).0)
+              }
+            }
+          }
+          TrayMessage::UpdateMenu(menu) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              let mut items = HashMap::new();
+              tray.set_menu(&to_wry_context_menu(&mut items, menu));
+              *tray_context.items.lock().unwrap() = items;
+            }
+          }
+          TrayMessage::UpdateIcon(icon) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              if let Ok(icon) = TrayIcon::try_from(icon) {
+                tray.set_icon(icon.0);
+              }
+            }
+          }
           #[cfg(target_os = "macos")]
-          MenuUpdate::SetNativeImage(image) => {
-            item.set_native_image(NativeImageWrapper::from(image).0)
+          TrayMessage::UpdateIconAsTemplate(is_template) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_icon_as_template(is_template);
+            }
+          }
+          TrayMessage::Create(_tray, _tx) => {
+            // already handled
+          }
+          TrayMessage::Destroy => {
+            *tray_context.tray.lock().unwrap() = None;
+            tray_context.listeners.lock().unwrap().clear();
+            tray_context.items.lock().unwrap().clear();
           }
         }
       }
-      TrayMessage::UpdateMenu(menu) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          let mut items = HashMap::new();
-          tray
-            .lock()
-            .unwrap()
-            .set_menu(&to_wry_context_menu(&mut items, menu));
-          *tray_context.items.lock().unwrap() = items;
-        }
-      }
-      TrayMessage::UpdateIcon(icon) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          if let Ok(icon) = TrayIcon::try_from(icon) {
-            tray.lock().unwrap().set_icon(icon.0);
-          }
-        }
-      }
-      #[cfg(target_os = "macos")]
-      TrayMessage::UpdateIconAsTemplate(is_template) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon_as_template(is_template);
-        }
-      }
-      TrayMessage::Close => {
-        *tray_context.tray.lock().unwrap() = None;
-        tray_context.listeners.lock().unwrap().clear();
-        tray_context.items.lock().unwrap().clear();
-      }
-    },
+    }
     #[cfg(all(desktop, feature = "global-shortcut"))]
     Message::GlobalShortcut(message) => {
       handle_global_shortcut_message(message, &global_shortcut_manager)
@@ -2531,7 +2543,7 @@ fn handle_event_loop<T: UserEvent>(
     #[cfg(feature = "clipboard")]
     clipboard_manager,
     #[cfg(all(desktop, feature = "system-tray"))]
-    tray_context,
+    system_tray_manager,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2612,13 +2624,40 @@ fn handle_event_loop<T: UserEvent>(
       ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      let listeners = tray_context.listeners.lock().unwrap().clone();
-      for handler in listeners.values() {
-        handler(&event);
+
+      let trays = system_tray_manager.trays.lock().unwrap();
+      let trays_iter = trays.iter();
+
+      let (mut listeners, mut tray_id) = (None, 0);
+      for (id, tray_context) in trays_iter {
+        let has_menu = {
+          let items = tray_context.items.lock().unwrap();
+          items.contains_key(&menu_id.0)
+        };
+        if has_menu {
+          listeners.replace(tray_context.listeners.clone());
+          tray_id = *id;
+          break;
+        }
+      }
+      drop(trays);
+      if let Some(listeners) = listeners {
+        let listeners = listeners.lock().unwrap();
+        let handlers = listeners.iter();
+        for handler in handlers {
+          handler(&event);
+        }
+
+        let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
+        let global_listeners_iter = global_listeners.iter();
+        for global_listener in global_listeners_iter {
+          global_listener(tray_id, &event);
+        }
       }
     }
     #[cfg(all(desktop, feature = "system-tray"))]
     Event::TrayEvent {
+      id,
       bounds,
       event,
       position: _cursor_position,
@@ -2634,10 +2673,13 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      let listeners = tray_context.listeners.lock().unwrap();
-      let handlers = listeners.values();
-      for handler in handlers {
-        handler(&event);
+      let trays = system_tray_manager.trays.lock().unwrap();
+      if let Some(tray_context) = trays.get(&id.0) {
+        let listeners = tray_context.listeners.lock().unwrap();
+        let iter = listeners.iter();
+        for handler in iter {
+          handler(&event);
+        }
       }
     }
     Event::WindowEvent {
@@ -2715,7 +2757,6 @@ fn handle_event_loop<T: UserEvent>(
           event_loop,
           message,
           UserMessageContext {
-            marker: &PhantomData,
             webview_id_map,
             #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager,
@@ -2723,7 +2764,7 @@ fn handle_event_loop<T: UserEvent>(
             clipboard_manager,
             windows,
             #[cfg(all(desktop, feature = "system-tray"))]
-            tray_context,
+            system_tray_manager,
           },
           web_context,
         );

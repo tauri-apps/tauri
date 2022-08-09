@@ -104,11 +104,11 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   // body to the command wrapper or a `compile_error!` of an error occurred while parsing it.
   let body = syn::parse::<WrapperAttributes>(attributes)
-    .and_then(|mut attrs| {
+    .map(|mut attrs| {
       if function.sig.asyncness.is_some() {
         attrs.execution_context = ExecutionContext::Async;
       }
-      Ok(attrs)
+      attrs
     })
     .and_then(|attrs| match attrs.execution_context {
       ExecutionContext::Async => body_async(&function, &invoke, attrs.argument_case),

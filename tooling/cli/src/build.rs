@@ -113,40 +113,7 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    let (script, script_cwd) = match before_build {
-      HookCommand::Script(s) if s.is_empty() => (None, None),
-      HookCommand::Script(s) => (Some(s), None),
-      HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
-    };
-    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(before_build) = script {
-      info!(action = "Running"; "beforeBuildCommand `{}`", before_build);
-      #[cfg(target_os = "windows")]
-      let status = Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .arg(&before_build)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
-      #[cfg(not(target_os = "windows"))]
-      let status = Command::new("sh")
-        .arg("-c")
-        .arg(&before_build)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
-
-      if !status.success() {
-        bail!(
-          "beforeBuildCommand `{}` failed with exit code {}",
-          before_build,
-          status.code().unwrap_or_default()
-        );
-      }
-    }
+    run_hook("beforeBuildCommand", before_build, options.debug)?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -196,43 +163,6 @@ pub fn command(mut options: Options) -> Result<()> {
 
   interface.build(interface_options)?;
 
-  if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
-    let (script, script_cwd) = match before_bundle {
-      HookCommand::Script(s) if s.is_empty() => (None, None),
-      HookCommand::Script(s) => (Some(s), None),
-      HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
-    };
-    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(before_bundle) = script {
-      info!(action = "Running"; "beforeBundleCommand `{}`", before_bundle);
-      #[cfg(target_os = "windows")]
-      let status = Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .arg(&before_bundle)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_bundle))?;
-      #[cfg(not(target_os = "windows"))]
-      let status = Command::new("sh")
-        .arg("-c")
-        .arg(&before_bundle)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `sh -c`", before_bundle))?;
-
-      if !status.success() {
-        bail!(
-          "beforeBundleCommand `{}` failed with exit code {}",
-          before_bundle,
-          status.code().unwrap_or_default()
-        );
-      }
-    }
-  }
-
   let app_settings = interface.app_settings();
 
   if config_.tauri.bundle.active {
@@ -270,6 +200,13 @@ pub fn command(mut options: Options) -> Result<()> {
     if let Some(types) = &package_types {
       if config_.tauri.updater.active && !types.contains(&PackageType::Updater) {
         warn!("The updater is enabled but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
+      }
+    }
+
+    // if we have a package to bundle, let's run the `before_bundle_command`.
+    if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
+      if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
+        run_hook("beforeBundleCommand", before_bundle, options.debug)?;
       }
     }
 
@@ -366,6 +303,46 @@ pub fn command(mut options: Options) -> Result<()> {
       }
 
       print_signed_updater_archive(&signed_paths)?;
+    }
+  }
+
+  Ok(())
+}
+
+fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
+  let (script, script_cwd) = match hook {
+    HookCommand::Script(s) if s.is_empty() => (None, None),
+    HookCommand::Script(s) => (Some(s), None),
+    HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+  };
+  let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+  if let Some(script) = script {
+    info!(action = "Running"; "{} `{}`", name, script);
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd")
+      .arg("/S")
+      .arg("/C")
+      .arg(&script)
+      .current_dir(cwd)
+      .envs(command_env(debug))
+      .piped()
+      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
+    #[cfg(not(target_os = "windows"))]
+    let status = Command::new("sh")
+      .arg("-c")
+      .arg(&script)
+      .current_dir(cwd)
+      .envs(command_env(debug))
+      .piped()
+      .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
+
+    if !status.success() {
+      bail!(
+        "{} `{}` failed with exit code {}",
+        name,
+        script,
+        status.code().unwrap_or_default()
+      );
     }
   }
 

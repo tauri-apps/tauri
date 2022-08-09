@@ -10,7 +10,7 @@ use syn::{
   parse::{Parse, ParseStream},
   parse_macro_input,
   spanned::Spanned,
-  Expr, ExprAssign, FnArg, Ident, ItemFn, Lit, Pat, Token, Visibility,
+  FnArg, Ident, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
 
 struct WrapperAttributes {
@@ -20,25 +20,23 @@ struct WrapperAttributes {
 
 impl Parse for WrapperAttributes {
   fn parse(input: ParseStream) -> syn::Result<Self> {
-    let execution_context = input
-      .parse::<Token![async]>()
-      .map(|_| ExecutionContext::Async)
-      .unwrap_or(ExecutionContext::Blocking);
+    let mut wrapper_attributes = WrapperAttributes {
+      execution_context: ExecutionContext::Blocking,
+      argument_case: ArgumentCase::Camel,
+    };
 
-    let _ = input.parse::<Token![,]>();
-
-    let mut argument_case = ArgumentCase::Camel;
-    if let Ok(assign) = input.parse::<ExprAssign>() {
-      if let Expr::Path(i) = *assign.left {
-        if i.path.is_ident("rename_all") {
-          if let Expr::Lit(l) = *assign.right {
-            if let Lit::Str(s) = l.lit {
-              argument_case = match s.value().as_str() {
+    loop {
+      match input.parse::<Meta>() {
+        Ok(Meta::List(_)) => {}
+        Ok(Meta::NameValue(v)) => {
+          if v.path.is_ident("rename_all") {
+            if let Lit::Str(s) = v.lit {
+              wrapper_attributes.argument_case = match s.value().as_str() {
                 "snake_case" => ArgumentCase::Snake,
                 "camelCase" => ArgumentCase::Camel,
                 _ => {
                   return Err(syn::Error::new(
-                    i.span(),
+                    s.span(),
                     "expected \"camelCase\" or \"snake_case\"",
                   ))
                 }
@@ -46,13 +44,25 @@ impl Parse for WrapperAttributes {
             }
           }
         }
+        Ok(Meta::Path(p)) => {
+          if p.is_ident("async") {
+            wrapper_attributes.execution_context = ExecutionContext::Async;
+          } else {
+            return Err(syn::Error::new(p.span(), "expected `async`"));
+          }
+        }
+        Err(_e) => {
+          break;
+        }
+      }
+
+      let lookahead = input.lookahead1();
+      if lookahead.peek(Token![,]) {
+        input.parse::<Token![,]>()?;
       }
     }
 
-    Ok(Self {
-      execution_context,
-      argument_case,
-    })
+    Ok(wrapper_attributes)
   }
 }
 

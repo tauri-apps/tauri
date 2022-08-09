@@ -118,7 +118,7 @@ fn force_async_snake(the_argument: String) -> String {
   the_argument
 }
 
-#[command(async, rename_all = "snake_case")]
+#[command(rename_all = "snake_case", async)]
 fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
     .then(|| the_argument)

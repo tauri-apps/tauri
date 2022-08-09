@@ -93,59 +93,39 @@ jobs:
           path: '~/.cargo/bin/cargo-udeps'
           if-no-files-found: error
 
+      - name: Create udeps matrix
+        id: create-matrix
+        env:
+          TAURI: ${{ needs.changes.outputs.tauri == 'true' }}
+          BUILD: ${{ needs.changes.outputs.build == 'true' }}
+          CODEGEN: ${{ needs.changes.outputs.codegen == 'true' }}
+          MACROS: ${{ needs.changes.outputs.macros == 'true' }}
+          RUNTIME: ${{ needs.changes.outputs.runtime == 'true' }}
+          WRY: ${{ needs.changes.outputs.wry == 'true' }}
+          UTILS: ${{ needs.changes.outputs.utils == 'true' }}
+          BUNDLER: ${{ needs.changes.outputs.bundler == 'true' }}
+          CLI: ${{ needs.changes.outputs.cli == 'true' }}
+        run: |
+          crates=()
+          if [ ${TAURI} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri\""; fi
+          if [ ${BUILD} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-build\""; fi
+          if [ ${CODEGEN} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-codegen\""; fi
+          if [ ${MACROS} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-macros\""; fi
+          if [ ${RUNTIME} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime\""; fi
+          if [ {WRY} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime-wry\""; fi
+          if [ ${UTILS} == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
+          if [ ${BUNDLER} == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
+          if [ ${CLI} == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
+          echo ::set-output name=matrix::{\"include\":[$crates]}
+    outputs:
+      matrix: ${{ steps.create-matrix.outputs.matrix }}
+
   udeps:
     runs-on: ubuntu-latest
-    needs: [setup, changes]
+    needs: setup
     strategy:
       matrix:
-        clippy:
-          - {
-              needs: "${{ needs.changes.outputs.tauri == 'true' }}",
-              path: './core/tauri/Cargo.toml',
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.build == 'true' }}",
-              path: './core/tauri-build/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.codegen == 'true' }}",
-              path: './core/tauri-codegen/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.macros == 'true' }}",
-              path: './core/tauri-macros/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.runtime == 'true' }}",
-              path: './core/tauri-runtime/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.wry == 'true' }}",
-              path: './core/tauri-runtime-wry/Cargo.toml',
-              args: '--features devtools,system-tray,macos-private-api,objc-exception'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.utils == 'true' }}",
-              path: './core/tauri-utils/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.bundler == 'true' }}",
-              path: './tooling/bundler/Cargo.toml',
-              args: '--all-features'
-            }
-          - {
-              needs: "${{ needs.changes.outputs.cli == 'true' }}",
-              path: './tooling/cli/Cargo.toml',
-              args: '--all-features'
-            }
-        exclude:
-          - clippy: { needs: 'false' }
+        path: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v2
 
@@ -238,7 +218,6 @@ jobs:
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - uses: actions-rs/cargo@v1
-        if: needs.changes.outputs.${{ matrix.needs }} == 'true'
         with:
           command: udeps
-          args: --manifest-path ${{ matrix.clippy.path }} --all-targets ${{ matrix.clippy.args }}
+          args: --manifest-path ${{ matrix.path }} --all-targets --all-features

@@ -10,7 +10,7 @@ use std::{env, fs, io::Write, path::Path};
 pub fn build() {
   override_msvcrt_lib();
 
-  // Disable conflicting libraries that aren't hard coded by Rust.
+  // Disable conflicting libraries that aren't hard coded by Rust
   println!("cargo:rustc-link-arg=/NODEFAULTLIB:libvcruntimed.lib");
   println!("cargo:rustc-link-arg=/NODEFAULTLIB:vcruntime.lib");
   println!("cargo:rustc-link-arg=/NODEFAULTLIB:vcruntimed.lib");

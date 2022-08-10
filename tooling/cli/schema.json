@@ -2402,7 +2402,7 @@
       ],
       "properties": {
         "iconPath": {
-          "description": "Path to the icon to use on the system tray.\n\nIt is forced to be a `.png` file on Linux and macOS, and a `.ico` file on Windows.",
+          "description": "Path to the default icon to use on the system tray.",
           "type": "string"
         },
         "iconAsTemplate": {

@@ -81,6 +81,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap, HashSet,
@@ -90,7 +91,7 @@ use std::{
   path::PathBuf,
   sync::{
     mpsc::{channel, Sender},
-    Arc, Mutex, MutexGuard, Weak,
+    Arc, Mutex, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
@@ -249,7 +250,7 @@ pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
 }
@@ -1757,7 +1758,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "clipboard")]
     let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
 
-    let windows = Arc::new(Mutex::new(HashMap::default()));
+    let windows = Arc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
@@ -1888,8 +1889,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
-      .lock()
-      .unwrap()
+      .borrow_mut()
       .insert(window_id, webview);
 
     Ok(DetachedWindow {
@@ -2104,7 +2104,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2116,12 +2116,12 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 }
 
 struct UserMessageContext {
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   clipboard_manager: Arc<Mutex<Clipboard>>,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
 }
@@ -2146,12 +2146,7 @@ fn handle_user_message<T: UserEvent>(
     Message::Task(task) => task(),
     Message::Window(id, window_message) => {
       if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
-        if let Some(menu_items) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get_mut(&id)
-          .map(|w| &mut w.menu_items)
-        {
+        if let Some(menu_items) = windows.borrow_mut().get_mut(&id).map(|w| &mut w.menu_items) {
           if let Some(menu_items) = menu_items.as_mut() {
             let item = menu_items.get_mut(&item_id).expect("menu item not found");
             match update {
@@ -2166,17 +2161,14 @@ fn handle_user_message<T: UserEvent>(
           }
         }
       } else {
-        let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some((Some(window), window_event_listeners, menu_event_listeners)) =
-          windows_lock.get(&id).map(|w| {
-            (
-              w.inner.clone(),
-              w.window_event_listeners.clone(),
-              w.menu_event_listeners.clone(),
-            )
-          })
-        {
-          drop(windows_lock);
+        let w = windows.borrow().get(&id).map(|w| {
+          (
+            w.inner.clone(),
+            w.window_event_listeners.clone(),
+            w.menu_event_listeners.clone(),
+          )
+        });
+        if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
             #[cfg(desktop)]
             WindowMessage::WithWebview(f) => {
@@ -2369,11 +2361,8 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script) => {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get(&id)
-          .and_then(|w| w.inner.as_ref())
+        if let Some(WindowHandle::Webview(webview)) =
+          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
@@ -2381,19 +2370,15 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::Print => {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get(&id)
-          .and_then(|w| w.inner.as_ref())
+        if let Some(WindowHandle::Webview(webview)) =
+          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
         }
       }
       WebviewMessage::WebviewEvent(event) => {
         let window_event_listeners = windows
-          .lock()
-          .expect("poisoned webview collection")
+          .borrow()
           .get(&id)
           .map(|w| w.window_event_listeners.clone());
         if let Some(window_event_listeners) = window_event_listeners {
@@ -2409,10 +2394,7 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
-        windows
-          .lock()
-          .expect("poisoned webview collection")
-          .insert(window_id, webview);
+        windows.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
         debug_eprintln!("{}", e);
@@ -2425,7 +2407,7 @@ fn handle_user_message<T: UserEvent>(
 
         let w = Arc::new(window);
 
-        windows.lock().expect("poisoned webview collection").insert(
+        windows.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
@@ -2520,7 +2502,7 @@ fn handle_user_message<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.lock().expect("poisoned webview collection").len(),
+    window_count: windows.borrow().len(),
   };
   it
 }
@@ -2603,8 +2585,7 @@ fn handle_event_loop<T: UserEvent>(
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
         };
         windows
-          .lock()
-          .unwrap()
+          .borrow()
           .get(&window_id)
           .unwrap()
           .menu_event_listeners
@@ -2689,12 +2670,11 @@ fn handle_event_loop<T: UserEvent>(
       // NOTE(amrbashir): we handle this event here instead of `match` statement below because
       // we want to focus the webview as soon as possible, especially on windows.
       if event == WryWindowEvent::Focused(true) {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
+        let w = windows
+          .borrow()
           .get(&window_id)
-          .and_then(|w| w.inner.as_ref())
-        {
+          .and_then(|w| w.inner.clone());
+        if let Some(WindowHandle::Webview(webview)) = w {
           // only focus the webview if the window is visible
           // somehow tao is sending a Focused(true) event even when the window is invisible,
           // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
@@ -2705,12 +2685,14 @@ fn handle_event_loop<T: UserEvent>(
       }
 
       {
-        let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some(window) = windows_lock.get(&window_id) {
+        let windows_ref = windows.borrow();
+        if let Some(window) = windows_ref.get(&window_id) {
           if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
             let label = window.label.clone();
             let window_event_listeners = window.window_event_listeners.clone();
-            drop(windows_lock);
+
+            drop(windows_ref);
+
             callback(RunEvent::WindowEvent {
               label,
               event: event.clone(),
@@ -2729,8 +2711,9 @@ fn handle_event_loop<T: UserEvent>(
           on_close_requested(callback, window_id, windows.clone());
         }
         WryWindowEvent::Destroyed => {
-          if windows.lock().unwrap().remove(&window_id).is_some() {
-            let is_empty = windows.lock().unwrap().is_empty();
+          let removed = windows.borrow_mut().remove(&window_id).is_some();
+          if removed {
+            let is_empty = windows.borrow().is_empty();
             if is_empty {
               let (tx, rx) = channel();
               callback(RunEvent::ExitRequested { tx });
@@ -2749,7 +2732,7 @@ fn handle_event_loop<T: UserEvent>(
     }
     Event::UserEvent(message) => match message {
       Message::Window(id, WindowMessage::Close) => {
-        on_window_close(id, windows.lock().expect("poisoned webview collection"));
+        on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
@@ -2774,7 +2757,7 @@ fn handle_event_loop<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.lock().expect("poisoned webview collection").len(),
+    window_count: windows.borrow().len(),
   };
   it
 }
@@ -2782,14 +2765,16 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
-  let windows_guard = windows.lock().expect("poisoned webview collection");
-  if let Some(w) = windows_guard.get(&window_id) {
+  let windows_ref = windows.borrow();
+  if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
-    drop(windows_guard);
+
+    drop(windows_ref);
+
     let listeners = window_event_listeners.lock().unwrap();
     let handlers = listeners.values();
     for handler in handlers {
@@ -2803,19 +2788,13 @@ fn on_close_requested<'a, T: UserEvent>(
     });
     if let Ok(true) = rx.try_recv() {
     } else {
-      on_window_close(
-        window_id,
-        windows.lock().expect("poisoned webview collection"),
-      );
+      on_window_close(window_id, windows);
     }
   }
 }
 
-fn on_window_close(
-  window_id: WebviewId,
-  mut windows: MutexGuard<'_, HashMap<WebviewId, WindowWrapper>>,
-) {
-  if let Some(mut window_wrapper) = windows.get_mut(&window_id) {
+fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+  if let Some(mut window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
 }
@@ -2892,6 +2871,8 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   let proxy = context.proxy.clone();
 
+  let window_event_listeners = WindowEventListeners::default();
+
   #[cfg(target_os = "macos")]
   {
     window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
@@ -2925,7 +2906,8 @@ fn create_webview<T: UserEvent>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent);
   if webview_attributes.file_drop_handler_enabled {
-    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(&context));
+    webview_builder = webview_builder
+      .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
@@ -3025,7 +3007,7 @@ fn create_webview<T: UserEvent>(
     label,
     inner: Some(WindowHandle::Webview(Arc::new(webview))),
     menu_items,
-    window_event_listeners: Default::default(),
+    window_event_listeners,
     menu_event_listeners: Default::default(),
   })
 }
@@ -3056,28 +3038,17 @@ fn create_ipc_handler<T: UserEvent>(
 }
 
 /// Create a wry file drop handler.
-fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropHandler> {
-  let windows = context.main_thread.windows.clone();
-  let webview_id_map = context.webview_id_map.clone();
-  Box::new(move |window, event| {
+fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box<FileDropHandler> {
+  Box::new(move |_window, event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
-    let window_event_listeners = windows
-      .lock()
-      .unwrap()
-      .get(&webview_id_map.get(&window.id()))
-      .map(|w| w.window_event_listeners.clone());
-    if let Some(window_event_listeners) = window_event_listeners {
-      let listeners_map = window_event_listeners.lock().unwrap();
-      let has_listener = !listeners_map.is_empty();
-      let handlers = listeners_map.values();
-      for listener in handlers {
-        listener(&window_event);
-      }
-      // block the default OS action on file drop if we had a listener
-      has_listener
-    } else {
-      false
+    let listeners_map = window_event_listeners.lock().unwrap();
+    let has_listener = !listeners_map.is_empty();
+    let handlers = listeners_map.values();
+    for listener in handlers {
+      listener(&window_event);
     }
+    // block the default OS action on file drop if we had a listener
+    has_listener
   })
 }

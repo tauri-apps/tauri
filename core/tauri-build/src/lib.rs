@@ -293,10 +293,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     )?;
   }
 
-  for icon in &config.tauri.bundle.icon {
-    println!("cargo:rerun-if-changed={}", icon);
-  }
-
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
   #[cfg(windows)]

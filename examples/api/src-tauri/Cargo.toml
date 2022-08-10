@@ -6,6 +6,9 @@ edition = "2021"
 rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["isolation", "codegen"] }
 
@@ -34,6 +37,19 @@ features = [
 [target."cfg(target_os = \"windows\")".dependencies]
 window-vibrancy = "0.2"
 window-shadows= "0.2"
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+log = "0.4"
+tauri-runtime-wry = { path = "../../../core/tauri-runtime-wry/" }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.9.0"
+jni = "0.19.0"
+paste = "1.0"
+
+[target.'cfg(target_os = "ios")'.dependencies]
+mobile-entry-point = "0.1.0"
+env_logger = "0.9.0"
 
 [features]
 default = [ "custom-protocol" ]

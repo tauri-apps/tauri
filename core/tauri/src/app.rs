@@ -562,7 +562,11 @@ impl<R: Runtime> ManagerBase<R> for App<R> {
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    RuntimeOrDispatch::Runtime(self.runtime.as_ref().unwrap())
+    if let Some(runtime) = self.runtime.as_ref() {
+      RuntimeOrDispatch::Runtime(runtime)
+    } else {
+      self.handle.runtime()
+    }
   }
 
   fn managed_app_handle(&self) -> AppHandle<R> {
@@ -1489,7 +1493,8 @@ impl<R: Runtime> Builder<R> {
     #[cfg(feature = "clipboard")]
     let clipboard_manager = runtime.clipboard_manager();
 
-    let app = App {
+    #[allow(unused_mut)]
+    let mut app = App {
       runtime: Some(runtime),
       pending_windows: Some(self.pending_windows),
       setup: Some(self.setup),
@@ -1617,7 +1622,12 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
         app
           .manager
           .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
+      let detached = if let RuntimeOrDispatch::RuntimeHandle(runtime) = app.handle().runtime() {
+        runtime.create_window(pending)?
+      } else {
+        // the AppHandle's runtime is always RuntimeOrDispatch::RuntimeHandle
+        unreachable!()
+      };
       let _window = app.manager.attach_window(app.handle(), detached);
     }
   }

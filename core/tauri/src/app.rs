@@ -40,6 +40,7 @@ use tauri_utils::PackageInfo;
 
 use std::{
   collections::HashMap,
+  fmt,
   path::{Path, PathBuf},
   sync::{mpsc::Sender, Arc, Weak},
 };
@@ -526,15 +527,32 @@ impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
 ///
 /// This type implements [`Manager`] which allows for manipulation of global application items.
 #[default_runtime(crate::Wry, wry)]
-#[derive(Debug)]
 pub struct App<R: Runtime> {
   runtime: Option<R>,
+  pending_windows: Option<Vec<PendingWindow<EventLoopMessage, R>>>,
+  setup: Option<SetupHook<R>>,
   manager: WindowManager<R>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: R::ClipboardManager,
   handle: AppHandle<R>,
+}
+
+impl<R: Runtime> fmt::Debug for App<R> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("App");
+    d.field("runtime", &self.runtime)
+      .field("manager", &self.manager)
+      .field("handle", &self.handle);
+
+    #[cfg(all(desktop, feature = "global-shortcut"))]
+    d.field("global_shortcut_manager", &self.global_shortcut_manager);
+    #[cfg(feature = "clipboard")]
+    d.field("clipboard_manager", &self.clipboard_manager);
+
+    d.finish()
+  }
 }
 
 impl<R: Runtime> Manager<R> for App<R> {}
@@ -775,6 +793,17 @@ impl<R: Runtime> App<R> {
     let app_handle = self.handle();
     let manager = self.manager.clone();
     self.runtime.take().unwrap().run(move |event| match event {
+      RuntimeRunEvent::Ready => {
+        if let Err(e) = setup(&mut self) {
+          panic!("Failed to setup app: {}", e);
+        }
+        on_event_loop_event(
+          &app_handle,
+          RuntimeRunEvent::Ready,
+          &manager,
+          Some(&mut callback),
+        );
+      }
       RuntimeRunEvent::Exit => {
         on_event_loop_event(
           &app_handle,
@@ -1460,8 +1489,10 @@ impl<R: Runtime> Builder<R> {
     #[cfg(feature = "clipboard")]
     let clipboard_manager = runtime.clipboard_manager();
 
-    let mut app = App {
+    let app = App {
       runtime: Some(runtime),
+      pending_windows: Some(self.pending_windows),
+      setup: Some(self.setup),
       manager: manager.clone(),
       #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: global_shortcut_manager.clone(),
@@ -1551,26 +1582,6 @@ impl<R: Runtime> Builder<R> {
 
     app.manager.initialize_plugins(&app.handle())?;
 
-    let window_labels = self
-      .pending_windows
-      .iter()
-      .map(|p| p.label.clone())
-      .collect::<Vec<_>>();
-
-    for pending in self.pending_windows {
-      let pending =
-        app
-          .manager
-          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
-      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
-      let _window = app.manager.attach_window(app.handle(), detached);
-    }
-
-    (self.setup)(&mut app).map_err(|e| crate::Error::Setup(e.into()))?;
-
-    #[cfg(updater)]
-    app.run_updater();
-
     Ok(app)
   }
 
@@ -1591,6 +1602,33 @@ unsafe impl HasRawDisplayHandle for App {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.handle.raw_display_handle()
   }
+}
+
+fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
+  let pending_windows = app.pending_windows.take();
+  if let Some(pending_windows) = pending_windows {
+    let window_labels = pending_windows
+      .iter()
+      .map(|p| p.label.clone())
+      .collect::<Vec<_>>();
+
+    for pending in pending_windows {
+      let pending =
+        app
+          .manager
+          .prepare_window(app.handle.clone(), pending, &window_labels, None)?;
+      let detached = app.runtime.as_ref().unwrap().create_window(pending)?;
+      let _window = app.manager.attach_window(app.handle(), detached);
+    }
+  }
+
+  if let Some(setup) = app.setup.take() {
+    (setup)(app).map_err(|e| crate::Error::Setup(e.into()))?;
+  }
+
+  #[cfg(updater)]
+  app.run_updater();
+  Ok(())
 }
 
 fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(

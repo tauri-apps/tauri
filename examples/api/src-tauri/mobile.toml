@@ -1,7 +1,7 @@
 [app]
 name = "api"
 stylized-name = "Tauri API"
-domain = "com.tauri"
+domain = "tauri.studio"
 template-pack = "tauri"
 
 [apple]

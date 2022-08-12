@@ -115,7 +115,7 @@ enum Target {
   Darwin,
   Android,
   // iOS.
-  IOS,
+  Ios,
 }
 
 /// Build a `tauri::Context` for including in application code.
@@ -137,7 +137,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     } else if target.contains("android") {
       Target::Android
     } else if target.contains("apple-ios") {
-      Target::IOS
+      Target::Ios
     } else {
       panic!("unknown codegen target {}", target);
     }
@@ -150,7 +150,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } else if cfg!(target_os = "android") {
     Target::Android
   } else if cfg!(target_os = "ios") {
-    Target::IOS
+    Target::Ios
   } else {
     panic!("unknown codegen target");
   };

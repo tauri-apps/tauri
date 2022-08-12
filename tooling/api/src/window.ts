@@ -187,7 +187,7 @@ declare global {
 enum UserAttentionType {
   /**
    * #### Platform-specific
-   *  - **macOS:** Bounces the dock icon until the application is in focus.
+   * - **macOS:** Bounces the dock icon until the application is in focus.
    * - **Windows:** Flashes both the window and the taskbar button until the application is in focus.
    */
   Critical = 1,

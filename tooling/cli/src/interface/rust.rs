@@ -632,7 +632,7 @@ impl RustAppSettings {
   }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(Deserialize)]
 struct CargoMetadata {
   target_directory: PathBuf,
   workspace_root: PathBuf,

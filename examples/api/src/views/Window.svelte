@@ -236,7 +236,7 @@
   {/if}
   {#if windowMap[selectedWindow]}
     <br />
-    <div>
+    <div class="flex flex-wrap gap-2">
       <button
         class="btn"
         title="Unminimizes after 2 seconds"

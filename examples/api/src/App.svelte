@@ -218,6 +218,68 @@
   onMount(async () => {
     isWindows = (await os.platform()) === 'win32'
   })
+
+  // mobile
+  let isSideBarOpen = false
+  let sidebar
+  let sidebarToggle
+  let isDraggingSideBar = false
+  let draggingStartPosX = 0
+  let draggingEndPosX = 0
+  const clamp = (min, num, max) => Math.min(Math.max(num, min), max)
+
+  onMount(() => {
+    sidebar = document.querySelector('#sidebar')
+    sidebarToggle = document.querySelector('#sidebarToggle')
+
+    document.addEventListener('click', (e) => {
+      if (sidebarToggle.contains(e.target)) {
+        isSideBarOpen = !isSideBarOpen
+        sidebar.style.setProperty(
+          '--translate-x',
+          `${isSideBarOpen ? '0' : '-18.75'}rem`
+        )
+      } else if (isSideBarOpen && !sidebar.contains(e.target)) {
+        isSideBarOpen = false
+        sidebar.style.setProperty('--translate-x', `-18.75rem`)
+      }
+    })
+
+    document.addEventListener('touchstart', (e) => {
+      if (sidebarToggle.contains(e.target)) return
+
+      const x = e.touches[0].clientX
+      if ((0 < x && x < 20 && !isSideBarOpen) || isSideBarOpen) {
+        isDraggingSideBar = true
+        draggingStartPosX = x
+      }
+    })
+
+    document.addEventListener('touchmove', (e) => {
+      if (isDraggingSideBar) {
+        const x = e.touches[0].clientX
+        draggingEndPosX = x
+        const delta = (x - draggingStartPosX) / 10
+        sidebar.style.setProperty(
+          '--translate-x',
+          `-${clamp(0, isSideBarOpen ? 0 - delta : 18.75 - delta, 18.75)}rem`
+        )
+      }
+    })
+
+    document.addEventListener('touchend', () => {
+      if (isDraggingSideBar) {
+        const delta = (draggingEndPosX - draggingStartPosX) / 10
+        isSideBarOpen = isSideBarOpen ? delta > -(18.75 / 2) : delta > 18.75 / 2
+        sidebar.style.setProperty(
+          '--translate-x',
+          `${isSideBarOpen ? '0' : '-18.75'}rem`
+        )
+      }
+
+      isDraggingSideBar = false
+    })
+  })
 </script>
 
 {#if isWindows}
@@ -225,7 +287,7 @@
     class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
     data-tauri-drag-region
   >
-    <span class="text-darkPrimaryText">Tauri API Validation</span>
+    <span class="lt-sm:pl-10 text-darkPrimaryText">Tauri API Validation</span>
     <span
       class="
       h-100%
@@ -273,11 +335,33 @@
 {/if}
 
 <div
+  id="sidebarToggle"
+  class="z-2000 display-none lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
+            bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
+>
+  {#if isSideBarOpen}
+    <span
+      class="animate-duration-300ms i-codicon-close {isSideBarOpen
+        ? 'animate-fade-in'
+        : `animate-fade-out`}"
+    />
+  {:else}
+    <span
+      class="animate-duration-300ms i-codicon-menu {isSideBarOpen
+        ? 'animate-fade-out'
+        : `animate-fade-in`}"
+    />
+  {/if}
+</div>
+
+<div
   class="flex h-screen w-screen overflow-hidden children-pt8 children-pb-2 text-primaryText dark:text-darkPrimaryText"
 >
   <aside
-    class="w-75 {isWindows
-      ? 'bg-darkPrimaryLighter/60'
+    id="sidebar"
+    class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
+     {isWindows
+      ? 'bg-darkPrimaryLighter/60 lt-sm:bg-darkPrimaryLighter'
       : 'bg-darkPrimaryLighter'} transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
@@ -335,7 +419,10 @@
         <a
           href="##"
           class="nv {selected === view ? 'nv_selected' : ''}"
-          on:click={() => select(view)}
+          on:click={() => {
+            select(view)
+            isSideBarOpen = false
+          }}
         >
           <div class="{view.icon} mr-2" />
           <p>{view.label}</p></a
@@ -344,7 +431,7 @@
     </div>
   </aside>
   <main
-    class="flex-1 bg-primary dark:bg-darkPrimary transition-colors-250 grid grid-rows-[2fr_auto]"
+    class="flex-1 bg-primary dark:bg-darkPrimary transition-transform transition-colors-250 grid grid-rows-[2fr_auto]"
   >
     <div class="px-5 overflow-hidden grid grid-rows-[auto_1fr]">
       <h1>{selected.label}</h1>

@@ -282,6 +282,7 @@
   })
 </script>
 
+<!-- custom titlebar for Windows -->
 {#if isWindows}
   <div
     class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
@@ -334,6 +335,7 @@
   </div>
 {/if}
 
+<!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
   class="z-2000 display-none lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8

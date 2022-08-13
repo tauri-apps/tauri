@@ -794,13 +794,12 @@ pub fn command(_options: Options) -> Result<()> {
         } else {
           None
         };
-      let lock: Option<CargoLock> = if let Ok(lock_contents) =
-        read_to_string(get_workspace_dir(&tauri_dir).join("Cargo.lock"))
-      {
-        toml::from_str(&lock_contents).ok()
-      } else {
-        None
-      };
+      let lock: Option<CargoLock> =
+        if let Ok(lock_contents) = read_to_string(get_workspace_dir().join("Cargo.lock")) {
+          toml::from_str(&lock_contents).ok()
+        } else {
+          None
+        };
 
       for (dep, label) in [
         ("tauri", format!("{} {}", "tauri", "[RUST]".dimmed())),

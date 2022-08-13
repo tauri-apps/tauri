@@ -287,7 +287,7 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = channel();
     let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir(&tauri_path);
+    let workspace_path = get_workspace_dir();
 
     let watch_folders = if tauri_path == workspace_path {
       vec![tauri_path]
@@ -421,17 +421,6 @@ impl CargoSettings {
       .with_context(|| "failed to parse Cargo.toml")
       .map_err(Into::into)
   }
-}
-
-#[derive(Deserialize)]
-struct CargoBuildConfig {
-  #[serde(rename = "target-dir")]
-  target_dir: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct CargoConfig {
-  build: Option<CargoBuildConfig>,
 }
 
 pub struct RustAppSettings {
@@ -639,50 +628,44 @@ impl RustAppSettings {
   }
 
   pub fn out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
-    let tauri_dir = tauri_dir();
-    let workspace_dir = get_workspace_dir(&tauri_dir);
-    get_target_dir(&workspace_dir, target, !debug)
+    get_target_dir(target, !debug)
   }
 }
 
-/// This function determines where 'target' dir is and suffixes it with 'release' or 'debug'
+#[derive(serde::Deserialize)]
+struct CargoMetadata {
+  target_directory: PathBuf,
+  workspace_root: PathBuf,
+}
+
+fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
+  let output = Command::new("cargo")
+    .args(["metadata", "--no-deps", "--format-version", "1"])
+    .current_dir(tauri_dir())
+    .output()?;
+
+  if !output.status.success() {
+    return Err(anyhow::anyhow!(
+      "cargo metadata command exited with a non zero exit code: {}",
+      String::from_utf8(output.stderr)?
+    ));
+  }
+
+  Ok(serde_json::from_slice(&output.stdout)?)
+}
+
+/// This function determines the 'target' directory and suffixes it with 'release' or 'debug'
 /// to determine where the compiled binary will be located.
-fn get_target_dir(
-  project_root_dir: &Path,
-  target: Option<String>,
-  is_release: bool,
-) -> crate::Result<PathBuf> {
-  let mut path: PathBuf = match std::env::var_os("CARGO_TARGET_DIR") {
-    Some(target_dir) => target_dir.into(),
-    None => {
-      let mut root_dir = project_root_dir.to_path_buf();
-      let target_path: Option<PathBuf> = loop {
-        // cargo reads configs under .cargo/config.toml or .cargo/config
-        let mut cargo_config_path = root_dir.join(".cargo/config");
-        if !cargo_config_path.exists() {
-          cargo_config_path = root_dir.join(".cargo/config.toml");
-        }
-        // if the path exists, parse it
-        if cargo_config_path.exists() {
-          let mut config_str = String::new();
-          let mut config_file = File::open(&cargo_config_path)
-            .with_context(|| format!("failed to open {:?}", cargo_config_path))?;
-          config_file
-            .read_to_string(&mut config_str)
-            .with_context(|| "failed to read cargo config file")?;
-          let config: CargoConfig =
-            toml::from_str(&config_str).with_context(|| "failed to parse cargo config file")?;
-          if let Some(build) = config.build {
-            if let Some(target_dir) = build.target_dir {
-              break Some(target_dir.into());
-            }
-          }
-        }
-        if !root_dir.pop() {
-          break None;
-        }
-      };
-      target_path.unwrap_or_else(|| project_root_dir.join("target"))
+fn get_target_dir(target: Option<String>, is_release: bool) -> crate::Result<PathBuf> {
+  let mut path = match get_cargo_metadata() {
+    Ok(meta) => meta.target_directory,
+    // TODO: PR comment: return error instead of log+fallback? If fallback -> Remove Result wrapper
+    Err(err) => {
+      warn!(
+        "Unable to find target directory, falling back to the Tauri source directory. Reason: {:#}",
+        err
+      );
+      tauri_dir().join("target")
     }
   };
 
@@ -693,46 +676,19 @@ fn get_target_dir(
   Ok(path)
 }
 
-/// Walks up the file system, looking for a Cargo.toml file
-/// If one is found before reaching the root, then the current_dir's package belongs to that parent workspace if it's listed on [workspace.members].
-///
-/// If this package is part of a workspace, returns the path to the workspace directory
-/// Otherwise returns the current directory.
-pub fn get_workspace_dir(current_dir: &Path) -> PathBuf {
-  let mut dir = current_dir.to_path_buf();
-  let project_path = dir.clone();
-
-  while dir.pop() {
-    if dir.join("Cargo.toml").exists() {
-      match CargoSettings::load(&dir) {
-        Ok(cargo_settings) => {
-          if let Some(workspace_settings) = cargo_settings.workspace {
-            if let Some(members) = workspace_settings.members {
-              if members.iter().any(|member| {
-                glob::glob(&dir.join(member).to_string_lossy())
-                  .unwrap()
-                  .any(|p| p.unwrap() == project_path)
-              }) {
-                return dir;
-              }
-            }
-          }
-        }
-        Err(e) => {
-          warn!(
-              "Found `{}`, which may define a parent workspace, but \
-            failed to parse it. If this is indeed a parent workspace, undefined behavior may occur: \
-            \n    {:#}",
-              dir.display(),
-              e
-            );
-        }
-      }
+/// Executes `cargo metadata` to get the workspace directory.
+/// It will fall back to the Tauri directory if there was an error.
+pub fn get_workspace_dir() -> PathBuf {
+  match get_cargo_metadata() {
+    Ok(meta) => meta.workspace_root,
+    Err(err) => {
+      warn!(
+        "Unable to find workspace directory, falling back to the Tauri source directory. Reason: {:#}",
+        err
+      );
+      tauri_dir()
     }
   }
-
-  // Nothing found walking up the file system, return the starting directory
-  current_dir.to_path_buf()
 }
 
 #[allow(unused_variables)]

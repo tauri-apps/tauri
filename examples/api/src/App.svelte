@@ -343,16 +343,10 @@
 >
   {#if isSideBarOpen}
     <span
-      class="animate-duration-300ms i-codicon-close {isSideBarOpen
-        ? 'animate-fade-in'
-        : `animate-fade-out`}"
-    />
+      class="i-codicon-close animate-duration-300ms animate-fade-in" />
   {:else}
     <span
-      class="animate-duration-300ms i-codicon-menu {isSideBarOpen
-        ? 'animate-fade-out'
-        : `animate-fade-in`}"
-    />
+      class="i-codicon-menu animate-duration-300ms animate-fade-in" />
   {/if}
 </div>
 

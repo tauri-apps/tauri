@@ -6,11 +6,8 @@ edition = "2021"
 rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
-[lib]
-crate-type = ["staticlib", "cdylib", "rlib"]
-
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["isolation", "codegen"] }
+tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
 
 [dependencies]
 serde_json = "1.0"

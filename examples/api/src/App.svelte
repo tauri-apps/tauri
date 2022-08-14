@@ -36,6 +36,9 @@
     onMessage(`File drop: ${JSON.stringify(event.payload)}`)
   })
 
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
+
   const views = [
     {
       label: 'Welcome',
@@ -47,12 +50,12 @@
       component: Communication,
       icon: 'i-codicon-radio-tower'
     },
-    {
+    !isMobile && {
       label: 'CLI',
       component: Cli,
       icon: 'i-codicon-terminal'
     },
-    {
+    !isMobile && {
       label: 'Dialog',
       component: Dialog,
       icon: 'i-codicon-multiple-windows'
@@ -67,17 +70,17 @@
       component: Http,
       icon: 'i-ph-globe-hemisphere-west'
     },
-    {
+    !isMobile && {
       label: 'Notifications',
       component: Notifications,
       icon: 'i-codicon-bell-dot'
     },
-    {
+    !isMobile && {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
     },
-    {
+    !isMobile && {
       label: 'Shortcuts',
       component: Shortcuts,
       icon: 'i-codicon-record-keys'
@@ -87,12 +90,12 @@
       component: Shell,
       icon: 'i-codicon-terminal-bash'
     },
-    {
+    !isMobile && {
       label: 'Updater',
       component: Updater,
       icon: 'i-codicon-cloud-download'
     },
-    {
+    !isMobile && {
       label: 'Clipboard',
       component: Clipboard,
       icon: 'i-codicon-clippy'
@@ -342,11 +345,9 @@
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
   {#if isSideBarOpen}
-    <span
-      class="i-codicon-close animate-duration-300ms animate-fade-in" />
+    <span class="i-codicon-close animate-duration-300ms animate-fade-in" />
   {:else}
-    <span
-      class="i-codicon-menu animate-duration-300ms animate-fade-in" />
+    <span class="i-codicon-menu animate-duration-300ms animate-fade-in" />
   {/if}
 </div>
 
@@ -412,17 +413,19 @@
       class="flex flex-col overflow-y-auto children-h-10 children-flex-none gap-1"
     >
       {#each views as view}
-        <a
-          href="##"
-          class="nv {selected === view ? 'nv_selected' : ''}"
-          on:click={() => {
-            select(view)
-            isSideBarOpen = false
-          }}
-        >
-          <div class="{view.icon} mr-2" />
-          <p>{view.label}</p></a
-        >
+        {#if view}
+          <a
+            href="##"
+            class="nv {selected === view ? 'nv_selected' : ''}"
+            on:click={() => {
+              select(view)
+              isSideBarOpen = false
+            }}
+          >
+            <div class="{view.icon} mr-2" />
+            <p>{view.label}</p></a
+          >
+        {/if}
       {/each}
     </div>
   </aside>

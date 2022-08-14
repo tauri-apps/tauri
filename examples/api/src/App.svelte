@@ -146,13 +146,13 @@
   // dark/light
   let isDark
   onMount(() => {
-    isDark = localStorage.getItem('theme') == 'dark'
+    isDark = localStorage && localStorage.getItem('theme') == 'dark'
     applyTheme(isDark)
   })
   function applyTheme(isDark) {
     const html = document.querySelector('html')
     isDark ? html.classList.add('dark') : html.classList.remove('dark')
-    localStorage.setItem('theme', isDark ? 'dark' : '')
+    localStorage && localStorage.setItem('theme', isDark ? 'dark' : '')
   }
   function toggleDark() {
     isDark = !isDark

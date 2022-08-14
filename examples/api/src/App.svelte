@@ -231,6 +231,13 @@
   let draggingEndPosX = 0
   const clamp = (min, num, max) => Math.min(Math.max(num, min), max)
 
+  function toggleSidebar(sidebar, isSideBarOpen) {
+    sidebar.style.setProperty(
+      '--translate-x',
+      `${isSideBarOpen ? '0' : '-18.75'}rem`
+    )
+  }
+
   onMount(() => {
     sidebar = document.querySelector('#sidebar')
     sidebarToggle = document.querySelector('#sidebarToggle')
@@ -238,13 +245,8 @@
     document.addEventListener('click', (e) => {
       if (sidebarToggle.contains(e.target)) {
         isSideBarOpen = !isSideBarOpen
-        sidebar.style.setProperty(
-          '--translate-x',
-          `${isSideBarOpen ? '0' : '-18.75'}rem`
-        )
       } else if (isSideBarOpen && !sidebar.contains(e.target)) {
         isSideBarOpen = false
-        sidebar.style.setProperty('--translate-x', `-18.75rem`)
       }
     })
 
@@ -274,15 +276,18 @@
       if (isDraggingSideBar) {
         const delta = (draggingEndPosX - draggingStartPosX) / 10
         isSideBarOpen = isSideBarOpen ? delta > -(18.75 / 2) : delta > 18.75 / 2
-        sidebar.style.setProperty(
-          '--translate-x',
-          `${isSideBarOpen ? '0' : '-18.75'}rem`
-        )
       }
 
       isDraggingSideBar = false
     })
   })
+
+  $: {
+    const sidebar = document.querySelector('#sidebar')
+    if (sidebar) {
+      toggleSidebar(sidebar, isSideBarOpen)
+    }
+  }
 </script>
 
 <!-- custom titlebar for Windows -->

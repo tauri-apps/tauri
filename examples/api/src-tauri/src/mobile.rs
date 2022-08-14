@@ -1,5 +1,5 @@
 #[cfg(target_os = "android")]
-use tauri_runtime_wry::wry::application::{android_fn, platform::android::ndk_glue::*};
+use tauri_runtime_wry::wry::android_binding;
 
 #[cfg(target_os = "android")]
 fn init_logging(app_name: &str) {
@@ -33,7 +33,7 @@ fn _start_app() {
 #[inline(never)]
 pub extern "C" fn start_app() {
   #[cfg(target_os = "android")]
-  android_fn!(studio_tauri, api);
+  android_binding!(studio_tauri, api, _start_app, tauri_runtime_wry::wry);
   _start_app()
 }
 

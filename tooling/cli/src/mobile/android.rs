@@ -7,6 +7,8 @@ use clap::{Parser, Subcommand};
 use super::init::{command as init_command, Options as InitOptions, Target as InitTarget};
 use crate::Result;
 
+pub(crate) mod project;
+
 #[derive(Parser)]
 #[clap(
   author,

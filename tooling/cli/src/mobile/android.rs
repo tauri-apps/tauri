@@ -95,12 +95,13 @@ pub fn command(cli: Cli) -> Result<()> {
 fn with_config(
   f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<(), Error>,
 ) -> Result<(), Error> {
-  let config = get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
-  let config_guard = config.lock().unwrap();
-  let config_ = config_guard.as_ref().unwrap();
-  let mobile_config = get_config(config_);
-  let metadata = get_metadata(config_);
-  f(mobile_config.android(), metadata.android())
+  let tauri_config =
+    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+  let config = get_config(tauri_config_);
+  let metadata = get_metadata(tauri_config_);
+  f(config.android(), metadata.android())
 }
 
 fn open() -> Result<()> {

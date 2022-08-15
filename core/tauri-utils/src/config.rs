@@ -2366,7 +2366,7 @@ pub struct IosConfig {
   /// The development team. This value is required for iOS development because code signing is enforced.
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
-  development_team: Option<String>,
+  pub development_team: Option<String>,
 }
 
 /// Defines the URL or assets to embed in the application.

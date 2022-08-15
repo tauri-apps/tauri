@@ -134,21 +134,6 @@ pub fn exec(
       .to_string_lossy(),
   );
 
-  // Generate Xcode project
-  #[cfg(target_os = "macos")]
-  if target == Target::Ios {
-    super::ios::project::gen(
-      config.apple(),
-      metadata.apple(),
-      (handlebars, map),
-      wrapper,
-      non_interactive,
-      skip_dev_tools,
-      reinstall_deps,
-    )
-    .map_err(Error::IosInit)?;
-  }
-
   // Generate Android Studio project
   if target == Target::Android {
     match android::env::Env::new() {
@@ -172,6 +157,21 @@ pub fn exec(
           return Err(Error::AndroidEnv(err));
         }
       }
+    }
+  } else {
+    // Generate Xcode project
+    #[cfg(target_os = "macos")]
+    if target == Target::Ios {
+      super::ios::project::gen(
+        config.apple(),
+        metadata.apple(),
+        (handlebars, map),
+        wrapper,
+        non_interactive,
+        skip_dev_tools,
+        reinstall_deps,
+      )
+      .map_err(Error::IosInit)?;
     }
   }
 

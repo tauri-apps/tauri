@@ -99,7 +99,7 @@ fn get_config(config: &TauriConfig) -> Config {
     apple: Some(RawAppleConfig {
       development_team: std::env::var("APPLE_DEVELOPMENT_TEAM")
         .ok()
-        .or_else(|| config.tauri.ios.development_team)
+        .or_else(|| config.tauri.ios.development_team.clone())
         .expect("you must set `tauri > iOS > developmentTeam` config value or the `APPLE_DEVELOPMENT_TEAM` environment variable"),
       project_dir: None,
       ios_no_default_features: None,

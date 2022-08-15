@@ -164,7 +164,7 @@ pub fn exec(
           )
           .print(wrapper);
         } else {
-          Err(Error::AndroidEnv(err))?;
+          return Err(Error::AndroidEnv(err));
         }
       }
     }

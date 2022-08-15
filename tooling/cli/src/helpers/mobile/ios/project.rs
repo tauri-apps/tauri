@@ -22,24 +22,24 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error(transparent)]
-  RustupFailed(bossy::Error),
+  Rustup(bossy::Error),
   #[error(transparent)]
-  RustVersionCheckFailed(util::RustVersionError),
-  #[error("Failed to install Apple dependencies: {0}")]
-  DepsInstallFailed(deps::Error),
+  RustVersionCheck(util::RustVersionError),
+  #[error("failed to install Apple dependencies: {0}")]
+  DepsInstall(deps::Error),
   #[error("failed to process template: {0}")]
-  TemplateProcessingFailed(String),
+  TemplateProcessing(String),
   #[error("failed to symlink asset directory")]
-  AssetDirSymlinkFailed,
+  AssetDirSymlink,
   #[error("failed to create directory at {path}: {cause}")]
-  DirectoryCreationFailed {
+  DirectoryCreation {
     path: PathBuf,
     cause: std::io::Error,
   },
-  #[error("Failed to run `xcodegen`: {0}")]
-  XcodegenFailed(bossy::Error),
-  #[error("Failed to run `pod install`: {0}")]
-  PodInstallFailed(bossy::Error),
+  #[error("failed to run `xcodegen`: {0}")]
+  Xcodegen(bossy::Error),
+  #[error("failed to run `pod install`: {0}")]
+  PodInstall(bossy::Error),
 }
 
 // unprefixed app_root seems pretty dangerous!!
@@ -54,11 +54,11 @@ pub fn gen(
   reinstall_deps: opts::ReinstallDeps,
 ) -> Result<(), Error> {
   println!("Installing iOS toolchains...");
-  Target::install_all().map_err(Error::RustupFailed)?;
-  rust_version_check(wrapper).map_err(Error::RustVersionCheckFailed)?;
+  Target::install_all().map_err(Error::Rustup)?;
+  rust_version_check(wrapper).map_err(Error::RustVersionCheck)?;
 
   deps::install_all(wrapper, non_interactive, skip_dev_tools, reinstall_deps)
-    .map_err(Error::DepsInstallFailed)?;
+    .map_err(Error::DepsInstall)?;
 
   let dest = config.project_dir();
   let rel_prefix = util::relativize_path(config.app().root_dir(), &dest);
@@ -74,10 +74,7 @@ pub fn gen(
   map.insert("ios-frameworks", metadata.ios().frameworks());
   map.insert(
     "ios-valid-archs",
-    metadata
-      .ios()
-      .valid_archs()
-      .unwrap_or_else(|| &default_archs),
+    metadata.ios().valid_archs().unwrap_or(&default_archs),
   );
   map.insert("ios-vendor-frameworks", metadata.ios().vendor_frameworks());
   map.insert("ios-vendor-sdks", metadata.ios().vendor_sdks());
@@ -144,7 +141,7 @@ pub fn gen(
             new_component.replace(OsString::from(
               &c.replace("{{app.name}}", config.app().name()),
             ));
-            *component = Component::Normal(&new_component.as_ref().unwrap());
+            *component = Component::Normal(new_component.as_ref().unwrap());
             break;
           }
         }
@@ -160,14 +157,14 @@ pub fn gen(
       File::create(path)
     },
   )
-  .map_err(|e| Error::TemplateProcessingFailed(e.to_string()))?;
+  .map_err(|e| Error::TemplateProcessing(e.to_string()))?;
 
   ln::force_symlink_relative(config.app().asset_dir(), &dest, ln::TargetStyle::Directory)
-    .map_err(|_| Error::AssetDirSymlinkFailed)?;
+    .map_err(|_| Error::AssetDirSymlink)?;
 
   // Create all asset catalog directories if they don't already exist
   for dir in asset_catalogs {
-    std::fs::create_dir_all(dir).map_err(|cause| Error::DirectoryCreationFailed {
+    std::fs::create_dir_all(dir).map_err(|cause| Error::DirectoryCreation {
       path: dest.clone(),
       cause,
     })?;
@@ -180,13 +177,13 @@ pub fn gen(
     .with_args(&["generate", "--spec"])
     .with_arg(dest.join("project.yml"))
     .run_and_wait()
-    .map_err(Error::XcodegenFailed)?;
+    .map_err(Error::Xcodegen)?;
 
   if !ios_pods.is_empty() || !macos_pods.is_empty() {
     bossy::Command::impure_parse("pod install")
       .with_arg(format!("--project-directory={}", dest.display()))
       .run_and_wait()
-      .map_err(Error::PodInstallFailed)?;
+      .map_err(Error::PodInstall)?;
   }
   Ok(())
 }

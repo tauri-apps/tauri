@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::Target;
 use crate::helpers::{app_paths::tauri_dir, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
@@ -87,13 +88,6 @@ pub enum Error {
   DotFirstInitDelete { path: PathBuf, cause: io::Error },
   #[error(transparent)]
   OpenInEditor(util::OpenInEditorError),
-}
-
-#[derive(PartialEq, Eq)]
-pub enum Target {
-  Android,
-  #[cfg(target_os = "macos")]
-  Ios,
 }
 
 pub fn exec(

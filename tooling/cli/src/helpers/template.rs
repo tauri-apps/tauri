@@ -3,22 +3,62 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::BTreeMap,
   fs::{create_dir_all, File},
   io::Write,
-  path::Path,
+  path::{Path, PathBuf},
 };
 
-use handlebars::Handlebars;
+use handlebars::{to_json, Handlebars};
 use include_dir::Dir;
+use serde::Serialize;
+use serde_json::value::{Map, Value as JsonValue};
 
-pub fn render<P: AsRef<Path>>(
+/// Map of template variable names and values.
+#[derive(Clone, Debug)]
+#[repr(transparent)]
+pub struct JsonMap(Map<String, JsonValue>);
+
+impl Default for JsonMap {
+  fn default() -> Self {
+    Self(Map::new())
+  }
+}
+
+impl JsonMap {
+  pub fn insert(&mut self, name: &str, value: impl Serialize) {
+    self.0.insert(name.to_owned(), to_json(value));
+  }
+
+  pub fn inner(&self) -> &Map<String, JsonValue> {
+    &self.0
+  }
+}
+
+pub fn render<P: AsRef<Path>, D: Serialize>(
   handlebars: &Handlebars<'_>,
-  data: &BTreeMap<&str, serde_json::Value>,
+  data: &D,
   dir: &Dir<'_>,
   out_dir: P,
 ) -> crate::Result<()> {
-  create_dir_all(out_dir.as_ref().join(dir.path()))?;
+  let out_dir = out_dir.as_ref();
+  render_with_generator(handlebars, data, dir, &out_dir, &|file_path: &PathBuf| {
+    File::create(out_dir.join(file_path))
+  })
+}
+
+pub fn render_with_generator<
+  P: AsRef<Path>,
+  D: Serialize,
+  F: Fn(&PathBuf) -> std::io::Result<File>,
+>(
+  handlebars: &Handlebars<'_>,
+  data: &D,
+  dir: &Dir<'_>,
+  out_dir: P,
+  out_file_generator: &F,
+) -> crate::Result<()> {
+  let out_dir = out_dir.as_ref();
+  create_dir_all(out_dir.join(dir.path()))?;
   for file in dir.files() {
     let mut file_path = file.path().to_path_buf();
     // cargo for some reason ignores the /templates folder packaging when it has a Cargo.toml file inside
@@ -28,7 +68,7 @@ pub fn render<P: AsRef<Path>>(
         file_path.set_extension("toml");
       }
     }
-    let mut output_file = File::create(out_dir.as_ref().join(file_path))?;
+    let mut output_file = out_file_generator(&file_path)?;
     if let Some(utf8) = file.contents_utf8() {
       handlebars
         .render_template_to_write(utf8, &data, &mut output_file)
@@ -38,7 +78,7 @@ pub fn render<P: AsRef<Path>>(
     }
   }
   for dir in dir.dirs() {
-    render(handlebars, data, dir, out_dir.as_ref())?;
+    render_with_generator(handlebars, data, dir, out_dir, out_file_generator)?;
   }
   Ok(())
 }

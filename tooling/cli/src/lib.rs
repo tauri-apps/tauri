@@ -4,6 +4,7 @@
 
 pub use anyhow::Result;
 
+mod android;
 mod build;
 mod dev;
 mod helpers;
@@ -66,6 +67,7 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
+  Android(android::Cli),
 }
 
 fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
@@ -164,6 +166,7 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Android(cli) => android::command(cli)?,
   }
 
   Ok(())

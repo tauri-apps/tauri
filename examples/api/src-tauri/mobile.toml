@@ -1,8 +1,0 @@
-[app]
-name = "api"
-stylized-name = "Tauri API"
-domain = "tauri.studio"
-template-pack = "tauri"
-
-[apple]
-development-team = "0"

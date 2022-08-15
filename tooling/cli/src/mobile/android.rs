@@ -4,31 +4,26 @@
 
 use cargo_mobile::{
   android::config::{Config as AndroidConfig, Metadata as AndroidMetadata},
-  config::{metadata::Metadata, Config},
   os,
-  util::cli::TextWrapper,
 };
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init,
+  ensure_init, get_config, get_metadata,
   init::{command as init_command, Options as InitOptions},
   Target,
 };
+use crate::helpers::config::get as get_tauri_config;
 use crate::Result;
 
 pub(crate) mod project;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
+  #[error("invalid tauri configuration: {0}")]
+  InvalidTauriConfig(String),
   #[error("{0}")]
   ProjectNotInitialized(String),
-  #[error(transparent)]
-  ConfigFailed(cargo_mobile::config::LoadOrGenError),
-  #[error(transparent)]
-  MetadataFailed(cargo_mobile::config::metadata::Error),
-  #[error("Android is marked as unsupported in your configuration file")]
-  Unsupported,
   #[error(transparent)]
   OpenFailed(os::OpenFileError),
 }
@@ -62,22 +57,18 @@ pub fn command(cli: Cli) -> Result<()> {
 }
 
 fn with_config(
-  wrapper: &TextWrapper,
   f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<(), Error>,
 ) -> Result<(), Error> {
-  let (config, _origin) =
-    Config::load_or_gen(".", true.into(), wrapper).map_err(Error::ConfigFailed)?;
-  let metadata = Metadata::load(config.app().root_dir()).map_err(Error::MetadataFailed)?;
-  if metadata.android().supported() {
-    f(config.android(), metadata.android())
-  } else {
-    Err(Error::Unsupported)
-  }
+  let config = get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+  let config_guard = config.lock().unwrap();
+  let config_ = config_guard.as_ref().unwrap();
+  let mobile_config = get_config(config_);
+  let metadata = get_metadata(config_);
+  f(mobile_config.android(), metadata.android())
 }
 
 fn open() -> Result<()> {
-  let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
-  with_config(&wrapper, |config, _metadata| {
+  with_config(|config, _metadata| {
     ensure_init(config.project_dir(), Target::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Android Studio", config.project_dir()).map_err(Error::OpenFailed)

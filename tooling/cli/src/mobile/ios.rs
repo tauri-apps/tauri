@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::helpers::config::get as get_tauri_config;
 use cargo_mobile::{
   apple::config::{Config as AppleConfig, Metadata as AppleMetadata},
   config::{metadata::Metadata, Config},
   os,
-  util::cli::TextWrapper,
 };
 use clap::{Parser, Subcommand};
 
@@ -21,14 +21,10 @@ pub(crate) mod project;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
+  #[error("invalid tauri configuration: {0}")]
+  InvalidTauriConfig(String),
   #[error("{0}")]
   ProjectNotInitialized(String),
-  #[error(transparent)]
-  ConfigFailed(cargo_mobile::config::LoadOrGenError),
-  #[error(transparent)]
-  MetadataFailed(cargo_mobile::config::metadata::Error),
-  #[error("iOS is marked as unsupported in your configuration file")]
-  Unsupported,
   #[error(transparent)]
   OpenFailed(os::OpenFileError),
 }
@@ -62,22 +58,18 @@ pub fn command(cli: Cli) -> Result<()> {
 }
 
 fn with_config(
-  wrapper: &TextWrapper,
   f: impl FnOnce(&AppleConfig, &AppleMetadata) -> Result<(), Error>,
 ) -> Result<(), Error> {
-  let (config, _origin) =
-    Config::load_or_gen(".", true.into(), wrapper).map_err(Error::ConfigFailed)?;
-  let metadata = Metadata::load(config.app().root_dir()).map_err(Error::MetadataFailed)?;
-  if metadata.apple().supported() {
-    f(config.apple(), metadata.apple())
-  } else {
-    Err(Error::Unsupported)
-  }
+  let config = get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+  let config_guard = config.lock().unwrap();
+  let config_ = config_guard.as_ref().unwrap();
+  let mobile_config = get_config(config_);
+  let metadata = get_metadata(config_);
+  f(config.apple(), metadata.apple())
 }
 
 fn open() -> Result<()> {
-  let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
-  with_config(&wrapper, |config, _metadata| {
+  with_config(|config, _metadata| {
     ensure_init(config.project_dir(), Target::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)

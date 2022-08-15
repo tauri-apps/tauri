@@ -28,35 +28,35 @@ pub use opts::{NonInteractive, OpenInEditor, ReinstallDeps, SkipDevTools};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error(transparent)]
-  ConfigLoadOrGenFailed(config::LoadOrGenError),
+  ConfigLoadOrGen(config::LoadOrGenError),
   #[error("failed to init first init file {path}: {cause}")]
-  DotFirstInitWriteFailed { path: PathBuf, cause: io::Error },
+  DotFirstInitWrite { path: PathBuf, cause: io::Error },
   #[error("failed to create asset dir {asset_dir}: {cause}")]
-  AssetDirCreationFailed {
+  AssetDirCreation {
     asset_dir: PathBuf,
     cause: io::Error,
   },
   #[error("failed to install LLDB VS Code extension: {0}")]
-  LldbExtensionInstallFailed(String),
+  LldbExtensionInstall(String),
   #[error(transparent)]
-  DotCargoLoadFailed(dot_cargo::LoadError),
+  DotCargoLoad(dot_cargo::LoadError),
   #[error(transparent)]
-  HostTargetTripleDetectionFailed(util::HostTargetTripleError),
+  HostTargetTripleDetection(util::HostTargetTripleError),
   #[error(transparent)]
-  MetadataFailed(metadata::Error),
+  Metadata(metadata::Error),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
-  IosInitFailed(super::ios::project::Error),
+  IosInit(super::ios::project::Error),
   #[error(transparent)]
-  AndroidEnvFailed(android::env::Error),
+  AndroidEnv(android::env::Error),
   #[error(transparent)]
-  AndroidInitFailed(super::android::project::Error),
+  AndroidInit(super::android::project::Error),
   #[error(transparent)]
-  DotCargoWriteFailed(dot_cargo::WriteError),
+  DotCargoWrite(dot_cargo::WriteError),
   #[error("failed to delete first init file {path}: {cause}")]
-  DotFirstInitDeleteFailed { path: PathBuf, cause: io::Error },
+  DotFirstInitDelete { path: PathBuf, cause: io::Error },
   #[error(transparent)]
-  OpenInEditorFailed(util::OpenInEditorError),
+  OpenInEditor(util::OpenInEditorError),
 }
 
 #[derive(PartialEq, Eq)]
@@ -77,7 +77,7 @@ pub fn exec(
 ) -> Result<Config, Error> {
   let cwd = cwd.as_ref();
   let (config, config_origin) =
-    Config::load_or_gen(cwd, non_interactive, wrapper).map_err(Error::ConfigLoadOrGenFailed)?;
+    Config::load_or_gen(cwd, non_interactive, wrapper).map_err(Error::ConfigLoadOrGen)?;
   let dot_first_init_path = config.app().root_dir().join(DOT_FIRST_INIT_FILE_NAME);
   let dot_first_init_exists = {
     let dot_first_init_exists = dot_first_init_path.exists();
@@ -86,7 +86,7 @@ pub fn exec(
       // the next init will know to still use `WildWest` filtering
       log::info!("creating first init dot file at {:?}", dot_first_init_path);
       fs::write(&dot_first_init_path, DOT_FIRST_INIT_CONTENTS).map_err(|cause| {
-        Error::DotFirstInitWriteFailed {
+        Error::DotFirstInitWrite {
           path: dot_first_init_path.clone(),
           cause,
         }
@@ -99,8 +99,7 @@ pub fn exec(
 
   let asset_dir = config.app().asset_dir();
   if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir)
-      .map_err(|cause| Error::AssetDirCreationFailed { asset_dir, cause })?;
+    fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
   }
   if skip_dev_tools.no() && util::command_present("code").unwrap_or_default() {
     let mut command = code_command();
@@ -110,9 +109,9 @@ pub fn exec(
     }
     command
       .run_and_wait()
-      .map_err(|e| Error::LldbExtensionInstallFailed(e.to_string()))?;
+      .map_err(|e| Error::LldbExtensionInstall(e.to_string()))?;
   }
-  let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoadFailed)?;
+  let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over
   // the build cache with builds that use `--target`! This means that
   // alternating between i.e. `cargo run` and `cargo apple run` would
@@ -123,11 +122,10 @@ pub fn exec(
   //
   // This behavior could be explained here:
   // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
-  dot_cargo.set_default_target(
-    util::host_target_triple().map_err(Error::HostTargetTripleDetectionFailed)?,
-  );
+  dot_cargo
+    .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
-  let metadata = Metadata::load(&config.app().root_dir()).map_err(Error::MetadataFailed)?;
+  let metadata = Metadata::load(config.app().root_dir()).map_err(Error::Metadata)?;
 
   // Generate Xcode project
   #[cfg(target_os = "macos")]
@@ -141,7 +139,7 @@ pub fn exec(
       skip_dev_tools,
       reinstall_deps,
     )
-    .map_err(Error::IosInitFailed)?;
+    .map_err(Error::IosInit)?;
   } else {
     println!("Skipping iOS init, since it's marked as unsupported in your Cargo.toml metadata");
   }
@@ -157,16 +155,16 @@ pub fn exec(
         wrapper,
         &mut dot_cargo,
       )
-      .map_err(Error::AndroidInitFailed)?,
+      .map_err(Error::AndroidInit)?,
       Err(err) => {
         if err.sdk_or_ndk_issue() {
           Report::action_request(
-            "Failed to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `cargo mobile init`!",
+            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `cargo mobile init`!",
             err,
           )
           .print(wrapper);
         } else {
-          Err(Error::AndroidEnvFailed(err))?;
+          Err(Error::AndroidEnv(err))?;
         }
       }
     }
@@ -176,10 +174,10 @@ pub fn exec(
 
   dot_cargo
     .write(config.app())
-    .map_err(Error::DotCargoWriteFailed)?;
+    .map_err(Error::DotCargoWrite)?;
   if dot_first_init_exists {
     log::info!("deleting first init dot file at {:?}", dot_first_init_path);
-    fs::remove_file(&dot_first_init_path).map_err(|cause| Error::DotFirstInitDeleteFailed {
+    fs::remove_file(&dot_first_init_path).map_err(|cause| Error::DotFirstInitDelete {
       path: dot_first_init_path,
       cause,
     })?;
@@ -190,7 +188,7 @@ pub fn exec(
   )
   .print(wrapper);
   if open_in_editor.yes() {
-    util::open_in_editor(cwd).map_err(Error::OpenInEditorFailed)?;
+    util::open_in_editor(cwd).map_err(Error::OpenInEditor)?;
   }
   Ok(config)
 }
@@ -229,7 +227,7 @@ fn get_str<'a>(helper: &'a Helper) -> &'a str {
   helper
     .param(0)
     .and_then(|v| v.value().as_str())
-    .unwrap_or_else(|| "")
+    .unwrap_or("")
 }
 
 fn get_str_array<'a>(
@@ -240,7 +238,12 @@ fn get_str_array<'a>(
     v.value().as_array().and_then(|arr| {
       arr
         .iter()
-        .map(|val| val.as_str().map(|s| formatter(s)))
+        .map(|val| {
+          val.as_str().map(
+            #[allow(clippy::redundant_closure)]
+            |s| formatter(s),
+          )
+        })
         .collect()
     })
   })
@@ -267,7 +270,7 @@ fn join(
 ) -> HelperResult {
   out
     .write(
-      &get_str_array(helper, |s| format!("{}", s))
+      &get_str_array(helper, |s| s.to_string())
         .ok_or_else(|| RenderError::new("`join` helper wasn't given an array"))?
         .join(", "),
     )
@@ -346,7 +349,7 @@ fn reverse_domain_snake_case(
     .map_err(Into::into)
 }
 
-fn app_root<'a>(ctx: &'a Context) -> Result<&'a str, RenderError> {
+fn app_root(ctx: &Context) -> Result<&str, RenderError> {
   let app_root = ctx
     .data()
     .get("app")

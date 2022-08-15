@@ -105,7 +105,7 @@ pub fn gen(
   );
   map.insert("windows", cfg!(windows));
 
-  let domain = config.app().reverse_domain().replace(".", "/");
+  let domain = config.app().reverse_domain().replace('.', "/");
   let package_path = format!("java/{}/{}", domain, config.app().name());
 
   let mut created_dirs = Vec::new();
@@ -170,7 +170,7 @@ pub fn gen(
       dot_cargo.insert_target(
         target.triple.to_owned(),
         target
-          .generate_cargo_config(config, &env)
+          .generate_cargo_config(config, env)
           .map_err(Error::DotCargoGenFailed)?,
       );
     }

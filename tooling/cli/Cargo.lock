@@ -202,8 +202,7 @@ dependencies = [
 [[package]]
 name = "bossy"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c004d74bd688ab2f7ed4d8e3db0c4cc4db8eec9e4f44bd82221ddc31deeedbec"
+source = "git+https://github.com/lucasfernog/bossy?branch=fix/winapi-features#83ee04daddbc9b985b5f8dcf54d7229f0542d41d"
 dependencies = [
  "libc",
  "log",

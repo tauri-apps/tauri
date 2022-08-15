@@ -28,7 +28,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
   #[error("failed to run rustup: {0}")]
-  RustupFailed(String),
+  RustupFailed(bossy::Error),
   #[error("failed to process template: {0}")]
   TemplateProcessingFailed(String),
   #[error("failed to create directory at {path}: {cause}")]
@@ -59,7 +59,7 @@ pub fn gen(
   dot_cargo: &mut dot_cargo::DotCargo,
 ) -> Result<(), Error> {
   println!("Installing Android toolchains...");
-  Target::install_all().map_err(|e| Error::RustupFailed(e.to_string()))?;
+  Target::install_all().map_err(Error::RustupFailed)?;
   println!("Generating Android Studio project...");
   let dest = config.project_dir();
   let asset_packs = metadata.asset_packs().unwrap_or_default();

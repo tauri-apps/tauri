@@ -37,7 +37,7 @@ pub enum Error {
     cause: io::Error,
   },
   #[error("failed to install LLDB VS Code extension: {0}")]
-  LldbExtensionInstall(String),
+  LldbExtensionInstall(bossy::Error),
   #[error(transparent)]
   DotCargoLoad(dot_cargo::LoadError),
   #[error(transparent)]
@@ -109,7 +109,7 @@ pub fn exec(
     }
     command
       .run_and_wait()
-      .map_err(|e| Error::LldbExtensionInstall(e.to_string()))?;
+      .map_err(Error::LldbExtensionInstall)?;
   }
   let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over

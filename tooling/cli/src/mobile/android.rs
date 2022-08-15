@@ -123,7 +123,7 @@ fn build(options: BuildOptions) -> Result<()> {
   fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
     let device_list =
       adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
-    if device_list.len() > 0 {
+    if !device_list.is_empty() {
       let index = if device_list.len() > 1 {
         prompt::list(
           concat!("Detected ", "Android", " devices"),

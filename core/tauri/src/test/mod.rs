@@ -61,6 +61,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
         updater: Default::default(),
         system_tray: None,
         macos_private_api: false,
+        ios: Default::default(),
       },
       build: Default::default(),
       plugins: Default::default(),

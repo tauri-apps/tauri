@@ -3570,6 +3570,7 @@ mod test {
       allowlist: AllowlistConfig::default(),
       system_tray: None,
       macos_private_api: false,
+      ios: Default::default(),
     };
 
     // create a build config

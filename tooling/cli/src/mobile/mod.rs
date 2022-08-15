@@ -1,3 +1,3 @@
 pub mod android;
-pub mod init;
+mod init;
 pub mod ios;

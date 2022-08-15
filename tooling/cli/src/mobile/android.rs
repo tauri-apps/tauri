@@ -4,15 +4,14 @@
 
 use clap::{Parser, Subcommand};
 
+use super::init::{command as init_command, Options as InitOptions, Target as InitTarget};
 use crate::Result;
-
-mod init;
 
 #[derive(Parser)]
 #[clap(
   author,
   version,
-  about = "Manage Tauri plugins",
+  about = "Android commands",
   subcommand_required(true),
   arg_required_else_help(true)
 )]
@@ -23,12 +22,12 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-  Init(init::Options),
+  Init(InitOptions),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Init(options) => init::command(options)?,
+    Commands::Init(options) => init_command(options, InitTarget::Android)?,
   }
 
   Ok(())

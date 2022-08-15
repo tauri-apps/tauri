@@ -41,24 +41,36 @@ pub fn render<P: AsRef<Path>, D: Serialize>(
   out_dir: P,
 ) -> crate::Result<()> {
   let out_dir = out_dir.as_ref();
-  render_with_generator(handlebars, data, dir, &out_dir, &|file_path: &PathBuf| {
-    File::create(out_dir.join(file_path))
-  })
+  let mut created_dirs = Vec::new();
+  render_with_generator(
+    handlebars,
+    data,
+    dir,
+    &out_dir,
+    &mut |file_path: &PathBuf| {
+      let path = out_dir.join(file_path);
+      let parent = path.parent().unwrap().to_path_buf();
+      if !created_dirs.contains(&parent) {
+        create_dir_all(&parent)?;
+        created_dirs.push(parent);
+      }
+      File::create(path)
+    },
+  )
 }
 
 pub fn render_with_generator<
   P: AsRef<Path>,
   D: Serialize,
-  F: Fn(&PathBuf) -> std::io::Result<File>,
+  F: FnMut(&PathBuf) -> std::io::Result<File>,
 >(
   handlebars: &Handlebars<'_>,
   data: &D,
   dir: &Dir<'_>,
   out_dir: P,
-  out_file_generator: &F,
+  out_file_generator: &mut F,
 ) -> crate::Result<()> {
   let out_dir = out_dir.as_ref();
-  create_dir_all(out_dir.join(dir.path()))?;
   for file in dir.files() {
     let mut file_path = file.path().to_path_buf();
     // cargo for some reason ignores the /templates folder packaging when it has a Cargo.toml file inside

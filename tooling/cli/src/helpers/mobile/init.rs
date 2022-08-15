@@ -1,7 +1,5 @@
-use cargo_mobile::android;
-#[cfg(target_os = "macos")]
-use cargo_mobile::apple;
 use cargo_mobile::{
+  android,
   config::{
     self,
     metadata::{self, Metadata},
@@ -50,7 +48,7 @@ pub enum Error {
   MetadataFailed(metadata::Error),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
-  AppleInitFailed(apple::project::Error),
+  IosInitFailed(super::ios::project::Error),
   #[error(transparent)]
   AndroidEnvFailed(android::env::Error),
   #[error(transparent)]
@@ -63,7 +61,14 @@ pub enum Error {
   OpenInEditorFailed(util::OpenInEditorError),
 }
 
+#[derive(PartialEq, Eq)]
+pub enum Target {
+  Android,
+  Ios,
+}
+
 pub fn exec(
+  target: Target,
   wrapper: &TextWrapper,
   non_interactive: opts::NonInteractive,
   skip_dev_tools: opts::SkipDevTools,
@@ -129,23 +134,23 @@ pub fn exec(
 
   // Generate Xcode project
   #[cfg(target_os = "macos")]
-  if metadata.apple().supported() {
-    /*super::apple::project::gen(
+  if target == Target::Ios && metadata.apple().supported() {
+    super::ios::project::gen(
       config.apple(),
       metadata.apple(),
-      config.app().template_pack().submodule_path(),
+      handlebars(&config),
       wrapper,
       non_interactive,
       skip_dev_tools,
       reinstall_deps,
     )
-    .map_err(Error::AppleInitFailed)?;*/
+    .map_err(Error::IosInitFailed)?;
   } else {
     println!("Skipping iOS init, since it's marked as unsupported in your Cargo.toml metadata");
   }
 
   // Generate Android Studio project
-  if metadata.android().supported() {
+  if target == Target::Android && metadata.android().supported() {
     match android::env::Env::new() {
       Ok(env) => super::android::project::gen(
         config.android(),

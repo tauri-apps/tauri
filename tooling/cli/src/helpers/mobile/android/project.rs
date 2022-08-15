@@ -108,17 +108,31 @@ pub fn gen(
   let domain = config.app().reverse_domain().replace(".", "/");
   let package_path = format!("java/{}/{}", domain, config.app().name());
 
-  template::render_with_generator(&handlebars, map.inner(), &TEMPLATE_DIR, &dest, &|path| {
-    if path.extension() == Some(OsStr::new("kt")) {
-      let parent = path.parent().unwrap();
-      let file_name = path.file_name().unwrap();
-      let out_dir = dest.join(parent).join(&package_path);
-      fs::create_dir_all(&out_dir)?;
-      fs::File::create(out_dir.join(file_name))
-    } else {
-      fs::File::create(dest.join(path))
-    }
-  })
+  let mut created_dirs = Vec::new();
+  template::render_with_generator(
+    &handlebars,
+    map.inner(),
+    &TEMPLATE_DIR,
+    &dest,
+    &mut |path| {
+      let path = if path.extension() == Some(OsStr::new("kt")) {
+        let parent = path.parent().unwrap();
+        let file_name = path.file_name().unwrap();
+        let out_dir = dest.join(parent).join(&package_path);
+        out_dir.join(file_name)
+      } else {
+        dest.join(path)
+      };
+
+      let parent = path.parent().unwrap().to_path_buf();
+      if !created_dirs.contains(&parent) {
+        fs::create_dir_all(&parent)?;
+        created_dirs.push(parent);
+      }
+
+      fs::File::create(path)
+    },
+  )
   .map_err(|e| Error::TemplateProcessingFailed(e.to_string()))?;
 
   if !asset_packs.is_empty() {

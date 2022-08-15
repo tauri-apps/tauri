@@ -10,6 +10,7 @@ mod helpers;
 mod info;
 mod init;
 mod interface;
+mod mobile;
 mod plugin;
 mod signer;
 
@@ -66,6 +67,9 @@ enum Commands {
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
+  Android(mobile::android::Cli),
+  #[cfg(target_os = "macos")]
+  Ios(mobile::ios::Cli),
 }
 
 fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
@@ -164,6 +168,9 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
+    Commands::Android(cli) => mobile::android::command(cli)?,
+    #[cfg(target_os = "macos")]
+    Commands::Ios(cli) => mobile::ios::command(cli)?,
   }
 
   Ok(())

@@ -67,7 +67,7 @@ fn with_config(
 ) -> Result<(), Error> {
   let (config, _origin) =
     Config::load_or_gen(".", true.into(), wrapper).map_err(Error::ConfigFailed)?;
-  let metadata = Metadata::load(&config.app().root_dir()).map_err(Error::MetadataFailed)?;
+  let metadata = Metadata::load(config.app().root_dir()).map_err(Error::MetadataFailed)?;
   if metadata.apple().supported() {
     f(config.apple(), metadata.apple())
   } else {

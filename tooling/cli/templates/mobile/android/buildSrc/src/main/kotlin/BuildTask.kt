@@ -37,8 +37,8 @@ open class BuildTask : DefaultTask() {
         }
         project.exec {
             workingDir(File(project.getProjectDir(), rootDirRel.getPath()))
-            executable("cargo")
-            args(listOf("android", "build"))
+            executable("{{ tauri-binary }}")
+            args(listOf("tauri", "android", "build"))
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")
             } else if (project.logger.isEnabled(LogLevel.INFO)) {

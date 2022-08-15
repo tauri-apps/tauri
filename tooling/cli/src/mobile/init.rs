@@ -124,13 +124,22 @@ pub fn exec(
   dot_cargo
     .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
+  let (handlebars, mut map) = handlebars(&config);
+  map.insert(
+    "tauri-binary",
+    std::env::args_os()
+      .next()
+      .unwrap_or_else(|| std::ffi::OsString::from("cargo"))
+      .to_string_lossy(),
+  );
+
   // Generate Xcode project
   #[cfg(target_os = "macos")]
   if target == Target::Ios {
     super::ios::project::gen(
       config.apple(),
       metadata.apple(),
-      handlebars(&config),
+      (handlebars, map),
       wrapper,
       non_interactive,
       skip_dev_tools,
@@ -146,7 +155,7 @@ pub fn exec(
         config.android(),
         metadata.android(),
         &env,
-        handlebars(&config),
+        (handlebars, map),
         wrapper,
         &mut dot_cargo,
       )

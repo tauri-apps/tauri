@@ -125,6 +125,7 @@ pub fn exec(
     .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
   let (handlebars, mut map) = handlebars(&config);
+  // TODO: make this a relative path
   map.insert(
     "tauri-binary",
     std::env::args_os()

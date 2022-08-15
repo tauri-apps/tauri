@@ -47,7 +47,7 @@ open class BuildTask : DefaultTask() {
             if (release) {
                 args("--release")
             }
-            args("${target}")
+            args(listOf("--target", "${target}"))
         }.assertNormalExitValue()
     }
 }

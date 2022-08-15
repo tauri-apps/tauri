@@ -36,10 +36,8 @@ pub enum Error {
     asset_dir: PathBuf,
     cause: io::Error,
   },
-  #[error(transparent)]
-  CodeCommandPresentFailed(bossy::Error),
-  #[error(transparent)]
-  LldbExtensionInstallFailed(bossy::Error),
+  #[error("failed to install LLDB VS Code extension: {0}")]
+  LldbExtensionInstallFailed(String),
   #[error(transparent)]
   DotCargoLoadFailed(dot_cargo::LoadError),
   #[error(transparent)]
@@ -64,6 +62,7 @@ pub enum Error {
 #[derive(PartialEq, Eq)]
 pub enum Target {
   Android,
+  #[cfg(target_os = "macos")]
   Ios,
 }
 
@@ -103,9 +102,7 @@ pub fn exec(
     fs::create_dir_all(&asset_dir)
       .map_err(|cause| Error::AssetDirCreationFailed { asset_dir, cause })?;
   }
-  if skip_dev_tools.no()
-    && util::command_present("code").map_err(Error::CodeCommandPresentFailed)?
-  {
+  if skip_dev_tools.no() && util::command_present("code").unwrap_or_default() {
     let mut command = code_command();
     command.add_args(&["--install-extension", "vadimcn.vscode-lldb"]);
     if non_interactive.yes() {
@@ -113,7 +110,7 @@ pub fn exec(
     }
     command
       .run_and_wait()
-      .map_err(Error::LldbExtensionInstallFailed)?;
+      .map_err(|e| Error::LldbExtensionInstallFailed(e.to_string()))?;
   }
   let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoadFailed)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over

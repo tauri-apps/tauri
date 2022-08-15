@@ -30,7 +30,6 @@ path = "src/main.rs"
 # cargo-mobile = { path = "../../../cargo-mobile/", default-features = false }
 cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "feat/library", default-features = false }
 textwrap = { version = "0.11.0", features = ["term_size"] }
-bossy = "0.2"
 thiserror = "1"
 clap = { version = "3.2", features = [ "derive" ] }
 anyhow = "1.0"
@@ -75,6 +74,9 @@ winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
+
+[target."cfg(target_os = \"macos\")".dependencies]
+bossy = "0.2"
 
 [target."cfg(target_os = \"linux\")".build-dependencies]
 heck = "0.4"

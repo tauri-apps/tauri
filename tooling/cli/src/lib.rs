@@ -68,6 +68,7 @@ enum Commands {
   Plugin(plugin::Cli),
   Signer(signer::Cli),
   Android(mobile::android::Cli),
+  #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
 }
 
@@ -168,6 +169,7 @@ where
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
     Commands::Android(cli) => mobile::android::command(cli)?,
+    #[cfg(target_os = "macos")]
     Commands::Ios(cli) => mobile::ios::command(cli)?,
   }
 

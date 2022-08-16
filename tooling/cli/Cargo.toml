@@ -31,7 +31,7 @@ bossy = { git = "https://github.com/lucasfernog/bossy", branch = "fix/winapi-fea
 
 [dependencies]
 # cargo-mobile = { path = "../../../cargo-mobile/", default-features = false }
-cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "feat/library", default-features = false }
+cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "dev", default-features = false }
 bossy = "0.2"
 textwrap = { version = "0.11.0", features = ["term_size"] }
 thiserror = "1"

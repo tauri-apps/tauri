@@ -118,6 +118,16 @@ fn with_config<T>(
   f(config.apple(), metadata.apple())
 }
 
+fn env() -> Result<Env, Error> {
+  let mut env = Env::new().map_err(Error::EnvInitFailed)?;
+  if let Some(development_team) = std::env::var_os("APPLE_DEVELOPMENT_TEAM") {
+    let mut vars = HashMap::new();
+    vars.insert("APPLE_DEVELOPMENT_TEAM".to_string(), development_team);
+    env = env.explicit_env_vars(vars);
+  }
+  Ok(env)
+}
+
 fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
   let device_list =
     ios_deploy::device_list(env).map_err(|cause| PromptError::detection_failed("iOS", cause))?;
@@ -166,7 +176,7 @@ pub fn run(release: bool) -> Result<bossy::Handle> {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
-    let env = Env::new().map_err(Error::EnvInitFailed)?;
+    let env = env()?;
 
     device_prompt(&env)
       .map_err(Error::DevicePromptFailed)?
@@ -193,7 +203,7 @@ fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
 
   with_config(|config, metadata| {
-    let env = Env::new().map_err(Error::EnvInitFailed)?;
+    let env = env()?;
     // The `PATH` env var Xcode gives us is missing any additions
     // made by the user's profile, so we'll manually add cargo's
     // `PATH`.

@@ -266,15 +266,15 @@ targets:
       ARCHS: [{{join ios-valid-archs}}]
       VALID_ARCHS: {{~#each ios-valid-archs}} {{this}} {{/each}}
     legacy:
-      toolPath: ${HOME}/.cargo/bin/cargo-apple
-      arguments: xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      toolPath: {{ tauri-binary }}
+      arguments: ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
       passSettings: false # prevents evil linker errors
-      workingDirectory: $(SRCROOT)/..
+      workingDirectory: $(SRCROOT)/../..
   lib_{{app.name}}_macOS:
     type: ""
     platform: macOS
     legacy:
-      toolPath: ${HOME}/.cargo/bin/cargo-apple
-      arguments: xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      toolPath: {{ tauri-binary }}
+      arguments: ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
       passSettings: false
-      workingDirectory: $(SRCROOT)/..
+      workingDirectory: $(SRCROOT)/../..

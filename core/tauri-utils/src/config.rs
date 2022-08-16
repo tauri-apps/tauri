@@ -2085,6 +2085,9 @@ pub struct TauriConfig {
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
+  /// iOS configuration.
+  #[serde(rename = "iOS", default)]
+  pub ios: IosConfig,
 }
 
 impl TauriConfig {
@@ -2352,6 +2355,18 @@ fn default_tray_menu_on_left_click() -> bool {
 // the dialog as a required field which is not as we default it to true.
 fn default_dialog() -> bool {
   true
+}
+
+/// General configuration for the iOS target.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IosConfig {
+  /// The development team. This value is required for iOS development because code signing is enforced.
+  /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  #[serde(alias = "development-team")]
+  pub development_team: Option<String>,
 }
 
 /// Defines the URL or assets to embed in the application.
@@ -3443,6 +3458,7 @@ mod build {
       let system_tray = opt_lit(self.system_tray.as_ref());
       let allowlist = &self.allowlist;
       let macos_private_api = self.macos_private_api;
+      let ios = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -3455,7 +3471,8 @@ mod build {
         security,
         system_tray,
         allowlist,
-        macos_private_api
+        macos_private_api,
+        ios
       );
     }
   }
@@ -3553,6 +3570,7 @@ mod test {
       allowlist: AllowlistConfig::default(),
       system_tray: None,
       macos_private_api: false,
+      ios: Default::default(),
     };
 
     // create a build config

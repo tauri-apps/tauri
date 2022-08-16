@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::Target;
-use crate::helpers::{app_paths::tauri_dir, template::JsonMap};
+use super::{get_config, get_metadata, Target};
+use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
   android,
-  config::{
-    self,
-    metadata::{self, Metadata},
-    Config,
-  },
-  dot_cargo,
-  init::{DOT_FIRST_INIT_CONTENTS, DOT_FIRST_INIT_FILE_NAME},
-  opts,
+  config::Config,
+  dot_cargo, opts,
   os::code_command,
   util::{
     self,
@@ -58,10 +52,8 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-  #[error(transparent)]
-  ConfigLoadOrGen(config::LoadOrGenError),
-  #[error("failed to init first init file {path}: {cause}")]
-  DotFirstInitWrite { path: PathBuf, cause: io::Error },
+  #[error("invalid tauri configuration: {0}")]
+  InvalidTauriConfig(String),
   #[error("failed to create asset dir {asset_dir}: {cause}")]
   AssetDirCreation {
     asset_dir: PathBuf,
@@ -73,8 +65,6 @@ pub enum Error {
   DotCargoLoad(dot_cargo::LoadError),
   #[error(transparent)]
   HostTargetTripleDetection(util::HostTargetTripleError),
-  #[error(transparent)]
-  Metadata(metadata::Error),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
   IosInit(super::ios::project::Error),
@@ -84,8 +74,6 @@ pub enum Error {
   AndroidInit(super::android::project::Error),
   #[error(transparent)]
   DotCargoWrite(dot_cargo::WriteError),
-  #[error("failed to delete first init file {path}: {cause}")]
-  DotFirstInitDelete { path: PathBuf, cause: io::Error },
   #[error(transparent)]
   OpenInEditor(util::OpenInEditorError),
 }
@@ -100,26 +88,13 @@ pub fn exec(
   cwd: impl AsRef<Path>,
 ) -> Result<Config, Error> {
   let cwd = cwd.as_ref();
-  let (config, config_origin) =
-    Config::load_or_gen(cwd, non_interactive, wrapper).map_err(Error::ConfigLoadOrGen)?;
-  let dot_first_init_path = config.app().root_dir().join(DOT_FIRST_INIT_FILE_NAME);
-  let dot_first_init_exists = {
-    let dot_first_init_exists = dot_first_init_path.exists();
-    if config_origin.freshly_minted() && !dot_first_init_exists {
-      // indicate first init is ongoing, so that if we error out and exit
-      // the next init will know to still use `WildWest` filtering
-      log::info!("creating first init dot file at {:?}", dot_first_init_path);
-      fs::write(&dot_first_init_path, DOT_FIRST_INIT_CONTENTS).map_err(|cause| {
-        Error::DotFirstInitWrite {
-          path: dot_first_init_path.clone(),
-          cause,
-        }
-      })?;
-      true
-    } else {
-      dot_first_init_exists
-    }
-  };
+  let tauri_config =
+    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+  let config = get_config(tauri_config_);
+  let metadata = get_metadata(tauri_config_);
 
   let asset_dir = config.app().asset_dir();
   if !asset_dir.is_dir() {
@@ -149,33 +124,24 @@ pub fn exec(
   dot_cargo
     .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
-  let metadata = Metadata::load(config.app().root_dir()).map_err(Error::Metadata)?;
-
-  // Generate Xcode project
-  #[cfg(target_os = "macos")]
-  if target == Target::Ios && metadata.apple().supported() {
-    super::ios::project::gen(
-      config.apple(),
-      metadata.apple(),
-      handlebars(&config),
-      wrapper,
-      non_interactive,
-      skip_dev_tools,
-      reinstall_deps,
-    )
-    .map_err(Error::IosInit)?;
-  } else {
-    println!("Skipping iOS init, since it's marked as unsupported in your Cargo.toml metadata");
-  }
+  let (handlebars, mut map) = handlebars(&config);
+  // TODO: make this a relative path
+  map.insert(
+    "tauri-binary",
+    std::env::args_os()
+      .next()
+      .unwrap_or_else(|| std::ffi::OsString::from("cargo"))
+      .to_string_lossy(),
+  );
 
   // Generate Android Studio project
-  if target == Target::Android && metadata.android().supported() {
+  if target == Target::Android {
     match android::env::Env::new() {
       Ok(env) => super::android::project::gen(
         config.android(),
         metadata.android(),
         &env,
-        handlebars(&config),
+        (handlebars, map),
         wrapper,
         &mut dot_cargo,
       )
@@ -193,19 +159,26 @@ pub fn exec(
       }
     }
   } else {
-    println!("Skipping Android init, since it's marked as unsupported in your Cargo.toml metadata");
+    // Generate Xcode project
+    #[cfg(target_os = "macos")]
+    if target == Target::Ios {
+      super::ios::project::gen(
+        config.apple(),
+        metadata.apple(),
+        (handlebars, map),
+        wrapper,
+        non_interactive,
+        skip_dev_tools,
+        reinstall_deps,
+      )
+      .map_err(Error::IosInit)?;
+    }
   }
 
   dot_cargo
     .write(config.app())
     .map_err(Error::DotCargoWrite)?;
-  if dot_first_init_exists {
-    log::info!("deleting first init dot file at {:?}", dot_first_init_path);
-    fs::remove_file(&dot_first_init_path).map_err(|cause| Error::DotFirstInitDelete {
-      path: dot_first_init_path,
-      cause,
-    })?;
-  }
+
   Report::victory(
     "Project generated successfully!",
     "Make cool apps! 🌻 🐕 🎉",

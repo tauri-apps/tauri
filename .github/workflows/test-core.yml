@@ -13,8 +13,6 @@ on:
     paths:
       - '.github/workflows/test-core.yml'
       - 'core/**'
-      - 'examples/**'
-      - 'tooling/cli/**'
 
 env:
   RUST_BACKTRACE: 1

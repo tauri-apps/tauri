@@ -149,7 +149,7 @@ pub fn exec(
       Err(err) => {
         if err.sdk_or_ndk_issue() {
           Report::action_request(
-            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `cargo mobile init`!",
+            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `tauri android init`!",
             err,
           )
           .print(wrapper);

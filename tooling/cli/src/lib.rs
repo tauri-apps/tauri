@@ -14,7 +14,7 @@ mod mobile;
 mod plugin;
 mod signer;
 
-use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
+use clap::{FromArgMatches, IntoApp, Parser, Subcommand, ValueEnum};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -25,6 +25,14 @@ use std::{
   ffi::OsString,
   sync::{Arc, Mutex},
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum RunMode {
+  Desktop,
+  #[cfg(target_os = "macos")]
+  Ios,
+  Android,
+}
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {

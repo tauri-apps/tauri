@@ -138,7 +138,15 @@ pub fn gen(
         created_dirs.push(parent);
       }
 
-      fs::File::create(path)
+      let mut options = fs::OpenOptions::new();
+
+      #[cfg(unix)]
+      if path.file_name().unwrap() == OsStr::new("gradlew") {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o755);
+      }
+
+      options.create_new(true).write(true).open(path)
     },
   )
   .map_err(|e| Error::TemplateProcessingFailed(e.to_string()))?;

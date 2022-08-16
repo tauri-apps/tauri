@@ -9,7 +9,7 @@ use crate::{
     config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
   interface::{AppInterface, ExitReason, Interface},
-  CommandExt, Result,
+  CommandExt, Result, RunMode,
 };
 use clap::Parser;
 
@@ -38,6 +38,9 @@ pub const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watc
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
+  /// App mode
+  #[clap(short, long, default_value_t = RunMode::Desktop, arg_enum)]
+  pub mode: RunMode,
   /// Binary to use to run the application
   #[clap(short, long)]
   pub runner: Option<String>,

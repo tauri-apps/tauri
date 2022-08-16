@@ -6,7 +6,7 @@ use cargo_mobile::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
-    device::Device,
+    device::{Device, RunError},
     env::{Env, Error as EnvError},
     target::{BuildError, Target},
   },
@@ -40,8 +40,12 @@ enum Error {
   OpenFailed(os::OpenFileError),
   #[error(transparent)]
   BuildFailed(BuildError),
+  #[error(transparent)]
+  RunFailed(RunError),
   #[error("{0}")]
   TargetInvalid(String),
+  #[error(transparent)]
+  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
 }
 
 #[derive(Parser)]
@@ -68,9 +72,9 @@ pub struct BuildOptions {
     value_parser(clap::builder::PossibleValuesParser::new(["aarch64", "armv7", "i686", "x86_64"]))
   )]
   targets: Option<Vec<String>>,
-  /// Builds with the debug flag
+  /// Builds with the release flag
   #[clap(short, long)]
-  debug: bool,
+  release: bool,
 }
 
 #[derive(Subcommand)]
@@ -92,9 +96,9 @@ pub fn command(cli: Cli) -> Result<()> {
   Ok(())
 }
 
-fn with_config(
-  f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<(), Error>,
-) -> Result<(), Error> {
+fn with_config<T>(
+  f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
+) -> Result<T, Error> {
   let tauri_config =
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
   let tauri_config_guard = tauri_config.lock().unwrap();
@@ -104,49 +108,81 @@ fn with_config(
   f(config.android(), metadata.android())
 }
 
+fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
+  let device_list =
+    adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
+  if !device_list.is_empty() {
+    let index = if device_list.len() > 1 {
+      prompt::list(
+        concat!("Detected ", "Android", " devices"),
+        device_list.iter(),
+        "device",
+        None,
+        "Device",
+      )
+      .map_err(|cause| PromptError::prompt_failed("Android", cause))?
+    } else {
+      0
+    };
+    let device = device_list.into_iter().nth(index).unwrap();
+    println!(
+      "Detected connected device: {} with target {:?}",
+      device,
+      device.target().triple,
+    );
+    Ok(device)
+  } else {
+    Err(PromptError::none_detected("Android"))
+  }
+}
+
 fn open() -> Result<()> {
   with_config(|config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Android Studio", config.project_dir()).map_err(Error::OpenFailed)
-  })?;
-  Ok(())
+  })
+  .map_err(Into::into)
+}
+
+pub fn run(release: bool) -> Result<bossy::Handle> {
+  let profile = if release {
+    Profile::Release
+  } else {
+    Profile::Debug
+  };
+
+  with_config(|config, metadata| {
+    let build_app_bundle = metadata.asset_packs().is_some();
+
+    ensure_init(config.project_dir(), MobileTarget::Android)
+      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+
+    let env = Env::new().map_err(Error::EnvInitFailed)?;
+
+    device_prompt(&env)
+      .map_err(Error::FailedToPromptForDevice)?
+      .run(
+        config,
+        &env,
+        NoiseLevel::Polite,
+        profile,
+        None,
+        build_app_bundle,
+        false.into(),
+        ".MainActivity".into(),
+      )
+      .map_err(Error::RunFailed)
+  })
+  .map_err(Into::into)
 }
 
 fn build(options: BuildOptions) -> Result<()> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
+  let profile = if options.release {
     Profile::Release
+  } else {
+    Profile::Debug
   };
-
-  fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
-    let device_list =
-      adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
-    if !device_list.is_empty() {
-      let index = if device_list.len() > 1 {
-        prompt::list(
-          concat!("Detected ", "Android", " devices"),
-          device_list.iter(),
-          "device",
-          None,
-          "Device",
-        )
-        .map_err(|cause| PromptError::prompt_failed("Android", cause))?
-      } else {
-        0
-      };
-      let device = device_list.into_iter().nth(index).unwrap();
-      println!(
-        "Detected connected device: {} with target {:?}",
-        device,
-        device.target().triple,
-      );
-      Ok(device)
-    } else {
-      Err(PromptError::none_detected("Android"))
-    }
-  }
 
   fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
     device_prompt(env).map(|device| device.target()).ok()
@@ -176,6 +212,6 @@ fn build(options: BuildOptions) -> Result<()> {
       },
     )
     .map_err(|e| Error::TargetInvalid(e.to_string()))?
-  })?;
-  Ok(())
+  })
+  .map_err(Into::into)
 }

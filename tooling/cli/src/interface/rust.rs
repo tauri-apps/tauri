@@ -10,7 +10,6 @@ use std::{
   process::ExitStatus,
   str::FromStr,
   sync::{
-    atomic::{AtomicBool, Ordering},
     mpsc::{channel, sync_channel},
     Arc, Mutex,
   },
@@ -24,24 +23,28 @@ use log::warn;
 use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use serde::Deserialize;
-use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
 
 use super::{AppSettings, ExitReason, Interface};
-use crate::helpers::{
-  app_paths::tauri_dir,
-  config::{reload as reload_config, wix_settings, Config},
+use crate::{
+  helpers::{
+    app_paths::tauri_dir,
+    config::{reload as reload_config, wix_settings, Config},
+  },
+  RunMode,
 };
 
 mod desktop;
 mod manifest;
+mod mobile;
 use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Clone)]
 pub struct Options {
+  pub mode: RunMode,
   pub runner: Option<String>,
   pub debug: bool,
   pub target: Option<String>,
@@ -54,6 +57,7 @@ pub struct Options {
 impl From<crate::build::Options> for Options {
   fn from(options: crate::build::Options) -> Self {
     Self {
+      mode: options.mode,
       runner: options.runner,
       debug: options.debug,
       target: options.target,
@@ -68,6 +72,7 @@ impl From<crate::build::Options> for Options {
 impl From<crate::dev::Options> for Options {
   fn from(options: crate::dev::Options) -> Self {
     Self {
+      mode: options.mode,
       runner: options.runner,
       debug: !options.release_mode,
       target: options.target,
@@ -79,30 +84,9 @@ impl From<crate::dev::Options> for Options {
   }
 }
 
-pub struct DevChild {
-  manually_killed_app: Arc<AtomicBool>,
-  build_child: Arc<SharedChild>,
-  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
-}
-
-impl DevChild {
-  fn kill(&self) -> std::io::Result<()> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.kill()?;
-    } else {
-      self.build_child.kill()?;
-    }
-    self.manually_killed_app.store(true, Ordering::Relaxed);
-    Ok(())
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.try_wait()
-    } else {
-      self.build_child.try_wait()
-    }
-  }
+pub trait DevProcess {
+  fn kill(&mut self) -> std::io::Result<()>;
+  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
 }
 
 #[derive(Debug)]
@@ -228,7 +212,7 @@ impl Rust {
     &mut self,
     mut options: Options,
     on_exit: F,
-  ) -> crate::Result<DevChild> {
+  ) -> crate::Result<Box<dyn DevProcess>> {
     if !options.args.contains(&"--no-default-features".into()) {
       let manifest_features = self.app_settings.manifest.features();
       let enable_features: Vec<String> = manifest_features
@@ -267,20 +251,28 @@ impl Rust {
     }
     options.args = args;
 
-    desktop::run_dev(
-      options,
-      run_args,
-      &mut self.available_targets,
-      self.config_features.clone(),
-      &self.app_settings,
-      self.product_name.clone(),
-      on_exit,
-    )
+    match options.mode {
+      RunMode::Desktop => desktop::run_dev(
+        options,
+        run_args,
+        &mut self.available_targets,
+        self.config_features.clone(),
+        &self.app_settings,
+        self.product_name.clone(),
+        on_exit,
+      )
+      .map(|c| Box::new(c) as Box<dyn DevProcess>),
+      RunMode::Android => {
+        mobile::android::run_dev(options).map(|c| Box::new(c) as Box<dyn DevProcess>)
+      }
+      #[cfg(target_os = "macos")]
+      RunMode::Ios => mobile::ios::run_dev().map(|c| Box::new(c) as Box<dyn DevProcess>),
+    }
   }
 
   fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    child: DevChild,
+    child: Box<dyn DevProcess>,
     options: Options,
     on_exit: Arc<F>,
   ) -> crate::Result<()> {

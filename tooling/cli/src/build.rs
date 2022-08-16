@@ -10,7 +10,7 @@ use crate::{
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
-  CommandExt, Result,
+  CommandExt, Result, RunMode,
 };
 use anyhow::{bail, Context};
 use clap::Parser;
@@ -26,6 +26,9 @@ use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
 pub struct Options {
+  /// App mode
+  #[clap(short, long, default_value_t = RunMode::Desktop, arg_enum)]
+  pub mode: RunMode,
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
   pub runner: Option<String>,

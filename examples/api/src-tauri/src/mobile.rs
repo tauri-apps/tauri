@@ -33,7 +33,7 @@ fn _start_app() {
 #[inline(never)]
 pub extern "C" fn start_app() {
   #[cfg(target_os = "android")]
-  android_binding!(studio_tauri, api, _start_app, tauri_runtime_wry::wry);
+  android_binding!(com_tauri, api, _start_app, tauri_runtime_wry::wry);
   _start_app()
 }
 

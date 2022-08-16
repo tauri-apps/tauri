@@ -47,8 +47,10 @@ pub mod android {
 #[cfg(target_os = "macos")]
 pub mod ios {
   use super::*;
+  use crate::mobile::ios::run;
 
-  pub fn run_dev() -> crate::Result<impl DevProcess> {
-    todo!()
+  pub fn run_dev(options: Options) -> crate::Result<impl DevProcess> {
+    let handle = run(!options.debug)?;
+    Ok(DevChild(Some(handle)))
   }
 }

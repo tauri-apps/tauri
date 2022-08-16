@@ -272,7 +272,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=feat/run#408f89c19e66f3d1cd8da107ab783686819ab274"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=feat/run#aa7960f5d818edaef7b13938ff6976090e7e4214"
 dependencies = [
  "bicycle",
  "bossy",

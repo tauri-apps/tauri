@@ -6,11 +6,15 @@ use crate::helpers::config::get as get_tauri_config;
 use cargo_mobile::{
   apple::{
     config::{Config as AppleConfig, Metadata as AppleMetadata},
+    device::{Device, RunError},
+    ios_deploy,
     target::{CompileLibError, Target},
   },
+  device::PromptError,
   env::{Env, Error as EnvError},
   opts::{NoiseLevel, Profile},
   os, util,
+  util::prompt,
 };
 use clap::{Parser, Subcommand};
 
@@ -46,6 +50,10 @@ enum Error {
   ArchInvalid { arch: String },
   #[error(transparent)]
   CompileLibFailed(CompileLibError),
+  #[error(transparent)]
+  DevicePromptFailed(PromptError<ios_deploy::DeviceListError>),
+  #[error(transparent)]
+  RunFailed(RunError),
 }
 
 #[derive(Parser)]
@@ -98,9 +106,9 @@ pub fn command(cli: Cli) -> Result<()> {
   Ok(())
 }
 
-fn with_config(
-  f: impl FnOnce(&AppleConfig, &AppleMetadata) -> Result<(), Error>,
-) -> Result<(), Error> {
+fn with_config<T>(
+  f: impl FnOnce(&AppleConfig, &AppleMetadata) -> Result<T, Error>,
+) -> Result<T, Error> {
   let tauri_config =
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
   let tauri_config_guard = tauri_config.lock().unwrap();
@@ -110,13 +118,62 @@ fn with_config(
   f(config.apple(), metadata.apple())
 }
 
+fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
+  let device_list =
+    ios_deploy::device_list(env).map_err(|cause| PromptError::detection_failed("iOS", cause))?;
+  if !device_list.is_empty() {
+    let index = if device_list.len() > 1 {
+      prompt::list(
+        concat!("Detected ", "iOS", " devices"),
+        device_list.iter(),
+        "device",
+        None,
+        "Device",
+      )
+      .map_err(|cause| PromptError::prompt_failed("iOS", cause))?
+    } else {
+      0
+    };
+    let device = device_list.into_iter().nth(index).unwrap();
+    println!(
+      "Detected connected device: {} with target {:?}",
+      device,
+      device.target().triple,
+    );
+    Ok(device)
+  } else {
+    Err(PromptError::none_detected("iOS"))
+  }
+}
+
 fn open() -> Result<()> {
   with_config(|config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)
-  })?;
-  Ok(())
+  })
+  .map_err(Into::into)
+}
+
+pub fn run(release: bool) -> Result<bossy::Handle> {
+  let profile = if release {
+    Profile::Release
+  } else {
+    Profile::Debug
+  };
+
+  with_config(|config, _| {
+    ensure_init(config.project_dir(), MobileTarget::Ios)
+      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+
+    let env = Env::new().map_err(Error::EnvInitFailed)?;
+
+    device_prompt(&env)
+      .map_err(Error::DevicePromptFailed)?
+      .run(config, &env, NoiseLevel::Polite, false.into(), profile)
+      .map_err(Error::RunFailed)
+  })
+  .map_err(Into::into)
 }
 
 fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
@@ -224,7 +281,6 @@ fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
         .map_err(Error::CompileLibFailed)?;
     }
     Ok(())
-  })?;
-
-  Ok(())
+  })
+  .map_err(Into::into)
 }

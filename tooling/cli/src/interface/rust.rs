@@ -266,7 +266,7 @@ impl Rust {
         mobile::android::run_dev(options).map(|c| Box::new(c) as Box<dyn DevProcess>)
       }
       #[cfg(target_os = "macos")]
-      RunMode::Ios => mobile::ios::run_dev().map(|c| Box::new(c) as Box<dyn DevProcess>),
+      RunMode::Ios => mobile::ios::run_dev(options).map(|c| Box::new(c) as Box<dyn DevProcess>),
     }
   }
 

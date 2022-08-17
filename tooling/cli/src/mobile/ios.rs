@@ -157,10 +157,12 @@ fn with_config<T>(
 fn env() -> Result<Env, Error> {
   let mut env = Env::new().map_err(Error::EnvInitFailed)?;
   for (k, v) in std::env::vars_os() {
+    let mut vars = HashMap::new();
     let k = k.to_string_lossy();
     if k.starts_with("TAURI") {
-      env.insert(k.into_owned(), v);
+      vars.insert(k.into_owned(), v);
     }
+    env = env.explicit_env_vars(vars);
   }
   Ok(env)
 }
@@ -194,12 +196,8 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
 }
 
 fn open() -> Result<()> {
-  with_config(|config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)
-  })
-  .map_err(Into::into)
+  run(false).unwrap();
+  Ok(())
 }
 
 pub fn run(release: bool) -> Result<bossy::Handle> {

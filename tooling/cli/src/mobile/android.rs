@@ -19,7 +19,7 @@ use cargo_mobile::{
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init, get_config, get_metadata,
+  ensure_init, get_config,
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
@@ -139,8 +139,7 @@ fn with_config<T>(
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-  let config = get_config(tauri_config_);
-  let metadata = get_metadata(tauri_config_);
+  let (config, metadata) = get_config(tauri_config_);
   f(config.android(), metadata.android())
 }
 

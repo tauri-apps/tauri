@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_config, get_metadata, Target};
+use super::{get_config, Target};
 use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
@@ -93,8 +93,7 @@ pub fn exec(
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let config = get_config(tauri_config_);
-  let metadata = get_metadata(tauri_config_);
+  let (config, metadata) = get_config(tauri_config_);
 
   let asset_dir = config.app().asset_dir();
   if !asset_dir.is_dir() {

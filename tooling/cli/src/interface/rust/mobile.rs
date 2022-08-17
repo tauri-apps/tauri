@@ -5,6 +5,15 @@ use std::process::ExitStatus;
 
 pub struct DevChild(Option<Handle>);
 
+impl From<Options> for crate::mobile::CliOptions {
+  fn from(options: Options) -> Self {
+    Self {
+      features: options.features,
+      no_default_features: Some(options.args.contains(&"--no-default-features".into())),
+    }
+  }
+}
+
 impl Drop for DevChild {
   fn drop(&mut self) {
     // consume the handle since we're not waiting on it
@@ -36,10 +45,12 @@ impl DevProcess for DevChild {
 
 pub mod android {
   use super::*;
-  use crate::mobile::android::run;
+  use crate::mobile::{android::run, write_options, Target};
 
-  pub fn run_dev(options: Options) -> crate::Result<impl DevProcess> {
-    let handle = run(!options.debug)?;
+  pub fn run_dev(options: Options, bundle_identifier: &str) -> crate::Result<impl DevProcess> {
+    let debug = options.debug;
+    write_options(options.into(), bundle_identifier, Target::Android)?;
+    let handle = run(!debug)?;
     Ok(DevChild(Some(handle)))
   }
 }
@@ -47,10 +58,12 @@ pub mod android {
 #[cfg(target_os = "macos")]
 pub mod ios {
   use super::*;
-  use crate::mobile::ios::run;
+  use crate::mobile::{ios::run, write_options, Target};
 
-  pub fn run_dev(options: Options) -> crate::Result<impl DevProcess> {
-    let handle = run(!options.debug)?;
+  pub fn run_dev(options: Options, bundle_identifier: &str) -> crate::Result<impl DevProcess> {
+    let debug = options.debug;
+    write_options(options.into(), bundle_identifier, Target::Ios)?;
+    let handle = run(!debug)?;
     Ok(DevChild(Some(handle)))
   }
 }

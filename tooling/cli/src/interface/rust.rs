@@ -97,6 +97,7 @@ pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
+  bundle_identifier: String,
   available_targets: Option<Vec<Target>>,
   run_mode: RunMode,
   _lock: Option<flock::FileLock>,
@@ -148,6 +149,7 @@ impl Interface for Rust {
       app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
+      bundle_identifier: config.tauri.bundle.identifier.clone(),
       available_targets: None,
       run_mode,
       _lock: lock,
@@ -281,11 +283,11 @@ impl Rust {
         on_exit,
       )
       .map(|c| Box::new(c) as Box<dyn DevProcess>),
-      RunMode::Android => {
-        mobile::android::run_dev(options).map(|c| Box::new(c) as Box<dyn DevProcess>)
-      }
+      RunMode::Android => mobile::android::run_dev(options, &self.bundle_identifier)
+        .map(|c| Box::new(c) as Box<dyn DevProcess>),
       #[cfg(target_os = "macos")]
-      RunMode::Ios => mobile::ios::run_dev(options).map(|c| Box::new(c) as Box<dyn DevProcess>),
+      RunMode::Ios => mobile::ios::run_dev(options, &self.bundle_identifier)
+        .map(|c| Box::new(c) as Box<dyn DevProcess>),
     }
   }
 

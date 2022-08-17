@@ -4238,7 +4238,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/allowed-self-signed-cert#2570d9d69800ada4136f079984555ef8e4eb3a6d"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/allowed-self-signed-cert#833dbe3a57ce626adaec49de33f442550cee80c9"
 dependencies = [
  "block",
  "cocoa",

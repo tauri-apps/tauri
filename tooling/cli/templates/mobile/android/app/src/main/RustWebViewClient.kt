@@ -1,6 +1,7 @@
 package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
 import android.webkit.*
+import android.annotation.*
 
 class RustWebViewClient: WebViewClient() {
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {

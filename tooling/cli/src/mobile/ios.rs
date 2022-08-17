@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::config::get as get_tauri_config;
 use cargo_mobile::{
   apple::{
     config::{Config as AppleConfig, Metadata as AppleMetadata},
@@ -23,7 +22,8 @@ use super::{
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
-use crate::Result;
+use crate::{helpers::config::get as get_tauri_config, Result, RunMode};
+
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 
 pub(crate) mod project;
@@ -88,10 +88,46 @@ pub struct XcodeScriptOptions {
   arches: Vec<String>,
 }
 
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "iOS dev")]
+pub struct DevOptions {
+  /// List of cargo features to activate
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  pub features: Option<Vec<String>>,
+  /// Exit on panic
+  #[clap(short, long)]
+  exit_on_panic: bool,
+  /// JSON string or path to JSON file to merge with tauri.conf.json
+  #[clap(short, long)]
+  pub config: Option<String>,
+  /// Run the code in release mode
+  #[clap(long = "release")]
+  pub release_mode: bool,
+  /// Disable the file watcher
+  #[clap(long)]
+  pub no_watch: bool,
+}
+
+impl From<DevOptions> for crate::dev::Options {
+  fn from(options: DevOptions) -> Self {
+    Self {
+      runner: None,
+      target: None,
+      features: options.features,
+      exit_on_panic: options.exit_on_panic,
+      config: options.config,
+      release_mode: options.release_mode,
+      args: Vec::new(),
+      no_watch: options.no_watch,
+    }
+  }
+}
+
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
   Open,
+  Dev(DevOptions),
   #[clap(hide(true))]
   XcodeScript(XcodeScriptOptions),
 }
@@ -100,6 +136,7 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
     Commands::Open => open()?,
+    Commands::Dev(options) => crate::dev::command(options.into(), RunMode::Ios)?,
     Commands::XcodeScript(options) => xcode_script(options)?,
   }
 

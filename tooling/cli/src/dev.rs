@@ -38,9 +38,6 @@ pub const TAURI_DEV_WATCHER_GITIGNORE: &[u8] = include_bytes!("../tauri-dev-watc
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri dev", trailing_var_arg(true))]
 pub struct Options {
-  /// App mode
-  #[clap(short, long, default_value_t = RunMode::Desktop, arg_enum)]
-  pub mode: RunMode,
   /// Binary to use to run the application
   #[clap(short, long)]
   pub runner: Option<String>,
@@ -52,7 +49,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
-  exit_on_panic: bool,
+  pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
@@ -66,8 +63,8 @@ pub struct Options {
   pub no_watch: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
-  let r = command_internal(options);
+pub fn command(options: Options, mode: RunMode) -> Result<()> {
+  let r = command_internal(options, mode);
   if r.is_err() {
     kill_before_dev_process();
     #[cfg(not(debug_assertions))]
@@ -76,7 +73,7 @@ pub fn command(options: Options) -> Result<()> {
   r
 }
 
-fn command_internal(mut options: Options) -> Result<()> {
+fn command_internal(mut options: Options, mode: RunMode) -> Result<()> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
@@ -268,7 +265,7 @@ fn command_internal(mut options: Options) -> Result<()> {
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(options.into(), move |status, reason| {
+  interface.dev(options.into(), mode, move |status, reason| {
     on_dev_exit(status, reason, exit_on_panic, no_watch)
   })
 }

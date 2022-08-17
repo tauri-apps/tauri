@@ -44,7 +44,6 @@ use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Clone)]
 pub struct Options {
-  pub mode: RunMode,
   pub runner: Option<String>,
   pub debug: bool,
   pub target: Option<String>,
@@ -57,7 +56,6 @@ pub struct Options {
 impl From<crate::build::Options> for Options {
   fn from(options: crate::build::Options) -> Self {
     Self {
-      mode: options.mode,
       runner: options.runner,
       debug: options.debug,
       target: options.target,
@@ -72,7 +70,6 @@ impl From<crate::build::Options> for Options {
 impl From<crate::dev::Options> for Options {
   fn from(options: crate::dev::Options) -> Self {
     Self {
-      mode: options.mode,
       runner: options.runner,
       debug: !options.release_mode,
       target: options.target,
@@ -158,6 +155,7 @@ impl Interface for Rust {
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
+    mode: RunMode,
     on_exit: F,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
@@ -166,7 +164,7 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, move |status, reason| {
+      self.run_dev(options, mode, move |status, reason| {
         tx.send(()).unwrap();
         on_exit_(status, reason)
       })?;
@@ -174,11 +172,11 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let child = self.run_dev(options.clone(), move |status, reason| {
+      let child = self.run_dev(options.clone(), mode, move |status, reason| {
         on_exit_(status, reason)
       })?;
 
-      self.run_dev_watcher(child, options, on_exit)
+      self.run_dev_watcher(child, options, mode, on_exit)
     }
   }
 }
@@ -211,6 +209,7 @@ impl Rust {
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     mut options: Options,
+    mode: RunMode,
     on_exit: F,
   ) -> crate::Result<Box<dyn DevProcess>> {
     if !options.args.contains(&"--no-default-features".into()) {
@@ -251,7 +250,7 @@ impl Rust {
     }
     options.args = args;
 
-    match options.mode {
+    match mode {
       RunMode::Desktop => desktop::run_dev(
         options,
         run_args,
@@ -274,6 +273,7 @@ impl Rust {
     &mut self,
     child: Box<dyn DevProcess>,
     options: Options,
+    mode: RunMode,
     on_exit: Arc<F>,
   ) -> crate::Result<()> {
     let process = Arc::new(Mutex::new(child));
@@ -345,7 +345,7 @@ impl Rust {
                 break;
               }
             }
-            *p = self.run_dev(options.clone(), move |status, reason| {
+            *p = self.run_dev(options.clone(), mode, move |status, reason| {
               on_exit(status, reason)
             })?;
           }

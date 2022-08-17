@@ -23,8 +23,7 @@ use super::{
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
-use crate::helpers::config::get as get_tauri_config;
-use crate::Result;
+use crate::{helpers::config::get as get_tauri_config, Result, RunMode};
 
 pub(crate) mod project;
 
@@ -77,11 +76,47 @@ pub struct BuildOptions {
   release: bool,
 }
 
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Android dev")]
+pub struct DevOptions {
+  /// List of cargo features to activate
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  pub features: Option<Vec<String>>,
+  /// Exit on panic
+  #[clap(short, long)]
+  exit_on_panic: bool,
+  /// JSON string or path to JSON file to merge with tauri.conf.json
+  #[clap(short, long)]
+  pub config: Option<String>,
+  /// Run the code in release mode
+  #[clap(long = "release")]
+  pub release_mode: bool,
+  /// Disable the file watcher
+  #[clap(long)]
+  pub no_watch: bool,
+}
+
+impl From<DevOptions> for crate::dev::Options {
+  fn from(options: DevOptions) -> Self {
+    Self {
+      runner: None,
+      target: None,
+      features: options.features,
+      exit_on_panic: options.exit_on_panic,
+      config: options.config,
+      release_mode: options.release_mode,
+      args: Vec::new(),
+      no_watch: options.no_watch,
+    }
+  }
+}
+
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
   /// Open project in Android Studio
   Open,
+  Dev(DevOptions),
   #[clap(hide(true))]
   Build(BuildOptions),
 }
@@ -91,6 +126,7 @@ pub fn command(cli: Cli) -> Result<()> {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open()?,
     Commands::Build(options) => build(options)?,
+    Commands::Dev(options) => crate::dev::command(options.into(), RunMode::Android)?,
   }
 
   Ok(())

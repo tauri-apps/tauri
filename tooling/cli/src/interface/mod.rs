@@ -9,7 +9,7 @@ use std::{
   process::ExitStatus,
 };
 
-use crate::helpers::config::Config;
+use crate::{helpers::config::Config, RunMode};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{Options, Rust as AppInterface};
@@ -81,6 +81,7 @@ pub trait Interface: Sized {
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
+    mode: RunMode,
     on_exit: F,
   ) -> crate::Result<()>;
 }

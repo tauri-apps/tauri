@@ -10,6 +10,7 @@ use tauri_utils::{
   config::{WindowConfig, WindowUrl},
   Theme,
 };
+use url::Url;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -24,6 +25,7 @@ pub struct WebviewAttributes {
   pub data_directory: Option<PathBuf>,
   pub file_drop_handler_enabled: bool,
   pub clipboard: bool,
+  pub allowed_self_signed_cert_urls: Vec<Url>,
 }
 
 impl WebviewAttributes {
@@ -35,6 +37,7 @@ impl WebviewAttributes {
       data_directory: None,
       file_drop_handler_enabled: true,
       clipboard: false,
+      allowed_self_signed_cert_urls: Vec::new(),
     }
   }
 
@@ -66,6 +69,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.clipboard = true;
+    self
+  }
+
+  /// Configures the given URL to be allowed to load with a self-signed certificate.
+  #[must_use]
+  pub fn with_allowed_self_signed_cert_url(mut self, url: Url) -> Self {
+    self.allowed_self_signed_cert_urls.push(url);
     self
   }
 }

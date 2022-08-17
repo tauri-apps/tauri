@@ -2929,6 +2929,9 @@ fn create_webview<T: UserEvent>(
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
+  for url in webview_attributes.allowed_self_signed_cert_urls {
+    webview_builder = webview_builder.with_allowed_self_signed_cert_url(url);
+  }
 
   let mut web_context = web_context.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();

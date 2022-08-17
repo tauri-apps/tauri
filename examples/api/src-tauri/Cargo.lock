@@ -3309,6 +3309,7 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "thiserror",
+ "url",
  "uuid 1.1.2",
  "webview2-com",
  "windows 0.37.0",
@@ -4237,8 +4238,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea48fb3b68ab76f62837bfcea63baed9a185dbec9c14d4e5d70033e22fefffd2"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/allowed-self-signed-cert#2570d9d69800ada4136f079984555ef8e4eb3a6d"
 dependencies = [
  "block",
  "cocoa",

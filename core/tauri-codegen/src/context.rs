@@ -208,7 +208,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         if target == Target::Ios {
           let path = std::env::temp_dir().join(".tauri-dev");
           let _ = std::fs::create_dir_all(&path)
-            .and_then(|p| std::fs::write(path.join("index.html"), []));
+            .and_then(|_| std::fs::write(path.join("index.html"), []));
           EmbeddedAssets::new(path, &options, map_core_assets(&options, target))?
         } else {
           Default::default()

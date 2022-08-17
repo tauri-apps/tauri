@@ -196,8 +196,12 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
 }
 
 fn open() -> Result<()> {
-  run(false).unwrap();
-  Ok(())
+  with_config(|config, _metadata| {
+    ensure_init(config.project_dir(), MobileTarget::Ios)
+      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+    os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)
+  })
+  .map_err(Into::into)
 }
 
 pub fn run(release: bool) -> Result<bossy::Handle> {

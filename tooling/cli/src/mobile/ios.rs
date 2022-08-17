@@ -156,10 +156,11 @@ fn with_config<T>(
 
 fn env() -> Result<Env, Error> {
   let mut env = Env::new().map_err(Error::EnvInitFailed)?;
-  if let Some(development_team) = std::env::var_os("APPLE_DEVELOPMENT_TEAM") {
-    let mut vars = HashMap::new();
-    vars.insert("APPLE_DEVELOPMENT_TEAM".to_string(), development_team);
-    env = env.explicit_env_vars(vars);
+  for (k, v) in std::env::vars_os() {
+    let k = k.to_string_lossy();
+    if k.starts_with("TAURI") {
+      env.insert(k.into_owned(), v);
+    }
   }
   Ok(env)
 }

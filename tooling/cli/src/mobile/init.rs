@@ -41,7 +41,7 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
     target,
     &wrapper,
     options.ci.into(),
-    SkipDevTools::No,
+    SkipDevTools::Yes,
     ReinstallDeps::Yes,
     OpenInEditor::No,
     tauri_dir(),

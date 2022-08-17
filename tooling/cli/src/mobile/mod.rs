@@ -52,8 +52,13 @@ pub struct CliOptions {
 }
 
 fn options_path(bundle_identifier: &str, target: Target) -> PathBuf {
-  std::env::temp_dir()
-    .join(format!("cli_{}", bundle_identifier.replace('.', "_")))
+  let out_dir = dirs_next::cache_dir()
+    .or_else(dirs_next::home_dir)
+    .unwrap_or_else(std::env::temp_dir);
+  let out_dir = out_dir.join(".tauri").join(bundle_identifier);
+  let _ = std::fs::create_dir_all(&out_dir);
+  out_dir
+    .join("cli-options")
     .with_extension(target.command_name())
 }
 
@@ -131,6 +136,7 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
     apple: AppleMetadata {
       supported: true,
       ios: ApplePlatform {
+        no_default_features: ios_options.no_default_features.unwrap_or_default(),
         features: ios_options.features,
         frameworks: None,
         valid_archs: None,

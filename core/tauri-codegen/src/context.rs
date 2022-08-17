@@ -122,7 +122,7 @@ enum Target {
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
     dev,
-    config,
+    mut config,
     config_parent,
     root,
   } = data;
@@ -155,6 +155,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     panic!("unknown codegen target");
   };
 
+  if dev && (target == Target::Ios || target == Target::Android) {
+    if let AppUrl::Url(WindowUrl::External(url)) = &mut config.build.dev_path {
+      let localhost = match url.host() {
+        Some(url::Host::Domain(d)) => d == "localhost",
+        Some(url::Host::Ipv4(i)) => {
+          i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
+        }
+        _ => false,
+      };
+      if localhost {
+        if let Ok(ip) = local_ip_address::local_ip() {
+          url.set_host(Some(&ip.to_string())).unwrap();
+        }
+      }
+    }
+  }
+
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
     .freeze_prototype(config.tauri.security.freeze_prototype)
     .dangerous_disable_asset_csp_modification(
@@ -186,7 +203,17 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let assets = match app_url {
     AppUrl::Url(url) => match url {
-      WindowUrl::External(_) => Default::default(),
+      WindowUrl::External(_) => {
+        // i'm not sure why, but iOS fails with `xcodebuild exit code 65` if the embedded assets are empty :(
+        if target == Target::Ios {
+          let path = std::env::temp_dir().join(".tauri-dev");
+          let _ = std::fs::create_dir_all(&path)
+            .and_then(|p| std::fs::write(path.join("index.html"), []));
+          EmbeddedAssets::new(path, &options, map_core_assets(&options, target))?
+        } else {
+          Default::default()
+        }
+      }
       WindowUrl::App(path) => {
         if path.components().count() == 0 {
           panic!(

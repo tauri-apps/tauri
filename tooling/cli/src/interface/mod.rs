@@ -75,13 +75,12 @@ pub enum ExitReason {
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self>;
+  fn new(config: &Config, run_mode: RunMode) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
   fn build(&mut self, options: Options) -> crate::Result<()>;
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    mode: RunMode,
     on_exit: F,
   ) -> crate::Result<()>;
 }

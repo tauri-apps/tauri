@@ -26,9 +26,6 @@ use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Tauri build")]
 pub struct Options {
-  /// App mode
-  #[clap(short, long, default_value_t = RunMode::Desktop, arg_enum)]
-  pub mode: RunMode,
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
   pub runner: Option<String>,
@@ -60,7 +57,7 @@ pub struct Options {
   pub args: Vec<String>,
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub fn command(mut options: Options, run_mode: RunMode) -> Result<()> {
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
@@ -85,6 +82,8 @@ pub fn command(mut options: Options) -> Result<()> {
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  let mut interface = AppInterface::new(config_, run_mode)?;
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
     Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
@@ -157,7 +156,6 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let mut interface = AppInterface::new(config_)?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 

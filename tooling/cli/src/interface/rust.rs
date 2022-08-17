@@ -33,6 +33,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{reload as reload_config, wix_settings, Config},
+    flock,
   },
   RunMode,
 };
@@ -97,12 +98,14 @@ pub struct Rust {
   config_features: Vec<String>,
   product_name: Option<String>,
   available_targets: Option<Vec<Target>>,
+  run_mode: RunMode,
+  _lock: Option<flock::FileLock>,
 }
 
 impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self> {
+  fn new(config: &Config, run_mode: RunMode) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = channel();
       let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
@@ -125,11 +128,29 @@ impl Interface for Rust {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
+    let app_settings = RustAppSettings::new(config, manifest)?;
+
+    let lock = if run_mode == RunMode::Desktop {
+      None
+    } else {
+      Some(flock::open_rw(
+        &app_settings
+          .out_dir(None, false)?
+          .parent()
+          .unwrap()
+          .join("lock")
+          .with_extension(run_mode.to_string()),
+        &run_mode.to_string(),
+      )?)
+    };
+
     Ok(Self {
-      app_settings: RustAppSettings::new(config, manifest)?,
+      app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
+      run_mode,
+      _lock: lock,
     })
   }
 
@@ -155,7 +176,6 @@ impl Interface for Rust {
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    mode: RunMode,
     on_exit: F,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
@@ -164,7 +184,7 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, mode, move |status, reason| {
+      self.run_dev(options, self.run_mode, move |status, reason| {
         tx.send(()).unwrap();
         on_exit_(status, reason)
       })?;
@@ -172,11 +192,11 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let child = self.run_dev(options.clone(), mode, move |status, reason| {
+      let child = self.run_dev(options.clone(), self.run_mode, move |status, reason| {
         on_exit_(status, reason)
       })?;
 
-      self.run_dev_watcher(child, options, mode, on_exit)
+      self.run_dev_watcher(child, options, self.run_mode, on_exit)
     }
   }
 }

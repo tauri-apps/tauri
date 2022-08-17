@@ -23,6 +23,7 @@ use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
   ffi::OsString,
+  fmt::Display,
   sync::{Arc, Mutex},
 };
 
@@ -32,6 +33,21 @@ pub enum RunMode {
   #[cfg(target_os = "macos")]
   Ios,
   Android,
+}
+
+impl Display for RunMode {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Desktop => "desktop",
+        #[cfg(target_os = "macos")]
+        Self::Ios => "iOS",
+        Self::Android => "android",
+      }
+    )
+  }
 }
 
 #[derive(Deserialize)]
@@ -170,7 +186,7 @@ where
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options)?,
+    Commands::Build(options) => build::command(options, RunMode::Desktop)?,
     Commands::Dev(options) => dev::command(options, RunMode::Desktop)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,

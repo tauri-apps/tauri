@@ -63,8 +63,8 @@ pub struct Options {
   pub no_watch: bool,
 }
 
-pub fn command(options: Options, mode: RunMode) -> Result<()> {
-  let r = command_internal(options, mode);
+pub fn command(options: Options, run_mode: RunMode) -> Result<()> {
+  let r = command_internal(options, run_mode);
   if r.is_err() {
     kill_before_dev_process();
     #[cfg(not(debug_assertions))]
@@ -73,7 +73,7 @@ pub fn command(options: Options, mode: RunMode) -> Result<()> {
   r
 }
 
-fn command_internal(mut options: Options, mode: RunMode) -> Result<()> {
+fn command_internal(mut options: Options, run_mode: RunMode) -> Result<()> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
@@ -88,6 +88,8 @@ fn command_internal(mut options: Options, mode: RunMode) -> Result<()> {
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
+
+  let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap(), run_mode)?;
 
   if let Some(before_dev) = config
     .lock()
@@ -261,11 +263,9 @@ fn command_internal(mut options: Options, mode: RunMode) -> Result<()> {
     }
   }
 
-  let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
-
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(options.into(), mode, move |status, reason| {
+  interface.dev(options.into(), move |status, reason| {
     on_dev_exit(status, reason, exit_on_panic, no_watch)
   })
 }

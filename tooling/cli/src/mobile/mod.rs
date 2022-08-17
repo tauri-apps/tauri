@@ -48,7 +48,7 @@ impl Target {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
-  pub no_default_features: Option<bool>,
+  pub args: Vec<String>,
 }
 
 fn options_path(bundle_identifier: &str, target: Target) -> PathBuf {
@@ -110,7 +110,7 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
         .or_else(|| config.tauri.ios.development_team.clone())
         .expect("you must set `tauri > iOS > developmentTeam` config value or the `APPLE_DEVELOPMENT_TEAM` environment variable"),
       project_dir: None,
-      ios_no_default_features: ios_options.no_default_features,
+      ios_no_default_features: None,
       ios_features: ios_options.features.clone(),
       macos_no_default_features: None,
       macos_features: None,
@@ -125,7 +125,7 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
       min_sdk_version: None,
       vulkan_validation: None,
       project_dir: None,
-      no_default_features: android_options.no_default_features,
+      no_default_features: None,
       features: android_options.features.clone(),
     }),
   };
@@ -136,7 +136,8 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
     apple: AppleMetadata {
       supported: true,
       ios: ApplePlatform {
-        no_default_features: ios_options.no_default_features.unwrap_or_default(),
+        no_default_features: false,
+        cargo_args: Some(ios_options.args),
         features: ios_options.features,
         frameworks: None,
         valid_archs: None,
@@ -154,7 +155,8 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
     },
     android: AndroidMetadata {
       supported: true,
-      no_default_features: android_options.no_default_features.unwrap_or_default(),
+      no_default_features: false,
+      cargo_args: Some(android_options.args),
       features: android_options.features,
       app_sources: None,
       app_plugins: None,

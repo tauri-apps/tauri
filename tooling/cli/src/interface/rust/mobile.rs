@@ -9,7 +9,7 @@ impl From<Options> for crate::mobile::CliOptions {
   fn from(options: Options) -> Self {
     Self {
       features: options.features,
-      no_default_features: Some(options.args.contains(&"--no-default-features".into())),
+      args: options.args,
     }
   }
 }

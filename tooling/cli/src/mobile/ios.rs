@@ -22,7 +22,11 @@ use super::{
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
-use crate::{helpers::config::get as get_tauri_config, Result, RunMode};
+use crate::{
+  helpers::config::get as get_tauri_config,
+  interface::{Interface, MobileOptions},
+  Result, RunMode,
+};
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 
@@ -134,7 +138,18 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
     Commands::Open => open()?,
-    Commands::Dev(options) => crate::dev::command(options.into(), RunMode::Ios)?,
+    Commands::Dev(options) => {
+      let mut dev_options = options.clone().into();
+      let mut interface = crate::dev::setup(&mut dev_options)?;
+      interface.mobile_dev(MobileOptions {
+        mode: RunMode::Ios,
+        debug: !options.release_mode,
+        features: options.features,
+        args: Vec::new(),
+        config: options.config,
+        no_watch: options.no_watch,
+      })?;
+    }
     Commands::XcodeScript(options) => xcode_script(options)?,
   }
 

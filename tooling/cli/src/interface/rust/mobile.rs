@@ -1,12 +1,12 @@
-use super::{DevProcess, Options};
+use super::{DevProcess, MobileOptions};
 
 use bossy::Handle;
 use std::process::ExitStatus;
 
 pub struct DevChild(Option<Handle>);
 
-impl From<Options> for crate::mobile::CliOptions {
-  fn from(options: Options) -> Self {
+impl From<MobileOptions> for crate::mobile::CliOptions {
+  fn from(options: MobileOptions) -> Self {
     Self {
       features: options.features,
       args: options.args,
@@ -48,13 +48,18 @@ pub mod android {
   use super::*;
   use crate::mobile::{android::run, write_options, Target};
 
-  pub fn run_dev(options: Options, bundle_identifier: &str) -> crate::Result<impl DevProcess> {
+  pub fn run_dev(
+    options: MobileOptions,
+    bundle_identifier: &str,
+  ) -> crate::Result<impl DevProcess> {
     let debug = options.debug;
     write_options(options.into(), bundle_identifier, Target::Android)?;
     let handle = run(!debug)?;
     if handle.is_none() {
       // if the handle is None, we've opened Android Studio so we should just wait
-      loop {}
+      loop {
+        std::thread::sleep(std::time::Duration::from_secs(60 * 60 * 24))
+      }
     }
     Ok(DevChild(handle))
   }
@@ -65,7 +70,10 @@ pub mod ios {
   use super::*;
   use crate::mobile::{ios::run, write_options, Target};
 
-  pub fn run_dev(options: Options, bundle_identifier: &str) -> crate::Result<impl DevProcess> {
+  pub fn run_dev(
+    options: MobileOptions,
+    bundle_identifier: &str,
+  ) -> crate::Result<impl DevProcess> {
     let debug = options.debug;
     write_options(options.into(), bundle_identifier, Target::Ios)?;
     let handle = run(!debug)?;

@@ -186,8 +186,8 @@ where
   }
 
   match cli.command {
-    Commands::Build(options) => build::command(options, RunMode::Desktop)?,
-    Commands::Dev(options) => dev::command(options, RunMode::Desktop)?,
+    Commands::Build(options) => build::command(options)?,
+    Commands::Dev(options) => dev::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,

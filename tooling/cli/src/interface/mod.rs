@@ -9,10 +9,10 @@ use std::{
   process::ExitStatus,
 };
 
-use crate::{helpers::config::Config, RunMode};
+use crate::helpers::config::Config;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{Options, Rust as AppInterface};
+pub use rust::{MobileOptions, Options, Rust as AppInterface};
 
 pub trait AppSettings {
   fn get_package_settings(&self) -> tauri_bundler::PackageSettings;
@@ -75,7 +75,7 @@ pub enum ExitReason {
 pub trait Interface: Sized {
   type AppSettings: AppSettings;
 
-  fn new(config: &Config, run_mode: RunMode) -> crate::Result<Self>;
+  fn new(config: &Config) -> crate::Result<Self>;
   fn app_settings(&self) -> &Self::AppSettings;
   fn build(&mut self, options: Options) -> crate::Result<()>;
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
@@ -83,4 +83,5 @@ pub trait Interface: Sized {
     options: Options,
     on_exit: F,
   ) -> crate::Result<()>;
+  fn mobile_dev(&mut self, options: MobileOptions) -> crate::Result<()>;
 }

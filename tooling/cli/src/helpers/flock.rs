@@ -142,12 +142,12 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
     .with_context(|| format!("failed to open: {}", path.display()))?;
   match state {
     State::Exclusive => {
-      acquire(msg, &path, &|| try_lock_exclusive(&f), &|| {
+      acquire(msg, path, &|| try_lock_exclusive(&f), &|| {
         lock_exclusive(&f)
       })?;
     }
     State::Shared => {
-      acquire(msg, &path, &|| try_lock_shared(&f), &|| lock_shared(&f))?;
+      acquire(msg, path, &|| try_lock_shared(&f), &|| lock_shared(&f))?;
     }
     State::Unlocked => {}
   }

@@ -23,7 +23,11 @@ use super::{
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
-use crate::{helpers::config::get as get_tauri_config, Result, RunMode};
+use crate::{
+  helpers::config::get as get_tauri_config,
+  interface::{Interface, MobileOptions},
+  Result, RunMode,
+};
 
 pub(crate) mod project;
 
@@ -121,7 +125,18 @@ pub fn command(cli: Cli) -> Result<()> {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open()?,
     Commands::Build(options) => build(options)?,
-    Commands::Dev(options) => crate::dev::command(options.into(), RunMode::Android)?,
+    Commands::Dev(options) => {
+      let mut dev_options = options.clone().into();
+      let mut interface = crate::dev::setup(&mut dev_options)?;
+      interface.mobile_dev(MobileOptions {
+        mode: RunMode::Android,
+        debug: true,
+        features: options.features,
+        args: Vec::new(),
+        config: options.config,
+        no_watch: options.no_watch,
+      })?;
+    }
   }
 
   Ok(())

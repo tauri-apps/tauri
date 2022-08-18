@@ -10,7 +10,7 @@ use crate::{
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
-  CommandExt, Result, RunMode,
+  CommandExt, Result,
 };
 use anyhow::{bail, Context};
 use clap::Parser;
@@ -57,7 +57,7 @@ pub struct Options {
   pub args: Vec<String>,
 }
 
-pub fn command(mut options: Options, run_mode: RunMode) -> Result<()> {
+pub fn command(mut options: Options) -> Result<()> {
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
@@ -83,7 +83,7 @@ pub fn command(mut options: Options, run_mode: RunMode) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
-  let mut interface = AppInterface::new(config_, run_mode)?;
+  let mut interface = AppInterface::new(config_)?;
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
     Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),

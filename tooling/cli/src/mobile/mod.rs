@@ -13,7 +13,7 @@ use cargo_mobile::{
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
 };
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{collections::HashMap, ffi::OsString, path::PathBuf};
 
 pub mod android;
 mod init;
@@ -49,6 +49,7 @@ impl Target {
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
+  pub vars: HashMap<String, OsString>,
 }
 
 fn options_path(bundle_identifier: &str, target: Target) -> PathBuf {
@@ -62,12 +63,24 @@ fn options_path(bundle_identifier: &str, target: Target) -> PathBuf {
     .with_extension(target.command_name())
 }
 
+fn env_vars() -> HashMap<String, OsString> {
+  let mut vars = HashMap::new();
+  for (k, v) in std::env::vars_os() {
+    let k = k.to_string_lossy();
+    if k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD" {
+      vars.insert(k.into_owned(), v);
+    }
+  }
+  vars
+}
+
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
-  options: CliOptions,
+  mut options: CliOptions,
   bundle_identifier: &str,
   target: Target,
 ) -> crate::Result<()> {
+  options.vars.extend(env_vars());
   std::fs::write(
     options_path(bundle_identifier, target),
     &serde_json::to_string(&options)?,

@@ -10,6 +10,7 @@ impl From<Options> for crate::mobile::CliOptions {
     Self {
       features: options.features,
       args: options.args,
+      vars: Default::default(), // vars are filled on write
     }
   }
 }

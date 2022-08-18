@@ -18,7 +18,7 @@ use cargo_mobile::{
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init, get_config,
+  ensure_init, env_vars, get_config,
   init::{command as init_command, Options as InitOptions},
   Target as MobileTarget,
 };
@@ -153,15 +153,9 @@ fn with_config<T>(
 }
 
 fn env() -> Result<Env, Error> {
-  let mut env = Env::new().map_err(Error::EnvInitFailed)?;
-  for (k, v) in std::env::vars_os() {
-    let mut vars = HashMap::new();
-    let k = k.to_string_lossy();
-    if k.starts_with("TAURI") {
-      vars.insert(k.into_owned(), v);
-    }
-    env = env.explicit_env_vars(vars);
-  }
+  let env = Env::new()
+    .map_err(Error::EnvInitFailed)?
+    .explicit_env_vars(env_vars());
   Ok(env)
 }
 

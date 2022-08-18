@@ -88,9 +88,6 @@ pub struct DevOptions {
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
-  /// Run the code in release mode
-  #[clap(long = "release")]
-  pub release_mode: bool,
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
@@ -104,7 +101,7 @@ impl From<DevOptions> for crate::dev::Options {
       features: options.features,
       exit_on_panic: options.exit_on_panic,
       config: options.config,
-      release_mode: options.release_mode,
+      release_mode: false,
       args: Vec::new(),
       no_watch: options.no_watch,
     }

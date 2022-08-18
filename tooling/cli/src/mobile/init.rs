@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{get_config, Target};
-use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
+use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
   android::{self, env::Env as AndroidEnv, ndk, target::Target as AndroidTarget},
@@ -19,12 +19,9 @@ use cargo_mobile::{
 use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
-use std::{
-  fs, io,
-  path::{Path, PathBuf},
-};
+use std::{fs, io, path::PathBuf};
 
-use opts::{NonInteractive, OpenInEditor, ReinstallDeps, SkipDevTools};
+use opts::{NonInteractive, ReinstallDeps, SkipDevTools};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri Android project")]
@@ -44,8 +41,6 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
     options.ci.into(),
     SkipDevTools::Yes,
     ReinstallDeps::Yes,
-    OpenInEditor::No,
-    tauri_dir(),
   )
   .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
@@ -77,8 +72,6 @@ pub enum Error {
   AndroidInit(super::android::project::Error),
   #[error(transparent)]
   DotCargoWrite(dot_cargo::WriteError),
-  #[error(transparent)]
-  OpenInEditor(util::OpenInEditorError),
 }
 
 pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Result<(), Error> {
@@ -116,10 +109,7 @@ pub fn exec(
   non_interactive: NonInteractive,
   skip_dev_tools: SkipDevTools,
   #[allow(unused_variables)] reinstall_deps: ReinstallDeps,
-  open_in_editor: OpenInEditor,
-  cwd: impl AsRef<Path>,
 ) -> Result<Config, Error> {
-  let cwd = cwd.as_ref();
   let tauri_config =
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
   let tauri_config_guard = tauri_config.lock().unwrap();
@@ -203,9 +193,6 @@ pub fn exec(
     "Make cool apps! 🌻 🐕 🎉",
   )
   .print(wrapper);
-  if open_in_editor.yes() {
-    util::open_in_editor(cwd).map_err(Error::OpenInEditor)?;
-  }
   Ok(config)
 }
 

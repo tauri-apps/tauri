@@ -25,7 +25,7 @@ use super::{
 use crate::{
   helpers::config::get as get_tauri_config,
   interface::{DevProcess, Interface, MobileOptions},
-  Result, RunMode,
+  Result,
 };
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
@@ -42,6 +42,8 @@ enum Error {
   ProjectNotInitialized(String),
   #[error(transparent)]
   OpenFailed(os::OpenFileError),
+  #[error("{0}")]
+  DevFailed(String),
   #[error(transparent)]
   NoHomeDir(util::NoHomeDir),
   #[error("SDK root provided by Xcode was invalid. {sdk_root} doesn't exist or isn't a directory")]
@@ -55,7 +57,7 @@ enum Error {
   #[error(transparent)]
   CompileLibFailed(CompileLibError),
   #[error(transparent)]
-  DevicePromptFailed(PromptError<ios_deploy::DeviceListError>),
+  FailedToPromptForDevice(PromptError<ios_deploy::DeviceListError>),
   #[error(transparent)]
   RunFailed(RunError),
 }
@@ -205,11 +207,6 @@ fn dev(options: DevOptions) -> Result<()> {
 fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
   let mut dev_options = options.clone().into();
   let mut interface = crate::dev::setup(&mut dev_options)?;
-  let cli_options = CliOptions {
-    features: dev_options.features,
-    args: dev_options.args,
-    vars: Default::default(),
-  };
 
   {
     let tauri_config =
@@ -237,7 +234,7 @@ fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
       config: options.config,
       no_watch: options.no_watch,
     },
-    |options| match run(!options.debug) {
+    |options| match run(options) {
       Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
       Err(Error::FailedToPromptForDevice(_)) => open_dev(config),
       Err(e) => Err(e.into()),
@@ -263,11 +260,11 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-pub fn run(release: bool) -> Result<DevChild> {
-  let profile = if release {
-    Profile::Release
-  } else {
+fn run(options: MobileOptions) -> Result<DevChild, Error> {
+  let profile = if options.debug {
     Profile::Debug
+  } else {
+    Profile::Release
   };
 
   with_config(|config, _| {
@@ -277,12 +274,11 @@ pub fn run(release: bool) -> Result<DevChild> {
     let env = env()?;
 
     device_prompt(&env)
-      .map_err(Error::DevicePromptFailed)?
+      .map_err(Error::FailedToPromptForDevice)?
       .run(config, &env, NoiseLevel::Polite, false.into(), profile)
       .map_err(Error::RunFailed)
   })
   .map(|c| DevChild(Some(c)))
-  .map_err(Into::into)
 }
 
 fn xcode_script(options: XcodeScriptOptions) -> Result<()> {

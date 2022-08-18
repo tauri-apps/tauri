@@ -213,7 +213,7 @@ fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
       config: options.config,
       no_watch: options.no_watch,
     },
-    |options| match run(!options.debug) {
+    |options| match run(options) {
       Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
       Err(Error::FailedToPromptForDevice(_)) => open_dev(config),
       Err(e) => Err(e.into()),
@@ -239,11 +239,11 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-fn run(release: bool) -> Result<DevChild, Error> {
-  let profile = if release {
-    Profile::Release
-  } else {
+fn run(options: MobileOptions) -> Result<DevChild, Error> {
+  let profile = if options.debug {
     Profile::Debug
+  } else {
+    Profile::Release
   };
 
   with_config(|config, metadata| {

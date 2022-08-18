@@ -29,18 +29,14 @@ use tauri_bundler::{
   UpdaterSettings, WindowsSettings,
 };
 
-use super::{AppSettings, ExitReason, Interface};
-use crate::{
-  helpers::{
-    app_paths::tauri_dir,
-    config::{reload as reload_config, wix_settings, Config},
-  },
-  RunMode,
+use super::{AppSettings, DevProcess, ExitReason, Interface};
+use crate::helpers::{
+  app_paths::tauri_dir,
+  config::{reload as reload_config, wix_settings, Config},
 };
 
 mod desktop;
 mod manifest;
-mod mobile;
 use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Clone)]
@@ -84,17 +80,11 @@ impl From<crate::dev::Options> for Options {
 
 #[derive(Debug, Clone)]
 pub struct MobileOptions {
-  pub mode: RunMode,
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub config: Option<String>,
   pub no_watch: bool,
-}
-
-pub trait DevProcess {
-  fn kill(&mut self) -> std::io::Result<()>;
-  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
 }
 
 #[derive(Debug)]
@@ -107,7 +97,6 @@ pub struct Rust {
   app_settings: RustAppSettings,
   config_features: Vec<String>,
   product_name: Option<String>,
-  bundle_identifier: String,
   available_targets: Option<Vec<Target>>,
 }
 
@@ -143,7 +132,6 @@ impl Interface for Rust {
       app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
-      bundle_identifier: config.tauri.bundle.identifier.clone(),
       available_targets: None,
     })
   }
@@ -201,7 +189,11 @@ impl Interface for Rust {
     }
   }
 
-  fn mobile_dev(&mut self, mut options: MobileOptions) -> crate::Result<()> {
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+    &mut self,
+    mut options: MobileOptions,
+    runner: R,
+  ) -> crate::Result<()> {
     dev_options(
       &mut options.args,
       &mut options.features,
@@ -209,11 +201,11 @@ impl Interface for Rust {
     );
 
     if options.no_watch {
-      self.run_mobile_dev(options)?;
+      runner(options)?;
       Ok(())
     } else {
       let config = options.config.clone();
-      let run = Arc::new(|rust: &mut Rust| rust.run_mobile_dev(options.clone()));
+      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
       self.run_dev_watcher(config, run)
     }
   }
@@ -301,17 +293,6 @@ impl Rust {
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess>)
-  }
-
-  fn run_mobile_dev(&mut self, options: MobileOptions) -> crate::Result<Box<dyn DevProcess>> {
-    match options.mode {
-      RunMode::Android => mobile::android::run_dev(options, &self.bundle_identifier)
-        .map(|c| Box::new(c) as Box<dyn DevProcess>),
-      #[cfg(target_os = "macos")]
-      RunMode::Ios => mobile::ios::run_dev(options, &self.bundle_identifier)
-        .map(|c| Box::new(c) as Box<dyn DevProcess>),
-      RunMode::Desktop => unreachable!(),
-    }
   }
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(

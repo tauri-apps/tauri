@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::{app_paths::tauri_dir, config::Config as TauriConfig};
+use crate::{
+  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  interface::DevProcess,
+};
 use anyhow::{bail, Result};
 #[cfg(target_os = "macos")]
 use cargo_mobile::apple::config::{
@@ -13,12 +16,43 @@ use cargo_mobile::{
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ffi::OsString, path::PathBuf};
+use std::{collections::HashMap, ffi::OsString, path::PathBuf, process::ExitStatus};
 
 pub mod android;
 mod init;
 #[cfg(target_os = "macos")]
 pub mod ios;
+
+pub struct DevChild(Option<bossy::Handle>);
+
+impl Drop for DevChild {
+  fn drop(&mut self) {
+    // consume the handle since we're not waiting on it
+    // just to prevent a log error
+    // note that this doesn't leak any memory
+    self.0.take().unwrap().leak();
+  }
+}
+
+impl DevProcess for DevChild {
+  fn kill(&mut self) -> std::io::Result<()> {
+    self
+      .0
+      .as_mut()
+      .unwrap()
+      .kill()
+      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to kill"))
+  }
+
+  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+    self
+      .0
+      .as_mut()
+      .unwrap()
+      .try_wait()
+      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to wait"))
+  }
+}
 
 #[derive(PartialEq, Eq)]
 pub enum Target {

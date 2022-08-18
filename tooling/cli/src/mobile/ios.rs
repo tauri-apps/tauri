@@ -20,11 +20,11 @@ use clap::{Parser, Subcommand};
 use super::{
   ensure_init, env_vars, get_config,
   init::{command as init_command, Options as InitOptions},
-  Target as MobileTarget,
+  write_options, CliOptions, DevChild, Target as MobileTarget,
 };
 use crate::{
   helpers::config::get as get_tauri_config,
-  interface::{Interface, MobileOptions},
+  interface::{DevProcess, Interface, MobileOptions},
   Result, RunMode,
 };
 
@@ -54,6 +54,8 @@ enum Error {
   ArchInvalid { arch: String },
   #[error(transparent)]
   CompileLibFailed(CompileLibError),
+  #[error(transparent)]
+  DevicePromptFailed(PromptError<ios_deploy::DeviceListError>),
   #[error(transparent)]
   RunFailed(RunError),
 }
@@ -138,18 +140,7 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
     Commands::Open => open()?,
-    Commands::Dev(options) => {
-      let mut dev_options = options.clone().into();
-      let mut interface = crate::dev::setup(&mut dev_options)?;
-      interface.mobile_dev(MobileOptions {
-        mode: RunMode::Ios,
-        debug: !options.release_mode,
-        features: options.features,
-        args: Vec::new(),
-        config: options.config,
-        no_watch: options.no_watch,
-      })?;
-    }
+    Commands::Dev(options) => dev(options)?,
     Commands::XcodeScript(options) => xcode_script(options)?,
   }
 
@@ -159,11 +150,13 @@ pub fn command(cli: Cli) -> Result<()> {
 fn with_config<T>(
   f: impl FnOnce(&AppleConfig, &AppleMetadata) -> Result<T, Error>,
 ) -> Result<T, Error> {
-  let tauri_config =
-    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-  let (config, metadata) = get_config(tauri_config_);
+  let (config, metadata) = {
+    let tauri_config =
+      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    get_config(tauri_config_)
+  };
   f(config.apple(), metadata.apple())
 }
 
@@ -202,6 +195,65 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
   }
 }
 
+fn dev(options: DevOptions) -> Result<()> {
+  with_config(|config, _metadata| {
+    run_dev(options, config).map_err(|e| Error::DevFailed(e.to_string()))
+  })
+  .map_err(Into::into)
+}
+
+fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
+  let mut dev_options = options.clone().into();
+  let mut interface = crate::dev::setup(&mut dev_options)?;
+  let cli_options = CliOptions {
+    features: dev_options.features,
+    args: dev_options.args,
+    vars: Default::default(),
+  };
+
+  {
+    let tauri_config =
+      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+    let cli_options = CliOptions {
+      features: dev_options.features,
+      args: dev_options.args,
+      vars: Default::default(),
+    };
+    write_options(
+      cli_options,
+      &tauri_config_.tauri.bundle.identifier,
+      MobileTarget::Ios,
+    )?;
+  }
+
+  interface.mobile_dev(
+    MobileOptions {
+      debug: true,
+      features: options.features,
+      args: Vec::new(),
+      config: options.config,
+      no_watch: options.no_watch,
+    },
+    |options| match run(!options.debug) {
+      Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+      Err(Error::FailedToPromptForDevice(_)) => open_dev(config),
+      Err(e) => Err(e.into()),
+    },
+  )
+}
+
+fn open_dev(config: &AppleConfig) -> ! {
+  if let Err(e) = os::open_file_with("Xcode", config.project_dir()) {
+    log::error!("{}", e);
+  }
+  loop {
+    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
+  }
+}
+
 fn open() -> Result<()> {
   with_config(|config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
@@ -211,7 +263,7 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-pub fn run(release: bool) -> Result<Option<bossy::Handle>> {
+pub fn run(release: bool) -> Result<DevChild> {
   let profile = if release {
     Profile::Release
   } else {
@@ -224,19 +276,12 @@ pub fn run(release: bool) -> Result<Option<bossy::Handle>> {
 
     let env = env()?;
 
-    match device_prompt(&env) {
-      Ok(device) => device
-        .run(config, &env, NoiseLevel::Polite, false.into(), profile)
-        .map(Some)
-        .map_err(Error::RunFailed),
-      Err(e) => {
-        log::warn!("{}. Opening Xcode instead.", e);
-        os::open_file_with("Xcode", config.project_dir())
-          .map(|_| None)
-          .map_err(Error::OpenFailed)
-      }
-    }
+    device_prompt(&env)
+      .map_err(Error::DevicePromptFailed)?
+      .run(config, &env, NoiseLevel::Polite, false.into(), profile)
+      .map_err(Error::RunFailed)
   })
+  .map(|c| DevChild(Some(c)))
   .map_err(Into::into)
 }
 

@@ -10,7 +10,7 @@ class RustWebChromeClient: WebChromeClient() {
     if (url.endsWith("##")) {
       url = url.dropLast(2)
     }
-    if (loadedUrl != url) {
+    if (loadedUrl != url && progress >= 50) {
       loadedUrl = url
       runInitializationScripts()
     }

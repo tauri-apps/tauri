@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    compileSdk = 31
+    compileSdk = 33
     defaultConfig {
         applicationId = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
         minSdk = {{android.min-sdk-version}}
-        targetSdk = 31
+        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
     }
@@ -66,9 +66,8 @@ dependencies {
     {{~#each android-app-dependencies}}
     implementation("{{this}}"){{/each}}
     implementation("androidx.webkit:webkit:1.4.0")
-    implementation("androidx.appcompat:appcompat:1.4.1")
-    implementation("com.google.android.material:material:1.6.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.3")
+     implementation("androidx.appcompat:appcompat:1.5.0")
+    implementation("com.google.android.material:material:1.6.1")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.3")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.4.0")
@@ -76,8 +75,7 @@ dependencies {
 
 afterEvaluate {
     android.applicationVariants.all {
-        val buildType = "${buildType.name.capitalize()}"
-        productFlavors.forEach {
+        productFlavors.forEach { _ ->
             val archAndBuildType = name.capitalize()
             tasks["merge${archAndBuildType}JniLibFolders"].dependsOn(tasks["rustBuild${archAndBuildType}"])
         }

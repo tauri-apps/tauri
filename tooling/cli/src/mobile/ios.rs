@@ -51,8 +51,6 @@ enum Error {
   #[error(transparent)]
   CompileLibFailed(CompileLibError),
   #[error(transparent)]
-  DevicePromptFailed(PromptError<ios_deploy::DeviceListError>),
-  #[error(transparent)]
   RunFailed(RunError),
 }
 
@@ -204,7 +202,7 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-pub fn run(release: bool) -> Result<bossy::Handle> {
+pub fn run(release: bool) -> Result<Option<bossy::Handle>> {
   let profile = if release {
     Profile::Release
   } else {
@@ -217,10 +215,18 @@ pub fn run(release: bool) -> Result<bossy::Handle> {
 
     let env = env()?;
 
-    device_prompt(&env)
-      .map_err(Error::DevicePromptFailed)?
-      .run(config, &env, NoiseLevel::Polite, false.into(), profile)
-      .map_err(Error::RunFailed)
+    match device_prompt(&env) {
+      Ok(device) => device
+        .run(config, &env, NoiseLevel::Polite, false.into(), profile)
+        .map(Some)
+        .map_err(Error::RunFailed),
+      Err(e) => {
+        log::warn!("{}. Opening Xcode instead.", e);
+        os::open_file_with("Xcode", config.project_dir())
+          .map(|_| None)
+          .map_err(Error::OpenFailed)
+      }
+    }
   })
   .map_err(Into::into)
 }

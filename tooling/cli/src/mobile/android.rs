@@ -43,8 +43,6 @@ enum Error {
   RunFailed(RunError),
   #[error("{0}")]
   TargetInvalid(String),
-  #[error(transparent)]
-  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
 }
 
 #[derive(Parser)]
@@ -177,7 +175,7 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-pub fn run(release: bool) -> Result<bossy::Handle> {
+pub fn run(release: bool) -> Result<Option<bossy::Handle>> {
   let profile = if release {
     Profile::Release
   } else {
@@ -192,19 +190,27 @@ pub fn run(release: bool) -> Result<bossy::Handle> {
 
     let env = Env::new().map_err(Error::EnvInitFailed)?;
 
-    device_prompt(&env)
-      .map_err(Error::FailedToPromptForDevice)?
-      .run(
-        config,
-        &env,
-        NoiseLevel::Polite,
-        profile,
-        None,
-        build_app_bundle,
-        false.into(),
-        ".MainActivity".into(),
-      )
-      .map_err(Error::RunFailed)
+    match device_prompt(&env) {
+      Ok(device) => device
+        .run(
+          config,
+          &env,
+          NoiseLevel::Polite,
+          profile,
+          None,
+          build_app_bundle,
+          false.into(),
+          ".MainActivity".into(),
+        )
+        .map(Some)
+        .map_err(Error::RunFailed),
+      Err(e) => {
+        log::warn!("{}. Opening Android Studio instead.", e);
+        os::open_file_with("Android Studio", config.project_dir())
+          .map(|_| None)
+          .map_err(Error::OpenFailed)
+      }
+    }
   })
   .map_err(Into::into)
 }

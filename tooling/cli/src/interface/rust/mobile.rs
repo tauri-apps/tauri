@@ -51,7 +51,11 @@ pub mod android {
     let debug = options.debug;
     write_options(options.into(), bundle_identifier, Target::Android)?;
     let handle = run(!debug)?;
-    Ok(DevChild(Some(handle)))
+    if handle.is_none() {
+      // if the handle is None, we've opened Android Studio so we should just wait
+      loop {}
+    }
+    Ok(DevChild(handle))
   }
 }
 
@@ -64,6 +68,10 @@ pub mod ios {
     let debug = options.debug;
     write_options(options.into(), bundle_identifier, Target::Ios)?;
     let handle = run(!debug)?;
-    Ok(DevChild(Some(handle)))
+    if handle.is_none() {
+      // if the handle is None, we've opened Xcode so we should just wait
+      loop {}
+    }
+    Ok(DevChild(handle))
   }
 }

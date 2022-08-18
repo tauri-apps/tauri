@@ -97,6 +97,9 @@ pub struct DevOptions {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Open Android Studio instead of trying to run on a connected device
+  #[clap(short, long)]
+  pub open: bool,
 }
 
 impl From<DevOptions> for crate::dev::Options {
@@ -205,6 +208,7 @@ fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
     )?;
   }
 
+  let open = options.open;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -213,15 +217,25 @@ fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
       config: options.config,
       no_watch: options.no_watch,
     },
-    |options| match run(options) {
-      Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
-      Err(Error::FailedToPromptForDevice(_)) => open_dev(config),
-      Err(e) => Err(e.into()),
+    |options| {
+      if open {
+        open_dev(config)
+      } else {
+        match run(options) {
+          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+          Err(Error::FailedToPromptForDevice(e)) => {
+            log::error!("{}", e);
+            open_dev(config)
+          }
+          Err(e) => Err(e.into()),
+        }
+      }
     },
   )
 }
 
 fn open_dev(config: &AndroidConfig) -> ! {
+  log::info!("Opening Android Studio");
   if let Err(e) = os::open_file_with("Android Studio", config.project_dir()) {
     log::error!("{}", e);
   }

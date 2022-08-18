@@ -112,6 +112,9 @@ pub struct DevOptions {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Open Xcode instead of trying to run on a connected device
+  #[clap(short, long)]
+  pub open: bool,
 }
 
 impl From<DevOptions> for crate::dev::Options {
@@ -226,6 +229,7 @@ fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
     )?;
   }
 
+  let open = options.open;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -234,15 +238,25 @@ fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
       config: options.config,
       no_watch: options.no_watch,
     },
-    |options| match run(options) {
-      Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
-      Err(Error::FailedToPromptForDevice(_)) => open_dev(config),
-      Err(e) => Err(e.into()),
+    |options| {
+      if open {
+        open_dev(config)
+      } else {
+        match run(options) {
+          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+          Err(Error::FailedToPromptForDevice(e)) => {
+            log::error!("{}", e);
+            open_dev(config)
+          }
+          Err(e) => Err(e.into()),
+        }
+      }
     },
   )
 }
 
 fn open_dev(config: &AppleConfig) -> ! {
+  log::info!("Opening Xcode");
   if let Err(e) = os::open_file_with("Xcode", config.project_dir()) {
     log::error!("{}", e);
   }

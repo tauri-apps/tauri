@@ -214,23 +214,13 @@ fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
   let mut dev_options = options.clone().into();
   let mut interface = crate::dev::setup(&mut dev_options)?;
 
-  {
+  let bundle_identifier = {
     let tauri_config =
       get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-
-    let cli_options = CliOptions {
-      features: dev_options.features,
-      args: dev_options.args,
-      vars: Default::default(),
-    };
-    write_options(
-      cli_options,
-      &tauri_config_.tauri.bundle.identifier,
-      MobileTarget::Ios,
-    )?;
-  }
+    tauri_config_.tauri.bundle.identifier.clone()
+  };
 
   let open = options.open;
   interface.mobile_dev(
@@ -242,6 +232,12 @@ fn run_dev(options: DevOptions, config: &AppleConfig) -> Result<()> {
       no_watch: options.no_watch,
     },
     |options| {
+      let cli_options = CliOptions {
+        features: options.features.clone(),
+        args: options.args.clone(),
+        vars: Default::default(),
+      };
+      write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
       if open {
         open_dev(config)
       } else {

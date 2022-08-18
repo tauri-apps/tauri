@@ -9,6 +9,7 @@ use cargo_mobile::{
     ios_deploy,
     target::{CompileLibError, Target},
   },
+  config::Config,
   device::PromptError,
   env::{Env, Error as EnvError},
   opts::{NoiseLevel, Profile},
@@ -36,6 +37,8 @@ pub(crate) mod project;
 enum Error {
   #[error(transparent)]
   EnvInitFailed(EnvError),
+  #[error(transparent)]
+  InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]
   InvalidTauriConfig(String),
   #[error("{0}")]
@@ -153,7 +156,7 @@ pub fn command(cli: Cli) -> Result<()> {
 }
 
 fn with_config<T>(
-  f: impl FnOnce(&AppleConfig, &AppleMetadata) -> Result<T, Error>,
+  f: impl FnOnce(&Config, &AppleConfig, &AppleMetadata) -> Result<T, Error>,
 ) -> Result<T, Error> {
   let (config, metadata) = {
     let tauri_config =
@@ -162,7 +165,7 @@ fn with_config<T>(
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     get_config(tauri_config_)
   };
-  f(config.apple(), metadata.apple())
+  f(&config, config.apple(), metadata.apple())
 }
 
 fn env() -> Result<Env, Error> {
@@ -201,7 +204,7 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
 }
 
 fn dev(options: DevOptions) -> Result<()> {
-  with_config(|config, _metadata| {
+  with_config(|_, config, _metadata| {
     run_dev(options, config).map_err(|e| Error::DevFailed(e.to_string()))
   })
   .map_err(Into::into)
@@ -266,7 +269,7 @@ fn open_dev(config: &AppleConfig) -> ! {
 }
 
 fn open() -> Result<()> {
-  with_config(|config, _metadata| {
+  with_config(|_, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)
@@ -281,11 +284,12 @@ fn run(options: MobileOptions) -> Result<DevChild, Error> {
     Profile::Release
   };
 
-  with_config(|config, _| {
+  with_config(|root_conf, config, _| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
     let env = env()?;
+    super::init::init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
     device_prompt(&env)
       .map_err(Error::FailedToPromptForDevice)?
@@ -311,8 +315,9 @@ fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  with_config(|config, metadata| {
+  with_config(|root_conf, config, metadata| {
     let env = env()?;
+    super::init::init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
     // The `PATH` env var Xcode gives us is missing any additions
     // made by the user's profile, so we'll manually add cargo's
     // `PATH`.

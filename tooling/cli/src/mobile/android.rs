@@ -10,6 +10,7 @@ use cargo_mobile::{
     env::{Env, Error as EnvError},
     target::{BuildError, Target},
   },
+  config::Config,
   device::PromptError,
   opts::{NoiseLevel, Profile},
   os,
@@ -35,6 +36,8 @@ pub(crate) mod project;
 enum Error {
   #[error(transparent)]
   EnvInitFailed(EnvError),
+  #[error(transparent)]
+  InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]
   InvalidTauriConfig(String),
   #[error("{0}")]
@@ -139,7 +142,7 @@ pub fn command(cli: Cli) -> Result<()> {
 }
 
 fn with_config<T>(
-  f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
+  f: impl FnOnce(&Config, &AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
 ) -> Result<T, Error> {
   let (config, metadata) = {
     let tauri_config =
@@ -148,7 +151,7 @@ fn with_config<T>(
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     get_config(tauri_config_)
   };
-  f(config.android(), metadata.android())
+  f(&config, config.android(), metadata.android())
 }
 
 fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
@@ -180,7 +183,7 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device
 }
 
 fn dev(options: DevOptions) -> Result<()> {
-  with_config(|config, _metadata| {
+  with_config(|_, config, _metadata| {
     run_dev(options, config).map_err(|e| Error::DevFailed(e.to_string()))
   })
   .map_err(Into::into)
@@ -245,7 +248,7 @@ fn open_dev(config: &AndroidConfig) -> ! {
 }
 
 fn open() -> Result<()> {
-  with_config(|config, _metadata| {
+  with_config(|_, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Android Studio", config.project_dir()).map_err(Error::OpenFailed)
@@ -260,13 +263,14 @@ fn run(options: MobileOptions) -> Result<DevChild, Error> {
     Profile::Release
   };
 
-  with_config(|config, metadata| {
+  with_config(|root_conf, config, metadata| {
     let build_app_bundle = metadata.asset_packs().is_some();
 
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
     let env = Env::new().map_err(Error::EnvInitFailed)?;
+    super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     device_prompt(&env)
       .map_err(Error::FailedToPromptForDevice)?
@@ -296,11 +300,12 @@ fn build(options: BuildOptions) -> Result<()> {
     device_prompt(env).map(|device| device.target()).ok()
   }
 
-  with_config(|config, metadata| {
+  with_config(|root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
     let env = Env::new().map_err(Error::EnvInitFailed)?;
+    super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     call_for_targets_with_fallback(
       options.targets.unwrap_or_default().iter(),

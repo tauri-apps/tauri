@@ -6,10 +6,11 @@ use super::{get_config, Target};
 use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
-  android,
+  android::{self, env::Env as AndroidEnv, ndk, target::Target as AndroidTarget},
   config::Config,
   dot_cargo, opts,
   os::code_command,
+  target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
@@ -64,6 +65,8 @@ pub enum Error {
   #[error(transparent)]
   DotCargoLoad(dot_cargo::LoadError),
   #[error(transparent)]
+  DotCargoGenFailed(ndk::MissingToolError),
+  #[error(transparent)]
   HostTargetTripleDetection(util::HostTargetTripleError),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
@@ -76,6 +79,35 @@ pub enum Error {
   DotCargoWrite(dot_cargo::WriteError),
   #[error(transparent)]
   OpenInEditor(util::OpenInEditorError),
+}
+
+pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Result<(), Error> {
+  let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
+  // Mysteriously, builds that don't specify `--target` seem to fight over
+  // the build cache with builds that use `--target`! This means that
+  // alternating between i.e. `cargo run` and `cargo apple run` would
+  // result in clean builds being made each time you switched... which is
+  // pretty nightmarish. Specifying `build.target` in `.cargo/config`
+  // fortunately has the same effect as specifying `--target`, so now we can
+  // `cargo run` with peace of mind!
+  //
+  // This behavior could be explained here:
+  // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
+  dot_cargo
+    .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
+
+  if let Some(env) = android_env {
+    for target in AndroidTarget::all().values() {
+      dot_cargo.insert_target(
+        target.triple.to_owned(),
+        target
+          .generate_cargo_config(config.android(), env)
+          .map_err(Error::DotCargoGenFailed)?,
+      );
+    }
+  }
+
+  dot_cargo.write(config.app()).map_err(Error::DotCargoWrite)
 }
 
 pub fn exec(
@@ -109,19 +141,6 @@ pub fn exec(
       .run_and_wait()
       .map_err(Error::LldbExtensionInstall)?;
   }
-  let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
-  // Mysteriously, builds that don't specify `--target` seem to fight over
-  // the build cache with builds that use `--target`! This means that
-  // alternating between i.e. `cargo run` and `cargo apple run` would
-  // result in clean builds being made each time you switched... which is
-  // pretty nightmarish. Specifying `build.target` in `.cargo/config`
-  // fortunately has the same effect as specifying `--target`, so now we can
-  // `cargo run` with peace of mind!
-  //
-  // This behavior could be explained here:
-  // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
-  dot_cargo
-    .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
   let (handlebars, mut map) = handlebars(&config);
   // TODO: make this a relative path
@@ -134,17 +153,18 @@ pub fn exec(
   );
 
   // Generate Android Studio project
-  if target == Target::Android {
-    match android::env::Env::new() {
-      Ok(env) => super::android::project::gen(
-        config.android(),
-        metadata.android(),
-        &env,
-        (handlebars, map),
-        wrapper,
-        &mut dot_cargo,
-      )
-      .map_err(Error::AndroidInit)?,
+  let android_env = if target == Target::Android {
+    match AndroidEnv::new() {
+      Ok(env) => {
+        super::android::project::gen(
+          config.android(),
+          metadata.android(),
+          (handlebars, map),
+          wrapper,
+        )
+        .map_err(Error::AndroidInit)?;
+        Some(env)
+      }
       Err(err) => {
         if err.sdk_or_ndk_issue() {
           Report::action_request(
@@ -152,6 +172,7 @@ pub fn exec(
             err,
           )
           .print(wrapper);
+          None
         } else {
           return Err(Error::AndroidEnv(err));
         }
@@ -172,11 +193,10 @@ pub fn exec(
       )
       .map_err(Error::IosInit)?;
     }
-  }
+    None
+  };
 
-  dot_cargo
-    .write(config.app())
-    .map_err(Error::DotCargoWrite)?;
+  init_dot_cargo(&config, android_env.as_ref())?;
 
   Report::victory(
     "Project generated successfully!",

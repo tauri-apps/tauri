@@ -370,7 +370,7 @@ impl<R: Runtime> WindowManager<R> {
   fn get_browser_origin(&self) -> String {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => {
-        if cfg!(dev) {
+        if cfg!(dev) && !cfg!(target_os = "linux") {
           format_real_schema("tauri")
         } else {
           url.origin().ascii_serialization()
@@ -1081,7 +1081,10 @@ impl<R: Runtime> WindowManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let (is_local, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
-        let url = Url::parse("tauri://localhost").unwrap();
+        #[cfg(target_os = "linux")]
+        let url = self.get_url();
+        #[cfg(not(target_os = "linux"))]
+        let url = Cow::Owned(Url::parse("tauri://localhost").unwrap());
         (
           true,
           // ignore "index.html" just to simplify the url
@@ -1092,7 +1095,7 @@ impl<R: Runtime> WindowManager<R> {
               // this will never fail
               .unwrap()
           } else {
-            url
+            url.into_owned()
           },
         )
       }
@@ -1100,7 +1103,7 @@ impl<R: Runtime> WindowManager<R> {
         let config_url = self.get_url();
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_local {
+        if is_local && !cfg!(target_os = "linux") {
           url.set_scheme("tauri").unwrap();
           url.set_host(Some("localhost")).unwrap();
         }

@@ -1084,7 +1084,7 @@ impl<R: Runtime> WindowManager<R> {
         #[cfg(target_os = "linux")]
         let url = self.get_url();
         #[cfg(not(target_os = "linux"))]
-        let url = Cow::Owned(Url::parse("tauri://localhost").unwrap());
+        let url: Cow<'_, Url> = Cow::Owned(Url::parse("tauri://localhost").unwrap());
         (
           true,
           // ignore "index.html" just to simplify the url

@@ -45,7 +45,6 @@ tauri-runtime-wry = { path = "../../../core/tauri-runtime-wry/" }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.9.0"
-jni = "0.19.0"
 paste = "1.0"
 
 [target.'cfg(target_os = "ios")'.dependencies]

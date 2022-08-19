@@ -877,22 +877,13 @@ impl<R: Runtime> WindowManager<R> {
       };
       if let Some(handler) = &web_resource_request_handler {
         handler(request, &mut response);
-
-        // if it's an HTML file, we need to set the CSP meta tag on Linux
-        #[cfg(target_os = "linux")]
-        if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-          let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
-          *response.body_mut() = body.as_bytes().to_vec();
-        }
-      } else {
-        #[cfg(target_os = "linux")]
-        {
-          if let Some(csp) = &asset.csp_header {
-            let body = set_html_csp(&String::from_utf8_lossy(response.body()), csp);
-            *response.body_mut() = body.as_bytes().to_vec();
-          }
-        }
+      }
+      // if it's an HTML file, we need to set the CSP meta tag on Linux
+      #[cfg(target_os = "linux")]
+      if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
+        let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
+        let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
+        *response.body_mut() = body.as_bytes().to_vec();
       }
       Ok(response)
     })

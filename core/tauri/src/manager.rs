@@ -142,11 +142,6 @@ fn set_csp<R: Runtime>(
   Csp::DirectiveMap(csp).to_string()
 }
 
-#[cfg(target_os = "linux")]
-fn set_html_csp(html: &str, csp: &str) -> String {
-  html.replacen(tauri_utils::html::CSP_TOKEN, csp, 1)
-}
-
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
 fn replace_with_callback<F: FnMut() -> String>(
   original: &str,
@@ -879,10 +874,11 @@ impl<R: Runtime> WindowManager<R> {
         handler(request, &mut response);
       }
       // if it's an HTML file, we need to set the CSP meta tag on Linux
-      #[cfg(target_os = "linux")]
+      #[cfg(all(not(dev), target_os = "linux"))]
       if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
         let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-        let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
+        let html = String::from_utf8_lossy(response.body());
+        let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
         *response.body_mut() = body.as_bytes().to_vec();
       }
       Ok(response)

@@ -203,17 +203,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let assets = match app_url {
     AppUrl::Url(url) => match url {
-      WindowUrl::External(_) => {
-        // i'm not sure why, but iOS fails with `xcodebuild exit code 65` if the embedded assets are empty :(
-        if target == Target::Ios {
-          let path = std::env::temp_dir().join(".tauri-dev");
-          let _ = std::fs::create_dir_all(&path)
-            .and_then(|_| std::fs::write(path.join("index.html"), []));
-          EmbeddedAssets::new(path, &options, map_core_assets(&options, target))?
-        } else {
-          Default::default()
-        }
-      }
+      WindowUrl::External(_) => Default::default(),
       WindowUrl::App(path) => {
         if path.components().count() == 0 {
           panic!(

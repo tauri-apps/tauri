@@ -1146,12 +1146,6 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     pending.url = url.to_string();
-    #[cfg(dev)]
-    {
-      pending.webview_attributes = pending
-        .webview_attributes
-        .with_allowed_self_signed_cert_url(url);
-    }
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {

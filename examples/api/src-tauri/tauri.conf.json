@@ -2,7 +2,7 @@
   "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
-    "devPath": "https://localhost:5173",
+    "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev --host",
     "beforeBuildCommand": "yarn build"
   },

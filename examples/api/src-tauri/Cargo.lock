@@ -113,7 +113,6 @@ dependencies = [
  "android_logger",
  "env_logger 0.9.0",
  "log",
- "mobile-entry-point",
  "paste",
  "serde",
  "serde_json",
@@ -1817,17 +1816,6 @@ dependencies = [
  "log",
  "wasi 0.11.0+wasi-snapshot-preview1",
  "windows-sys",
-]
-
-[[package]]
-name = "mobile-entry-point"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bef5a90018326583471cccca10424d7b3e770397b02f03276543cbb9b6a1a6"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

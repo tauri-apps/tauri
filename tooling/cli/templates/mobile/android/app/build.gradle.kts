@@ -40,6 +40,16 @@ android {
     }
     flavorDimensions.add("abi")
     productFlavors {
+        create("universal") {
+            dimension = "abi"
+            ndk {
+                abiFilters += listOf(
+                    {{~#each targets}}
+                    "{{this.abi}}",{{/each}}
+                )
+            }
+        }
+
         {{~#each targets}}
 
         create("{{this.arch}}") {
@@ -75,7 +85,9 @@ dependencies {
 
 afterEvaluate {
     android.applicationVariants.all {
-        productFlavors.forEach { _ ->
+        tasks["mergeUniversalReleaseJniLibFolders"].dependsOn(tasks["rustBuildRelease"])
+        tasks["mergeUniversalDebugJniLibFolders"].dependsOn(tasks["rustBuildDebug"])
+        productFlavors.filter{ it.name != "universal" }.forEach { _ ->
             val archAndBuildType = name.capitalize()
             tasks["merge${archAndBuildType}JniLibFolders"].dependsOn(tasks["rustBuild${archAndBuildType}"])
         }

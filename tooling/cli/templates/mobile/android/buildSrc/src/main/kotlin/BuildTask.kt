@@ -1,10 +1,8 @@
 package {{reverse-domain app.domain}}
 
-import com.android.build.gradle.*
 import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.Project
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
@@ -23,20 +21,11 @@ open class BuildTask : DefaultTask() {
 
     @TaskAction
     fun build() {
-        val rootDirRel = rootDirRel
-        if (rootDirRel == null) {
-            throw GradleException("rootDirRel cannot be null")
-        }
-        val target = target
-        if (target == null) {
-            throw GradleException("target cannot be null")
-        }
-        val release = release
-        if (release == null) {
-            throw GradleException("release cannot be null")
-        }
+        val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
+        val target = target ?: throw GradleException("target cannot be null")
+        val release = release ?: throw GradleException("release cannot be null")
         project.exec {
-            workingDir(File(project.getProjectDir(), rootDirRel.getPath()))
+            workingDir(File(project.projectDir, rootDirRel.path))
             executable("{{ tauri-binary }}")
             args(listOf("tauri", "android", "build"))
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
@@ -47,7 +36,7 @@ open class BuildTask : DefaultTask() {
             if (release) {
                 args("--release")
             }
-            args(listOf("--target", "${target}"))
+            args(listOf("--target", target))
         }.assertNormalExitValue()
     }
 }

@@ -12,7 +12,12 @@ use std::{
 use crate::helpers::config::Config;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
-pub use rust::{Options, Rust as AppInterface};
+pub use rust::{MobileOptions, Options, Rust as AppInterface};
+
+pub trait DevProcess {
+  fn kill(&mut self) -> std::io::Result<()>;
+  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
+}
 
 pub trait AppSettings {
   fn get_package_settings(&self) -> tauri_bundler::PackageSettings;
@@ -82,5 +87,10 @@ pub trait Interface: Sized {
     &mut self,
     options: Options,
     on_exit: F,
+  ) -> crate::Result<()>;
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+    &mut self,
+    options: MobileOptions,
+    runner: R,
   ) -> crate::Result<()>;
 }

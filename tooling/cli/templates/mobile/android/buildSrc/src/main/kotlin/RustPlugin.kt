@@ -1,11 +1,11 @@
 package {{reverse-domain app.domain}}
 
-import com.android.build.gradle.*
-import java.io.File
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import java.io.File
+import java.util.*
 
 const val TASK_GROUP = "rust"
 
@@ -16,7 +16,7 @@ open class Config {
 }
 
 open class RustPlugin : Plugin<Project> {
-    internal lateinit var config: Config
+    private lateinit var config: Config
 
     override fun apply(project: Project) {
         config = project.extensions.create("rust", Config::class.java)
@@ -28,17 +28,25 @@ open class RustPlugin : Plugin<Project> {
                 throw GradleException("arches cannot be null")
             }
             for (profile in listOf("debug", "release")) {
-                val buildTask = project.tasks.maybeCreate("rustBuild${profile.capitalize()}", DefaultTask::class.java).apply {
+                val profileCapitalized = profile.capitalize(Locale.ROOT)
+                val buildTask = project.tasks.maybeCreate(
+                    "rustBuild$profileCapitalized",
+                    DefaultTask::class.java
+                ).apply {
                     group = TASK_GROUP
-                    description = "Build dynamic library in ${profile} mode for all targets"
+                    description = "Build dynamic library in $profile mode for all targets"
                 }
                 for (targetPair in config.targets!!.withIndex()) {
                     val targetName = targetPair.value
                     val targetArch = config.arches!![targetPair.index]
-                    val targetBuildTask = project.tasks.maybeCreate("rustBuild${targetArch.capitalize()}${profile.capitalize()}", BuildTask::class.java).apply {
+                    val targetArchCapitalized = targetArch.capitalize(Locale.ROOT)
+                    val targetBuildTask = project.tasks.maybeCreate(
+                        "rustBuild$targetArchCapitalized$profileCapitalized",
+                        BuildTask::class.java
+                    ).apply {
                         group = TASK_GROUP
-                        description = "Build dynamic library in ${profile} mode for $targetArch"
-                        rootDirRel = File(config.rootDirRel)
+                        description = "Build dynamic library in $profile mode for $targetArch"
+                        rootDirRel = config.rootDirRel?.let { File(it) }
                         target = targetName
                         release = profile == "release"
                     }

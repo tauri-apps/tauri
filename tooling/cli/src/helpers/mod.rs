@@ -4,6 +4,7 @@
 
 pub mod app_paths;
 pub mod config;
+pub mod flock;
 pub mod framework;
 pub mod template;
 pub mod updater_signature;

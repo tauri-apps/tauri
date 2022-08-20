@@ -49,7 +49,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
-  exit_on_panic: bool,
+  pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
@@ -74,6 +74,15 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn command_internal(mut options: Options) -> Result<()> {
+  let mut interface = setup(&mut options)?;
+  let exit_on_panic = options.exit_on_panic;
+  let no_watch = options.no_watch;
+  interface.dev(options.into(), move |status, reason| {
+    on_dev_exit(status, reason, exit_on_panic, no_watch)
+  })
+}
+
+pub fn setup(options: &mut Options) -> Result<AppInterface> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
@@ -88,6 +97,8 @@ fn command_internal(mut options: Options) -> Result<()> {
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
+
+  let interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
 
   if let Some(before_dev) = config
     .lock()
@@ -261,13 +272,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     }
   }
 
-  let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
-
-  let exit_on_panic = options.exit_on_panic;
-  let no_watch = options.no_watch;
-  interface.dev(options.into(), move |status, reason| {
-    on_dev_exit(status, reason, exit_on_panic, no_watch)
-  })
+  Ok(interface)
 }
 
 fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {

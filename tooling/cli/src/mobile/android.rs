@@ -6,10 +6,11 @@ use cargo_mobile::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
-    device::Device,
+    device::{Device, RunError},
     env::{Env, Error as EnvError},
     target::{BuildError, Target},
   },
+  config::Config,
   device::PromptError,
   opts::{NoiseLevel, Profile},
   os,
@@ -19,12 +20,15 @@ use cargo_mobile::{
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init, get_config, get_metadata,
+  ensure_init, get_config,
   init::{command as init_command, Options as InitOptions},
-  Target as MobileTarget,
+  write_options, CliOptions, DevChild, Target as MobileTarget,
 };
-use crate::helpers::config::get as get_tauri_config;
-use crate::Result;
+use crate::{
+  helpers::{config::get as get_tauri_config, flock},
+  interface::{AppSettings, DevProcess, Interface, MobileOptions, Options as InterfaceOptions},
+  Result,
+};
 
 pub(crate) mod project;
 
@@ -32,16 +36,24 @@ pub(crate) mod project;
 enum Error {
   #[error(transparent)]
   EnvInitFailed(EnvError),
+  #[error(transparent)]
+  InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]
   InvalidTauriConfig(String),
   #[error("{0}")]
   ProjectNotInitialized(String),
   #[error(transparent)]
   OpenFailed(os::OpenFileError),
+  #[error("{0}")]
+  DevFailed(String),
   #[error(transparent)]
   BuildFailed(BuildError),
+  #[error(transparent)]
+  RunFailed(RunError),
   #[error("{0}")]
   TargetInvalid(String),
+  #[error(transparent)]
+  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
 }
 
 #[derive(Parser)]
@@ -68,9 +80,44 @@ pub struct BuildOptions {
     value_parser(clap::builder::PossibleValuesParser::new(["aarch64", "armv7", "i686", "x86_64"]))
   )]
   targets: Option<Vec<String>>,
-  /// Builds with the debug flag
+  /// Builds with the release flag
   #[clap(short, long)]
-  debug: bool,
+  release: bool,
+}
+
+#[derive(Debug, Clone, Parser)]
+#[clap(about = "Android dev")]
+pub struct DevOptions {
+  /// List of cargo features to activate
+  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  pub features: Option<Vec<String>>,
+  /// Exit on panic
+  #[clap(short, long)]
+  exit_on_panic: bool,
+  /// JSON string or path to JSON file to merge with tauri.conf.json
+  #[clap(short, long)]
+  pub config: Option<String>,
+  /// Disable the file watcher
+  #[clap(long)]
+  pub no_watch: bool,
+  /// Open Android Studio instead of trying to run on a connected device
+  #[clap(short, long)]
+  pub open: bool,
+}
+
+impl From<DevOptions> for crate::dev::Options {
+  fn from(options: DevOptions) -> Self {
+    Self {
+      runner: None,
+      target: None,
+      features: options.features,
+      exit_on_panic: options.exit_on_panic,
+      config: options.config,
+      release_mode: false,
+      args: Vec::new(),
+      no_watch: options.no_watch,
+    }
+  }
 }
 
 #[derive(Subcommand)]
@@ -78,6 +125,7 @@ enum Commands {
   Init(InitOptions),
   /// Open project in Android Studio
   Open,
+  Dev(DevOptions),
   #[clap(hide(true))]
   Build(BuildOptions),
 }
@@ -87,76 +135,182 @@ pub fn command(cli: Cli) -> Result<()> {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open()?,
     Commands::Build(options) => build(options)?,
+    Commands::Dev(options) => dev(options)?,
   }
 
   Ok(())
 }
 
-fn with_config(
-  f: impl FnOnce(&AndroidConfig, &AndroidMetadata) -> Result<(), Error>,
-) -> Result<(), Error> {
-  let tauri_config =
-    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-  let config = get_config(tauri_config_);
-  let metadata = get_metadata(tauri_config_);
-  f(config.android(), metadata.android())
+fn with_config<T>(
+  f: impl FnOnce(&Config, &AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
+) -> Result<T, Error> {
+  let (config, metadata) = {
+    let tauri_config =
+      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    get_config(tauri_config_)
+  };
+  f(&config, config.android(), metadata.android())
+}
+
+fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
+  let device_list =
+    adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
+  if !device_list.is_empty() {
+    let index = if device_list.len() > 1 {
+      prompt::list(
+        concat!("Detected ", "Android", " devices"),
+        device_list.iter(),
+        "device",
+        None,
+        "Device",
+      )
+      .map_err(|cause| PromptError::prompt_failed("Android", cause))?
+    } else {
+      0
+    };
+    let device = device_list.into_iter().nth(index).unwrap();
+    println!(
+      "Detected connected device: {} with target {:?}",
+      device,
+      device.target().triple,
+    );
+    Ok(device)
+  } else {
+    Err(PromptError::none_detected("Android"))
+  }
+}
+
+fn dev(options: DevOptions) -> Result<()> {
+  with_config(|_, config, _metadata| {
+    run_dev(options, config).map_err(|e| Error::DevFailed(e.to_string()))
+  })
+  .map_err(Into::into)
+}
+
+fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
+  let mut dev_options = options.clone().into();
+  let mut interface = crate::dev::setup(&mut dev_options)?;
+
+  let bundle_identifier = {
+    let tauri_config =
+      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    tauri_config_.tauri.bundle.identifier.clone()
+  };
+
+  let app_settings = interface.app_settings();
+  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+    debug: !dev_options.release_mode,
+    ..Default::default()
+  })?;
+  let out_dir = bin_path.parent().unwrap();
+  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+
+  let open = options.open;
+  interface.mobile_dev(
+    MobileOptions {
+      debug: true,
+      features: options.features,
+      args: Vec::new(),
+      config: options.config,
+      no_watch: options.no_watch,
+    },
+    |options| {
+      let cli_options = CliOptions {
+        features: options.features.clone(),
+        args: options.args.clone(),
+        vars: Default::default(),
+      };
+      write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
+
+      if open {
+        open_dev(config)
+      } else {
+        match run(options) {
+          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+          Err(Error::FailedToPromptForDevice(e)) => {
+            log::error!("{}", e);
+            open_dev(config)
+          }
+          Err(e) => Err(e.into()),
+        }
+      }
+    },
+  )
+}
+
+fn open_dev(config: &AndroidConfig) -> ! {
+  log::info!("Opening Android Studio");
+  if let Err(e) = os::open_file_with("Android Studio", config.project_dir()) {
+    log::error!("{}", e);
+  }
+  loop {
+    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
+  }
 }
 
 fn open() -> Result<()> {
-  with_config(|config, _metadata| {
+  with_config(|_, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Android Studio", config.project_dir()).map_err(Error::OpenFailed)
-  })?;
-  Ok(())
+  })
+  .map_err(Into::into)
 }
 
-fn build(options: BuildOptions) -> Result<()> {
+fn run(options: MobileOptions) -> Result<DevChild, Error> {
   let profile = if options.debug {
     Profile::Debug
   } else {
     Profile::Release
   };
 
-  fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
-    let device_list =
-      adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
-    if !device_list.is_empty() {
-      let index = if device_list.len() > 1 {
-        prompt::list(
-          concat!("Detected ", "Android", " devices"),
-          device_list.iter(),
-          "device",
-          None,
-          "Device",
-        )
-        .map_err(|cause| PromptError::prompt_failed("Android", cause))?
-      } else {
-        0
-      };
-      let device = device_list.into_iter().nth(index).unwrap();
-      println!(
-        "Detected connected device: {} with target {:?}",
-        device,
-        device.target().triple,
-      );
-      Ok(device)
-    } else {
-      Err(PromptError::none_detected("Android"))
-    }
-  }
+  with_config(|root_conf, config, metadata| {
+    let build_app_bundle = metadata.asset_packs().is_some();
+
+    ensure_init(config.project_dir(), MobileTarget::Android)
+      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+
+    let env = Env::new().map_err(Error::EnvInitFailed)?;
+    super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+
+    device_prompt(&env)
+      .map_err(Error::FailedToPromptForDevice)?
+      .run(
+        config,
+        &env,
+        NoiseLevel::Polite,
+        profile,
+        None,
+        build_app_bundle,
+        false,
+        ".MainActivity".into(),
+      )
+      .map_err(Error::RunFailed)
+  })
+  .map(|c| DevChild(Some(c)))
+}
+
+fn build(options: BuildOptions) -> Result<()> {
+  let profile = if options.release {
+    Profile::Release
+  } else {
+    Profile::Debug
+  };
 
   fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
     device_prompt(env).map(|device| device.target()).ok()
   }
 
-  with_config(|config, metadata| {
+  with_config(|root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
     let env = Env::new().map_err(Error::EnvInitFailed)?;
+    super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     call_for_targets_with_fallback(
       options.targets.unwrap_or_default().iter(),
@@ -164,18 +318,11 @@ fn build(options: BuildOptions) -> Result<()> {
       &env,
       |target: &Target| {
         target
-          .build(
-            config,
-            metadata,
-            &env,
-            NoiseLevel::Polite,
-            true.into(),
-            profile,
-          )
+          .build(config, metadata, &env, NoiseLevel::Polite, true, profile)
           .map_err(Error::BuildFailed)
       },
     )
     .map_err(|e| Error::TargetInvalid(e.to_string()))?
-  })?;
-  Ok(())
+  })
+  .map_err(Into::into)
 }

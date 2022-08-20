@@ -3,11 +3,8 @@
     package="{{reverse-domain app.domain}}.{{snake-case app.name}}">
     <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
         android:theme="@style/Theme.{{snake-case app.name}}">
         <activity
             android:name=".MainActivity"

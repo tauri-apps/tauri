@@ -6,11 +6,9 @@ use crate::helpers::template;
 use cargo_mobile::{
   android::{
     config::{Config, Metadata},
-    env::Env,
-    ndk,
     target::Target,
   },
-  dot_cargo, os,
+  bossy, os,
   target::TargetTrait as _,
   util::{
     self,
@@ -42,8 +40,6 @@ pub enum Error {
   },
   #[error("failed to symlink asset directory")]
   AssetDirSymlinkFailed,
-  #[error(transparent)]
-  DotCargoGenFailed(ndk::MissingToolError),
   #[error("failed to copy {src} to {dest}: {cause}")]
   FileCopyFailed {
     src: PathBuf,
@@ -57,10 +53,8 @@ pub enum Error {
 pub fn gen(
   config: &Config,
   metadata: &Metadata,
-  env: &Env,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
-  dot_cargo: &mut dot_cargo::DotCargo,
 ) -> Result<(), Error> {
   println!("Installing Android toolchains...");
   Target::install_all().map_err(Error::RustupFailed)?;
@@ -138,7 +132,15 @@ pub fn gen(
         created_dirs.push(parent);
       }
 
-      fs::File::create(path)
+      let mut options = fs::OpenOptions::new();
+
+      #[cfg(unix)]
+      if path.file_name().unwrap() == OsStr::new("gradlew") {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o755);
+      }
+
+      options.create_new(true).write(true).open(path)
     },
   )
   .map_err(|e| Error::TemplateProcessingFailed(e.to_string()))?;
@@ -172,17 +174,6 @@ pub fn gen(
   })?;
   os::ln::force_symlink_relative(config.app().asset_dir(), dest, ln::TargetStyle::Directory)
     .map_err(|_| Error::AssetDirSymlinkFailed)?;
-
-  {
-    for target in Target::all().values() {
-      dot_cargo.insert_target(
-        target.triple.to_owned(),
-        target
-          .generate_cargo_config(config, env)
-          .map_err(Error::DotCargoGenFailed)?,
-      );
-    }
-  }
 
   Ok(())
 }

@@ -83,6 +83,8 @@ pub fn command(mut options: Options) -> Result<()> {
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
+  let mut interface = AppInterface::new(config_)?;
+
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
     Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
     Some(source) => source,
@@ -154,7 +156,6 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let mut interface = AppInterface::new(config_)?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 

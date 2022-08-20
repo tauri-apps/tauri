@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_config, get_metadata, Target};
-use crate::helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap};
+use super::{get_config, Target};
+use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
-  android,
+  android::{self, env::Env as AndroidEnv, ndk, target::Target as AndroidTarget},
+  bossy,
   config::Config,
-  dot_cargo, opts,
+  dot_cargo,
   os::code_command,
+  target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
@@ -18,12 +20,7 @@ use cargo_mobile::{
 use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
-use std::{
-  fs, io,
-  path::{Path, PathBuf},
-};
-
-use opts::{NonInteractive, OpenInEditor, ReinstallDeps, SkipDevTools};
+use std::{fs, io, path::PathBuf};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri Android project")]
@@ -37,16 +34,7 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
   options.ci = options.ci || std::env::var("CI").is_ok();
 
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
-  exec(
-    target,
-    &wrapper,
-    options.ci.into(),
-    SkipDevTools::Yes,
-    ReinstallDeps::Yes,
-    OpenInEditor::No,
-    tauri_dir(),
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(target, &wrapper, options.ci, true, true).map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -64,6 +52,8 @@ pub enum Error {
   #[error(transparent)]
   DotCargoLoad(dot_cargo::LoadError),
   #[error(transparent)]
+  DotCargoGenFailed(ndk::MissingToolError),
+  #[error(transparent)]
   HostTargetTripleDetection(util::HostTargetTripleError),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
@@ -74,42 +64,9 @@ pub enum Error {
   AndroidInit(super::android::project::Error),
   #[error(transparent)]
   DotCargoWrite(dot_cargo::WriteError),
-  #[error(transparent)]
-  OpenInEditor(util::OpenInEditorError),
 }
 
-pub fn exec(
-  target: Target,
-  wrapper: &TextWrapper,
-  non_interactive: NonInteractive,
-  skip_dev_tools: SkipDevTools,
-  #[allow(unused_variables)] reinstall_deps: ReinstallDeps,
-  open_in_editor: OpenInEditor,
-  cwd: impl AsRef<Path>,
-) -> Result<Config, Error> {
-  let cwd = cwd.as_ref();
-  let tauri_config =
-    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
-  let tauri_config_guard = tauri_config.lock().unwrap();
-  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-
-  let config = get_config(tauri_config_);
-  let metadata = get_metadata(tauri_config_);
-
-  let asset_dir = config.app().asset_dir();
-  if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
-  }
-  if skip_dev_tools.no() && util::command_present("code").unwrap_or_default() {
-    let mut command = code_command();
-    command.add_args(&["--install-extension", "vadimcn.vscode-lldb"]);
-    if non_interactive.yes() {
-      command.add_arg("--force");
-    }
-    command
-      .run_and_wait()
-      .map_err(Error::LldbExtensionInstall)?;
-  }
+pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Result<(), Error> {
   let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over
   // the build cache with builds that use `--target`! This means that
@@ -124,6 +81,49 @@ pub fn exec(
   dot_cargo
     .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
+  if let Some(env) = android_env {
+    for target in AndroidTarget::all().values() {
+      dot_cargo.insert_target(
+        target.triple.to_owned(),
+        target
+          .generate_cargo_config(config.android(), env)
+          .map_err(Error::DotCargoGenFailed)?,
+      );
+    }
+  }
+
+  dot_cargo.write(config.app()).map_err(Error::DotCargoWrite)
+}
+
+pub fn exec(
+  target: Target,
+  wrapper: &TextWrapper,
+  non_interactive: bool,
+  skip_dev_tools: bool,
+  #[allow(unused_variables)] reinstall_deps: bool,
+) -> Result<Config, Error> {
+  let tauri_config =
+    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+  let (config, metadata) = get_config(tauri_config_);
+
+  let asset_dir = config.app().asset_dir();
+  if !asset_dir.is_dir() {
+    fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
+  }
+  if !skip_dev_tools && util::command_present("code").unwrap_or_default() {
+    let mut command = code_command();
+    command.add_args(&["--install-extension", "vadimcn.vscode-lldb"]);
+    if non_interactive {
+      command.add_arg("--force");
+    }
+    command
+      .run_and_wait()
+      .map_err(Error::LldbExtensionInstall)?;
+  }
+
   let (handlebars, mut map) = handlebars(&config);
   // TODO: make this a relative path
   map.insert(
@@ -135,24 +135,26 @@ pub fn exec(
   );
 
   // Generate Android Studio project
-  if target == Target::Android {
-    match android::env::Env::new() {
-      Ok(env) => super::android::project::gen(
-        config.android(),
-        metadata.android(),
-        &env,
-        (handlebars, map),
-        wrapper,
-        &mut dot_cargo,
-      )
-      .map_err(Error::AndroidInit)?,
+  let android_env = if target == Target::Android {
+    match AndroidEnv::new() {
+      Ok(env) => {
+        super::android::project::gen(
+          config.android(),
+          metadata.android(),
+          (handlebars, map),
+          wrapper,
+        )
+        .map_err(Error::AndroidInit)?;
+        Some(env)
+      }
       Err(err) => {
         if err.sdk_or_ndk_issue() {
           Report::action_request(
-            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `cargo mobile init`!",
+            " to initialize Android environment; Android support won't be usable until you fix the issue below and re-run `tauri android init`!",
             err,
           )
           .print(wrapper);
+          None
         } else {
           return Err(Error::AndroidEnv(err));
         }
@@ -173,20 +175,16 @@ pub fn exec(
       )
       .map_err(Error::IosInit)?;
     }
-  }
+    None
+  };
 
-  dot_cargo
-    .write(config.app())
-    .map_err(Error::DotCargoWrite)?;
+  init_dot_cargo(&config, android_env.as_ref())?;
 
   Report::victory(
     "Project generated successfully!",
     "Make cool apps! 🌻 🐕 🎉",
   )
   .print(wrapper);
-  if open_in_editor.yes() {
-    util::open_in_editor(cwd).map_err(Error::OpenInEditor)?;
-  }
   Ok(config)
 }
 

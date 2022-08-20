@@ -112,9 +112,7 @@ version = "0.1.0"
 dependencies = [
  "android_logger",
  "env_logger 0.9.0",
- "jni",
  "log",
- "mobile-entry-point",
  "paste",
  "serde",
  "serde_json",
@@ -1660,6 +1658,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "local-ip-address"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74d6f43d42d775afa8073bfa6aba569b340a3635efa8c9f7702c9c6ed209692f"
+dependencies = [
+ "libc",
+ "neli",
+ "thiserror",
+ "windows-sys",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1809,17 +1819,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mobile-entry-point"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bef5a90018326583471cccca10424d7b3e770397b02f03276543cbb9b6a1a6"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "multipart"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1876,6 +1875,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e5a6ae77c8ee183dcbbba6150e2e6b9f3f4196a7666c02a715a95692ec1fa97"
 dependencies = [
  "jni-sys",
+]
+
+[[package]]
+name = "neli"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9053554eb5dcb7e10d9cdab1206965bde870eed5d0d341532ca035e3ba221508"
+dependencies = [
+ "byteorder",
+ "libc",
 ]
 
 [[package]]
@@ -3243,6 +3252,7 @@ dependencies = [
  "brotli",
  "ico",
  "json-patch",
+ "local-ip-address",
  "plist",
  "png 0.17.5",
  "proc-macro2",
@@ -3255,6 +3265,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "time",
+ "url",
  "uuid 1.1.2",
  "walkdir",
 ]

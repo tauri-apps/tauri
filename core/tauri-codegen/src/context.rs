@@ -122,7 +122,7 @@ enum Target {
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
     dev,
-    config,
+    mut config,
     config_parent,
     root,
   } = data;
@@ -154,6 +154,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } else {
     panic!("unknown codegen target");
   };
+
+  if dev && (target == Target::Ios || target == Target::Android) {
+    if let AppUrl::Url(WindowUrl::External(url)) = &mut config.build.dev_path {
+      let localhost = match url.host() {
+        Some(url::Host::Domain(d)) => d == "localhost",
+        Some(url::Host::Ipv4(i)) => {
+          i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
+        }
+        _ => false,
+      };
+      if localhost {
+        if let Ok(ip) = local_ip_address::local_ip() {
+          url.set_host(Some(&ip.to_string())).unwrap();
+        }
+      }
+    }
+  }
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
     .freeze_prototype(config.tauri.security.freeze_prototype)

@@ -2,10 +2,6 @@ plugins {
     `kotlin-dsl`
 }
 
-kotlinDslPluginOptions {
-    experimentalWarning.set(false)
-}
-
 gradlePlugin {
     plugins {
         create("pluginsForCoolKids") {

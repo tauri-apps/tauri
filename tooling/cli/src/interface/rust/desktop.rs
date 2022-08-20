@@ -1,7 +1,8 @@
-use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{
@@ -15,6 +16,34 @@ use std::{
   },
 };
 
+pub struct DevChild {
+  manually_killed_app: Arc<AtomicBool>,
+  build_child: Option<Arc<SharedChild>>,
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+}
+
+impl DevProcess for DevChild {
+  fn kill(&mut self) -> std::io::Result<()> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.kill()?;
+    } else if let Some(child) = &self.build_child {
+      child.kill()?;
+    }
+    self.manually_killed_app.store(true, Ordering::Relaxed);
+    Ok(())
+  }
+
+  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.try_wait()
+    } else if let Some(child) = &self.build_child {
+      child.try_wait()
+    } else {
+      unreachable!()
+    }
+  }
+}
+
 pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: Vec<String>,
@@ -23,7 +52,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   product_name: Option<String>,
   on_exit: F,
-) -> crate::Result<DevChild> {
+) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
 
   let manually_killed_app = Arc::new(AtomicBool::default());
@@ -73,7 +102,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
 
   Ok(DevChild {
     manually_killed_app,
-    build_child,
+    build_child: Some(build_child),
     app_child,
   })
 }

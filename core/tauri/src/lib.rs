@@ -158,6 +158,8 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+#[cfg(mobile)]
+pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
 pub mod api;
@@ -187,6 +189,17 @@ pub use tauri_utils as utils;
 #[cfg(feature = "wry")]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
+
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", target_os = "android"))))]
+pub use tauri_runtime_wry::wry::android_binding as wry_android_binding;
+
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use paste;
+#[cfg(all(feature = "wry", target_os = "android"))]
+#[doc(hidden)]
+pub use tauri_runtime_wry::wry;
 
 /// `Result<T, ::tauri::Error>`
 pub type Result<T> = std::result::Result<T, Error>;

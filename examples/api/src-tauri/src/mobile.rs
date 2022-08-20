@@ -1,7 +1,4 @@
 #[cfg(target_os = "android")]
-use tauri_runtime_wry::wry::android_binding;
-
-#[cfg(target_os = "android")]
 fn init_logging(app_name: &str) {
   android_logger::init_once(
     android_logger::Config::default()
@@ -15,28 +12,7 @@ fn init_logging(_app_name: &str) {
   env_logger::init();
 }
 
-fn stop_unwind<F: FnOnce() -> T, T>(f: F) -> T {
-  match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
-    Ok(t) => t,
-    Err(err) => {
-      eprintln!("attempt to unwind out of `rust` with err: {:?}", err);
-      std::process::abort()
-    }
-  }
-}
-
-fn _start_app() {
-  stop_unwind(main);
-}
-
-#[no_mangle]
-#[inline(never)]
-pub extern "C" fn start_app() {
-  #[cfg(target_os = "android")]
-  android_binding!(com_tauri, api, _start_app, tauri_runtime_wry::wry);
-  _start_app()
-}
-
+#[tauri::mobile_entry_point]
 fn main() {
   super::AppBuilder::new()
     .setup(|app| {

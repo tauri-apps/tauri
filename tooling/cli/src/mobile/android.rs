@@ -25,8 +25,8 @@ use super::{
   write_options, CliOptions, DevChild, Target as MobileTarget,
 };
 use crate::{
-  helpers::config::get as get_tauri_config,
-  interface::{DevProcess, Interface, MobileOptions},
+  helpers::{config::get as get_tauri_config, flock},
+  interface::{AppSettings, DevProcess, Interface, MobileOptions, Options as InterfaceOptions},
   Result,
 };
 
@@ -200,6 +200,14 @@ fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     tauri_config_.tauri.bundle.identifier.clone()
   };
+
+  let app_settings = interface.app_settings();
+  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+    debug: !dev_options.release_mode,
+    ..Default::default()
+  })?;
+  let out_dir = bin_path.parent().unwrap();
+  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
 
   let open = options.open;
   interface.mobile_dev(

@@ -39,7 +39,7 @@ mod desktop;
 mod manifest;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,

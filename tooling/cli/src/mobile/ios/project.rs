@@ -9,7 +9,7 @@ use cargo_mobile::{
     deps, rust_version_check,
     target::Target,
   },
-  opts,
+  bossy,
   target::TargetTrait as _,
   util::{self, cli::TextWrapper, ln},
 };
@@ -53,9 +53,9 @@ pub fn gen(
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
-  non_interactive: opts::NonInteractive,
-  skip_dev_tools: opts::SkipDevTools,
-  reinstall_deps: opts::ReinstallDeps,
+  non_interactive: bool,
+  skip_dev_tools: bool,
+  reinstall_deps: bool,
 ) -> Result<(), Error> {
   println!("Installing iOS toolchains...");
   Target::install_all().map_err(Error::Rustup)?;

@@ -289,7 +289,7 @@ fn run(options: MobileOptions) -> Result<DevChild, Error> {
 
     device_prompt(&env)
       .map_err(Error::FailedToPromptForDevice)?
-      .run(config, &env, NoiseLevel::Polite, false.into(), profile)
+      .run(config, &env, NoiseLevel::Polite, false, profile)
       .map_err(Error::RunFailed)
   })
   .map(|c| DevChild(Some(c)))
@@ -393,7 +393,7 @@ fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
           config,
           metadata,
           NoiseLevel::Polite,
-          true.into(),
+          true,
           profile,
           &env,
           target_env,

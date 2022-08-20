@@ -26,13 +26,9 @@ include = [
 name = "cargo-tauri"
 path = "src/main.rs"
 
-[patch.crates-io]
-bossy = { git = "https://github.com/lucasfernog/bossy", branch = "fix/winapi-features" }
-
 [dependencies]
 # cargo-mobile = { path = "../../../cargo-mobile/", default-features = false }
 cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "dev", default-features = false }
-bossy = "0.2"
 textwrap = { version = "0.11.0", features = ["term_size"] }
 dirs-next = "2.0"
 thiserror = "1"

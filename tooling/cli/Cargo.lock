@@ -128,18 +128,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a32fd6af2b5827bce66c29053ba0e7c42b9dcab01835835058558c10851a46b"
 
 [[package]]
-name = "bicycle"
-version = "0.1.0"
-source = "git+https://github.com/BrainiumLLC/bicycle?rev=28080e0c6fa4067d9dd1b0f2b7322b6b32178e1f#28080e0c6fa4067d9dd1b0f2b7322b6b32178e1f"
-dependencies = [
- "handlebars 3.5.5",
- "log",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "bit_field"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,7 +190,8 @@ dependencies = [
 [[package]]
 name = "bossy"
 version = "0.2.1"
-source = "git+https://github.com/lucasfernog/bossy?branch=fix/winapi-features#aa5b32b780bdc5fb61cf99c85174f0218946e9fd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c004d74bd688ab2f7ed4d8e3db0c4cc4db8eec9e4f44bd82221ddc31deeedbec"
 dependencies = [
  "libc",
  "log",
@@ -272,10 +261,8 @@ dependencies = [
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#05baa67d6be070957623550cd0fb4e1558e0e78b"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#6adc26a84fa98d12d8faf8699604346ca34321e1"
 dependencies = [
- "bicycle",
- "bossy",
  "cocoa",
  "colored 1.9.3",
  "core-foundation 0.7.0",
@@ -285,6 +272,7 @@ dependencies = [
  "english-numbers",
  "env_logger 0.7.1",
  "freedesktop_entry_parser",
+ "handlebars 3.5.5",
  "heck 0.4.0",
  "hit",
  "home",
@@ -292,13 +280,13 @@ dependencies = [
  "indexmap",
  "java-properties",
  "lexical-core",
+ "libc",
  "log",
  "objc",
  "objc_id",
  "once-cell-regex",
  "openssl",
  "path_abs",
- "reserved-names",
  "serde",
  "serde_json",
  "structopt",
@@ -306,8 +294,8 @@ dependencies = [
  "thiserror",
  "toml",
  "ureq",
+ "winapi 0.3.9",
  "windows 0.39.0",
- "yes-or-no",
 ]
 
 [[package]]
@@ -2734,14 +2722,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reserved-names"
-version = "0.1.0"
-source = "git+https://github.com/BrainiumLLC/reserved-names#cc46545db485b13851e9136280b7d8e5a95a9d18"
-dependencies = [
- "thiserror",
-]
-
-[[package]]
 name = "ring"
 version = "0.16.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3343,7 +3323,6 @@ version = "1.0.5"
 dependencies = [
  "anyhow",
  "base64",
- "bossy",
  "cargo-mobile",
  "clap 3.2.7",
  "colored 2.0.0",
@@ -4182,16 +4161,6 @@ name = "xml-rs"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
-
-[[package]]
-name = "yes-or-no"
-version = "0.1.0"
-source = "git+https://github.com/BrainiumLLC/yes-or-no#71d932693601fcf93ff906b90ad61f85b52117c5"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "zeroize"

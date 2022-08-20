@@ -13,6 +13,7 @@ use cargo_mobile::apple::config::{
 };
 use cargo_mobile::{
   android::config::{Metadata as AndroidMetadata, Raw as RawAndroidConfig},
+  bossy,
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
 };
 use serde::{Deserialize, Serialize};

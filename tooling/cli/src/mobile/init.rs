@@ -7,8 +7,9 @@ use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
   android::{self, env::Env as AndroidEnv, ndk, target::Target as AndroidTarget},
+  bossy,
   config::Config,
-  dot_cargo, opts,
+  dot_cargo,
   os::code_command,
   target::TargetTrait as _,
   util::{
@@ -20,8 +21,6 @@ use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
 use std::{fs, io, path::PathBuf};
-
-use opts::{NonInteractive, ReinstallDeps, SkipDevTools};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri Android project")]
@@ -35,14 +34,7 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
   options.ci = options.ci || std::env::var("CI").is_ok();
 
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
-  exec(
-    target,
-    &wrapper,
-    options.ci.into(),
-    SkipDevTools::Yes,
-    ReinstallDeps::Yes,
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(target, &wrapper, options.ci, true, true).map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -106,9 +98,9 @@ pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Resu
 pub fn exec(
   target: Target,
   wrapper: &TextWrapper,
-  non_interactive: NonInteractive,
-  skip_dev_tools: SkipDevTools,
-  #[allow(unused_variables)] reinstall_deps: ReinstallDeps,
+  non_interactive: bool,
+  skip_dev_tools: bool,
+  #[allow(unused_variables)] reinstall_deps: bool,
 ) -> Result<Config, Error> {
   let tauri_config =
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
@@ -121,10 +113,10 @@ pub fn exec(
   if !asset_dir.is_dir() {
     fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
   }
-  if skip_dev_tools.no() && util::command_present("code").unwrap_or_default() {
+  if !skip_dev_tools && util::command_present("code").unwrap_or_default() {
     let mut command = code_command();
     command.add_args(&["--install-extension", "vadimcn.vscode-lldb"]);
-    if non_interactive.yes() {
+    if non_interactive {
       command.add_arg("--force");
     }
     command

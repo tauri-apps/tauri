@@ -8,7 +8,7 @@ use cargo_mobile::{
     config::{Config, Metadata},
     target::Target,
   },
-  os,
+  bossy, os,
   target::TargetTrait as _,
   util::{
     self,

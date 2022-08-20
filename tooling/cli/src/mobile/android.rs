@@ -278,7 +278,7 @@ fn run(options: MobileOptions) -> Result<DevChild, Error> {
         profile,
         None,
         build_app_bundle,
-        false.into(),
+        false,
         ".MainActivity".into(),
       )
       .map_err(Error::RunFailed)
@@ -310,14 +310,7 @@ fn build(options: BuildOptions) -> Result<()> {
       &env,
       |target: &Target| {
         target
-          .build(
-            config,
-            metadata,
-            &env,
-            NoiseLevel::Polite,
-            true.into(),
-            profile,
-          )
+          .build(config, metadata, &env, NoiseLevel::Polite, true, profile)
           .map_err(Error::BuildFailed)
       },
     )

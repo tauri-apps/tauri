@@ -188,17 +188,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bossy"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c004d74bd688ab2f7ed4d8e3db0c4cc4db8eec9e4f44bd82221ddc31deeedbec"
-dependencies = [
- "libc",
- "log",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "bstr"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -261,7 +250,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#6adc26a84fa98d12d8faf8699604346ca34321e1"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#9733784cbb8af4fe0accc634463ff58424c88e62"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
@@ -274,7 +263,6 @@ dependencies = [
  "freedesktop_entry_parser",
  "handlebars 3.5.5",
  "heck 0.4.0",
- "hit",
  "home",
  "ignore",
  "indexmap",
@@ -1314,18 +1302,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
-name = "hit"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a8b280c3c6e2a2a51b3dde2f1071b28afff0ebce59e29443b1b391e7efe32fd"
-dependencies = [
- "bossy",
- "log",
- "once-cell-regex",
- "thiserror",
-]
 
 [[package]]
 name = "hmac"

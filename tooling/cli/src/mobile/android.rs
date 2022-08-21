@@ -70,7 +70,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Parser)]
-pub struct BuildOptions {
+pub struct AndroidStudioScriptOptions {
   /// Targets to build.
   #[clap(
     short,
@@ -127,14 +127,14 @@ enum Commands {
   Open,
   Dev(DevOptions),
   #[clap(hide(true))]
-  Build(BuildOptions),
+  AndroidStudioScript(AndroidStudioScriptOptions),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open()?,
-    Commands::Build(options) => build(options)?,
+    Commands::AndroidStudioScript(options) => android_studio_script(options)?,
     Commands::Dev(options) => dev(options)?,
   }
 
@@ -294,7 +294,7 @@ fn run(options: MobileOptions) -> Result<DevChild, Error> {
   .map(|c| DevChild(Some(c)))
 }
 
-fn build(options: BuildOptions) -> Result<()> {
+fn android_studio_script(options: AndroidStudioScriptOptions) -> Result<()> {
   let profile = if options.release {
     Profile::Release
   } else {

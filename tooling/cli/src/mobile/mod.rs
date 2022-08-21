@@ -81,7 +81,7 @@ impl Target {
 
   fn ide_build_script_name(&self) -> &'static str {
     match self {
-      Self::Android => "build",
+      Self::Android => "android-studio-script",
       #[cfg(target_os = "macos")]
       Self::Ios => "xcode-script",
     }

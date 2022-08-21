@@ -657,38 +657,27 @@ fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 /// This function determines the 'target' directory and suffixes it with 'release' or 'debug'
 /// to determine where the compiled binary will be located.
 fn get_target_dir(target: Option<String>, is_release: bool) -> crate::Result<PathBuf> {
-  let mut path = match get_cargo_metadata() {
-    Ok(meta) => meta.target_directory,
-    // TODO: PR comment: return error instead of log+fallback? If fallback -> Remove Result wrapper
-    Err(err) => {
-      warn!(
-        "Unable to find target directory, falling back to the Tauri source directory. Reason: {:#}",
-        err
-      );
-      tauri_dir().join("target")
-    }
-  };
+  let mut path = get_cargo_metadata()
+    .with_context(|| "failed to get cargo metadata")?
+    .target_directory;
 
   if let Some(ref triple) = target {
     path.push(triple);
   }
+
   path.push(if is_release { "release" } else { "debug" });
+
   Ok(path)
 }
 
 /// Executes `cargo metadata` to get the workspace directory.
 /// It will fall back to the Tauri directory if there was an error.
-pub fn get_workspace_dir() -> PathBuf {
-  match get_cargo_metadata() {
-    Ok(meta) => meta.workspace_root,
-    Err(err) => {
-      warn!(
-        "Unable to find workspace directory, falling back to the Tauri source directory. Reason: {:#}",
-        err
-      );
-      tauri_dir()
-    }
-  }
+pub fn get_workspace_dir() -> crate::Result<PathBuf> {
+  Ok(
+    get_cargo_metadata()
+      .with_context(|| "failed to get cargo metadata")?
+      .workspace_root,
+  )
 }
 
 #[allow(unused_variables)]

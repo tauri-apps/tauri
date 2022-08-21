@@ -134,9 +134,6 @@ pub fn exec(
   map.insert("tauri-binary", tauri_binary.to_string_lossy());
   let mut build_args = Vec::new();
   for arg in args {
-    if arg == "android" {
-      break;
-    }
     let path = PathBuf::from(&arg);
     if path.exists() {
       if let Ok(dir) = current_dir() {
@@ -146,10 +143,13 @@ pub fn exec(
       }
     }
     build_args.push(arg.to_string_lossy().into_owned());
+    if arg == "android" || arg == "ios" {
+      break;
+    }
   }
-  build_args.push("android".into());
-  build_args.push("build".into());
-  map.insert("tauri-binary-args", build_args);
+  build_args.push(target.ide_build_script_name().into());
+  map.insert("tauri-binary-args", &build_args);
+  map.insert("tauri-binary-args-str", build_args.join(" "));
 
   // Generate Android Studio project
   let android_env = if target == Target::Android {

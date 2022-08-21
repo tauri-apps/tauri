@@ -78,6 +78,14 @@ impl Target {
       Self::Ios => "ios",
     }
   }
+
+  fn ide_build_script_name(&self) -> &'static str {
+    match self {
+      Self::Android => "build",
+      #[cfg(target_os = "macos")]
+      Self::Ios => "xcode-script",
+    }
+  }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

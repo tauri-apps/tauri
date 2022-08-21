@@ -111,6 +111,9 @@ objc = "0.2"
 webview2-com = "0.16.0"
 win7-notifications = { version = "0.3.0", optional = true }
 
+[target.'cfg(target_os = "android")'.dependencies]
+paste = "1.0"
+
 [target."cfg(windows)".dependencies.windows]
 version = "0.37.0"
 features = [ "Win32_Foundation" ]

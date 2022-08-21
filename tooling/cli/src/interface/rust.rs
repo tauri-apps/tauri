@@ -7,7 +7,7 @@ use std::{
   fs::{File, FileType},
   io::{Read, Write},
   path::{Path, PathBuf},
-  process::ExitStatus,
+  process::{Command, ExitStatus},
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},

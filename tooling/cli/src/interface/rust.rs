@@ -20,7 +20,6 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
-use log::warn;
 use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use serde::Deserialize;
@@ -287,7 +286,7 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = channel();
     let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir();
+    let workspace_path = get_workspace_dir()?;
 
     let watch_folders = if tauri_path == workspace_path {
       vec![tauri_path]
@@ -671,7 +670,6 @@ fn get_target_dir(target: Option<String>, is_release: bool) -> crate::Result<Pat
 }
 
 /// Executes `cargo metadata` to get the workspace directory.
-/// It will fall back to the Tauri directory if there was an error.
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()

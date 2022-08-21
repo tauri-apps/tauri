@@ -35,8 +35,10 @@ use crate::helpers::{
   config::{reload as reload_config, wix_settings, Config},
 };
 
+mod cargo_config;
 mod desktop;
 mod manifest;
+use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Clone)]
@@ -427,6 +429,7 @@ pub struct RustAppSettings {
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
+  cargo_config: CargoConfig,
 }
 
 impl AppSettings for RustAppSettings {
@@ -614,11 +617,14 @@ impl RustAppSettings {
       default_run: cargo_package_settings.default_run.clone(),
     };
 
+    let cargo_config = CargoConfig::load(&tauri_dir())?;
+
     Ok(Self {
       manifest,
       cargo_settings,
       cargo_package_settings,
       package_settings,
+      cargo_config,
     })
   }
 
@@ -627,7 +633,12 @@ impl RustAppSettings {
   }
 
   pub fn out_dir(&self, target: Option<String>, debug: bool) -> crate::Result<PathBuf> {
-    get_target_dir(target, !debug)
+    get_target_dir(
+      target
+        .as_deref()
+        .or_else(|| self.cargo_config.build().target()),
+      !debug,
+    )
   }
 }
 
@@ -655,12 +666,12 @@ fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 
 /// This function determines the 'target' directory and suffixes it with 'release' or 'debug'
 /// to determine where the compiled binary will be located.
-fn get_target_dir(target: Option<String>, is_release: bool) -> crate::Result<PathBuf> {
+fn get_target_dir(target: Option<&str>, is_release: bool) -> crate::Result<PathBuf> {
   let mut path = get_cargo_metadata()
     .with_context(|| "failed to get cargo metadata")?
     .target_directory;
 
-  if let Some(ref triple) = target {
+  if let Some(triple) = target {
     path.push(triple);
   }
 

@@ -2628,12 +2628,12 @@ fn handle_event_loop<T: UserEvent>(
         for handler in handlers {
           handler(&event);
         }
-      }
 
-      let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
-      let global_listeners_iter = global_listeners.iter();
-      for global_listener in global_listeners_iter {
-        global_listener(tray_id, &event);
+        let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
+        let global_listeners_iter = global_listeners.iter();
+        for global_listener in global_listeners_iter {
+          global_listener(tray_id, &event);
+        }
       }
     }
     #[cfg(all(desktop, feature = "system-tray"))]

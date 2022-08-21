@@ -20,7 +20,7 @@ use cargo_mobile::{
 use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
-use std::{fs, io, path::PathBuf};
+use std::{env::current_dir, fs, io, path::PathBuf};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri Android project")]
@@ -125,14 +125,31 @@ pub fn exec(
   }
 
   let (handlebars, mut map) = handlebars(&config);
+
+  let mut args = std::env::args_os();
   // TODO: make this a relative path
-  map.insert(
-    "tauri-binary",
-    std::env::args_os()
-      .next()
-      .unwrap_or_else(|| std::ffi::OsString::from("cargo"))
-      .to_string_lossy(),
-  );
+  let tauri_binary = args
+    .next()
+    .unwrap_or_else(|| std::ffi::OsString::from("cargo"));
+  map.insert("tauri-binary", tauri_binary.to_string_lossy());
+  let mut build_args = Vec::new();
+  for arg in args {
+    if arg == "android" {
+      break;
+    }
+    let path = PathBuf::from(&arg);
+    if path.exists() {
+      if let Ok(dir) = current_dir() {
+        let absolute_path = util::prefix_path(dir, path);
+        build_args.push(absolute_path.to_string_lossy().into_owned());
+        continue;
+      }
+    }
+    build_args.push(arg.to_string_lossy().into_owned());
+  }
+  build_args.push("android".into());
+  build_args.push("build".into());
+  map.insert("tauri-binary-args", build_args);
 
   // Generate Android Studio project
   let android_env = if target == Target::Android {

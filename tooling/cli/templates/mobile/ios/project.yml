@@ -267,7 +267,7 @@ targets:
       VALID_ARCHS: {{~#each ios-valid-archs}} {{this}} {{/each}}
     legacy:
       toolPath: {{ tauri-binary }}
-      arguments: ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      arguments: {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
       passSettings: false # prevents evil linker errors
       workingDirectory: $(SRCROOT)/../..
   lib_{{app.name}}_macOS:
@@ -275,6 +275,6 @@ targets:
     platform: macOS
     legacy:
       toolPath: {{ tauri-binary }}
-      arguments: ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
+      arguments: {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
       passSettings: false
       workingDirectory: $(SRCROOT)/../..

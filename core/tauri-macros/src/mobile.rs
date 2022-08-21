@@ -51,17 +51,18 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       #function
 
       fn _start_app() {
-        stop_unwind(#function_name);
-      }
-
-      #[no_mangle]
-      #[inline(never)]
-      pub extern "C" fn start_app() {
         #[cfg(target_os = "android")]
         {
           use ::tauri::paste;
           ::tauri::wry_android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
         }
+        stop_unwind(#function_name);
+      }
+
+      #[cfg(not(target_os = "android"))]
+      #[no_mangle]
+      #[inline(never)]
+      pub extern "C" fn start_app() {
         _start_app()
       }
     )

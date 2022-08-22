@@ -160,7 +160,7 @@ fn png(source: &DynamicImage, out_dir: &Path) {
       _ => format!("{}x{}.png", size, size),
     };
 
-    log::info!(action = "PNG"; "Creating {}", size);
+    log::info!(action = "PNG"; "Creating {}", file_name);
     png_inner(source, size, &out_dir.join(&file_name))
       .unwrap_or_else(|_| panic!("Can't create {}", file_name));
   }

@@ -1084,6 +1084,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "icns"
+version = "0.3.1"
+source = "git+https://github.com/FabianLars/rust-icns?rev=bc2e492328cc5415a23a5eb6ec25632e8326f7bd#bc2e492328cc5415a23a5eb6ec25632e8326f7bd"
+dependencies = [
+ "byteorder",
+ "png 0.16.8",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2828,7 +2837,7 @@ dependencies = [
  "handlebars",
  "heck",
  "hex",
- "icns",
+ "icns 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "image",
  "libflate",
  "log",
@@ -2866,7 +2875,9 @@ dependencies = [
  "glob",
  "handlebars",
  "heck",
+ "icns 0.3.1 (git+https://github.com/FabianLars/rust-icns?rev=bc2e492328cc5415a23a5eb6ec25632e8326f7bd)",
  "ignore",
+ "image",
  "include_dir",
  "json-patch",
  "lazy_static",

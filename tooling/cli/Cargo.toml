@@ -64,6 +64,8 @@ ignore = "0.4"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
 env_logger = "0.9.0"
+icns = { git = "https://github.com/FabianLars/rust-icns", rev = "bc2e492328cc5415a23a5eb6ec25632e8326f7bd" }
+image = { version = "0.24", default-features = false, features = [ "ico" ] }
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

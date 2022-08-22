@@ -1,0 +1,176 @@
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+use crate::{helpers::app_paths::tauri_dir, Result};
+
+use std::{
+  collections::HashMap,
+  fs::{create_dir_all, File},
+  io::BufWriter,
+  path::{Path, PathBuf},
+};
+
+use clap::Parser;
+use icns::{IconFamily, IconType};
+use image::{
+  codecs::{
+    ico::{IcoEncoder, IcoFrame},
+    png::{CompressionType, FilterType as PngFilterType, PngEncoder},
+  },
+  imageops::FilterType,
+  open, ColorType, DynamicImage, ImageEncoder,
+};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct IcnsEntry {
+  size: u32,
+  ostype: String,
+}
+
+#[derive(Debug, Parser)]
+#[clap(about = "Generates various icons for all major platforms")]
+pub struct Options {
+  // TODO: Confirm 1240px
+  /// Path to the source icon (png, 1240x1240px with transparency).
+  /// Default: './app-icon.png'.
+  #[clap(short, long)]
+  input: Option<PathBuf>,
+  /// Output directory.
+  /// Default: 'icons' directory next to the tauri.conf.json file.
+  #[clap(short, long)]
+  output: Option<PathBuf>,
+}
+
+pub fn command(options: Options) -> Result<()> {
+  let input = options
+    .input
+    .unwrap_or_else(|| PathBuf::from("app-icon.png"));
+  let out_dir = options.output.unwrap_or_else(tauri_dir);
+  create_dir_all(&out_dir).expect("Can't create output directory");
+
+  // Try to read the image as a DynamicImage
+  // TODO: We may want to re-introduce the transparency check. The png check should be covered by the disabled features.
+  // Both things should be catched by the explicit conversions to rgba8 anyway.
+  let source = open(input).expect("Can't read source image").into_rgba8();
+
+  let source = DynamicImage::ImageRgba8(source);
+
+  if source.height() != source.width() {
+    panic!("Source image must be square");
+  }
+
+  appx(&source, &out_dir);
+
+  icns(&source, &out_dir);
+
+  ico(&source, &out_dir);
+
+  png(&source, &out_dir);
+
+  Ok(())
+}
+
+fn appx(source: &DynamicImage, out_dir: &Path) {
+  png_inner(source, 50, &out_dir.join("StoreLogo.png")).expect("Can't create StoreLogo.png");
+
+  for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
+    let file_name = format!("Square{}x{}Logo.png", size, size);
+
+    png_inner(source, size, &out_dir.join(&file_name))
+      .unwrap_or_else(|_| panic!("Can't create {}", file_name));
+  }
+}
+
+// Main target: macOS, iOS?
+fn icns(source: &DynamicImage, out_dir: &Path) {
+  let entries: HashMap<String, IcnsEntry> =
+    serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
+
+  let mut family = IconFamily::new();
+
+  for (name, entry) in entries {
+    let size = entry.size;
+    let mut buf = Vec::new();
+
+    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+    let encoder =
+      PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
+
+    encoder
+      .write_image(image.as_bytes(), size, size, ColorType::Rgba8)
+      .unwrap();
+
+    let image = icns::Image::read_png(&buf[..]).unwrap();
+
+    family
+      .add_icon_with_type(
+        &image,
+        IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
+      )
+      .unwrap_or_else(|_| panic!("Can't add {} to Icns Family", name));
+  }
+
+  let out_file = BufWriter::new(File::create(out_dir.join("icon.icns")).unwrap());
+  family.write(out_file).expect("Can't write icns file");
+}
+
+// Generate .ico file with layers for the most common sizes.
+// Main target: Windows
+fn ico(source: &DynamicImage, out_dir: &Path) {
+  let mut frames = Vec::new();
+
+  for size in [16, 24, 32, 48, 64, 256] {
+    let image = source.resize_exact(size, size, FilterType::Lanczos3);
+
+    // Only the 256px layer can be compressed according to the ico specs.
+    // TODO: Consider removing this as it seems to be only a ~1kb difference.
+    if size == 256 {
+      let mut buf = Vec::new();
+
+      let encoder =
+        PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
+
+      encoder
+        .write_image(image.as_bytes(), size, size, ColorType::Rgba8)
+        .unwrap();
+
+      frames.push(IcoFrame::with_encoded(buf, size, size, ColorType::Rgba8).unwrap())
+    } else {
+      frames.push(IcoFrame::as_png(image.as_bytes(), size, size, ColorType::Rgba8).unwrap());
+    }
+  }
+
+  let out_file = BufWriter::new(File::create(out_dir.join("icon.ico")).unwrap());
+  let encoder = IcoEncoder::new(out_file);
+  encoder.encode_images(&frames).expect("Can't encode ICO");
+}
+
+// Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
+// Main target: Linux
+fn png(source: &DynamicImage, out_dir: &Path) {
+  for size in [32, 128, 256, 512] {
+    let file_name = match size {
+      256 => "128x128@2.png".to_string(),
+      512 => "icon.png".to_string(),
+      _ => format!("{}x{}.png", size, size),
+    };
+
+    png_inner(source, size, &out_dir.join(&file_name))
+      .unwrap_or_else(|_| panic!("Can't create {}", file_name));
+  }
+}
+
+// Shared implementation for appx and png
+// TODO: rewrite to make it usable in ico/icns
+fn png_inner(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
+  let image = source.resize_exact(size, size, FilterType::Lanczos3);
+
+  let out_file = BufWriter::new(File::create(file_path)?);
+
+  let encoder =
+    PngEncoder::new_with_quality(out_file, CompressionType::Best, PngFilterType::Adaptive);
+  encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
+  Ok(())
+}

@@ -7,7 +7,7 @@ use crate::{helpers::app_paths::tauri_dir, Result};
 use std::{
   collections::HashMap,
   fs::{create_dir_all, File},
-  io::BufWriter,
+  io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
 
@@ -50,7 +50,7 @@ pub fn command(options: Options) -> Result<()> {
   let out_dir = options.output.unwrap_or_else(tauri_dir);
   create_dir_all(&out_dir).expect("Can't create output directory");
 
-  // Try to read the image as a DynamicImage
+  // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
   // TODO: We may want to re-introduce the transparency check. The png check should be covered by the disabled features.
   // Both things should be catched by the explicit conversions to rgba8 anyway.
   let source = open(input).expect("Can't read source image").into_rgba8();
@@ -83,7 +83,7 @@ fn appx(source: &DynamicImage, out_dir: &Path) {
   }
 }
 
-// Main target: macOS, iOS?
+// Main target: macOS
 fn icns(source: &DynamicImage, out_dir: &Path) {
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
@@ -114,6 +114,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) {
 
   let out_file = BufWriter::new(File::create(out_dir.join("icon.icns")).unwrap());
   family.write(out_file).expect("Can't write icns file");
+  out_file.flush().unwrap();
 }
 
 // Generate .ico file with layers for the most common sizes.
@@ -145,6 +146,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) {
   let out_file = BufWriter::new(File::create(out_dir.join("icon.ico")).unwrap());
   let encoder = IcoEncoder::new(out_file);
   encoder.encode_images(&frames).expect("Can't encode ICO");
+  out_file.flush().unwrap();
 }
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
@@ -172,5 +174,5 @@ fn png_inner(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
   let encoder =
     PngEncoder::new_with_quality(out_file, CompressionType::Best, PngFilterType::Adaptive);
   encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
-  Ok(())
+  out_file.flush()
 }

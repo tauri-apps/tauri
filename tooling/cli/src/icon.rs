@@ -70,10 +70,12 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn appx(source: &DynamicImage, out_dir: &Path) {
+  log::info!(action = "Appx"; "Creating StoreLogo.png");
   png_inner(source, 50, &out_dir.join("StoreLogo.png")).expect("Can't create StoreLogo.png");
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{}x{}Logo.png", size, size);
+    log::info!(action = "Appx"; "Creating {}", file_name);
 
     png_inner(source, size, &out_dir.join(&file_name))
       .unwrap_or_else(|_| panic!("Can't create {}", file_name));
@@ -82,6 +84,7 @@ fn appx(source: &DynamicImage, out_dir: &Path) {
 
 // Main target: macOS
 fn icns(source: &DynamicImage, out_dir: &Path) {
+  log::info!(action = "ICNS"; "Creating icon.icns");
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
 
@@ -117,6 +120,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) {
 // Generate .ico file with layers for the most common sizes.
 // Main target: Windows
 fn ico(source: &DynamicImage, out_dir: &Path) {
+  log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
   for size in [16, 24, 32, 48, 64, 256] {
@@ -156,6 +160,7 @@ fn png(source: &DynamicImage, out_dir: &Path) {
       _ => format!("{}x{}.png", size, size),
     };
 
+    log::info!(action = "PNG"; "Creating {}", size);
     png_inner(source, size, &out_dir.join(&file_name))
       .unwrap_or_else(|_| panic!("Can't create {}", file_name));
   }

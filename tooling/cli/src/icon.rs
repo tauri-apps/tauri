@@ -34,9 +34,8 @@ struct IcnsEntry {
 pub struct Options {
   // TODO: Confirm 1240px
   /// Path to the source icon (png, 1240x1240px with transparency).
-  /// Default: './app-icon.png'.
-  #[clap(short, long)]
-  input: Option<PathBuf>,
+  #[clap(default_value = "./app-icon.png")]
+  input: PathBuf,
   /// Output directory.
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
@@ -44,9 +43,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let input = options
-    .input
-    .unwrap_or_else(|| PathBuf::from("app-icon.png"));
+  let input = options.input;
   let out_dir = options.output.unwrap_or_else(tauri_dir);
   create_dir_all(&out_dir).expect("Can't create output directory");
 

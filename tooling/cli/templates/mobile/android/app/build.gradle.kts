@@ -41,9 +41,11 @@ android {
     flavorDimensions.add("abi")
     productFlavors {
         create("universal") {
+            val abiList = findProperty("abiList") as? String
+
             dimension = "abi"
             ndk {
-                abiFilters += listOf(
+                abiFilters += abiList?.split(",")?.map { it.trim() } ?: listOf(
                     {{~#each targets}}
                     "{{this.abi}}",{{/each}}
                 )

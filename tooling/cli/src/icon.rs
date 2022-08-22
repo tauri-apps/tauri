@@ -11,6 +11,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use anyhow::Context;
 use clap::Parser;
 use icns::{IconFamily, IconType};
 use image::{
@@ -45,12 +46,14 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
-  create_dir_all(&out_dir).expect("Can't create output directory");
+  create_dir_all(&out_dir).context("Can't create output directory")?;
 
   // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
   // TODO: We may want to re-introduce the transparency check. The png check should be covered by the disabled features.
   // Both things should be catched by the explicit conversions to rgba8 anyway.
-  let source = open(input).expect("Can't read source image").into_rgba8();
+  let source = open(input)
+    .context("Can't read and decode source image")?
+    .into_rgba8();
 
   let source = DynamicImage::ImageRgba8(source);
 
@@ -58,32 +61,33 @@ pub fn command(options: Options) -> Result<()> {
     panic!("Source image must be square");
   }
 
-  appx(&source, &out_dir);
+  appx(&source, &out_dir).context("Failed to generate appx icons")?;
 
-  icns(&source, &out_dir);
+  icns(&source, &out_dir).context("Failed to generate .icns file")?;
 
-  ico(&source, &out_dir);
+  ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  png(&source, &out_dir);
+  png(&source, &out_dir).context("Failed to generate png icons")?;
 
   Ok(())
 }
 
-fn appx(source: &DynamicImage, out_dir: &Path) {
+fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
-  png_inner(source, 50, &out_dir.join("StoreLogo.png")).expect("Can't create StoreLogo.png");
+  png_inner(source, 50, &out_dir.join("StoreLogo.png"))?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{}x{}Logo.png", size, size);
     log::info!(action = "Appx"; "Creating {}", file_name);
 
-    png_inner(source, size, &out_dir.join(&file_name))
-      .unwrap_or_else(|_| panic!("Can't create {}", file_name));
+    png_inner(source, size, &out_dir.join(&file_name))?;
   }
+
+  Ok(())
 }
 
 // Main target: macOS
-fn icns(source: &DynamicImage, out_dir: &Path) {
+fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICNS"; "Creating icon.icns");
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
@@ -98,28 +102,28 @@ fn icns(source: &DynamicImage, out_dir: &Path) {
     let encoder =
       PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
 
-    encoder
-      .write_image(image.as_bytes(), size, size, ColorType::Rgba8)
-      .unwrap();
+    encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
 
-    let image = icns::Image::read_png(&buf[..]).unwrap();
+    let image = icns::Image::read_png(&buf[..])?;
 
     family
       .add_icon_with_type(
         &image,
         IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
       )
-      .unwrap_or_else(|_| panic!("Can't add {} to Icns Family", name));
+      .with_context(|| format!("Can't add {} to Icns Family", name))?;
   }
 
-  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns")).unwrap());
-  family.write(&mut out_file).expect("Can't write icns file");
-  out_file.flush().unwrap();
+  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns"))?);
+  family.write(&mut out_file)?;
+  out_file.flush()?;
+
+  Ok(())
 }
 
 // Generate .ico file with layers for the most common sizes.
 // Main target: Windows
-fn ico(source: &DynamicImage, out_dir: &Path) {
+fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
@@ -134,25 +138,30 @@ fn ico(source: &DynamicImage, out_dir: &Path) {
       let encoder =
         PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
 
-      encoder
-        .write_image(image.as_bytes(), size, size, ColorType::Rgba8)
-        .unwrap();
+      encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
 
-      frames.push(IcoFrame::with_encoded(buf, size, size, ColorType::Rgba8).unwrap())
+      frames.push(IcoFrame::with_encoded(buf, size, size, ColorType::Rgba8)?)
     } else {
-      frames.push(IcoFrame::as_png(image.as_bytes(), size, size, ColorType::Rgba8).unwrap());
+      frames.push(IcoFrame::as_png(
+        image.as_bytes(),
+        size,
+        size,
+        ColorType::Rgba8,
+      )?);
     }
   }
 
-  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.ico")).unwrap());
+  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.ico"))?);
   let encoder = IcoEncoder::new(&mut out_file);
-  encoder.encode_images(&frames).expect("Can't encode ICO");
-  out_file.flush().unwrap();
+  encoder.encode_images(&frames)?;
+  out_file.flush()?;
+
+  Ok(())
 }
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path) {
+fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   for size in [32, 128, 256, 512] {
     let file_name = match size {
       256 => "128x128@2.png".to_string(),
@@ -161,9 +170,10 @@ fn png(source: &DynamicImage, out_dir: &Path) {
     };
 
     log::info!(action = "PNG"; "Creating {}", file_name);
-    png_inner(source, size, &out_dir.join(&file_name))
-      .unwrap_or_else(|_| panic!("Can't create {}", file_name));
+    png_inner(source, size, &out_dir.join(&file_name))?;
   }
+
+  Ok(())
 }
 
 // Shared implementation for appx and png

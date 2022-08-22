@@ -44,7 +44,7 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
-  let out_dir = options.output.unwrap_or_else(tauri_dir);
+  let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
   create_dir_all(&out_dir).expect("Can't create output directory");
 
   // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.

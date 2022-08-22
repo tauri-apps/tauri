@@ -112,8 +112,8 @@ fn icns(source: &DynamicImage, out_dir: &Path) {
       .unwrap_or_else(|_| panic!("Can't add {} to Icns Family", name));
   }
 
-  let out_file = BufWriter::new(File::create(out_dir.join("icon.icns")).unwrap());
-  family.write(out_file).expect("Can't write icns file");
+  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns")).unwrap());
+  family.write(&mut out_file).expect("Can't write icns file");
   out_file.flush().unwrap();
 }
 
@@ -143,8 +143,8 @@ fn ico(source: &DynamicImage, out_dir: &Path) {
     }
   }
 
-  let out_file = BufWriter::new(File::create(out_dir.join("icon.ico")).unwrap());
-  let encoder = IcoEncoder::new(out_file);
+  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.ico")).unwrap());
+  let encoder = IcoEncoder::new(&mut out_file);
   encoder.encode_images(&frames).expect("Can't encode ICO");
   out_file.flush().unwrap();
 }
@@ -169,10 +169,13 @@ fn png(source: &DynamicImage, out_dir: &Path) {
 fn png_inner(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
   let image = source.resize_exact(size, size, FilterType::Lanczos3);
 
-  let out_file = BufWriter::new(File::create(file_path)?);
+  let mut out_file = BufWriter::new(File::create(file_path)?);
 
-  let encoder =
-    PngEncoder::new_with_quality(out_file, CompressionType::Best, PngFilterType::Adaptive);
+  let encoder = PngEncoder::new_with_quality(
+    &mut out_file,
+    CompressionType::Best,
+    PngFilterType::Adaptive,
+  );
   encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
-  out_file.flush()
+  Ok(out_file.flush()?)
 }

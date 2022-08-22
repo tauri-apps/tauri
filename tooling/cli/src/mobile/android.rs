@@ -139,7 +139,7 @@ pub struct BuildOptions {
     multiple_values(true),
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
-  targets: Option<Vec<String>>,
+  pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
   #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
   pub features: Option<Vec<String>>,
@@ -279,6 +279,7 @@ fn run_build(mut options: BuildOptions, config: &AndroidConfig, env: Env) -> Res
   } else {
     Profile::Release
   };
+  let noise_level = NoiseLevel::Polite;
 
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
@@ -320,7 +321,7 @@ fn run_build(mut options: BuildOptions, config: &AndroidConfig, env: Env) -> Res
     apk::build(
       config,
       &env,
-      NoiseLevel::Polite,
+      noise_level,
       profile,
       get_targets_or_all(Vec::new())?,
       options.split_per_abi,
@@ -333,7 +334,7 @@ fn run_build(mut options: BuildOptions, config: &AndroidConfig, env: Env) -> Res
     aab::build(
       config,
       &env,
-      NoiseLevel::Polite,
+      noise_level,
       profile,
       get_targets_or_all(Vec::new())?,
       options.split_per_abi,
@@ -360,15 +361,20 @@ fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
 }
 
 fn dev(options: DevOptions) -> Result<()> {
-  with_config(|_, config, _metadata| {
+  with_config(|root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, config).map_err(|e| Error::DevFailed(e.to_string()))
+    run_dev(options, root_conf, config, metadata).map_err(|e| Error::DevFailed(e.to_string()))
   })
   .map_err(Into::into)
 }
 
-fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
+fn run_dev(
+  options: DevOptions,
+  root_conf: &Config,
+  config: &AndroidConfig,
+  metadata: &AndroidMetadata,
+) -> Result<()> {
   let mut dev_options = options.clone().into();
   let mut interface = crate::dev::setup(&mut dev_options)?;
 
@@ -407,7 +413,7 @@ fn run_dev(options: DevOptions, config: &AndroidConfig) -> Result<()> {
       if open {
         open_dev(config)
       } else {
-        match run(options) {
+        match run(options, root_conf, config, metadata) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
@@ -439,37 +445,42 @@ fn open() -> Result<()> {
   .map_err(Into::into)
 }
 
-fn run(options: MobileOptions) -> Result<DevChild, Error> {
+fn run(
+  options: MobileOptions,
+  root_conf: &Config,
+  config: &AndroidConfig,
+  metadata: &AndroidMetadata,
+) -> Result<DevChild, Error> {
   let profile = if options.debug {
     Profile::Debug
   } else {
     Profile::Release
   };
+  let noise_level = NoiseLevel::Polite;
 
-  with_config(|root_conf, config, metadata| {
-    let build_app_bundle = metadata.asset_packs().is_some();
+  let build_app_bundle = metadata.asset_packs().is_some();
 
-    ensure_init(config.project_dir(), MobileTarget::Android)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+  let env = Env::new().map_err(Error::EnvInitFailed)?;
+  super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
-    let env = Env::new().map_err(Error::EnvInitFailed)?;
-    super::init::init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+  device_prompt(&env)
+    .map_err(Error::FailedToPromptForDevice)?
+    .run(
+      config,
+      &env,
+      noise_level,
+      profile,
+      None,
+      build_app_bundle,
+      false,
+      ".MainActivity".into(),
+    )
+    .map(|c| DevChild(Some(c)))
+    .map_err(Error::RunFailed)
+}
 
-    device_prompt(&env)
-      .map_err(Error::FailedToPromptForDevice)?
-      .run(
-        config,
-        &env,
-        NoiseLevel::Polite,
-        profile,
-        None,
-        build_app_bundle,
-        false,
-        ".MainActivity".into(),
-      )
-      .map_err(Error::RunFailed)
-  })
-  .map(|c| DevChild(Some(c)))
+fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
+  device_prompt(env).map(|device| device.target()).ok()
 }
 
 fn android_studio_script(options: AndroidStudioScriptOptions) -> Result<()> {
@@ -478,10 +489,7 @@ fn android_studio_script(options: AndroidStudioScriptOptions) -> Result<()> {
   } else {
     Profile::Debug
   };
-
-  fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
-    device_prompt(env).map(|device| device.target()).ok()
-  }
+  let noise_level = NoiseLevel::Polite;
 
   with_config(|root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
@@ -496,7 +504,7 @@ fn android_studio_script(options: AndroidStudioScriptOptions) -> Result<()> {
       &env,
       |target: &Target| {
         target
-          .build(config, metadata, &env, NoiseLevel::Polite, true, profile)
+          .build(config, metadata, &env, noise_level, true, profile)
           .map_err(Error::AndroidStudioScriptFailed)
       },
     )

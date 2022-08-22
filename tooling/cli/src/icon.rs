@@ -49,7 +49,6 @@ pub fn command(options: Options) -> Result<()> {
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
-  // TODO: We may want to re-introduce the transparency check. The png check should be covered by the disabled features.
   // Both things should be catched by the explicit conversions to rgba8 anyway.
   let source = open(input)
     .context("Can't read and decode source image")?
@@ -74,13 +73,13 @@ pub fn command(options: Options) -> Result<()> {
 
 fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
-  png_inner(source, 50, &out_dir.join("StoreLogo.png"))?;
+  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{}x{}Logo.png", size, size);
     log::info!(action = "Appx"; "Creating {}", file_name);
 
-    png_inner(source, size, &out_dir.join(&file_name))?;
+    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
   }
 
   Ok(())
@@ -99,10 +98,8 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     let mut buf = Vec::new();
 
     let image = source.resize_exact(size, size, FilterType::Lanczos3);
-    let encoder =
-      PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
 
-    encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
+    write_png(image.as_bytes(), &mut buf, size)?;
 
     let image = icns::Image::read_png(&buf[..])?;
 
@@ -131,14 +128,10 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     let image = source.resize_exact(size, size, FilterType::Lanczos3);
 
     // Only the 256px layer can be compressed according to the ico specs.
-    // TODO: Consider removing this as it seems to be only a ~1kb difference.
     if size == 256 {
       let mut buf = Vec::new();
 
-      let encoder =
-        PngEncoder::new_with_quality(&mut buf, CompressionType::Best, PngFilterType::Adaptive);
-
-      encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
+      write_png(image.as_bytes(), &mut buf, size)?;
 
       frames.push(IcoFrame::with_encoded(buf, size, size, ColorType::Rgba8)?)
     } else {
@@ -170,24 +163,26 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     };
 
     log::info!(action = "PNG"; "Creating {}", file_name);
-    png_inner(source, size, &out_dir.join(&file_name))?;
+    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
   }
 
   Ok(())
 }
 
-// Shared implementation for appx and png
-// TODO: rewrite to make it usable in ico/icns
-fn png_inner(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
+// Resize image and save it to disk.
+fn resize_and_save_png(source: &DynamicImage, size: u32, file_path: &Path) -> Result<()> {
   let image = source.resize_exact(size, size, FilterType::Lanczos3);
 
   let mut out_file = BufWriter::new(File::create(file_path)?);
 
-  let encoder = PngEncoder::new_with_quality(
-    &mut out_file,
-    CompressionType::Best,
-    PngFilterType::Adaptive,
-  );
-  encoder.write_image(image.as_bytes(), size, size, ColorType::Rgba8)?;
+  write_png(image.as_bytes(), &mut out_file, size)?;
+
   Ok(out_file.flush()?)
+}
+
+// Encode image data as png with compression.
+fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> Result<()> {
+  let encoder = PngEncoder::new_with_quality(w, CompressionType::Best, PngFilterType::Adaptive);
+  encoder.write_image(image_data, size, size, ColorType::Rgba8)?;
+  Ok(())
 }

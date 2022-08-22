@@ -1,4 +1,7 @@
-use super::{detect_target_ok, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{
+  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, with_config, Error,
+  MobileTarget,
+};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
@@ -14,7 +17,7 @@ use cargo_mobile::{
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::{fmt::Write, fs, path::PathBuf};
+use std::fs;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Android build")]
@@ -141,15 +144,4 @@ fn run_build(mut options: Options, config: &AppleConfig, env: Env) -> Result<()>
   log_finished(out_files, "IPA");
 
   Ok(())
-}
-
-fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
-  if !outputs.is_empty() {
-    let mut printable_paths = String::new();
-    for path in &outputs {
-      writeln!(printable_paths, "        {}", path.display()).unwrap();
-    }
-
-    log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
-  }
 }

@@ -20,7 +20,7 @@ use clap::{Parser, Subcommand};
 use super::{
   ensure_init, env_vars, get_config,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
-  Target as MobileTarget,
+  log_finished, Target as MobileTarget,
 };
 use crate::{helpers::config::get as get_tauri_config, Result};
 

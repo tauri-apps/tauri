@@ -1,4 +1,4 @@
-use super::{ensure_init, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{ensure_init, init_dot_cargo, log_finished, with_config, Error, MobileTarget};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
@@ -12,8 +12,6 @@ use cargo_mobile::{
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
 };
-
-use std::{fmt::Write, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Android build")]
@@ -148,17 +146,6 @@ fn run_build(mut options: Options, config: &AndroidConfig, env: Env) -> Result<(
   log_finished(aab_outputs, "AAB");
 
   Ok(())
-}
-
-fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
-  if !outputs.is_empty() {
-    let mut printable_paths = String::new();
-    for path in &outputs {
-      writeln!(printable_paths, "        {}", path.display()).unwrap();
-    }
-
-    log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
-  }
 }
 
 fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>, Error> {

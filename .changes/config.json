@@ -77,12 +77,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -105,12 +100,7 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -120,7 +110,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -148,12 +138,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -175,12 +160,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -190,7 +170,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }

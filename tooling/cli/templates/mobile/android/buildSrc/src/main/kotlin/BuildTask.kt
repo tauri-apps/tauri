@@ -26,7 +26,7 @@ open class BuildTask : DefaultTask() {
         val release = release ?: throw GradleException("release cannot be null")
         project.exec {
             workingDir(File(project.projectDir, rootDirRel.path))
-            executable("{{ tauri-binary }}")
+            executable("""{{ tauri-binary }}""")
             args(listOf({{quote-and-join tauri-binary-args}}))
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")

@@ -18,6 +18,8 @@ export default defineConfig(async ({ command, mode }) => {
       }
     },
     server: {
+      port: 5173,
+      strictPort: true,
       hmr: {
         host,
         port: 5183

@@ -4223,8 +4223,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea48fb3b68ab76f62837bfcea63baed9a185dbec9c14d4e5d70033e22fefffd2"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/improve-init-scripts-android#75e4393e5709dc54ae048c90b4af2fed2727d006"
 dependencies = [
  "block",
  "cocoa",

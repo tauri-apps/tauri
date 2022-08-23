@@ -12,28 +12,25 @@ use cargo_mobile::{
   config::Config,
   device::PromptError,
   env::{Env, Error as EnvError},
-  opts::{NoiseLevel, Profile},
-  os,
-  target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
-  util,
+  os, util,
   util::prompt,
 };
 use clap::{Parser, Subcommand};
 
 use super::{
   ensure_init, env_vars, get_config,
-  init::{command as init_command, Options as InitOptions},
-  write_options, CliOptions, DevChild, Target as MobileTarget,
+  init::{command as init_command, init_dot_cargo, Options as InitOptions},
+  log_finished, Target as MobileTarget,
 };
-use crate::{
-  helpers::{config::get as get_tauri_config, flock},
-  interface::{AppSettings, DevProcess, Interface, MobileOptions, Options as InterfaceOptions},
-  Result,
-};
+use crate::{helpers::config::get as get_tauri_config, Result};
 
-use std::{collections::HashMap, ffi::OsStr, fmt::Write, fs, path::PathBuf};
+use std::path::PathBuf;
 
+mod build;
+mod dev;
+mod open;
 pub(crate) mod project;
+mod xcode_script;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
@@ -84,121 +81,23 @@ pub struct Cli {
   command: Commands,
 }
 
-#[derive(Debug, Parser)]
-pub struct XcodeScriptOptions {
-  /// Value of `PLATFORM_DISPLAY_NAME` env var
-  #[clap(long)]
-  platform: String,
-  /// Value of `SDKROOT` env var
-  #[clap(long)]
-  sdk_root: PathBuf,
-  /// Value of `CONFIGURATION` env var
-  #[clap(long)]
-  configuration: String,
-  /// Value of `FORCE_COLOR` env var
-  #[clap(long)]
-  force_color: bool,
-  /// Value of `ARCHS` env var
-  #[clap(index = 1, required = true)]
-  arches: Vec<String>,
-}
-
-#[derive(Debug, Clone, Parser)]
-#[clap(about = "iOS dev")]
-pub struct DevOptions {
-  /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
-  pub features: Option<Vec<String>>,
-  /// Exit on panic
-  #[clap(short, long)]
-  exit_on_panic: bool,
-  /// JSON string or path to JSON file to merge with tauri.conf.json
-  #[clap(short, long)]
-  pub config: Option<String>,
-  /// Run the code in release mode
-  #[clap(long = "release")]
-  pub release_mode: bool,
-  /// Disable the file watcher
-  #[clap(long)]
-  pub no_watch: bool,
-  /// Open Xcode instead of trying to run on a connected device
-  #[clap(short, long)]
-  pub open: bool,
-}
-
-impl From<DevOptions> for crate::dev::Options {
-  fn from(options: DevOptions) -> Self {
-    Self {
-      runner: None,
-      target: None,
-      features: options.features,
-      exit_on_panic: options.exit_on_panic,
-      config: options.config,
-      release_mode: options.release_mode,
-      args: Vec::new(),
-      no_watch: options.no_watch,
-    }
-  }
-}
-
-#[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
-pub struct BuildOptions {
-  /// Builds with the debug flag
-  #[clap(short, long)]
-  pub debug: bool,
-  /// Which targets to build.
-  #[clap(
-    short,
-    long = "target",
-    multiple_occurrences(true),
-    multiple_values(true),
-    default_value = Target::DEFAULT_KEY,
-    value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
-  )]
-  pub targets: Vec<String>,
-  /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
-  pub features: Option<Vec<String>>,
-  /// JSON string or path to JSON file to merge with tauri.conf.json
-  #[clap(short, long)]
-  pub config: Option<String>,
-  /// Build number to append to the app version.
-  #[clap(long)]
-  pub build_number: Option<u32>,
-}
-
-impl From<BuildOptions> for crate::build::Options {
-  fn from(options: BuildOptions) -> Self {
-    Self {
-      runner: None,
-      debug: options.debug,
-      target: None,
-      features: options.features,
-      bundles: None,
-      config: options.config,
-      args: Vec::new(),
-    }
-  }
-}
-
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
   Open,
-  Dev(DevOptions),
-  Build(BuildOptions),
+  Dev(dev::Options),
+  Build(build::Options),
   #[clap(hide(true))]
-  XcodeScript(XcodeScriptOptions),
+  XcodeScript(xcode_script::Options),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
-    Commands::Open => open()?,
-    Commands::Dev(options) => dev(options)?,
-    Commands::Build(options) => build(options)?,
-    Commands::XcodeScript(options) => xcode_script(options)?,
+    Commands::Open => open::command()?,
+    Commands::Dev(options) => dev::command(options)?,
+    Commands::Build(options) => build::command(options)?,
+    Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
 
   Ok(())
@@ -254,314 +153,4 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
 
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
   device_prompt(env).map(|device| device.target()).ok()
-}
-
-fn build(options: BuildOptions) -> Result<()> {
-  with_config(|root_conf, config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-
-    let env = env()?;
-    super::init::init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
-
-    run_build(options, config, env).map_err(|e| Error::BuildFailed(e.to_string()))
-  })
-  .map_err(Into::into)
-}
-
-fn run_build(mut options: BuildOptions, config: &AppleConfig, env: Env) -> Result<()> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
-    Profile::Release
-  };
-  let noise_level = NoiseLevel::Polite;
-
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
-
-  let mut build_options = options.clone().into();
-  let interface = crate::build::setup(&mut build_options)?;
-
-  let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
-    debug: build_options.debug,
-    ..Default::default()
-  })?;
-  let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
-
-  let cli_options = CliOptions {
-    features: build_options.features.clone(),
-    args: build_options.args.clone(),
-    vars: Default::default(),
-  };
-  write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
-
-  options
-    .features
-    .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
-
-  let mut out_files = Vec::new();
-
-  call_for_targets_with_fallback(
-    options.targets.iter(),
-    &detect_target_ok,
-    &env,
-    |target: &Target| {
-      let mut app_version = config.bundle_version().clone();
-      if let Some(build_number) = options.build_number {
-        app_version.push_extra(build_number);
-      }
-
-      target.build(config, &env, noise_level, profile)?;
-      target.archive(config, &env, noise_level, profile, Some(app_version))?;
-      target.export(config, &env, noise_level)?;
-
-      if let Ok(ipa_path) = config.ipa_path() {
-        let out_dir = config.export_dir().join(target.arch);
-        fs::create_dir_all(&out_dir)?;
-        let path = out_dir.join(ipa_path.file_name().unwrap());
-        fs::rename(&ipa_path, &path)?;
-        out_files.push(path);
-      }
-
-      anyhow::Result::Ok(())
-    },
-  )
-  .map_err(|e: TargetInvalid| Error::TargetInvalid(e.to_string()))?
-  .map_err(|e: anyhow::Error| e)?;
-
-  log_finished(out_files, "IPA");
-
-  Ok(())
-}
-
-fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
-  if !outputs.is_empty() {
-    let mut printable_paths = String::new();
-    for path in &outputs {
-      writeln!(printable_paths, "        {}", path.display()).unwrap();
-    }
-
-    log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
-  }
-}
-
-fn dev(options: DevOptions) -> Result<()> {
-  with_config(|root_conf, config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, root_conf, config).map_err(|e| Error::DevFailed(e.to_string()))
-  })
-  .map_err(Into::into)
-}
-
-fn run_dev(options: DevOptions, root_conf: &Config, config: &AppleConfig) -> Result<()> {
-  let mut dev_options = options.clone().into();
-  let mut interface = crate::dev::setup(&mut dev_options)?;
-
-  let bundle_identifier = {
-    let tauri_config =
-      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
-
-  let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
-    debug: !dev_options.release_mode,
-    ..Default::default()
-  })?;
-  let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
-
-  let open = options.open;
-  interface.mobile_dev(
-    MobileOptions {
-      debug: true,
-      features: options.features,
-      args: Vec::new(),
-      config: options.config,
-      no_watch: options.no_watch,
-    },
-    |options| {
-      let cli_options = CliOptions {
-        features: options.features.clone(),
-        args: options.args.clone(),
-        vars: Default::default(),
-      };
-      write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
-      if open {
-        open_dev(config)
-      } else {
-        match run(options, root_conf, config) {
-          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
-          Err(Error::FailedToPromptForDevice(e)) => {
-            log::error!("{}", e);
-            open_dev(config)
-          }
-          Err(e) => Err(e.into()),
-        }
-      }
-    },
-  )
-}
-
-fn open_dev(config: &AppleConfig) -> ! {
-  log::info!("Opening Xcode");
-  if let Err(e) = os::open_file_with("Xcode", config.project_dir()) {
-    log::error!("{}", e);
-  }
-  loop {
-    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
-  }
-}
-
-fn open() -> Result<()> {
-  with_config(|_, config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    os::open_file_with("Xcode", config.project_dir()).map_err(Error::OpenFailed)
-  })
-  .map_err(Into::into)
-}
-
-fn run(
-  options: MobileOptions,
-  root_conf: &Config,
-  config: &AppleConfig,
-) -> Result<DevChild, Error> {
-  let profile = if options.debug {
-    Profile::Debug
-  } else {
-    Profile::Release
-  };
-  let noise_level = NoiseLevel::Polite;
-
-  let env = env()?;
-  super::init::init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
-
-  device_prompt(&env)
-    .map_err(Error::FailedToPromptForDevice)?
-    .run(config, &env, noise_level, false, profile)
-    .map(|c| DevChild(Some(c)))
-    .map_err(Error::RunFailed)
-}
-
-fn xcode_script(options: XcodeScriptOptions) -> Result<()> {
-  fn macos_from_platform(platform: &str) -> bool {
-    platform == "macOS"
-  }
-
-  fn profile_from_configuration(configuration: &str) -> Profile {
-    if configuration == "release" {
-      Profile::Release
-    } else {
-      Profile::Debug
-    }
-  }
-
-  let profile = profile_from_configuration(&options.configuration);
-  let macos = macos_from_platform(&options.platform);
-  let noise_level = NoiseLevel::Polite;
-
-  with_config(|root_conf, config, metadata| {
-    let env = env()?;
-    super::init::init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
-    // The `PATH` env var Xcode gives us is missing any additions
-    // made by the user's profile, so we'll manually add cargo's
-    // `PATH`.
-    let env = env.prepend_to_path(
-      util::home_dir()
-        .map_err(Error::NoHomeDir)?
-        .join(".cargo/bin"),
-    );
-
-    if !options.sdk_root.is_dir() {
-      return Err(Error::SdkRootInvalid {
-        sdk_root: options.sdk_root,
-      });
-    }
-    let include_dir = options.sdk_root.join("usr/include");
-    if !include_dir.is_dir() {
-      return Err(Error::IncludeDirInvalid { include_dir });
-    }
-
-    let mut host_env = HashMap::<&str, &OsStr>::new();
-
-    // Host flags that are used by build scripts
-    let (macos_isysroot, library_path) = {
-      let macos_sdk_root = options
-        .sdk_root
-        .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
-      if !macos_sdk_root.is_dir() {
-        return Err(Error::MacosSdkRootInvalid { macos_sdk_root });
-      }
-      (
-        format!("-isysroot {}", macos_sdk_root.display()),
-        format!("{}/usr/lib", macos_sdk_root.display()),
-      )
-    };
-    host_env.insert("MAC_FLAGS", macos_isysroot.as_ref());
-    host_env.insert("CFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-    host_env.insert("CXXFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-
-    host_env.insert(
-      "OBJC_INCLUDE_PATH_x86_64_apple_darwin",
-      include_dir.as_os_str(),
-    );
-
-    host_env.insert("RUST_BACKTRACE", "1".as_ref());
-
-    let macos_target = Target::macos();
-
-    let isysroot = format!("-isysroot {}", options.sdk_root.display());
-
-    for arch in options.arches {
-      // Set target-specific flags
-      let triple = match arch.as_str() {
-        "arm64" => "aarch64_apple_ios",
-        "x86_64" => "x86_64_apple_ios",
-        _ => return Err(Error::ArchInvalid { arch }),
-      };
-      let cflags = format!("CFLAGS_{}", triple);
-      let cxxflags = format!("CFLAGS_{}", triple);
-      let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", triple);
-      let mut target_env = host_env.clone();
-      target_env.insert(cflags.as_ref(), isysroot.as_ref());
-      target_env.insert(cxxflags.as_ref(), isysroot.as_ref());
-      target_env.insert(objc_include_path.as_ref(), include_dir.as_ref());
-      // Prevents linker errors in build scripts and proc macros:
-      // https://github.com/signalapp/libsignal-client/commit/02899cac643a14b2ced7c058cc15a836a2165b6d
-      target_env.insert("LIBRARY_PATH", library_path.as_ref());
-
-      let target = if macos {
-        &macos_target
-      } else {
-        Target::for_arch(&arch).ok_or_else(|| Error::ArchInvalid {
-          arch: arch.to_owned(),
-        })?
-      };
-      target
-        .compile_lib(
-          config,
-          metadata,
-          noise_level,
-          true,
-          profile,
-          &env,
-          target_env,
-        )
-        .map_err(Error::CompileLibFailed)?;
-    }
-    Ok(())
-  })
-  .map_err(Into::into)
 }

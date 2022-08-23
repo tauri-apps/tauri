@@ -17,7 +17,7 @@ use cargo_mobile::{
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ffi::OsString, path::PathBuf, process::ExitStatus};
+use std::{collections::HashMap, ffi::OsString, fmt::Write, path::PathBuf, process::ExitStatus};
 
 pub mod android;
 mod init;
@@ -236,5 +236,16 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
     )
   } else {
     Ok(())
+  }
+}
+
+fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
+  if !outputs.is_empty() {
+    let mut printable_paths = String::new();
+    for path in &outputs {
+      writeln!(printable_paths, "        {}", path.display()).unwrap();
+    }
+
+    log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
   }
 }

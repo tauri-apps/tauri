@@ -127,11 +127,19 @@ pub fn exec(
   let (handlebars, mut map) = handlebars(&config);
 
   let mut args = std::env::args_os();
-  // TODO: make this a relative path
   let tauri_binary = args
     .next()
+    .map(|bin| {
+      let path = PathBuf::from(&bin);
+      if path.exists() {
+        if let Ok(dir) = current_dir() {
+          let absolute_path = util::prefix_path(dir, path);
+          return absolute_path.into();
+        }
+      }
+      bin
+    })
     .unwrap_or_else(|| std::ffi::OsString::from("cargo"));
-  map.insert("tauri-binary", tauri_binary.to_string_lossy());
   let mut build_args = Vec::new();
   for arg in args {
     let path = PathBuf::from(&arg);
@@ -148,6 +156,7 @@ pub fn exec(
     }
   }
   build_args.push(target.ide_build_script_name().into());
+  map.insert("tauri-binary", tauri_binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 

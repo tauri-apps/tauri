@@ -56,7 +56,7 @@ pub fn command(options: Options) -> Result<()> {
   with_config(|root_conf, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, root_conf, config).map_err(|e| Error::DevFailed(e.to_string()))
+    run_dev(options, root_conf, config).map_err(|e| Error::DevFailed(format!("{:#}", e)))
   })
   .map_err(Into::into)
 }

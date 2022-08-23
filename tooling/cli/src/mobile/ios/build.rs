@@ -68,7 +68,7 @@ pub fn command(options: Options) -> Result<()> {
     let env = env()?;
     init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
-    run_build(options, config, env).map_err(|e| Error::BuildFailed(e.to_string()))
+    run_build(options, config, env).map_err(|e| Error::BuildFailed(format!("{:#}", e)))
   })
   .map_err(Into::into)
 }

@@ -127,6 +127,12 @@ impl CodegenContext {
       );
     }
 
+    #[cfg(target_os = "macos")]
+    println!(
+      "cargo:rerun-if-changed={}",
+      config_parent.join("Info.plist").display()
+    );
+
     let code = context_codegen(ContextData {
       dev: self.dev,
       config,

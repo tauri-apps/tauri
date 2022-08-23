@@ -50,7 +50,7 @@ zip = "0.6"
 semver = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-icns = "0.3"
+icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = [ "formatting" ] }
 plist = "1"
 

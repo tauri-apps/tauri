@@ -1,4 +1,7 @@
-use super::{device_prompt, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, with_config, Error,
+  MobileTarget,
+};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
@@ -61,6 +64,7 @@ impl From<Options> for crate::dev::Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  delete_codegen_vars();
   with_config(|root_conf, config, metadata| {
     set_var(
       "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",

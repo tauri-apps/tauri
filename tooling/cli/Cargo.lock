@@ -250,7 +250,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#5444888b3e9bc5a596bc2668315c8805a865c5f6"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#d5b4c4dd5ac23e700f07e362b8788d80a33d21d3"
 dependencies = [
  "cocoa",
  "colored 1.9.3",

@@ -21,7 +21,8 @@ export default defineConfig(async ({ command, mode }) => {
       port: 5173,
       strictPort: true,
       hmr: {
-        host
+        host,
+        port: 5183
       },
       fs: {
         allow: ['.', '../../tooling/api/dist']

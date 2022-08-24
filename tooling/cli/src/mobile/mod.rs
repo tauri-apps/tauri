@@ -147,6 +147,20 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
   }
   domain.pop();
 
+  let manifest_path = tauri_dir().join("Cargo.toml");
+  let app_name = if let Ok(manifest) = crate::interface::manifest::read_manifest(&manifest_path) {
+    manifest
+      .as_table()
+      .get("package")
+      .and_then(|p| p.as_table())
+      .and_then(|p| p.get("name"))
+      .and_then(|n| n.as_str())
+      .map(|n| n.to_string())
+      .unwrap_or(app_name)
+  } else {
+    app_name
+  };
+
   #[cfg(target_os = "macos")]
   let ios_options = read_options(config, Target::Ios).unwrap_or_default();
   let android_options = read_options(config, Target::Android).unwrap_or_default();

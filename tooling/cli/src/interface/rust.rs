@@ -36,7 +36,7 @@ use crate::helpers::{
 
 mod cargo_config;
 mod desktop;
-mod manifest;
+pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 

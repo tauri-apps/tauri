@@ -176,6 +176,7 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
       macos_version: None,
       use_legacy_build_system: None,
       plist_pairs: None,
+      enable_bitcode: None,
     }),
     android: Some(RawAndroidConfig {
       min_sdk_version: None,
@@ -195,12 +196,14 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
         no_default_features: false,
         cargo_args: Some(ios_options.args),
         features: ios_options.features,
+        libraries: None,
         frameworks: None,
         valid_archs: None,
         vendor_frameworks: None,
         vendor_sdks: None,
         asset_catalogs: None,
         pods: None,
+        pod_options: None,
         additional_targets: None,
         pre_build_scripts: None,
         post_compile_scripts: None,
@@ -220,6 +223,9 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
       app_dependencies: None,
       app_dependencies_platform: None,
       asset_packs: None,
+      app_activity_name: None,
+      app_permissions: None,
+      app_theme_parent: None,
     },
   };
 

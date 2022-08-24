@@ -16,13 +16,13 @@ use cargo_mobile::{
 
 use std::env::set_var;
 
-const WEBVIEW_CLIENT_CLASS_EXTENSION: &'static str = "
+const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
     @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: android.net.http.SslError) {
         handler.proceed()
     }
 ";
-const WEBVIEW_CLASS_INIT: &'static str =
+const WEBVIEW_CLASS_INIT: &str =
   "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
 
 #[derive(Debug, Clone, Parser)]

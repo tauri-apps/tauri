@@ -15,12 +15,17 @@ use cargo_mobile::{
   android::config::{Metadata as AndroidMetadata, Raw as RawAndroidConfig},
   bossy,
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
-  env::{Env, Error as EnvError},
+  env::Error as EnvError,
 };
 use serde::{Deserialize, Serialize};
 use std::{
   collections::HashMap, env::set_var, ffi::OsString, fmt::Write, path::PathBuf, process::ExitStatus,
 };
+
+#[cfg(not(windows))]
+use cargo_mobile::env::Env;
+#[cfg(windows)]
+use cargo_mobile::os::Env;
 
 pub mod android;
 mod init;

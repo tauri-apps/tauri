@@ -92,6 +92,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],

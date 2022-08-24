@@ -630,6 +630,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Changes the position of the cursor in window coordinates.
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
 
+  /// Ignores the window cursor events.
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()>;
+
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;
 

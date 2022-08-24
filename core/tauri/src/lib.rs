@@ -144,6 +144,7 @@
 //! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
 //! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
 //! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
+//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
 //! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
 //! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
 

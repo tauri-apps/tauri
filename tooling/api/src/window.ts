@@ -1478,6 +1478,34 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Ignores the cursor's events.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setIgnoreCursorEvents(true);
+   * ```
+   *
+   * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+   async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setIgnoreCursorEvents',
+            payload: ignore
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    * @example
    * ```typescript

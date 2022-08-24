@@ -1055,6 +1055,7 @@ pub enum WindowMessage {
   SetCursorVisible(bool),
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
+  SetIgnoreCursorEvents(bool),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1494,6 +1495,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
         self.window_id,
         WindowMessage::SetCursorPosition(position.into()),
       ),
+    )
+  }
+
+  fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
     )
   }
 
@@ -2345,6 +2353,9 @@ fn handle_user_message<T: UserEvent>(
             }
             WindowMessage::SetCursorPosition(position) => {
               let _ = window.set_cursor_position(PositionWrapper::from(position).0);
+            }
+            WindowMessage::SetIgnoreCursorEvents(ignore) => {
+              let _ = window.set_ignore_cursor_events(ignore);
             }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();

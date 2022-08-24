@@ -35,7 +35,7 @@ mod xcode_script;
 #[derive(Debug, thiserror::Error)]
 enum Error {
   #[error(transparent)]
-  EnvInitFailed(EnvError),
+  EnvInitFailed(#[from] EnvError),
   #[error(transparent)]
   InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]

@@ -4222,7 +4222,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#b4789034dc4d10ab83f6acce6b4152d79f702940"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/webview-class#63dfe6793dbdd2016c1bbb76cffb68c3b9f48091"
 dependencies = [
  "block",
  "cocoa",

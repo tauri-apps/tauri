@@ -1,8 +1,22 @@
 package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
+import android.graphics.Bitmap
 import android.webkit.*
 
-class RustWebViewClient: WebViewClient() {
+class RustWebViewClient(initScripts: Array<String>): WebViewClient() {
+    private val initializationScripts: Array<String>
+  
+    init {
+      initializationScripts = initScripts
+    }
+
+    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        for (script in initializationScripts) {
+          view?.evaluateJavascript(script, null)
+        }
+        super.onPageStarted(view, url, favicon)
+    }
+  
     override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
         return false
     }

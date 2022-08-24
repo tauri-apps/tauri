@@ -4223,7 +4223,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "git+https://github.com/tauri-apps/wry?branch=feat/improve-init-scripts-android#75e4393e5709dc54ae048c90b4af2fed2727d006"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#1b26d605d6e33f5417eb6566a7381d8feb239c8b"
 dependencies = [
  "block",
  "cocoa",

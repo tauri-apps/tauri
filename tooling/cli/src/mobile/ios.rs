@@ -18,7 +18,7 @@ use cargo_mobile::{
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init, env_vars, get_config,
+  ensure_init, env, get_config,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
   log_finished, Target as MobileTarget,
 };
@@ -35,7 +35,7 @@ mod xcode_script;
 #[derive(Debug, thiserror::Error)]
 enum Error {
   #[error(transparent)]
-  EnvInitFailed(EnvError),
+  EnvInitFailed(#[from] EnvError),
   #[error(transparent)]
   InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]
@@ -114,13 +114,6 @@ fn with_config<T>(
     get_config(tauri_config_)
   };
   f(&config, config.apple(), metadata.apple())
-}
-
-fn env() -> Result<Env, Error> {
-  let env = Env::new()
-    .map_err(Error::EnvInitFailed)?
-    .explicit_env_vars(env_vars());
-  Ok(env)
 }
 
 fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {

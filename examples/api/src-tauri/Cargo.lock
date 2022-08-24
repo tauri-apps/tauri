@@ -4222,7 +4222,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.20.2"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#1b26d605d6e33f5417eb6566a7381d8feb239c8b"
+source = "git+https://github.com/tauri-apps/wry?branch=dev#b4789034dc4d10ab83f6acce6b4152d79f702940"
 dependencies = [
  "block",
  "cocoa",

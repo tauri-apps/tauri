@@ -7,11 +7,12 @@ use cargo_mobile::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::{Device, RunError},
-    env::{Env, Error as EnvError},
+    env::{Env, Error as AndroidEnvError},
     target::{BuildError, Target},
   },
   config::Config,
   device::PromptError,
+  env::Error as EnvError,
   os,
   util::prompt,
 };
@@ -34,6 +35,8 @@ pub(crate) mod project;
 enum Error {
   #[error(transparent)]
   EnvInitFailed(EnvError),
+  #[error(transparent)]
+  AndroidEnvInitFailed(AndroidEnvError),
   #[error(transparent)]
   InitDotCargo(super::init::Error),
   #[error("invalid tauri configuration: {0}")]
@@ -103,6 +106,11 @@ fn with_config<T>(
     get_config(tauri_config_)
   };
   f(&config, config.android(), metadata.android())
+}
+
+fn env() -> Result<Env, Error> {
+  let env = super::env().map_err(Error::EnvInitFailed)?;
+  cargo_mobile::android::env::Env::from_env(env).map_err(Error::AndroidEnvInitFailed)
 }
 
 fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {

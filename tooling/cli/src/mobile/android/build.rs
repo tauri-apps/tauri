@@ -1,4 +1,4 @@
-use super::{ensure_init, init_dot_cargo, log_finished, with_config, Error, MobileTarget};
+use super::{ensure_init, env, init_dot_cargo, log_finished, with_config, Error, MobileTarget};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, Options as InterfaceOptions},
@@ -64,7 +64,7 @@ pub fn command(options: Options) -> Result<()> {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
-    let env = Env::new().map_err(Error::EnvInitFailed)?;
+    let env = env()?;
     init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     run_build(options, config, env).map_err(|e| Error::BuildFailed(format!("{:#}", e)))

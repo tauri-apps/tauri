@@ -1,4 +1,4 @@
-use super::{device_prompt, ensure_init, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{device_prompt, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
@@ -8,10 +8,7 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  android::{
-    config::{Config as AndroidConfig, Metadata as AndroidMetadata},
-    env::Env,
-  },
+  android::config::{Config as AndroidConfig, Metadata as AndroidMetadata},
   config::Config,
   opts::{NoiseLevel, Profile},
   os,
@@ -143,7 +140,7 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
-  let env = Env::new().map_err(Error::EnvInitFailed)?;
+  let env = env()?;
   init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
   device_prompt(&env)

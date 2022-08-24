@@ -15,9 +15,12 @@ use cargo_mobile::{
   android::config::{Metadata as AndroidMetadata, Raw as RawAndroidConfig},
   bossy,
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
+  env::{Env, Error as EnvError},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, ffi::OsString, fmt::Write, path::PathBuf, process::ExitStatus};
+use std::{
+  collections::HashMap, env::set_var, ffi::OsString, fmt::Write, path::PathBuf, process::ExitStatus,
+};
 
 pub mod android;
 mod init;
@@ -110,11 +113,18 @@ fn env_vars() -> HashMap<String, OsString> {
   let mut vars = HashMap::new();
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
-    if k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD" {
+    if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
+      || k.starts_with("WRY")
+    {
       vars.insert(k.into_owned(), v);
     }
   }
   vars
+}
+
+fn env() -> Result<Env, EnvError> {
+  let env = Env::new()?.explicit_env_vars(env_vars());
+  Ok(env)
 }
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
@@ -133,7 +143,10 @@ pub fn write_options(
 
 fn read_options(config: &TauriConfig, target: Target) -> crate::Result<CliOptions> {
   let data = std::fs::read_to_string(options_path(&config.tauri.bundle.identifier, target))?;
-  let options = serde_json::from_str(&data)?;
+  let options: CliOptions = serde_json::from_str(&data)?;
+  for (k, v) in &options.vars {
+    set_var(k, v);
+  }
   Ok(options)
 }
 
@@ -146,6 +159,17 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
     domain.push('.');
   }
   domain.pop();
+
+  let s = config.tauri.bundle.identifier.split('.');
+  let last = s.clone().count() - 1;
+  let mut reverse_domain = String::new();
+  for (i, w) in s.enumerate() {
+    if i != last {
+      reverse_domain.push_str(w);
+      reverse_domain.push('.');
+    }
+  }
+  reverse_domain.pop();
 
   let manifest_path = tauri_dir().join("Cargo.toml");
   let app_name = if let Ok(manifest) = crate::interface::manifest::read_manifest(&manifest_path) {
@@ -167,7 +191,7 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
 
   let raw = Raw {
     app: RawAppConfig {
-      name: app_name,
+      name: app_name.clone(),
       stylized_name: config.package.product_name.clone(),
       domain,
       asset_dir: None,
@@ -242,6 +266,21 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
       app_theme_parent: None,
     },
   };
+
+  set_var("WRY_ANDROID_REVERSED_DOMAIN", &reverse_domain);
+  set_var("WRY_ANDROID_APP_NAME_SNAKE_CASE", &app_name);
+  set_var(
+    "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
+    config
+      .android()
+      .project_dir()
+      .join("app/src/main")
+      .join(format!(
+        "java/{}/{}",
+        config.app().reverse_domain().replace('.', "/"),
+        config.app().name()
+      )),
+  );
 
   (config, metadata)
 }

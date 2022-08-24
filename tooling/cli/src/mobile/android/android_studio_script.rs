@@ -1,9 +1,9 @@
-use super::{detect_target_ok, ensure_init, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{detect_target_ok, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
 use crate::Result;
 use clap::Parser;
 
 use cargo_mobile::{
-  android::{env::Env, target::Target},
+  android::target::Target,
   opts::{NoiseLevel, Profile},
   target::{call_for_targets_with_fallback, TargetTrait},
 };
@@ -37,7 +37,7 @@ pub fn command(options: Options) -> Result<()> {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
-    let env = Env::new().map_err(Error::EnvInitFailed)?;
+    let env = env()?;
     init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     call_for_targets_with_fallback(

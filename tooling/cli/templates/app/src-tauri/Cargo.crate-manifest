@@ -5,11 +5,13 @@ description = "A Tauri App"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "app"
 edition = "2021"
 rust-version = "1.57"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = {{{  tauri_build_dep  }}}
@@ -18,6 +20,15 @@ tauri-build = {{{  tauri_build_dep  }}}
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = {{{  tauri_dep  }}}
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+log = "0.4"
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.9.0"
+
+[target.'cfg(target_os = "ios")'.dependencies]
+env_logger = "0.9.0"
 
 [features]
 # by default Tauri runs in production mode

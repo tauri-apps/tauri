@@ -108,6 +108,7 @@ impl Target {
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
+  pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
 }
 
@@ -189,7 +190,7 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
   options
 }
 
-fn get_config(config: &TauriConfig, cli_options: CliOptions) -> (Config, Metadata) {
+fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metadata) {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
@@ -226,7 +227,7 @@ fn get_config(config: &TauriConfig, cli_options: CliOptions) -> (Config, Metadat
 
   #[cfg(target_os = "macos")]
   let ios_options = cli_options.clone();
-  let android_options = cli_options;
+  let android_options = cli_options.clone();
 
   let raw = Raw {
     app: RawAppConfig {
@@ -345,14 +346,5 @@ fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
     }
 
     log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
-  }
-}
-
-fn verbosity_to_noise_level(verbosity: usize) -> NoiseLevel {
-  match verbosity {
-    0 => NoiseLevel::Polite,
-    1 => NoiseLevel::LoudAndProud,
-    2.. => NoiseLevel::FranklyQuitePedantic,
-    _ => panic!(),
   }
 }

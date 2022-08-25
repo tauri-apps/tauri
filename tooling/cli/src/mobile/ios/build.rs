@@ -64,23 +64,26 @@ impl From<Options> for crate::build::Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  with_config(Some(Default::default()), |root_conf, config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+  with_config(
+    Some(Default::default()),
+    |root_conf, config, _metadata, _cli_options| {
+      ensure_init(config.project_dir(), MobileTarget::Ios)
+        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
-    let env = env()?;
-    init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
+      let env = env()?;
+      init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
-    let open = options.open;
-    run_build(options, config, env, noise_level)
-      .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
+      let open = options.open;
+      run_build(options, config, env, noise_level)
+        .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
-    if open {
-      open_and_wait(config);
-    }
+      if open {
+        open_and_wait(config);
+      }
 
-    Ok(())
-  })
+      Ok(())
+    },
+  )
   .map_err(Into::into)
 }
 

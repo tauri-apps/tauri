@@ -64,17 +64,20 @@ impl From<Options> for crate::dev::Options {
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
-  with_config(Some(Default::default()), |root_conf, config, metadata| {
-    set_var(
-      "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
-      WEBVIEW_CLIENT_CLASS_EXTENSION,
-    );
-    set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
-    ensure_init(config.project_dir(), MobileTarget::Android)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, root_conf, config, metadata, noise_level)
-      .map_err(|e| Error::DevFailed(format!("{:#}", e)))
-  })
+  with_config(
+    Some(Default::default()),
+    |root_conf, config, metadata, _cli_options| {
+      set_var(
+        "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
+        WEBVIEW_CLIENT_CLASS_EXTENSION,
+      );
+      set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
+      ensure_init(config.project_dir(), MobileTarget::Android)
+        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+      run_dev(options, root_conf, config, metadata, noise_level)
+        .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+    },
+  )
   .map_err(Into::into)
 }
 
@@ -116,6 +119,7 @@ fn run_dev(
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
+        noise_level,
         vars: Default::default(),
       };
       write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;

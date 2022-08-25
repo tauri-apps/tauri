@@ -103,7 +103,7 @@ impl Target {
   }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CliOptions {
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
@@ -125,6 +125,7 @@ fn env_vars() -> HashMap<String, OsString> {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
       || k.starts_with("WRY")
+      || k == "TMPDIR"
     {
       vars.insert(k.into_owned(), v);
     }
@@ -150,11 +151,9 @@ pub fn write_options(
 
   std::thread::spawn(move || {
     let listener = LocalSocketListener::bind(name).expect("failed to start local socket");
-    for conn in listener.incoming() {
-      if let Ok(mut conn) = conn {
-        let _ = conn.write_all(value.as_bytes());
-        let _ = conn.write_all(b"\n");
-      }
+    for mut conn in listener.incoming().flatten() {
+      let _ = conn.write_all(value.as_bytes());
+      let _ = conn.write_all(b"\n");
     }
   });
 

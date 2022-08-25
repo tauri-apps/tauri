@@ -46,7 +46,7 @@ pub fn command(options: Options) -> Result<()> {
   let macos = macos_from_platform(&options.platform);
   let noise_level = NoiseLevel::Polite;
 
-  with_config(|root_conf, config, metadata| {
+  with_config(None, |root_conf, config, metadata| {
     let env = env()?;
     init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
     // The `PATH` env var Xcode gives us is missing any additions

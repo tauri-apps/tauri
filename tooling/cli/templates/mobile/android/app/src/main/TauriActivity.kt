@@ -1,6 +1,5 @@
-package {{app-domain-reversed}}.{{app-name-snake-case}}
+package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
-import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 
 abstract class TauriActivity : AppCompatActivity()

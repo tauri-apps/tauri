@@ -44,7 +44,7 @@ pub fn command(options: Options) -> Result<()> {
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
-  let noise_level = NoiseLevel::FranklyQuitePedantic;
+  let noise_level = NoiseLevel::LoudAndProud;
 
   with_config(None, |root_conf, config, metadata| {
     let env = env()?;

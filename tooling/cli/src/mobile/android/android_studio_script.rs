@@ -31,7 +31,7 @@ pub fn command(options: Options) -> Result<()> {
   } else {
     Profile::Debug
   };
-  let noise_level = NoiseLevel::FranklyQuitePedantic;
+  let noise_level = NoiseLevel::LoudAndProud;
 
   with_config(None, |root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)

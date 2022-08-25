@@ -17,9 +17,16 @@ use cargo_mobile::{
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
   env::Error as EnvError,
 };
+use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use serde::{Deserialize, Serialize};
 use std::{
-  collections::HashMap, env::set_var, ffi::OsString, fmt::Write, path::PathBuf, process::ExitStatus,
+  collections::HashMap,
+  env::set_var,
+  ffi::OsString,
+  fmt::Write,
+  io::{BufRead, BufReader, Write as _},
+  path::PathBuf,
+  process::ExitStatus,
 };
 
 #[cfg(not(windows))]
@@ -63,7 +70,7 @@ impl DevProcess for DevChild {
   }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Target {
   Android,
   #[cfg(target_os = "macos")]
@@ -103,10 +110,8 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn options_path(bundle_identifier: &str, target: Target) -> PathBuf {
-  let out_dir = dirs_next::cache_dir()
-    .or_else(dirs_next::home_dir)
-    .unwrap_or_else(std::env::temp_dir);
+fn options_local_socket_name(bundle_identifier: &str, target: Target) -> PathBuf {
+  let out_dir = std::env::temp_dir();
   let out_dir = out_dir.join(".tauri").join(bundle_identifier);
   let _ = std::fs::create_dir_all(&out_dir);
   out_dir
@@ -139,23 +144,52 @@ pub fn write_options(
   target: Target,
 ) -> crate::Result<()> {
   options.vars.extend(env_vars());
-  std::fs::write(
-    options_path(bundle_identifier, target),
-    &serde_json::to_string(&options)?,
-  )?;
+  let name = options_local_socket_name(bundle_identifier, target);
+  let _ = std::fs::remove_file(&name);
+  let value = serde_json::to_string(&options)?;
+
+  std::thread::spawn(move || {
+    let listener = LocalSocketListener::bind(name).expect("failed to start local socket");
+    for conn in listener.incoming() {
+      if let Ok(mut conn) = conn {
+        let _ = conn.write_all(value.as_bytes());
+        let _ = conn.write_all(b"\n");
+      }
+    }
+  });
+
   Ok(())
 }
 
-fn read_options(config: &TauriConfig, target: Target) -> crate::Result<CliOptions> {
-  let data = std::fs::read_to_string(options_path(&config.tauri.bundle.identifier, target))?;
-  let options: CliOptions = serde_json::from_str(&data)?;
+fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
+  let name = options_local_socket_name(&config.tauri.bundle.identifier, target);
+  let conn = LocalSocketStream::connect(name).unwrap_or_else(|_| {
+    log::error!(
+      "failed to connect to local socket. You must keep the Tauri CLI alive with the `{cmd} dev` or `{cmd} build --open` commands.",
+      cmd = target.command_name()
+    );
+    std::process::exit(1);
+  });
+  conn
+    .set_nonblocking(true)
+    .expect("failed to set local socket stream to nonblocking");
+  let mut conn = BufReader::new(conn);
+  let mut buffer = String::new();
+  conn.read_line(&mut buffer).unwrap_or_else(|_| {
+    log::error!(
+      "failed to connect to local socket. You must keep the Tauri CLI alive with the `{cmd} dev` or `{cmd} build --open` commands.",
+      cmd = target.command_name()
+    );
+    std::process::exit(1);
+  });
+  let options: CliOptions = serde_json::from_str(&buffer).expect("invalid CLI options");
   for (k, v) in &options.vars {
     set_var(k, v);
   }
-  Ok(options)
+  options
 }
 
-fn get_config(config: &TauriConfig) -> (Config, Metadata) {
+fn get_config(config: &TauriConfig, cli_options: CliOptions) -> (Config, Metadata) {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
@@ -191,8 +225,8 @@ fn get_config(config: &TauriConfig) -> (Config, Metadata) {
   };
 
   #[cfg(target_os = "macos")]
-  let ios_options = read_options(config, Target::Ios).unwrap_or_default();
-  let android_options = read_options(config, Target::Android).unwrap_or_default();
+  let ios_options = cli_options.clone();
+  let android_options = cli_options;
 
   let raw = Raw {
     app: RawAppConfig {

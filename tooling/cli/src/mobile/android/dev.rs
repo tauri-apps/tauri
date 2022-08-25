@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, with_config, Error,
-  MobileTarget,
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
+  Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -14,7 +14,6 @@ use cargo_mobile::{
   android::config::{Config as AndroidConfig, Metadata as AndroidMetadata},
   config::Config,
   opts::{NoiseLevel, Profile},
-  os,
 };
 
 use std::env::set_var;
@@ -65,7 +64,7 @@ impl From<Options> for crate::dev::Options {
 
 pub fn command(options: Options) -> Result<()> {
   delete_codegen_vars();
-  with_config(|root_conf, config, metadata| {
+  with_config(Some(Default::default()), |root_conf, config, metadata| {
     set_var(
       "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
       WEBVIEW_CLIENT_CLASS_EXTENSION,
@@ -120,29 +119,19 @@ fn run_dev(
       write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
 
       if open {
-        open_dev(config)
+        open_and_wait(config)
       } else {
         match run(options, root_conf, config, metadata) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
-            open_dev(config)
+            open_and_wait(config)
           }
           Err(e) => Err(e.into()),
         }
       }
     },
   )
-}
-
-fn open_dev(config: &AndroidConfig) -> ! {
-  log::info!("Opening Android Studio");
-  if let Err(e) = os::open_file_with("Android Studio", config.project_dir()) {
-    log::error!("{}", e);
-  }
-  loop {
-    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
-  }
 }
 
 fn run(

@@ -33,7 +33,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   let noise_level = NoiseLevel::Polite;
 
-  with_config(|root_conf, config, metadata| {
+  with_config(None, |root_conf, config, metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 

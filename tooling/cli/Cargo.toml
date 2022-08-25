@@ -30,7 +30,7 @@ path = "src/main.rs"
 # cargo-mobile = { path = "../../../cargo-mobile/", default-features = false }
 cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "dev", default-features = false }
 textwrap = { version = "0.11.0", features = ["term_size"] }
-dirs-next = "2.0"
+interprocess = "1"
 thiserror = "1"
 clap = { version = "3.2", features = [ "derive" ] }
 anyhow = "1.0"

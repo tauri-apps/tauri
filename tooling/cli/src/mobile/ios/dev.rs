@@ -104,6 +104,7 @@ fn run_dev(
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
+        noise_level,
         vars: Default::default(),
       };
       write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;

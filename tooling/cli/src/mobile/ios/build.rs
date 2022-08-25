@@ -120,6 +120,7 @@ fn run_build(
   let cli_options = CliOptions {
     features: build_options.features.clone(),
     args: build_options.args.clone(),
+    noise_level,
     vars: Default::default(),
   };
   write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;

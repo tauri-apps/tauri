@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
-  Error, MobileTarget,
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
+  verbosity_to_noise_level, with_config, Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -62,7 +62,7 @@ impl From<Options> for crate::dev::Options {
   }
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub fn command(options: Options, verbosity: usize) -> Result<()> {
   delete_codegen_vars();
   with_config(Some(Default::default()), |root_conf, config, metadata| {
     set_var(
@@ -72,7 +72,14 @@ pub fn command(options: Options) -> Result<()> {
     set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, root_conf, config, metadata).map_err(|e| Error::DevFailed(format!("{:#}", e)))
+    run_dev(
+      options,
+      root_conf,
+      config,
+      metadata,
+      verbosity_to_noise_level(verbosity),
+    )
+    .map_err(|e| Error::DevFailed(format!("{:#}", e)))
   })
   .map_err(Into::into)
 }
@@ -82,6 +89,7 @@ fn run_dev(
   root_conf: &Config,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
+  noise_level: NoiseLevel,
 ) -> Result<()> {
   let mut dev_options = options.clone().into();
   let mut interface = crate::dev::setup(&mut dev_options)?;
@@ -121,7 +129,7 @@ fn run_dev(
       if open {
         open_and_wait(config)
       } else {
-        match run(options, root_conf, config, metadata) {
+        match run(options, root_conf, config, metadata, noise_level) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
@@ -139,13 +147,13 @@ fn run(
   root_conf: &Config,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
+  noise_level: NoiseLevel,
 ) -> Result<DevChild, Error> {
   let profile = if options.debug {
     Profile::Debug
   } else {
     Profile::Release
   };
-  let noise_level = NoiseLevel::Polite;
 
   let build_app_bundle = metadata.asset_packs().is_some();
 

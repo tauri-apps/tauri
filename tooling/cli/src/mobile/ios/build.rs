@@ -1,6 +1,6 @@
 use super::{
-  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
-  Error, MobileTarget,
+  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait,
+  verbosity_to_noise_level, with_config, Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -63,7 +63,7 @@ impl From<Options> for crate::build::Options {
   }
 }
 
-pub fn command(options: Options) -> Result<()> {
+pub fn command(options: Options, verbosity: usize) -> Result<()> {
   with_config(Some(Default::default()), |root_conf, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
@@ -72,7 +72,8 @@ pub fn command(options: Options) -> Result<()> {
     init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
     let open = options.open;
-    run_build(options, config, env).map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
+    run_build(options, config, env, verbosity_to_noise_level(verbosity))
+      .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
     if open {
       open_and_wait(config);
@@ -83,13 +84,17 @@ pub fn command(options: Options) -> Result<()> {
   .map_err(Into::into)
 }
 
-fn run_build(mut options: Options, config: &AppleConfig, env: Env) -> Result<()> {
+fn run_build(
+  mut options: Options,
+  config: &AppleConfig,
+  env: Env,
+  noise_level: NoiseLevel,
+) -> Result<()> {
   let profile = if options.debug {
     Profile::Debug
   } else {
     Profile::Release
   };
-  let noise_level = NoiseLevel::Polite;
 
   let bundle_identifier = {
     let tauri_config = get_tauri_config(None)?;

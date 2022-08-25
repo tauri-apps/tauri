@@ -5,7 +5,8 @@
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.{{snake-case app.name}}">
+        android:theme="@style/Theme.{{snake-case app.name}}"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
         <activity
             android:name=".MainActivity"
             android:exported="true">

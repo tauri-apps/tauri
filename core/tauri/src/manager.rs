@@ -847,7 +847,10 @@ impl<R: Runtime> WindowManager<R> {
       let mut response = {
         let mut url = url.clone();
         url.set_path(&path);
-        match attohttpc::get(url.as_str()).send() {
+        match attohttpc::get(url.as_str())
+          .danger_accept_invalid_certs(true)
+          .send()
+        {
           Ok(r) => {
             for (name, value) in r.headers() {
               builder = builder.header(name, value);

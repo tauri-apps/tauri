@@ -9,6 +9,7 @@ plugins {
 android {
     compileSdk = 33
     defaultConfig {
+        manifestPlaceholders["usesCleartextTraffic"] = "false"
         applicationId = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
         minSdk = {{android.min-sdk-version}}
         targetSdk = 33
@@ -23,6 +24,7 @@ android {
     }
     buildTypes {
         getByName("debug") {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             isDebuggable = true
             isJniDebuggable = true
             isMinifyEnabled = false

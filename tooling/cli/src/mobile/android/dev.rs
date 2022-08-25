@@ -1,4 +1,7 @@
-use super::{device_prompt, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, with_config, Error,
+  MobileTarget,
+};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
@@ -13,6 +16,17 @@ use cargo_mobile::{
   opts::{NoiseLevel, Profile},
   os,
 };
+
+use std::env::set_var;
+
+const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
+    @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
+    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: android.net.http.SslError) {
+        handler.proceed()
+    }
+";
+const WEBVIEW_CLASS_INIT: &str =
+  "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Android dev")]
@@ -50,7 +64,13 @@ impl From<Options> for crate::dev::Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  delete_codegen_vars();
   with_config(|root_conf, config, metadata| {
+    set_var(
+      "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
+      WEBVIEW_CLIENT_CLASS_EXTENSION,
+    );
+    set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     run_dev(options, root_conf, config, metadata).map_err(|e| Error::DevFailed(format!("{:#}", e)))

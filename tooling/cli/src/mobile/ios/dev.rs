@@ -1,6 +1,5 @@
 use super::{
-  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, verbosity_to_noise_level,
-  with_config, Error, MobileTarget,
+  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config, Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -54,17 +53,12 @@ impl From<Options> for crate::dev::Options {
   }
 }
 
-pub fn command(options: Options, verbosity: usize) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   with_config(Some(Default::default()), |root_conf, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(
-      options,
-      root_conf,
-      config,
-      verbosity_to_noise_level(verbosity),
-    )
-    .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+    run_dev(options, root_conf, config, noise_level)
+      .map_err(|e| Error::DevFailed(format!("{:#}", e)))
   })
   .map_err(Into::into)
 }

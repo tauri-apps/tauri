@@ -12,7 +12,6 @@ use cargo_mobile::{
   config::Config,
   device::PromptError,
   env::{Env, Error as EnvError},
-  opts::NoiseLevel,
   os, util,
   util::prompt,
 };
@@ -93,25 +92,16 @@ enum Commands {
 }
 
 pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+  let noise_level = super::verbosity_to_noise_level(verbosity);
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
     Commands::Open => open::command()?,
-    Commands::Dev(options) => dev::command(options, verbosity)?,
-    Commands::Build(options) => build::command(options, verbosity)?,
+    Commands::Dev(options) => dev::command(options, noise_level)?,
+    Commands::Build(options) => build::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
 
   Ok(())
-}
-
-fn verbosity_to_noise_level(verbosity: usize) -> NoiseLevel {
-  match verbosity {
-    // we use `LoudAndProud` by default because the initial noise level does not show cargo output
-    0 => NoiseLevel::LoudAndProud,
-    1 => NoiseLevel::LoudAndProud,
-    2.. => NoiseLevel::FranklyQuitePedantic,
-    _ => panic!(),
-  }
 }
 
 fn with_config<T>(

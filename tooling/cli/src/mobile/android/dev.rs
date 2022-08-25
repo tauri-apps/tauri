@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
-  verbosity_to_noise_level, with_config, Error, MobileTarget,
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
+  Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -62,7 +62,7 @@ impl From<Options> for crate::dev::Options {
   }
 }
 
-pub fn command(options: Options, verbosity: usize) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(Some(Default::default()), |root_conf, config, metadata| {
     set_var(
@@ -72,14 +72,8 @@ pub fn command(options: Options, verbosity: usize) -> Result<()> {
     set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(
-      options,
-      root_conf,
-      config,
-      metadata,
-      verbosity_to_noise_level(verbosity),
-    )
-    .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+    run_dev(options, root_conf, config, metadata, noise_level)
+      .map_err(|e| Error::DevFailed(format!("{:#}", e)))
   })
   .map_err(Into::into)
 }

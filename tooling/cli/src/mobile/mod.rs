@@ -16,6 +16,7 @@ use cargo_mobile::{
   bossy,
   config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
   env::Error as EnvError,
+  opts::NoiseLevel,
 };
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use serde::{Deserialize, Serialize};
@@ -344,5 +345,14 @@ fn log_finished(outputs: Vec<PathBuf>, kind: &str) {
     }
 
     log::info!(action = "Finished"; "{} {}{} at:\n{}", outputs.len(), kind, if outputs.len() == 1 { "" } else { "s" }, printable_paths);
+  }
+}
+
+fn verbosity_to_noise_level(verbosity: usize) -> NoiseLevel {
+  match verbosity {
+    0 => NoiseLevel::Polite,
+    1 => NoiseLevel::LoudAndProud,
+    2.. => NoiseLevel::FranklyQuitePedantic,
+    _ => panic!(),
   }
 }

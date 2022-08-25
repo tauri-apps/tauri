@@ -1,6 +1,6 @@
 use super::{
-  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait,
-  verbosity_to_noise_level, with_config, Error, MobileTarget,
+  detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -63,7 +63,7 @@ impl From<Options> for crate::build::Options {
   }
 }
 
-pub fn command(options: Options, verbosity: usize) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   with_config(Some(Default::default()), |root_conf, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
@@ -72,7 +72,7 @@ pub fn command(options: Options, verbosity: usize) -> Result<()> {
     init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
     let open = options.open;
-    run_build(options, config, env, verbosity_to_noise_level(verbosity))
+    run_build(options, config, env, noise_level)
       .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
     if open {

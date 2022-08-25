@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait,
-  verbosity_to_noise_level, with_config, Error, MobileTarget,
+  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -67,7 +67,7 @@ impl From<Options> for crate::build::Options {
   }
 }
 
-pub fn command(options: Options, verbosity: usize) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(Some(Default::default()), |root_conf, config, _metadata| {
     set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
@@ -80,7 +80,7 @@ pub fn command(options: Options, verbosity: usize) -> Result<()> {
     init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
     let open = options.open;
-    run_build(options, config, env, verbosity_to_noise_level(verbosity))
+    run_build(options, config, env, noise_level)
       .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
     if open {

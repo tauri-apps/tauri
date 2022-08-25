@@ -21,7 +21,7 @@ use clap::{Parser, Subcommand};
 use super::{
   ensure_init, get_config,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
-  log_finished, Target as MobileTarget,
+  log_finished, read_options, CliOptions, Target as MobileTarget,
 };
 use crate::{helpers::config::get as get_tauri_config, Result};
 
@@ -96,6 +96,7 @@ pub fn command(cli: Cli) -> Result<()> {
 }
 
 fn with_config<T>(
+  cli_options: Option<CliOptions>,
   f: impl FnOnce(&Config, &AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
 ) -> Result<T, Error> {
   let (config, metadata) = {
@@ -103,7 +104,10 @@ fn with_config<T>(
       get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    get_config(tauri_config_)
+    get_config(
+      tauri_config_,
+      cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android)),
+    )
   };
   f(&config, config.android(), metadata.android())
 }
@@ -151,4 +155,14 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device
 
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
   device_prompt(env).map(|device| device.target()).ok()
+}
+
+fn open_and_wait(config: &AndroidConfig) -> ! {
+  log::info!("Opening Android Studio");
+  if let Err(e) = os::open_file_with("Android Studio", config.project_dir()) {
+    log::error!("{}", e);
+  }
+  loop {
+    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
+  }
 }

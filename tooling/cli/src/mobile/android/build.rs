@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, with_config, Error,
-  MobileTarget,
+  delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
+  Error, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -48,6 +48,9 @@ pub struct Options {
   /// Build AABs.
   #[clap(long)]
   pub aab: bool,
+  /// Open Android Studio
+  #[clap(short, long)]
+  pub open: bool,
 }
 
 impl From<Options> for crate::build::Options {
@@ -66,7 +69,7 @@ impl From<Options> for crate::build::Options {
 
 pub fn command(options: Options) -> Result<()> {
   delete_codegen_vars();
-  with_config(|root_conf, config, _metadata| {
+  with_config(Some(Default::default()), |root_conf, config, _metadata| {
     set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
     set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
@@ -76,7 +79,14 @@ pub fn command(options: Options) -> Result<()> {
     let env = env()?;
     init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
-    run_build(options, config, env).map_err(|e| Error::BuildFailed(format!("{:#}", e)))
+    let open = options.open;
+    run_build(options, config, env).map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
+
+    if open {
+      open_and_wait(config);
+    }
+
+    Ok(())
   })
   .map_err(Into::into)
 }

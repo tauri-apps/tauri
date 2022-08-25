@@ -3,7 +3,7 @@ use crate::Result;
 use cargo_mobile::os;
 
 pub fn command() -> Result<()> {
-  with_config(|_, config, _metadata| {
+  with_config(Some(Default::default()), |_, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     os::open_file_with("Android Studio", config.project_dir()).map_err(Error::OpenFailed)

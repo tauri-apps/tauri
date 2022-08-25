@@ -1,4 +1,6 @@
-use super::{device_prompt, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{
+  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config, Error, MobileTarget,
+};
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
@@ -11,7 +13,6 @@ use cargo_mobile::{
   apple::config::Config as AppleConfig,
   config::Config,
   opts::{NoiseLevel, Profile},
-  os,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -53,7 +54,7 @@ impl From<Options> for crate::dev::Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  with_config(|root_conf, config, _metadata| {
+  with_config(Some(Default::default()), |root_conf, config, _metadata| {
     ensure_init(config.project_dir(), MobileTarget::Ios)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
     run_dev(options, root_conf, config).map_err(|e| Error::DevFailed(format!("{:#}", e)))
@@ -98,29 +99,19 @@ fn run_dev(options: Options, root_conf: &Config, config: &AppleConfig) -> Result
       };
       write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
       if open {
-        open_dev(config)
+        open_and_wait(config)
       } else {
         match run(options, root_conf, config) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
-            open_dev(config)
+            open_and_wait(config)
           }
           Err(e) => Err(e.into()),
         }
       }
     },
   )
-}
-
-fn open_dev(config: &AppleConfig) -> ! {
-  log::info!("Opening Xcode");
-  if let Err(e) = os::open_file_with("Xcode", config.project_dir()) {
-    log::error!("{}", e);
-  }
-  loop {
-    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
-  }
 }
 
 fn run(

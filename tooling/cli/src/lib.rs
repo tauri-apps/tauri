@@ -192,9 +192,9 @@ where
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
-    Commands::Android(cli) => mobile::android::command(cli)?,
+    Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
     #[cfg(target_os = "macos")]
-    Commands::Ios(cli) => mobile::ios::command(cli)?,
+    Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
   }
 
   Ok(())

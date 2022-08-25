@@ -83,12 +83,13 @@ enum Commands {
   AndroidStudioScript(android_studio_script::Options),
 }
 
-pub fn command(cli: Cli) -> Result<()> {
+pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+  let noise_level = super::verbosity_to_noise_level(verbosity);
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open::command()?,
-    Commands::Dev(options) => dev::command(options)?,
-    Commands::Build(options) => build::command(options)?,
+    Commands::Dev(options) => dev::command(options, noise_level)?,
+    Commands::Build(options) => build::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,
   }
 

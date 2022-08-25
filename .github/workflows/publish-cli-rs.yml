@@ -78,5 +78,6 @@ jobs:
         with:
           tag_name: cli.rs-v${{ env.CLI_VERSION }}
           files: |
+            tooling/cli/schema.json
             outputs/cargo-tauri-*.zip
             outputs/cargo-tauri-*.tgz

@@ -293,7 +293,7 @@ checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#f9ff8c67e4ecb8081f4c58a737707e63b26a0785"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#228f0eb83ccbc7bfeb0103d2f68b6664691a289d"
 dependencies = [
  "cocoa",
  "colored 1.9.3",

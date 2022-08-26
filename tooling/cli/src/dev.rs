@@ -8,7 +8,7 @@ use crate::{
     command_env,
     config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, DevProcess, ExitReason, Interface},
   CommandExt, Result,
 };
 use clap::Parser;
@@ -78,7 +78,7 @@ fn command_internal(mut options: Options) -> Result<()> {
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
-    on_dev_exit(status, reason, exit_on_panic, no_watch)
+    on_app_exit(status, reason, exit_on_panic, no_watch)
   })
 }
 
@@ -275,7 +275,27 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
   Ok(interface)
 }
 
-fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
+pub fn wait_dev_process<
+  C: DevProcess + Send + 'static,
+  F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static,
+>(
+  child: C,
+  on_exit: F,
+) {
+  std::thread::spawn(move || {
+    let status = child.wait().expect("failed to wait on app");
+    on_exit(
+      status,
+      if child.manually_killed_process() {
+        ExitReason::TriggeredKill
+      } else {
+        ExitReason::NormalExit
+      },
+    );
+  });
+}
+
+pub fn on_app_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
   if no_watch
     || (!matches!(reason, ExitReason::TriggeredKill)
       && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))

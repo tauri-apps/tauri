@@ -23,7 +23,7 @@ pub struct DevChild {
 }
 
 impl DevProcess for DevChild {
-  fn kill(&mut self) -> std::io::Result<()> {
+  fn kill(&self) -> std::io::Result<()> {
     if let Some(child) = &*self.app_child.lock().unwrap() {
       child.kill()?;
     } else if let Some(child) = &self.build_child {
@@ -33,7 +33,7 @@ impl DevProcess for DevChild {
     Ok(())
   }
 
-  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
     if let Some(child) = &*self.app_child.lock().unwrap() {
       child.try_wait()
     } else if let Some(child) = &self.build_child {
@@ -41,6 +41,20 @@ impl DevProcess for DevChild {
     } else {
       unreachable!()
     }
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.wait()
+    } else if let Some(child) = &self.build_child {
+      child.wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_app.load(Ordering::Relaxed)
   }
 }
 
@@ -73,18 +87,14 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
         app.stderr(os_pipe::dup_stderr().unwrap());
         app.args(run_args);
         let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
-        let app_child_t = app_child.clone();
-        std::thread::spawn(move || {
-          let status = app_child_t.wait().expect("failed to wait on app");
-          on_exit(
-            status,
-            if manually_killed_app_.load(Ordering::Relaxed) {
-              ExitReason::TriggeredKill
-            } else {
-              ExitReason::NormalExit
-            },
-          );
-        });
+        crate::dev::wait_dev_process(
+          DevChild {
+            manually_killed_app: manually_killed_app_,
+            build_child: None,
+            app_child: Arc::new(Mutex::new(Some(app_child.clone()))),
+          },
+          on_exit,
+        );
 
         app_child_.lock().unwrap().replace(app_child);
       } else {

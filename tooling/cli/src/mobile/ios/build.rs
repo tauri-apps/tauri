@@ -74,11 +74,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
       let open = options.open;
-      run_build(options, config, env, noise_level)
+      run_build(options, config, &env, noise_level)
         .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
       if open {
-        open_and_wait(config);
+        open_and_wait(config, &env);
       }
 
       Ok(())
@@ -90,7 +90,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AppleConfig,
-  env: Env,
+  env: &Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {
@@ -135,16 +135,16 @@ fn run_build(
   call_for_targets_with_fallback(
     options.targets.iter(),
     &detect_target_ok,
-    &env,
+    env,
     |target: &Target| {
       let mut app_version = config.bundle_version().clone();
       if let Some(build_number) = options.build_number {
         app_version.push_extra(build_number);
       }
 
-      target.build(config, &env, noise_level, profile)?;
-      target.archive(config, &env, noise_level, profile, Some(app_version))?;
-      target.export(config, &env, noise_level)?;
+      target.build(config, env, noise_level, profile)?;
+      target.archive(config, env, noise_level, profile, Some(app_version))?;
+      target.export(config, env, noise_level)?;
 
       if let Ok(ipa_path) = config.ipa_path() {
         let out_dir = config.export_dir().join(target.arch);

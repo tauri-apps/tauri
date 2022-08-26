@@ -20,6 +20,7 @@ use cargo_mobile::{
 };
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use serde::{Deserialize, Serialize};
+use shared_child::SharedChild;
 use std::{
   collections::HashMap,
   env::set_var,
@@ -28,6 +29,10 @@ use std::{
   io::{BufRead, BufReader, Write as _},
   path::PathBuf,
   process::ExitStatus,
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
 };
 
 #[cfg(not(windows))]
@@ -40,34 +45,38 @@ mod init;
 #[cfg(target_os = "macos")]
 pub mod ios;
 
-pub struct DevChild(Option<bossy::Handle>);
+#[derive(Clone)]
+pub struct DevChild {
+  child: Arc<SharedChild>,
+  manually_killed_process: Arc<AtomicBool>,
+}
 
-impl Drop for DevChild {
-  fn drop(&mut self) {
-    // consume the handle since we're not waiting on it
-    // just to prevent a log error
-    // note that this doesn't leak any memory
-    self.0.take().unwrap().leak();
+impl DevChild {
+  fn new(handle: bossy::Handle) -> Self {
+    Self {
+      child: Arc::new(SharedChild::new(handle.into()).unwrap()),
+      manually_killed_process: Default::default(),
+    }
   }
 }
 
 impl DevProcess for DevChild {
-  fn kill(&mut self) -> std::io::Result<()> {
-    self
-      .0
-      .as_mut()
-      .unwrap()
-      .kill()
-      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to kill"))
+  fn kill(&self) -> std::io::Result<()> {
+    self.child.kill()?;
+    self.manually_killed_process.store(true, Ordering::Relaxed);
+    Ok(())
   }
 
-  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
-    self
-      .0
-      .as_mut()
-      .unwrap()
-      .try_wait()
-      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to wait"))
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    self.child.try_wait()
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    self.child.wait()
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_process.load(Ordering::Relaxed)
   }
 }
 
@@ -243,25 +252,15 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
         .ok()
         .or_else(|| config.tauri.ios.development_team.clone())
         .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable"),
-      project_dir: None,
-      ios_no_default_features: None,
+
       ios_features: ios_options.features.clone(),
-      macos_no_default_features: None,
-      macos_features: None,
       bundle_version: config.package.version.clone(),
       bundle_version_short: config.package.version.clone(),
-      ios_version: None,
-      macos_version: None,
-      use_legacy_build_system: None,
-      plist_pairs: None,
-      enable_bitcode: None,
+      ..Default::default()
     }),
     android: Some(RawAndroidConfig {
-      min_sdk_version: None,
-      vulkan_validation: None,
-      project_dir: None,
-      no_default_features: None,
       features: android_options.features.clone(),
+      ..Default::default()
     }),
   };
   let config = Config::from_raw(tauri_dir(), raw).unwrap();
@@ -271,39 +270,17 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
     apple: AppleMetadata {
       supported: true,
       ios: ApplePlatform {
-        no_default_features: false,
         cargo_args: Some(ios_options.args),
         features: ios_options.features,
-        libraries: None,
-        frameworks: None,
-        valid_archs: None,
-        vendor_frameworks: None,
-        vendor_sdks: None,
-        asset_catalogs: None,
-        pods: None,
-        pod_options: None,
-        additional_targets: None,
-        pre_build_scripts: None,
-        post_compile_scripts: None,
-        post_build_scripts: None,
-        command_line_arguments: None,
+        ..Default::default()
       },
       macos: Default::default(),
     },
     android: AndroidMetadata {
       supported: true,
-      no_default_features: false,
       cargo_args: Some(android_options.args),
       features: android_options.features,
-      app_sources: None,
-      app_plugins: None,
-      project_dependencies: None,
-      app_dependencies: None,
-      app_dependencies_platform: None,
-      asset_packs: None,
-      app_activity_name: None,
-      app_permissions: None,
-      app_theme_parent: None,
+      ..Default::default()
     },
   };
 

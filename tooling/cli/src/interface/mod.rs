@@ -15,8 +15,10 @@ use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 pub use rust::{manifest, MobileOptions, Options, Rust as AppInterface};
 
 pub trait DevProcess {
-  fn kill(&mut self) -> std::io::Result<()>;
-  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>>;
+  fn kill(&self) -> std::io::Result<()>;
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
+  fn wait(&self) -> std::io::Result<ExitStatus>;
+  fn manually_killed_process(&self) -> bool;
 }
 
 pub trait AppSettings {

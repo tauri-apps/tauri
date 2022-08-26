@@ -12,6 +12,7 @@ use clap::Parser;
 use cargo_mobile::{
   apple::config::Config as AppleConfig,
   config::Config,
+  env::Env,
   opts::{NoiseLevel, Profile},
 };
 
@@ -91,7 +92,12 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
 
+  let env = env()?;
+  init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
+
   let open = options.open;
+  let exit_on_panic = options.exit_on_panic;
+  let no_watch = options.no_watch;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -108,14 +114,20 @@ fn run_dev(
         vars: Default::default(),
       };
       write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
+
       if open {
-        open_and_wait(config)
+        open_and_wait(config, &env)
       } else {
-        match run(options, root_conf, config, noise_level) {
-          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+        match run(options, config, &env, noise_level) {
+          Ok(c) => {
+            crate::dev::wait_dev_process(c.clone(), move |status, reason| {
+              crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
+            });
+            Ok(Box::new(c) as Box<dyn DevProcess>)
+          }
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
-            open_and_wait(config)
+            open_and_wait(config, &env)
           }
           Err(e) => Err(e.into()),
         }
@@ -126,8 +138,8 @@ fn run_dev(
 
 fn run(
   options: MobileOptions,
-  root_conf: &Config,
   config: &AppleConfig,
+  env: &Env,
   noise_level: NoiseLevel,
 ) -> Result<DevChild, Error> {
   let profile = if options.debug {
@@ -136,12 +148,11 @@ fn run(
     Profile::Release
   };
 
-  let env = env()?;
-  init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
+  let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
 
-  device_prompt(&env)
+  device_prompt(env)
     .map_err(Error::FailedToPromptForDevice)?
-    .run(config, &env, noise_level, false, profile)
-    .map(|c| DevChild(Some(c)))
+    .run(config, env, noise_level, non_interactive, profile)
+    .map(DevChild::new)
     .map_err(Error::RunFailed)
 }

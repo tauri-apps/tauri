@@ -153,9 +153,9 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
   device_prompt(env).map(|device| device.target()).ok()
 }
 
-fn open_and_wait(config: &AppleConfig) -> ! {
+fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   log::info!("Opening Xcode");
-  if let Err(e) = os::open_file_with("Xcode", config.project_dir()) {
+  if let Err(e) = os::open_file_with("Xcode", config.project_dir(), env) {
     log::error!("{}", e);
   }
   loop {

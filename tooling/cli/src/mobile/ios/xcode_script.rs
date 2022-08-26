@@ -2,11 +2,7 @@ use super::{env, init_dot_cargo, with_config, Error};
 use crate::Result;
 use clap::Parser;
 
-use cargo_mobile::{
-  apple::target::Target,
-  opts::{NoiseLevel, Profile},
-  util,
-};
+use cargo_mobile::{apple::target::Target, opts::Profile, util};
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 
@@ -44,9 +40,8 @@ pub fn command(options: Options) -> Result<()> {
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
-  let noise_level = NoiseLevel::LoudAndProud;
 
-  with_config(None, |root_conf, config, metadata| {
+  with_config(None, |root_conf, config, metadata, cli_options| {
     let env = env()?;
     init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
     // The `PATH` env var Xcode gives us is missing any additions
@@ -127,7 +122,7 @@ pub fn command(options: Options) -> Result<()> {
         .compile_lib(
           config,
           metadata,
-          noise_level,
+          cli_options.noise_level,
           true,
           profile,
           &env,

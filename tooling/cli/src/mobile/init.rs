@@ -107,7 +107,7 @@ pub fn exec(
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let (config, metadata) = get_config(tauri_config_, Default::default());
+  let (config, metadata) = get_config(tauri_config_, &Default::default());
 
   let asset_dir = config.app().asset_dir();
   if !asset_dir.is_dir() {

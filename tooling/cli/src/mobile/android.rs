@@ -13,6 +13,7 @@ use cargo_mobile::{
   config::Config,
   device::PromptError,
   env::Error as EnvError,
+  opts::NoiseLevel,
   os,
   util::prompt,
 };
@@ -84,7 +85,7 @@ enum Commands {
 }
 
 pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
-  let noise_level = super::verbosity_to_noise_level(verbosity);
+  let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(options, MobileTarget::Android)?,
     Commands::Open => open::command()?,
@@ -98,19 +99,19 @@ pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
 
 fn with_config<T>(
   cli_options: Option<CliOptions>,
-  f: impl FnOnce(&Config, &AndroidConfig, &AndroidMetadata) -> Result<T, Error>,
+  f: impl FnOnce(&Config, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T, Error>,
 ) -> Result<T, Error> {
-  let (config, metadata) = {
+  let (config, metadata, cli_options) = {
     let tauri_config =
       get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    get_config(
-      tauri_config_,
-      cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android)),
-    )
+    let cli_options =
+      cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android));
+    let (config, metadata) = get_config(tauri_config_, &cli_options);
+    (config, metadata, cli_options)
   };
-  f(&config, config.android(), metadata.android())
+  f(&config, config.android(), metadata.android(), cli_options)
 }
 
 fn env() -> Result<Env, Error> {

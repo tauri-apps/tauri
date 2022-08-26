@@ -4,7 +4,7 @@ use clap::Parser;
 
 use cargo_mobile::{
   android::target::Target,
-  opts::{NoiseLevel, Profile},
+  opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
 
@@ -31,9 +31,8 @@ pub fn command(options: Options) -> Result<()> {
   } else {
     Profile::Debug
   };
-  let noise_level = NoiseLevel::LoudAndProud;
 
-  with_config(None, |root_conf, config, metadata| {
+  with_config(None, |root_conf, config, metadata, cli_options| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
@@ -46,7 +45,14 @@ pub fn command(options: Options) -> Result<()> {
       &env,
       |target: &Target| {
         target
-          .build(config, metadata, &env, noise_level, true, profile)
+          .build(
+            config,
+            metadata,
+            &env,
+            cli_options.noise_level,
+            true,
+            profile,
+          )
           .map_err(Error::AndroidStudioScriptFailed)
       },
     )

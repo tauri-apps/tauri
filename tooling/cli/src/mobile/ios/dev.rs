@@ -54,12 +54,15 @@ impl From<Options> for crate::dev::Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  with_config(Some(Default::default()), |root_conf, config, _metadata| {
-    ensure_init(config.project_dir(), MobileTarget::Ios)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-    run_dev(options, root_conf, config, noise_level)
-      .map_err(|e| Error::DevFailed(format!("{:#}", e)))
-  })
+  with_config(
+    Some(Default::default()),
+    |root_conf, config, _metadata, _cli_options| {
+      ensure_init(config.project_dir(), MobileTarget::Ios)
+        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+      run_dev(options, root_conf, config, noise_level)
+        .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+    },
+  )
   .map_err(Into::into)
 }
 
@@ -101,6 +104,7 @@ fn run_dev(
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
+        noise_level,
         vars: Default::default(),
       };
       write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;

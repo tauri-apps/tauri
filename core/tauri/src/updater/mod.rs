@@ -308,7 +308,7 @@
 //! }
 //! ```
 //!
-//! The only required keys are "url" and "version", the others are optional.
+//! The required keys are "url", "version" and "signature"; the others are optional.
 //!
 //! "pub_date" if present must be formatted according to ISO 8601.
 //!

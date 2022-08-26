@@ -74,11 +74,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
 
       let open = options.open;
-      run_build(options, config, env, noise_level)
+      run_build(options, config, &env, noise_level)
         .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
 
       if open {
-        open_and_wait(config);
+        open_and_wait(config, &env);
       }
 
       Ok(())
@@ -90,7 +90,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AppleConfig,
-  env: Env,
+  env: &Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {

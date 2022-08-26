@@ -20,6 +20,7 @@ use cargo_mobile::{
 };
 use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
 use serde::{Deserialize, Serialize};
+use shared_child::SharedChild;
 use std::{
   collections::HashMap,
   env::set_var,
@@ -28,6 +29,10 @@ use std::{
   io::{BufRead, BufReader, Write as _},
   path::PathBuf,
   process::ExitStatus,
+  sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+  },
 };
 
 #[cfg(not(windows))]
@@ -40,34 +45,38 @@ mod init;
 #[cfg(target_os = "macos")]
 pub mod ios;
 
-pub struct DevChild(Option<bossy::Handle>);
+#[derive(Clone)]
+pub struct DevChild {
+  child: Arc<SharedChild>,
+  manually_killed_process: Arc<AtomicBool>,
+}
 
-impl Drop for DevChild {
-  fn drop(&mut self) {
-    // consume the handle since we're not waiting on it
-    // just to prevent a log error
-    // note that this doesn't leak any memory
-    self.0.take().unwrap().leak();
+impl DevChild {
+  fn new(handle: bossy::Handle) -> Self {
+    Self {
+      child: Arc::new(SharedChild::new(handle.into()).unwrap()),
+      manually_killed_process: Default::default(),
+    }
   }
 }
 
 impl DevProcess for DevChild {
-  fn kill(&mut self) -> std::io::Result<()> {
-    self
-      .0
-      .as_mut()
-      .unwrap()
-      .kill()
-      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to kill"))
+  fn kill(&self) -> std::io::Result<()> {
+    self.child.kill()?;
+    self.manually_killed_process.store(true, Ordering::Relaxed);
+    Ok(())
   }
 
-  fn try_wait(&mut self) -> std::io::Result<Option<ExitStatus>> {
-    self
-      .0
-      .as_mut()
-      .unwrap()
-      .try_wait()
-      .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "failed to wait"))
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    self.child.try_wait()
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    self.child.wait()
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_process.load(Ordering::Relaxed)
   }
 }
 
@@ -304,6 +313,7 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
       app_activity_name: None,
       app_permissions: None,
       app_theme_parent: None,
+      env_vars: None,
     },
   };
 

@@ -8,7 +8,7 @@ use crate::{
     command_env,
     config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{AppInterface, DevProcess, ExitReason, Interface},
   CommandExt, Result,
 };
 use clap::Parser;
@@ -273,6 +273,26 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
   }
 
   Ok(interface)
+}
+
+pub fn wait_dev_process<C: DevProcess + Send + 'static>(
+  child: C,
+  exit_on_panic: bool,
+  no_watch: bool,
+) {
+  std::thread::spawn(move || {
+    let status = child.wait().expect("failed to wait on app");
+    on_dev_exit(
+      status,
+      if child.manually_killed_process() {
+        ExitReason::TriggeredKill
+      } else {
+        ExitReason::NormalExit
+      },
+      exit_on_panic,
+      no_watch,
+    );
+  });
 }
 
 fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {

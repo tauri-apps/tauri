@@ -11,7 +11,10 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  android::config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+  android::{
+    config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+    env::Env,
+  },
   config::Config,
   opts::{NoiseLevel, Profile},
 };
@@ -106,7 +109,12 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
 
+  let env = env()?;
+  init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+
   let open = options.open;
+  let exit_on_panic = options.exit_on_panic;
+  let no_watch = options.no_watch;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -125,13 +133,16 @@ fn run_dev(
       write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
 
       if open {
-        open_and_wait(config)
+        open_and_wait(config, &env)
       } else {
-        match run(options, root_conf, config, metadata, noise_level) {
-          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess>),
+        match run(options, config, &env, metadata, noise_level) {
+          Ok(c) => {
+            crate::dev::wait_dev_process(c.clone(), exit_on_panic, no_watch);
+            Ok(Box::new(c) as Box<dyn DevProcess>)
+          }
           Err(Error::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
-            open_and_wait(config)
+            open_and_wait(config, &env)
           }
           Err(e) => Err(e.into()),
         }
@@ -142,8 +153,8 @@ fn run_dev(
 
 fn run(
   options: MobileOptions,
-  root_conf: &Config,
   config: &AndroidConfig,
+  env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<DevChild, Error> {
@@ -154,9 +165,6 @@ fn run(
   };
 
   let build_app_bundle = metadata.asset_packs().is_some();
-
-  let env = env()?;
-  init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
 
   device_prompt(&env)
     .map_err(Error::FailedToPromptForDevice)?
@@ -170,6 +178,6 @@ fn run(
       false,
       ".MainActivity".into(),
     )
-    .map(|c| DevChild(Some(c)))
+    .map(DevChild::new)
     .map_err(Error::RunFailed)
 }

@@ -21,7 +21,8 @@
  *         "createDir": true,
  *         "removeDir": true,
  *         "removeFile": true,
- *         "renameFile": true
+ *         "renameFile": true,
+ *         "exists": true
  *       }
  *     }
  *   }
@@ -542,6 +543,30 @@ async function renameFile(
   })
 }
 
+/**
+ * Check if a path exists.
+ * @example
+ * ```typescript
+ * import { exists, BaseDirectory } from '@tauri-apps/api/fs';
+ * // Check if the `$APPDIR/avatar.png` file exists
+ * await exists('avatar.png', { dir: BaseDirectory.App });
+ * ```
+ *
+ * @param path A path of the file or directory to check.
+ * @param options Configuration object.
+ * @returns A promise indicating the success or failure of the operation.
+ */
+async function exists(path: string, options: FsOptions = {}): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'exists',
+      path,
+      options
+    }
+  })
+}
+
 export type {
   FsOptions,
   FsDirOptions,
@@ -563,5 +588,6 @@ export {
   removeDir,
   copyFile,
   removeFile,
-  renameFile
+  renameFile,
+  exists
 }

@@ -114,6 +114,12 @@ pub(crate) enum Cmd {
     new_path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
+  /// The exists API.
+  #[cmd(fs_exists, "fs > exists")]
+  Exists {
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  },
 }
 
 impl Cmd {
@@ -333,6 +339,22 @@ impl Cmd {
       .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))
       .map_err(Into::into)
   }
+
+  #[module_command_handler(fs_exists)]
+  fn exists<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  ) -> super::Result<bool> {
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.and_then(|o| o.dir),
+    )?;
+    Ok(resolved_path.as_ref().exists())
+  }
 }
 
 #[allow(dead_code)]
@@ -466,6 +488,13 @@ mod tests {
       new_path,
       options,
     );
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_exists, "fs > exists")]
+  #[quickcheck_macros::quickcheck]
+  fn exists(path: SafePathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 }

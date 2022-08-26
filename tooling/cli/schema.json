@@ -45,6 +45,7 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
+            "exists": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -306,6 +307,7 @@
               "all": false,
               "copyFile": false,
               "createDir": false,
+              "exists": false,
               "readDir": false,
               "readFile": false,
               "removeDir": false,
@@ -1498,6 +1500,7 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
+            "exists": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -1733,6 +1736,11 @@
         },
         "renameFile": {
           "description": "Rename file from local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
+        "exists": {
+          "description": "Check if path exists on the local filesystem.",
           "default": false,
           "type": "boolean"
         }

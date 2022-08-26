@@ -494,7 +494,7 @@ mod tests {
   #[tauri_macros::module_command_test(fs_exists, "fs > exists")]
   #[quickcheck_macros::quickcheck]
   fn exists(path: SafePathBuf, options: Option<FileOperationOptions>) {
-    let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, options);
+    let res = super::Cmd::exists(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 }

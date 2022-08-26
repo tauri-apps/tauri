@@ -252,25 +252,15 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
         .ok()
         .or_else(|| config.tauri.ios.development_team.clone())
         .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable"),
-      project_dir: None,
-      ios_no_default_features: None,
+
       ios_features: ios_options.features.clone(),
-      macos_no_default_features: None,
-      macos_features: None,
       bundle_version: config.package.version.clone(),
       bundle_version_short: config.package.version.clone(),
-      ios_version: None,
-      macos_version: None,
-      use_legacy_build_system: None,
-      plist_pairs: None,
-      enable_bitcode: None,
+      ..Default::default()
     }),
     android: Some(RawAndroidConfig {
-      min_sdk_version: None,
-      vulkan_validation: None,
-      project_dir: None,
-      no_default_features: None,
       features: android_options.features.clone(),
+      ..Default::default()
     }),
   };
   let config = Config::from_raw(tauri_dir(), raw).unwrap();
@@ -280,40 +270,17 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
     apple: AppleMetadata {
       supported: true,
       ios: ApplePlatform {
-        no_default_features: false,
         cargo_args: Some(ios_options.args),
         features: ios_options.features,
-        libraries: None,
-        frameworks: None,
-        valid_archs: None,
-        vendor_frameworks: None,
-        vendor_sdks: None,
-        asset_catalogs: None,
-        pods: None,
-        pod_options: None,
-        additional_targets: None,
-        pre_build_scripts: None,
-        post_compile_scripts: None,
-        post_build_scripts: None,
-        command_line_arguments: None,
+        ..Default::default()
       },
       macos: Default::default(),
     },
     android: AndroidMetadata {
       supported: true,
-      no_default_features: false,
       cargo_args: Some(android_options.args),
       features: android_options.features,
-      app_sources: None,
-      app_plugins: None,
-      project_dependencies: None,
-      app_dependencies: None,
-      app_dependencies_platform: None,
-      asset_packs: None,
-      app_activity_name: None,
-      app_permissions: None,
-      app_theme_parent: None,
-      env_vars: None,
+      ..Default::default()
     },
   };
 

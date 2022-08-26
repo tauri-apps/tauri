@@ -148,9 +148,9 @@ fn run(
 
   let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
 
-  device_prompt(&env)
+  device_prompt(env)
     .map_err(Error::FailedToPromptForDevice)?
-    .run(config, &env, noise_level, non_interactive, profile)
+    .run(config, env, noise_level, non_interactive, profile)
     .map(DevChild::new)
     .map_err(Error::RunFailed)
 }

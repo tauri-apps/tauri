@@ -147,7 +147,7 @@ fn run_build(
   let apk_outputs = if options.apk {
     apk::build(
       config,
-      &env,
+      env,
       noise_level,
       profile,
       get_targets_or_all(Vec::new())?,
@@ -160,7 +160,7 @@ fn run_build(
   let aab_outputs = if options.aab {
     aab::build(
       config,
-      &env,
+      env,
       noise_level,
       profile,
       get_targets_or_all(Vec::new())?,

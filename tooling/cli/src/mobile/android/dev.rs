@@ -166,11 +166,11 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
-  device_prompt(&env)
+  device_prompt(env)
     .map_err(Error::FailedToPromptForDevice)?
     .run(
       config,
-      &env,
+      env,
       noise_level,
       profile,
       None,

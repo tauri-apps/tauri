@@ -135,16 +135,16 @@ fn run_build(
   call_for_targets_with_fallback(
     options.targets.iter(),
     &detect_target_ok,
-    &env,
+    env,
     |target: &Target| {
       let mut app_version = config.bundle_version().clone();
       if let Some(build_number) = options.build_number {
         app_version.push_extra(build_number);
       }
 
-      target.build(config, &env, noise_level, profile)?;
-      target.archive(config, &env, noise_level, profile, Some(app_version))?;
-      target.export(config, &env, noise_level)?;
+      target.build(config, env, noise_level, profile)?;
+      target.archive(config, env, noise_level, profile, Some(app_version))?;
+      target.export(config, env, noise_level)?;
 
       if let Ok(ipa_path) = config.ipa_path() {
         let out_dir = config.export_dir().join(target.arch);

@@ -255,7 +255,7 @@ fn get_config(
       development_team: if target == Target::Ios {
         std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
         .ok()
-        .or_else(|| config.tauri.ios.development_team.clone())
+        .or_else(|| config.tauri.bundle.ios.development_team.clone())
         .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable")
       } else {
         Default::default()

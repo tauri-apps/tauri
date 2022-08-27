@@ -124,6 +124,7 @@
           "deb": {
             "files": {}
           },
+          "iOS": {},
           "icon": [],
           "identifier": "",
           "macOS": {
@@ -144,7 +145,6 @@
             "wix": null
           }
         },
-        "iOS": {},
         "macOSPrivateApi": false,
         "pattern": {
           "use": "brownfield"
@@ -260,6 +260,7 @@
             "deb": {
               "files": {}
             },
+            "iOS": {},
             "icon": [],
             "identifier": "",
             "macOS": {
@@ -427,15 +428,6 @@
           "description": "MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.",
           "default": false,
           "type": "boolean"
-        },
-        "iOS": {
-          "description": "iOS configuration.",
-          "default": {},
-          "allOf": [
-            {
-              "$ref": "#/definitions/IosConfig"
-            }
-          ]
         }
       },
       "additionalProperties": false
@@ -1042,6 +1034,15 @@
               "$ref": "#/definitions/WindowsConfig"
             }
           ]
+        },
+        "iOS": {
+          "description": "iOS configuration.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/IosConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1485,6 +1486,20 @@
       "properties": {
         "localePath": {
           "description": "The path to a locale (`.wxl`) file. See <https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html>.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "IosConfig": {
+      "description": "General configuration for the iOS target.",
+      "type": "object",
+      "properties": {
+        "developmentTeam": {
+          "description": "The development team. This value is required for iOS development because code signing is enforced. The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [
             "string",
             "null"
@@ -2424,20 +2439,6 @@
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
           "default": true,
           "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "IosConfig": {
-      "description": "General configuration for the iOS target.",
-      "type": "object",
-      "properties": {
-        "developmentTeam": {
-          "description": "The development team. This value is required for iOS development because code signing is enforced. The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "additionalProperties": false

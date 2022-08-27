@@ -199,7 +199,11 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
   options
 }
 
-fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metadata) {
+fn get_config(
+  config: &TauriConfig,
+  cli_options: &CliOptions,
+  #[allow(unused_variables)] target: Target,
+) -> (Config, Metadata) {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
@@ -248,11 +252,14 @@ fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (Config, Metada
     },
     #[cfg(target_os = "macos")]
     apple: Some(RawAppleConfig {
-      development_team: std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
+      development_team: if target == Target::Ios {
+        std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
         .ok()
         .or_else(|| config.tauri.ios.development_team.clone())
-        .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable"),
-
+        .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable")
+      } else {
+        Default::default()
+      },
       ios_features: ios_options.features.clone(),
       bundle_version: config.package.version.clone(),
       bundle_version_short: config.package.version.clone(),

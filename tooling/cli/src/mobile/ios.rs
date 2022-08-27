@@ -115,7 +115,7 @@ fn with_config<T>(
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options = cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Ios));
-    let (config, metadata) = get_config(tauri_config_, &cli_options);
+    let (config, metadata) = get_config(tauri_config_, &cli_options, MobileTarget::Ios);
     (config, metadata, cli_options)
   };
   f(&config, config.apple(), metadata.apple(), cli_options)

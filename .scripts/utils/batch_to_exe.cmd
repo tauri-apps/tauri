@@ -1,6 +1,6 @@
 @ECHO OFF
 
-REM Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+REM Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 REM SPDX-License-Identifier: Apache-2.0
 REM SPDX-License-Identifier: MIT
 

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -105,7 +105,7 @@ async function once<T>(
 ): Promise<UnlistenFn> {
   return listen<T>(event, windowLabel, (eventData) => {
     handler(eventData)
-    _unlisten(event, eventData.id).catch(() => {})
+    _unlisten(event, eventData.id).catch(() => { })
   })
 }
 

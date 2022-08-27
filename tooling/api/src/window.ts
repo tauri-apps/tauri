@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -1125,12 +1125,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1167,12 +1167,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }

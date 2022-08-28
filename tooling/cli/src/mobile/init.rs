@@ -7,10 +7,8 @@ use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
   android::{
-    self, config::Config as AndroidConfig, env::Env as AndroidEnv, ndk,
-    target::Target as AndroidTarget,
+    config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
   },
-  bossy,
   config::app::App,
   dot_cargo,
   os::code_command,
@@ -23,7 +21,7 @@ use cargo_mobile::{
 use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
-use std::{env::current_dir, fs, io, path::PathBuf};
+use std::{env::current_dir, fs, path::PathBuf};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri Android project")]
@@ -41,39 +39,8 @@ pub fn command(mut options: Options, target: Target) -> Result<()> {
   Ok(())
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  #[error("invalid tauri configuration: {0}")]
-  InvalidTauriConfig(String),
-  #[error("failed to create asset dir {asset_dir}: {cause}")]
-  AssetDirCreation {
-    asset_dir: PathBuf,
-    cause: io::Error,
-  },
-  #[error("failed to install LLDB VS Code extension: {0}")]
-  LldbExtensionInstall(bossy::Error),
-  #[error(transparent)]
-  DotCargoLoad(dot_cargo::LoadError),
-  #[error(transparent)]
-  DotCargoGenFailed(ndk::MissingToolError),
-  #[error(transparent)]
-  HostTargetTripleDetection(util::HostTargetTripleError),
-  #[cfg(target_os = "macos")]
-  #[error(transparent)]
-  IosInit(super::ios::project::Error),
-  #[error(transparent)]
-  AndroidEnv(android::env::Error),
-  #[error(transparent)]
-  AndroidInit(super::android::project::Error),
-  #[error(transparent)]
-  DotCargoWrite(dot_cargo::WriteError),
-}
-
-pub fn init_dot_cargo(
-  app: &App,
-  android: Option<(&AndroidEnv, &AndroidConfig)>,
-) -> Result<(), Error> {
-  let mut dot_cargo = dot_cargo::DotCargo::load(app).map_err(Error::DotCargoLoad)?;
+pub fn init_dot_cargo(app: &App, android: Option<(&AndroidEnv, &AndroidConfig)>) -> Result<()> {
+  let mut dot_cargo = dot_cargo::DotCargo::load(app)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over
   // the build cache with builds that use `--target`! This means that
   // alternating between i.e. `cargo run` and `cargo apple run` would
@@ -84,21 +51,18 @@ pub fn init_dot_cargo(
   //
   // This behavior could be explained here:
   // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
-  dot_cargo
-    .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
+  dot_cargo.set_default_target(util::host_target_triple()?);
 
   if let Some((env, config)) = android {
     for target in AndroidTarget::all().values() {
       dot_cargo.insert_target(
         target.triple.to_owned(),
-        target
-          .generate_cargo_config(config, env)
-          .map_err(Error::DotCargoGenFailed)?,
+        target.generate_cargo_config(config, env)?,
       );
     }
   }
 
-  dot_cargo.write(app).map_err(Error::DotCargoWrite)
+  dot_cargo.write(app).map_err(Into::into)
 }
 
 pub fn exec(
@@ -107,9 +71,8 @@ pub fn exec(
   non_interactive: bool,
   skip_dev_tools: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
-) -> Result<App, Error> {
-  let tauri_config =
-    get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+) -> Result<App> {
+  let tauri_config = get_tauri_config(None)?;
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
@@ -117,7 +80,12 @@ pub fn exec(
 
   let asset_dir = app.asset_dir();
   if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
+    fs::create_dir_all(&asset_dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create asset dir {path}: {cause}",
+        path = asset_dir.display()
+      )
+    })?;
   }
   if !skip_dev_tools && util::command_present("code").unwrap_or_default() {
     let mut command = code_command();
@@ -125,9 +93,7 @@ pub fn exec(
     if non_interactive {
       command.add_arg("--force");
     }
-    command
-      .run_and_wait()
-      .map_err(Error::LldbExtensionInstall)?;
+    command.run_and_wait()?;
   }
 
   let (handlebars, mut map) = handlebars(&app);
@@ -173,8 +139,7 @@ pub fn exec(
         let (app, config, metadata) =
           super::android::get_config(Some(app), tauri_config_, &Default::default());
         map.insert("android", &config);
-        super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)
-          .map_err(Error::AndroidInit)?;
+        super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)?;
         init_dot_cargo(&app, Some((&env, &config)))?;
         app
       }
@@ -188,7 +153,7 @@ pub fn exec(
           init_dot_cargo(&app, None)?;
           app
         } else {
-          return Err(Error::AndroidEnv(err));
+          return Err(err.into());
         }
       }
     },
@@ -206,8 +171,7 @@ pub fn exec(
         non_interactive,
         skip_dev_tools,
         reinstall_deps,
-      )
-      .map_err(Error::IosInit)?;
+      )?;
       init_dot_cargo(&app, None)?;
       app
     }

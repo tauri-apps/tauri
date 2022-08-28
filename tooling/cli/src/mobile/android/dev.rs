@@ -1,6 +1,6 @@
 use super::{
   delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
-  Error, MobileTarget,
+  MobileTarget, PromptError,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -12,7 +12,9 @@ use clap::Parser;
 
 use cargo_mobile::{
   android::{
+    adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+    device::RunError as DeviceRunError,
     env::Env,
   },
   config::app::App,
@@ -75,10 +77,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
         WEBVIEW_CLIENT_CLASS_EXTENSION,
       );
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
-      ensure_init(config.project_dir(), MobileTarget::Android)
-        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-      run_dev(options, app, config, metadata, noise_level)
-        .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+      ensure_init(config.project_dir(), MobileTarget::Android)?;
+      run_dev(options, app, config, metadata, noise_level).map_err(Into::into)
     },
   )
   .map_err(Into::into)
@@ -110,7 +110,7 @@ fn run_dev(
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
 
   let env = env()?;
-  init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
+  init_dot_cargo(app, Some((&env, config)))?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
@@ -142,7 +142,7 @@ fn run_dev(
             });
             Ok(Box::new(c) as Box<dyn DevProcess>)
           }
-          Err(Error::FailedToPromptForDevice(e)) => {
+          Err(RunError::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
             open_and_wait(config, &env)
           }
@@ -153,13 +153,21 @@ fn run_dev(
   )
 }
 
+#[derive(Debug, thiserror::Error)]
+enum RunError {
+  #[error(transparent)]
+  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
+  #[error(transparent)]
+  RunFailed(DeviceRunError),
+}
+
 fn run(
   options: MobileOptions,
   config: &AndroidConfig,
   env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
-) -> Result<DevChild, Error> {
+) -> Result<DevChild, RunError> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -169,7 +177,7 @@ fn run(
   let build_app_bundle = metadata.asset_packs().is_some();
 
   device_prompt(env)
-    .map_err(Error::FailedToPromptForDevice)?
+    .map_err(RunError::FailedToPromptForDevice)?
     .run(
       config,
       env,
@@ -181,5 +189,5 @@ fn run(
       ".MainActivity".into(),
     )
     .map(DevChild::new)
-    .map_err(Error::RunFailed)
+    .map_err(RunError::RunFailed)
 }

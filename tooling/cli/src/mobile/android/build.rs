@@ -1,6 +1,6 @@
 use super::{
   delete_codegen_vars, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
-  Error, MobileTarget,
+  MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -75,15 +75,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
-      ensure_init(config.project_dir(), MobileTarget::Android)
-        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+      ensure_init(config.project_dir(), MobileTarget::Android)?;
 
       let env = env()?;
-      init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
+      init_dot_cargo(app, Some((&env, config)))?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)
-        .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
+      run_build(options, config, &env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -176,7 +174,7 @@ fn run_build(
   Ok(())
 }
 
-fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>, Error> {
+fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
   if targets.is_empty() {
     Ok(Target::all().iter().map(|t| t.1).collect())
   } else {
@@ -190,10 +188,11 @@ fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>, E
 
     for t in targets {
       let target = Target::for_name(&t).ok_or_else(|| {
-        Error::TargetInvalid(format!(
+        anyhow::anyhow!(
           "Target {} is invalid; the possible targets are {}",
-          t, possible_targets
-        ))
+          t,
+          possible_targets
+        )
       })?;
       outs.push(target);
     }

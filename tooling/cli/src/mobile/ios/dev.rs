@@ -1,5 +1,5 @@
 use super::{
-  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config, Error, MobileTarget,
+  device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config, MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -10,8 +10,9 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  apple::config::Config as AppleConfig,
+  apple::{config::Config as AppleConfig, device::RunError as DeviceRunError, ios_deploy},
   config::app::App,
+  device::PromptError,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
@@ -58,12 +59,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   with_config(
     Some(Default::default()),
     |app, config, _metadata, _cli_options| {
-      ensure_init(config.project_dir(), MobileTarget::Ios)
-        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-      run_dev(options, app, config, noise_level).map_err(|e| Error::DevFailed(format!("{:#}", e)))
+      ensure_init(config.project_dir(), MobileTarget::Ios)?;
+      run_dev(options, app, config, noise_level).map_err(Into::into)
     },
   )
-  .map_err(Into::into)
 }
 
 fn run_dev(
@@ -76,8 +75,7 @@ fn run_dev(
   let mut interface = crate::dev::setup(&mut dev_options)?;
 
   let bundle_identifier = {
-    let tauri_config =
-      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     tauri_config_.tauri.bundle.identifier.clone()
@@ -92,7 +90,7 @@ fn run_dev(
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let env = env()?;
-  init_dot_cargo(app, None).map_err(Error::InitDotCargo)?;
+  init_dot_cargo(app, None)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
@@ -124,7 +122,7 @@ fn run_dev(
             });
             Ok(Box::new(c) as Box<dyn DevProcess>)
           }
-          Err(Error::FailedToPromptForDevice(e)) => {
+          Err(RunError::FailedToPromptForDevice(e)) => {
             log::error!("{}", e);
             open_and_wait(config, &env)
           }
@@ -135,12 +133,19 @@ fn run_dev(
   )
 }
 
+#[derive(Debug, thiserror::Error)]
+enum RunError {
+  #[error(transparent)]
+  FailedToPromptForDevice(PromptError<ios_deploy::DeviceListError>),
+  #[error(transparent)]
+  RunFailed(DeviceRunError),
+}
 fn run(
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
   noise_level: NoiseLevel,
-) -> Result<DevChild, Error> {
+) -> Result<DevChild, RunError> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -150,8 +155,8 @@ fn run(
   let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
 
   device_prompt(env)
-    .map_err(Error::FailedToPromptForDevice)?
+    .map_err(RunError::FailedToPromptForDevice)?
     .run(config, env, noise_level, non_interactive, profile)
     .map(DevChild::new)
-    .map_err(Error::RunFailed)
+    .map_err(RunError::RunFailed)
 }

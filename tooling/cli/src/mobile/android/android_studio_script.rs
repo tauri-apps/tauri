@@ -1,4 +1,4 @@
-use super::{detect_target_ok, ensure_init, env, init_dot_cargo, with_config, Error, MobileTarget};
+use super::{detect_target_ok, ensure_init, env, init_dot_cargo, with_config, MobileTarget};
 use crate::Result;
 use clap::Parser;
 
@@ -33,11 +33,10 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   with_config(None, |app, config, metadata, cli_options| {
-    ensure_init(config.project_dir(), MobileTarget::Android)
-      .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+    ensure_init(config.project_dir(), MobileTarget::Android)?;
 
     let env = env()?;
-    init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
+    init_dot_cargo(app, Some((&env, config)))?;
 
     call_for_targets_with_fallback(
       options.targets.unwrap_or_default().iter(),
@@ -53,10 +52,9 @@ pub fn command(options: Options) -> Result<()> {
             true,
             profile,
           )
-          .map_err(Error::AndroidStudioScriptFailed)
+          .map_err(Into::into)
       },
     )
-    .map_err(|e| Error::TargetInvalid(e.to_string()))?
+    .map_err(|e| anyhow::anyhow!(e.to_string()))?
   })
-  .map_err(Into::into)
 }

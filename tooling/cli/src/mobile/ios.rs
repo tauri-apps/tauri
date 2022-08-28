@@ -8,15 +8,15 @@ use cargo_mobile::{
       Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,
       Raw as RawAppleConfig,
     },
-    device::{Device, RunError},
+    device::Device,
     ios_deploy,
-    target::{CompileLibError, Target},
+    target::Target,
   },
   config::app::App,
   device::PromptError,
-  env::{Env, Error as EnvError},
+  env::Env,
   opts::NoiseLevel,
-  os, util,
+  os,
   util::prompt,
 };
 use clap::{Parser, Subcommand};
@@ -31,49 +31,11 @@ use crate::{
   Result,
 };
 
-use std::path::PathBuf;
-
 mod build;
 mod dev;
 mod open;
 pub(crate) mod project;
 mod xcode_script;
-
-#[derive(Debug, thiserror::Error)]
-enum Error {
-  #[error(transparent)]
-  EnvInitFailed(#[from] EnvError),
-  #[error(transparent)]
-  InitDotCargo(super::init::Error),
-  #[error("invalid tauri configuration: {0}")]
-  InvalidTauriConfig(String),
-  #[error("{0}")]
-  ProjectNotInitialized(String),
-  #[error(transparent)]
-  OpenFailed(os::OpenFileError),
-  #[error("{0}")]
-  DevFailed(String),
-  #[error("{0}")]
-  BuildFailed(String),
-  #[error(transparent)]
-  NoHomeDir(util::NoHomeDir),
-  #[error("SDK root provided by Xcode was invalid. {sdk_root} doesn't exist or isn't a directory")]
-  SdkRootInvalid { sdk_root: PathBuf },
-  #[error("Include dir was invalid. {include_dir} doesn't exist or isn't a directory")]
-  IncludeDirInvalid { include_dir: PathBuf },
-  #[error("macOS SDK root was invalid. {macos_sdk_root} doesn't exist or isn't a directory")]
-  MacosSdkRootInvalid { macos_sdk_root: PathBuf },
-  #[error("Arch specified by Xcode was invalid. {arch} isn't a known arch")]
-  ArchInvalid { arch: String },
-  #[error(transparent)]
-  CompileLibFailed(CompileLibError),
-  #[error(transparent)]
-  FailedToPromptForDevice(PromptError<ios_deploy::DeviceListError>),
-  #[error(transparent)]
-  RunFailed(RunError),
-  #[error("{0}")]
-  TargetInvalid(String),
-}
 
 #[derive(Parser)]
 #[clap(
@@ -146,11 +108,10 @@ pub fn get_config(
 
 fn with_config<T>(
   cli_options: Option<CliOptions>,
-  f: impl FnOnce(&App, &AppleConfig, &AppleMetadata, CliOptions) -> Result<T, Error>,
-) -> Result<T, Error> {
+  f: impl FnOnce(&App, &AppleConfig, &AppleMetadata, CliOptions) -> Result<T>,
+) -> Result<T> {
   let (app, config, metadata, cli_options) = {
-    let tauri_config =
-      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options = cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Ios));

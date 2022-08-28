@@ -105,7 +105,7 @@ async function once<T>(
 ): Promise<UnlistenFn> {
   return listen<T>(event, windowLabel, (eventData) => {
     handler(eventData)
-    _unlisten(event, eventData.id).catch(() => { })
+    _unlisten(event, eventData.id).catch(() => {})
   })
 }
 

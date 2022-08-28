@@ -117,9 +117,9 @@ jobs:
 
       - name: test
         run: |
-          cargo test --features native-tls-vendored
-          cargo test --features native-tls-vendored,api-all
-          cargo test --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
+          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored
+          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,api-all
+          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
         env:
           WRY_ANDROID_REVERSED_DOMAIN: ${{ matrix.platform.env.WRY_ANDROID_REVERSED_DOMAIN }}
           WRY_ANDROID_APP_NAME_SNAKE_CASE: ${{ matrix.platform.env.WRY_ANDROID_APP_NAME_SNAKE_CASE }}

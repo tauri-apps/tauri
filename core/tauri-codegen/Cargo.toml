@@ -34,7 +34,7 @@ url = "2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-time = { version = "0.3", features = [ "parsing", "formatting" ] }
+time = { version = ">=0.3, <0.3.14", features = [ "parsing", "formatting" ] }
 
 [features]
 default = [ "compression" ]

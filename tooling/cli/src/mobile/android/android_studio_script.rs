@@ -32,12 +32,12 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  with_config(None, |root_conf, config, metadata, cli_options| {
+  with_config(None, |app, config, metadata, cli_options| {
     ensure_init(config.project_dir(), MobileTarget::Android)
       .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
     let env = env()?;
-    init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+    init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
 
     call_for_targets_with_fallback(
       options.targets.unwrap_or_default().iter(),

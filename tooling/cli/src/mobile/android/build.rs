@@ -71,7 +71,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |root_conf, config, _metadata, _cli_options| {
+    |app, config, _metadata, _cli_options| {
       set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
@@ -79,7 +79,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
         .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
 
       let env = env()?;
-      init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+      init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
 
       let open = options.open;
       run_build(options, config, &env, noise_level)

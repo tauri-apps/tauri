@@ -25,31 +25,47 @@ concurrency:
 
 jobs:
   test-tauri-core:
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform:
+          - {
+              target: x86_64-pc-windows-msvc,
+              os: windows-latest,
+              toolchain: '1.61.0'
+            }
+          - {
+              target: x86_64-unknown-linux-gnu,
+              os: ubuntu-latest,
+              toolchain: '1.57.0'
+            }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-latest,
+              toolchain: '1.57.0'
+            }
 
     steps:
       - uses: actions/checkout@v2
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.platform.toolchain }}
+          target: ${{ matrix.platform.target }}
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
+        if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
 
       - name: Get current date
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
+        if: matrix.platform.os == 'macos-latest' || matrix.platform.os == 'ubuntu-latest'
 
       - name: Get current date
-        if: matrix.platform == 'windows-latest'
+        if: matrix.platform.os == 'windows-latest'
         run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Cache cargo state
@@ -61,12 +77,12 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
+            ${{ matrix.platform.os }}-
 
       - name: Cache core cargo target
         uses: actions/cache@v2
@@ -75,13 +91,13 @@ jobs:
         with:
           path: target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
+            ${{ matrix.platform.os }}-
 
       - name: test
         run: |

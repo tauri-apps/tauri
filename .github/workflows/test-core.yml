@@ -18,6 +18,9 @@ env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+  WRY_ANDROID_REVERSED_DOMAIN: 'app.tauri',
+  WRY_ANDROID_APP_NAME_SNAKE_CASE: 'dev',
+  WRY_ANDROID_KOTLIN_FILES_OUT_DIR: 'out'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,13 +53,7 @@ jobs:
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.57.0',
-              env:
-                {
-                  WRY_ANDROID_REVERSED_DOMAIN: 'app.tauri',
-                  WRY_ANDROID_APP_NAME_SNAKE_CASE: 'dev',
-                  WRY_ANDROID_KOTLIN_FILES_OUT_DIR: 'out'
-                }
+              toolchain: '1.57.0'
             }
 
     steps:
@@ -116,13 +113,27 @@ jobs:
         if: contains(matrix.platform.target, 'android')
         run: mkdir out
 
-      - name: test
+      - name: pin time
         run: |
           cargo update -p time --precise 0.3.13
-          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored
-          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,api-all
-          cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
-        env:
-          WRY_ANDROID_REVERSED_DOMAIN: ${{ matrix.platform.env.WRY_ANDROID_REVERSED_DOMAIN }}
-          WRY_ANDROID_APP_NAME_SNAKE_CASE: ${{ matrix.platform.env.WRY_ANDROID_APP_NAME_SNAKE_CASE }}
-          WRY_ANDROID_KOTLIN_FILES_OUT_DIR: ${{ matrix.platform.env.WRY_ANDROID_KOTLIN_FILES_OUT_DIR }}
+
+      - name: test
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored
+
+      - name: test api-all
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored,api-all
+
+      - name: test all features
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: test
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart

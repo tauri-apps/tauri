@@ -166,16 +166,17 @@ pub fn exec(
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 
-  match target {
+  let app = match target {
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
       Ok(env) => {
-        let (_app, config, metadata) =
-          super::android::get_config(tauri_config_, &Default::default());
+        let (app, config, metadata) =
+          super::android::get_config(Some(app), tauri_config_, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)
           .map_err(Error::AndroidInit)?;
         init_dot_cargo(&app, Some((&env, &config)))?;
+        app
       }
       Err(err) => {
         if err.sdk_or_ndk_issue() {
@@ -185,6 +186,7 @@ pub fn exec(
           )
           .print(wrapper);
           init_dot_cargo(&app, None)?;
+          app
         } else {
           return Err(Error::AndroidEnv(err));
         }
@@ -193,7 +195,8 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      let (_app, config, metadata) = super::ios::get_config(tauri_config_, &Default::default());
+      let (app, config, metadata) =
+        super::ios::get_config(Some(app), tauri_config_, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
         &config,
@@ -206,6 +209,7 @@ pub fn exec(
       )
       .map_err(Error::IosInit)?;
       init_dot_cargo(&app, None)?;
+      app
     }
   };
 

@@ -33,6 +33,7 @@ jobs:
       bundler: ${{ steps.filter.outputs.bundler }}
       cli: ${{ steps.filter.outputs.cli }}
     steps:
+      - uses: actions/checkout@v2
       - uses: dorny/paths-filter@v2
         id: filter
         with:

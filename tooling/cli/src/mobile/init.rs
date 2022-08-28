@@ -193,7 +193,7 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      let (config, metadata) = super::ios::get_config(tauri_config_, &Default::default());
+      let (_app, config, metadata) = super::ios::get_config(tauri_config_, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
         &config,

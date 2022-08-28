@@ -594,6 +594,9 @@ pub struct BundleConfig {
   /// Configuration for the Windows bundle.
   #[serde(default)]
   pub windows: WindowsConfig,
+  /// iOS configuration.
+  #[serde(rename = "iOS", default)]
+  pub ios: IosConfig,
 }
 
 /// A CLI argument definition.
@@ -2085,9 +2088,6 @@ pub struct TauriConfig {
   /// MacOS private API configuration. Enables the transparent background API and sets the `fullScreenEnabled` preference to `true`.
   #[serde(rename = "macOSPrivateApi", alias = "macos-private-api", default)]
   pub macos_private_api: bool,
-  /// iOS configuration.
-  #[serde(rename = "iOS", default)]
-  pub ios: IosConfig,
 }
 
 impl TauriConfig {
@@ -3120,6 +3120,7 @@ mod build {
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
+      let ios = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -3137,7 +3138,8 @@ mod build {
         deb,
         macos,
         external_bin,
-        windows
+        windows,
+        ios
       );
     }
   }
@@ -3458,7 +3460,6 @@ mod build {
       let system_tray = opt_lit(self.system_tray.as_ref());
       let allowlist = &self.allowlist;
       let macos_private_api = self.macos_private_api;
-      let ios = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -3471,8 +3472,7 @@ mod build {
         security,
         system_tray,
         allowlist,
-        macos_private_api,
-        ios
+        macos_private_api
       );
     }
   }
@@ -3552,6 +3552,7 @@ mod test {
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),
+        ios: Default::default(),
       },
       cli: None,
       updater: UpdaterConfig {
@@ -3570,7 +3571,6 @@ mod test {
       allowlist: AllowlistConfig::default(),
       system_tray: None,
       macos_private_api: false,
-      ios: Default::default(),
     };
 
     // create a build config

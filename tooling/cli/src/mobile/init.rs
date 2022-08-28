@@ -170,7 +170,8 @@ pub fn exec(
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
       Ok(env) => {
-        let (config, metadata) = super::android::get_config(tauri_config_, &Default::default());
+        let (_app, config, metadata) =
+          super::android::get_config(tauri_config_, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)
           .map_err(Error::AndroidInit)?;

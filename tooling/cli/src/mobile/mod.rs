@@ -230,7 +230,7 @@ fn get_app(config: &TauriConfig) -> App {
   };
 
   let raw = RawAppConfig {
-    name: app_name.clone(),
+    name: app_name,
     stylized_name: config.package.product_name.clone(),
     domain,
     asset_dir: None,

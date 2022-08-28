@@ -104,7 +104,7 @@ pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
 pub fn get_config(
   config: &TauriConfig,
   cli_options: &CliOptions,
-) -> (AndroidConfig, AndroidMetadata) {
+) -> (App, AndroidConfig, AndroidMetadata) {
   let app = get_app(config);
   let android_options = cli_options.clone();
 
@@ -132,7 +132,7 @@ pub fn get_config(
     )),
   );
 
-  (config, metadata)
+  (app, config, metadata)
 }
 
 fn with_config<T>(
@@ -146,8 +146,7 @@ fn with_config<T>(
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options =
       cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android));
-    let (config, metadata) = get_config(tauri_config_, &cli_options);
-    let app = get_app(tauri_config_);
+    let (app, config, metadata) = get_config(tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };
   f(&app, &config, &metadata, cli_options)

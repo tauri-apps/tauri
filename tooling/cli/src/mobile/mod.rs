@@ -7,14 +7,9 @@ use crate::{
   interface::DevProcess,
 };
 use anyhow::{bail, Result};
-#[cfg(target_os = "macos")]
-use cargo_mobile::apple::config::{
-  Metadata as AppleMetadata, Platform as ApplePlatform, Raw as RawAppleConfig,
-};
 use cargo_mobile::{
-  android::config::{Metadata as AndroidMetadata, Raw as RawAndroidConfig},
   bossy,
-  config::{app::Raw as RawAppConfig, metadata::Metadata, Config, Raw},
+  config::app::{App, Raw as RawAppConfig},
   env::Error as EnvError,
   opts::NoiseLevel,
 };
@@ -199,11 +194,7 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
   options
 }
 
-fn get_config(
-  config: &TauriConfig,
-  cli_options: &CliOptions,
-  #[allow(unused_variables)] target: Target,
-) -> (Config, Metadata) {
+fn get_app(config: &TauriConfig) -> App {
   let mut s = config.tauri.bundle.identifier.rsplit('.');
   let app_name = s.next().unwrap_or("app").to_string();
   let mut domain = String::new();
@@ -238,75 +229,14 @@ fn get_config(
     app_name
   };
 
-  #[cfg(target_os = "macos")]
-  let ios_options = cli_options.clone();
-  let android_options = cli_options.clone();
-
-  let raw = Raw {
-    app: RawAppConfig {
-      name: app_name.clone(),
-      stylized_name: config.package.product_name.clone(),
-      domain,
-      asset_dir: None,
-      template_pack: None,
-    },
-    #[cfg(target_os = "macos")]
-    apple: Some(RawAppleConfig {
-      development_team: if target == Target::Ios {
-        std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
-        .ok()
-        .or_else(|| config.tauri.bundle.ios.development_team.clone())
-        .expect("you must set `tauri > bundle > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable")
-      } else {
-        Default::default()
-      },
-      ios_features: ios_options.features.clone(),
-      bundle_version: config.package.version.clone(),
-      bundle_version_short: config.package.version.clone(),
-      ..Default::default()
-    }),
-    android: Some(RawAndroidConfig {
-      features: android_options.features.clone(),
-      ..Default::default()
-    }),
+  let raw = RawAppConfig {
+    name: app_name,
+    stylized_name: config.package.product_name.clone(),
+    domain,
+    asset_dir: None,
+    template_pack: None,
   };
-  let config = Config::from_raw(tauri_dir(), raw).unwrap();
-
-  let metadata = Metadata {
-    #[cfg(target_os = "macos")]
-    apple: AppleMetadata {
-      supported: true,
-      ios: ApplePlatform {
-        cargo_args: Some(ios_options.args),
-        features: ios_options.features,
-        ..Default::default()
-      },
-      macos: Default::default(),
-    },
-    android: AndroidMetadata {
-      supported: true,
-      cargo_args: Some(android_options.args),
-      features: android_options.features,
-      ..Default::default()
-    },
-  };
-
-  set_var("WRY_ANDROID_REVERSED_DOMAIN", &reverse_domain);
-  set_var("WRY_ANDROID_APP_NAME_SNAKE_CASE", &app_name);
-  set_var(
-    "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    config
-      .android()
-      .project_dir()
-      .join("app/src/main")
-      .join(format!(
-        "java/{}/{}",
-        config.app().reverse_domain().replace('.', "/"),
-        config.app().name()
-      )),
-  );
-
-  (config, metadata)
+  App::from_raw(tauri_dir(), raw).unwrap()
 }
 
 fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {

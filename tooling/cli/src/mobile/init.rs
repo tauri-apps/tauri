@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_config, Target};
+use super::{get_app, Target};
 use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
 use crate::Result;
 use cargo_mobile::{
-  android::{self, env::Env as AndroidEnv, ndk, target::Target as AndroidTarget},
+  android::{
+    self, config::Config as AndroidConfig, env::Env as AndroidEnv, ndk,
+    target::Target as AndroidTarget,
+  },
   bossy,
-  config::Config,
+  config::app::App,
   dot_cargo,
   os::code_command,
   target::TargetTrait as _,
@@ -66,8 +69,11 @@ pub enum Error {
   DotCargoWrite(dot_cargo::WriteError),
 }
 
-pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Result<(), Error> {
-  let mut dot_cargo = dot_cargo::DotCargo::load(config.app()).map_err(Error::DotCargoLoad)?;
+pub fn init_dot_cargo(
+  app: &App,
+  android: Option<(&AndroidEnv, &AndroidConfig)>,
+) -> Result<(), Error> {
+  let mut dot_cargo = dot_cargo::DotCargo::load(app).map_err(Error::DotCargoLoad)?;
   // Mysteriously, builds that don't specify `--target` seem to fight over
   // the build cache with builds that use `--target`! This means that
   // alternating between i.e. `cargo run` and `cargo apple run` would
@@ -81,18 +87,18 @@ pub fn init_dot_cargo(config: &Config, android_env: Option<&AndroidEnv>) -> Resu
   dot_cargo
     .set_default_target(util::host_target_triple().map_err(Error::HostTargetTripleDetection)?);
 
-  if let Some(env) = android_env {
+  if let Some((env, config)) = android {
     for target in AndroidTarget::all().values() {
       dot_cargo.insert_target(
         target.triple.to_owned(),
         target
-          .generate_cargo_config(config.android(), env)
+          .generate_cargo_config(config, env)
           .map_err(Error::DotCargoGenFailed)?,
       );
     }
   }
 
-  dot_cargo.write(config.app()).map_err(Error::DotCargoWrite)
+  dot_cargo.write(app).map_err(Error::DotCargoWrite)
 }
 
 pub fn exec(
@@ -101,15 +107,15 @@ pub fn exec(
   non_interactive: bool,
   skip_dev_tools: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
-) -> Result<Config, Error> {
+) -> Result<App, Error> {
   let tauri_config =
     get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let (config, metadata) = get_config(tauri_config_, &Default::default(), target);
+  let app = get_app(tauri_config_);
 
-  let asset_dir = config.app().asset_dir();
+  let asset_dir = app.asset_dir();
   if !asset_dir.is_dir() {
     fs::create_dir_all(&asset_dir).map_err(|cause| Error::AssetDirCreation { asset_dir, cause })?;
   }
@@ -124,7 +130,7 @@ pub fn exec(
       .map_err(Error::LldbExtensionInstall)?;
   }
 
-  let (handlebars, mut map) = handlebars(&config);
+  let (handlebars, mut map) = handlebars(&app);
 
   let mut args = std::env::args_os();
   let tauri_binary = args
@@ -160,18 +166,17 @@ pub fn exec(
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 
-  // Generate Android Studio project
-  let android_env = if target == Target::Android {
-    match AndroidEnv::new() {
+  let app = match target {
+    // Generate Android Studio project
+    Target::Android => match AndroidEnv::new() {
       Ok(env) => {
-        super::android::project::gen(
-          config.android(),
-          metadata.android(),
-          (handlebars, map),
-          wrapper,
-        )
-        .map_err(Error::AndroidInit)?;
-        Some(env)
+        let (app, config, metadata) =
+          super::android::get_config(Some(app), tauri_config_, &Default::default());
+        map.insert("android", &config);
+        super::android::project::gen(&config, &metadata, (handlebars, map), wrapper)
+          .map_err(Error::AndroidInit)?;
+        init_dot_cargo(&app, Some((&env, &config)))?;
+        app
       }
       Err(err) => {
         if err.sdk_or_ndk_issue() {
@@ -180,19 +185,22 @@ pub fn exec(
             err,
           )
           .print(wrapper);
-          None
+          init_dot_cargo(&app, None)?;
+          app
         } else {
           return Err(Error::AndroidEnv(err));
         }
       }
-    }
-  } else {
-    // Generate Xcode project
+    },
     #[cfg(target_os = "macos")]
-    if target == Target::Ios {
+    // Generate Xcode project
+    Target::Ios => {
+      let (app, config, metadata) =
+        super::ios::get_config(Some(app), tauri_config_, &Default::default());
+      map.insert("apple", &config);
       super::ios::project::gen(
-        config.apple(),
-        metadata.apple(),
+        &config,
+        &metadata,
         (handlebars, map),
         wrapper,
         non_interactive,
@@ -200,21 +208,20 @@ pub fn exec(
         reinstall_deps,
       )
       .map_err(Error::IosInit)?;
+      init_dot_cargo(&app, None)?;
+      app
     }
-    None
   };
-
-  init_dot_cargo(&config, android_env.as_ref())?;
 
   Report::victory(
     "Project generated successfully!",
     "Make cool apps! 🌻 🐕 🎉",
   )
   .print(wrapper);
-  Ok(config)
+  Ok(app)
 }
 
-fn handlebars(config: &Config) -> (Handlebars<'static>, JsonMap) {
+fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
   let mut h = Handlebars::new();
   h.register_escape_fn(handlebars::no_escape);
 
@@ -236,10 +243,7 @@ fn handlebars(config: &Config) -> (Handlebars<'static>, JsonMap) {
   h.register_helper("unprefix-path", Box::new(unprefix_path));
 
   let mut map = JsonMap::default();
-  map.insert("app", config.app());
-  #[cfg(target_os = "macos")]
-  map.insert("apple", config.apple());
-  map.insert("android", config.android());
+  map.insert("app", app);
 
   (h, map)
 }

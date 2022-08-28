@@ -6,13 +6,12 @@ use cargo_mobile::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
-    device::{Device, RunError},
-    env::{Env, Error as AndroidEnvError},
-    target::{BuildError, Target},
+    device::Device,
+    env::Env,
+    target::Target,
   },
   config::app::App,
   device::PromptError,
-  env::Error as EnvError,
   opts::NoiseLevel,
   os,
   util::prompt,
@@ -35,34 +34,6 @@ mod build;
 mod dev;
 mod open;
 pub(crate) mod project;
-
-#[derive(Debug, thiserror::Error)]
-enum Error {
-  #[error(transparent)]
-  EnvInitFailed(EnvError),
-  #[error(transparent)]
-  AndroidEnvInitFailed(AndroidEnvError),
-  #[error(transparent)]
-  InitDotCargo(super::init::Error),
-  #[error("invalid tauri configuration: {0}")]
-  InvalidTauriConfig(String),
-  #[error("{0}")]
-  ProjectNotInitialized(String),
-  #[error(transparent)]
-  OpenFailed(os::OpenFileError),
-  #[error("{0}")]
-  DevFailed(String),
-  #[error("{0}")]
-  BuildFailed(String),
-  #[error(transparent)]
-  AndroidStudioScriptFailed(BuildError),
-  #[error(transparent)]
-  RunFailed(RunError),
-  #[error("{0}")]
-  TargetInvalid(String),
-  #[error(transparent)]
-  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
-}
 
 #[derive(Parser)]
 #[clap(
@@ -138,11 +109,10 @@ pub fn get_config(
 
 fn with_config<T>(
   cli_options: Option<CliOptions>,
-  f: impl FnOnce(&App, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T, Error>,
-) -> Result<T, Error> {
+  f: impl FnOnce(&App, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T>,
+) -> Result<T> {
   let (app, config, metadata, cli_options) = {
-    let tauri_config =
-      get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
+    let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options =
@@ -153,9 +123,9 @@ fn with_config<T>(
   f(&app, &config, &metadata, cli_options)
 }
 
-fn env() -> Result<Env, Error> {
-  let env = super::env().map_err(Error::EnvInitFailed)?;
-  cargo_mobile::android::env::Env::from_env(env).map_err(Error::AndroidEnvInitFailed)
+fn env() -> Result<Env> {
+  let env = super::env()?;
+  cargo_mobile::android::env::Env::from_env(env).map_err(Into::into)
 }
 
 fn delete_codegen_vars() {

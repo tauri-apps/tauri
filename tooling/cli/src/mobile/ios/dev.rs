@@ -11,7 +11,7 @@ use clap::Parser;
 
 use cargo_mobile::{
   apple::config::Config as AppleConfig,
-  config::Config,
+  config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
@@ -57,11 +57,10 @@ impl From<Options> for crate::dev::Options {
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   with_config(
     Some(Default::default()),
-    |root_conf, config, _metadata, _cli_options| {
+    |app, config, _metadata, _cli_options| {
       ensure_init(config.project_dir(), MobileTarget::Ios)
         .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-      run_dev(options, root_conf, config, noise_level)
-        .map_err(|e| Error::DevFailed(format!("{:#}", e)))
+      run_dev(options, app, config, noise_level).map_err(|e| Error::DevFailed(format!("{:#}", e)))
     },
   )
   .map_err(Into::into)
@@ -69,7 +68,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_dev(
   options: Options,
-  root_conf: &Config,
+  app: &App,
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
@@ -93,7 +92,7 @@ fn run_dev(
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let env = env()?;
-  init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
+  init_dot_cargo(app, None).map_err(Error::InitDotCargo)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

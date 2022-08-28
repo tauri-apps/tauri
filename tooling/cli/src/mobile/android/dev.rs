@@ -15,7 +15,7 @@ use cargo_mobile::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     env::Env,
   },
-  config::Config,
+  config::app::App,
   opts::{NoiseLevel, Profile},
 };
 
@@ -69,7 +69,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
   with_config(
     Some(Default::default()),
-    |root_conf, config, metadata, _cli_options| {
+    |app, config, metadata, _cli_options| {
       set_var(
         "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
         WEBVIEW_CLIENT_CLASS_EXTENSION,
@@ -77,7 +77,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
       ensure_init(config.project_dir(), MobileTarget::Android)
         .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
-      run_dev(options, root_conf, config, metadata, noise_level)
+      run_dev(options, app, config, metadata, noise_level)
         .map_err(|e| Error::DevFailed(format!("{:#}", e)))
     },
   )
@@ -86,7 +86,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_dev(
   options: Options,
-  root_conf: &Config,
+  app: &App,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
@@ -110,7 +110,7 @@ fn run_dev(
   let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
 
   let env = env()?;
-  init_dot_cargo(root_conf, Some(&env)).map_err(Error::InitDotCargo)?;
+  init_dot_cargo(app, Some((&env, config))).map_err(Error::InitDotCargo)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

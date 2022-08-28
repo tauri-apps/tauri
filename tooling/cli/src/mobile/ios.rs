@@ -4,12 +4,15 @@
 
 use cargo_mobile::{
   apple::{
-    config::{Config as AppleConfig, Metadata as AppleMetadata},
+    config::{
+      Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,
+      Raw as RawAppleConfig,
+    },
     device::{Device, RunError},
     ios_deploy,
     target::{CompileLibError, Target},
   },
-  config::Config,
+  config::app::App,
   device::PromptError,
   env::{Env, Error as EnvError},
   opts::NoiseLevel,
@@ -19,11 +22,14 @@ use cargo_mobile::{
 use clap::{Parser, Subcommand};
 
 use super::{
-  ensure_init, env, get_config,
+  ensure_init, env, get_app,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
   log_finished, read_options, CliOptions, Target as MobileTarget,
 };
-use crate::{helpers::config::get as get_tauri_config, Result};
+use crate::{
+  helpers::config::{get as get_tauri_config, Config as TauriConfig},
+  Result,
+};
 
 use std::path::PathBuf;
 
@@ -105,20 +111,50 @@ pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
   Ok(())
 }
 
+pub fn get_config(config: &TauriConfig, cli_options: &CliOptions) -> (AppleConfig, AppleMetadata) {
+  let app = get_app(config);
+  let ios_options = cli_options.clone();
+
+  let raw = RawAppleConfig {
+    development_team: std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
+        .ok()
+        .or_else(|| config.tauri.ios.development_team.clone())
+        .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable"),
+    ios_features: ios_options.features.clone(),
+    bundle_version: config.package.version.clone(),
+    bundle_version_short: config.package.version.clone(),
+    ..Default::default()
+  };
+  let config = AppleConfig::from_raw(app, Some(raw)).unwrap();
+
+  let metadata = AppleMetadata {
+    supported: true,
+    ios: ApplePlatform {
+      cargo_args: Some(ios_options.args),
+      features: ios_options.features,
+      ..Default::default()
+    },
+    macos: Default::default(),
+  };
+
+  (config, metadata)
+}
+
 fn with_config<T>(
   cli_options: Option<CliOptions>,
-  f: impl FnOnce(&Config, &AppleConfig, &AppleMetadata, CliOptions) -> Result<T, Error>,
+  f: impl FnOnce(&App, &AppleConfig, &AppleMetadata, CliOptions) -> Result<T, Error>,
 ) -> Result<T, Error> {
-  let (config, metadata, cli_options) = {
+  let (app, config, metadata, cli_options) = {
     let tauri_config =
       get_tauri_config(None).map_err(|e| Error::InvalidTauriConfig(e.to_string()))?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options = cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Ios));
-    let (config, metadata) = get_config(tauri_config_, &cli_options, MobileTarget::Ios);
-    (config, metadata, cli_options)
+    let (config, metadata) = get_config(tauri_config_, &cli_options);
+    let app = get_app(tauri_config_);
+    (app, config, metadata, cli_options)
   };
-  f(&config, config.apple(), metadata.apple(), cli_options)
+  f(&app, &config, &metadata, cli_options)
 }
 
 fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::template;
+use crate::{helpers::template, Result};
+use anyhow::Context;
 use cargo_mobile::{
   apple::{
     config::{Config, Metadata},
@@ -23,29 +24,6 @@ use std::{
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  #[error(transparent)]
-  Rustup(bossy::Error),
-  #[error(transparent)]
-  RustVersionCheck(util::RustVersionError),
-  #[error("failed to install Apple dependencies: {0}")]
-  DepsInstall(deps::Error),
-  #[error("failed to process template: {0}")]
-  TemplateProcessing(String),
-  #[error("failed to symlink asset directory")]
-  AssetDirSymlink,
-  #[error("failed to create directory at {path}: {cause}")]
-  DirectoryCreation {
-    path: PathBuf,
-    cause: std::io::Error,
-  },
-  #[error("failed to run `xcodegen`: {0}")]
-  Xcodegen(bossy::Error),
-  #[error("failed to run `pod install`: {0}")]
-  PodInstall(bossy::Error),
-}
-
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that
 pub fn gen(
@@ -56,13 +34,13 @@ pub fn gen(
   non_interactive: bool,
   skip_dev_tools: bool,
   reinstall_deps: bool,
-) -> Result<(), Error> {
+) -> Result<()> {
   println!("Installing iOS toolchains...");
-  Target::install_all().map_err(Error::Rustup)?;
-  rust_version_check(wrapper).map_err(Error::RustVersionCheck)?;
+  Target::install_all()?;
+  rust_version_check(wrapper)?;
 
   deps::install_all(wrapper, non_interactive, skip_dev_tools, reinstall_deps)
-    .map_err(Error::DepsInstall)?;
+    .with_context(|| "failed to install Apple dependencies")?;
 
   let dest = config.project_dir();
   let rel_prefix = util::relativize_path(config.app().root_dir(), &dest);
@@ -161,16 +139,18 @@ pub fn gen(
       File::create(path)
     },
   )
-  .map_err(|e| Error::TemplateProcessing(e.to_string()))?;
+  .with_context(|| "failed to process template")?;
 
   ln::force_symlink_relative(config.app().asset_dir(), &dest, ln::TargetStyle::Directory)
-    .map_err(|_| Error::AssetDirSymlink)?;
+    .map_err(|_| anyhow::anyhow!("failed to symlink asset directory"))?;
 
   // Create all asset catalog directories if they don't already exist
   for dir in asset_catalogs {
-    std::fs::create_dir_all(dir).map_err(|cause| Error::DirectoryCreation {
-      path: dest.clone(),
-      cause,
+    std::fs::create_dir_all(dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create directory at {path}: {cause}",
+        path = dir.display()
+      )
     })?;
   }
 
@@ -181,13 +161,13 @@ pub fn gen(
     .with_args(&["generate", "--spec"])
     .with_arg(dest.join("project.yml"))
     .run_and_wait()
-    .map_err(Error::Xcodegen)?;
+    .with_context(|| "failed to run `xcodegen`")?;
 
   if !ios_pods.is_empty() || !macos_pods.is_empty() {
     bossy::Command::impure_parse("pod install")
       .with_arg(format!("--project-directory={}", dest.display()))
       .run_and_wait()
-      .map_err(Error::PodInstall)?;
+      .with_context(|| "failed to run `pod install`")?;
   }
   Ok(())
 }

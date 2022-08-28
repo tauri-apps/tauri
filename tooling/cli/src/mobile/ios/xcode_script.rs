@@ -1,4 +1,4 @@
-use super::{env, init_dot_cargo, with_config, Error};
+use super::{env, init_dot_cargo, with_config};
 use crate::Result;
 use clap::Parser;
 
@@ -43,24 +43,24 @@ pub fn command(options: Options) -> Result<()> {
 
   with_config(None, |root_conf, config, metadata, cli_options| {
     let env = env()?;
-    init_dot_cargo(root_conf, None).map_err(Error::InitDotCargo)?;
+    init_dot_cargo(root_conf, None)?;
     // The `PATH` env var Xcode gives us is missing any additions
     // made by the user's profile, so we'll manually add cargo's
     // `PATH`.
-    let env = env.prepend_to_path(
-      util::home_dir()
-        .map_err(Error::NoHomeDir)?
-        .join(".cargo/bin"),
-    );
+    let env = env.prepend_to_path(util::home_dir()?.join(".cargo/bin"));
 
     if !options.sdk_root.is_dir() {
-      return Err(Error::SdkRootInvalid {
-        sdk_root: options.sdk_root,
-      });
+      return Err(anyhow::anyhow!(
+        "SDK root provided by Xcode was invalid. {} doesn't exist or isn't a directory",
+        options.sdk_root.display(),
+      ));
     }
     let include_dir = options.sdk_root.join("usr/include");
     if !include_dir.is_dir() {
-      return Err(Error::IncludeDirInvalid { include_dir });
+      return Err(anyhow::anyhow!(
+        "Include dir was invalid. {} doesn't exist or isn't a directory",
+        include_dir.display()
+      ));
     }
 
     let mut host_env = HashMap::<&str, &OsStr>::new();
@@ -71,7 +71,10 @@ pub fn command(options: Options) -> Result<()> {
         .sdk_root
         .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
       if !macos_sdk_root.is_dir() {
-        return Err(Error::MacosSdkRootInvalid { macos_sdk_root });
+        return Err(anyhow::anyhow!(
+          "macOS SDK root was invalid. {0} doesn't exist or isn't a directory",
+          macos_sdk_root.display()
+        ));
       }
       (
         format!("-isysroot {}", macos_sdk_root.display()),
@@ -98,7 +101,12 @@ pub fn command(options: Options) -> Result<()> {
       let triple = match arch.as_str() {
         "arm64" => "aarch64_apple_ios",
         "x86_64" => "x86_64_apple_ios",
-        _ => return Err(Error::ArchInvalid { arch }),
+        _ => {
+          return Err(anyhow::anyhow!(
+            "Arch specified by Xcode was invalid. {} isn't a known arch",
+            arch
+          ))
+        }
       };
       let cflags = format!("CFLAGS_{}", triple);
       let cxxflags = format!("CFLAGS_{}", triple);
@@ -114,21 +122,22 @@ pub fn command(options: Options) -> Result<()> {
       let target = if macos {
         &macos_target
       } else {
-        Target::for_arch(&arch).ok_or_else(|| Error::ArchInvalid {
-          arch: arch.to_owned(),
+        Target::for_arch(&arch).ok_or_else(|| {
+          anyhow::anyhow!(
+            "Arch specified by Xcode was invalid. {} isn't a known arch",
+            arch
+          )
         })?
       };
-      target
-        .compile_lib(
-          config,
-          metadata,
-          cli_options.noise_level,
-          true,
-          profile,
-          &env,
-          target_env,
-        )
-        .map_err(Error::CompileLibFailed)?;
+      target.compile_lib(
+        config,
+        metadata,
+        cli_options.noise_level,
+        true,
+        profile,
+        &env,
+        target_env,
+      )?;
     }
     Ok(())
   })

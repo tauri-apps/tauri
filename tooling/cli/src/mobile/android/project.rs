@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::template;
+use crate::{helpers::template, Result};
+use anyhow::Context;
 use cargo_mobile::{
   android::{
     config::{Config, Metadata},
     target::Target,
   },
-  bossy, os,
+  os,
   target::TargetTrait as _,
   util::{
     self,
@@ -19,45 +20,18 @@ use cargo_mobile::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 
-use std::{
-  ffi::OsStr,
-  fs,
-  path::{Path, PathBuf},
-};
+use std::{ffi::OsStr, fs, path::Path};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-  #[error("failed to run rustup: {0}")]
-  RustupFailed(bossy::Error),
-  #[error("failed to process template: {0}")]
-  TemplateProcessingFailed(String),
-  #[error("failed to create directory at {path}: {cause}")]
-  DirectoryCreationFailed {
-    path: PathBuf,
-    cause: std::io::Error,
-  },
-  #[error("failed to symlink asset directory")]
-  AssetDirSymlinkFailed,
-  #[error("failed to copy {src} to {dest}: {cause}")]
-  FileCopyFailed {
-    src: PathBuf,
-    dest: PathBuf,
-    cause: std::io::Error,
-  },
-  #[error("asset source {0} is invalid")]
-  AssetSourceInvalid(PathBuf),
-}
 
 pub fn gen(
   config: &Config,
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
-) -> Result<(), Error> {
+) -> Result<()> {
   println!("Installing Android toolchains...");
-  Target::install_all().map_err(Error::RustupFailed)?;
+  Target::install_all().with_context(|| "failed to run rustup")?;
   println!("Generating Android Studio project...");
   let dest = config.project_dir();
   let asset_packs = metadata.asset_packs().unwrap_or_default();
@@ -143,7 +117,7 @@ pub fn gen(
       options.create_new(true).write(true).open(path)
     },
   )
-  .map_err(|e| Error::TemplateProcessingFailed(e.to_string()))?;
+  .with_context(|| "failed to process template")?;
 
   if !asset_packs.is_empty() {
     Report::action_request(
@@ -157,23 +131,27 @@ pub fn gen(
     let source_src = config.app().root_dir().join(&source);
     let source_file = source_src
       .file_name()
-      .ok_or_else(|| Error::AssetSourceInvalid(source_src.clone()))?;
+      .ok_or_else(|| anyhow::anyhow!("asset source {} is invalid", source_src.display()))?;
     fs::copy(&source_src, source_dest.join(source_file)).map_err(|cause| {
-      Error::FileCopyFailed {
-        src: source_src,
-        dest: source_dest.clone(),
-        cause,
-      }
+      anyhow::anyhow!(
+        "failed to copy {} to {}: {}",
+        source_src.display(),
+        source_dest.display(),
+        cause
+      )
     })?;
   }
 
   let dest = prefix_path(dest, "app/src/main/");
-  fs::create_dir_all(&dest).map_err(|cause| Error::DirectoryCreationFailed {
-    path: dest.clone(),
-    cause,
+  fs::create_dir_all(&dest).map_err(|cause| {
+    anyhow::anyhow!(
+      "failed to create directory at {}: {}",
+      dest.display(),
+      cause
+    )
   })?;
   os::ln::force_symlink_relative(config.app().asset_dir(), dest, ln::TargetStyle::Directory)
-    .map_err(|_| Error::AssetDirSymlinkFailed)?;
+    .map_err(|_| anyhow::anyhow!("failed to symlink asset directory"))?;
 
   Ok(())
 }

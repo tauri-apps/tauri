@@ -1,6 +1,6 @@
 use super::{
   detect_target_ok, ensure_init, env, init_dot_cargo, log_finished, open_and_wait, with_config,
-  Error, MobileTarget,
+  MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -67,15 +67,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   with_config(
     Some(Default::default()),
     |app, config, _metadata, _cli_options| {
-      ensure_init(config.project_dir(), MobileTarget::Ios)
-        .map_err(|e| Error::ProjectNotInitialized(e.to_string()))?;
+      ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
       let env = env()?;
-      init_dot_cargo(app, None).map_err(Error::InitDotCargo)?;
+      init_dot_cargo(app, None)?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)
-        .map_err(|e| Error::BuildFailed(format!("{:#}", e)))?;
+      run_build(options, config, &env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -157,7 +155,7 @@ fn run_build(
       anyhow::Result::Ok(())
     },
   )
-  .map_err(|e: TargetInvalid| Error::TargetInvalid(e.to_string()))?
+  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))?
   .map_err(|e: anyhow::Error| e)?;
 
   log_finished(out_files, "IPA");

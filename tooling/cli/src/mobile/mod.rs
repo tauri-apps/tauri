@@ -7,7 +7,6 @@ use crate::{
   interface::DevProcess,
 };
 use anyhow::{bail, Result};
-#[cfg(target_os = "macos")]
 use cargo_mobile::{
   bossy,
   config::app::{App, Raw as RawAppConfig},

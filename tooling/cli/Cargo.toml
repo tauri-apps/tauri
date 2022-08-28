@@ -19,7 +19,8 @@ include = [
   "*.json",
   "*.rs",
   "tauri.gitignore",
-  "tauri-dev-watcher.gitignore"
+  "tauri-dev-watcher.gitignore",
+  "LICENSE*"
 ]
 
 [[bin]]

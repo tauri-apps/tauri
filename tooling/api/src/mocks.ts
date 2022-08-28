@@ -35,10 +35,31 @@ interface IPCMessage {
  * })
  * ```
  *
+ * The callback function can also return a Promise:
+ * ```js
+ * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
+ * import { invoke } from "@tauri-apps/api/tauri"
+ *
+ * afterEach(() => {
+ *    clearMocks()
+ * })
+ *
+ * test("mocked command", () => {
+ *  mockIPC((cmd, args) => {
+ *   if(cmd === "get_data") {
+ *    return fetch("https://example.com/data.json")
+ *      .then((response) => response.json())
+ *   }
+ *  });
+ *
+ *  expect(invoke('get_data')).resolves.toBe({ foo: 'bar' });
+ * })
+ * ```
+ *
  * @param cb
  */
 export function mockIPC(
-  cb: (cmd: string, args: Record<string, unknown>) => any
+  cb: (cmd: string, args: Record<string, unknown>) => any | Promise<any>
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   window.__TAURI_IPC__ = async ({

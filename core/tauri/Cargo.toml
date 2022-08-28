@@ -7,7 +7,6 @@ rust-version = "1.57"
 exclude = [
   "/test",
   "/.scripts",
-  ".license_template",
   "CHANGELOG.md",
   "/target"
 ]

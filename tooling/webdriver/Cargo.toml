@@ -10,7 +10,6 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Webdriver server for Tauri applications"
 readme = "README.md"
-exclude = [ ".license_template", "/target" ]
 edition = "2021"
 rust-version = "1.57"
 

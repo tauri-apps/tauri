@@ -118,6 +118,7 @@ jobs:
 
       - name: test
         run: |
+          cargo update -p time --precise 0.3.13
           cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored
           cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,api-all
           cargo test --target ${{ matrix.platform.target }} --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart

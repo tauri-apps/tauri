@@ -179,14 +179,24 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
     .set_nonblocking(true)
     .expect("failed to set local socket stream to nonblocking");
   let mut conn = BufReader::new(conn);
-  let mut buffer = String::new();
-  conn.read_line(&mut buffer).unwrap_or_else(|_| {
-    log::error!(
+
+  let mut attempt = 0;
+  let max_tries = 5;
+  let buffer = loop {
+    let mut buffer = String::new();
+    if conn.read_line(&mut buffer).is_ok() {
+      break buffer;
+    }
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    attempt += 1;
+    if attempt == max_tries {
+      log::error!(
       "failed to connect to local socket. You must keep the Tauri CLI alive with the `{cmd} dev` or `{cmd} build --open` commands.",
       cmd = target.command_name()
     );
-    std::process::exit(1);
-  });
+      std::process::exit(1);
+    }
+  };
   let options: CliOptions = serde_json::from_str(&buffer).expect("invalid CLI options");
   for (k, v) in &options.vars {
     set_var(k, v);

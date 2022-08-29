@@ -7,6 +7,7 @@ use cargo_mobile::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
     device::Device,
+    emulator,
     env::Env,
     target::Target,
   },
@@ -17,7 +18,11 @@ use cargo_mobile::{
   util::prompt,
 };
 use clap::{Parser, Subcommand};
-use std::env::set_var;
+use std::{
+  env::set_var,
+  thread::{sleep, spawn},
+  time::Duration,
+};
 
 use super::{
   ensure_init, get_app,
@@ -136,7 +141,7 @@ fn delete_codegen_vars() {
   }
 }
 
-fn device_prompt<'a>(
+fn adb_device_prompt<'a>(
   env: &'_ Env,
   target: Option<&str>,
 ) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
@@ -175,6 +180,65 @@ fn device_prompt<'a>(
   }
 }
 
+fn emulator_prompt(
+  env: &'_ Env,
+  target: Option<&str>,
+) -> Result<emulator::Emulator, PromptError<adb::device_list::Error>> {
+  let emulator_list = emulator::avd_list(env).unwrap_or_default();
+  if emulator_list.is_empty() {
+    Err(PromptError::none_detected("Android emulator"))
+  } else {
+    let index = if emulator_list.len() > 1 {
+      if let Some(t) = target {
+        let t = t.to_lowercase();
+        emulator_list
+          .iter()
+          .position(|d| d.name().to_lowercase().starts_with(&t))
+          .unwrap_or_default()
+      } else {
+        prompt::list(
+          concat!("Detected ", "Android", " emulators"),
+          emulator_list.iter(),
+          "emulator",
+          None,
+          "Emulator",
+        )
+        .map_err(|cause| PromptError::prompt_failed("Android emulator", cause))?
+      }
+    } else {
+      0
+    };
+
+    Ok(emulator_list.iter().nth(index).cloned().unwrap())
+  }
+}
+
+fn device_prompt<'a>(
+  env: &'_ Env,
+  target: Option<&str>,
+) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
+  if let Ok(device) = adb_device_prompt(env, target) {
+    Ok(device)
+  } else {
+    let emulator = emulator_prompt(env, target)?;
+    let handle = emulator.start(env).map_err(|e| {
+      PromptError::prompt_failed(
+        "Android emulator",
+        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
+      )
+    })?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+    loop {
+      sleep(Duration::from_secs(2));
+      if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
+        return Ok(device);
+      }
+    }
+  }
+}
+
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
   device_prompt(env, None).map(|device| device.target()).ok()
 }
@@ -185,6 +249,6 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
     log::error!("{}", e);
   }
   loop {
-    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
+    sleep(Duration::from_secs(24 * 60 * 60));
   }
 }

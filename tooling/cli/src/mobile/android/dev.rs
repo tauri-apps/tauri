@@ -128,7 +128,7 @@ fn run_dev(
         .starts_with(&device.to_lowercase())
       {
         log::info!("Starting emulator {}", emulator.name());
-        let handle = emulator.run(&env)?;
+        let handle = emulator.start(&env)?;
         spawn(move || {
           let _ = handle.wait();
         });

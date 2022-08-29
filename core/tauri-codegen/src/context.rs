@@ -155,6 +155,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     panic!("unknown codegen target");
   };
 
+  #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
   if dev && (target == Target::Ios || target == Target::Android) {
     if let AppUrl::Url(WindowUrl::External(url)) = &mut config.build.dev_path {
       let localhost = match url.host() {

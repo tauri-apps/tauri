@@ -18,6 +18,9 @@ env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+  WRY_ANDROID_REVERSED_DOMAIN: 'app.tauri'
+  WRY_ANDROID_APP_NAME_SNAKE_CASE: 'dev'
+  WRY_ANDROID_KOTLIN_FILES_OUT_DIR: 'out'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,17 +37,37 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.61.0'
+              toolchain: '1.61.0',
+              cross: false,
+              command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.57.0'
+              toolchain: '1.57.0',
+              cross: false,
+              command: 'test'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.57.0'
+              toolchain: '1.57.0',
+              cross: false,
+              command: 'test'
+            }
+          - {
+              target: aarch64-apple-ios,
+              os: macos-latest,
+              toolchain: '1.57.0',
+              cross: false,
+              acommand: 'build'
+            }
+          - {
+              target: aarch64-linux-android,
+              os: ubuntu-latest,
+              toolchain: '1.57.0',
+              cross: true,
+              command: 'build'
             }
 
     steps:
@@ -54,6 +77,7 @@ jobs:
         with:
           toolchain: ${{ matrix.platform.toolchain }}
           target: ${{ matrix.platform.target }}
+          override: true
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
@@ -99,8 +123,31 @@ jobs:
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
             ${{ matrix.platform.os }}-
 
-      - name: test
+      - name: create kotlin out dir
+        if: contains(matrix.platform.target, 'android')
+        run: mkdir out
+
+      - name: pin time
         run: |
-          cargo test --target ${{ matrix.platform.target }}
-          cargo test --target ${{ matrix.platform.target }} --features api-all
-          cargo test --target ${{ matrix.platform.target }} --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
+          cargo update -p time --precise 0.3.13
+
+      - name: test
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.platform.cross }}
+          command: ${{ matrix.platform.command }}
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored
+
+      - name: test api-all
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.platform.cross }}
+          command: ${{ matrix.platform.command }}
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored,api-all
+
+      - name: test all features
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.platform.cross }}
+          command: ${{ matrix.platform.command }}
+          args: --target ${{ matrix.platform.target }} --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart

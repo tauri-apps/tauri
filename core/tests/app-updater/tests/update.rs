@@ -100,7 +100,12 @@ fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
 
 #[cfg(target_os = "ios")]
 fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
-  root_dir.join(format!("target/debug/bundle/ios/app-updater.app"))
+  root_dir.join(format!("target/debug/bundle/ios/app-updater.ipa"))
+}
+
+#[cfg(target_os = "android")]
+fn bundle_path(root_dir: &Path, _version: &str) -> PathBuf {
+  root_dir.join(format!("target/debug/bundle/android/app-updater.apk"))
 }
 
 #[cfg(windows)]

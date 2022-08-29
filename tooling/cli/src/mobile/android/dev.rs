@@ -15,13 +15,18 @@ use cargo_mobile::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::RunError as DeviceRunError,
+    emulator,
     env::Env,
   },
   config::app::App,
   opts::{NoiseLevel, Profile},
 };
 
-use std::env::set_var;
+use std::{
+  env::set_var,
+  thread::{sleep, spawn},
+  time::Duration,
+};
 
 const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
     @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
@@ -50,6 +55,8 @@ pub struct Options {
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
+  /// Runs on the given device name
+  pub device: Option<String>,
 }
 
 impl From<Options> for crate::dev::Options {
@@ -112,9 +119,29 @@ fn run_dev(
   let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;
 
+  if let Some(device) = &options.device {
+    let emulators = emulator::avd_list(&env).unwrap_or_default();
+    for emulator in emulators {
+      if emulator
+        .name()
+        .to_lowercase()
+        .starts_with(&device.to_lowercase())
+      {
+        log::info!("Starting emulator {}", emulator.name());
+        let handle = emulator.run(&env)?;
+        spawn(move || {
+          let _ = handle.wait();
+        });
+        sleep(Duration::from_secs(3));
+        break;
+      }
+    }
+  }
+
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
+  let device = options.device;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -135,7 +162,14 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else {
-        match run(options, config, &env, metadata, noise_level) {
+        match run(
+          device.as_deref(),
+          options,
+          config,
+          &env,
+          metadata,
+          noise_level,
+        ) {
           Ok(c) => {
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
@@ -162,6 +196,7 @@ enum RunError {
 }
 
 fn run(
+  device: Option<&str>,
   options: MobileOptions,
   config: &AndroidConfig,
   env: &Env,
@@ -176,7 +211,7 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
-  device_prompt(env)
+  device_prompt(env, device)
     .map_err(RunError::FailedToPromptForDevice)?
     .run(
       config,

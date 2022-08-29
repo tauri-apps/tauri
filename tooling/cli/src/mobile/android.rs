@@ -136,19 +136,30 @@ fn delete_codegen_vars() {
   }
 }
 
-fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
+fn device_prompt<'a>(
+  env: &'_ Env,
+  target: Option<&str>,
+) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
   let device_list =
     adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
   if !device_list.is_empty() {
     let index = if device_list.len() > 1 {
-      prompt::list(
-        concat!("Detected ", "Android", " devices"),
-        device_list.iter(),
-        "device",
-        None,
-        "Device",
-      )
-      .map_err(|cause| PromptError::prompt_failed("Android", cause))?
+      if let Some(t) = target {
+        let t = t.to_lowercase();
+        device_list
+          .iter()
+          .position(|d| d.name().to_lowercase().starts_with(&t))
+          .unwrap_or_default()
+      } else {
+        prompt::list(
+          concat!("Detected ", "Android", " devices"),
+          device_list.iter(),
+          "device",
+          None,
+          "Device",
+        )
+        .map_err(|cause| PromptError::prompt_failed("Android", cause))?
+      }
     } else {
       0
     };
@@ -165,7 +176,7 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<adb::device
 }
 
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
-  device_prompt(env).map(|device| device.target()).ok()
+  device_prompt(env, None).map(|device| device.target()).ok()
 }
 
 fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {

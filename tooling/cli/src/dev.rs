@@ -56,7 +56,7 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
   pub args: Vec<String>,
   /// Disable the file watcher
   #[clap(long)]

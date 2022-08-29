@@ -59,7 +59,7 @@ jobs:
               target: aarch64-apple-ios,
               os: macos-latest,
               toolchain: '1.57.0',
-              cross: true,
+              cross: false,
               acommand: 'build'
             }
           - {

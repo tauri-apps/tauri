@@ -54,6 +54,7 @@ jobs:
         with:
           toolchain: ${{ matrix.platform.toolchain }}
           target: ${{ matrix.platform.target }}
+          override: true
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
@@ -98,6 +99,10 @@ jobs:
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
             ${{ matrix.platform.os }}-
+
+      - name: pin time
+        run: |
+          cargo update -p time --precise 0.3.13
 
       - name: test
         run: |

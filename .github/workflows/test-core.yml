@@ -67,7 +67,7 @@ jobs:
               os: ubuntu-latest,
               toolchain: '1.57.0',
               cross: true,
-              command: 'test'
+              command: 'build'
             }
 
     steps:

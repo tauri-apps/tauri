@@ -102,9 +102,9 @@ type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
 pub use tauri_runtime::TrayId;
 
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 mod webview;
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 pub use webview::Webview;
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -987,7 +987,7 @@ pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
 pub enum WindowMessage {
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
   AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
@@ -1133,7 +1133,7 @@ pub struct WryDispatcher<T: UserEvent> {
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
 impl<T: UserEvent> WryDispatcher<T> {
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2166,7 +2166,7 @@ fn handle_user_message<T: UserEvent>(
         });
         if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
-            #[cfg(desktop)]
+            #[cfg(any(target_os = "android", desktop))]
             WindowMessage::WithWebview(f) => {
               if let WindowHandle::Webview(w) = window {
                 #[cfg(any(
@@ -2189,12 +2189,16 @@ fn handle_user_message<T: UserEvent>(
                     ns_window: w.ns_window(),
                   });
                 }
-
                 #[cfg(windows)]
                 {
                   f(Webview {
                     controller: w.controller(),
                   });
+                }
+                #[cfg(target_os = "android")]
+                {
+                  use wry::webview::WebviewExtAndroid;
+                  f(w.handle())
                 }
               }
             }

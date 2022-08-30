@@ -10,11 +10,15 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  apple::{config::Config as AppleConfig, device::RunError as DeviceRunError, ios_deploy},
+  apple::{config::Config as AppleConfig, device::RunError as DeviceRunError, simctl},
   config::app::App,
-  device::PromptError,
   env::Env,
   opts::{NoiseLevel, Profile},
+};
+
+use std::{
+  thread::{sleep, spawn},
+  time::Duration,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -38,6 +42,8 @@ pub struct Options {
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
+  /// Runs on the given device name
+  pub device: Option<String>,
 }
 
 impl From<Options> for crate::dev::Options {
@@ -92,9 +98,29 @@ fn run_dev(
   let env = env()?;
   init_dot_cargo(app, None)?;
 
+  if let Some(device) = &options.device {
+    let simulators = simctl::device_list(&env).unwrap_or_default();
+    for simulator in simulators {
+      if simulator
+        .name()
+        .to_lowercase()
+        .starts_with(&device.to_lowercase())
+      {
+        log::info!("Starting simulator {}", simulator.name());
+        let handle = simulator.start(&env)?;
+        spawn(move || {
+          let _ = handle.wait();
+        });
+        sleep(Duration::from_secs(3));
+        break;
+      }
+    }
+  }
+
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
+  let device = options.device;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -115,7 +141,7 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else {
-        match run(options, config, &env, noise_level) {
+        match run(device.as_deref(), options, config, &env, noise_level) {
           Ok(c) => {
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
@@ -135,12 +161,13 @@ fn run_dev(
 
 #[derive(Debug, thiserror::Error)]
 enum RunError {
-  #[error(transparent)]
-  FailedToPromptForDevice(PromptError<ios_deploy::DeviceListError>),
+  #[error("{0}")]
+  FailedToPromptForDevice(String),
   #[error(transparent)]
   RunFailed(DeviceRunError),
 }
 fn run(
+  device: Option<&str>,
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
@@ -154,8 +181,8 @@ fn run(
 
   let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
 
-  device_prompt(env)
-    .map_err(RunError::FailedToPromptForDevice)?
+  device_prompt(env, device)
+    .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
     .run(config, env, noise_level, non_interactive, profile)
     .map(DevChild::new)
     .map_err(RunError::RunFailed)

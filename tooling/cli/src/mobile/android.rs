@@ -209,7 +209,7 @@ fn emulator_prompt(
       0
     };
 
-    Ok(emulator_list.iter().nth(index).cloned().unwrap())
+    Ok(emulator_list.into_iter().nth(index).unwrap())
   }
 }
 

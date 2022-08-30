@@ -9,7 +9,7 @@ use cargo_mobile::{
       Raw as RawAppleConfig,
     },
     device::Device,
-    ios_deploy,
+    ios_deploy, simctl,
     target::Target,
   },
   config::app::App,
@@ -29,6 +29,11 @@ use super::{
 use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},
   Result,
+};
+
+use std::{
+  thread::{sleep, spawn},
+  time::Duration,
 };
 
 mod build;
@@ -121,19 +126,30 @@ fn with_config<T>(
   f(&app, &config, &metadata, cli_options)
 }
 
-fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
+fn ios_deploy_device_prompt<'a>(
+  env: &'_ Env,
+  target: Option<&str>,
+) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
   let device_list =
     ios_deploy::device_list(env).map_err(|cause| PromptError::detection_failed("iOS", cause))?;
   if !device_list.is_empty() {
     let index = if device_list.len() > 1 {
-      prompt::list(
-        concat!("Detected ", "iOS", " devices"),
-        device_list.iter(),
-        "device",
-        None,
-        "Device",
-      )
-      .map_err(|cause| PromptError::prompt_failed("iOS", cause))?
+      if let Some(t) = target {
+        let t = t.to_lowercase();
+        device_list
+          .iter()
+          .position(|d| d.name().to_lowercase().starts_with(&t))
+          .unwrap_or_default()
+      } else {
+        prompt::list(
+          concat!("Detected ", "iOS", " devices"),
+          device_list.iter(),
+          "device",
+          None,
+          "Device",
+        )
+        .map_err(|cause| PromptError::prompt_failed("iOS", cause))?
+      }
     } else {
       0
     };
@@ -149,8 +165,55 @@ fn device_prompt<'a>(env: &'_ Env) -> Result<Device<'a>, PromptError<ios_deploy:
   }
 }
 
+fn simulator_prompt(
+  env: &'_ Env,
+  target: Option<&str>,
+) -> Result<simctl::Device, PromptError<simctl::DeviceListError>> {
+  let simulator_list = simctl::device_list(env)
+    .map_err(|cause| PromptError::detection_failed("iOS Simulator", cause))?;
+  if !simulator_list.is_empty() {
+    let index = if simulator_list.len() > 1 {
+      if let Some(t) = target {
+        let t = t.to_lowercase();
+        simulator_list
+          .iter()
+          .position(|d| d.name().to_lowercase().starts_with(&t))
+          .unwrap_or_default()
+      } else {
+        prompt::list(
+          concat!("Detected ", "iOS", " simulators"),
+          simulator_list.iter(),
+          "simulator",
+          None,
+          "Simulator",
+        )
+        .map_err(|cause| PromptError::prompt_failed("iOS Simulator", cause))?
+      }
+    } else {
+      0
+    };
+    let device = simulator_list.into_iter().nth(index).unwrap();
+    Ok(device)
+  } else {
+    Err(PromptError::none_detected("iOS Simulator"))
+  }
+}
+
+fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+  if let Ok(device) = ios_deploy_device_prompt(env, target) {
+    Ok(device)
+  } else {
+    let simulator = simulator_prompt(env, target)?;
+    let handle = simulator.start(env)?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+    Ok(simulator.into())
+  }
+}
+
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
-  device_prompt(env).map(|device| device.target()).ok()
+  device_prompt(env, None).map(|device| device.target()).ok()
 }
 
 fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
@@ -159,6 +222,6 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
     log::error!("{}", e);
   }
   loop {
-    std::thread::sleep(std::time::Duration::from_secs(24 * 60 * 60));
+    sleep(Duration::from_secs(24 * 60 * 60));
   }
 }

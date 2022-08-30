@@ -209,11 +209,11 @@ impl Interface for Rust {
 
     let mut s = self.app_settings.target_triple.split('-');
     let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
-    env.insert("TAURI_ARCH".into(), arch.into());
-    env.insert("TAURI_PLATFORM".into(), host.into());
+    env.insert("TAURI_ARCH", arch.into());
+    env.insert("TAURI_PLATFORM", host.into());
 
     env.insert(
-      "TAURI_FAMILY".into(),
+      "TAURI_FAMILY",
       match host {
         "windows" => "windows".into(),
         _ => "unix".into(),

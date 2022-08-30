@@ -100,6 +100,7 @@ pub fn command(options: Options) -> Result<()> {
       // Set target-specific flags
       let triple = match arch.as_str() {
         "arm64" => "aarch64_apple_ios",
+        "arm64-sim" => "aarch64_apple_ios_sim",
         "x86_64" => "x86_64_apple_ios",
         _ => {
           return Err(anyhow::anyhow!(

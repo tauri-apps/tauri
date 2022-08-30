@@ -10,6 +10,7 @@
  */
 
 import { once, listen, emit, UnlistenFn } from './event'
+import { TauriEvent } from './helpers/event'
 
 type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 
@@ -49,7 +50,7 @@ interface UpdateResult {
 async function onUpdaterEvent(
   handler: (status: UpdateStatusResult) => void
 ): Promise<UnlistenFn> {
-  return listen('tauri://update-status', (data: { payload: any }) => {
+  return listen(TauriEvent.STATUS_UPDATE, (data: { payload: any }) => {
     handler(data?.payload as UpdateStatusResult)
   })
 }
@@ -105,7 +106,7 @@ async function installUpdate(): Promise<void> {
 
     // start the process we dont require much security as it's
     // handled by rust
-    emit('tauri://update-install').catch((e) => {
+    emit(TauriEvent.INSTALL_UPDATE).catch((e) => {
       cleanListener()
       // dispatch the error to our checkUpdate
       throw e
@@ -158,7 +159,7 @@ async function checkUpdate(): Promise<UpdateResult> {
     }
 
     // wait to receive the latest update
-    once('tauri://update-available', (data: { payload: any }) => {
+    once(TauriEvent.UPDATE_AVAILABLE, (data: { payload: any }) => {
       onUpdateAvailable(data?.payload as UpdateManifest)
     }).catch((e) => {
       cleanListener()
@@ -178,7 +179,7 @@ async function checkUpdate(): Promise<UpdateResult> {
       })
 
     // start the process
-    emit('tauri://update').catch((e) => {
+    emit(TauriEvent.CHECK_UPDATE).catch((e) => {
       cleanListener()
       // dispatch the error to our checkUpdate
       throw e

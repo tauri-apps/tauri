@@ -661,7 +661,7 @@ impl RustAppSettings {
           let output = Command::new("rustc").args(&["-vV"]).output().unwrap();
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
-            .split("\n")
+            .split('\n')
             .find(|l| l.starts_with("host:"))
             .unwrap()
             .replace("host:", "")

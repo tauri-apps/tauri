@@ -127,32 +127,21 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
   } = data;
 
-  let target = if let Ok(target) = std::env::var("TARGET") {
-    if target.contains("unknown-linux") {
-      Target::Linux
-    } else if target.contains("pc-windows") {
-      Target::Windows
-    } else if target.contains("apple-darwin") {
-      Target::Darwin
-    } else if target.contains("android") {
-      Target::Android
-    } else if target.contains("apple-ios") {
-      Target::Ios
-    } else {
-      panic!("unknown codegen target {}", target);
-    }
-  } else if cfg!(target_os = "linux") {
+  let target = std::env::var("TARGET")
+    .or_else(|_| std::env::var("TAURI_TARGET_TRIPLE"))
+    .expect("`TAURI_TARGET_TRIPLE` env var not set, do you have a build script with tauri-build?");
+  let target = if target.contains("unknown-linux") {
     Target::Linux
-  } else if cfg!(windows) {
+  } else if target.contains("pc-windows") {
     Target::Windows
-  } else if cfg!(target_os = "macos") {
+  } else if target.contains("apple-darwin") {
     Target::Darwin
-  } else if cfg!(target_os = "android") {
+  } else if target.contains("android") {
     Target::Android
-  } else if cfg!(target_os = "ios") {
+  } else if target.contains("apple-ios") {
     Target::Ios
   } else {
-    panic!("unknown codegen target");
+    panic!("unknown codegen target {}", target);
   };
 
   #[cfg(any(windows, target_os = "linux", target_os = "macos"))]

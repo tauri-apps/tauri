@@ -65,7 +65,7 @@ pub fn command(options: Options) -> Result<()> {
     let mut host_env = HashMap::<&str, &OsStr>::new();
 
     // Host flags that are used by build scripts
-    let (macos_isysroot, library_path) = {
+    let library_path = {
       let macos_sdk_root = options
         .sdk_root
         .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
@@ -75,19 +75,8 @@ pub fn command(options: Options) -> Result<()> {
           macos_sdk_root.display()
         ));
       }
-      (
-        format!("-isysroot {}", macos_sdk_root.display()),
-        format!("{}/usr/lib", macos_sdk_root.display()),
-      )
+      format!("{}/usr/lib", macos_sdk_root.display())
     };
-    host_env.insert("MAC_FLAGS", macos_isysroot.as_ref());
-    host_env.insert("CFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-    host_env.insert("CXXFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-
-    host_env.insert(
-      "OBJC_INCLUDE_PATH_x86_64_apple_darwin",
-      include_dir.as_os_str(),
-    );
 
     host_env.insert("RUST_BACKTRACE", "1".as_ref());
 

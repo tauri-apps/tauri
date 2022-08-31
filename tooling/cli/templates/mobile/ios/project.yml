@@ -3,7 +3,6 @@ options:
   bundleIdPrefix: {{reverse-domain app.domain}}
   deploymentTarget:
     iOS: {{apple.ios-version}}
-    macOS: {{apple.macos-version}}
 fileGroups: [{{join file-groups}}]
 configs:
   debug: debug
@@ -74,7 +73,6 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) "{{prefix-path "target/x86_64-apple-ios/$(CONFIGURATION)"}}"
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) "{{prefix-path "target/aarch64-apple-ios/$(CONFIGURATION)"}}"
         LIBRARY_SEARCH_PATHS[arch=arm64-sim]: $(inherited) "{{prefix-path "target/aarch64-apple-ios-sim/$(CONFIGURATION)"}}"
-        EXCLUDED_ARCHS[sdk=iphonesimulator*]: arm64
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
       groups: [app]
     dependencies:
@@ -160,106 +158,6 @@ targets:
       {{~/each~}}
     {{~/if}}
 
-  {{app.name}}_macOS:
-    type: application
-    platform: macOS
-    sources: Sources
-      {{~#each macos-additional-targets}}
-      - path: {{prefix-path this}}{{/each}}
-    info:
-      path: {{app.name}}_macOS/Info.plist
-      properties:
-        NSHighResolutionCapable: true
-    scheme:
-      environmentVariables:
-        RUST_BACKTRACE: full
-        RUST_LOG: info
-      {{~#if ios-command-line-arguments}}
-      commandLineArguments:
-      {{~#each ios-command-line-arguments}}
-        "{{this}}": true
-      {{/each}}{{~/if}}
-    settings:
-      base:
-        LIBRARY_SEARCH_PATHS: $(inherited) "{{prefix-path "target/x86_64-apple-darwin/$(CONFIGURATION)"}}"
-      groups: [app]
-    dependencies:
-      - target: lib_{{app.name}}_macOS
-        embed: false
-        link: false
-      - framework: lib{{snake-case app.name}}.a
-        embed: false
-      {{~#each macos-vendor-frameworks}}
-      - framework: {{prefix-path this}}{{/each}}
-      {{~#each macos-vendor-sdks}}
-      - sdk: {{prefix-path this}}{{/each}}
-      - sdk: Metal.framework
-      {{~#each macos-frameworks}}
-      - sdk: {{this}}.framework{{/each}}
-    {{~#if macos-pre-build-scripts}}
-    preBuildScripts:
-      {{~#each macos-pre-build-scripts}}{{#if this.path}}
-      - path {{this.path}}{{/if}}{{#if this.script}}
-      - script: {{this.script}}{{/if}}{{#if this.name}}
-        name: {{this.name}}{{/if}}{{#if this.input-files}}
-        inputFiles: {{~#each this.input-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-files}}
-        outputFiles: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.input-file-lists}}
-        inputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-file-lists}}
-        outputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.shell}}
-        shell: {{this.shell}}{{/if}}{{#if this.show-env-vars}}
-        showEnvVars: {{this.show_env_vars}}{{/if}}{{#if this.run-only-when-installing}}
-        runOnlyWhenInstalling: {{this.run-only-when-installing}}{{/if}}{{#if this.based-on-dependency-analysis}}
-        basedOnDependencyAnalysis: {{this.based-on-dependency-analysis}}{{/if}}{{#if this.discovered-dependency-file}}
-        discoveredDependencyFile: {{this.discovered-dependency-file}}{{/if}}
-      {{~/each~}}
-    {{~/if~}}
-    {{#if macos-post-compile-scripts}}
-    postCompileScripts:
-      {{~#each macos-post-compile-scripts}}{{#if this.path}}
-      - path {{this.path}}{{/if}}{{#if this.script}}
-      - script: {{this.script}}{{/if}}{{#if this.name}}
-        name: {{this.name}}{{/if}}{{#if this.input-files}}
-        inputFiles: {{~#each this.input-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-files}}
-        outputFiles: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.input-file-lists}}
-        inputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-file-lists}}
-        outputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.shell}}
-        shell: {{this.shell}}{{/if}}{{#if this.show-env-vars}}
-        showEnvVars: {{this.show_env_vars}}{{/if}}{{#if this.run-only-when-installing}}
-        runOnlyWhenInstalling: {{this.run-only-when-installing}}{{/if}}{{#if this.based-on-dependency-analysis}}
-        basedOnDependencyAnalysis: {{this.based-on-dependency-analysis}}{{/if}}{{#if this.discovered-dependency-file}}
-        discoveredDependencyFile: {{this.discovered-dependency-file}}{{/if}}
-      {{~/each~}}
-    {{~/if~}}
-    {{#if macos-post-build-scripts}}
-    postBuildScripts:
-      {{~#each macos-post-build-scripts}}{{#if this.path}}
-      - path {{this.path}}{{/if}}{{#if this.script}}
-      - script: {{this.script}}{{/if}}{{#if this.name}}
-        name: {{this.name}}{{/if}}{{#if this.input-files}}
-        inputFiles: {{~#each this.input-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-files}}
-        outputFiles: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.input-file-lists}}
-        inputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.output-file-lists}}
-        outputFileLists: {{~#each this.output-files}}
-          - {{this}}{{/each}}{{/if}}{{#if this.shell}}
-        shell: {{this.shell}}{{/if}}{{#if this.show-env-vars}}
-        showEnvVars: {{this.show_env_vars}}{{/if}}{{#if this.run-only-when-installing}}
-        runOnlyWhenInstalling: {{this.run-only-when-installing}}{{/if}}{{#if this.based-on-dependency-analysis}}
-        basedOnDependencyAnalysis: {{this.based-on-dependency-analysis}}{{/if}}{{#if this.discovered-dependency-file}}
-        discoveredDependencyFile: {{this.discovered-dependency-file}}{{/if}}
-      {{~/each~}}
-    {{~/if}}
-
   lib_{{app.name}}_iOS:
     type: ""
     platform: iOS
@@ -271,12 +169,4 @@ targets:
       toolPath: {{ tauri-binary }}
       arguments: {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
       passSettings: false # prevents evil linker errors
-      workingDirectory: $(SRCROOT)/../..
-  lib_{{app.name}}_macOS:
-    type: ""
-    platform: macOS
-    legacy:
-      toolPath: {{ tauri-binary }}
-      arguments: {{ tauri-binary-args-str }} -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}
-      passSettings: false
       workingDirectory: $(SRCROOT)/../..

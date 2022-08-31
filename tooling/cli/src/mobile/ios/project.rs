@@ -50,11 +50,7 @@ pub fn gen(
   let ios_pods = metadata.ios().pods().unwrap_or_default();
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
-  let default_archs = if cfg!(target_arch = "aarch64") {
-    vec!["arm64", "arm64-sim"]
-  } else {
-    vec!["x86_64"]
-  };
+  let default_archs = ["arm64", "arm64-sim", "x86_64"];
 
   map.insert("file-groups", &source_dirs);
   map.insert("ios-frameworks", metadata.ios().frameworks());

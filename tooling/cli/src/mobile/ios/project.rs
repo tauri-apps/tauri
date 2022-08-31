@@ -17,6 +17,7 @@ use cargo_mobile::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 use std::{
+  collections::HashSet,
   ffi::OsString,
   fs::{create_dir_all, File},
   path::{Component, PathBuf},
@@ -50,35 +51,23 @@ pub fn gen(
   let ios_pods = metadata.ios().pods().unwrap_or_default();
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
-  let default_archs = if cfg!(target_arch = "aarch64") {
-    vec!["arm64".into(), "arm64-sim".into()]
+  let (arch, simulator_arch) = if cfg!(target_arch = "aarch64") {
+    map.insert("iphoneos_target_triple", "aarch64-apple-ios");
+    map.insert("iphoneos_simulator_target_triple", "aarch64-apple-ios-sim");
+    ("arm64", "arm64-sim")
   } else {
-    vec!["x86_64".into()]
+    map.insert("iphoneos_target_triple", "x86_64-apple-ios");
+    map.insert("iphoneos_simulator_target_triple", "x86_64-apple-ios");
+    ("x86_64", "x86_64")
   };
 
-  map.insert(
-    "iphoneos_target_triple",
-    if cfg!(target_arch = "aarch64") {
-      "aarch64-apple-ios"
-    } else {
-      "x86_64-apple-ios"
-    },
-  );
-  map.insert(
-    "iphoneos_simulator_target_triple",
-    if cfg!(target_arch = "aarch64") {
-      "aarch64-apple-ios-sim"
-    } else {
-      "x86_64-apple-ios"
-    },
-  );
+  let mut default_archs = HashSet::new();
+  default_archs.insert(arch);
+  default_archs.insert(simulator_arch);
 
   map.insert("file-groups", &source_dirs);
   map.insert("ios-frameworks", metadata.ios().frameworks());
-  map.insert(
-    "ios-valid-archs",
-    metadata.ios().valid_archs().unwrap_or(&default_archs),
-  );
+  map.insert("ios-valid-archs", default_archs);
   map.insert("ios-vendor-frameworks", metadata.ios().vendor_frameworks());
   map.insert("ios-vendor-sdks", metadata.ios().vendor_sdks());
   map.insert("macos-frameworks", metadata.macos().frameworks());

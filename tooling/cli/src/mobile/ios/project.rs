@@ -51,9 +51,9 @@ pub fn gen(
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
   let default_archs = if cfg!(target_arch = "aarch64") {
-    ["arm64".into(), "arm64-sim".into()]
+    vec!["arm64".into(), "arm64-sim".into()]
   } else {
-    ["x86_64".into()]
+    vec!["x86_64".into()]
   };
 
   map.insert(

@@ -352,20 +352,21 @@ fn app_root(ctx: &Context) -> Result<&str, RenderError> {
 
 fn prefix_path(
   helper: &Helper,
-  _: &Handlebars,
+  handlebars: &Handlebars,
   ctx: &Context,
   _: &mut RenderContext,
   out: &mut dyn Output,
 ) -> HelperResult {
   out
     .write(
-      util::prefix_path(app_root(ctx)?, get_str(helper))
-        .to_str()
-        .ok_or_else(|| {
-          RenderError::new(
-            "Either the `app.root-dir` or the specified path contained invalid UTF-8.",
-          )
-        })?,
+      util::prefix_path(
+        app_root(ctx)?,
+        handlebars.render_template(get_str(helper), ctx.data())?,
+      )
+      .to_str()
+      .ok_or_else(|| {
+        RenderError::new("Either the `app.root-dir` or the specified path contained invalid UTF-8.")
+      })?,
     )
     .map_err(Into::into)
 }

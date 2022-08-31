@@ -293,7 +293,7 @@ checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=feat/x86_64-sim-target#f232d8604e0492abd1378cb3679e7a0f07b635d6"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=feat/x86_64-sim-target#cea1b9d80861cf11c0335fdb1f6b551025ef337f"
 dependencies = [
  "cocoa",
  "colored 1.9.3",

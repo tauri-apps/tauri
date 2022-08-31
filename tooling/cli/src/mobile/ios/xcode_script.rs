@@ -1,4 +1,4 @@
-use super::{env, init_dot_cargo, with_config};
+use super::{env, with_config};
 use crate::Result;
 use clap::Parser;
 
@@ -41,9 +41,8 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  with_config(None, |root_conf, config, metadata, cli_options| {
+  with_config(None, |_root_conf, config, metadata, cli_options| {
     let env = env()?;
-    init_dot_cargo(root_conf, None)?;
     // The `PATH` env var Xcode gives us is missing any additions
     // made by the user's profile, so we'll manually add cargo's
     // `PATH`.

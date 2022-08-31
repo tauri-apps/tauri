@@ -64,20 +64,6 @@ pub fn command(options: Options) -> Result<()> {
 
     let mut host_env = HashMap::<&str, &OsStr>::new();
 
-    // Host flags that are used by build scripts
-    let library_path = {
-      let macos_sdk_root = options
-        .sdk_root
-        .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
-      if !macos_sdk_root.is_dir() {
-        return Err(anyhow::anyhow!(
-          "macOS SDK root was invalid. {0} doesn't exist or isn't a directory",
-          macos_sdk_root.display()
-        ));
-      }
-      format!("{}/usr/lib", macos_sdk_root.display())
-    };
-
     host_env.insert("RUST_BACKTRACE", "1".as_ref());
 
     let macos_target = Target::macos();
@@ -104,9 +90,6 @@ pub fn command(options: Options) -> Result<()> {
       target_env.insert(cflags.as_ref(), isysroot.as_ref());
       target_env.insert(cxxflags.as_ref(), isysroot.as_ref());
       target_env.insert(objc_include_path.as_ref(), include_dir.as_ref());
-      // Prevents linker errors in build scripts and proc macros:
-      // https://github.com/signalapp/libsignal-client/commit/02899cac643a14b2ced7c058cc15a836a2165b6d
-      target_env.insert("LIBRARY_PATH", library_path.as_ref());
 
       let target = if macos {
         &macos_target

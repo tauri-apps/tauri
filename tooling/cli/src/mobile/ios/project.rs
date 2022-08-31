@@ -50,11 +50,28 @@ pub fn gen(
   let ios_pods = metadata.ios().pods().unwrap_or_default();
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
-  let default_archs = [
-    String::from("arm64"),
-    String::from("arm64-sim"),
-    String::from("x86_64"),
-  ];
+  let default_archs = if cfg!(target_arch = "aarch64") {
+    ["arm64".into(), "arm64-sim".into()]
+  } else {
+    ["x86_64".into()]
+  };
+
+  map.insert(
+    "iphoneos_target_triple",
+    if cfg!(target_arch = "aarch64") {
+      "aarch64-apple-ios"
+    } else {
+      "x86_64-apple-ios"
+    },
+  );
+  map.insert(
+    "iphoneos_simulator_target_triple",
+    if cfg!(target_arch = "aarch64") {
+      "aarch64-apple-ios-sim"
+    } else {
+      "x86_64-apple-ios"
+    },
+  );
 
   map.insert("file-groups", &source_dirs);
   map.insert("ios-frameworks", metadata.ios().frameworks());

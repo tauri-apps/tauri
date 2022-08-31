@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -794,13 +794,10 @@ pub fn command(_options: Options) -> Result<()> {
         } else {
           None
         };
-      let lock: Option<CargoLock> = if let Ok(lock_contents) =
-        read_to_string(get_workspace_dir(&tauri_dir).join("Cargo.lock"))
-      {
-        toml::from_str(&lock_contents).ok()
-      } else {
-        None
-      };
+      let lock: Option<CargoLock> = get_workspace_dir()
+        .ok()
+        .and_then(|p| read_to_string(p.join("Cargo.lock")).ok())
+        .and_then(|s| toml::from_str(&s).ok());
 
       for (dep, label) in [
         ("tauri", format!("{} {}", "tauri", "[RUST]".dimmed())),

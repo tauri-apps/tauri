@@ -28,3 +28,14 @@ code {
 code.code-block {
   padding: 0.5rem;
 }
+
+#sidebar {
+  width: 18.75rem;
+}
+
+@media screen and (max-width: 640px) {
+  #sidebar {
+    --translate-x: -18.75rem;
+    transform: translateX(var(--translate-x));
+  }
+}

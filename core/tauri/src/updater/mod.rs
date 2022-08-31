@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -308,7 +308,7 @@
 //! }
 //! ```
 //!
-//! The only required keys are "url" and "version", the others are optional.
+//! The required keys are "url", "version" and "signature"; the others are optional.
 //!
 //! "pub_date" if present must be formatted according to ISO 8601.
 //!

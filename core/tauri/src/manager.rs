@@ -858,7 +858,7 @@ impl<R: Runtime> WindowManager<R> {
             builder.status(r.status()).body(r.bytes()?)?
           }
           Err(e) => {
-            debug_eprintln!("Failed to request {}: {}", url.path(), e);
+            debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
             return Err(Box::new(e));
           }
         }

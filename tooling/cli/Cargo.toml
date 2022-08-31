@@ -29,7 +29,7 @@ path = "src/main.rs"
 
 [dependencies]
 # cargo-mobile = { path = "../../../cargo-mobile/", default-features = false }
-cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "feat/x86_64-sim-target", default-features = false }
+cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "dev", default-features = false }
 textwrap = { version = "0.11.0", features = ["term_size"] }
 interprocess = "1"
 thiserror = "1"

@@ -73,6 +73,7 @@ targets:
         VALID_ARCHS: {{~#each ios-valid-archs}} {{this}} {{/each}}
         LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) "{{prefix-path "target/{{iphoneos_target_triple}}/$(CONFIGURATION)"}}"
         LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: $(inherited) "{{prefix-path "target/{{iphoneos_simulator_target_triple}}/$(CONFIGURATION)"}}"
+        EXCLUDED_ARCHS[sdk=iphonesimulator*]: arm64
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
       groups: [app]
     dependencies:

@@ -12,7 +12,6 @@ use cargo_mobile::{
     target::Target,
   },
   config::app::App,
-  device::PromptError,
   opts::NoiseLevel,
   os,
   util::prompt,
@@ -141,20 +140,19 @@ fn delete_codegen_vars() {
   }
 }
 
-fn adb_device_prompt<'a>(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
-  let device_list =
-    adb::device_list(env).map_err(|cause| PromptError::detection_failed("Android", cause))?;
+fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+  let device_list = adb::device_list(env)
+    .map_err(|cause| anyhow::anyhow!("Failed to detect connected Android devices: {cause}"))?;
   if !device_list.is_empty() {
     let index = if device_list.len() > 1 {
       if let Some(t) = target {
         let t = t.to_lowercase();
         device_list
           .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&t))
-          .ok_or_else(|| PromptError::none_detected("Android"))?
+          .position(|d| {
+            d.name().to_lowercase().starts_with(&t) || d.model().to_lowercase().starts_with(&t)
+          })
+          .ok_or_else(|| anyhow::anyhow!("Could not find an Android device matching {t}"))?
       } else {
         prompt::list(
           concat!("Detected ", "Android", " devices"),
@@ -163,7 +161,7 @@ fn adb_device_prompt<'a>(
           None,
           "Device",
         )
-        .map_err(|cause| PromptError::prompt_failed("Android", cause))?
+        .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android device: {cause}"))?
       }
     } else {
       0
@@ -176,22 +174,20 @@ fn adb_device_prompt<'a>(
     );
     Ok(device)
   } else {
-    Err(PromptError::none_detected("Android"))
+    Err(anyhow::anyhow!("No connected Android devices detected"))
   }
 }
 
 fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emulator> {
   let emulator_list = emulator::avd_list(env).unwrap_or_default();
-  if emulator_list.is_empty() {
-    Err(PromptError::<adb::device_list::Error>::none_detected("Android emulator").into())
-  } else {
+  if !emulator_list.is_empty() {
     let index = if emulator_list.len() > 1 {
       if let Some(t) = target {
-        let t = t.to_lowercase();
+        let target = t.to_lowercase();
         emulator_list
           .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&t))
-          .ok_or_else(|| PromptError::<adb::device_list::Error>::none_detected("Android"))?
+          .position(|d| d.name().to_lowercase().starts_with(&target))
+          .ok_or_else(|| anyhow::anyhow!("Could not find an iOS Simulator matching {}", t))?
       } else {
         prompt::list(
           concat!("Detected ", "Android", " emulators"),
@@ -200,9 +196,7 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
           None,
           "Emulator",
         )
-        .map_err(|cause| {
-          PromptError::<adb::device_list::Error>::prompt_failed("Android emulator", cause)
-        })?
+        .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android Emulator device: {cause}"))?
       }
     } else {
       0
@@ -215,27 +209,28 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
     });
 
     Ok(emulator)
+  } else {
+    Err(anyhow::anyhow!("No available Android Emulator detected"))
   }
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  if let Ok(device) = adb_device_prompt(env, target) {
-    Ok(device)
-  } else {
-    let emulator = emulator_prompt(env, target)?;
-    let handle = emulator.start(env).map_err(|e| {
-      PromptError::<adb::device_list::Error>::prompt_failed(
-        "Android emulator",
-        std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-      )
-    })?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
-    loop {
-      sleep(Duration::from_secs(2));
-      if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
-        return Ok(device);
+  match adb_device_prompt(env, target) {
+    Ok(device) => Ok(device),
+    Err(e) => {
+      if let Ok(emulator) = emulator_prompt(env, target) {
+        let handle = emulator.start(env)?;
+        spawn(move || {
+          let _ = handle.wait();
+        });
+        loop {
+          sleep(Duration::from_secs(2));
+          if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
+            return Ok(device);
+          }
+        }
+      } else {
+        Err(e)
       }
     }
   }

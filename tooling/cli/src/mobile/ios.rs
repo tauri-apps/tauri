@@ -13,7 +13,6 @@ use cargo_mobile::{
     target::Target,
   },
   config::app::App,
-  device::PromptError,
   env::Env,
   opts::NoiseLevel,
   os,
@@ -126,21 +125,21 @@ fn with_config<T>(
   f(&app, &config, &metadata, cli_options)
 }
 
-fn ios_deploy_device_prompt<'a>(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
-  let device_list =
-    ios_deploy::device_list(env).map_err(|cause| PromptError::detection_failed("iOS", cause))?;
+fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+  let device_list = ios_deploy::device_list(env)
+    .map_err(|cause| anyhow::anyhow!("Failed to detect connected iOS devices: {cause}"))?;
   if !device_list.is_empty() {
-    let index = if device_list.len() > 1 {
-      if let Some(t) = target {
-        let t = t.to_lowercase();
-        device_list
-          .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&t))
-          .ok_or_else(|| PromptError::none_detected("iOS"))?
-      } else {
+    let index = if let Some(t) = target {
+      let target = t.to_lowercase();
+      device_list
+        .iter()
+        .position(|d| {
+          d.name().to_lowercase().starts_with(&target)
+            || d.model().to_lowercase().starts_with(&target)
+        })
+        .ok_or_else(|| anyhow::anyhow!("Could not find an iOS device matching {t}"))?
+    } else {
+      if device_list.len() > 1 {
         prompt::list(
           concat!("Detected ", "iOS", " devices"),
           device_list.iter(),
@@ -148,10 +147,10 @@ fn ios_deploy_device_prompt<'a>(
           None,
           "Device",
         )
-        .map_err(|cause| PromptError::prompt_failed("iOS", cause))?
+        .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS device: {cause}"))?
+      } else {
+        0
       }
-    } else {
-      0
     };
     let device = device_list.into_iter().nth(index).unwrap();
     println!(
@@ -161,13 +160,14 @@ fn ios_deploy_device_prompt<'a>(
     );
     Ok(device)
   } else {
-    Err(PromptError::none_detected("iOS"))
+    Err(anyhow::anyhow!("No connected iOS devices detected"))
   }
 }
 
 fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device> {
-  let simulator_list = simctl::device_list(env)
-    .map_err(|cause| PromptError::detection_failed("iOS Simulator", cause))?;
+  let simulator_list = simctl::device_list(env).map_err(|cause| {
+    anyhow::anyhow!("Failed to detect connected iOS Simulator devices: {cause}")
+  })?;
   if !simulator_list.is_empty() {
     let index = if simulator_list.len() > 1 {
       if let Some(t) = target {
@@ -175,7 +175,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
         simulator_list
           .iter()
           .position(|d| d.name().to_lowercase().starts_with(&t))
-          .ok_or_else(|| PromptError::<simctl::DeviceListError>::none_detected("iOS Simulator"))?
+          .ok_or_else(|| anyhow::anyhow!("Could not find an iOS Simulator matching {}", t))?
       } else {
         prompt::list(
           concat!("Detected ", "iOS", " simulators"),
@@ -184,9 +184,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
           None,
           "Simulator",
         )
-        .map_err(|cause| {
-          PromptError::<simctl::DeviceListError>::prompt_failed("iOS Simulator", cause)
-        })?
+        .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS Simulator device: {cause}"))?
       }
     } else {
       0
@@ -201,20 +199,24 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
 
     Ok(device)
   } else {
-    Err(PromptError::<simctl::DeviceListError>::none_detected("iOS Simulator").into())
+    Err(anyhow::anyhow!("No available iOS Simulator detected"))
   }
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  if let Ok(device) = ios_deploy_device_prompt(env, target) {
-    Ok(device)
-  } else {
-    let simulator = simulator_prompt(env, target)?;
-    let handle = simulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
-    Ok(simulator.into())
+  match ios_deploy_device_prompt(env, target) {
+    Ok(device) => Ok(device),
+    Err(e) => {
+      if let Ok(simulator) = simulator_prompt(env, target) {
+        let handle = simulator.start(env)?;
+        spawn(move || {
+          let _ = handle.wait();
+        });
+        Ok(simulator.into())
+      } else {
+        Err(e)
+      }
+    }
   }
 }
 

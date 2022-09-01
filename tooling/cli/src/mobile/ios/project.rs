@@ -11,8 +11,9 @@ use cargo_mobile::{
     target::Target,
   },
   bossy,
+  config::app::DEFAULT_ASSET_DIR,
   target::TargetTrait as _,
-  util::{self, cli::TextWrapper, ln},
+  util::{self, cli::TextWrapper},
 };
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
@@ -140,8 +141,15 @@ pub fn gen(
   )
   .with_context(|| "failed to process template")?;
 
-  ln::force_symlink_relative(config.app().asset_dir(), &dest, ln::TargetStyle::Directory)
-    .map_err(|_| anyhow::anyhow!("failed to symlink asset directory"))?;
+  let asset_dir = dest.join(DEFAULT_ASSET_DIR);
+  if !asset_dir.is_dir() {
+    create_dir_all(&asset_dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create asset dir {path}: {cause}",
+        path = asset_dir.display()
+      )
+    })?;
+  }
 
   // Create all asset catalog directories if they don't already exist
   for dir in asset_catalogs {

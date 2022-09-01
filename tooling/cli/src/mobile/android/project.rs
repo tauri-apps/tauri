@@ -9,12 +9,13 @@ use cargo_mobile::{
     config::{Config, Metadata},
     target::Target,
   },
+  config::app::DEFAULT_ASSET_DIR,
   os,
   target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
-    ln, prefix_path,
+    prefix_path,
   },
 };
 use handlebars::Handlebars;
@@ -150,8 +151,16 @@ pub fn gen(
       cause
     )
   })?;
-  os::ln::force_symlink_relative(config.app().asset_dir(), dest, ln::TargetStyle::Directory)
-    .map_err(|_| anyhow::anyhow!("failed to symlink asset directory"))?;
+
+  let asset_dir = dest.join(DEFAULT_ASSET_DIR);
+  if !asset_dir.is_dir() {
+    fs::create_dir_all(&asset_dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create asset dir {path}: {cause}",
+        path = asset_dir.display()
+      )
+    })?;
+  }
 
   Ok(())
 }

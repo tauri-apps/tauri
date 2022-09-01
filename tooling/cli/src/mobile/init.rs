@@ -19,7 +19,7 @@ use cargo_mobile::{
 };
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
-use std::{env::current_dir, fs, path::PathBuf};
+use std::{env::current_dir, path::PathBuf};
 
 pub fn command(target: Target, ci: bool, reinstall_deps: bool) -> Result<()> {
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
@@ -70,16 +70,6 @@ pub fn exec(
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
   let app = get_app(tauri_config_);
-
-  let asset_dir = app.asset_dir();
-  if !asset_dir.is_dir() {
-    fs::create_dir_all(&asset_dir).map_err(|cause| {
-      anyhow::anyhow!(
-        "failed to create asset dir {path}: {cause}",
-        path = asset_dir.display()
-      )
-    })?;
-  }
 
   let (handlebars, mut map) = handlebars(&app);
 

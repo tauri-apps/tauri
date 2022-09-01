@@ -11,31 +11,25 @@ use cargo_mobile::{
   },
   config::app::App,
   dot_cargo,
-  os::code_command,
   target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
   },
 };
-use clap::Parser;
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
 
 use std::{env::current_dir, fs, path::PathBuf};
 
-#[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri Android project")]
-pub struct Options {
-  /// Skip prompting for values
-  #[clap(long)]
-  ci: bool,
-}
-
-pub fn command(mut options: Options, target: Target) -> Result<()> {
-  options.ci = options.ci || std::env::var("CI").is_ok();
-
+pub fn command(target: Target, ci: bool, reinstall_deps: bool) -> Result<()> {
   let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
-  exec(target, &wrapper, options.ci, true, true).map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(
+    target,
+    &wrapper,
+    ci || std::env::var("CI").is_ok(),
+    reinstall_deps,
+  )
+  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -69,7 +63,6 @@ pub fn exec(
   target: Target,
   wrapper: &TextWrapper,
   non_interactive: bool,
-  skip_dev_tools: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(None)?;
@@ -86,14 +79,6 @@ pub fn exec(
         path = asset_dir.display()
       )
     })?;
-  }
-  if !skip_dev_tools && util::command_present("code").unwrap_or_default() {
-    let mut command = code_command();
-    command.add_args(&["--install-extension", "vadimcn.vscode-lldb"]);
-    if non_interactive {
-      command.add_arg("--force");
-    }
-    command.run_and_wait()?;
   }
 
   let (handlebars, mut map) = handlebars(&app);
@@ -169,7 +154,6 @@ pub fn exec(
         (handlebars, map),
         wrapper,
         non_interactive,
-        skip_dev_tools,
         reinstall_deps,
       )?;
       init_dot_cargo(&app, None)?;

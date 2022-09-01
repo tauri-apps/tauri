@@ -23,7 +23,7 @@ use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, env, get_app,
-  init::{command as init_command, init_dot_cargo, Options as InitOptions},
+  init::{command as init_command, init_dot_cargo},
   log_finished, read_options, CliOptions, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
@@ -55,6 +55,17 @@ pub struct Cli {
   command: Commands,
 }
 
+#[derive(Debug, Parser)]
+#[clap(about = "Initializes a Tauri iOS project")]
+pub struct InitOptions {
+  /// Skip prompting for values
+  #[clap(long)]
+  ci: bool,
+  /// Reinstall dependencies
+  #[clap(short, long)]
+  reinstall_deps: bool,
+}
+
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
@@ -68,7 +79,7 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(options, MobileTarget::Ios)?,
+    Commands::Init(options) => init_command(MobileTarget::Ios, options.ci, options.reinstall_deps)?,
     Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,

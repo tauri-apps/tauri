@@ -32,14 +32,13 @@ pub fn gen(
   (handlebars, mut map): (Handlebars, template::JsonMap),
   wrapper: &TextWrapper,
   non_interactive: bool,
-  skip_dev_tools: bool,
   reinstall_deps: bool,
 ) -> Result<()> {
   println!("Installing iOS toolchains...");
   Target::install_all()?;
   rust_version_check(wrapper)?;
 
-  deps::install_all(wrapper, non_interactive, skip_dev_tools, reinstall_deps)
+  deps::install_all(wrapper, non_interactive, true, reinstall_deps)
     .with_context(|| "failed to install Apple dependencies")?;
 
   let dest = config.project_dir();

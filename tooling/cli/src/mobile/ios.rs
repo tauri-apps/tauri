@@ -135,7 +135,7 @@ fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<De
         .into_iter()
         .rev()
         .map(|d| {
-          let score = best_match(&t, d.name()).map_or(0, |m| m.score());
+          let score = best_match(t, d.name()).map_or(0, |m| m.score());
           (d, score)
         })
         .max_by_key(|(_, score)| *score)
@@ -182,7 +182,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device
         .into_iter()
         .rev()
         .map(|d| {
-          let score = best_match(&t, d.name()).map_or(0, |m| m.score());
+          let score = best_match(t, d.name()).map_or(0, |m| m.score());
           (d, score)
         })
         .max_by_key(|(_, score)| *score)

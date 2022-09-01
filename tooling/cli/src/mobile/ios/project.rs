@@ -50,18 +50,14 @@ pub fn gen(
   let ios_pods = metadata.ios().pods().unwrap_or_default();
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
-  let default_archs = [
-    String::from("arm64"),
-    String::from("arm64-sim"),
-    String::from("x86_64"),
-  ];
+  #[cfg(target_arch = "aarch64")]
+  let default_archs = ["arm64", "arm64-sim"];
+  #[cfg(not(target_arch = "aarch64"))]
+  let default_archs = ["arm64", "x86_64"];
 
   map.insert("file-groups", &source_dirs);
   map.insert("ios-frameworks", metadata.ios().frameworks());
-  map.insert(
-    "ios-valid-archs",
-    metadata.ios().valid_archs().unwrap_or(&default_archs),
-  );
+  map.insert("ios-valid-archs", default_archs);
   map.insert("ios-vendor-frameworks", metadata.ios().vendor_frameworks());
   map.insert("ios-vendor-sdks", metadata.ios().vendor_sdks());
   map.insert("macos-frameworks", metadata.macos().frameworks());

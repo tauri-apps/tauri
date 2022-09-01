@@ -1,4 +1,4 @@
-use super::{detect_target_ok, ensure_init, env, init_dot_cargo, with_config, MobileTarget};
+use super::{detect_target_ok, ensure_init, env, with_config, MobileTarget};
 use crate::Result;
 use clap::Parser;
 
@@ -32,11 +32,10 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  with_config(None, |app, config, metadata, cli_options| {
+  with_config(None, |_app, config, metadata, cli_options| {
     ensure_init(config.project_dir(), MobileTarget::Android)?;
 
     let env = env()?;
-    init_dot_cargo(app, Some((&env, config)))?;
 
     call_for_targets_with_fallback(
       options.targets.unwrap_or_default().iter(),

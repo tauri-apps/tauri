@@ -1,4 +1,4 @@
-use super::{env, init_dot_cargo, with_config};
+use super::{env, with_config};
 use crate::Result;
 use clap::Parser;
 
@@ -41,9 +41,8 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  with_config(None, |root_conf, config, metadata, cli_options| {
+  with_config(None, |_root_conf, config, metadata, cli_options| {
     let env = env()?;
-    init_dot_cargo(root_conf, None)?;
     // The `PATH` env var Xcode gives us is missing any additions
     // made by the user's profile, so we'll manually add cargo's
     // `PATH`.
@@ -64,31 +63,6 @@ pub fn command(options: Options) -> Result<()> {
     }
 
     let mut host_env = HashMap::<&str, &OsStr>::new();
-
-    // Host flags that are used by build scripts
-    let (macos_isysroot, library_path) = {
-      let macos_sdk_root = options
-        .sdk_root
-        .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
-      if !macos_sdk_root.is_dir() {
-        return Err(anyhow::anyhow!(
-          "macOS SDK root was invalid. {0} doesn't exist or isn't a directory",
-          macos_sdk_root.display()
-        ));
-      }
-      (
-        format!("-isysroot {}", macos_sdk_root.display()),
-        format!("{}/usr/lib", macos_sdk_root.display()),
-      )
-    };
-    host_env.insert("MAC_FLAGS", macos_isysroot.as_ref());
-    host_env.insert("CFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-    host_env.insert("CXXFLAGS_x86_64_apple_darwin", macos_isysroot.as_ref());
-
-    host_env.insert(
-      "OBJC_INCLUDE_PATH_x86_64_apple_darwin",
-      include_dir.as_os_str(),
-    );
 
     host_env.insert("RUST_BACKTRACE", "1".as_ref());
 
@@ -116,9 +90,6 @@ pub fn command(options: Options) -> Result<()> {
       target_env.insert(cflags.as_ref(), isysroot.as_ref());
       target_env.insert(cxxflags.as_ref(), isysroot.as_ref());
       target_env.insert(objc_include_path.as_ref(), include_dir.as_ref());
-      // Prevents linker errors in build scripts and proc macros:
-      // https://github.com/signalapp/libsignal-client/commit/02899cac643a14b2ced7c058cc15a836a2165b6d
-      target_env.insert("LIBRARY_PATH", library_path.as_ref());
 
       let target = if macos {
         &macos_target

@@ -10,7 +10,7 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  apple::{config::Config as AppleConfig, device::RunError as DeviceRunError},
+  apple::config::Config as AppleConfig,
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -139,8 +139,8 @@ fn run_dev(
 enum RunError {
   #[error("{0}")]
   FailedToPromptForDevice(String),
-  #[error(transparent)]
-  RunFailed(DeviceRunError),
+  #[error("{0}")]
+  RunFailed(String),
 }
 fn run(
   device: Option<&str>,
@@ -161,5 +161,5 @@ fn run(
     .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
     .run(config, env, noise_level, non_interactive, profile)
     .map(DevChild::new)
-    .map_err(RunError::RunFailed)
+    .map_err(|e| RunError::RunFailed(e.to_string()))
 }

@@ -13,7 +13,6 @@ use clap::Parser;
 use cargo_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
-    device::RunError as DeviceRunError,
     env::Env,
   },
   config::app::App,
@@ -166,8 +165,8 @@ fn run_dev(
 enum RunError {
   #[error("{0}")]
   FailedToPromptForDevice(String),
-  #[error(transparent)]
-  RunFailed(DeviceRunError),
+  #[error("{0}")]
+  RunFailed(String),
 }
 
 fn run(
@@ -199,5 +198,5 @@ fn run(
       ".MainActivity".into(),
     )
     .map(DevChild::new)
-    .map_err(RunError::RunFailed)
+    .map_err(|e| RunError::RunFailed(e.to_string()))
 }

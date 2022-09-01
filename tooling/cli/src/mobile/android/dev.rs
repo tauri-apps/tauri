@@ -1,6 +1,6 @@
 use super::{
   delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
-  MobileTarget, PromptError,
+  MobileTarget,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -12,21 +12,15 @@ use clap::Parser;
 
 use cargo_mobile::{
   android::{
-    adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::RunError as DeviceRunError,
-    emulator,
     env::Env,
   },
   config::app::App,
   opts::{NoiseLevel, Profile},
 };
 
-use std::{
-  env::set_var,
-  thread::{sleep, spawn},
-  time::Duration,
-};
+use std::env::set_var;
 
 const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
     @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
@@ -119,25 +113,6 @@ fn run_dev(
   let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;
 
-  if let Some(device) = &options.device {
-    let emulators = emulator::avd_list(&env).unwrap_or_default();
-    for emulator in emulators {
-      if emulator
-        .name()
-        .to_lowercase()
-        .starts_with(&device.to_lowercase())
-      {
-        log::info!("Starting emulator {}", emulator.name());
-        let handle = emulator.start(&env)?;
-        spawn(move || {
-          let _ = handle.wait();
-        });
-        sleep(Duration::from_secs(3));
-        break;
-      }
-    }
-  }
-
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -189,8 +164,8 @@ fn run_dev(
 
 #[derive(Debug, thiserror::Error)]
 enum RunError {
-  #[error(transparent)]
-  FailedToPromptForDevice(PromptError<adb::device_list::Error>),
+  #[error("{0}")]
+  FailedToPromptForDevice(String),
   #[error(transparent)]
   RunFailed(DeviceRunError),
 }
@@ -212,7 +187,7 @@ fn run(
   let build_app_bundle = metadata.asset_packs().is_some();
 
   device_prompt(env, device)
-    .map_err(RunError::FailedToPromptForDevice)?
+    .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
     .run(
       config,
       env,

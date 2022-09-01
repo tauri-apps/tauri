@@ -139,7 +139,7 @@ fn ios_deploy_device_prompt<'a>(
         device_list
           .iter()
           .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+          .ok_or_else(|| PromptError::none_detected("iOS"))?
       } else {
         prompt::list(
           concat!("Detected ", "iOS", " devices"),
@@ -165,10 +165,7 @@ fn ios_deploy_device_prompt<'a>(
   }
 }
 
-fn simulator_prompt(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<simctl::Device, PromptError<simctl::DeviceListError>> {
+fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device> {
   let simulator_list = simctl::device_list(env)
     .map_err(|cause| PromptError::detection_failed("iOS Simulator", cause))?;
   if !simulator_list.is_empty() {
@@ -178,7 +175,7 @@ fn simulator_prompt(
         simulator_list
           .iter()
           .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+          .ok_or_else(|| PromptError::<simctl::DeviceListError>::none_detected("iOS Simulator"))?
       } else {
         prompt::list(
           concat!("Detected ", "iOS", " simulators"),
@@ -187,15 +184,24 @@ fn simulator_prompt(
           None,
           "Simulator",
         )
-        .map_err(|cause| PromptError::prompt_failed("iOS Simulator", cause))?
+        .map_err(|cause| {
+          PromptError::<simctl::DeviceListError>::prompt_failed("iOS Simulator", cause)
+        })?
       }
     } else {
       0
     };
     let device = simulator_list.into_iter().nth(index).unwrap();
+
+    log::info!("Starting simulator {}", device.name());
+    let handle = device.start(env)?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+
     Ok(device)
   } else {
-    Err(PromptError::none_detected("iOS Simulator"))
+    Err(PromptError::<simctl::DeviceListError>::none_detected("iOS Simulator").into())
   }
 }
 

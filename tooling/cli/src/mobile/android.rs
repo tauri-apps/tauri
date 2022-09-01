@@ -154,7 +154,7 @@ fn adb_device_prompt<'a>(
         device_list
           .iter()
           .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+          .ok_or_else(|| PromptError::none_detected("Android"))?
       } else {
         prompt::list(
           concat!("Detected ", "Android", " devices"),
@@ -180,13 +180,10 @@ fn adb_device_prompt<'a>(
   }
 }
 
-fn emulator_prompt(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<emulator::Emulator, PromptError<adb::device_list::Error>> {
+fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emulator> {
   let emulator_list = emulator::avd_list(env).unwrap_or_default();
   if emulator_list.is_empty() {
-    Err(PromptError::none_detected("Android emulator"))
+    Err(PromptError::<adb::device_list::Error>::none_detected("Android emulator").into())
   } else {
     let index = if emulator_list.len() > 1 {
       if let Some(t) = target {
@@ -194,7 +191,7 @@ fn emulator_prompt(
         emulator_list
           .iter()
           .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+          .ok_or_else(|| PromptError::<adb::device_list::Error>::none_detected("Android"))?
       } else {
         prompt::list(
           concat!("Detected ", "Android", " emulators"),
@@ -203,26 +200,31 @@ fn emulator_prompt(
           None,
           "Emulator",
         )
-        .map_err(|cause| PromptError::prompt_failed("Android emulator", cause))?
+        .map_err(|cause| {
+          PromptError::<adb::device_list::Error>::prompt_failed("Android emulator", cause)
+        })?
       }
     } else {
       0
     };
 
-    Ok(emulator_list.into_iter().nth(index).unwrap())
+    let emulator = emulator_list.into_iter().nth(index).unwrap();
+    let handle = emulator.start(env)?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+
+    Ok(emulator)
   }
 }
 
-fn device_prompt<'a>(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<Device<'a>, PromptError<adb::device_list::Error>> {
+fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   if let Ok(device) = adb_device_prompt(env, target) {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
     let handle = emulator.start(env).map_err(|e| {
-      PromptError::prompt_failed(
+      PromptError::<adb::device_list::Error>::prompt_failed(
         "Android emulator",
         std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
       )

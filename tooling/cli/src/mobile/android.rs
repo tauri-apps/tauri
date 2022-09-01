@@ -22,11 +22,12 @@ use std::{
   thread::{sleep, spawn},
   time::Duration,
 };
+use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, get_app,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
-  log_finished, read_options, CliOptions, Target as MobileTarget,
+  log_finished, read_options, CliOptions, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},
@@ -144,29 +145,35 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
   let device_list = adb::device_list(env)
     .map_err(|cause| anyhow::anyhow!("Failed to detect connected Android devices: {cause}"))?;
   if !device_list.is_empty() {
-    let index = if device_list.len() > 1 {
-      if let Some(t) = target {
-        let t = t.to_lowercase();
-        device_list
-          .iter()
-          .position(|d| {
-            d.name().to_lowercase().starts_with(&t) || d.model().to_lowercase().starts_with(&t)
-          })
-          .ok_or_else(|| anyhow::anyhow!("Could not find an Android device matching {t}"))?
+    let device = if let Some(t) = target {
+      let (device, score) = device_list
+        .into_iter()
+        .rev()
+        .map(|d| {
+          let score = best_match(&t, d.name()).map_or(0, |m| m.score());
+          (d, score)
+        })
+        .max_by_key(|(_, score)| *score)
+        // we already checked the list is not empty
+        .unwrap();
+      if score > MIN_DEVICE_MATCH_SCORE {
+        device
       } else {
-        prompt::list(
-          concat!("Detected ", "Android", " devices"),
-          device_list.iter(),
-          "device",
-          None,
-          "Device",
-        )
-        .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android device: {cause}"))?
+        anyhow::bail!("Could not find an Android device matching {t}")
       }
+    } else if device_list.len() > 1 {
+      let index = prompt::list(
+        concat!("Detected ", "Android", " devices"),
+        device_list.iter(),
+        "device",
+        None,
+        "Device",
+      )
+      .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android device: {cause}"))?;
+      device_list.into_iter().nth(index).unwrap()
     } else {
-      0
+      device_list.into_iter().next().unwrap()
     };
-    let device = device_list.into_iter().nth(index).unwrap();
     println!(
       "Detected connected device: {} with target {:?}",
       device,
@@ -181,28 +188,36 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
 fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emulator> {
   let emulator_list = emulator::avd_list(env).unwrap_or_default();
   if !emulator_list.is_empty() {
-    let index = if emulator_list.len() > 1 {
-      if let Some(t) = target {
-        let target = t.to_lowercase();
-        emulator_list
-          .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&target))
-          .ok_or_else(|| anyhow::anyhow!("Could not find an iOS Simulator matching {}", t))?
+    let emulator = if let Some(t) = target {
+      let (device, score) = emulator_list
+        .into_iter()
+        .rev()
+        .map(|d| {
+          let score = best_match(&t, d.name()).map_or(0, |m| m.score());
+          (d, score)
+        })
+        .max_by_key(|(_, score)| *score)
+        // we already checked the list is not empty
+        .unwrap();
+      if score > MIN_DEVICE_MATCH_SCORE {
+        device
       } else {
-        prompt::list(
-          concat!("Detected ", "Android", " emulators"),
-          emulator_list.iter(),
-          "emulator",
-          None,
-          "Emulator",
-        )
-        .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android Emulator device: {cause}"))?
+        anyhow::bail!("Could not find an Android Emulator matching {t}")
       }
+    } else if emulator_list.len() > 1 {
+      let index = prompt::list(
+        concat!("Detected ", "Android", " emulators"),
+        emulator_list.iter(),
+        "emulator",
+        None,
+        "Emulator",
+      )
+      .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android Emulator device: {cause}"))?;
+      emulator_list.into_iter().nth(index).unwrap()
     } else {
-      0
+      emulator_list.into_iter().next().unwrap()
     };
 
-    let emulator = emulator_list.into_iter().nth(index).unwrap();
     let handle = emulator.start(env)?;
     spawn(move || {
       let _ = handle.wait();
@@ -215,22 +230,18 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  match adb_device_prompt(env, target) {
-    Ok(device) => Ok(device),
-    Err(e) => {
-      if let Ok(emulator) = emulator_prompt(env, target) {
-        let handle = emulator.start(env)?;
-        spawn(move || {
-          let _ = handle.wait();
-        });
-        loop {
-          sleep(Duration::from_secs(2));
-          if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
-            return Ok(device);
-          }
-        }
-      } else {
-        Err(e)
+  if let Ok(device) = adb_device_prompt(env, target) {
+    Ok(device)
+  } else {
+    let emulator = emulator_prompt(env, target)?;
+    let handle = emulator.start(env)?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+    loop {
+      sleep(Duration::from_secs(2));
+      if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
+        return Ok(device);
       }
     }
   }

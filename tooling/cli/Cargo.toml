@@ -33,6 +33,7 @@ cargo-mobile = { git = "https://github.com/tauri-apps/cargo-mobile", branch = "d
 textwrap = { version = "0.11.0", features = ["term_size"] }
 interprocess = "1"
 thiserror = "1"
+sublime_fuzzy = "0.7"
 clap = { version = "3.2", features = [ "derive" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.5", path = "../bundler" }

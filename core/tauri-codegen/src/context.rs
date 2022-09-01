@@ -167,9 +167,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         _ => false,
       };
       if localhost {
-        if let Ok(ip) = local_ip_address::local_ip() {
-          url.set_host(Some(&ip.to_string())).unwrap();
-        }
+        let ip = local_ip_address::local_ip().expect("failed to resolve local IP address");
+        url.set_host(Some(&ip.to_string())).unwrap();
       }
     }
   }

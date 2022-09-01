@@ -10,15 +10,10 @@ use crate::{
 use clap::Parser;
 
 use cargo_mobile::{
-  apple::{config::Config as AppleConfig, device::RunError as DeviceRunError, simctl},
+  apple::config::Config as AppleConfig,
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
-};
-
-use std::{
-  thread::{sleep, spawn},
-  time::Duration,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -98,25 +93,6 @@ fn run_dev(
   let env = env()?;
   init_dot_cargo(app, None)?;
 
-  if let Some(device) = &options.device {
-    let simulators = simctl::device_list(&env).unwrap_or_default();
-    for simulator in simulators {
-      if simulator
-        .name()
-        .to_lowercase()
-        .starts_with(&device.to_lowercase())
-      {
-        log::info!("Starting simulator {}", simulator.name());
-        let handle = simulator.start(&env)?;
-        spawn(move || {
-          let _ = handle.wait();
-        });
-        sleep(Duration::from_secs(3));
-        break;
-      }
-    }
-  }
-
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -163,8 +139,8 @@ fn run_dev(
 enum RunError {
   #[error("{0}")]
   FailedToPromptForDevice(String),
-  #[error(transparent)]
-  RunFailed(DeviceRunError),
+  #[error("{0}")]
+  RunFailed(String),
 }
 fn run(
   device: Option<&str>,
@@ -185,5 +161,5 @@ fn run(
     .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
     .run(config, env, noise_level, non_interactive, profile)
     .map(DevChild::new)
-    .map_err(RunError::RunFailed)
+    .map_err(|e| RunError::RunFailed(e.to_string()))
 }

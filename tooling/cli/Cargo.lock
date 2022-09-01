@@ -293,7 +293,7 @@ checksum = "c1db59621ec70f09c5e9b597b220c7a2b43611f4710dc03ceb8748637775692c"
 [[package]]
 name = "cargo-mobile"
 version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#4a28c9e2370c07b4cb83458e58da0d7bfe4e9b1e"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#123b8cf58e9a894375bb9d9e7a098419a7d67b5f"
 dependencies = [
  "cocoa",
  "colored 1.9.3",
@@ -3411,6 +3411,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sublime_fuzzy"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa7986063f7c0ab374407e586d7048a3d5aac94f103f751088bf398e07cd5400"
+
+[[package]]
 name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3528,6 +3534,7 @@ dependencies = [
  "serde_json",
  "serde_with 2.0.0",
  "shared_child",
+ "sublime_fuzzy",
  "tauri-bundler",
  "tauri-utils",
  "tempfile",

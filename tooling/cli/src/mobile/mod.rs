@@ -40,6 +40,8 @@ mod init;
 #[cfg(target_os = "macos")]
 pub mod ios;
 
+const MIN_DEVICE_MATCH_SCORE: isize = 0;
+
 #[derive(Clone)]
 pub struct DevChild {
   child: Arc<SharedChild>,

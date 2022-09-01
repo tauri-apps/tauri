@@ -13,18 +13,18 @@ use cargo_mobile::{
     target::Target,
   },
   config::app::App,
-  device::PromptError,
   env::Env,
   opts::NoiseLevel,
   os,
   util::prompt,
 };
 use clap::{Parser, Subcommand};
+use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, env, get_app,
   init::{command as init_command, init_dot_cargo, Options as InitOptions},
-  log_finished, read_options, CliOptions, Target as MobileTarget,
+  log_finished, read_options, CliOptions, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},
@@ -126,21 +126,28 @@ fn with_config<T>(
   f(&app, &config, &metadata, cli_options)
 }
 
-fn ios_deploy_device_prompt<'a>(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<Device<'a>, PromptError<ios_deploy::DeviceListError>> {
-  let device_list =
-    ios_deploy::device_list(env).map_err(|cause| PromptError::detection_failed("iOS", cause))?;
+fn ios_deploy_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+  let device_list = ios_deploy::device_list(env)
+    .map_err(|cause| anyhow::anyhow!("Failed to detect connected iOS devices: {cause}"))?;
   if !device_list.is_empty() {
-    let index = if device_list.len() > 1 {
-      if let Some(t) = target {
-        let t = t.to_lowercase();
-        device_list
-          .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+    let device = if let Some(t) = target {
+      let (device, score) = device_list
+        .into_iter()
+        .rev()
+        .map(|d| {
+          let score = best_match(t, d.name()).map_or(0, |m| m.score());
+          (d, score)
+        })
+        .max_by_key(|(_, score)| *score)
+        // we already checked the list is not empty
+        .unwrap();
+      if score > MIN_DEVICE_MATCH_SCORE {
+        device
       } else {
+        anyhow::bail!("Could not find an iOS device matching {t}")
+      }
+    } else {
+      let index = if device_list.len() > 1 {
         prompt::list(
           concat!("Detected ", "iOS", " devices"),
           device_list.iter(),
@@ -148,12 +155,12 @@ fn ios_deploy_device_prompt<'a>(
           None,
           "Device",
         )
-        .map_err(|cause| PromptError::prompt_failed("iOS", cause))?
-      }
-    } else {
-      0
+        .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS device: {cause}"))?
+      } else {
+        0
+      };
+      device_list.into_iter().nth(index).unwrap()
     };
-    let device = device_list.into_iter().nth(index).unwrap();
     println!(
       "Detected connected device: {} with target {:?}",
       device,
@@ -161,41 +168,54 @@ fn ios_deploy_device_prompt<'a>(
     );
     Ok(device)
   } else {
-    Err(PromptError::none_detected("iOS"))
+    Err(anyhow::anyhow!("No connected iOS devices detected"))
   }
 }
 
-fn simulator_prompt(
-  env: &'_ Env,
-  target: Option<&str>,
-) -> Result<simctl::Device, PromptError<simctl::DeviceListError>> {
-  let simulator_list = simctl::device_list(env)
-    .map_err(|cause| PromptError::detection_failed("iOS Simulator", cause))?;
+fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<simctl::Device> {
+  let simulator_list = simctl::device_list(env).map_err(|cause| {
+    anyhow::anyhow!("Failed to detect connected iOS Simulator devices: {cause}")
+  })?;
   if !simulator_list.is_empty() {
-    let index = if simulator_list.len() > 1 {
-      if let Some(t) = target {
-        let t = t.to_lowercase();
-        simulator_list
-          .iter()
-          .position(|d| d.name().to_lowercase().starts_with(&t))
-          .unwrap_or_default()
+    let device = if let Some(t) = target {
+      let (device, score) = simulator_list
+        .into_iter()
+        .rev()
+        .map(|d| {
+          let score = best_match(t, d.name()).map_or(0, |m| m.score());
+          (d, score)
+        })
+        .max_by_key(|(_, score)| *score)
+        // we already checked the list is not empty
+        .unwrap();
+      if score > MIN_DEVICE_MATCH_SCORE {
+        device
       } else {
-        prompt::list(
-          concat!("Detected ", "iOS", " simulators"),
-          simulator_list.iter(),
-          "simulator",
-          None,
-          "Simulator",
-        )
-        .map_err(|cause| PromptError::prompt_failed("iOS Simulator", cause))?
+        anyhow::bail!("Could not find an iOS Simulator matching {t}")
       }
+    } else if simulator_list.len() > 1 {
+      let index = prompt::list(
+        concat!("Detected ", "iOS", " simulators"),
+        simulator_list.iter(),
+        "simulator",
+        None,
+        "Simulator",
+      )
+      .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS Simulator device: {cause}"))?;
+      simulator_list.into_iter().nth(index).unwrap()
     } else {
-      0
+      simulator_list.into_iter().next().unwrap()
     };
-    let device = simulator_list.into_iter().nth(index).unwrap();
+
+    log::info!("Starting simulator {}", device.name());
+    let handle = device.start(env)?;
+    spawn(move || {
+      let _ = handle.wait();
+    });
+
     Ok(device)
   } else {
-    Err(PromptError::none_detected("iOS Simulator"))
+    Err(anyhow::anyhow!("No available iOS Simulator detected"))
   }
 }
 

@@ -184,10 +184,10 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
 
   let mut attempt = 0;
   let max_tries = 5;
-  let buffer = loop {
+  let (buffer, len) = loop {
     let mut buffer = String::new();
-    if conn.read_line(&mut buffer).is_ok() {
-      break buffer;
+    if let Ok(len) = conn.read_line(&mut buffer) {
+      break (buffer, len);
     }
     std::thread::sleep(std::time::Duration::from_secs(1));
     attempt += 1;
@@ -199,7 +199,8 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
       std::process::exit(1);
     }
   };
-  let options: CliOptions = serde_json::from_str(&buffer).expect("invalid CLI options");
+
+  let options: CliOptions = serde_json::from_str(&buffer[..len - 1]).expect("invalid CLI options");
   for (k, v) in &options.vars {
     set_var(k, v);
   }

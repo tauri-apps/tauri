@@ -32,9 +32,17 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
 }
 
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
-  symlink_metadata(path)
+  #[cfg(windows)]
+  let ret = symlink_metadata(path)
     .map(|md| md.is_symlink())
-    .map_err(Into::into)
+    .map_err(Into::into);
+
+  #[cfg(not(windows))]
+  let ret = symlink_metadata(path)
+    .map(|md| md.file_type().is_symlink())
+    .map_err(Into::into);
+
+  ret
 }
 
 /// Reads a directory. Can perform recursive operations.

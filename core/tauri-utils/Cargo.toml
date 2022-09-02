@@ -8,7 +8,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
 rust-version = "1.57"
-exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]

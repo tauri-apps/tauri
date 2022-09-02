@@ -62,7 +62,7 @@ pub fn init_dot_cargo(app: &App, android: Option<(&AndroidEnv, &AndroidConfig)>)
 pub fn exec(
   target: Target,
   wrapper: &TextWrapper,
-  non_interactive: bool,
+  #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
 ) -> Result<App> {
   let tauri_config = get_tauri_config(None)?;

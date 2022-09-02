@@ -1601,6 +1601,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "notify-debouncer-mini"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c538ea1dd436b41e751922510cfbcaea2def87ed6ed94aa1edc15dc31b4c179"
+dependencies = [
+ "crossbeam-channel",
+ "notify",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2789,6 +2799,7 @@ dependencies = [
  "log",
  "minisign",
  "notify",
+ "notify-debouncer-mini",
  "once_cell",
  "os_info",
  "os_pipe",

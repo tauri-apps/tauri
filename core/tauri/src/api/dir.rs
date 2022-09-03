@@ -50,6 +50,7 @@ pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::api::Result<
   read_dir_with_options(path, recursive, ReadDirOptions { scope: None })
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ReadDirOptions<'a> {
   pub scope: Option<&'a crate::FsScope>,
 }
@@ -73,7 +74,7 @@ pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
               && (!is_symlink(&path_as_string)?
                 || options.scope.map(|s| s.is_allowed(&path)).unwrap_or(true))
             {
-              read_dir(&path_as_string, true)?
+              read_dir_with_options(&path_as_string, true, options)?
             } else {
               vec![]
             },

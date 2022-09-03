@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -60,6 +60,12 @@ pub struct Options {
   /// Url of your dev server
   #[clap(short = 'P', long)]
   dev_path: Option<String>,
+  /// A shell command to run before `tauri dev` kicks in.
+  #[clap(long)]
+  before_dev_command: Option<String>,
+  /// A shell command to run before `tauri build` kicks in.
+  #[clap(long)]
+  before_build_command: Option<String>,
 }
 
 #[derive(Default)]
@@ -90,6 +96,7 @@ impl Options {
         "What is your app name?",
         init_defaults.app_name.clone(),
         self.ci,
+        false,
       )
     })?;
 
@@ -98,13 +105,15 @@ impl Options {
         "What should the window title be?",
         init_defaults.app_name.clone(),
         self.ci,
+        false,
       )
     })?;
 
     self.dist_dir = self.dist_dir.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
       init_defaults.framework.as_ref().map(|f| f.dist_dir()),
-      self.ci
+      self.ci,
+      false,
     ))?;
 
     self.dev_path = self.dev_path.map(|s| Ok(Some(s))).unwrap_or_else(|| {
@@ -112,8 +121,32 @@ impl Options {
         "What is the url of your dev server?",
         init_defaults.framework.map(|f| f.dev_path()),
         self.ci,
+        false,
       )
     })?;
+
+    self.before_dev_command = self
+      .before_dev_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        request_input(
+          "What is your frontend dev command?",
+          Some("npm run dev".to_string()),
+          self.ci,
+          true,
+        )
+      })?;
+    self.before_build_command = self
+      .before_build_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        request_input(
+          "What is your frontend build command?",
+          Some("npm run build".to_string()),
+          self.ci,
+          true,
+        )
+      })?;
 
     Ok(self)
   }
@@ -178,6 +211,14 @@ pub fn command(mut options: Options) -> Result<()> {
       "window_title",
       to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
     );
+    data.insert(
+      "before_dev_command",
+      to_json(options.before_dev_command.unwrap_or_default()),
+    );
+    data.insert(
+      "before_build_command",
+      to_json(options.before_build_command.unwrap_or_default()),
+    );
 
     let mut config = serde_json::from_str(
       &handlebars
@@ -241,20 +282,25 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn request_input<T>(prompt: &str, default: Option<T>, skip: bool) -> Result<Option<T>>
+fn request_input<T>(
+  prompt: &str,
+  initial: Option<T>,
+  skip: bool,
+  allow_empty: bool,
+) -> Result<Option<T>>
 where
   T: Clone + FromStr + Display + ToString,
   T::Err: Display + std::fmt::Debug,
 {
   if skip {
-    Ok(default)
+    Ok(initial)
   } else {
     let theme = dialoguer::theme::ColorfulTheme::default();
     let mut builder = Input::with_theme(&theme);
     builder.with_prompt(prompt);
+    builder.allow_empty(allow_empty);
 
-    if let Some(v) = default {
-      builder.default(v.clone());
+    if let Some(v) = initial {
       builder.with_initial_text(v.to_string());
     }
 

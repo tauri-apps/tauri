@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -11,10 +11,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
-      - 'core/tauri/**'
-      - 'tooling/cli/**'
-      - 'tooling/bundler/**'
       - 'examples/updater/**'
+  workflow_dispatch:
 
 env:
   RUST_BACKTRACE: 1
@@ -26,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-artifacs:
+  build-artifacts:
     runs-on: ${{ matrix.platform }}
 
     strategy:

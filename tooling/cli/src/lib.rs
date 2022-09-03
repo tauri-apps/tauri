@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -73,7 +73,7 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments, exiting if an error occurrs.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///

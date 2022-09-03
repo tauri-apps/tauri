@@ -16,8 +16,8 @@
     "@iconify-json/codicon": "^1.1.10",
     "@iconify-json/ph": "^1.1.1",
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.49",
-    "svelte": "^3.48.0",
+    "svelte": "^3.49.0",
     "unocss": "^0.39.3",
-    "vite": "^2.9.12"
+    "vite": "^2.9.13"
   }
 }

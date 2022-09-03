@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -16,10 +16,10 @@ use std::{
 use crate::{getter, Context, Message};
 
 use tauri_runtime::{Error, GlobalShortcutManager, Result, UserEvent};
-pub use wry::application::global_shortcut::ShortcutManager as WryShortcutManager;
-use wry::application::{
+#[cfg(desktop)]
+pub use wry::application::{
   accelerator::{Accelerator, AcceleratorId},
-  global_shortcut::GlobalShortcut,
+  global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
 };
 
 pub type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;

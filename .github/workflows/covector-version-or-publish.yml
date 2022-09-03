@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -171,3 +171,14 @@ jobs:
           token: ${{ secrets.TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
+          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+
+      - name: Trigger cli.rs publishing workflow
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.TAURI_BOT_PAT }}
+          repository: tauri-apps/tauri
+          event-type: publish-clirs

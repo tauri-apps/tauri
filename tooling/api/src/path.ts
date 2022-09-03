@@ -1,13 +1,13 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * The path module provides utilities for working with file and directory paths.
  *
- * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.path` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.path`](https://tauri.app/v1/api/config/#allowlistconfig.path) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -29,7 +29,7 @@ import { isWindows } from './helpers/os-check'
 
 /**
  * Returns the path to the suggested directory for your app config files.
- * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value configured on `tauri.conf.json > tauri > bundle > identifier`.
+ * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
  * @example
  * ```typescript
  * import { appDir } from '@tauri-apps/api/path';
@@ -529,7 +529,7 @@ async function videoDir(): Promise<string> {
 /**
  * Returns the path to the suggested log directory.
  *
- * ### Platform-specific
+ * #### Platform-specific
  *
  * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}`.
  * - **macOS:** Resolves to `${homeDir}//Library/Logs/{bundleIdentifier}`
@@ -589,7 +589,7 @@ async function resolve(...paths: string[]): Promise<string> {
 }
 
 /**
- * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symolic links.
+ * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symbolic links.
  * @example
  * ```typescript
  * import { normalize, appDir } from '@tauri-apps/api/path';

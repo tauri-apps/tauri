@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-16"?>
 <!--
-  Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+  Copyright 2019-2022 Tauri Programme within The Commons Conservancy
   SPDX-License-Identifier: Apache-2.0
   SPDX-License-Identifier: MIT
 -->
@@ -37,7 +37,7 @@
   <Actions Context="Author">
     <Exec>
       <Command>cmd.exe</Command>
-      <Arguments>/c "msiexec.exe /i %TEMP%\\{{{product_name}}}.msi {{{msiexec_args}}} /promptrestart"</Arguments>
+      <Arguments>/c "%SYSTEMROOT%\System32\msiexec.exe /i %TEMP%\\{{{product_name}}}.msi {{{msiexec_args}}} /promptrestart"</Arguments>
     </Exec>
   </Actions>
 </Task>

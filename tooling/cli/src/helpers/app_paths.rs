@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,6 +13,8 @@ use std::{
 use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 
+use tauri_utils::config::parse::ConfigFormat;
+
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
 
 fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
@@ -26,6 +28,7 @@ fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<P
   }
 
   let mut builder = WalkBuilder::new(dir);
+  builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
   builder
     .require_git(false)
@@ -65,14 +68,20 @@ fn get_tauri_dir() -> PathBuf {
   }
 
   lookup(&cwd, |path, file_type| if file_type.is_dir() {
-    path.join("tauri.conf.json").exists() || path.join("tauri.conf.json5").exists()
+    path.join(ConfigFormat::Json.into_file_name()).exists() || path.join(ConfigFormat::Json5.into_file_name()).exists() || path.join(ConfigFormat::Toml.into_file_name()).exists()
   } else if let Some(file_name) = path.file_name() {
-    file_name == OsStr::new("tauri.conf.json") || file_name == OsStr::new("tauri.conf.json5")
+    file_name == OsStr::new(ConfigFormat::Json.into_file_name()) || file_name == OsStr::new(ConfigFormat::Json5.into_file_name()) || file_name == OsStr::new(ConfigFormat::Toml.into_file_name())
   } else {
     false
   })
   .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
-  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json` or `tauri.conf.json5` file in any subfolder.")
+  .unwrap_or_else(||
+    panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
+      ConfigFormat::Json.into_file_name(),
+      ConfigFormat::Json5.into_file_name(),
+      ConfigFormat::Toml.into_file_name()
+    )
+  )
 }
 
 fn get_app_dir() -> Option<PathBuf> {

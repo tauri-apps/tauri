@@ -1,5 +1,17 @@
 # Changelog
 
+## \[1.0.4]
+
+- Adjust command imports to fix `items_after_statements` Clippy warning.
+  - [d3e19e34](https://www.github.com/tauri-apps/tauri/commit/d3e19e3420a023cddc46173a2d1f1e6c5a390a1b) fix(macros): `items_after_statements` Clippy warning, closes [#4639](https://www.github.com/tauri-apps/tauri/pull/4639) on 2022-07-11
+- Remove raw identifier (`r#`) prefix from command arguments.
+  - [ac72800f](https://www.github.com/tauri-apps/tauri/commit/ac72800fb630738e2502569935ecdc83e3e78055) fix(macros): strip `r#` from command arguments, closes [#4654](https://www.github.com/tauri-apps/tauri/pull/4654) ([#4657](https://www.github.com/tauri-apps/tauri/pull/4657)) on 2022-07-12
+
+## \[1.0.3]
+
+- Add `#[doc(hidden)]` attribute to the `#[command]` generated macro.
+  - [d4cdf807](https://www.github.com/tauri-apps/tauri/commit/d4cdf80781a7955ac620fe6d394e82d067178c4d) feat(macros): hide command macro from docs, closes [#4550](https://www.github.com/tauri-apps/tauri/pull/4550) ([#4556](https://www.github.com/tauri-apps/tauri/pull/4556)) on 2022-07-01
+
 ## \[1.0.2]
 
 - Expose `platform::windows_version` function.

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -25,7 +26,7 @@
 use super::super::common;
 use crate::Settings;
 use anyhow::Context;
-use heck::ToKebabCase;
+use heck::AsKebabCase;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use libflate::gzip;
 use log::info;
@@ -55,6 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "x86_64" => "amd64",
     // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
     "arm" => "armhf",
+    "aarch64" => "arm64",
     other => other,
   };
   let package_base_name = format!(
@@ -170,11 +172,7 @@ fn generate_control_file(
   // https://www.debian.org/doc/debian-policy/ch-controlfields.html
   let dest_path = control_dir.join("control");
   let mut file = common::create_file(&dest_path)?;
-  writeln!(
-    file,
-    "Package: {}",
-    settings.product_name().to_kebab_case().to_ascii_lowercase()
-  )?;
+  writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {}", arch)?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size

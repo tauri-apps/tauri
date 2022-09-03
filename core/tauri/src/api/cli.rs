@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -136,13 +136,16 @@ fn get_matches_internal(config: &CliConfig, matches: &ArgMatches) -> Matches {
   map_matches(config, matches, &mut cli_matches);
 
   if let Some((subcommand_name, subcommand_matches)) = matches.subcommand() {
-    let mut subcommand_cli_matches = Matches::default();
-    map_matches(
-      config.subcommands().unwrap().get(subcommand_name).unwrap(),
-      subcommand_matches,
-      &mut subcommand_cli_matches,
-    );
-    cli_matches.set_subcommand(subcommand_name.to_string(), subcommand_cli_matches);
+    if let Some(subcommand_config) = config
+      .subcommands
+      .as_ref()
+      .and_then(|s| s.get(subcommand_name))
+    {
+      cli_matches.set_subcommand(
+        subcommand_name.to_string(),
+        get_matches_internal(subcommand_config, subcommand_matches),
+      );
+    }
   }
 
   cli_matches

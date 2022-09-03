@@ -3,7 +3,7 @@
 
   // This example show how updater events work when dialog is disabled.
   // This allow you to use custom dialog for the updater.
-  // This is your responsability to restart the application after you receive the STATUS: DONE.
+  // This is your responsibility to restart the application after you receive the STATUS: DONE.
 
   import { checkUpdate, installUpdate } from '@tauri-apps/api/updater'
   import { listen } from '@tauri-apps/api/event'

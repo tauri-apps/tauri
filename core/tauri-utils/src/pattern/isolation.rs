@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,7 +23,7 @@ pub enum Error {
   #[error("CSPRNG error")]
   Csprng(#[from] CsprngError),
 
-  /// Something went wrong with decryping an AES-GCM payload
+  /// Something went wrong with decrypting an AES-GCM payload
   #[error("AES-GCM")]
   Aes,
 

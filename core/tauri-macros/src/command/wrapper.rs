@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,6 +6,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
+  ext::IdentExt,
   parse::{Parse, ParseBuffer},
   parse_macro_input,
   spanned::Spanned,
@@ -82,6 +83,8 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     macro_rules! #wrapper {
         // double braces because the item is expected to be a block expression
         ($path:path, $invoke:ident) => {{
+          #[allow(unused_imports)]
+          use ::tauri::command::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
           #[allow(unused_variables)]
           let ::tauri::Invoke { message: #message, resolver: #resolver } = $invoke;
@@ -106,9 +109,6 @@ fn body_async(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2> {
   let Invoke { message, resolver } = invoke;
   parse_args(function, message).map(|args| {
     quote! {
-      #[allow(unused_imports)]
-      use ::tauri::command::private::*;
-
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
@@ -134,9 +134,6 @@ fn body_blocking(function: &ItemFn, invoke: &Invoke) -> syn::Result<TokenStream2
   });
 
   Ok(quote! {
-    #[allow(unused_imports)]
-    use ::tauri::command::private::*;
-
     let result = $path(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);
@@ -168,7 +165,7 @@ fn parse_arg(command: &Ident, arg: &FnArg, message: &Ident) -> syn::Result<Token
 
   // we only support patterns that allow us to extract some sort of keyed identifier
   let mut key = match &mut arg {
-    Pat::Ident(arg) => arg.ident.to_string(),
+    Pat::Ident(arg) => arg.ident.unraw().to_string(),
     Pat::Wild(_) => "".into(), // we always convert to camelCase, so "_" will end up empty anyways
     Pat::Struct(s) => super::path_to_command(&mut s.path).ident.to_string(),
     Pat::TupleStruct(s) => super::path_to_command(&mut s.path).ident.to_string(),

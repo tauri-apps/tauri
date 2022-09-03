@@ -40,9 +40,8 @@ semver = "1"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.37.0"
+version = "0.39.0"
 features = [
-  "alloc",
   "implement",
   "Win32_Foundation",
   "Win32_System_Com",

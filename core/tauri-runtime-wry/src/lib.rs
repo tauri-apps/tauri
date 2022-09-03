@@ -2669,23 +2669,6 @@ fn handle_event_loop<T: UserEvent>(
       event, window_id, ..
     } => {
       if let Some(window_id) = webview_id_map.get(&window_id) {
-        // NOTE(amrbashir): we handle this event here instead of `match` statement below because
-        // we want to focus the webview as soon as possible, especially on windows.
-        if event == WryWindowEvent::Focused(true) {
-          let w = windows
-            .borrow()
-            .get(&window_id)
-            .and_then(|w| w.inner.clone());
-          if let Some(WindowHandle::Webview(webview)) = w {
-            // only focus the webview if the window is visible
-            // somehow tao is sending a Focused(true) event even when the window is invisible,
-            // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
-            if webview.window().is_visible() {
-              webview.focus();
-            }
-          }
-        }
-
         {
           let windows_ref = windows.borrow();
           if let Some(window) = windows_ref.get(&window_id) {
@@ -2980,7 +2963,7 @@ fn create_webview<T: UserEvent>(
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
@@ -2993,7 +2976,7 @@ fn create_webview<T: UserEvent>(
     .unwrap();
     unsafe {
       controller.add_LostFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),

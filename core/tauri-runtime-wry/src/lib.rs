@@ -2963,7 +2963,7 @@ fn create_webview<T: UserEvent>(
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
@@ -2976,7 +2976,7 @@ fn create_webview<T: UserEvent>(
     .unwrap();
     unsafe {
       controller.add_LostFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),

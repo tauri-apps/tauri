@@ -26,7 +26,7 @@
 //!         "https://releases.myapp.com/{target}}/{current_version}}"
 //!     ],
 //!     "dialog": true,
-//!     "pubkey": "YOUR_UPDATER_SIGNATURE_PUBKEY_HERE"
+//!     "pubkey": "YOUR_UPDATER_PUBLIC_KEY_HERE"
 //! }
 //! ```
 //!

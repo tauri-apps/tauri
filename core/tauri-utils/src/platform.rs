@@ -202,6 +202,7 @@ pub use windows_platform::{is_windows_7, windows_version};
 
 #[cfg(windows)]
 mod windows_platform {
+  use std::{iter::once, os::windows::prelude::OsStrExt};
   use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{

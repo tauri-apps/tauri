@@ -136,6 +136,13 @@ fn main() {
     &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS");
+  let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  if is_tauri_workspace && Ok("windows") == target_os.as_deref() && Ok("msvc") == target_env.as_deref() {
+    add_manifest();
+  }
 }
 
 // create aliases for the given module with its apis.
@@ -164,4 +171,18 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) {
   }
 
   alias(&format!("{}_any", AsSnakeCase(module)), any);
+}
+
+fn add_manifest() {
+  static WINDOWS_MANIFEST_FILE: &str = "Windows Manifest.xml";
+
+  let mut manifest = std::env::current_dir().unwrap();
+  manifest.push(WINDOWS_MANIFEST_FILE);
+
+  println!("cargo:rerun-if-changed={}", WINDOWS_MANIFEST_FILE);
+  // Embed the Windows application manifest file.
+  println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+  println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.to_str().unwrap());
+  // Turn linker warnings into errors.
+  println!("cargo:rustc-link-arg=/WX");
 }

@@ -671,7 +671,7 @@ pub struct CliArg {
   pub required: bool,
   /// Sets an arg that override this arg's required setting
   /// i.e. this arg will be required unless this other argument is present.
-  #[serde(alias = "requred-unless-present")]
+  #[serde(alias = "required-unless-present")]
   pub required_unless_present: Option<String>,
   /// Sets args that override this arg's required setting
   /// i.e. this arg will be required unless all these other arguments are present.
@@ -2551,7 +2551,7 @@ pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
   pub product_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file contaning the `version` field.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
 }

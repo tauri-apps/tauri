@@ -73,7 +73,7 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments, exiting if an error occurrs.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///

@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-artifacs:
+  build-artifacts:
     runs-on: ${{ matrix.platform }}
 
     strategy:

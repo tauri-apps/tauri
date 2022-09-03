@@ -64,7 +64,7 @@
 //!
 //! If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
 //!
-//! ## Javascript API
+//! ## JavaScript API
 //!
 //! **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT work.**
 //!
@@ -107,7 +107,7 @@
 //!   });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update");
@@ -145,7 +145,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
 //! listen("tauri://update-available", function (res) {
@@ -180,7 +180,7 @@
 //!   });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update-install");
@@ -209,7 +209,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //!
 //! Event : `tauri://update-download-progress`
 //!
@@ -270,7 +270,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! Event : `tauri://update-status`
 //!
 //! Emitted data:

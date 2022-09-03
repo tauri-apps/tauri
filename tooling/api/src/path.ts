@@ -589,7 +589,7 @@ async function resolve(...paths: string[]): Promise<string> {
 }
 
 /**
- * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symolic links.
+ * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symbolic links.
  * @example
  * ```typescript
  * import { normalize, appDir } from '@tauri-apps/api/path';

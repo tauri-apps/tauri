@@ -54,7 +54,7 @@ async function listen<T>(
  *   token: string
  * }
  * const unlisten = await once<LoadedPayload>('loaded', (event) => {
- *   console.log(`App is loaded, logggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
+ *   console.log(`App is loaded, loggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// This is an example of a taui app built into a dll
+// This is an example of a tauri app built into a dll
 // Calling lib_test1 within the dll will launch the webview
 
 #![cfg_attr(

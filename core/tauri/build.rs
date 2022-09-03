@@ -140,7 +140,10 @@ fn main() {
   let target_os = std::env::var("CARGO_CFG_TARGET_OS");
   let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
   let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
-  if is_tauri_workspace && Ok("windows") == target_os.as_deref() && Ok("msvc") == target_env.as_deref() {
+  if is_tauri_workspace
+    && Ok("windows") == target_os.as_deref()
+    && Ok("msvc") == target_env.as_deref()
+  {
     add_manifest();
   }
 }
@@ -182,7 +185,10 @@ fn add_manifest() {
   println!("cargo:rerun-if-changed={}", WINDOWS_MANIFEST_FILE);
   // Embed the Windows application manifest file.
   println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
-  println!("cargo:rustc-link-arg=/MANIFESTINPUT:{}", manifest.to_str().unwrap());
+  println!(
+    "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
+    manifest.to_str().unwrap()
+  );
   // Turn linker warnings into errors.
   println!("cargo:rustc-link-arg=/WX");
 }

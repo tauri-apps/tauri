@@ -507,7 +507,7 @@ async function removeFile(
     message: {
       cmd: 'removeFile',
       path: file,
-      options: options
+      options
     }
   })
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -358,7 +358,7 @@ else
 			| perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" \
 			| perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" \
 			> "$APPLESCRIPT_FILE"
-		sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues  
+		sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues
 		echo "Running AppleScript to make Finder stuff pretty: /usr/bin/osascript \"${APPLESCRIPT_FILE}\" \"${VOLUME_NAME}\""
 		if /usr/bin/osascript "${APPLESCRIPT_FILE}" "${VOLUME_NAME}"; then
 			# Okay, we're cool
@@ -443,7 +443,7 @@ if [[ -n "${EULA_RSRC}" && "${EULA_RSRC}" != "-null-" ]]; then
 	# EULA_DATA="$(base64 -b 52 "${EULA_RSRC}" | sed s$'/^\(.*\)$/\t\t\t\\1/')"
 	EULA_DATA="$(openssl base64 -in "${EULA_RSRC}" | tr -d '\n' | awk '{gsub(/.{52}/,"&\n")}1' | sed s$'/^\(.*\)$/\t\t\t\\1/')"
 	# Fill the template with the custom EULA contents
-	eval "cat > \"${EULA_RESOURCES_FILE}\" <<EOF                                                                                                                  
+	eval "cat > \"${EULA_RESOURCES_FILE}\" <<EOF
 	$(<${AUX_PATH}/eula-resources-template.xml)
 	EOF
 	"

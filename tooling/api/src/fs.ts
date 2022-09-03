@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -456,7 +456,7 @@ async function removeDir(
 }
 
 /**
- * Copys a file to a destination.
+ * Copies a file to a destination.
  * @example
  * ```typescript
  * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
@@ -507,7 +507,7 @@ async function removeFile(
     message: {
       cmd: 'removeFile',
       path: file,
-      options: options
+      options
     }
   })
 }

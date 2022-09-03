@@ -3,7 +3,7 @@ import {
   presetIcons,
   presetUno,
   extractorSvelte,
-  presetWebFonts,
+  presetWebFonts
 } from 'unocss'
 
 export default defineConfig({
@@ -43,7 +43,6 @@ export default defineConfig({
   },
   preflights: [
     {
-
       getCSS: ({ theme }) => `
     ::-webkit-scrollbar-thumb {
       background-color: ${theme.colors.accent};
@@ -86,13 +85,17 @@ export default defineConfig({
     'note-red':
       'note bg-red-700/10 dark:bg-red-700/10 after:bg-red-700 dark:after:bg-red-700',
     input:
-      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText',
+      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText'
   },
-  presets: [presetUno(), presetIcons(), presetWebFonts({
-    fonts: {
-      sans: 'Rubik',
-      mono: ['Fira Code', 'Fira Mono:400,700'],
-    }
-  })],
+  presets: [
+    presetUno(),
+    presetIcons(),
+    presetWebFonts({
+      fonts: {
+        sans: 'Rubik',
+        mono: ['Fira Code', 'Fira Mono:400,700']
+      }
+    })
+  ],
   extractors: [extractorSvelte]
 })

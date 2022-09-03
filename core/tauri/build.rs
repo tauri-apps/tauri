@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,7 +20,7 @@ fn has_feature(feature: &str) -> bool {
     .unwrap()
     .push(feature.to_string());
 
-  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
   std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
     .map(|x| x == "1")

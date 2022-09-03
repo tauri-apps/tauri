@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -82,7 +82,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     }, true)
 
     window.__TAURI_IPC__({
-      __cmd: cmd,
+      cmd,
       callback,
       error,
       ...args

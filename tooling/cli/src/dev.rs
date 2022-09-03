@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -56,7 +56,7 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
   pub args: Vec<String>,
   /// Disable the file watcher
   #[clap(long)]

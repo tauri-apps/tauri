@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -106,7 +106,7 @@ pub struct WindowsAttributes {
   ///
   /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
   /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the corret bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
+  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
   ///
   /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
   sdk_dir: Option<PathBuf>,

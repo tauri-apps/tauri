@@ -132,7 +132,7 @@ interface MessageDialogOptions {
  * @returns A promise resolving to the selected path(s)
  */
 async function open<T extends OpenDialogOptions = OpenDialogOptions>(
-  options: T
+  options?: T
 ): Promise<T['multiple'] extends true ? null | string[] : null | string> {
   if (typeof options === 'object') {
     Object.freeze(options)

@@ -26,11 +26,11 @@
 //!         "https://releases.myapp.com/{target}}/{current_version}}"
 //!     ],
 //!     "dialog": true,
-//!     "pubkey": ""
+//!     "pubkey": "YOUR_UPDATER_PUBLIC_KEY_HERE"
 //! }
 //! ```
 //!
-//! The required keys are "active" and "endpoints", others are optional.
+//! The required keys are "active", "endpoints" and "pubkey"; others are optional.
 //!
 //! "active" must be a boolean. By default, it's set to false.
 //!
@@ -38,7 +38,7 @@
 //!
 //! "dialog" if present must be a boolean. By default, it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
 //!
-//! "pubkey" if present must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
+//! "pubkey" must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
 //!
 //! ## Update Requests
 //!

@@ -856,6 +856,9 @@ impl<R: Runtime> WindowManager<R> {
         {
           Ok(r) => {
             for (name, value) in r.headers() {
+              if name == "Content-Type" {
+                builder = builder.mimetype(value.to_str().unwrap());
+              }
               builder = builder.header(name, value);
             }
             builder.status(r.status()).body(r.bytes()?)?

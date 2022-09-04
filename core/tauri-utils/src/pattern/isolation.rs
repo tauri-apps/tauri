@@ -23,7 +23,7 @@ pub enum Error {
   #[error("CSPRNG error")]
   Csprng(#[from] CsprngError),
 
-  /// Something went wrong with decryping an AES-GCM payload
+  /// Something went wrong with decrypting an AES-GCM payload
   #[error("AES-GCM")]
   Aes,
 

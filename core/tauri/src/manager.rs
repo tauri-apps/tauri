@@ -68,6 +68,9 @@ const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
+const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
+const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
+const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
 #[derive(Default)]
@@ -210,7 +213,7 @@ pub struct InnerWindowManager<R: Runtime> {
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
-  /// The webview protocols protocols available to all windows.
+  /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
@@ -1401,7 +1404,7 @@ fn on_window_event<R: Runtime>(
       },
     )?,
     WindowEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", paths)?,
+      FileDropEvent::Hovered(paths) => window.emit(WINDOW_FILE_DROP_HOVER_EVENT, paths)?,
       FileDropEvent::Dropped(paths) => {
         let scopes = window.state::<Scopes>();
         for path in paths {
@@ -1411,9 +1414,9 @@ fn on_window_event<R: Runtime>(
             let _ = scopes.allow_directory(path, false);
           }
         }
-        window.emit("tauri://file-drop", paths)?
+        window.emit(WINDOW_FILE_DROP_EVENT, paths)?
       }
-      FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
+      FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
     WindowEvent::ThemeChanged(theme) => window.emit(WINDOW_THEME_CHANGED, theme.to_string())?,

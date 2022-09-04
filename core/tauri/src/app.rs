@@ -898,7 +898,7 @@ impl<R: Runtime> App<R> {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
         // if there is a new update we emit `tauri://update-available` with details
-        // this is the user responsabilities to display dialog and ask if user want to install
+        // this is the user responsibilities to display dialog and ask if user want to install
         // to install the update you need to invoke the Event `tauri://update-install`
         updater::listener(handle);
       }

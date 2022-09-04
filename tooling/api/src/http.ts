@@ -312,7 +312,6 @@ class Client {
       if (jsonResponse) {
         /* eslint-disable */
         try {
-          // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
           if (response.ok && (response.data as unknown as string) === '') {

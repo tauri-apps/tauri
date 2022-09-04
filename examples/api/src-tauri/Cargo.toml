@@ -7,7 +7,6 @@ rust-version = "1.57"
 license = "Apache-2.0 OR MIT"
 
 [patch.crates-io]
-wry = { git = "https://github.com/tauri-apps/wry", branch = "dev" }
 tao = { git = "https://github.com/tauri-apps/tao", branch = "dev" }
 
 [lib]

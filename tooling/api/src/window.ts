@@ -62,7 +62,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, Event, listen, once, TauriEvent } from './helpers/event'
 
 type Theme = 'light' | 'dark'
 
@@ -1523,7 +1523,7 @@ class WindowManager extends WebviewWindowHandle {
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
-    return this.listen<PhysicalSize>('tauri://resize', handler)
+    return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, handler)
   }
 
   /**
@@ -1545,7 +1545,7 @@ class WindowManager extends WebviewWindowHandle {
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
-    return this.listen<PhysicalPosition>('tauri://move', handler)
+    return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, handler)
   }
 
   /**
@@ -1574,7 +1574,7 @@ class WindowManager extends WebviewWindowHandle {
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void
   ): Promise<UnlistenFn> {
-    return this.listen<null>('tauri://close-requested', (event) => {
+    return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)
       void Promise.resolve(handler(evt)).then(() => {
         if (!evt.isPreventDefault()) {
@@ -1604,13 +1604,13 @@ class WindowManager extends WebviewWindowHandle {
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
-      'tauri://focus',
+      TauriEvent.WINDOW_FOCUS,
       (event) => {
         handler({ ...event, payload: true })
       }
     )
     const unlistenBlur = await this.listen<PhysicalPosition>(
-      'tauri://blur',
+      TauriEvent.WINDOW_BLUR,
       (event) => {
         handler({ ...event, payload: false })
       }
@@ -1646,7 +1646,10 @@ class WindowManager extends WebviewWindowHandle {
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
   ): Promise<UnlistenFn> {
-    return this.listen<ScaleFactorChanged>('tauri://scale-change', handler)
+    return this.listen<ScaleFactorChanged>(
+      TauriEvent.WINDOW_SCALE_FACTOR_CHANGED,
+      handler
+    )
   }
 
   /**
@@ -1668,7 +1671,7 @@ class WindowManager extends WebviewWindowHandle {
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
-    return this.listen<string>('tauri://menu', handler)
+    return this.listen<string>(TauriEvent.MENU, handler)
   }
 
   /**
@@ -1701,21 +1704,21 @@ class WindowManager extends WebviewWindowHandle {
     handler: EventCallback<FileDropEvent>
   ): Promise<UnlistenFn> {
     const unlistenFileDrop = await this.listen<string[]>(
-      'tauri://file-drop',
+      TauriEvent.WINDOW_FILE_DROP,
       (event) => {
         handler({ ...event, payload: { type: 'drop', paths: event.payload } })
       }
     )
 
     const unlistenFileHover = await this.listen<string[]>(
-      'tauri://file-drop-hover',
+      TauriEvent.WINDOW_FILE_DROP_HOVER,
       (event) => {
         handler({ ...event, payload: { type: 'hover', paths: event.payload } })
       }
     )
 
     const unlistenCancel = await this.listen<null>(
-      'tauri://file-drop-cancelled',
+      TauriEvent.WINDOW_FILE_DROP_CANCELLED,
       (event) => {
         handler({ ...event, payload: { type: 'cancel' } })
       }
@@ -1747,7 +1750,7 @@ class WindowManager extends WebviewWindowHandle {
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
-    return this.listen<Theme>('tauri://theme-changed', handler)
+    return this.listen<Theme>(TauriEvent.WINDOW_THEME_CHANGED, handler)
   }
 }
 

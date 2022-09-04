@@ -107,14 +107,14 @@ cocoa = "0.24"
 objc = "0.2"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.16.0"
+webview2-com = "0.19.1"
 win7-notifications = { version = "0.3.0", optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
 paste = "1.0"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.37.0"
+version = "0.39.0"
 features = [ "Win32_Foundation" ]
 
 [build-dependencies]

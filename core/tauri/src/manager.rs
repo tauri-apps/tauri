@@ -917,6 +917,10 @@ impl<R: Runtime> WindowManager<R> {
       #[raw]
       core_script: &'a str,
       #[raw]
+      window_dialogs_script: &'a str,
+      #[raw]
+      window_print_script: &'a str,
+      #[raw]
       event_initialization_script: &'a str,
       #[raw]
       plugin_initialization_script: &'a str,
@@ -982,6 +986,19 @@ impl<R: Runtime> WindowManager<R> {
         )
       ),
       core_script: include_str!("../scripts/core.js"),
+
+      // window.print works on Linux/Windows; need to use the API on macOS
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      window_print_script: include_str!("../scripts/window_print.js"),
+      #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+      window_print_script: "",
+
+      // dialogs are implemented natively on Android
+      #[cfg(not(target_os = "android"))]
+      window_dialogs_script: include_str!("../scripts/window_dialogs.js"),
+      #[cfg(target_os = "android")]
+      window_dialogs_script: "",
+
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,

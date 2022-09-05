@@ -2,4 +2,4 @@
 "tauri": patch
 ---
 
-Fix `fs.readDir` reading symlinks that are not allowed by the scope.
+Fix `fs.readDir` recursive option reading symlinked directories that are not allowed by the scope.

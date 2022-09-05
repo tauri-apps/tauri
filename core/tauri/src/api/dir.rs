@@ -32,6 +32,7 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
 }
 
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
+  // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
   #[cfg(windows)]
   let ret = symlink_metadata(path)
     .map(|md| md.is_symlink())

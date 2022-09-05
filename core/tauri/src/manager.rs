@@ -73,6 +73,13 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
+#[derive(Copy, Clone, PartialEq)]
+enum IPCAccess {
+  None,
+  Full,
+  Command,
+}
+
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
 struct CspHashStrings {
@@ -397,6 +404,60 @@ impl<R: Runtime> WindowManager<R> {
     }
   }
 
+  fn prepare_external_pending_window(
+    &self,
+    mut pending: PendingWindow<EventLoopMessage, R>,
+    label: &str,
+    window_labels: &[String],
+  ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
+    let is_init_global = self.inner.config.build.with_global_tauri;
+    let plugin_init = self
+      .inner
+      .plugins
+      .lock()
+      .expect("poisoned plugin store")
+      .initialization_script();
+
+    let pattern_init = PatternJavascript {
+      pattern: self.pattern().into(),
+    }
+    .render_default(&Default::default())?;
+
+    let ipc_init = IpcJavascript {
+      isolation_origin: &match self.pattern() {
+        _ => "".to_string(),
+      },
+    }
+    .render_default(&Default::default())?;
+
+    let mut webview_attributes = pending.webview_attributes;
+
+    let mut window_labels = window_labels.to_vec();
+    let l = label.to_string();
+    if !window_labels.contains(&l) {
+      window_labels.push(l);
+    }
+    webview_attributes = webview_attributes
+      .initialization_script(&self.inner.invoke_initialization_script)
+      .initialization_script(&format!(
+        r#"
+          Object.defineProperty(window, '__TAURI_METADATA__', {{
+            value: {{
+              __windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
+              __currentWindow: {{ label: {current_window_label} }}
+            }}
+          }})
+        "#,
+        window_labels_array = serde_json::to_string(&window_labels)?,
+        current_window_label = serde_json::to_string(&label)?,
+      ))
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
+
+    pending.webview_attributes = webview_attributes;
+
+    Ok(pending)
+  }
+
   fn prepare_pending_window(
     &self,
     mut pending: PendingWindow<EventLoopMessage, R>,
@@ -694,6 +755,7 @@ impl<R: Runtime> WindowManager<R> {
   fn prepare_ipc_handler(
     &self,
     app_handle: AppHandle<R>,
+    access: IPCAccess,
   ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
@@ -718,6 +780,16 @@ impl<R: Runtime> WindowManager<R> {
 
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
+          if access == IPCAccess::Command
+            && (message.tauri_module.is_some() || message.cmd.starts_with("plugin:"))
+          {
+            let _ = window.eval(&format!(
+              r#"console.error({})"#,
+              JsonValue::String("Only command can be executed".to_string())
+            ));
+            return;
+          }
+
           let _ = window.on_message(message);
         }
         Err(e) => {
@@ -1062,11 +1134,11 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let (ipc_access, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
         (
-          true,
+          IPCAccess::Full,
           // ignore "index.html" just to simplify the url
           if path.to_str() != Some("index.html") {
             url
@@ -1080,8 +1152,32 @@ impl<R: Runtime> WindowManager<R> {
         )
       }
       WindowUrl::External(url) => {
+        // Allow relative urls
         let config_url = self.get_url();
-        (config_url.make_relative(url).is_some(), url.clone())
+        let ipc_access = if config_url.make_relative(url).is_some() {
+          IPCAccess::Full
+        }
+        // Allow some external urls
+        else if let Some(command_access) = &app_handle
+          .config()
+          .tauri
+          .security
+          .dangerous_external_command_access
+        {
+          let mut ipc_access = IPCAccess::None;
+          for scope in &command_access.scope {
+            let matcher = scope.url.compile_matcher();
+            if matcher.is_match(url.as_str()) {
+              ipc_access = IPCAccess::Command;
+              break;
+            }
+          }
+          ipc_access
+        } else {
+          IPCAccess::None
+        };
+
+        (ipc_access, url.clone())
       }
       _ => unimplemented!(),
     };
@@ -1125,17 +1221,25 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
+    match ipc_access {
+      IPCAccess::Full => {
+        let label = pending.label.clone();
+        pending = self.prepare_pending_window(
+          pending,
+          &label,
+          window_labels,
+          app_handle.clone(),
+          web_resource_request_handler,
+        )?;
+        pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle, ipc_access));
+      }
+      IPCAccess::Command => {
+        let label = pending.label.clone();
+        pending = self.prepare_external_pending_window(pending, &label, window_labels)?;
+        pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle, ipc_access));
+      }
+      _ => {}
+    };
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

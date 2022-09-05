@@ -10,6 +10,7 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
+use globset::Glob;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 #[cfg(feature = "schema")]
@@ -1067,6 +1068,26 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
+/// The configuration for external command access
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalCommandAccess {
+  /// Allows the given scopes to access Tauri commands
+  pub scope: Vec<ExternalCommandAccessScope>,
+}
+
+/// One external command access scope
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalCommandAccessScope {
+  /// Descriptive name for the current scope
+  pub name: Option<String>,
+  /// Url to allow, it can contain wildcards
+  pub url: Glob,
+}
+
 /// Security configuration.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
@@ -1102,6 +1123,22 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
+  /// Allow external urls to send command to tauri
+  ///
+  /// By default, external urls do not have access to `window.__TAURI__`, this means they cannot
+  /// communicate with the commands defined in rust. This prevents attacks where an externally
+  /// loaded application would be compromised and could start executing commands on the device of
+  /// the user.
+  ///
+  /// This configuration allows a set of external urls to have access to the Tauri commands.
+  /// Wildcards patterns are accepted and can be used to allow either all domains or
+  /// a subset of subdomains for a main domain.
+  ///
+  /// **WARNING:** Only use this option if you either have internal checks against malicious
+  /// external sites or you can trust the allowed external sites. You application might be
+  /// vulnerable to dangerous Tauri command related attacks otherwise.
+  #[serde(alias = "dangerous-external-command-access")]
+  pub dangerous_external_command_access: Option<ExternalCommandAccess>,
 }
 
 /// Defines an allowlist type.
@@ -2758,6 +2795,12 @@ mod build {
     quote! { #url.parse().unwrap() }
   }
 
+  /// Creates a `Glob` constructor `TokenStream`.
+  fn glob_lit(glob: &Glob) -> TokenStream {
+    let glob = glob.to_string();
+    quote! { ::globset::Glob::from_string(#glob).unwrap() }
+  }
+
   /// Create a map constructor, mapping keys and values with other `TokenStream`s.
   ///
   /// This function is pretty generic because the types of keys AND values get transformed.
@@ -3274,12 +3317,31 @@ mod build {
     }
   }
 
+  impl ToTokens for ExternalCommandAccess {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let scope = vec_lit(&self.scope, identity);
+
+      literal_struct!(tokens, ExternalCommandAccess, scope);
+    }
+  }
+
+  impl ToTokens for ExternalCommandAccessScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let name = opt_lit(self.name.as_ref());
+      let url = glob_lit(&self.url);
+
+      literal_struct!(tokens, ExternalCommandAccessScope, name, url);
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_external_command_access =
+        opt_lit(self.dangerous_external_command_access.as_ref());
 
       literal_struct!(
         tokens,
@@ -3287,7 +3349,8 @@ mod build {
         csp,
         dev_csp,
         freeze_prototype,
-        dangerous_disable_asset_csp_modification
+        dangerous_disable_asset_csp_modification,
+        dangerous_external_command_access
       );
     }
   }
@@ -3549,6 +3612,7 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
+        dangerous_external_command_access: None,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

@@ -18,8 +18,6 @@ env:
   RUST_BACKTRACE: 1
   CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
-  WRY_ANDROID_REVERSED_DOMAIN: 'app.tauri'
-  WRY_ANDROID_APP_NAME_SNAKE_CASE: 'dev'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -121,12 +119,6 @@ jobs:
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
             ${{ matrix.platform.os }}-
-
-      - name: create and export kotlin out dir
-        if: contains(matrix.platform.target, 'android')
-        run: |
-          mkdir out
-          export WRY_ANDROID_KOTLIN_FILES_OUT_DIR="$(realpath out)"
 
       - name: pin time
         run: |

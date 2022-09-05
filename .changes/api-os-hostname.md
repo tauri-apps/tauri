@@ -3,5 +3,5 @@
 "tauri": "minor"
 ---
 
-Added `os.hostname`
+Added `hostname()` to `os` module
 

@@ -26,6 +26,8 @@ pub enum Cmd {
     directory: Option<BaseDirectory>,
   },
   #[cmd(path_all, "path > all")]
+  TempDir,
+  #[cmd(path_all, "path > all")]
   Resolve { paths: Vec<String> },
   #[cmd(path_all, "path > all")]
   Normalize { path: String },
@@ -42,6 +44,10 @@ pub enum Cmd {
 }
 
 impl Cmd {
+  fn temp_dir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
+    Ok(std::env::temp_dir())
+  }
+
   #[module_command_handler(path_all)]
   fn resolve_path<R: Runtime>(
     context: InvokeContext<R>,

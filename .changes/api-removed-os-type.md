@@ -3,5 +3,5 @@
 "tauri": "major"
 ---
 
-**Breaking change** Removed `os.type()`. Use `os.platform()` instead.
+**Breaking change** Removed `type()` from `os` module. Use `platform()` instead.
 

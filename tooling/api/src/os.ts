@@ -119,7 +119,7 @@ async function arch(): Promise<Arch> {
  * const tempdirPath = await tempdir();
  * ```
  */
-async function tempdir(): Promise<string> {
+async function tempDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Os',
     message: {
@@ -145,5 +145,5 @@ async function hostname(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, arch, tempdir, hostname }
+export { EOL, platform, version, arch, tempDir, hostname }
 export type { Platform, Arch }

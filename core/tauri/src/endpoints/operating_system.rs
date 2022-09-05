@@ -18,7 +18,7 @@ pub enum Cmd {
   Platform,
   Version,
   Arch,
-  Tempdir,
+  TempDir,
   Hostname,
 }
 
@@ -36,7 +36,7 @@ impl Cmd {
     Ok(std::env::consts::ARCH)
   }
 
-  fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
+  fn temp_dir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
   }
 

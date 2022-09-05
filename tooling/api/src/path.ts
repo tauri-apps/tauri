@@ -554,6 +554,23 @@ async function logDir(): Promise<string> {
 }
 
 /**
+ * Returns the operating system's default directory for temporary files as a string.
+ * @example
+ * ```typescript
+ * import { tempdir } from '@tauri-apps/api/path';
+ * const tempdirPath = await tempdir();
+ * ```
+ */
+async function tempDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'tempdir'
+    }
+  })
+}
+
+/**
  * Provides the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
@@ -729,6 +746,7 @@ export {
   templateDir,
   videoDir,
   logDir,
+  tempDir,
   BaseDirectory,
   sep,
   delimiter,

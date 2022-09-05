@@ -3,5 +3,5 @@
 "tauri": "major"
 ---
 
-**Breaking change** `os.platform()` will now return `macOS` instead of `darwin` and `windows` instead of `win32`
+**Breaking change** `platform()` in `os` module will now return `macOS` instead of `darwin` and `windows` instead of `win32`
 

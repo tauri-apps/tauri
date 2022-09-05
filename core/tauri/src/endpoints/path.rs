@@ -75,24 +75,16 @@ impl Cmd {
 
   #[module_command_handler(path_all)]
   fn normalize<R: Runtime>(_context: InvokeContext<R>, path: String) -> super::Result<String> {
-    let mut p = normalize_path_no_absolute(Path::new(&path))
+    let p = normalize_path_no_absolute(Path::new(&path))
       .to_string_lossy()
       .to_string();
     Ok(
       // Node.js behavior is to return `".."` for `normalize("..")`
       // and `"."` for `normalize("")` or `normalize(".")`
-      if p.is_empty() && path == ".." {
-        "..".into()
-      } else if p.is_empty() && path == "." {
-        ".".into()
-      } else {
-        // Add a trailing separator if the path passed to this functions had a trailing separator. That's how Node.js behaves.
-        if (path.ends_with('/') || path.ends_with('\\'))
-          && (!p.ends_with('/') || !p.ends_with('\\'))
-        {
-          p.push(MAIN_SEPARATOR);
-        }
-        p
+      match (p.is_empty(), path.as_str()) {
+        (true, "..") => "..".into(),
+        (true, ".") => ".".into(),
+        _ => p,
       },
     )
   }
@@ -105,7 +97,7 @@ impl Cmd {
         .map(|p| {
           // Add a `MAIN_SEPARATOR` if it doesn't already have one.
           // Doing this to ensure that the vector elements are separated in
-          // the resulting string so path.components() can work correctly when called
+          // the resulting string so `path.components()` can work correctly when called
           // in `normalize_path_no_absolute()` later on.
           if !p.ends_with('/') && !p.ends_with('\\') {
             p.push(MAIN_SEPARATOR);
@@ -226,15 +218,17 @@ fn normalize_path_no_absolute(path: &Path) -> PathBuf {
       }
       Component::Normal(c) => {
         // Using PathBuf::push here will replace the whole path if an absolute path is encountered
-        // which is not the intended behavior, so instead of that, convert the current resolved path
+        // which is not the intended behavior, instead, convert the current resolved path
         // to a string and do simple string concatenation with the current component then convert it
         // back to a PathBuf
         let mut p = ret.to_string_lossy().to_string();
-        // Only add a separator if it doesn't have one already or if current normalized path is empty,
-        // this ensures it won't have an unwanted leading separator
+
+        // Only add a separator if it doesn't have one already and if current normalized path is not empty,
+        // this ensures the normalized path doesn't have an unwanted leading separator
         if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }
+
         if let Some(c) = c.to_str() {
           p.push_str(c);
         }

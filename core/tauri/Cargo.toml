@@ -91,6 +91,7 @@ infer = { version = "0.8", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.1", optional = true }
 encoding_rs = "0.8.31"
+gethostname = { version = "0.2.3", optional = true}
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true }
@@ -218,7 +219,7 @@ global-shortcut-all = [ "global-shortcut" ]
 http-all = [ "http-request" ]
 http-request = [ "http-api" ]
 notification-all = [ "notification", "dialog-ask" ]
-os-all = [ "os_info" ]
+os-all = [ "os_info", "gethostname" ]
 path-all = [ ]
 process-all = [ "process-relaunch", "process-exit" ]
 process-exit = [ ]

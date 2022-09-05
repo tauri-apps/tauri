@@ -26,9 +26,16 @@
 import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
 
+/**
+ * The operating system-specific end-of-line marker.
+ * - `\n` on POSIX
+ * - `\r\n` on Windows
+ * */
+const EOL = isWindows() ? '\r\n' : '\n'
+
 type Platform =
   | 'linux'
-  | 'darwin'
+  | 'macos'
   | 'ios'
   | 'freebsd'
   | 'dragonfly'
@@ -36,29 +43,7 @@ type Platform =
   | 'openbsd'
   | 'solaris'
   | 'android'
-  | 'win32'
-
-type OsType = 'Linux' | 'Darwin' | 'Windows_NT'
-
-type Arch =
-  | 'x86'
-  | 'x86_64'
-  | 'arm'
-  | 'aarch64'
-  | 'mips'
-  | 'mips64'
-  | 'powerpc'
-  | 'powerpc64'
-  | 'riscv64'
-  | 's390x'
-  | 'sparc64'
-
-/**
- * The operating system-specific end-of-line marker.
- * - `\n` on POSIX
- * - `\r\n` on Windows
- * */
-const EOL = isWindows() ? '\r\n' : '\n'
+  | 'windows'
 
 /**
  * Returns a string identifying the operating system platform.
@@ -95,22 +80,18 @@ async function version(): Promise<string> {
   })
 }
 
-/**
- * Returns `'Linux'` on Linux, `'Darwin'` on macOS, and `'Windows_NT'` on Windows.
- * @example
- * ```typescript
- * import { type } from '@tauri-apps/api/os';
- * const osType = await type();
- * ```
- */
-async function type(): Promise<OsType> {
-  return invokeTauriCommand<OsType>({
-    __tauriModule: 'Os',
-    message: {
-      cmd: 'osType'
-    }
-  })
-}
+type Arch =
+  | 'x86'
+  | 'x86_64'
+  | 'arm'
+  | 'aarch64'
+  | 'mips'
+  | 'mips64'
+  | 'powerpc'
+  | 'powerpc64'
+  | 'riscv64'
+  | 's390x'
+  | 'sparc64'
 
 /**
  * Returns the operating system CPU architecture for which the tauri app was compiled.
@@ -147,5 +128,22 @@ async function tempdir(): Promise<string> {
   })
 }
 
-export { EOL, platform, version, type, arch, tempdir }
-export type { Platform, OsType, Arch }
+/**
+ * Returns the host name of the operating system as a string.
+ * @example
+ * ```typescript
+ * import { hostname } from '@tauri-apps/api/os';
+ * const hostname = await hostname();
+ * ```
+ */
+async function hostname(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Os',
+    message: {
+      cmd: 'hostname'
+    }
+  })
+}
+
+export { EOL, platform, version, arch, tempdir, hostname }
+export type { Platform, Arch }

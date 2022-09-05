@@ -17,23 +17,19 @@ use tauri_macros::{command_enum, module_command_handler, CommandModule};
 pub enum Cmd {
   Platform,
   Version,
-  OsType,
   Arch,
   Tempdir,
+  Hostname,
 }
 
 #[cfg(os_all)]
 impl Cmd {
   fn platform<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
-    Ok(os_platform())
+    Ok(std::env::consts::OS)
   }
 
   fn version<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
     Ok(os_info::get().version().to_string())
-  }
-
-  fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
-    Ok(os_type())
   }
 
   fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
@@ -42,6 +38,10 @@ impl Cmd {
 
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  fn hostname<R: Runtime>(_context: InvokeContext<R>) -> super::Result<String> {
+    Ok(gethostname::gethostname().to_string_lossy().to_string())
   }
 }
 
@@ -55,10 +55,6 @@ impl Cmd {
     Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
 
-  fn os_type<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
-    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
-  }
-
   fn arch<R: Runtime>(_context: InvokeContext<R>) -> super::Result<&'static str> {
     Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
@@ -66,28 +62,9 @@ impl Cmd {
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
-}
 
-#[cfg(os_all)]
-fn os_type() -> &'static str {
-  #[cfg(target_os = "linux")]
-  return "Linux";
-  #[cfg(target_os = "windows")]
-  return "Windows_NT";
-  #[cfg(target_os = "macos")]
-  return "Darwin";
-  #[cfg(target_os = "ios")]
-  return "iOS";
-  #[cfg(target_os = "android")]
-  return "Android";
-}
-
-#[cfg(os_all)]
-fn os_platform() -> &'static str {
-  match std::env::consts::OS {
-    "windows" => "win32",
-    "macos" => "darwin",
-    _ => std::env::consts::OS,
+  fn hostname<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
 }
 
@@ -103,13 +80,13 @@ mod tests {
 
   #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
-  fn os_type() {}
-
-  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
-  #[quickcheck_macros::quickcheck]
   fn arch() {}
 
   #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn tempdir() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
+  #[quickcheck_macros::quickcheck]
+  fn hostname() {}
 }

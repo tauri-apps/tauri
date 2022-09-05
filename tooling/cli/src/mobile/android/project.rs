@@ -85,6 +85,8 @@ pub fn gen(
   let domain = config.app().reverse_domain().replace('.', "/");
   let package_path = format!("java/{}/{}", domain, config.app().name());
 
+  map.insert("package-path", &package_path);
+
   let mut created_dirs = Vec::new();
   template::render_with_generator(
     &handlebars,
@@ -92,13 +94,25 @@ pub fn gen(
     &TEMPLATE_DIR,
     &dest,
     &mut |path| {
-      let path = if path.extension() == Some(OsStr::new("kt")) {
-        let parent = path.parent().unwrap();
-        let file_name = path.file_name().unwrap();
-        let out_dir = dest.join(parent).join(&package_path);
-        out_dir.join(file_name)
-      } else {
-        dest.join(path)
+      let mut iter = path.iter();
+      let root = iter.next().unwrap().to_str().unwrap();
+      let path_without_root: std::path::PathBuf = iter.collect();
+      let path = match (
+        root,
+        path.extension().and_then(|o| o.to_str()),
+        path_without_root.strip_prefix("src/main"),
+      ) {
+        ("app" | "buildSrc", Some("kt"), Ok(path)) => {
+          let parent = path.parent().unwrap();
+          let file_name = path.file_name().unwrap();
+          let out_dir = dest
+            .join(root)
+            .join("src/main")
+            .join(&package_path)
+            .join(parent);
+          out_dir.join(file_name)
+        }
+        _ => dest.join(path),
       };
 
       let parent = path.parent().unwrap().to_path_buf();

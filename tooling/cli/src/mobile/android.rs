@@ -110,11 +110,15 @@ pub fn get_config(
   set_var("WRY_ANDROID_APP_NAME_SNAKE_CASE", app.name());
   set_var(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
-    config.project_dir().join("app/src/main").join(format!(
-      "java/{}/{}",
-      app.reverse_domain().replace('.', "/"),
-      app.name()
-    )),
+    config
+      .project_dir()
+      .join("app/src/main")
+      .join(format!(
+        "java/{}/{}",
+        app.reverse_domain().replace('.', "/"),
+        app.name()
+      ))
+      .join("generated"),
   );
 
   (app, config, metadata)

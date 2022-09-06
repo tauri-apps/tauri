@@ -245,41 +245,4 @@
       setNotificationPermission(response ? 'granted' : 'denied')
     }
   })
-
-  window.alert = function (message) {
-    window.__TAURI_INVOKE__('tauri', {
-      __tauriModule: 'Dialog',
-      message: {
-        cmd: 'messageDialog',
-        message: message.toString()
-      }
-    })
-  }
-
-  window.confirm = function (message) {
-    return window.__TAURI_INVOKE__('tauri', {
-      __tauriModule: 'Dialog',
-      message: {
-        cmd: 'confirmDialog',
-        message: message.toString()
-      }
-    })
-  }
-
-  // window.print works on Linux/Windows; need to use the API on macOS
-  if (navigator.userAgent.includes('Mac')) {
-    window.print = function () {
-      return window.__TAURI_INVOKE__('tauri', {
-        __tauriModule: 'Window',
-        message: {
-          cmd: 'manage',
-          data: {
-            cmd: {
-              type: 'print'
-            }
-          }
-        }
-      })
-    }
-  }
 })()

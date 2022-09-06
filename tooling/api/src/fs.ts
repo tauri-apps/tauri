@@ -221,6 +221,10 @@ function writeFile(
   data: Uint8Array,
   options?: WriteFileOptions
 ): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
@@ -246,6 +250,10 @@ async function writeTextFile(
   data: string,
   options?: WriteFileOptions
 ): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {

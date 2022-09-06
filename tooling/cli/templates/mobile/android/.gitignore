@@ -8,7 +8,9 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 .DS_Store
-/build
+build
+/buildSrc/src/main/kotlin/BuildTask.kt
+/buildSrc/src/main/kotlin/RustPlugin.kt
 /captures
 .externalNativeBuild
 .cxx

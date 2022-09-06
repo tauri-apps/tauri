@@ -136,7 +136,11 @@ pub fn gen(
         created_dirs.push(parent);
       }
 
-      File::create(path)
+      if path.file_name().unwrap() == OsStr::new("project.yml") {
+        File::create(path)
+      } else {
+        File::create_new(path)
+      }
     },
   )
   .with_context(|| "failed to process template")?;

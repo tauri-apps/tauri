@@ -80,13 +80,14 @@ pub fn render_with_generator<
         file_path.set_extension("toml");
       }
     }
-    let mut output_file = out_file_generator(&file_path)?;
-    if let Some(utf8) = file.contents_utf8() {
-      handlebars
-        .render_template_to_write(utf8, &data, &mut output_file)
-        .expect("Failed to render template");
-    } else {
-      output_file.write_all(file.contents())?;
+    if let Ok(mut output_file) = out_file_generator(&file_path) {
+      if let Some(utf8) = file.contents_utf8() {
+        handlebars
+          .render_template_to_write(utf8, &data, &mut output_file)
+          .expect("Failed to render template");
+      } else {
+        output_file.write_all(file.contents())?;
+      }
     }
   }
   for dir in dir.dirs() {

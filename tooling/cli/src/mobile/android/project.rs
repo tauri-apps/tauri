@@ -129,7 +129,13 @@ pub fn gen(
         options.mode(0o755);
       }
 
-      options.create_new(true).write(true).open(path)
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") {
+        options.create(true);
+      } else {
+        options.create_new(true);
+      }
+
+      options.write(true).open(path)
     },
   )
   .with_context(|| "failed to process template")?;

@@ -207,6 +207,14 @@ export interface WriteFileOptions {
 
 /**
  * Write `data` to the given `path`, by default creating a new file if needed, else overwriting.
+ * @example
+ * ```typescript
+ * import { writeFile, BaseDirectory } from '@tauri-apps/api/fs';
+ *
+ * let encoder = new TextEncoder();
+ * let data = encoder.encode("Hello World");
+ * await writeFile('file.txt', data, { baseDir: BaseDirectory.App });
+ * ```
  */
 function writeFile(
   path: string | URL,
@@ -226,6 +234,12 @@ function writeFile(
 
 /**
  * Writes UTF-8 string `data` to the given `path`, by default creating a new file if needed, else overwriting.
+   @example
+ * ```typescript
+ * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+ *
+ * await writeTextFile('file.txt', "Hello world", { baseDir: BaseDirectory.App });
+ * ```
  */
 async function writeTextFile(
   path: string | URL,

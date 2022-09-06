@@ -10,6 +10,7 @@ use std::{
   sync::{Arc, Mutex, MutexGuard},
 };
 
+use globset::Glob;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
@@ -1166,10 +1167,12 @@ impl<R: Runtime> WindowManager<R> {
         {
           let mut ipc_access = IPCAccess::None;
           for scope in &command_access.scope {
-            let matcher = scope.url.compile_matcher();
-            if matcher.is_match(url.as_str()) {
-              ipc_access = IPCAccess::Command;
-              break;
+            if let Ok(pattern) = Glob::new(&scope.url) {
+              let matcher = pattern.compile_matcher();
+              if matcher.is_match(url.as_str()) {
+                ipc_access = IPCAccess::Command;
+                break;
+              }
             }
           }
           ipc_access

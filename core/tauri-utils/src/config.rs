@@ -10,7 +10,6 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-use globset::Glob;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 #[cfg(feature = "schema")]
@@ -1085,7 +1084,7 @@ pub struct ExternalCommandAccessScope {
   /// Descriptive name for the current scope
   pub name: Option<String>,
   /// Url to allow, it can contain wildcards
-  pub url: Glob,
+  pub url: String,
 }
 
 /// Security configuration.
@@ -2795,12 +2794,6 @@ mod build {
     quote! { #url.parse().unwrap() }
   }
 
-  /// Creates a `Glob` constructor `TokenStream`.
-  fn glob_lit(glob: &Glob) -> TokenStream {
-    let glob = glob.to_string();
-    quote! { ::globset::Glob::from_string(#glob).unwrap() }
-  }
-
   /// Create a map constructor, mapping keys and values with other `TokenStream`s.
   ///
   /// This function is pretty generic because the types of keys AND values get transformed.
@@ -3328,7 +3321,7 @@ mod build {
   impl ToTokens for ExternalCommandAccessScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let name = opt_lit(self.name.as_ref());
-      let url = glob_lit(&self.url);
+      let url = &self.url;
 
       literal_struct!(tokens, ExternalCommandAccessScope, name, url);
     }

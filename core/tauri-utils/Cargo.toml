@@ -32,7 +32,6 @@ json5 = { version = "0.4", optional = true }
 toml = { version = "0.5", optional = true }
 json-patch = "0.2"
 glob = { version = "0.3.0", optional = true }
-globset = { version = "0.4.9", default-features = false, features = [ "serde1" ]}
 walkdir = { version = "2", optional = true }
 memchr = "2.4"
 semver = "1"

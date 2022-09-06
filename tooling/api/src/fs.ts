@@ -219,7 +219,7 @@ export interface WriteFileOptions {
  * await writeFile('file.txt', data, { baseDir: BaseDirectory.App });
  * ```
  */
-function writeFile(
+async function writeFile(
   path: string | URL,
   data: Uint8Array,
   options?: WriteFileOptions

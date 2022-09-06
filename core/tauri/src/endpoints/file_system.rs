@@ -428,17 +428,17 @@ fn write_file<R: Runtime>(
 
   #[cfg(windows)]
   {
-    // use std::os::windows::fs::OpenOptionsExt;
-    // if let Some(Some(access_mode)) = options.map(|o| o.access_mode) {
-    //   opts.access_mode(access_mode);
-    // }
+    use std::os::windows::fs::OpenOptionsExt;
+    if let Some(Some(access_mode)) = options.map(|o| o.access_mode) {
+      opts.access_mode(access_mode);
+    }
   }
 
   #[cfg(not(windows))]
   {
     use std::os::unix::fs::OpenOptionsExt;
     if let Some(Some(mode)) = options.map(|o| o.mode) {
-      opts = opts.mode(mode);
+      opts.mode(mode);
     }
   }
 
@@ -447,7 +447,7 @@ fn write_file<R: Runtime>(
     .open(&resolved_path)
     .with_context(|| format!("path: {}", resolved_path.display()))
     .map_err(Into::into)
-    .and_then(|mut f| f.write_all(&data).map_err(|err| err.into()))
+    .and_then(|mut f| f.write_all(data).map_err(|err| err.into()))
 }
 
 #[cfg(test)]

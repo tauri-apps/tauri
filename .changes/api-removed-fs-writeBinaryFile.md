@@ -3,4 +3,4 @@
 "tauri": "major"
 ---
 
-**Breaking change** Removed `fs.writeBinaryFile()`. Use `os.writeFile()` instead.
+**Breaking change** Removed `fs.writeBinaryFile()`. Use `fs.writeFile()` instead.

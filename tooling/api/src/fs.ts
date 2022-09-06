@@ -133,60 +133,63 @@ interface FileEntry {
   children?: FileEntry[]
 }
 
-/**
- * Reads a file as an UTF-8 encoded string.
- * @example
- * ```typescript
- * import { readTextFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Read the text file in the `$APPDIR/app.conf` path
- * const contents = await readTextFile('app.conf', { dir: BaseDirectory.App });
- * ```
- *
- * @param filePath Path to the file.
- * @param options Configuration object.
- * @returns A promise resolving to the file content as a UTF-8 encoded string.
- */
-async function readTextFile(
-  filePath: string,
-  options: FsOptions = {}
-): Promise<string> {
-  return invokeTauriCommand<string>({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'readTextFile',
-      path: filePath,
-      options
-    }
-  })
+export interface ReadFileOptions {
+  /** Base directory for relative paths */
+  baseDir?: BaseDirectory
 }
 
 /**
- * Reads a file as byte array.
+ * Reads and resolves to the entire contents of a file as an array of bytes. TextDecoder can be used to transform the bytes to string if required.
  * @example
  * ```typescript
- * import { readBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Read the image file in the `$RESOURCEDIR/avatar.png` path
- * const contents = await readBinaryFile('avatar.png', { dir: BaseDirectory.Resource });
+ * import { readFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * const contents = await readFile('avatar.png', { dir: BaseDirectory.Resource });
  * ```
- *
- * @param filePath Path to the file.
- * @param options Configuration object.
- * @returns A promise resolving to the file bytes array.
  */
-async function readBinaryFile(
-  filePath: string,
-  options: FsOptions = {}
+async function readFile(
+  path: string | URL,
+  options?: ReadFileOptions
 ): Promise<Uint8Array> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
   const arr = await invokeTauriCommand<number[]>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readFile',
-      path: filePath,
+      path: path instanceof URL ? path.toString() : path,
       options
     }
   })
 
   return Uint8Array.from(arr)
+}
+
+/**
+ * Reads and returns the entire contents of a file as UTF-8 string.
+ * @example
+ * ```typescript
+ * import { readTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * const contents = await readTextFile('app.conf', { dir: BaseDirectory.App });
+ * ```
+ */
+async function readTextFile(
+  path: string | URL,
+  options?: ReadFileOptions
+): Promise<string> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'readTextFile',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
 }
 
 export interface WriteFileOptions {
@@ -456,7 +459,7 @@ export type {
 
 export {
   readTextFile,
-  readBinaryFile,
+  readFile,
   writeFile,
   writeTextFile,
   readDir,

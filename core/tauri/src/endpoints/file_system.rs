@@ -52,7 +52,6 @@ pub struct FileOperationOptions {
   pub dir: Option<BaseDirectory>,
 }
 
-/// The options for writing to file functions on the file system API.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteFileOptions {
@@ -64,6 +63,14 @@ pub struct WriteFileOptions {
   access_mode: Option<u32>,
   base_dir: Option<BaseDirectory>,
 }
+
+/// Empty struct reserved for future use
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadFileOptions {
+  base_dir: Option<BaseDirectory>,
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -73,25 +80,26 @@ pub(crate) enum Cmd {
   #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<ReadFileOptions>,
   },
   /// The read binary file API.
   #[cmd(fs_read_file, "fs > readFile")]
   ReadTextFile {
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<ReadFileOptions>,
+  },
+
+  #[cmd(fs_write_file, "fs > writeFile")]
+  WriteFile {
+    path: SafePathBuf,
+    data: Vec<u8>,
+    options: Option<WriteFileOptions>,
   },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
   WriteTextFile {
     path: SafePathBuf,
     data: String,
-    options: Option<WriteFileOptions>,
-  },
-  #[cmd(fs_write_file, "fs > writeFile")]
-  WriteFile {
-    path: SafePathBuf,
-    data: Vec<u8>,
     options: Option<WriteFileOptions>,
   },
   /// The read dir API.
@@ -140,14 +148,16 @@ impl Cmd {
   fn read_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<ReadFileOptions>,
   ) -> super::Result<Vec<u8>> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      options.and_then(|o| o.dir),
+      options.as_ref().and_then(|o| o.base_dir),
     )?;
     file::read_binary(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
@@ -158,18 +168,30 @@ impl Cmd {
   fn read_text_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<ReadFileOptions>,
   ) -> super::Result<String> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      options.and_then(|o| o.dir),
+      options.as_ref().and_then(|o| o.base_dir),
     )?;
     file::read_string(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_write_file)]
+  fn write_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    data: Vec<u8>,
+    options: Option<WriteFileOptions>,
+  ) -> super::Result<()> {
+    write_file(context, path, &data, options)
   }
 
   #[module_command_handler(fs_write_file)]
@@ -182,15 +204,6 @@ impl Cmd {
     write_file(context, path, data.as_bytes(), options)
   }
 
-  #[module_command_handler(fs_write_file)]
-  fn write_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: SafePathBuf,
-    data: Vec<u8>,
-    options: Option<WriteFileOptions>,
-  ) -> super::Result<()> {
-    write_file(context, path, &data, options)
-  }
   #[module_command_handler(fs_read_dir)]
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
@@ -380,22 +393,26 @@ fn resolve_path<R: Runtime>(
   }
 }
 
+fn file_url_to_safe_pathbuf(path: SafePathBuf) -> super::Result<SafePathBuf> {
+  if path.as_ref().starts_with("file:") {
+    SafePathBuf::new(
+      url::Url::parse(&path.display().to_string())?
+        .to_file_path()
+        .map_err(|_| into_anyhow("Failed to get path from `file:` url"))?,
+    )
+    .map_err(into_anyhow)
+  } else {
+    Ok(path)
+  }
+}
+
 fn write_file<R: Runtime>(
   context: InvokeContext<R>,
   path: SafePathBuf,
   data: &[u8],
   options: Option<WriteFileOptions>,
 ) -> super::Result<()> {
-  let path = if path.as_ref().starts_with("file:") {
-    SafePathBuf::new(
-      url::Url::parse(&path.display().to_string())?
-        .to_file_path()
-        .map_err(|_| into_anyhow("Failed to get path from `file:` url"))?,
-    )
-    .map_err(into_anyhow)?
-  } else {
-    path
-  };
+  let path = file_url_to_safe_pathbuf(path)?;
 
   let resolved_path = resolve_path(
     &context.config,
@@ -436,7 +453,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf, WriteFileOptions,
+    BaseDirectory, DirOperationOptions, FileOperationOptions, ReadFileOptions, SafePathBuf,
+    WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -471,6 +489,14 @@ mod tests {
     }
   }
 
+  impl Arbitrary for ReadFileOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for DirOperationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -482,7 +508,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
-  fn read_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
+  fn read_file(path: SafePathBuf, options: Option<ReadFileOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }

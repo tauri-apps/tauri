@@ -3320,8 +3320,8 @@ mod build {
 
   impl ToTokens for ExternalCommandAccessScope {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let name = opt_lit(self.name.as_ref());
-      let url = &self.url;
+      let name = opt_str_lit(self.name.as_ref());
+      let url = str_lit(&self.url);
 
       literal_struct!(tokens, ExternalCommandAccessScope, name, url);
     }

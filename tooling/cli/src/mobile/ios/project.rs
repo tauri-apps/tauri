@@ -19,7 +19,7 @@ use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 use std::{
   ffi::{OsStr, OsString},
-  fs::{create_dir_all, File},
+  fs::{create_dir_all, OpenOptions},
   path::{Component, PathBuf},
 };
 
@@ -136,10 +136,15 @@ pub fn gen(
         created_dirs.push(parent);
       }
 
+      let mut options = OpenOptions::new();
+      options.write(true);
+
       if path.file_name().unwrap() == OsStr::new("project.yml") {
-        File::create(path)
+        options.create(true).open(path).map(Some)
+      } else if path.exists() {
+        Ok(None)
       } else {
-        File::create_new(path)
+        options.create(true).open(path).map(Some)
       }
     },
   )

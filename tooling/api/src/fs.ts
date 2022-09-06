@@ -189,175 +189,56 @@ async function readBinaryFile(
   return Uint8Array.from(arr)
 }
 
-/**
- * Writes a UTF-8 text file.
- * @example
- * ```typescript
- * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Write a text file to the `$APPDIR/app.conf` path
- * await writeTextFile('app.conf', 'file contents', { dir: BaseDirectory.App });
- * ```
- *
- * @param path The file path.
- * @param contents The file contents.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
- */
-async function writeTextFile(
-  path: string,
-  contents: string,
-  options?: FsOptions
-): Promise<void>
+export interface WriteFileOptions {
+  /** Defaults to false. If set to true, will append to a file instead of overwriting previous contents. */
+  append?: boolean
+  /** Sets the option to allow creating a new file, if one doesn't already exist at the specified path (defaults to true). */
+  create?: boolean
+  /** Unix file permissions. */
+  mode?: number
+  /**
+   * Windows file permissions.
+   * Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`]https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea with the specified value.
+   */
+  accessMode?: number
+  /** Base directory for relative paths */
+  baseDir?: BaseDirectory
+}
 
 /**
- * Writes a UTF-8 text file.
- * @example
- * ```typescript
- * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Write a text file to the `$APPDIR/app.conf` path
- * await writeTextFile({ path: 'app.conf', contents: 'file contents' }, { dir: BaseDirectory.App });
- * ```
- *
- * @param file The object containing the file path and contents.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
+ * Write `data` to the given `path`, by default creating a new file if needed, else overwriting.
  */
-async function writeTextFile(
-  file: FsTextFileOption,
-  options?: FsOptions
-): Promise<void>
-
-/**
- * Writes a UTF-8 text file.
- *
- * @param path File path or configuration object.
- * @param contents File contents or options.
- * @param options File options.
- * @returns A promise indicating the success or failure of the operation.
- */
-async function writeTextFile(
-  path: string | FsTextFileOption,
-  contents?: string | FsOptions,
-  options?: FsOptions
+function writeFile(
+  path: string | URL,
+  data: Uint8Array,
+  options?: WriteFileOptions
 ): Promise<void> {
-  if (typeof options === 'object') {
-    Object.freeze(options)
-  }
-  if (typeof path === 'object') {
-    Object.freeze(path)
-  }
-
-  const file: FsTextFileOption = { path: '', contents: '' }
-  let fileOptions: FsOptions | undefined = options
-  if (typeof path === 'string') {
-    file.path = path
-  } else {
-    file.path = path.path
-    file.contents = path.contents
-  }
-
-  if (typeof contents === 'string') {
-    file.contents = contents ?? ''
-  } else {
-    fileOptions = contents
-  }
-
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'writeFile',
-      path: file.path,
-      contents: Array.from(new TextEncoder().encode(file.contents)),
-      options: fileOptions
+      path: path instanceof URL ? path.toString() : path,
+      data: Array.from(data),
+      options
     }
   })
 }
 
 /**
- * Writes a byte array content to a file.
- * @example
- * ```typescript
- * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Write a binary file to the `$APPDIR/avatar.png` path
- * await writeBinaryFile('avatar.png', new Uint8Array([]), { dir: BaseDirectory.App });
- * ```
- *
- * @param path The file path.
- * @param contents The file contents.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
+ * Writes UTF-8 string `data` to the given `path`, by default creating a new file if needed, else overwriting.
  */
-async function writeBinaryFile(
-  path: string,
-  contents: BinaryFileContents,
-  options?: FsOptions
-): Promise<void>
-
-/**
- * Writes a byte array content to a file.
- * @example
- * ```typescript
- * import { writeBinaryFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Write a binary file to the `$APPDIR/avatar.png` path
- * await writeBinaryFile({ path: 'avatar.png', contents: new Uint8Array([]) }, { dir: BaseDirectory.App });
- * ```
- *
- * @param file The object containing the file path and contents.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
- */
-async function writeBinaryFile(
-  file: FsBinaryFileOption,
-  options?: FsOptions
-): Promise<void>
-
-/**
- * Writes a byte array content to a file.
- *
- * @param path File path or configuration object.
- * @param contents File contents or options.
- * @param options File options.
- * @returns A promise indicating the success or failure of the operation.
- */
-async function writeBinaryFile(
-  path: string | FsBinaryFileOption,
-  contents?: BinaryFileContents | FsOptions,
-  options?: FsOptions
+async function writeTextFile(
+  path: string | URL,
+  data: string,
+  options?: WriteFileOptions
 ): Promise<void> {
-  if (typeof options === 'object') {
-    Object.freeze(options)
-  }
-  if (typeof path === 'object') {
-    Object.freeze(path)
-  }
-
-  const file: FsBinaryFileOption = { path: '', contents: [] }
-  let fileOptions: FsOptions | undefined = options
-  if (typeof path === 'string') {
-    file.path = path
-  } else {
-    file.path = path.path
-    file.contents = path.contents
-  }
-
-  if (contents && 'dir' in contents) {
-    fileOptions = contents
-  } else if (typeof path === 'string') {
-    // @ts-expect-error
-    file.contents = contents ?? []
-  }
-
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'writeFile',
-      path: file.path,
-      contents: Array.from(
-        file.contents instanceof ArrayBuffer
-          ? new Uint8Array(file.contents)
-          : file.contents
-      ),
-      options: fileOptions
+      cmd: 'writeTextFile',
+      path: path instanceof URL ? path.toString() : path,
+      data,
+      options
     }
   })
 }
@@ -552,12 +433,10 @@ export type {
 }
 
 export {
-  BaseDirectory as Dir,
   readTextFile,
   readBinaryFile,
+  writeFile,
   writeTextFile,
-  writeTextFile as writeFile,
-  writeBinaryFile,
   readDir,
   createDir,
   removeDir,

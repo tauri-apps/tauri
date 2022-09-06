@@ -10,6 +10,7 @@ use crate::{
     file::{self, SafePathBuf},
     path::BaseDirectory,
   },
+  error::into_anyhow,
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };
@@ -51,6 +52,18 @@ pub struct FileOperationOptions {
   pub dir: Option<BaseDirectory>,
 }
 
+/// The options for writing to file functions on the file system API.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteFileOptions {
+  append: Option<bool>,
+  create: Option<bool>,
+  #[allow(unused)]
+  mode: Option<u32>,
+  #[allow(unused)]
+  access_mode: Option<u32>,
+  base_dir: Option<BaseDirectory>,
+}
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -70,10 +83,16 @@ pub(crate) enum Cmd {
   },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
+  WriteTextFile {
+    path: SafePathBuf,
+    data: String,
+    options: Option<WriteFileOptions>,
+  },
+  #[cmd(fs_write_file, "fs > writeFile")]
   WriteFile {
     path: SafePathBuf,
-    contents: Vec<u8>,
-    options: Option<FileOperationOptions>,
+    data: Vec<u8>,
+    options: Option<WriteFileOptions>,
   },
   /// The read dir API.
   #[cmd(fs_read_dir, "fs > readDir")]
@@ -154,25 +173,24 @@ impl Cmd {
   }
 
   #[module_command_handler(fs_write_file)]
+  fn write_text_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    data: String,
+    options: Option<WriteFileOptions>,
+  ) -> super::Result<()> {
+    write_file(context, path, data.as_bytes(), options)
+  }
+
+  #[module_command_handler(fs_write_file)]
   fn write_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    contents: Vec<u8>,
-    options: Option<FileOperationOptions>,
+    data: Vec<u8>,
+    options: Option<WriteFileOptions>,
   ) -> super::Result<()> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
-    File::create(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
-      .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
+    write_file(context, path, &data, options)
   }
-
   #[module_command_handler(fs_read_dir)]
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
@@ -362,9 +380,64 @@ fn resolve_path<R: Runtime>(
   }
 }
 
+fn write_file<R: Runtime>(
+  context: InvokeContext<R>,
+  path: SafePathBuf,
+  data: &[u8],
+  options: Option<WriteFileOptions>,
+) -> super::Result<()> {
+  let path = if path.as_ref().starts_with("file:") {
+    SafePathBuf::new(
+      url::Url::parse(&path.display().to_string())?
+        .to_file_path()
+        .map_err(|_| into_anyhow("Failed to get path from `file:` url"))?,
+    )
+    .map_err(into_anyhow)?
+  } else {
+    path
+  };
+
+  let resolved_path = resolve_path(
+    &context.config,
+    &context.package_info,
+    &context.window,
+    path,
+    options.as_ref().and_then(|o| o.base_dir),
+  )?;
+
+  let mut opts = fs::OpenOptions::new();
+  opts.append(options.as_ref().map(|o| o.append.unwrap_or(false)).unwrap());
+  opts.create(options.as_ref().map(|o| o.create.unwrap_or(true)).unwrap());
+
+  #[cfg(windows)]
+  {
+    // use std::os::windows::fs::OpenOptionsExt;
+    // if let Some(Some(access_mode)) = options.map(|o| o.access_mode) {
+    //   opts.access_mode(access_mode);
+    // }
+  }
+
+  #[cfg(not(windows))]
+  {
+    use std::os::unix::fs::OpenOptionsExt;
+    if let Some(Some(mode)) = options.map(|o| o.mode) {
+      opts = opts.mode(mode);
+    }
+  }
+
+  opts
+    .write(true)
+    .open(&resolved_path)
+    .with_context(|| format!("path: {}", resolved_path.display()))
+    .map_err(Into::into)
+    .and_then(|mut f| f.write_all(&data).map_err(|err| err.into()))
+}
+
 #[cfg(test)]
 mod tests {
-  use super::{BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf};
+  use super::{
+    BaseDirectory, DirOperationOptions, FileOperationOptions, SafePathBuf, WriteFileOptions,
+  };
 
   use quickcheck::{Arbitrary, Gen};
 
@@ -382,6 +455,18 @@ mod tests {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
         dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for WriteFileOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        append: Option::arbitrary(g),
+        create: Option::arbitrary(g),
+        mode: Option::arbitrary(g),
+        access_mode: Option::arbitrary(g),
+        base_dir: Option::arbitrary(g),
       }
     }
   }
@@ -404,8 +489,8 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
-  fn write_file(path: SafePathBuf, contents: Vec<u8>, options: Option<FileOperationOptions>) {
-    let res = super::Cmd::write_file(crate::test::mock_invoke_context(), path, contents, options);
+  fn write_file(path: SafePathBuf, data: String, options: Option<WriteFileOptions>) {
+    let res = super::Cmd::write_text_file(crate::test::mock_invoke_context(), path, data, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

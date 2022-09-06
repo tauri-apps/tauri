@@ -1,5 +1,4 @@
 ;(function () {
-  if (window.location.origin.startsWith(__TEMPLATE_origin__)) {
     __RAW_freeze_prototype__
 
     ;(function () {
@@ -28,5 +27,4 @@
     }
 
     __RAW_plugin_initialization_script__
-  }
 })()

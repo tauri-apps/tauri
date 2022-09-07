@@ -3,4 +3,4 @@
 "tauri": "minor"
 ---
 
-Added `fs.mkdir()` and `MkdirOptions` interface.
+Added `mkdir()` and `MkdirOptions` interface to the `fs` module.

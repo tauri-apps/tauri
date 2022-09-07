@@ -3,4 +3,4 @@
 "tauri": "major"
 ---
 
-Added `ReadDirOptions` and `DirEntry` interfaces.
+Added `ReadDirOptions` and `DirEntry` interfaces to the `fs` module.

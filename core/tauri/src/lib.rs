@@ -71,8 +71,7 @@
 //! - **fs-mkdir**: Enables the [`mkdir` API](https://tauri.app/en/docs/api/js/modules/fs#mkdir).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
-//! - **fs-remove-file**: Enables the [`removeFile` API](https://tauri.app/en/docs/api/js/modules/fs#removefile).
+//! - **fs-remove**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#remove).
 //! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
 //! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
 //!

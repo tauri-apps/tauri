@@ -90,6 +90,12 @@ pub struct MkdirOptions {
   base_dir: Option<BaseDirectory>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveOptions {
+  recursive: Option<bool>,
+  base_dir: Option<BaseDirectory>,
+}
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -141,17 +147,11 @@ pub(crate) enum Cmd {
     path: SafePathBuf,
     options: Option<MkdirOptions>,
   },
-  /// The remove dir API.
-  #[cmd(fs_remove_dir, "fs > removeDir")]
-  RemoveDir {
+  /// The remove API.
+  #[cmd(fs_remove, "fs > remove")]
+  Remove {
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
-  },
-  /// The remove file API.
-  #[cmd(fs_remove_file, "fs > removeFile")]
-  RemoveFile {
-    path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<RemoveOptions>,
   },
   /// The rename file API.
   #[cmd(fs_rename_file, "fs > renameFile")]
@@ -306,50 +306,53 @@ impl Cmd {
       .with_context(|| format!("path: {}", resolved_path.display()))
   }
 
-  #[module_command_handler(fs_remove_dir)]
-  fn remove_dir<R: Runtime>(
+  #[module_command_handler(fs_remove)]
+  fn remove<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
+    options: Option<RemoveOptions>,
   ) -> super::Result<()> {
-    let (recursive, dir) = if let Some(options_value) = options {
-      (options_value.recursive, options_value.dir)
-    } else {
-      (false, None)
-    };
+    let path = file_url_to_safe_pathbuf(path)?;
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      dir,
+      options.as_ref().and_then(|o| o.base_dir),
     )?;
-    if recursive {
+
+    let metadata = fs::symlink_metadata(&resolved_path)?;
+    let file_type = metadata.file_type();
+
+    // thank you deno devs, taken from: https://github.com/denoland/deno/blob/429759fe8b4207240709c240a8344d12a1e39566/runtime/ops/fs.rs#L728
+    let res = if file_type.is_file() {
+      fs::remove_file(&resolved_path)
+    } else if options.as_ref().and_then(|o| o.recursive).unwrap_or(false) {
       fs::remove_dir_all(&resolved_path)
-        .with_context(|| format!("path: {}", resolved_path.display()))?;
-    } else {
+    } else if file_type.is_symlink() {
+      #[cfg(unix)]
+      {
+        fs::remove_file(&resolved_path)
+      }
+      #[cfg(not(unix))]
+      {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_DIRECTORY: u32 = 0x00000010;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_DIRECTORY != 0 {
+          fs::remove_dir(&resolved_path)
+        } else {
+          fs::remove_file(&resolved_path)
+        }
+      }
+    } else if file_type.is_dir() {
       fs::remove_dir(&resolved_path)
-        .with_context(|| format!("path: {} (non recursive)", resolved_path.display()))?;
-    }
+    } else {
+      // pipes, sockets, etc...
+      std::fs::remove_file(&resolved_path)
+    };
 
-    Ok(())
-  }
-
-  #[module_command_handler(fs_remove_file)]
-  fn remove_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: SafePathBuf,
-    options: Option<FileOperationOptions>,
-  ) -> super::Result<()> {
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.and_then(|o| o.dir),
-    )?;
-    fs::remove_file(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))?;
+    res.with_context(|| format!("path: {}", resolved_path.display()))?;
     Ok(())
   }
 
@@ -465,7 +468,7 @@ fn write_file<R: Runtime>(
 mod tests {
   use super::{
     BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, MkdirOptions,
-    ReadDirOptions, ReadFileOptions, SafePathBuf, WriteFileOptions,
+    ReadDirOptions, ReadFileOptions, RemoveOptions, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -534,6 +537,15 @@ mod tests {
     }
   }
 
+  impl Arbitrary for RemoveOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        recursive: Option::arbitrary(g),
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for DirOperationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -583,17 +595,10 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
-  #[tauri_macros::module_command_test(fs_remove_dir, "fs > removeDir")]
+  #[tauri_macros::module_command_test(fs_remove, "fs > remove")]
   #[quickcheck_macros::quickcheck]
-  fn remove_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
-    let res = super::Cmd::remove_dir(crate::test::mock_invoke_context(), path, options);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
-  #[tauri_macros::module_command_test(fs_remove_file, "fs > removeFile")]
-  #[quickcheck_macros::quickcheck]
-  fn remove_file(path: SafePathBuf, options: Option<FileOperationOptions>) {
-    let res = super::Cmd::remove_file(crate::test::mock_invoke_context(), path, options);
+  fn remove(path: SafePathBuf, options: Option<RemoveOptions>) {
+    let res = super::Cmd::remove(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

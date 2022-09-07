@@ -19,8 +19,7 @@
  *         "readDir": true,
  *         "copyFile": true,
  *         "mkdir": true,
- *         "removeDir": true,
- *         "removeFile": true,
+ *         "remove": true,
  *         "renameFile": true
  *       }
  *     }
@@ -359,29 +358,36 @@ async function mkdir(
   })
 }
 
+interface RemoveOptions {
+  /** Defaults to `false`. If set to `true`, path will be removed even if it's a non-empty directory. */
+  recursive?: boolean
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
 /**
- * Removes a directory.
+ * Removes the named file or directory.
  * If the directory is not empty and the `recursive` option isn't set to true, the promise will be rejected.
  * @example
  * ```typescript
- * import { removeDir, BaseDirectory } from '@tauri-apps/api/fs';
- * // Remove the directory `$APPDIR/users`
- * await removeDir('users', { dir: BaseDirectory.App });
+ * import { remove, BaseDirectory } from '@tauri-apps/api/fs';
+ * await remove('users/file.txt', { dir: BaseDirectory.App });
+ * await remove('users', { dir: BaseDirectory.App });
  * ```
- *
- * @param dir Path to the directory to remove.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
  */
-async function removeDir(
-  dir: string,
-  options: FsDirOptions = {}
+async function remove(
+  path: string | URL,
+  options?: RemoveOptions
 ): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'removeDir',
-      path: dir,
+      cmd: 'remove',
+      path: path instanceof URL ? path.toString() : path,
       options
     }
   })
@@ -420,33 +426,6 @@ async function copyFile(
       cmd: 'copyFile',
       fromPath: fromPath instanceof URL ? fromPath.toString() : fromPath,
       toPath: toPath instanceof URL ? toPath.toString() : toPath,
-      options
-    }
-  })
-}
-
-/**
- * Removes a file.
- * @example
- * ```typescript
- * import { removeFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Remove the `$APPDIR/app.conf` file
- * await removeFile('app.conf', { dir: BaseDirectory.App });
- * ```
- *
- * @param file Path to the file to remove.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
- */
-async function removeFile(
-  file: string,
-  options: FsOptions = {}
-): Promise<void> {
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'removeFile',
-      path: file,
       options
     }
   })
@@ -494,7 +473,8 @@ export type {
   CopyFileOptions,
   ReadDirOptions,
   DirEntry,
-  MkdirOptions
+  MkdirOptions,
+  RemoveOptions
 }
 
 export {
@@ -504,8 +484,7 @@ export {
   writeTextFile,
   readDir,
   mkdir,
-  removeDir,
+  remove,
   copyFile,
-  removeFile,
   renameFile
 }

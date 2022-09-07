@@ -202,8 +202,7 @@ fs-all = [
   "fs-mkdir",
   "fs-read-file",
   "fs-read-dir",
-  "fs-remove-dir",
-  "fs-remove-file",
+  "fs-remove",
   "fs-rename-file",
   "fs-write-file"
 ]
@@ -211,8 +210,7 @@ fs-copy-file = [ ]
 fs-mkdir = [ ]
 fs-read-file = [ ]
 fs-read-dir = [ ]
-fs-remove-dir = [ ]
-fs-remove-file = [ ]
+fs-remove = [ ]
 fs-rename-file = [ ]
 fs-write-file = [ ]
 global-shortcut-all = [ "global-shortcut" ]

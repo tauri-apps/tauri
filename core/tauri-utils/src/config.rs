@@ -1198,12 +1198,9 @@ pub struct FsAllowlistConfig {
   /// Create directory in local filesystem.
   #[serde(default, alias = "mkdir")]
   pub mkdir: bool,
-  /// Remove directory from local filesystem.
-  #[serde(default, alias = "remove-dir")]
-  pub remove_dir: bool,
-  /// Remove file from local filesystem.
-  #[serde(default, alias = "remove-file")]
-  pub remove_file: bool,
+  /// Remove a directory or file from local filesystem.
+  #[serde(default, alias = "remove")]
+  pub remove: bool,
   /// Rename file from local filesystem.
   #[serde(default, alias = "rename-file")]
   pub rename_file: bool,
@@ -1219,8 +1216,7 @@ impl Allowlist for FsAllowlistConfig {
       read_dir: true,
       copy_file: true,
       mkdir: true,
-      remove_dir: true,
-      remove_file: true,
+      remove: true,
       rename_file: true,
     };
     let mut features = allowlist.to_features();
@@ -1238,8 +1234,7 @@ impl Allowlist for FsAllowlistConfig {
       check_feature!(self, features, read_dir, "fs-read-dir");
       check_feature!(self, features, copy_file, "fs-copy-file");
       check_feature!(self, features, mkdir, "fs-mkdir");
-      check_feature!(self, features, remove_dir, "fs-remove-dir");
-      check_feature!(self, features, remove_file, "fs-remove-file");
+      check_feature!(self, features, remove, "fs-remove");
       check_feature!(self, features, rename_file, "fs-rename-file");
       features
     }

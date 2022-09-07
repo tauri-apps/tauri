@@ -5,10 +5,7 @@
 //! Types and functions related to file system directory management.
 
 use serde::Serialize;
-use std::{
-  fs::{self, metadata},
-  path::Path,
-};
+use std::{fs, path::Path};
 use tempfile::{self, tempdir};
 
 /// A disk entry which is either a file, a directory or a symlink.
@@ -30,7 +27,7 @@ pub struct DirEntry {
 
 /// Checks if the given path is a directory.
 pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
-  metadata(path).map(|md| md.is_dir()).map_err(Into::into)
+  fs::metadata(path).map(|md| md.is_dir()).map_err(Into::into)
 }
 
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
@@ -53,9 +50,10 @@ pub fn read_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<Vec<DirEntry>> {
   let mut files_and_dirs: Vec<DirEntry> = vec![];
   for entry in fs::read_dir(path)? {
     let path = entry?.path();
+    let file_type = path.metadata()?.file_type();
     files_and_dirs.push(DirEntry {
-      is_directory: path.is_dir(),
-      is_file: path.is_file(),
+      is_directory: file_type.is_dir(),
+      is_file: file_type.is_file(),
       is_symlink: is_symlink(&path).unwrap_or(false),
       name: path
         .file_name()

@@ -134,7 +134,7 @@ interface FileEntry {
 }
 
 export interface ReadFileOptions {
-  /** Base directory for relative paths */
+  /** Base directory for `path` */
   baseDir?: BaseDirectory
 }
 
@@ -204,7 +204,7 @@ export interface WriteFileOptions {
    * Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`]https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea with the specified value.
    */
   accessMode?: number
-  /** Base directory for relative paths */
+  /** Base directory for `path` */
   baseDir?: BaseDirectory
 }
 
@@ -285,10 +285,6 @@ async function writeTextFile(
  *   }
  * }
  * ```
- *
- * @param dir Path to the directory to read.
- * @param options Configuration object.
- * @returns A promise resolving to the directory entries.
  */
 async function readDir(
   dir: string,
@@ -361,31 +357,39 @@ async function removeDir(
   })
 }
 
+export interface CopyFileOptions {
+  /** Base directory for `fromPath`. */
+  fromPathBaseDir?: BaseDirectory
+  /** Base directory for `toPath`. */
+  toPathBaseDir?: BaseDirectory
+}
+
 /**
- * Copies a file to a destination.
+ * Copies the contents and permissions of one file to another specified path, by default creating a new file if needed, else overwriting.
  * @example
  * ```typescript
  * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Copy the `$APPDIR/app.conf` file to `$APPDIR/app.conf.bk`
  * await copyFile('app.conf', 'app.conf.bk', { dir: BaseDirectory.App });
  * ```
- *
- * @param source A path of the file to copy.
- * @param destination A path for the destination file.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
  */
 async function copyFile(
-  source: string,
-  destination: string,
-  options: FsOptions = {}
+  fromPath: string | URL,
+  toPath: string | URL,
+  options?: CopyFileOptions
 ): Promise<void> {
+  if (
+    (fromPath instanceof URL && fromPath.protocol !== 'file:') ||
+    (toPath instanceof URL && toPath.protocol !== 'file:')
+  ) {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'copyFile',
-      source,
-      destination,
+      fromPath: fromPath instanceof URL ? fromPath.toString() : fromPath,
+      toPath: toPath instanceof URL ? toPath.toString() : toPath,
       options
     }
   })

@@ -64,11 +64,17 @@ pub struct WriteFileOptions {
   base_dir: Option<BaseDirectory>,
 }
 
-/// Empty struct reserved for future use
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadFileOptions {
   base_dir: Option<BaseDirectory>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyFileOptions {
+  from_path_base_dir: Option<BaseDirectory>,
+  to_path_base_dir: Option<BaseDirectory>,
 }
 
 /// The API descriptor.
@@ -110,10 +116,11 @@ pub(crate) enum Cmd {
   },
   /// The copy file API.
   #[cmd(fs_copy_file, "fs > copyFile")]
+  #[serde(rename_all = "camelCase")]
   CopyFile {
-    source: SafePathBuf,
-    destination: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    from_path: SafePathBuf,
+    to_path: SafePathBuf,
+    options: Option<CopyFileOptions>,
   },
   /// The create dir API.
   #[cmd(fs_create_dir, "fs > createDir")]
@@ -230,31 +237,31 @@ impl Cmd {
   #[module_command_handler(fs_copy_file)]
   fn copy_file<R: Runtime>(
     context: InvokeContext<R>,
-    source: SafePathBuf,
-    destination: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    from_path: SafePathBuf,
+    to_path: SafePathBuf,
+    options: Option<CopyFileOptions>,
   ) -> super::Result<()> {
-    let (src, dest) = match options.and_then(|o| o.dir) {
-      Some(dir) => (
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          source,
-          Some(dir),
-        )?,
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          destination,
-          Some(dir),
-        )?,
-      ),
-      None => (source, destination),
-    };
-    fs::copy(src.clone(), dest.clone())
-      .with_context(|| format!("source: {}, dest: {}", src.display(), dest.display()))?;
+    let from_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      file_url_to_safe_pathbuf(from_path)?,
+      options.as_ref().and_then(|o| o.from_path_base_dir),
+    )?;
+    let to_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      file_url_to_safe_pathbuf(to_path)?,
+      options.as_ref().and_then(|o| o.to_path_base_dir),
+    )?;
+    fs::copy(&from_path, &to_path).with_context(|| {
+      format!(
+        "fromPath: {}, toPath: {}",
+        from_path.display(),
+        to_path.display()
+      )
+    })?;
     Ok(())
   }
 
@@ -453,8 +460,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, DirOperationOptions, FileOperationOptions, ReadFileOptions, SafePathBuf,
-    WriteFileOptions,
+    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, ReadFileOptions,
+    SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -497,6 +504,15 @@ mod tests {
     }
   }
 
+  impl Arbitrary for CopyFileOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        from_path_base_dir: Option::arbitrary(g),
+        to_path_base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for DirOperationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -529,15 +545,11 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_copy_file, "fs > copyFile")]
   #[quickcheck_macros::quickcheck]
-  fn copy_file(
-    source: SafePathBuf,
-    destination: SafePathBuf,
-    options: Option<FileOperationOptions>,
-  ) {
+  fn copy_file(from_path: SafePathBuf, to_path: SafePathBuf, options: Option<CopyFileOptions>) {
     let res = super::Cmd::copy_file(
       crate::test::mock_invoke_context(),
-      source,
-      destination,
+      from_path,
+      to_path,
       options,
     );
     crate::test_utils::assert_not_allowlist_error(res);

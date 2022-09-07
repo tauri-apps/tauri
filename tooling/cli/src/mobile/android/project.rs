@@ -21,7 +21,7 @@ use cargo_mobile::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 
-use std::{fs, path::Path};
+use std::{ffi::OsStr, fs, path::Path};
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
 

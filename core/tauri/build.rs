@@ -55,7 +55,7 @@ fn main() {
       "write-file",
       "read-dir",
       "copy-file",
-      "create-dir",
+      "mkdir",
       "remove-dir",
       "remove-file",
       "rename-file",

@@ -44,7 +44,7 @@
           "fs": {
             "all": false,
             "copyFile": false,
-            "createDir": false,
+            "mkdir": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -307,7 +307,7 @@
             "fs": {
               "all": false,
               "copyFile": false,
-              "createDir": false,
+              "mkdir": false,
               "readDir": false,
               "readFile": false,
               "removeDir": false,
@@ -1522,7 +1522,7 @@
           "default": {
             "all": false,
             "copyFile": false,
-            "createDir": false,
+            "mkdir": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -1741,8 +1741,8 @@
           "default": false,
           "type": "boolean"
         },
-        "createDir": {
-          "description": "Create directory from local filesystem.",
+        "mkdir": {
+          "description": "Create directory in local filesystem.",
           "default": false,
           "type": "boolean"
         },

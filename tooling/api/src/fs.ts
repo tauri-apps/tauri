@@ -18,7 +18,7 @@
  *         "writeFile": true,
  *         "readDir": true,
  *         "copyFile": true,
- *         "createDir": true,
+ *         "mkdir": true,
  *         "removeDir": true,
  *         "removeFile": true,
  *         "renameFile": true
@@ -197,13 +197,8 @@ interface WriteFileOptions {
   append?: boolean
   /** Sets the option to allow creating a new file, if one doesn't already exist at the specified path (defaults to true). */
   create?: boolean
-  /** Unix file permissions. */
+  /** File permissions. Ignored on Windows. */
   mode?: number
-  /**
-   * Windows file permissions.
-   * Overrides the `dwDesiredAccess` argument to the call to [`CreateFile`]https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea with the specified value.
-   */
-  accessMode?: number
   /** Base directory for `path` */
   baseDir?: BaseDirectory
 }
@@ -317,7 +312,6 @@ async function readDir(
     throw new TypeError('Must be a file URL.')
   }
 
-
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
@@ -328,30 +322,38 @@ async function readDir(
   })
 }
 
+interface MkdirOptions {
+  /** Permissions to use when creating the directory (defaults to `0o777`, before the process's umask). Ignored on Windows. */
+  mode?: number
+  /**
+   * Defaults to `false`. If set to `true`, means that any intermediate directories will also be created (as with the shell command `mkdir -p`).
+   * */
+  recursive?: boolean
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
 /**
- * Creates a directory.
- * If one of the path's parent components doesn't exist
- * and the `recursive` option isn't set to true, the promise will be rejected.
+ * Creates a new directory with the specified path.
  * @example
  * ```typescript
- * import { createDir, BaseDirectory } from '@tauri-apps/api/fs';
- * // Create the `$APPDIR/users` directory
- * await createDir('users', { dir: BaseDirectory.App, recursive: true });
+ * import { mkdir, BaseDirectory } from '@tauri-apps/api/fs';
+ * await mkdir('users', { dir: BaseDirectory.App });
  * ```
- *
- * @param dir Path to the directory to create.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
  */
-async function createDir(
-  dir: string,
-  options: FsDirOptions = {}
+async function mkdir(
+  path: string | URL,
+  options?: MkdirOptions
 ): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'createDir',
-      path: dir,
+      cmd: 'mkdir',
+      path: path instanceof URL ? path.toString() : path,
       options
     }
   })
@@ -491,7 +493,8 @@ export type {
   ReadFileOptions,
   CopyFileOptions,
   ReadDirOptions,
-  DirEntry
+  DirEntry,
+  MkdirOptions
 }
 
 export {
@@ -500,7 +503,7 @@ export {
   writeFile,
   writeTextFile,
   readDir,
-  createDir,
+  mkdir,
   removeDir,
   copyFile,
   removeFile,

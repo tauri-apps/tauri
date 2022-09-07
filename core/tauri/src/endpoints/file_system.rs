@@ -59,8 +59,6 @@ pub struct WriteFileOptions {
   create: Option<bool>,
   #[allow(unused)]
   mode: Option<u32>,
-  #[allow(unused)]
-  access_mode: Option<u32>,
   base_dir: Option<BaseDirectory>,
 }
 
@@ -80,6 +78,15 @@ pub struct CopyFileOptions {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadDirOptions {
+  base_dir: Option<BaseDirectory>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MkdirOptions {
+  #[allow(unused)]
+  mode: Option<u32>,
+  recursive: Option<bool>,
   base_dir: Option<BaseDirectory>,
 }
 
@@ -129,10 +136,10 @@ pub(crate) enum Cmd {
     options: Option<CopyFileOptions>,
   },
   /// The create dir API.
-  #[cmd(fs_create_dir, "fs > createDir")]
-  CreateDir {
+  #[cmd(fs_mkdir, "fs > mkdir")]
+  Mkdir {
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
+    options: Option<MkdirOptions>,
   },
   /// The remove dir API.
   #[cmd(fs_remove_dir, "fs > removeDir")]
@@ -269,33 +276,34 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_create_dir)]
-  fn create_dir<R: Runtime>(
+  #[module_command_handler(fs_mkdir)]
+  fn mkdir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
+    options: Option<MkdirOptions>,
   ) -> super::Result<()> {
-    let (recursive, dir) = if let Some(options_value) = options {
-      (options_value.recursive, options_value.dir)
-    } else {
-      (false, None)
-    };
+    let path = file_url_to_safe_pathbuf(path)?;
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      dir,
+      options.as_ref().and_then(|o| o.base_dir),
     )?;
-    if recursive {
-      fs::create_dir_all(&resolved_path)
-        .with_context(|| format!("path: {}", resolved_path.display()))?;
-    } else {
-      fs::create_dir(&resolved_path)
-        .with_context(|| format!("path: {} (non recursive)", resolved_path.display()))?;
+
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(options.as_ref().and_then(|o| o.recursive).unwrap_or(false));
+    #[cfg(unix)]
+    {
+      use std::os::unix::fs::DirBuilderExt;
+      let mode = options.as_ref().and_then(|o| o.mode).unwrap_or(0o777) & 0o777;
+      builder.mode(mode);
     }
 
-    Ok(())
+    builder
+      .create(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
   }
 
   #[module_command_handler(fs_remove_dir)]
@@ -437,19 +445,11 @@ fn write_file<R: Runtime>(
   opts.append(options.as_ref().map(|o| o.append.unwrap_or(false)).unwrap());
   opts.create(options.as_ref().map(|o| o.create.unwrap_or(true)).unwrap());
 
-  #[cfg(windows)]
-  {
-    use std::os::windows::fs::OpenOptionsExt;
-    if let Some(Some(access_mode)) = options.map(|o| o.access_mode) {
-      opts.access_mode(access_mode);
-    }
-  }
-
-  #[cfg(not(windows))]
+  #[cfg(unix)]
   {
     use std::os::unix::fs::OpenOptionsExt;
     if let Some(Some(mode)) = options.map(|o| o.mode) {
-      opts.mode(mode);
+      opts.mode(mode & 0o777);
     }
   }
 
@@ -464,8 +464,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, ReadDirOptions,
-    ReadFileOptions, SafePathBuf, WriteFileOptions,
+    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, MkdirOptions,
+    ReadDirOptions, ReadFileOptions, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -494,7 +494,6 @@ mod tests {
         append: Option::arbitrary(g),
         create: Option::arbitrary(g),
         mode: Option::arbitrary(g),
-        access_mode: Option::arbitrary(g),
         base_dir: Option::arbitrary(g),
       }
     }
@@ -520,6 +519,16 @@ mod tests {
   impl Arbitrary for ReadDirOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for MkdirOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        mode: Option::arbitrary(g),
+        recursive: Option::arbitrary(g),
         base_dir: Option::arbitrary(g),
       }
     }
@@ -567,10 +576,10 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
-  #[tauri_macros::module_command_test(fs_create_dir, "fs > createDir")]
+  #[tauri_macros::module_command_test(fs_mkdir, "fs > mkdir")]
   #[quickcheck_macros::quickcheck]
-  fn create_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
-    let res = super::Cmd::create_dir(crate::test::mock_invoke_context(), path, options);
+  fn mkdir(path: SafePathBuf, options: Option<MkdirOptions>) {
+    let res = super::Cmd::mkdir(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

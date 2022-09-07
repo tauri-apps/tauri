@@ -63,10 +63,10 @@
                           })
 
                           return window.__TAURI__.fs
-                            .createDir('tauri-test-dir', options)
+                            .mkdir('tauri-test-dir', options)
                             .then(function (res) {
                               reply({
-                                cmd: 'createDir' + commandSuffix
+                                cmd: 'mkdir' + commandSuffix
                               })
                               return window.__TAURI__.fs
                                 .removeDir('tauri-test-dir', options)

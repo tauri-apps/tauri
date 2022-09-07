@@ -77,6 +77,12 @@ pub struct CopyFileOptions {
   to_path_base_dir: Option<BaseDirectory>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadDirOptions {
+  base_dir: Option<BaseDirectory>,
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -112,7 +118,7 @@ pub(crate) enum Cmd {
   #[cmd(fs_read_dir, "fs > readDir")]
   ReadDir {
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
+    options: Option<ReadDirOptions>,
   },
   /// The copy file API.
   #[cmd(fs_copy_file, "fs > copyFile")]
@@ -215,21 +221,19 @@ impl Cmd {
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<DirOperationOptions>,
-  ) -> super::Result<Vec<dir::DiskEntry>> {
-    let (recursive, dir) = if let Some(options_value) = options {
-      (options_value.recursive, options_value.dir)
-    } else {
-      (false, None)
-    };
+    options: Option<ReadDirOptions>,
+  ) -> super::Result<Vec<dir::DirEntry>> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      dir,
+      options.as_ref().and_then(|o| o.base_dir),
     )?;
-    dir::read_dir(&resolved_path, recursive)
+
+    dir::read_dir(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
   }
@@ -460,8 +464,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, ReadFileOptions,
-    SafePathBuf, WriteFileOptions,
+    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, ReadDirOptions,
+    ReadFileOptions, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -513,6 +517,14 @@ mod tests {
     }
   }
 
+  impl Arbitrary for ReadDirOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for DirOperationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -538,7 +550,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_read_dir, "fs > readDir")]
   #[quickcheck_macros::quickcheck]
-  fn read_dir(path: SafePathBuf, options: Option<DirOperationOptions>) {
+  fn read_dir(path: SafePathBuf, options: Option<ReadDirOptions>) {
     let res = super::Cmd::read_dir(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }

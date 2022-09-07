@@ -133,7 +133,7 @@ interface FileEntry {
   children?: FileEntry[]
 }
 
-export interface ReadFileOptions {
+interface ReadFileOptions {
   /** Base directory for `path` */
   baseDir?: BaseDirectory
 }
@@ -192,7 +192,7 @@ async function readTextFile(
   })
 }
 
-export interface WriteFileOptions {
+interface WriteFileOptions {
   /** Defaults to false. If set to true, will append to a file instead of overwriting previous contents. */
   append?: boolean
   /** Sets the option to allow creating a new file, if one doesn't already exist at the specified path (defaults to true). */
@@ -240,14 +240,14 @@ async function writeFile(
 }
 
 /**
- * Writes UTF-8 string `data` to the given `path`, by default creating a new file if needed, else overwriting.
-   @example
- * ```typescript
- * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
- *
- * await writeTextFile('file.txt', "Hello world", { baseDir: BaseDirectory.App });
- * ```
- */
+  * Writes UTF-8 string `data` to the given `path`, by default creating a new file if needed, else overwriting.
+    @example
+  * ```typescript
+  * import { writeTextFile, BaseDirectory } from '@tauri-apps/api/fs';
+  *
+  * await writeTextFile('file.txt', "Hello world", { baseDir: BaseDirectory.App });
+  * ```
+  */
 async function writeTextFile(
   path: string | URL,
   data: string,
@@ -268,33 +268,61 @@ async function writeTextFile(
   })
 }
 
+interface ReadDirOptions {
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
+/** A disk entry which is either a file, a directory or a symlink.
+ *
+ * This is the result of the {@link readDir | `readDir`}.
+ *
+ */
+interface DirEntry {
+  /** The name of the entry (file name with extension or directory name). */
+  name: string
+  /** Specifies whether this entry is a directory or not. */
+  isDirectory: boolean
+  /** Specifies whether this entry is a file or not. */
+  isFile: boolean
+  /** Specifies whether this entry is a symlink or not. */
+  isSymlink: boolean
+}
+
 /**
- * List directory files.
+ * Reads the directory given by path and returns an array of `DirEntry`.
  * @example
  * ```typescript
  * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
- * // Reads the `$APPDIR/users` directory recursively
- * const entries = await readDir('users', { dir: BaseDirectory.App, recursive: true });
+ * const dir = "users"
+ * const entries = await readDir('users', { dir: BaseDirectory.App });
+ * processEntriesRecursive(dir, entries);
  *
- * function processEntries(entries) {
+ * function processEntriesRecursive(parent, entries) {
  *   for (const entry of entries) {
- *     console.log(`Entry: ${entry.path}`);
- *     if (entry.children) {
- *       processEntries(entry.children)
+ *     console.log(`Entry: ${entry.name}`);
+ *     if (entry.isDirectory) {
+ *        const dir = parent + entry.name;
+ *       processEntriesRecursive(dir, await readDir(dir, { dir: BaseDirectory.App }))
  *     }
  *   }
  * }
  * ```
  */
 async function readDir(
-  dir: string,
-  options: FsDirOptions = {}
-): Promise<FileEntry[]> {
+  path: string | URL,
+  options?: ReadDirOptions
+): Promise<DirEntry[]> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readDir',
-      path: dir,
+      path: path instanceof URL ? path.toString() : path,
       options
     }
   })
@@ -357,7 +385,7 @@ async function removeDir(
   })
 }
 
-export interface CopyFileOptions {
+interface CopyFileOptions {
   /** Base directory for `fromPath`. */
   fromPathBaseDir?: BaseDirectory
   /** Base directory for `toPath`. */
@@ -458,7 +486,12 @@ export type {
   FsTextFileOption,
   BinaryFileContents,
   FsBinaryFileOption,
-  FileEntry
+  FileEntry,
+  WriteFileOptions,
+  ReadFileOptions,
+  CopyFileOptions,
+  ReadDirOptions,
+  DirEntry
 }
 
 export {

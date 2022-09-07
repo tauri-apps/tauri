@@ -7,23 +7,25 @@
 use serde::Serialize;
 use std::{
   fs::{self, metadata},
-  path::{Path, PathBuf},
+  path::Path,
 };
 use tempfile::{self, tempdir};
 
-/// A disk entry which is either a file or a directory.
+/// A disk entry which is either a file, a directory or a symlink.
 ///
-/// This is the result of the [`read_dir`]. The `children` field is always `Some` if the entry is a directory.
+/// This is the result of the [`read_dir`].
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 #[non_exhaustive]
-pub struct DiskEntry {
-  /// The path to the entry.
-  pub path: PathBuf,
+pub struct DirEntry {
   /// The name of the entry (file name with extension or directory name).
   pub name: Option<String>,
-  /// The children of this entry if it's a directory.
-  #[serde(skip_serializing_if = "Option::is_none")]
-  pub children: Option<Vec<DiskEntry>>,
+  /// Specifies whether this entry is a directory or not.
+  pub is_directory: bool,
+  /// Specifies whether this entry is a file or not.
+  pub is_file: bool,
+  /// Specifies whether this entry is a symlink or not.
+  pub is_symlink: bool,
 }
 
 /// Checks if the given path is a directory.
@@ -31,31 +33,35 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
   metadata(path).map(|md| md.is_dir()).map_err(Into::into)
 }
 
-/// Reads a directory. Can perform recursive operations.
-pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::api::Result<Vec<DiskEntry>> {
-  let mut files_and_dirs: Vec<DiskEntry> = vec![];
+fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
+  // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
+  #[cfg(windows)]
+  let ret = fs::symlink_metadata(path)
+    .map(|md| md.is_symlink())
+    .map_err(Into::into);
+
+  #[cfg(not(windows))]
+  let ret = fs::symlink_metadata(path)
+    .map(|md| md.file_type().is_symlink())
+    .map_err(Into::into);
+
+  ret
+}
+
+/// Reads a directory.
+pub fn read_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<Vec<DirEntry>> {
+  let mut files_and_dirs: Vec<DirEntry> = vec![];
   for entry in fs::read_dir(path)? {
     let path = entry?.path();
-    let path_as_string = path.display().to_string();
-
-    if let Ok(flag) = is_dir(&path_as_string) {
-      files_and_dirs.push(DiskEntry {
-        path: path.clone(),
-        children: if flag {
-          Some(if recursive {
-            read_dir(&path_as_string, true)?
-          } else {
-            vec![]
-          })
-        } else {
-          None
-        },
-        name: path
-          .file_name()
-          .map(|name| name.to_string_lossy())
-          .map(|name| name.to_string()),
-      });
-    }
+    files_and_dirs.push(DirEntry {
+      is_directory: path.is_dir(),
+      is_file: path.is_file(),
+      is_symlink: is_symlink(&path).unwrap_or(false),
+      name: path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .map(|name| name.to_string()),
+    });
   }
   Result::Ok(files_and_dirs)
 }
@@ -72,7 +78,7 @@ pub fn with_temp_dir<F: FnOnce(&tempfile::TempDir)>(callback: F) -> crate::api::
 mod test {
   use super::*;
   use quickcheck_macros::quickcheck;
-  use std::{ffi::OsStr, path::PathBuf};
+  use std::path::PathBuf;
 
   // check is dir function by passing in arbitrary strings
   #[quickcheck]
@@ -85,72 +91,14 @@ mod test {
     }
   }
 
-  fn name_from_path(path: PathBuf) -> Option<String> {
-    path
-      .file_name()
-      .map(|name| name.to_string_lossy())
-      .map(|name| name.to_string())
-  }
-
   #[test]
-  // check the read_dir function with recursive = true
-  fn check_read_dir_recursively() {
-    // define a relative directory string test/api/
-    let dir = PathBuf::from("test/api/");
-    // add the files to this directory
-    let mut file_one = dir.clone();
-    file_one.push("test.txt");
-    let mut file_two = dir.clone();
-    file_two.push("test_binary");
-
-    // call walk_dir on the directory
-    let res = read_dir(dir, true);
-
-    // assert that the result is Ok()
-    assert!(res.is_ok());
-
-    // destruct the OK into a vector of DiskEntry Structs
-    if let Ok(vec) = res {
-      // assert that the vector length is only 3
-      assert_eq!(vec.len(), 2);
-
-      // get the first DiskEntry
-      let first = &vec[0];
-      // get the second DiskEntry
-      let second = &vec[1];
-
-      if first.path.extension() == Some(OsStr::new("txt")) {
-        // check the fields for the first DiskEntry
-        assert_eq!(first.path, file_one);
-        assert!(first.children.is_none());
-        assert_eq!(first.name, name_from_path(file_one));
-
-        // check the fields for the third DiskEntry
-        assert_eq!(second.path, file_two);
-        assert!(second.children.is_none());
-        assert_eq!(second.name, name_from_path(file_two));
-      } else {
-        // check the fields for the second DiskEntry
-        assert_eq!(first.path, file_two);
-        assert!(first.children.is_none());
-        assert_eq!(first.name, name_from_path(file_two));
-
-        // check the fields for the third DiskEntry
-        assert_eq!(second.path, file_one);
-        assert!(second.children.is_none());
-        assert_eq!(second.name, name_from_path(file_one));
-      }
-    }
-  }
-
-  #[test]
-  // check the read_dir function with recursive = false
+  // check the read_dir function
   fn check_read_dir() {
     // define a relative directory test/api/
     let dir = PathBuf::from("test/api/");
 
     // call list_dir_contents on the dir
-    let res = read_dir(dir, false);
+    let res = read_dir(dir);
 
     // assert that the result is Ok()
     assert!(res.is_ok());
@@ -164,25 +112,25 @@ mod test {
       let first = &vec[0];
       let second = &vec[1];
 
-      if first.path.extension() == Some(OsStr::new("txt")) {
+      if first.name == Some(String::from("test.txt")) {
         // check the fields for the first DiskEntry
-        assert_eq!(first.path, PathBuf::from("test/api/test.txt"));
-        assert!(first.children.is_none());
+        assert!(!first.is_directory);
+        assert!(first.is_file);
         assert_eq!(first.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
-        assert_eq!(second.path, PathBuf::from("test/api/test_binary"));
-        assert!(second.children.is_none());
+        assert!(!second.is_directory);
+        assert!(second.is_file);
         assert_eq!(second.name, Some("test_binary".to_string()));
       } else {
         // check the fields for the first DiskEntry
-        assert_eq!(second.path, PathBuf::from("test/api/test.txt"));
-        assert!(second.children.is_none());
+        assert!(!second.is_directory);
+        assert!(second.is_file);
         assert_eq!(second.name, Some("test.txt".to_string()));
 
         // check the fields for the second DiskEntry
-        assert_eq!(first.path, PathBuf::from("test/api/test_binary"));
-        assert!(first.children.is_none());
+        assert!(!first.is_directory);
+        assert!(first.is_file);
         assert_eq!(first.name, Some("test_binary".to_string()));
       }
     }

@@ -33,46 +33,20 @@ use std::{
   sync::Arc,
 };
 
-/// The options for the directory functions on the file system API.
-#[derive(Debug, Clone, Deserialize)]
-pub struct DirOperationOptions {
-  /// Whether the API should recursively perform the operation on the directory.
-  #[serde(default)]
-  pub recursive: bool,
-  /// The base directory of the operation.
-  /// The directory path of the BaseDirectory will be the prefix of the defined directory path.
-  pub dir: Option<BaseDirectory>,
-}
-
-/// The options for the file functions on the file system API.
-#[derive(Debug, Clone, Deserialize)]
-pub struct FileOperationOptions {
-  /// The base directory of the operation.
-  /// The directory path of the BaseDirectory will be the prefix of the defined file path.
-  pub dir: Option<BaseDirectory>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WriteFileOptions {
-  append: Option<bool>,
-  create: Option<bool>,
-  #[allow(unused)]
-  mode: Option<u32>,
-  base_dir: Option<BaseDirectory>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadFileOptions {
-  base_dir: Option<BaseDirectory>,
-}
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CopyFileOptions {
   from_path_base_dir: Option<BaseDirectory>,
   to_path_base_dir: Option<BaseDirectory>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MkdirOptions {
+  #[allow(unused)]
+  mode: Option<u32>,
+  recursive: Option<bool>,
+  base_dir: Option<BaseDirectory>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -83,10 +57,7 @@ pub struct ReadDirOptions {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MkdirOptions {
-  #[allow(unused)]
-  mode: Option<u32>,
-  recursive: Option<bool>,
+pub struct ReadFileOptions {
   base_dir: Option<BaseDirectory>,
 }
 
@@ -104,43 +75,21 @@ pub struct RenameOptions {
   old_path_base_dir: Option<BaseDirectory>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteFileOptions {
+  append: Option<bool>,
+  create: Option<bool>,
+  #[allow(unused)]
+  mode: Option<u32>,
+  base_dir: Option<BaseDirectory>,
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub(crate) enum Cmd {
-  /// The read binary file API.
-  #[cmd(fs_read_file, "fs > readFile")]
-  ReadFile {
-    path: SafePathBuf,
-    options: Option<ReadFileOptions>,
-  },
-  /// The read binary file API.
-  #[cmd(fs_read_file, "fs > readFile")]
-  ReadTextFile {
-    path: SafePathBuf,
-    options: Option<ReadFileOptions>,
-  },
-
-  #[cmd(fs_write_file, "fs > writeFile")]
-  WriteFile {
-    path: SafePathBuf,
-    data: Vec<u8>,
-    options: Option<WriteFileOptions>,
-  },
-  /// The write file API.
-  #[cmd(fs_write_file, "fs > writeFile")]
-  WriteTextFile {
-    path: SafePathBuf,
-    data: String,
-    options: Option<WriteFileOptions>,
-  },
-  /// The read dir API.
-  #[cmd(fs_read_dir, "fs > readDir")]
-  ReadDir {
-    path: SafePathBuf,
-    options: Option<ReadDirOptions>,
-  },
   /// The copy file API.
   #[cmd(fs_copy_file, "fs > copyFile")]
   #[serde(rename_all = "camelCase")]
@@ -154,6 +103,23 @@ pub(crate) enum Cmd {
   Mkdir {
     path: SafePathBuf,
     options: Option<MkdirOptions>,
+  },
+  /// The read dir API.
+  #[cmd(fs_read_dir, "fs > readDir")]
+  ReadDir {
+    path: SafePathBuf,
+    options: Option<ReadDirOptions>,
+  },
+  /// The read file API.
+  #[cmd(fs_read_file, "fs > readFile")]
+  ReadFile {
+    path: SafePathBuf,
+    options: Option<ReadFileOptions>,
+  },
+  #[cmd(fs_read_file, "fs > readFile")]
+  ReadTextFile {
+    path: SafePathBuf,
+    options: Option<ReadFileOptions>,
   },
   /// The remove API.
   #[cmd(fs_remove, "fs > remove")]
@@ -169,90 +135,22 @@ pub(crate) enum Cmd {
     new_path: SafePathBuf,
     options: Option<RenameOptions>,
   },
-}
-
-impl Cmd {
-  #[module_command_handler(fs_read_file)]
-  fn read_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: SafePathBuf,
-    options: Option<ReadFileOptions>,
-  ) -> super::Result<Vec<u8>> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.as_ref().and_then(|o| o.base_dir),
-    )?;
-    file::read_binary(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
-  }
-
-  #[module_command_handler(fs_read_file)]
-  fn read_text_file<R: Runtime>(
-    context: InvokeContext<R>,
-    path: SafePathBuf,
-    options: Option<ReadFileOptions>,
-  ) -> super::Result<String> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.as_ref().and_then(|o| o.base_dir),
-    )?;
-    file::read_string(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
-  }
-
-  #[module_command_handler(fs_write_file)]
-  fn write_file<R: Runtime>(
-    context: InvokeContext<R>,
+  /// The write file API.
+  #[cmd(fs_write_file, "fs > writeFile")]
+  WriteFile {
     path: SafePathBuf,
     data: Vec<u8>,
     options: Option<WriteFileOptions>,
-  ) -> super::Result<()> {
-    write_file(context, path, &data, options)
-  }
-
-  #[module_command_handler(fs_write_file)]
-  fn write_text_file<R: Runtime>(
-    context: InvokeContext<R>,
+  },
+  #[cmd(fs_write_file, "fs > writeFile")]
+  WriteTextFile {
     path: SafePathBuf,
     data: String,
     options: Option<WriteFileOptions>,
-  ) -> super::Result<()> {
-    write_file(context, path, data.as_bytes(), options)
-  }
+  },
+}
 
-  #[module_command_handler(fs_read_dir)]
-  fn read_dir<R: Runtime>(
-    context: InvokeContext<R>,
-    path: SafePathBuf,
-    options: Option<ReadDirOptions>,
-  ) -> super::Result<Vec<dir::DirEntry>> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
-    let resolved_path = resolve_path(
-      &context.config,
-      &context.package_info,
-      &context.window,
-      path,
-      options.as_ref().and_then(|o| o.base_dir),
-    )?;
-
-    dir::read_dir(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
-  }
-
+impl Cmd {
   #[module_command_handler(fs_copy_file)]
   fn copy_file<R: Runtime>(
     context: InvokeContext<R>,
@@ -312,6 +210,67 @@ impl Cmd {
     builder
       .create(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
+  }
+
+  #[module_command_handler(fs_read_dir)]
+  fn read_dir<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<ReadDirOptions>,
+  ) -> super::Result<Vec<dir::DirEntry>> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+
+    dir::read_dir(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn read_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<ReadFileOptions>,
+  ) -> super::Result<Vec<u8>> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+    file::read_binary(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn read_text_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<ReadFileOptions>,
+  ) -> super::Result<String> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+    file::read_string(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(Into::into)
   }
 
   #[module_command_handler(fs_remove)]
@@ -395,6 +354,26 @@ impl Cmd {
       })
       .map_err(Into::into)
   }
+
+  #[module_command_handler(fs_write_file)]
+  fn write_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    data: Vec<u8>,
+    options: Option<WriteFileOptions>,
+  ) -> super::Result<()> {
+    write_file(context, path, &data, options)
+  }
+
+  #[module_command_handler(fs_write_file)]
+  fn write_text_file<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    data: String,
+    options: Option<WriteFileOptions>,
+  ) -> super::Result<()> {
+    write_file(context, path, data.as_bytes(), options)
+  }
 }
 
 #[allow(dead_code)]
@@ -476,8 +455,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, MkdirOptions,
-    ReadDirOptions, ReadFileOptions, RemoveOptions, RenameOptions, SafePathBuf, WriteFileOptions,
+    BaseDirectory, CopyFileOptions, MkdirOptions, ReadDirOptions, ReadFileOptions, RemoveOptions,
+    RenameOptions, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -488,14 +467,6 @@ mod tests {
         BaseDirectory::App
       } else {
         BaseDirectory::Resource
-      }
-    }
-  }
-
-  impl Arbitrary for FileOperationOptions {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self {
-        dir: Option::arbitrary(g),
       }
     }
   }
@@ -560,15 +531,6 @@ mod tests {
       Self {
         old_path_base_dir: Option::arbitrary(g),
         new_path_base_dir: Option::arbitrary(g),
-      }
-    }
-  }
-
-  impl Arbitrary for DirOperationOptions {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self {
-        recursive: bool::arbitrary(g),
-        dir: Option::arbitrary(g),
       }
     }
   }

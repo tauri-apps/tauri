@@ -93,43 +93,138 @@ export enum BaseDirectory {
   Temp
 }
 
-interface FsOptions {
-  dir?: BaseDirectory
-  // note that adding fields here needs a change in the writeBinaryFile check
+interface CopyFileOptions {
+  /** Base directory for `fromPath`. */
+  fromPathBaseDir?: BaseDirectory
+  /** Base directory for `toPath`. */
+  toPathBaseDir?: BaseDirectory
 }
 
-interface FsDirOptions {
-  dir?: BaseDirectory
-  recursive?: boolean
+/**
+ * Copies the contents and permissions of one file to another specified path, by default creating a new file if needed, else overwriting.
+ * @example
+ * ```typescript
+ * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * await copyFile('app.conf', 'app.conf.bk', { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function copyFile(
+  fromPath: string | URL,
+  toPath: string | URL,
+  options?: CopyFileOptions
+): Promise<void> {
+  if (
+    (fromPath instanceof URL && fromPath.protocol !== 'file:') ||
+    (toPath instanceof URL && toPath.protocol !== 'file:')
+  ) {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'copyFile',
+      fromPath: fromPath instanceof URL ? fromPath.toString() : fromPath,
+      toPath: toPath instanceof URL ? toPath.toString() : toPath,
+      options
+    }
+  })
 }
 
-/** Options object used to write a UTF-8 string to a file. */
-interface FsTextFileOption {
-  /** Path to the file to write. */
-  path: string
-  /** The UTF-8 string to write to the file. */
-  contents: string
-}
-
-type BinaryFileContents = Iterable<number> | ArrayLike<number> | ArrayBuffer
-
-/** Options object used to write a binary data to a file. */
-interface FsBinaryFileOption {
-  /** Path to the file to write. */
-  path: string
-  /** The byte array contents. */
-  contents: BinaryFileContents
-}
-
-interface FileEntry {
-  path: string
+interface MkdirOptions {
+  /** Permissions to use when creating the directory (defaults to `0o777`, before the process's umask). Ignored on Windows. */
+  mode?: number
   /**
-   * Name of the directory/file
-   * can be null if the path terminates with `..`
-   */
-  name?: string
-  /** Children of this entry if it's a directory; null otherwise */
-  children?: FileEntry[]
+   * Defaults to `false`. If set to `true`, means that any intermediate directories will also be created (as with the shell command `mkdir -p`).
+   * */
+  recursive?: boolean
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
+/**
+ * Creates a new directory with the specified path.
+ * @example
+ * ```typescript
+ * import { mkdir, BaseDirectory } from '@tauri-apps/api/fs';
+ * await mkdir('users', { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function mkdir(
+  path: string | URL,
+  options?: MkdirOptions
+): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'mkdir',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+}
+
+interface ReadDirOptions {
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
+/** A disk entry which is either a file, a directory or a symlink.
+ *
+ * This is the result of the {@link readDir | `readDir`}.
+ *
+ */
+interface DirEntry {
+  /** The name of the entry (file name with extension or directory name). */
+  name: string
+  /** Specifies whether this entry is a directory or not. */
+  isDirectory: boolean
+  /** Specifies whether this entry is a file or not. */
+  isFile: boolean
+  /** Specifies whether this entry is a symlink or not. */
+  isSymlink: boolean
+}
+
+/**
+ * Reads the directory given by path and returns an array of `DirEntry`.
+ * @example
+ * ```typescript
+ * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
+ * const dir = "users"
+ * const entries = await readDir('users', { baseDir: BaseDirectory.App });
+ * processEntriesRecursive(dir, entries);
+ *
+ * async function processEntriesRecursive(parent, entries) {
+ *   for (const entry of entries) {
+ *     console.log(`Entry: ${entry.name}`);
+ *     if (entry.isDirectory) {
+ *        const dir = parent + entry.name;
+ *       processEntriesRecursive(dir, await readDir(dir, { baseDir: BaseDirectory.App }))
+ *     }
+ *   }
+ * }
+ * ```
+ */
+async function readDir(
+  path: string | URL,
+  options?: ReadDirOptions
+): Promise<DirEntry[]> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'readDir',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
 }
 
 interface ReadFileOptions {
@@ -186,6 +281,84 @@ async function readTextFile(
     message: {
       cmd: 'readTextFile',
       path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+}
+
+interface RemoveOptions {
+  /** Defaults to `false`. If set to `true`, path will be removed even if it's a non-empty directory. */
+  recursive?: boolean
+  /** Base directory for `path` */
+  baseDir: BaseDirectory
+}
+
+/**
+ * Removes the named file or directory.
+ * If the directory is not empty and the `recursive` option isn't set to true, the promise will be rejected.
+ * @example
+ * ```typescript
+ * import { remove, BaseDirectory } from '@tauri-apps/api/fs';
+ * await remove('users/file.txt', { baseDir: BaseDirectory.App });
+ * await remove('users', { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function remove(
+  path: string | URL,
+  options?: RemoveOptions
+): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'remove',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+}
+
+interface RenameOptions {
+  /** Base directory for `oldPath`. */
+  oldPathBaseDir?: BaseDirectory
+  /** Base directory for `newPath`. */
+  newPathBaseDir?: BaseDirectory
+}
+
+/**
+ * Renames (moves) oldpath to newpath. Paths may be files or directories.
+ * If newpath already exists and is not a directory, rename() replaces it.
+ * OS-specific restrictions may apply when oldpath and newpath are in different directories.
+ *
+ * On Unix, this operation does not follow symlinks at either path.
+ *
+ * @example
+ * ```typescript
+ * import { rename, BaseDirectory } from '@tauri-apps/api/fs';
+ * await rename('avatar.png', 'deleted.png', { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function rename(
+  oldPath: string | URL,
+  newPath: string | URL,
+  options: RenameOptions
+): Promise<void> {
+  if (
+    (oldPath instanceof URL && oldPath.protocol !== 'file:') ||
+    (newPath instanceof URL && newPath.protocol !== 'file:')
+  ) {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'rename',
+      oldPath: oldPath instanceof URL ? oldPath.toString() : oldPath,
+      newPath: newPath instanceof URL ? newPath.toString() : newPath,
       options
     }
   })
@@ -262,238 +435,25 @@ async function writeTextFile(
   })
 }
 
-interface ReadDirOptions {
-  /** Base directory for `path` */
-  baseDir: BaseDirectory
-}
-
-/** A disk entry which is either a file, a directory or a symlink.
- *
- * This is the result of the {@link readDir | `readDir`}.
- *
- */
-interface DirEntry {
-  /** The name of the entry (file name with extension or directory name). */
-  name: string
-  /** Specifies whether this entry is a directory or not. */
-  isDirectory: boolean
-  /** Specifies whether this entry is a file or not. */
-  isFile: boolean
-  /** Specifies whether this entry is a symlink or not. */
-  isSymlink: boolean
-}
-
-/**
- * Reads the directory given by path and returns an array of `DirEntry`.
- * @example
- * ```typescript
- * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
- * const dir = "users"
- * const entries = await readDir('users', { baseDir: BaseDirectory.App });
- * processEntriesRecursive(dir, entries);
- *
- * async function processEntriesRecursive(parent, entries) {
- *   for (const entry of entries) {
- *     console.log(`Entry: ${entry.name}`);
- *     if (entry.isDirectory) {
- *        const dir = parent + entry.name;
- *       processEntriesRecursive(dir, await readDir(dir, { baseDir: BaseDirectory.App }))
- *     }
- *   }
- * }
- * ```
- */
-async function readDir(
-  path: string | URL,
-  options?: ReadDirOptions
-): Promise<DirEntry[]> {
-  if (path instanceof URL && path.protocol !== 'file:') {
-    throw new TypeError('Must be a file URL.')
-  }
-
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'readDir',
-      path: path instanceof URL ? path.toString() : path,
-      options
-    }
-  })
-}
-
-interface MkdirOptions {
-  /** Permissions to use when creating the directory (defaults to `0o777`, before the process's umask). Ignored on Windows. */
-  mode?: number
-  /**
-   * Defaults to `false`. If set to `true`, means that any intermediate directories will also be created (as with the shell command `mkdir -p`).
-   * */
-  recursive?: boolean
-  /** Base directory for `path` */
-  baseDir: BaseDirectory
-}
-
-/**
- * Creates a new directory with the specified path.
- * @example
- * ```typescript
- * import { mkdir, BaseDirectory } from '@tauri-apps/api/fs';
- * await mkdir('users', { baseDir: BaseDirectory.App });
- * ```
- */
-async function mkdir(
-  path: string | URL,
-  options?: MkdirOptions
-): Promise<void> {
-  if (path instanceof URL && path.protocol !== 'file:') {
-    throw new TypeError('Must be a file URL.')
-  }
-
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'mkdir',
-      path: path instanceof URL ? path.toString() : path,
-      options
-    }
-  })
-}
-
-interface RemoveOptions {
-  /** Defaults to `false`. If set to `true`, path will be removed even if it's a non-empty directory. */
-  recursive?: boolean
-  /** Base directory for `path` */
-  baseDir: BaseDirectory
-}
-
-/**
- * Removes the named file or directory.
- * If the directory is not empty and the `recursive` option isn't set to true, the promise will be rejected.
- * @example
- * ```typescript
- * import { remove, BaseDirectory } from '@tauri-apps/api/fs';
- * await remove('users/file.txt', { baseDir: BaseDirectory.App });
- * await remove('users', { baseDir: BaseDirectory.App });
- * ```
- */
-async function remove(
-  path: string | URL,
-  options?: RemoveOptions
-): Promise<void> {
-  if (path instanceof URL && path.protocol !== 'file:') {
-    throw new TypeError('Must be a file URL.')
-  }
-
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'remove',
-      path: path instanceof URL ? path.toString() : path,
-      options
-    }
-  })
-}
-
-interface CopyFileOptions {
-  /** Base directory for `fromPath`. */
-  fromPathBaseDir?: BaseDirectory
-  /** Base directory for `toPath`. */
-  toPathBaseDir?: BaseDirectory
-}
-
-/**
- * Copies the contents and permissions of one file to another specified path, by default creating a new file if needed, else overwriting.
- * @example
- * ```typescript
- * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
- * await copyFile('app.conf', 'app.conf.bk', { baseDir: BaseDirectory.App });
- * ```
- */
-async function copyFile(
-  fromPath: string | URL,
-  toPath: string | URL,
-  options?: CopyFileOptions
-): Promise<void> {
-  if (
-    (fromPath instanceof URL && fromPath.protocol !== 'file:') ||
-    (toPath instanceof URL && toPath.protocol !== 'file:')
-  ) {
-    throw new TypeError('Must be a file URL.')
-  }
-
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'copyFile',
-      fromPath: fromPath instanceof URL ? fromPath.toString() : fromPath,
-      toPath: toPath instanceof URL ? toPath.toString() : toPath,
-      options
-    }
-  })
-}
-
-interface RenameOptions {
-  /** Base directory for `oldPath`. */
-  oldPathBaseDir?: BaseDirectory
-  /** Base directory for `newPath`. */
-  newPathBaseDir?: BaseDirectory
-}
-
-/**
- * Renames (moves) oldpath to newpath. Paths may be files or directories.
- * If newpath already exists and is not a directory, rename() replaces it.
- * OS-specific restrictions may apply when oldpath and newpath are in different directories.
- *
- * On Unix, this operation does not follow symlinks at either path.
- *
- * @example
- * ```typescript
- * import { rename, BaseDirectory } from '@tauri-apps/api/fs';
- * await rename('avatar.png', 'deleted.png', { baseDir: BaseDirectory.App });
- * ```
- */
-async function rename(oldPath: string | URL, newPath: string | URL, options: RenameOptions): Promise<void> {
-  if (
-    (oldPath instanceof URL && oldPath.protocol !== 'file:') ||
-    (newPath instanceof URL && newPath.protocol !== 'file:')
-  ) {
-    throw new TypeError('Must be a file URL.')
-  }
-
-  return invokeTauriCommand({
-    __tauriModule: 'Fs',
-    message: {
-      cmd: 'rename',
-      oldPath:  oldPath instanceof URL ? oldPath.toString() : oldPath,
-      newPath:  newPath instanceof URL ? newPath.toString() : newPath,
-      options
-    }
-  })
-}
-
 export type {
-  FsOptions,
-  FsDirOptions,
-  FsTextFileOption,
-  BinaryFileContents,
-  FsBinaryFileOption,
-  FileEntry,
-  WriteFileOptions,
-  ReadFileOptions,
   CopyFileOptions,
-  ReadDirOptions,
-  DirEntry,
   MkdirOptions,
-  RemoveOptions
+  DirEntry,
+  ReadDirOptions,
+  ReadFileOptions,
+  RemoveOptions,
+  RenameOptions,
+  WriteFileOptions
 }
 
 export {
-  readTextFile,
-  readFile,
-  writeFile,
-  writeTextFile,
-  readDir,
-  mkdir,
-  remove,
   copyFile,
-  rename
+  mkdir,
+  readDir,
+  readFile,
+  readTextFile,
+  remove,
+  rename,
+  writeFile,
+  writeTextFile
 }

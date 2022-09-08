@@ -73,6 +73,9 @@
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readFile` API](https://tauri.app/en/docs/api/js/modules/fs#readfile).
 //! - **fs-remove**: Enables the [`remove` API](https://tauri.app/en/docs/api/js/modules/fs#remove).
 //! - **fs-rename**: Enables the [`rename` API](https://tauri.app/en/docs/api/js/modules/fs#rename).
+//! - **fs-create**: Enables the [`create` API](https://tauri.app/en/docs/api/js/modules/fs#create).
+//! - **fs-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/fs#open).
+//! - **fs-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/modules/fs#close).
 //! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile).
 //!
 //! ### Global shortcut allowlist

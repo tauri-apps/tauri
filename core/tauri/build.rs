@@ -58,6 +58,9 @@ fn main() {
       "mkdir",
       "remove",
       "rename",
+      "create",
+      "open",
+      "close",
     ],
     api_all,
   );

@@ -11,6 +11,7 @@ use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod assets;
+pub mod atomic_counter;
 pub mod config;
 pub mod html;
 pub mod io;

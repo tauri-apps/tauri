@@ -1204,6 +1204,15 @@ pub struct FsAllowlistConfig {
   /// Rename file from local filesystem.
   #[serde(default, alias = "rename")]
   pub rename: bool,
+  /// Create file on local filesystem.
+  #[serde(default, alias = "create")]
+  pub create: bool,
+  /// Open file from local filesystem.
+  #[serde(default, alias = "open")]
+  pub open: bool,
+  /// Close file from local filesystem.
+  #[serde(default, alias = "close")]
+  pub close: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -1218,6 +1227,9 @@ impl Allowlist for FsAllowlistConfig {
       mkdir: true,
       remove: true,
       rename: true,
+      create: true,
+      open: true,
+      close: true,
     };
     let mut features = allowlist.to_features();
     features.push("fs-all");
@@ -1236,6 +1248,9 @@ impl Allowlist for FsAllowlistConfig {
       check_feature!(self, features, mkdir, "fs-mkdir");
       check_feature!(self, features, remove, "fs-remove");
       check_feature!(self, features, rename, "fs-rename");
+      check_feature!(self, features, rename, "fs-create");
+      check_feature!(self, features, rename, "fs-open");
+      check_feature!(self, features, rename, "fs-close");
       features
     }
   }

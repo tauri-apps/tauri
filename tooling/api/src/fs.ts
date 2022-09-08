@@ -93,6 +93,189 @@ enum BaseDirectory {
   Temp
 }
 
+/** The Tauri abstraction for reading and writing files. */
+class FsFile {
+  readonly rid: number
+
+  constructor(rid: number) {
+    this.rid = rid
+  }
+
+  /**
+   * Reads up to `p.byteLength` bytes into `p`. It resolves to the number of
+   * bytes read (`0` < `n` <= `p.byteLength`) and rejects if any error
+   * encountered. Even if `read()` resolves to `n` < `p.byteLength`, it may
+   * use all of `p` as scratch space during the call. If some data is
+   * available but not `p.byteLength` bytes, `read()` conventionally resolves
+   * to what is available instead of waiting for more.
+   *
+   * When `read()` encounters end-of-file condition, it resolves to EOF
+   * (`null`).
+   *
+   * When `read()` encounters an error, it rejects with an error.
+   *
+   * Callers should always process the `n` > `0` bytes returned before
+   * considering the EOF (`null`). Doing so correctly handles I/O errors that
+   * happen after reading some bytes and also both of the allowed EOF
+   * behaviors.
+   */
+  async read(p: Uint8Array): Promise<number | null> {
+    return read(this.rid, p)
+  }
+
+  /**
+   * Writes `p.byteLength` bytes from `p` to the underlying data stream. It
+   * resolves to the number of bytes written from `p` (`0` <= `n` <=
+   * `p.byteLength`) or reject with the error encountered that caused the
+   * write to stop early. `write()` must reject with a non-null error if
+   * would resolve to `n` < `p.byteLength`. `write()` must not modify the
+   * slice data, even temporarily.
+   */
+  async write(p: Uint8Array): Promise<number> {
+    return write(this.rid, p)
+  }
+
+  async close(): Promise<void> {
+    return close(this.rid)
+  }
+}
+
+interface CreateOptions {
+  /** Base directory for `path` */
+  baseDir?: BaseDirectory
+}
+
+/**
+ * Creates a file if none exists or truncates an existing file and resolves to
+ *  an instance of {@link FsFile | `FsFile` }.
+ *
+ * ```ts
+ * const file = await create("foo/bar.txt", { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function create(
+  path: string | URL,
+  options?: CreateOptions
+): Promise<FsFile> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  const rid = await invokeTauriCommand<number>({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'create',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+
+  return new FsFile(rid)
+}
+
+interface OpenOptions {
+  /**
+   * Sets the option for read access. This option, when `true`, means that the
+   * file should be read-able if opened.
+   */
+  read?: boolean
+  /**
+   * Sets the option for write access. This option, when `true`, means that
+   * the file should be write-able if opened. If the file already exists,
+   * any write calls on it will overwrite its contents, by default without
+   * truncating it.
+   */
+  write?: boolean
+  /**
+   * Sets the option for the append mode. This option, when `true`, means that
+   * writes will append to a file instead of overwriting previous contents.
+   * Note that setting `{ write: true, append: true }` has the same effect as
+   * setting only `{ append: true }`.
+   */
+  append?: boolean
+  /**
+   * Sets the option for truncating a previous file. If a file is
+   * successfully opened with this option set it will truncate the file to `0`
+   * size if it already exists. The file must be opened with write access
+   * for truncate to work.
+   */
+  truncate?: boolean
+  /**
+   * Sets the option to allow creating a new file, if one doesn't already
+   * exist at the specified path. Requires write or append access to be
+   * used.
+   */
+  create?: boolean
+  /**
+   * Defaults to `false`. If set to `true`, no file, directory, or symlink is
+   * allowed to exist at the target location. Requires write or append
+   * access to be used. When createNew is set to `true`, create and truncate
+   * are ignored.
+   */
+  createNew?: boolean
+  /**
+   * Permissions to use if creating the file (defaults to `0o666`, before
+   * the process's umask).
+   * Ignored on Windows.
+   */
+  mode?: number
+  /** Base directory for `path` */
+  baseDir?: BaseDirectory
+}
+
+/**
+ * Open a file and resolve to an instance of {@link FsFile | `FsFile`}.  The
+ * file does not need to previously exist if using the `create` or `createNew`
+ * open options. It is the callers responsibility to close the file when finished
+ * with it.
+ *
+ * ```ts
+ * const file = await open("foo/bar.txt", { read: true, write: true, baseDir: BaseDirectory.App });
+ * // Do work with file
+ * await close(file.rid);
+ * ```
+ */
+async function open(
+  path: string | URL,
+  options?: OpenOptions
+): Promise<FsFile> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  const rid = await invokeTauriCommand<number>({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'open',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+
+  return new FsFile(rid)
+}
+
+/**
+ * Close the given resource ID (rid) which has been previously opened, such
+ * as via opening or creating a file.  Closing a file when you are finished
+ * with it is important to avoid leaking resources.
+ *
+ * ```typescript
+ * const file = await open("my_file.txt", { baseDir: BaseDirectory.App });
+ * // do work with "file" object
+ * await close(file.rid);
+ * ```
+ */
+async function close(rid: number): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'close',
+      rid
+    }
+  })
+}
+
 interface CopyFileOptions {
   /** Base directory for `fromPath`. */
   fromPathBaseDir?: BaseDirectory
@@ -173,7 +356,8 @@ interface ReadDirOptions {
   baseDir: BaseDirectory
 }
 
-/** A disk entry which is either a file, a directory or a symlink.
+/**
+ * A disk entry which is either a file, a directory or a symlink.
  *
  * This is the result of the {@link readDir | `readDir`}.
  *
@@ -225,6 +409,46 @@ async function readDir(
       options
     }
   })
+}
+
+/**
+ *  Read from a resource ID (`rid`) into an array buffer (`buffer`).
+ *
+ * Resolves to either the number of bytes read during the operation or EOF
+ * (`null`) if there was nothing more to read.
+ *
+ * It is possible for a read to successfully return with `0` bytes. This does
+ * not indicate EOF.
+ *
+ *
+ * **It is not guaranteed that the full buffer will be read in a single call.**
+ *
+ * ```typescript
+ * // if "$APP/foo/bar.txt" contains the text "hello world":
+ * const file = await open("foo/bar.txt", { baseDir: BaseDirectory.App });
+ * const buf = new Uint8Array(100);
+ * const numberOfBytesRead = await read(file.rid, buf); // 11 bytes
+ * const text = new TextDecoder().decode(buf);  // "hello world"
+ * await close(file.rid);
+ * ```
+ */
+async function read(rid: number, buffer: Uint8Array): Promise<number | null> {
+  if (buffer.length === 0) {
+    return 0
+  }
+
+  const [data, nread] = await invokeTauriCommand<[number[], number]>({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'read',
+      rid,
+      len: buffer.length
+    }
+  })
+
+  buffer.set(data)
+
+  return nread === 0 ? null : nread
 }
 
 interface ReadFileOptions {
@@ -364,10 +588,37 @@ async function rename(
   })
 }
 
+/**
+ * Write to the resource ID (`rid`) the contents of the array buffer (`data`).
+ *
+ * Resolves to the number of bytes written.
+ *
+ * **It is not guaranteed that the full buffer will be written in a single
+ * call.**
+ *
+ * ```typescript
+ * const encoder = new TextEncoder();
+ * const data = encoder.encode("Hello world");
+ * const file = await open("bar.txt", { write: true, baseDir: BaseDirectory.App });
+ * const bytesWritten = await write(file.rid, data); // 11
+ * await close(file.rid);
+ * ```
+ */
+async function write(rid: number, data: Uint8Array): Promise<number> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'write',
+      rid,
+      data: Array.from(data)
+    }
+  })
+}
+
 interface WriteFileOptions {
-  /** Defaults to false. If set to true, will append to a file instead of overwriting previous contents. */
+  /** Defaults to `false`. If set to `true`, will append to a file instead of overwriting previous contents. */
   append?: boolean
-  /** Sets the option to allow creating a new file, if one doesn't already exist at the specified path (defaults to true). */
+  /** Sets the option to allow creating a new file, if one doesn't already exist at the specified path (defaults to `true`). */
   create?: boolean
   /** File permissions. Ignored on Windows. */
   mode?: number
@@ -436,6 +687,8 @@ async function writeTextFile(
 }
 
 export type {
+  CreateOptions,
+  OpenOptions,
   CopyFileOptions,
   MkdirOptions,
   DirEntry,
@@ -448,13 +701,19 @@ export type {
 
 export {
   BaseDirectory,
+  FsFile,
+  create,
+  open,
+  close,
   copyFile,
   mkdir,
+  read,
   readDir,
   readFile,
   readTextFile,
   remove,
   rename,
+  write,
   writeFile,
   writeTextFile
 }

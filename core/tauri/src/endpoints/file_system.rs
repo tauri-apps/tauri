@@ -23,8 +23,15 @@ use serde::{
   Deserialize, Serialize,
 };
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
+use tauri_utils::atomic_counter::AtomicCounter;
 
-use std::fmt::{Debug, Formatter};
+use once_cell::sync::Lazy;
+use std::{
+  collections::HashMap,
+  fmt::{Debug, Formatter},
+  io::Read,
+  sync::Mutex,
+};
 use std::{
   fs,
   fs::File,
@@ -32,6 +39,32 @@ use std::{
   path::{Component, Path},
   sync::Arc,
 };
+
+type Rid = u32;
+type FsFileStore = Arc<Mutex<HashMap<Rid, File>>>;
+
+static RID_COUNTER: AtomicCounter = AtomicCounter::new();
+static FILES_STORE: Lazy<FsFileStore> = Lazy::new(Default::default);
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateOptions {
+  base_dir: Option<BaseDirectory>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenOptions {
+  read: Option<bool>,
+  write: Option<bool>,
+  append: Option<bool>,
+  truncate: Option<bool>,
+  create: Option<bool>,
+  create_new: Option<bool>,
+  #[allow(unused)]
+  mode: Option<u32>,
+  base_dir: Option<BaseDirectory>,
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,6 +123,21 @@ pub struct WriteFileOptions {
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub(crate) enum Cmd {
+  /// The create file API.
+  #[cmd(fs_create, "fs > create")]
+  Create {
+    path: SafePathBuf,
+    options: Option<CreateOptions>,
+  },
+  /// The open file API.
+  #[cmd(fs_open, "fs > open")]
+  Open {
+    path: SafePathBuf,
+    options: Option<OpenOptions>,
+  },
+  /// The close file API.
+  #[cmd(fs_close, "fs > close")]
+  Close { rid: Rid },
   /// The copy file API.
   #[cmd(fs_copy_file, "fs > copyFile")]
   #[serde(rename_all = "camelCase")]
@@ -111,6 +159,8 @@ pub(crate) enum Cmd {
     options: Option<ReadDirOptions>,
   },
   /// The read file API.
+  #[cmd(fs_read_file, "fs > readFile")]
+  Read { rid: Rid, len: u32 },
   #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
@@ -137,6 +187,8 @@ pub(crate) enum Cmd {
   },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
+  Write { rid: Rid, data: Vec<u8> },
+  #[cmd(fs_write_file, "fs > writeFile")]
   WriteFile {
     path: SafePathBuf,
     data: Vec<u8>,
@@ -151,6 +203,96 @@ pub(crate) enum Cmd {
 }
 
 impl Cmd {
+  #[module_command_handler(fs_create)]
+  fn create<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<CreateOptions>,
+  ) -> super::Result<Rid> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+
+    let file = File::create(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(into_anyhow)?;
+
+    let rid = RID_COUNTER.next();
+    FILES_STORE.lock().unwrap().insert(rid, file);
+
+    Ok(rid)
+  }
+
+  #[module_command_handler(fs_open)]
+  fn open<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<OpenOptions>,
+  ) -> super::Result<Rid> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+
+    let mut opts = fs::OpenOptions::new();
+
+    match options {
+      None => {
+        opts
+          .read(true)
+          .create(false)
+          .write(false)
+          .truncate(false)
+          .append(false)
+          .create_new(false);
+      }
+      Some(options) => {
+        #[cfg(unix)]
+        {
+          use std::os::unix::fs::OpenOptionsExt;
+          if let Some(mode) = options.mode {
+            opts.mode(mode & 0o777);
+          }
+        }
+
+        opts
+          .read(options.read.unwrap_or(true))
+          .create(options.create.unwrap_or(false))
+          .write(options.write.unwrap_or(false))
+          .truncate(options.truncate.unwrap_or(false))
+          .append(options.append.unwrap_or(false))
+          .create_new(options.create_new.unwrap_or(false));
+      }
+    }
+
+    let file = opts
+      .open(&resolved_path)
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .map_err(into_anyhow)?;
+
+    let rid = RID_COUNTER.next();
+    FILES_STORE.lock().unwrap().insert(rid, file);
+
+    Ok(rid)
+  }
+
+  #[module_command_handler(fs_close)]
+  fn close<R: Runtime>(_context: InvokeContext<R>, rid: Rid) -> super::Result<()> {
+    FILES_STORE.lock().unwrap().remove(&rid);
+    Ok(())
+  }
+
   #[module_command_handler(fs_copy_file)]
   fn copy_file<R: Runtime>(
     context: InvokeContext<R>,
@@ -231,6 +373,22 @@ impl Cmd {
     dir::read_dir(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_write_file)]
+  fn read<R: Runtime>(
+    _context: InvokeContext<R>,
+    rid: Rid,
+    len: u32,
+  ) -> super::Result<(Vec<u8>, usize)> {
+    if let Some(file) = FILES_STORE.lock().unwrap().get_mut(&rid) {
+      let mut data = Vec::new();
+      data.resize(len as usize, 0);
+      let nread = file.read(&mut data).map_err(into_anyhow)?;
+      Ok((data, nread))
+    } else {
+      Ok((Vec::new(), 0))
+    }
   }
 
   #[module_command_handler(fs_read_file)]
@@ -356,6 +514,19 @@ impl Cmd {
   }
 
   #[module_command_handler(fs_write_file)]
+  fn write<R: Runtime>(
+    _context: InvokeContext<R>,
+    rid: Rid,
+    data: Vec<u8>,
+  ) -> super::Result<usize> {
+    if let Some(file) = FILES_STORE.lock().unwrap().get_mut(&rid) {
+      file.write(&data).map_err(Into::into)
+    } else {
+      Ok(0)
+    }
+  }
+
+  #[module_command_handler(fs_write_file)]
   fn write_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
@@ -455,8 +626,8 @@ fn write_file<R: Runtime>(
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, MkdirOptions, ReadDirOptions, ReadFileOptions, RemoveOptions,
-    RenameOptions, SafePathBuf, WriteFileOptions,
+    BaseDirectory, CopyFileOptions, CreateOptions, MkdirOptions, OpenOptions, ReadDirOptions,
+    ReadFileOptions, RemoveOptions, RenameOptions, Rid, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -535,10 +706,67 @@ mod tests {
     }
   }
 
+  impl Arbitrary for CreateOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  impl Arbitrary for OpenOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        read: Option::arbitrary(g),
+        write: Option::arbitrary(g),
+        append: Option::arbitrary(g),
+        truncate: Option::arbitrary(g),
+        create: Option::arbitrary(g),
+        create_new: Option::arbitrary(g),
+        mode: Option::arbitrary(g),
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
+  #[tauri_macros::module_command_test(fs_create, "fs > create")]
+  #[quickcheck_macros::quickcheck]
+  fn create(path: SafePathBuf, options: Option<CreateOptions>) {
+    let res = super::Cmd::create(crate::test::mock_invoke_context(), path, options);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+  #[tauri_macros::module_command_test(fs_open, "fs > open")]
+  #[quickcheck_macros::quickcheck]
+  fn open(path: SafePathBuf, options: Option<OpenOptions>) {
+    let res = super::Cmd::open(crate::test::mock_invoke_context(), path, options);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_close, "fs > close")]
+  #[quickcheck_macros::quickcheck]
+  fn close(rid: Rid) {
+    let res = super::Cmd::close(crate::test::mock_invoke_context(), rid);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
   #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
   fn read_file(path: SafePathBuf, options: Option<ReadFileOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_write_file, "fs > readFile")]
+  #[quickcheck_macros::quickcheck]
+  fn read(rid: Rid, len: u32) {
+    let res = super::Cmd::read(crate::test::mock_invoke_context(), rid, len);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn write(rid: Rid, data: Vec<u8>) {
+    let res = super::Cmd::write(crate::test::mock_invoke_context(), rid, data);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

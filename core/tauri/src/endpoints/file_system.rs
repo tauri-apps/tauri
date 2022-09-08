@@ -191,9 +191,15 @@ impl Cmd {
       path,
       dir,
     )?;
-    dir::read_dir(&resolved_path, recursive)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
+    dir::read_dir_with_options(
+      &resolved_path,
+      recursive,
+      dir::ReadDirOptions {
+        scope: Some(&context.window.state::<Scopes>().fs),
+      },
+    )
+    .with_context(|| format!("path: {}", resolved_path.display()))
+    .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file)]

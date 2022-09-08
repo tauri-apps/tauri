@@ -74,6 +74,7 @@ pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
 #[cfg(test)]
 mod test {
   use super::*;
+  #[cfg(not(windows))]
   use crate::api::Error;
   use quickcheck::{Arbitrary, Gen};
 

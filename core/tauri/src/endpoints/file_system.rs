@@ -96,6 +96,14 @@ pub struct RemoveOptions {
   recursive: Option<bool>,
   base_dir: Option<BaseDirectory>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenameOptions {
+  new_path_base_dir: Option<BaseDirectory>,
+  old_path_base_dir: Option<BaseDirectory>,
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -153,13 +161,13 @@ pub(crate) enum Cmd {
     path: SafePathBuf,
     options: Option<RemoveOptions>,
   },
-  /// The rename file API.
-  #[cmd(fs_rename_file, "fs > renameFile")]
+  /// The rename API.
+  #[cmd(fs_rename, "fs > rename")]
   #[serde(rename_all = "camelCase")]
-  RenameFile {
+  Rename {
     old_path: SafePathBuf,
     new_path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<RenameOptions>,
   },
 }
 
@@ -252,25 +260,25 @@ impl Cmd {
     to_path: SafePathBuf,
     options: Option<CopyFileOptions>,
   ) -> super::Result<()> {
-    let from_path = resolve_path(
+    let resolved_from_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       file_url_to_safe_pathbuf(from_path)?,
       options.as_ref().and_then(|o| o.from_path_base_dir),
     )?;
-    let to_path = resolve_path(
+    let resolved_to_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       file_url_to_safe_pathbuf(to_path)?,
       options.as_ref().and_then(|o| o.to_path_base_dir),
     )?;
-    fs::copy(&from_path, &to_path).with_context(|| {
+    fs::copy(&resolved_from_path, &resolved_to_path).with_context(|| {
       format!(
         "fromPath: {}, toPath: {}",
-        from_path.display(),
-        to_path.display()
+        resolved_from_path.display(),
+        resolved_to_path.display()
       )
     })?;
     Ok(())
@@ -356,34 +364,35 @@ impl Cmd {
     Ok(())
   }
 
-  #[module_command_handler(fs_rename_file)]
-  fn rename_file<R: Runtime>(
+  #[module_command_handler(fs_rename)]
+  fn rename<R: Runtime>(
     context: InvokeContext<R>,
     old_path: SafePathBuf,
     new_path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<RenameOptions>,
   ) -> super::Result<()> {
-    let (old, new) = match options.and_then(|o| o.dir) {
-      Some(dir) => (
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          old_path,
-          Some(dir),
-        )?,
-        resolve_path(
-          &context.config,
-          &context.package_info,
-          &context.window,
-          new_path,
-          Some(dir),
-        )?,
-      ),
-      None => (old_path, new_path),
-    };
-    fs::rename(&old, &new)
-      .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))
+    let resolved_old_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      file_url_to_safe_pathbuf(old_path)?,
+      options.as_ref().and_then(|o| o.old_path_base_dir),
+    )?;
+    let resolved_new_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      file_url_to_safe_pathbuf(new_path)?,
+      options.as_ref().and_then(|o| o.new_path_base_dir),
+    )?;
+    fs::rename(&resolved_old_path, &resolved_new_path)
+      .with_context(|| {
+        format!(
+          "oldPath: {}, newPath: {}",
+          resolved_old_path.display(),
+          resolved_new_path.display()
+        )
+      })
       .map_err(Into::into)
   }
 }
@@ -468,7 +477,7 @@ fn write_file<R: Runtime>(
 mod tests {
   use super::{
     BaseDirectory, CopyFileOptions, DirOperationOptions, FileOperationOptions, MkdirOptions,
-    ReadDirOptions, ReadFileOptions, RemoveOptions, SafePathBuf, WriteFileOptions,
+    ReadDirOptions, ReadFileOptions, RemoveOptions, RenameOptions, SafePathBuf, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -546,6 +555,15 @@ mod tests {
     }
   }
 
+  impl Arbitrary for RenameOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        old_path_base_dir: Option::arbitrary(g),
+        new_path_base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for DirOperationOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -602,14 +620,10 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
-  #[tauri_macros::module_command_test(fs_rename_file, "fs > renameFile")]
+  #[tauri_macros::module_command_test(fs_rename, "fs > rename")]
   #[quickcheck_macros::quickcheck]
-  fn rename_file(
-    old_path: SafePathBuf,
-    new_path: SafePathBuf,
-    options: Option<FileOperationOptions>,
-  ) {
-    let res = super::Cmd::rename_file(
+  fn rename(old_path: SafePathBuf, new_path: SafePathBuf, options: Option<RenameOptions>) {
+    let res = super::Cmd::rename(
       crate::test::mock_invoke_context(),
       old_path,
       new_path,

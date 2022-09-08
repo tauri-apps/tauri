@@ -70,10 +70,10 @@
 //! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
 //! - **fs-mkdir**: Enables the [`mkdir` API](https://tauri.app/en/docs/api/js/modules/fs#mkdir).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
-//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
-//! - **fs-remove**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#remove).
-//! - **fs-rename-file**: Enables the [`renameFile` API](https://tauri.app/en/docs/api/js/modules/fs#renamefile).
-//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#writebinaryfile).
+//! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readFile` API](https://tauri.app/en/docs/api/js/modules/fs#readfile).
+//! - **fs-remove**: Enables the [`remove` API](https://tauri.app/en/docs/api/js/modules/fs#remove).
+//! - **fs-rename**: Enables the [`rename` API](https://tauri.app/en/docs/api/js/modules/fs#rename).
+//! - **fs-write-file**: Enables the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile) and the [`writeFile` API](https://tauri.app/en/docs/api/js/modules/fs#writefile).
 //!
 //! ### Global shortcut allowlist
 //!

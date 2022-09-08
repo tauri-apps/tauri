@@ -78,27 +78,27 @@
                             })
                             .then(function (res) {
                               return window.__TAURI__.fs
-                                .renameFile(
+                                .rename(
                                   'tauri-test.txt',
                                   'tauri.testt.txt',
                                   options
                                 )
                                 .then(function (res) {
                                   reply({
-                                    cmd: 'renameFile' + commandSuffix
+                                    cmd: 'rename' + commandSuffix
                                   })
                                   return Promise.all([
-                                    window.__TAURI__.fs.removeFile(
+                                    window.__TAURI__.fs.remove(
                                       'tauri.testt.txt',
                                       options
                                     ),
-                                    window.__TAURI__.fs.removeFile(
+                                    window.__TAURI__.fs.remove(
                                       'tauri-test-copy.txt',
                                       options
                                     )
                                   ]).then(function (res) {
                                     reply({
-                                      cmd: 'removeFile' + commandSuffix
+                                      cmd: 'remove' + commandSuffix
                                     })
                                   })
                                 })

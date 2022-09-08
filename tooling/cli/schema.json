@@ -47,9 +47,8 @@
             "mkdir": false,
             "readDir": false,
             "readFile": false,
-            "removeDir": false,
-            "removeFile": false,
-            "renameFile": false,
+            "remove": false,
+            "rename": false,
             "scope": [],
             "writeFile": false
           },
@@ -310,9 +309,8 @@
               "mkdir": false,
               "readDir": false,
               "readFile": false,
-              "removeDir": false,
-              "removeFile": false,
-              "renameFile": false,
+              "remove": false,
+              "rename": false,
               "scope": [],
               "writeFile": false
             },
@@ -1525,9 +1523,8 @@
             "mkdir": false,
             "readDir": false,
             "readFile": false,
-            "removeDir": false,
-            "removeFile": false,
-            "renameFile": false,
+            "remove": false,
+            "rename": false,
             "scope": [],
             "writeFile": false
           },
@@ -1746,17 +1743,12 @@
           "default": false,
           "type": "boolean"
         },
-        "removeDir": {
-          "description": "Remove directory from local filesystem.",
+        "remove": {
+          "description": "Remove a directory or file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
-        "removeFile": {
-          "description": "Remove file from local filesystem.",
-          "default": false,
-          "type": "boolean"
-        },
-        "renameFile": {
+        "rename": {
           "description": "Rename file from local filesystem.",
           "default": false,
           "type": "boolean"

@@ -20,7 +20,7 @@
  *         "copyFile": true,
  *         "mkdir": true,
  *         "remove": true,
- *         "renameFile": true
+ *         "rename": true
  *       }
  *     }
  *   }
@@ -142,7 +142,7 @@ interface ReadFileOptions {
  * @example
  * ```typescript
  * import { readFile, BaseDirectory } from '@tauri-apps/api/fs';
- * const contents = await readFile('avatar.png', { dir: BaseDirectory.Resource });
+ * const contents = await readFile('avatar.png', { baseDir: BaseDirectory.Resource });
  * ```
  */
 async function readFile(
@@ -170,7 +170,7 @@ async function readFile(
  * @example
  * ```typescript
  * import { readTextFile, BaseDirectory } from '@tauri-apps/api/fs';
- * const contents = await readTextFile('app.conf', { dir: BaseDirectory.App });
+ * const contents = await readTextFile('app.conf', { baseDir: BaseDirectory.App });
  * ```
  */
 async function readTextFile(
@@ -289,15 +289,15 @@ interface DirEntry {
  * ```typescript
  * import { readDir, BaseDirectory } from '@tauri-apps/api/fs';
  * const dir = "users"
- * const entries = await readDir('users', { dir: BaseDirectory.App });
+ * const entries = await readDir('users', { baseDir: BaseDirectory.App });
  * processEntriesRecursive(dir, entries);
  *
- * function processEntriesRecursive(parent, entries) {
+ * async function processEntriesRecursive(parent, entries) {
  *   for (const entry of entries) {
  *     console.log(`Entry: ${entry.name}`);
  *     if (entry.isDirectory) {
  *        const dir = parent + entry.name;
- *       processEntriesRecursive(dir, await readDir(dir, { dir: BaseDirectory.App }))
+ *       processEntriesRecursive(dir, await readDir(dir, { baseDir: BaseDirectory.App }))
  *     }
  *   }
  * }
@@ -337,7 +337,7 @@ interface MkdirOptions {
  * @example
  * ```typescript
  * import { mkdir, BaseDirectory } from '@tauri-apps/api/fs';
- * await mkdir('users', { dir: BaseDirectory.App });
+ * await mkdir('users', { baseDir: BaseDirectory.App });
  * ```
  */
 async function mkdir(
@@ -371,8 +371,8 @@ interface RemoveOptions {
  * @example
  * ```typescript
  * import { remove, BaseDirectory } from '@tauri-apps/api/fs';
- * await remove('users/file.txt', { dir: BaseDirectory.App });
- * await remove('users', { dir: BaseDirectory.App });
+ * await remove('users/file.txt', { baseDir: BaseDirectory.App });
+ * await remove('users', { baseDir: BaseDirectory.App });
  * ```
  */
 async function remove(
@@ -405,7 +405,7 @@ interface CopyFileOptions {
  * @example
  * ```typescript
  * import { copyFile, BaseDirectory } from '@tauri-apps/api/fs';
- * await copyFile('app.conf', 'app.conf.bk', { dir: BaseDirectory.App });
+ * await copyFile('app.conf', 'app.conf.bk', { baseDir: BaseDirectory.App });
  * ```
  */
 async function copyFile(
@@ -431,31 +431,40 @@ async function copyFile(
   })
 }
 
+interface RenameOptions {
+  /** Base directory for `oldPath`. */
+  oldPathBaseDir?: BaseDirectory
+  /** Base directory for `newPath`. */
+  newPathBaseDir?: BaseDirectory
+}
+
 /**
- * Renames a file.
+ * Renames (moves) oldpath to newpath. Paths may be files or directories.
+ * If newpath already exists and is not a directory, rename() replaces it.
+ * OS-specific restrictions may apply when oldpath and newpath are in different directories.
+ *
+ * On Unix, this operation does not follow symlinks at either path.
+ *
  * @example
  * ```typescript
- * import { renameFile, BaseDirectory } from '@tauri-apps/api/fs';
- * // Rename the `$APPDIR/avatar.png` file
- * await renameFile('avatar.png', 'deleted.png', { dir: BaseDirectory.App });
+ * import { rename, BaseDirectory } from '@tauri-apps/api/fs';
+ * await rename('avatar.png', 'deleted.png', { baseDir: BaseDirectory.App });
  * ```
- *
- * @param oldPath A path of the file to rename.
- * @param newPath A path of the new file name.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
  */
-async function renameFile(
-  oldPath: string,
-  newPath: string,
-  options: FsOptions = {}
-): Promise<void> {
+async function rename(oldPath: string | URL, newPath: string | URL, options: RenameOptions): Promise<void> {
+  if (
+    (oldPath instanceof URL && oldPath.protocol !== 'file:') ||
+    (newPath instanceof URL && newPath.protocol !== 'file:')
+  ) {
+    throw new TypeError('Must be a file URL.')
+  }
+
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
-      cmd: 'renameFile',
-      oldPath,
-      newPath,
+      cmd: 'rename',
+      oldPath:  oldPath instanceof URL ? oldPath.toString() : oldPath,
+      newPath:  newPath instanceof URL ? newPath.toString() : newPath,
       options
     }
   })
@@ -486,5 +495,5 @@ export {
   mkdir,
   remove,
   copyFile,
-  renameFile
+  rename
 }

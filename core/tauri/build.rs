@@ -57,7 +57,7 @@ fn main() {
       "copy-file",
       "mkdir",
       "remove",
-      "rename-file",
+      "rename",
     ],
     api_all,
   );

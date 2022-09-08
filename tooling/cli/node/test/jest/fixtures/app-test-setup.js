@@ -27,10 +27,10 @@ module.exports.startServer = (onSuccess) => {
     mkdirWithDir: null,
     removeDir: null,
     removeDirWithDir: null,
-    renameFile: null,
-    renameFileWithDir: null,
-    removeFile: null,
-    renameFileWithDir: null,
+    rename: null,
+    renameWithDir: null,
+    remove: null,
+    renameWithDir: null,
     listen: null
   }
 

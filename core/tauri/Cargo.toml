@@ -203,7 +203,7 @@ fs-all = [
   "fs-read-file",
   "fs-read-dir",
   "fs-remove",
-  "fs-rename-file",
+  "fs-rename",
   "fs-write-file"
 ]
 fs-copy-file = [ ]
@@ -211,7 +211,7 @@ fs-mkdir = [ ]
 fs-read-file = [ ]
 fs-read-dir = [ ]
 fs-remove = [ ]
-fs-rename-file = [ ]
+fs-rename = [ ]
 fs-write-file = [ ]
 global-shortcut-all = [ "global-shortcut" ]
 http-all = [ "http-request" ]

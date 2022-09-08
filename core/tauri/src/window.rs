@@ -587,11 +587,14 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(all(desktop, feature = "wry"))]
-#[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "wry"))))]
+#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
+#[cfg_attr(
+  doc_cfg,
+  doc(cfg(all(any(desktop, target_os = "android"), feature = "wry")))
+)]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(all(desktop, feature = "wry"))]
+#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -650,6 +653,12 @@ impl PlatformWebview {
   pub fn ns_window(&self) -> cocoa::base::id {
     self.0.ns_window
   }
+
+  /// Returns handle for JNI execution.
+  #[cfg(target_os = "android")]
+  pub fn jni_handle(&self) -> tauri_runtime_wry::wry::webview::JniHandle {
+    self.0
+  }
 }
 
 /// APIs specific to the wry runtime.
@@ -693,13 +702,24 @@ impl Window<crate::Wry> {
   ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
   ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
   ///         }
+  ///
+  ///         #[cfg(target_os = "android")]
+  ///         {
+  ///           use jni::objects::JValue;
+  ///           webview.jni_handle().exec(|env, _, webview| {
+  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+  ///           })
+  ///         }
   ///       });
   ///       Ok(())
   ///   });
   /// }
   /// ```
-  #[cfg(desktop)]
-  #[cfg_attr(doc_cfg, doc(cfg(all(feature = "wry", desktop))))]
+  #[cfg(any(desktop, target_os = "android"))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(cfg(all(feature = "wry", any(desktop, target_os = "android"))))
+  )]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,

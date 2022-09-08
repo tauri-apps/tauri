@@ -565,7 +565,7 @@ async function tempDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
-      cmd: 'tempdir'
+      cmd: 'tempDir'
     }
   })
 }

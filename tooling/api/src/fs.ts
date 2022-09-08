@@ -59,7 +59,7 @@
  * {@link path.downloadDir | `$DOWNLOAD`}, {@link path.executableDir | `$EXE`}, {@link path.fontDir | `$FONT`}, {@link path.homeDir | `$HOME`},
  * {@link path.pictureDir | `$PICTURE`}, {@link path.publicDir | `$PUBLIC`}, {@link path.runtimeDir | `$RUNTIME`},
  * {@link path.templateDir | `$TEMPLATE`}, {@link path.videoDir | `$VIDEO`}, {@link path.resourceDir | `$RESOURCE`}, {@link path.appDir | `$APP`},
- * {@link path.logDir | `$LOG`}, {@link os.tempdir | `$TEMP`}.
+ * {@link path.logDir | `$LOG`}, {@link path.tempDir | `$TEMP`}.
  *
  * Trying to execute any API with a URL not configured on the scope results in a promise rejection due to denied access.
  *
@@ -70,7 +70,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
-export enum BaseDirectory {
+enum BaseDirectory {
   Audio = 1,
   Cache,
   Config,
@@ -447,6 +447,7 @@ export type {
 }
 
 export {
+  BaseDirectory,
   copyFile,
   mkdir,
   readDir,

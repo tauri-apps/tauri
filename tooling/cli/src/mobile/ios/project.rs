@@ -139,11 +139,10 @@ pub fn gen(
       let mut options = OpenOptions::new();
       options.write(true);
 
-      if path.file_name().unwrap() == OsStr::new("project.yml") {
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
         options.create(true).open(path).map(Some)
-      } else if path.exists() {
-        Ok(None)
       } else {
+        Ok(None)
         options.create(true).open(path).map(Some)
       }
     },

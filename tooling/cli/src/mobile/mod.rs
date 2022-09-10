@@ -155,13 +155,13 @@ pub fn write_options(
   options.vars.extend(env_vars());
   let name = options_local_socket_name(bundle_identifier, target);
   let _ = std::fs::remove_file(&name);
-  let value = serde_json::to_string(&options)?;
+  let mut value = serde_json::to_string(&options)?;
+  value.push('\n');
 
   std::thread::spawn(move || {
     let listener = LocalSocketListener::bind(name).expect("failed to start local socket");
     for mut conn in listener.incoming().flatten() {
       let _ = conn.write_all(value.as_bytes());
-      let _ = conn.write_all(b"\n");
     }
   });
 
@@ -184,10 +184,10 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
 
   let mut attempt = 0;
   let max_tries = 5;
-  let (buffer, len) = loop {
+  let buffer = loop {
     let mut buffer = String::new();
-    if let Ok(len) = conn.read_line(&mut buffer) {
-      break (buffer, len);
+    if conn.read_line(&mut buffer).is_ok() {
+      break buffer;
     }
     std::thread::sleep(std::time::Duration::from_secs(1));
     attempt += 1;
@@ -200,7 +200,7 @@ fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
     }
   };
 
-  let options: CliOptions = serde_json::from_str(&buffer[..len - 1]).expect("invalid CLI options");
+  let options: CliOptions = serde_json::from_str(&buffer).expect("invalid CLI options");
   for (k, v) in &options.vars {
     set_var(k, v);
   }

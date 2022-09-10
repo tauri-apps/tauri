@@ -118,6 +118,12 @@ pub struct WriteFileOptions {
   base_dir: Option<BaseDirectory>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TruncateOptions {
+  base_dir: Option<BaseDirectory>,
+}
+
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -185,6 +191,15 @@ pub(crate) enum Cmd {
     new_path: SafePathBuf,
     options: Option<RenameOptions>,
   },
+  /// The truncate file API
+  #[cmd(fs_write_file, "fs > writeFile")]
+  Truncate {
+    path: SafePathBuf,
+    len: Option<u64>,
+    options: Option<TruncateOptions>,
+  },
+  #[cmd(fs_write_file, "fs > writeFile")]
+  TruncateRid { rid: Rid, len: Option<u64> },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
   Write { rid: Rid, data: Vec<u8> },
@@ -381,14 +396,14 @@ impl Cmd {
     rid: Rid,
     len: u32,
   ) -> super::Result<(Vec<u8>, usize)> {
-    if let Some(file) = FILES_STORE.lock().unwrap().get_mut(&rid) {
-      let mut data = Vec::new();
-      data.resize(len as usize, 0);
-      let nread = file.read(&mut data).map_err(into_anyhow)?;
-      Ok((data, nread))
-    } else {
-      Ok((Vec::new(), 0))
-    }
+    let mut data = Vec::new();
+    data.resize(len as usize, 0);
+    let mut store = FILES_STORE.lock().unwrap();
+    let file = store
+      .get_mut(&rid)
+      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    let nread = file.read(&mut data).map_err(into_anyhow)?;
+    Ok((data, nread))
   }
 
   #[module_command_handler(fs_read_file)]
@@ -514,16 +529,51 @@ impl Cmd {
   }
 
   #[module_command_handler(fs_write_file)]
+  fn truncate<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    len: Option<u64>,
+    options: Option<TruncateOptions>,
+  ) -> super::Result<()> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+    )?;
+
+    let f = std::fs::OpenOptions::new()
+      .write(true)
+      .open(&resolved_path)?;
+    f.set_len(len.unwrap_or(0)).map_err(into_anyhow)
+  }
+  #[module_command_handler(fs_write_file)]
+  fn truncate_rid<R: Runtime>(
+    _context: InvokeContext<R>,
+    rid: Rid,
+    len: Option<u64>,
+  ) -> super::Result<()> {
+    let mut store = FILES_STORE.lock().unwrap();
+    let file = store
+      .get_mut(&rid)
+      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    file.set_len(len.unwrap_or(0)).map_err(into_anyhow)
+  }
+
+  #[module_command_handler(fs_write_file)]
   fn write<R: Runtime>(
     _context: InvokeContext<R>,
     rid: Rid,
     data: Vec<u8>,
   ) -> super::Result<usize> {
-    if let Some(file) = FILES_STORE.lock().unwrap().get_mut(&rid) {
-      file.write(&data).map_err(Into::into)
-    } else {
-      Ok(0)
-    }
+    let mut store = FILES_STORE.lock().unwrap();
+    let file = store
+      .get_mut(&rid)
+      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    file.write(&data).map_err(Into::into)
   }
 
   #[module_command_handler(fs_write_file)]

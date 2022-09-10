@@ -124,6 +124,21 @@ class FsFile {
   }
 
   /**
+   * Truncates or extends this file, to reach the specified `len`.
+   * If `len` is not specified then the entire file contents are truncated.
+   */
+  async truncate(len?: number): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Fs',
+      message: {
+        cmd: 'truncateRid',
+        rid: this.rid,
+        len
+      }
+    })
+  }
+
+  /**
    * Writes `p.byteLength` bytes from `p` to the underlying data stream. It
    * resolves to the number of bytes written from `p` (`0` <= `n` <=
    * `p.byteLength`) or reject with the error encountered that caused the
@@ -257,7 +272,7 @@ async function open(
 
 /**
  * Close the given resource ID (rid) which has been previously opened, such
- * as via opening or creating a file.  Closing a file when you are finished
+ * as via opening or creating a file. Closing a file when you are finished
  * with it is important to avoid leaking resources.
  *
  * ```typescript
@@ -588,6 +603,42 @@ async function rename(
   })
 }
 
+interface TruncateOptions {
+  /** Base directory for `path`. */
+  baseDir: BaseDirectory
+}
+
+/**
+ * Truncates or extends the specified file, to reach the specified `len`.
+ * If `len` is `0` or not specified, then the entire file contents are truncated.
+ *
+ * * @example
+ * ```typescript
+ * import { truncate, BaseDirectory } from '@tauri-apps/api/fs';
+ * // truncate the whole file content
+ * await truncate('file.txt', 0, { baseDir: BaseDirectory.App });
+ * ```
+ */
+async function truncate(
+  path: string | URL,
+  len?: number,
+  options?: TruncateOptions
+): Promise<void> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'truncate',
+      path: path instanceof URL ? path.toString() : path,
+      len,
+      options
+    }
+  })
+}
+
 /**
  * Write to the resource ID (`rid`) the contents of the array buffer (`data`).
  *
@@ -696,6 +747,7 @@ export type {
   ReadFileOptions,
   RemoveOptions,
   RenameOptions,
+  TruncateOptions,
   WriteFileOptions
 }
 
@@ -713,6 +765,7 @@ export {
   readTextFile,
   remove,
   rename,
+  truncate,
   write,
   writeFile,
   writeTextFile

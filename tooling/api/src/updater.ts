@@ -9,7 +9,7 @@
  * @module
  */
 
-import { once, listen, emit, UnlistenFn, TauriEvent} from './event'
+import { once, listen, emit, UnlistenFn, TauriEvent } from './event'
 
 /**
  * @since 1.0.0

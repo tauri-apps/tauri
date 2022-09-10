@@ -59,7 +59,7 @@ function transformCallback(
  * Command arguments.
  *
  * @since 1.0.0
-*/
+ */
 interface InvokeArgs {
   [key: string]: unknown
 }

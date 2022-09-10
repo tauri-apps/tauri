@@ -10,11 +10,7 @@
  */
 
 import * as eventApi from './helpers/event'
-import type {
-  EventCallback,
-  UnlistenFn,
-  Event
-} from './helpers/event'
+import type { EventCallback, UnlistenFn, Event } from './helpers/event'
 
 export type EventName = TauriEvent | string
 

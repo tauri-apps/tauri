@@ -131,7 +131,7 @@ type BinaryFileContents = Iterable<number> | ArrayLike<number> | ArrayBuffer
  * Options object used to write a binary data to a file.
  *
  * @since 1.0.0
-*/
+ */
 interface FsBinaryFileOption {
   /** Path to the file to write. */
   path: string

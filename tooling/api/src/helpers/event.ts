@@ -18,12 +18,9 @@ export interface Event<T> {
   payload: T
 }
 
-
 export type EventCallback<T> = (event: Event<T>) => void
 
 export type UnlistenFn = () => void
-
-
 
 /**
  * Unregister the event listener associated with the given name and id.

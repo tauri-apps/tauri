@@ -89,7 +89,7 @@ type Part = string | Uint8Array | FilePart<Uint8Array>
  * The body object to be used on POST and PUT requests.
  *
  * @since 1.0.0
-*/
+ */
 class Body {
   type: string
   payload: unknown

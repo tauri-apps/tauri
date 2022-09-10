@@ -31,7 +31,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * Extension filters for the file dialog.
  *
  * @since 1.0.0
-*/
+ */
 interface DialogFilter {
   /** Filter name. */
   name: string

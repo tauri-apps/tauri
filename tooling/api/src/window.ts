@@ -63,7 +63,7 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { emit, Event, listen, once } from './helpers/event'
-import { TauriEvent } from "./event"
+import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
 
@@ -87,7 +87,7 @@ interface Monitor {
  * The payload for the `scaleChange` event.
  *
  * @since 1.0.2
-*/
+ */
 interface ScaleFactorChanged {
   /** The new window scale factor. */
   scaleFactor: number
@@ -105,7 +105,7 @@ type FileDropEvent =
  * A size represented in logical pixels.
  *
  * @since 1.0.0
-*/
+ */
 class LogicalSize {
   type = 'Logical'
   width: number
@@ -167,7 +167,7 @@ class LogicalPosition {
  *  A position represented in physical pixels.
  *
  * @since 1.0.0
-*/
+ */
 class PhysicalPosition {
   type = 'Physical'
   x: number
@@ -1940,7 +1940,7 @@ if ('__TAURI_METADATA__' in window) {
  * Configuration for the window to create.
  *
  * @since 1.0.0
-*/
+ */
 interface WindowOptions {
   /**
    * Remote URL or local file path to open.

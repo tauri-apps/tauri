@@ -215,7 +215,7 @@ pub(crate) enum Cmd {
     options: Option<TruncateOptions>,
   },
   #[cmd(fs_write_file, "fs > writeFile")]
-  TruncateRid { rid: Rid, len: Option<u64> },
+  Ftruncate { rid: Rid, len: Option<u64> },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
   Write { rid: Rid, data: Vec<u8> },
@@ -588,7 +588,7 @@ impl Cmd {
     f.set_len(len.unwrap_or(0)).map_err(into_anyhow)
   }
   #[module_command_handler(fs_write_file)]
-  fn truncate_rid<R: Runtime>(
+  fn ftruncate<R: Runtime>(
     _context: InvokeContext<R>,
     rid: Rid,
     len: Option<u64>,
@@ -871,8 +871,8 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
-  fn truncate_rid(rid: Rid, len: Option<u64>) {
-    let res = super::Cmd::truncate_rid(crate::test::mock_invoke_context(), rid, len);
+  fn ftruncate(rid: Rid, len: Option<u64>) {
+    let res = super::Cmd::ftruncate(crate::test::mock_invoke_context(), rid, len);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

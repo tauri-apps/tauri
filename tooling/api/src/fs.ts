@@ -150,14 +150,7 @@ class FsFile {
    * If `len` is not specified then the entire file contents are truncated.
    */
   async truncate(len?: number): Promise<void> {
-    return invokeTauriCommand({
-      __tauriModule: 'Fs',
-      message: {
-        cmd: 'truncateRid',
-        rid: this.rid,
-        len
-      }
-    })
+    return ftruncate(this.rid, len);
   }
 
   /**
@@ -720,6 +713,43 @@ async function truncate(
   })
 }
 
+ /**
+   * Truncates or extends the specified file stream, to reach the specified `len`.
+   *
+   * If `len` is `0` or not specified then the entire file contents are truncated as if len was set to 0.
+   *
+   * If the file previously was larger than this new length, the extra  data  is  lost.
+   *
+   * If  the  file  previously  was shorter, it is extended, and the extended part reads as null bytes ('\0').
+   *
+   * @example
+   * ```typescript
+    * import { ftruncate, open, write, read, BaseDirectory } from '@tauri-apps/api/fs';
+   *
+   * // truncate the entire file
+   * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
+   * await ftruncate(file.rid);
+   *
+   * // truncate part of the file
+   * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
+   * await write(file.rid, new TextEncoder().encode("Hello World"));
+   * await ftruncate(file.rid, 7);
+   * const data = new Uint8Array(32);
+   * await read(file.rid, data);
+   * console.log(new TextDecoder().decode(data)); // Hello W
+   * ```
+   */
+async function ftruncate(rid: number,len?: number):Promise<void> {
+ return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'ftruncate',
+      rid,
+      len
+    }
+  })
+}
+
 /**
  * Write to the resource ID (`rid`) the contents of the array buffer (`data`).
  *
@@ -849,6 +879,7 @@ export {
   SeekMode,
   seek,
   truncate,
+  ftruncate,
   write,
   writeFile,
   writeTextFile

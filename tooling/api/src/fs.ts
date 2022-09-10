@@ -93,6 +93,12 @@ enum BaseDirectory {
   Temp
 }
 
+enum SeekMode {
+  Start = 0,
+  Current = 1,
+  End = 2
+}
+
 /** The Tauri abstraction for reading and writing files. */
 class FsFile {
   readonly rid: number
@@ -121,6 +127,22 @@ class FsFile {
    */
   async read(p: Uint8Array): Promise<number | null> {
     return read(this.rid, p)
+  }
+
+  /**
+   * Seek sets the offset for the next `read()` or `write()` to offset,
+   * interpreted according to `whence`: `Start` means relative to the
+   * start of the file, `Current` means relative to the current offset,
+   * and `End` means relative to the end. Seek resolves to the new offset
+   * relative to the start of the file.
+   *
+   * Seeking to an offset before the start of the file is an error. Seeking to
+   * any positive offset is legal, but the behavior of subsequent I/O
+   * operations on the underlying object is implementation-dependent.
+   * It returns the number of cursor position.
+   */
+  async seek(offset: number, whence: SeekMode): Promise<number> {
+    return seek(this.rid, offset, whence)
   }
 
   /**
@@ -603,6 +625,58 @@ async function rename(
   })
 }
 
+/**
+ * Seek a resource ID (`rid`) to the given `offset` under mode given by `whence`.
+ * The call resolves to the new position within the resource (bytes from the start).
+ *
+ * ```typescript
+ * import { open, seek, write, SeekMode, BaseDirectory } from '@tauri-apps/api/fs';
+ *
+ * // Given file.rid pointing to file with "Hello world", which is 11 bytes long:
+ * const file = await open('hello.txt', { read: true, write: true, truncate: true, create: true, baseDir: BaseDirectory.App });
+ * await write(file.rid, new TextEncoder().encode("Hello world"));
+ *
+ * // advance cursor 6 bytes
+ * const cursorPosition = await seek(file.rid, 6, SeekMode.Start);
+ * console.log(cursorPosition);  // 6
+ * const buf = new Uint8Array(100);
+ * await file.read(buf);
+ * console.log(new TextDecoder().decode(buf)); // "world"
+ * ```
+ *
+ * The seek modes work as follows:
+ *
+ * ```typescript
+ * import { open, seek, write, SeekMode, BaseDirectory } from '@tauri-apps/api/fs';
+ *
+ * // Given file.rid pointing to file with "Hello world", which is 11 bytes long:
+ * const file = await open('hello.txt', { read: true, write: true, truncate: true, create: true, baseDir: BaseDirectory.App });
+ * await write(file.rid, new TextEncoder().encode("Hello world"), { baseDir: BaseDirectory.App });
+ *
+ * // Seek 6 bytes from the start of the file
+ * console.log(await seek(file.rid, 6, SeekMode.Start)); // "6"
+ * // Seek 2 more bytes from the current position
+ * console.log(await seek(file.rid, 2, SeekMode.Current)); // "8"
+ * // Seek backwards 2 bytes from the end of the file
+ * console.log(await seek(file.rid, -2, SeekMode.End)); // "9" (e.g. 11-2)
+ * ```
+ */
+async function seek(
+  rid: number,
+  offset: number,
+  whence: SeekMode
+): Promise<number> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'seek',
+      rid,
+      offset,
+      whence
+    }
+  })
+}
+
 interface TruncateOptions {
   /** Base directory for `path`. */
   baseDir: BaseDirectory
@@ -612,11 +686,18 @@ interface TruncateOptions {
  * Truncates or extends the specified file, to reach the specified `len`.
  * If `len` is `0` or not specified, then the entire file contents are truncated.
  *
- * * @example
+ * @example
  * ```typescript
- * import { truncate, BaseDirectory } from '@tauri-apps/api/fs';
- * // truncate the whole file content
- * await truncate('file.txt', 0, { baseDir: BaseDirectory.App });
+ * import { truncate, readFile, writeFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * // truncate the entire file
+ * await truncate("my_file.txt", 0, { baseDir: BaseDirectory.App });
+ *
+ * // truncate part of the file
+ * let file = "file.txt";
+ * await writeFile(file, new TextEncoder().encode("Hello World"), { baseDir: BaseDirectory.App });
+ * await truncate(file, 7);
+ * const data = await readFile(file, { baseDir: BaseDirectory.App });
+ * console.log(new TextDecoder().decode(data));  // "Hello W"
  * ```
  */
 async function truncate(
@@ -765,6 +846,8 @@ export {
   readTextFile,
   remove,
   rename,
+  SeekMode,
+  seek,
   truncate,
   write,
   writeFile,

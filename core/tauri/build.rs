@@ -65,6 +65,10 @@ fn main() {
     api_all,
   );
 
+  let seek =
+    has_feature("fs-all") || has_feature("fs-write-file") || has_feature("fs-read-file") || api_all;
+  alias("fs_seek_file", seek);
+
   alias_module(
     "window",
     &[

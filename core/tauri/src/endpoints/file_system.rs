@@ -22,6 +22,7 @@ use serde::{
   de::{Deserializer, Error as DeError},
   Deserialize, Serialize,
 };
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 use tauri_utils::atomic_counter::AtomicCounter;
 
@@ -118,6 +119,14 @@ pub struct WriteFileOptions {
   base_dir: Option<BaseDirectory>,
 }
 
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
+#[repr(u16)]
+pub enum SeekMode {
+  Start = 0,
+  Current = 1,
+  End = 2,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TruncateOptions {
@@ -190,6 +199,13 @@ pub(crate) enum Cmd {
     old_path: SafePathBuf,
     new_path: SafePathBuf,
     options: Option<RenameOptions>,
+  },
+  /// The seek file API
+  #[cmd(fs_seek_file, "fs > writeFile or fs > readFile")]
+  Seek {
+    rid: Rid,
+    offset: i64,
+    whence: SeekMode,
   },
   /// The truncate file API
   #[cmd(fs_write_file, "fs > writeFile")]
@@ -528,6 +544,27 @@ impl Cmd {
       .map_err(Into::into)
   }
 
+  #[module_command_handler(fs_seek_file)]
+  fn seek<R: Runtime>(
+    _context: InvokeContext<R>,
+    rid: Rid,
+    offset: i64,
+    whence: SeekMode,
+  ) -> super::Result<u64> {
+    use std::io::{Seek, SeekFrom};
+    let mut store = FILES_STORE.lock().unwrap();
+    let file = store
+      .get_mut(&rid)
+      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    file
+      .seek(match whence {
+        SeekMode::Start => SeekFrom::Start(offset as u64),
+        SeekMode::Current => SeekFrom::Current(offset),
+        SeekMode::End => SeekFrom::End(offset),
+      })
+      .map_err(into_anyhow)
+  }
+
   #[module_command_handler(fs_write_file)]
   fn truncate<R: Runtime>(
     context: InvokeContext<R>,
@@ -677,7 +714,8 @@ fn write_file<R: Runtime>(
 mod tests {
   use super::{
     BaseDirectory, CopyFileOptions, CreateOptions, MkdirOptions, OpenOptions, ReadDirOptions,
-    ReadFileOptions, RemoveOptions, RenameOptions, Rid, SafePathBuf, WriteFileOptions,
+    ReadFileOptions, RemoveOptions, RenameOptions, Rid, SafePathBuf, SeekMode, TruncateOptions,
+    WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -688,6 +726,16 @@ mod tests {
         BaseDirectory::App
       } else {
         BaseDirectory::Resource
+      }
+    }
+  }
+
+  impl Arbitrary for SeekMode {
+    fn arbitrary(g: &mut Gen) -> Self {
+      if bool::arbitrary(g) {
+        SeekMode::Current
+      } else {
+        SeekMode::Start
       }
     }
   }
@@ -764,6 +812,14 @@ mod tests {
     }
   }
 
+  impl Arbitrary for TruncateOptions {
+    fn arbitrary(g: &mut Gen) -> Self {
+      Self {
+        base_dir: Option::arbitrary(g),
+      }
+    }
+  }
+
   impl Arbitrary for OpenOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -810,6 +866,27 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn read(rid: Rid, len: u32) {
     let res = super::Cmd::read(crate::test::mock_invoke_context(), rid, len);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn truncate_rid(rid: Rid, len: Option<u64>) {
+    let res = super::Cmd::truncate_rid(crate::test::mock_invoke_context(), rid, len);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_seek_file, "fs > writeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn seek(rid: Rid, offset: i64, whence: SeekMode) {
+    let res = super::Cmd::seek(crate::test::mock_invoke_context(), rid, offset, whence);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
+  #[quickcheck_macros::quickcheck]
+  fn truncate(path: SafePathBuf, len: Option<u64>, options: Option<TruncateOptions>) {
+    let res = super::Cmd::truncate(crate::test::mock_invoke_context(), path, len, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

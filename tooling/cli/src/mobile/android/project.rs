@@ -134,7 +134,6 @@ pub fn gen(
         options.create(true).open(path).map(Some)
       } else {
         Ok(None)
-      ```
       }
     },
   )

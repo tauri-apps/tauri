@@ -130,12 +130,11 @@ pub fn gen(
         options.mode(0o755);
       }
 
-      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") {
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
         options.create(true).open(path).map(Some)
-      } else if path.exists() {
-        Ok(None)
       } else {
-        options.create(true).open(path).map(Some)
+        Ok(None)
+      ```
       }
     },
   )

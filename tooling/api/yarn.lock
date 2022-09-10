@@ -3455,6 +3455,11 @@ typedoc-plugin-markdown@3.13.6:
   dependencies:
     handlebars "^4.7.7"
 
+typedoc-plugin-mdn-links@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/typedoc-plugin-mdn-links/-/typedoc-plugin-mdn-links-2.0.0.tgz#b43893bc7bdbb94927091f66d465f31e8440ad6c"
+  integrity sha512-IGLuelXPOenGdmklr5DHgPPf/MfZj7aEYCxCMtPN8C1D0lA7w0YLahd0jhDDcOMU7zL1EPcM5pPnhZHltDhqGQ==
+
 typedoc@0.23.14:
   version "0.23.14"
   resolved "https://registry.yarnpkg.com/typedoc/-/typedoc-0.23.14.tgz#d3af50b38fe98210ac39e112b5892f9d88546c93"

@@ -51,7 +51,7 @@
  *
  * # Window events
  *
- * Events can be listened using {@link WebviewWindow.listen | `WebviewWindow.listen`}:
+ * Events can be listened using {@link Window.listen | `Window.listen`}:
  * ```typescript
  * import { getCurrent } from "@tauri-apps/api/window";
  * getCurrent().listen("my-window-event", ({ event, payload }) => { });
@@ -243,26 +243,26 @@ export type CursorIcon =
   | 'rowResize'
 
 /**
- * Get an instance of `WebviewWindow` for the current webview window.
+ * Get an instance of {@link Window | `Window`} for the current webview window.
  *
- * @return The current WebviewWindow.
+ * @return The current {@link Window | `Window`}.
  */
-function getCurrent(): WebviewWindow {
-  return new WebviewWindow(window.__TAURI_METADATA__.__currentWindow.label, {
+function getCurrent(): Window {
+  return new Window(window.__TAURI_METADATA__.__currentWindow.label, {
     // @ts-expect-error
     skip: true
   })
 }
 
 /**
- * Gets an instance of `WebviewWindow` for all available webview windows.
+ * Gets an instance of {@link Window | `Window`} for all available webview windows.
  *
- * @return The list of WebviewWindow.
+ * @return The list of {@link Window | `Window`}.
  */
-function getAll(): WebviewWindow[] {
+function getAll(): Window[] {
   return window.__TAURI_METADATA__.__windows.map(
     (w) =>
-      new WebviewWindow(w.label, {
+      new Window(w.label, {
         // @ts-expect-error
         skip: true
       })
@@ -272,21 +272,106 @@ function getAll(): WebviewWindow[] {
 /** @ignore */
 // events that are emitted right here instead of by the created webview
 const localTauriEvents = ['tauri://created', 'tauri://error']
-/** @ignore */
+
 export type WindowLabel = string
+
 /**
- * A webview window handle allows emitting and listening to events from the backend that are tied to the window.
+ * Create new webview windows and get a handle to existing ones.
+ *
+ * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
+ * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
+ *
+ * @example
+ * ```typescript
+ * // loading embedded asset:
+ * const webview = new Window('theUniqueLabel', {
+ *   url: 'path/to/page.html'
+ * });
+ * // alternatively, load a remote URL:
+ * const webview = new Window('theUniqueLabel', {
+ *   url: 'https://github.com/tauri-apps/tauri'
+ * });
+ *
+ * webview.once('tauri://created', function () {
+ *  // webview window successfully created
+ * });
+ * webview.once('tauri://error', function (e) {
+ *  // an error happened creating the webview window
+ * });
+ *
+ * // emit an event to the backend
+ * await webview.emit("some event", "data");
+ * // listen to an event from the backend
+ * const unlisten = await webview.listen("event name", e => {});
+ * unlisten();
+ * ```
  */
-class WebviewWindowHandle {
+class Window {
   /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
   listeners: { [key: string]: Array<EventCallback<any>> }
 
-  constructor(label: WindowLabel) {
+  /**
+   * Creates a new {@link Window}.
+   * @example
+   * ```typescript
+   * import { Window } from '@tauri-apps/api/window';
+   * const webview = new Window('my-label', {
+   *   url: 'https://github.com/tauri-apps/tauri'
+   * });
+   * webview.once('tauri://created', function () {
+   *  // webview window successfully created
+   * });
+   * webview.once('tauri://error', function (e) {
+   *  // an error happened creating the webview window
+   * });
+   * ```
+   *
+   * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
+   * @returns The {@link Window} instance to communicate with the webview.
+   */
+  constructor(label: WindowLabel, options: WindowOptions = {}) {
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.listeners = Object.create(null)
+
+    // @ts-expect-error
+    if (!options?.skip) {
+      invokeTauriCommand({
+        __tauriModule: 'Window',
+        message: {
+          cmd: 'createWebview',
+          data: {
+            options: {
+              label,
+              ...options
+            }
+          }
+        }
+      })
+        .then(async () => this.emit('tauri://created'))
+        .catch(async (e: string) => this.emit('tauri://error', e))
+    }
+  }
+
+  /**
+   * Gets the {@link Window} for the webview associated with the given label.
+   * @example
+   * ```typescript
+   * import { Window } from '@tauri-apps/api/window';
+   * const mainWindow = Window.getByLabel('main');
+   * ```
+   *
+   * @param label The webview window label.
+   * @returns The {@link Window} instance to communicate with the webview or null if the webview doesn't exist.
+   */
+  static getByLabel(label: string): Window | null {
+    if (getAll().some((w) => w.label === label)) {
+      // @ts-expect-error
+      return new Window(label, { skip: true })
+    }
+    return null
   }
 
   /**
@@ -387,12 +472,7 @@ class WebviewWindowHandle {
     }
     return false
   }
-}
 
-/**
- * Manage the current window object.
- */
-class WindowManager extends WebviewWindowHandle {
   // Getters
   /**
    * The scale factor that can be used to map physical pixels to logical pixels.
@@ -1780,98 +1860,6 @@ class CloseRequestedEvent {
   }
 }
 
-/**
- * Create new webview windows and get a handle to existing ones.
- *
- * Windows are identified by a *label*  a unique identifier that can be used to reference it later.
- * It may only contain alphanumeric characters `a-zA-Z` plus the following special characters `-`, `/`, `:` and `_`.
- *
- * @example
- * ```typescript
- * // loading embedded asset:
- * const webview = new WebviewWindow('theUniqueLabel', {
- *   url: 'path/to/page.html'
- * });
- * // alternatively, load a remote URL:
- * const webview = new WebviewWindow('theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
- * });
- *
- * webview.once('tauri://created', function () {
- *  // webview window successfully created
- * });
- * webview.once('tauri://error', function (e) {
- *  // an error happened creating the webview window
- * });
- *
- * // emit an event to the backend
- * await webview.emit("some event", "data");
- * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {});
- * unlisten();
- * ```
- */
-class WebviewWindow extends WindowManager {
-  /**
-   * Creates a new WebviewWindow.
-   * @example
-   * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/window';
-   * const webview = new WebviewWindow('my-label', {
-   *   url: 'https://github.com/tauri-apps/tauri'
-   * });
-   * webview.once('tauri://created', function () {
-   *  // webview window successfully created
-   * });
-   * webview.once('tauri://error', function (e) {
-   *  // an error happened creating the webview window
-   * });
-   * ```
-   *
-   * * @param label The unique webview window label. Must be alphanumeric: `a-zA-Z-/:_`.
-   * @returns The WebviewWindow instance to communicate with the webview.
-   */
-  constructor(label: WindowLabel, options: WindowOptions = {}) {
-    super(label)
-    // @ts-expect-error
-    if (!options?.skip) {
-      invokeTauriCommand({
-        __tauriModule: 'Window',
-        message: {
-          cmd: 'createWebview',
-          data: {
-            options: {
-              label,
-              ...options
-            }
-          }
-        }
-      })
-        .then(async () => this.emit('tauri://created'))
-        .catch(async (e: string) => this.emit('tauri://error', e))
-    }
-  }
-
-  /**
-   * Gets the WebviewWindow for the webview associated with the given label.
-   * @example
-   * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/window';
-   * const mainWindow = WebviewWindow.getByLabel('main');
-   * ```
-   *
-   * @param label The webview window label.
-   * @returns The WebviewWindow instance to communicate with the webview or null if the webview doesn't exist.
-   */
-  static getByLabel(label: string): WebviewWindow | null {
-    if (getAll().some((w) => w.label === label)) {
-      // @ts-expect-error
-      return new WebviewWindow(label, { skip: true })
-    }
-    return null
-  }
-}
-
 /** Configuration for the window to create. */
 interface WindowOptions {
   /**
@@ -2007,9 +1995,7 @@ async function availableMonitors(): Promise<Monitor[]> {
 }
 
 export {
-  WebviewWindow,
-  WebviewWindowHandle,
-  WindowManager,
+  Window,
   CloseRequestedEvent,
   getCurrent,
   getAll,

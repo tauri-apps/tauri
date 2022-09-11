@@ -1415,7 +1415,7 @@ impl<R: Runtime> Window<R> {
 
   /// Emits an event to the JavaScript listeners on the current window.
   ///
-  /// The event is only delivered to listeners that used the `WebviewWindow#listen` method on the @tauri-apps/api `window` module.
+  /// The event is only delivered to listeners that used the `Window#listen` method on the @tauri-apps/api `window` module.
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -1429,7 +1429,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// This listener only receives events that are triggered using the
   /// [`trigger`](Window#method.trigger) and [`emit_and_trigger`](Window#method.emit_and_trigger) methods or
-  /// the `WebviewWindow.emit` function from the @tauri-apps/api `window` module.
+  /// the `Window#emit` function from the @tauri-apps/api `window` module.
   pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventHandler
   where
     F: Fn(Event) + Send + 'static,

@@ -1,6 +1,6 @@
 <script>
   import { open, save } from '@tauri-apps/api/dialog'
-  import { readBinaryFile } from '@tauri-apps/api/fs'
+  import { readFile } from '@tauri-apps/api/fs'
 
   export let onMessage
   export let insecureRenderHtml
@@ -42,7 +42,7 @@
         } else {
           var pathToRead = res
           var isFile = pathToRead.match(/\S+\.\S+$/g)
-          readBinaryFile(pathToRead)
+          readFile(pathToRead)
             .then(function (response) {
               if (isFile) {
                 if (
@@ -50,7 +50,7 @@
                   pathToRead.includes('.jpg')
                 ) {
                   arrayBufferToBase64(
-                    new Uint8Array(response),
+                    response,
                     function (base64) {
                       var src = 'data:image/png;base64,' + base64
                       insecureRenderHtml('<img src="' + src + '"></img>')

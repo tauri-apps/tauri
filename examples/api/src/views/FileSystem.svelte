@@ -1,9 +1,9 @@
 <script>
   import {
-    readBinaryFile,
+    readFile,
     writeTextFile,
     readDir,
-    Dir
+    BaseDirectory
   } from '@tauri-apps/api/fs'
   import { convertFileSrc } from '@tauri-apps/api/tauri'
 
@@ -30,23 +30,23 @@
     reader.readAsDataURL(blob)
   }
 
-  const DirOptions = Object.keys(Dir)
+  const DirOptions = Object.keys(BaseDirectory)
     .filter((key) => isNaN(parseInt(key)))
-    .map((dir) => [dir, Dir[dir]])
+    .map((dir) => [dir, BaseDirectory[dir]])
 
   function read() {
     const isFile = pathToRead.match(/\S+\.\S+$/g)
     const opts = {
-      dir: getDir()
+      baseDir: getDir()
     }
     const promise = isFile
-      ? readBinaryFile(pathToRead, opts)
+      ? readFile(pathToRead, opts)
       : readDir(pathToRead, opts)
     promise
       .then(function (response) {
         if (isFile) {
           if (pathToRead.includes('.png') || pathToRead.includes('.jpg')) {
-            arrayBufferToBase64(new Uint8Array(response), function (base64) {
+            arrayBufferToBase64(response, function (base64) {
               const src = 'data:image/png;base64,' + base64
               insecureRenderHtml('<img src="' + src + '"></img>')
             })
@@ -62,7 +62,7 @@
                 .getElementById('file-save')
                 .addEventListener('click', function () {
                   writeTextFile(pathToRead, fileInput.value, {
-                    dir: getDir()
+                    baseDir: getDir()
                   }).catch(onMessage)
                 })
             })

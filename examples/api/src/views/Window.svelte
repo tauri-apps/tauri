@@ -1,7 +1,7 @@
 <script>
   import {
     getCurrent,
-    WebviewWindow,
+    Window,
     LogicalSize,
     UserAttentionType,
     PhysicalSize,
@@ -122,7 +122,7 @@
   function createWindow() {
     if (!newWindowLabel) return
 
-    const webview = new WebviewWindow(newWindowLabel)
+    const webview = new Window(newWindowLabel)
     windowMap[newWindowLabel] = webview
     webview.once('tauri://error', function () {
       onMessage('Error creating new webview')

@@ -1,4 +1,4 @@
-const WebviewWindow = window.__TAURI__.window.WebviewWindow
+const Window = window.__TAURI__.window.Window
 
 const routeSelect = document.querySelector('#route')
 const link = document.querySelector('#link')
@@ -12,7 +12,7 @@ document.querySelector('#go').addEventListener('click', () => {
 })
 
 document.querySelector('#open-window').addEventListener('click', () => {
-  new WebviewWindow(Math.random().toString().replace('.', ''), {
+  new Window(Math.random().toString().replace('.', ''), {
     url: routeSelect.value
   })
 })

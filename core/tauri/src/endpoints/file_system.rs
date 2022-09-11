@@ -598,7 +598,7 @@ impl Cmd {
   }
 
   #[module_command_handler(fs_read_file)]
-  fn fstat<R: Runtime>(context: InvokeContext<R>, rid: Rid) -> super::Result<FileInfo> {
+  fn fstat<R: Runtime>(_context: InvokeContext<R>, rid: Rid) -> super::Result<FileInfo> {
     let mut store = FILES_STORE.lock().unwrap();
     let file = store
       .get_mut(&rid)

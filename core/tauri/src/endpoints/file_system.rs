@@ -49,7 +49,7 @@ static FILES_STORE: Lazy<FsFileStore> = Lazy::new(Default::default);
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateOptions {
+pub struct GenericOptions {
   base_dir: Option<BaseDirectory>,
 }
 
@@ -85,18 +85,6 @@ pub struct MkdirOptions {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadDirOptions {
-  base_dir: Option<BaseDirectory>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReadFileOptions {
-  base_dir: Option<BaseDirectory>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RemoveOptions {
   recursive: Option<bool>,
   base_dir: Option<BaseDirectory>,
@@ -127,12 +115,6 @@ pub enum SeekMode {
   End = 2,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TruncateOptions {
-  base_dir: Option<BaseDirectory>,
-}
-
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -142,7 +124,7 @@ pub(crate) enum Cmd {
   #[cmd(fs_create, "fs > create")]
   Create {
     path: SafePathBuf,
-    options: Option<CreateOptions>,
+    options: Option<GenericOptions>,
   },
   /// The open file API.
   #[cmd(fs_open, "fs > open")]
@@ -171,7 +153,7 @@ pub(crate) enum Cmd {
   #[cmd(fs_read_dir, "fs > readDir")]
   ReadDir {
     path: SafePathBuf,
-    options: Option<ReadDirOptions>,
+    options: Option<GenericOptions>,
   },
   /// The read file API.
   #[cmd(fs_read_file, "fs > readFile")]
@@ -179,12 +161,12 @@ pub(crate) enum Cmd {
   #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
-    options: Option<ReadFileOptions>,
+    options: Option<GenericOptions>,
   },
   #[cmd(fs_read_file, "fs > readFile")]
   ReadTextFile {
     path: SafePathBuf,
-    options: Option<ReadFileOptions>,
+    options: Option<GenericOptions>,
   },
   /// The remove API.
   #[cmd(fs_remove, "fs > remove")]
@@ -212,7 +194,7 @@ pub(crate) enum Cmd {
   Truncate {
     path: SafePathBuf,
     len: Option<u64>,
-    options: Option<TruncateOptions>,
+    options: Option<GenericOptions>,
   },
   #[cmd(fs_write_file, "fs > writeFile")]
   Ftruncate { rid: Rid, len: Option<u64> },
@@ -238,7 +220,7 @@ impl Cmd {
   fn create<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<CreateOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<Rid> {
     let path = file_url_to_safe_pathbuf(path)?;
 
@@ -389,7 +371,7 @@ impl Cmd {
   fn read_dir<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<ReadDirOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<Vec<dir::DirEntry>> {
     let path = file_url_to_safe_pathbuf(path)?;
 
@@ -426,7 +408,7 @@ impl Cmd {
   fn read_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<ReadFileOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<Vec<u8>> {
     let path = file_url_to_safe_pathbuf(path)?;
 
@@ -446,7 +428,7 @@ impl Cmd {
   fn read_text_file<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<ReadFileOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<String> {
     let path = file_url_to_safe_pathbuf(path)?;
 
@@ -570,7 +552,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     len: Option<u64>,
-    options: Option<TruncateOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<()> {
     let path = file_url_to_safe_pathbuf(path)?;
 

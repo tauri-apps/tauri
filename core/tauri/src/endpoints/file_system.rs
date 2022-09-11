@@ -236,8 +236,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<Rid> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -263,8 +261,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<OpenOptions>,
   ) -> super::Result<Rid> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -333,7 +329,7 @@ impl Cmd {
       &context.config,
       &context.package_info,
       &context.window,
-      file_url_to_safe_pathbuf(from_path)?,
+      from_path,
       options.as_ref().and_then(|o| o.from_path_base_dir),
       true,
     )?;
@@ -341,7 +337,7 @@ impl Cmd {
       &context.config,
       &context.package_info,
       &context.window,
-      file_url_to_safe_pathbuf(to_path)?,
+      to_path,
       options.as_ref().and_then(|o| o.to_path_base_dir),
       true,
     )?;
@@ -361,8 +357,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<MkdirOptions>,
   ) -> super::Result<()> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -374,6 +368,7 @@ impl Cmd {
 
     let mut builder = std::fs::DirBuilder::new();
     builder.recursive(options.as_ref().and_then(|o| o.recursive).unwrap_or(false));
+
     #[cfg(unix)]
     {
       use std::os::unix::fs::DirBuilderExt;
@@ -392,8 +387,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<Vec<dir::DirEntry>> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -430,8 +423,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<Vec<u8>> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -451,8 +442,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<String> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -472,8 +461,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<RemoveOptions>,
   ) -> super::Result<()> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -528,7 +515,7 @@ impl Cmd {
       &context.config,
       &context.package_info,
       &context.window,
-      file_url_to_safe_pathbuf(old_path)?,
+      old_path,
       options.as_ref().and_then(|o| o.old_path_base_dir),
       true,
     )?;
@@ -536,7 +523,7 @@ impl Cmd {
       &context.config,
       &context.package_info,
       &context.window,
-      file_url_to_safe_pathbuf(new_path)?,
+      new_path,
       options.as_ref().and_then(|o| o.new_path_base_dir),
       true,
     )?;
@@ -578,8 +565,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<FileInfo> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -599,8 +584,6 @@ impl Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   ) -> super::Result<FileInfo> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -631,8 +614,6 @@ impl Cmd {
     len: Option<u64>,
     options: Option<GenericOptions>,
   ) -> super::Result<()> {
-    let path = file_url_to_safe_pathbuf(path)?;
-
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -694,6 +675,41 @@ impl Cmd {
   }
 }
 
+fn write_file<R: Runtime>(
+  context: InvokeContext<R>,
+  path: SafePathBuf,
+  data: &[u8],
+  options: Option<WriteFileOptions>,
+) -> super::Result<()> {
+  let resolved_path = resolve_path(
+    &context.config,
+    &context.package_info,
+    &context.window,
+    path,
+    options.as_ref().and_then(|o| o.base_dir),
+    true,
+  )?;
+
+  let mut opts = fs::OpenOptions::new();
+  opts.append(options.as_ref().map(|o| o.append.unwrap_or(false)).unwrap());
+  opts.create(options.as_ref().map(|o| o.create.unwrap_or(true)).unwrap());
+
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::OpenOptionsExt;
+    if let Some(Some(mode)) = options.map(|o| o.mode) {
+      opts.mode(mode & 0o777);
+    }
+  }
+
+  opts
+    .write(true)
+    .open(&resolved_path)
+    .with_context(|| format!("path: {}", resolved_path.display()))
+    .map_err(Into::into)
+    .and_then(|mut f| f.write_all(data).map_err(|err| err.into()))
+}
+
 #[allow(dead_code)]
 fn resolve_path<R: Runtime>(
   config: &Config,
@@ -703,6 +719,7 @@ fn resolve_path<R: Runtime>(
   dir: Option<BaseDirectory>,
   follow_symlink: bool,
 ) -> super::Result<SafePathBuf> {
+  let path = file_url_to_safe_pathbuf(path)?;
   let env = window.state::<Env>().inner();
   match crate::api::path::resolve_path(config, package_info, env, &path, dir) {
     Ok(path) => {
@@ -738,43 +755,6 @@ fn file_url_to_safe_pathbuf(path: SafePathBuf) -> super::Result<SafePathBuf> {
   } else {
     Ok(path)
   }
-}
-
-fn write_file<R: Runtime>(
-  context: InvokeContext<R>,
-  path: SafePathBuf,
-  data: &[u8],
-  options: Option<WriteFileOptions>,
-) -> super::Result<()> {
-  let path = file_url_to_safe_pathbuf(path)?;
-
-  let resolved_path = resolve_path(
-    &context.config,
-    &context.package_info,
-    &context.window,
-    path,
-    options.as_ref().and_then(|o| o.base_dir),
-    true,
-  )?;
-
-  let mut opts = fs::OpenOptions::new();
-  opts.append(options.as_ref().map(|o| o.append.unwrap_or(false)).unwrap());
-  opts.create(options.as_ref().map(|o| o.create.unwrap_or(true)).unwrap());
-
-  #[cfg(unix)]
-  {
-    use std::os::unix::fs::OpenOptionsExt;
-    if let Some(Some(mode)) = options.map(|o| o.mode) {
-      opts.mode(mode & 0o777);
-    }
-  }
-
-  opts
-    .write(true)
-    .open(&resolved_path)
-    .with_context(|| format!("path: {}", resolved_path.display()))
-    .map_err(Into::into)
-    .and_then(|mut f| f.write_all(data).map_err(|err| err.into()))
 }
 
 // taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L913

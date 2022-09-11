@@ -30,8 +30,9 @@ use once_cell::sync::Lazy;
 use std::{
   collections::HashMap,
   fmt::{Debug, Formatter},
-  io::Read,
+  io::{self, Read},
   sync::Mutex,
+  time::{SystemTime, UNIX_EPOCH},
 };
 use std::{
   fs,
@@ -189,6 +190,19 @@ pub(crate) enum Cmd {
     offset: i64,
     whence: SeekMode,
   },
+  /// The stat file API
+  #[cmd(fs_read_file, "fs > readFile")]
+  Stat {
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  },
+  #[cmd(fs_read_file, "fs > readFile")]
+  Lstat {
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  },
+  #[cmd(fs_read_file, "fs > readFile")]
+  Fstat { rid: Rid },
   /// The truncate file API
   #[cmd(fs_write_file, "fs > writeFile")]
   Truncate {
@@ -230,6 +244,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     let file = File::create(&resolved_path)
@@ -256,6 +271,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     let mut opts = fs::OpenOptions::new();
@@ -319,6 +335,7 @@ impl Cmd {
       &context.window,
       file_url_to_safe_pathbuf(from_path)?,
       options.as_ref().and_then(|o| o.from_path_base_dir),
+      true,
     )?;
     let resolved_to_path = resolve_path(
       &context.config,
@@ -326,6 +343,7 @@ impl Cmd {
       &context.window,
       file_url_to_safe_pathbuf(to_path)?,
       options.as_ref().and_then(|o| o.to_path_base_dir),
+      true,
     )?;
     fs::copy(&resolved_from_path, &resolved_to_path).with_context(|| {
       format!(
@@ -351,6 +369,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     let mut builder = std::fs::DirBuilder::new();
@@ -381,6 +400,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     dir::read_dir(&resolved_path)
@@ -418,6 +438,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
     file::read_binary(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
@@ -438,6 +459,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
     file::read_string(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
@@ -458,6 +480,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     let metadata = fs::symlink_metadata(&resolved_path)?;
@@ -507,6 +530,7 @@ impl Cmd {
       &context.window,
       file_url_to_safe_pathbuf(old_path)?,
       options.as_ref().and_then(|o| o.old_path_base_dir),
+      true,
     )?;
     let resolved_new_path = resolve_path(
       &context.config,
@@ -514,6 +538,7 @@ impl Cmd {
       &context.window,
       file_url_to_safe_pathbuf(new_path)?,
       options.as_ref().and_then(|o| o.new_path_base_dir),
+      true,
     )?;
     fs::rename(&resolved_old_path, &resolved_new_path)
       .with_context(|| {
@@ -547,6 +572,58 @@ impl Cmd {
       .map_err(into_anyhow)
   }
 
+  #[module_command_handler(fs_read_file)]
+  fn stat<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  ) -> super::Result<FileInfo> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+      true,
+    )?;
+
+    let metadata = fs::metadata(&resolved_path)?;
+    Ok(get_stat(metadata))
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn lstat<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  ) -> super::Result<FileInfo> {
+    let path = file_url_to_safe_pathbuf(path)?;
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+      false,
+    )?;
+    dbg!(&resolved_path);
+    let metadata = fs::symlink_metadata(&resolved_path)?;
+    Ok(get_stat(metadata))
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn fstat<R: Runtime>(context: InvokeContext<R>, rid: Rid) -> super::Result<FileInfo> {
+    let mut store = FILES_STORE.lock().unwrap();
+    let file = store
+      .get_mut(&rid)
+      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    let metadata = file.metadata()?;
+    Ok(get_stat(metadata))
+  }
+
   #[module_command_handler(fs_write_file)]
   fn truncate<R: Runtime>(
     context: InvokeContext<R>,
@@ -562,6 +639,7 @@ impl Cmd {
       &context.window,
       path,
       options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
 
     let f = std::fs::OpenOptions::new()
@@ -623,11 +701,17 @@ fn resolve_path<R: Runtime>(
   window: &Window<R>,
   path: SafePathBuf,
   dir: Option<BaseDirectory>,
+  follow_symlink: bool,
 ) -> super::Result<SafePathBuf> {
   let env = window.state::<Env>().inner();
   match crate::api::path::resolve_path(config, package_info, env, &path, dir) {
     Ok(path) => {
-      if window.state::<Scopes>().fs.is_allowed(&path) {
+      let allowed = if follow_symlink {
+        window.state::<Scopes>().fs.is_allowed(&path)
+      } else {
+        window.state::<Scopes>().fs.is_symlink_allowed(&path)
+      };
+      if allowed {
         Ok(
           // safety: the path is resolved by Tauri so it is safe
           unsafe { SafePathBuf::new_unchecked(path) },
@@ -670,6 +754,7 @@ fn write_file<R: Runtime>(
     &context.window,
     path,
     options.as_ref().and_then(|o| o.base_dir),
+    true,
   )?;
 
   let mut opts = fs::OpenOptions::new();
@@ -692,12 +777,90 @@ fn write_file<R: Runtime>(
     .and_then(|mut f| f.write_all(data).map_err(|err| err.into()))
 }
 
+// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L913
+fn to_msec(maybe_time: Result<SystemTime, io::Error>) -> Option<u64> {
+  match maybe_time {
+    Ok(time) => {
+      let msec = time
+        .duration_since(UNIX_EPOCH)
+        .map(|t| t.as_millis() as u64)
+        .unwrap_or_else(|err| err.duration().as_millis() as u64);
+      Some(msec)
+    }
+    Err(_) => None,
+  }
+}
+
+// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L926
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileInfo {
+  is_file: bool,
+  is_directory: bool,
+  is_symlink: bool,
+  size: u64,
+  // In milliseconds, like JavaScript. Available on both Unix or Windows.
+  mtime: Option<u64>,
+  atime: Option<u64>,
+  birthtime: Option<u64>,
+  // Following are only valid under Unix.
+  dev: u64,
+  ino: u64,
+  mode: u32,
+  nlink: u64,
+  uid: u32,
+  gid: u32,
+  rdev: u64,
+  blksize: u64,
+  blocks: u64,
+}
+
+// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L950
+#[inline(always)]
+fn get_stat(metadata: std::fs::Metadata) -> FileInfo {
+  // Unix stat member (number types only). 0 if not on unix.
+  macro_rules! usm {
+    ($member:ident) => {{
+      #[cfg(unix)]
+      {
+        metadata.$member()
+      }
+      #[cfg(not(unix))]
+      {
+        0
+      }
+    }};
+  }
+
+  #[cfg(unix)]
+  use std::os::unix::fs::MetadataExt;
+  FileInfo {
+    is_file: metadata.is_file(),
+    is_directory: metadata.is_dir(),
+    is_symlink: metadata.file_type().is_symlink(),
+    size: metadata.len(),
+    // In milliseconds, like JavaScript. Available on both Unix or Windows.
+    mtime: to_msec(metadata.modified()),
+    atime: to_msec(metadata.accessed()),
+    birthtime: to_msec(metadata.created()),
+    // Following are only valid under Unix.
+    dev: usm!(dev),
+    ino: usm!(ino),
+    mode: usm!(mode),
+    nlink: usm!(nlink),
+    uid: usm!(uid),
+    gid: usm!(gid),
+    rdev: usm!(rdev),
+    blksize: usm!(blksize),
+    blocks: usm!(blocks),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, CreateOptions, MkdirOptions, OpenOptions, ReadDirOptions,
-    ReadFileOptions, RemoveOptions, RenameOptions, Rid, SafePathBuf, SeekMode, TruncateOptions,
-    WriteFileOptions,
+    BaseDirectory, CopyFileOptions, MkdirOptions, OpenOptions, RemoveOptions, RenameOptions, Rid,
+    SafePathBuf, SeekMode, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};
@@ -733,7 +896,7 @@ mod tests {
     }
   }
 
-  impl Arbitrary for ReadFileOptions {
+  impl Arbitrary for GenericOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
         base_dir: Option::arbitrary(g),
@@ -746,14 +909,6 @@ mod tests {
       Self {
         from_path_base_dir: Option::arbitrary(g),
         to_path_base_dir: Option::arbitrary(g),
-      }
-    }
-  }
-
-  impl Arbitrary for ReadDirOptions {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self {
-        base_dir: Option::arbitrary(g),
       }
     }
   }
@@ -786,22 +941,6 @@ mod tests {
     }
   }
 
-  impl Arbitrary for CreateOptions {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self {
-        base_dir: Option::arbitrary(g),
-      }
-    }
-  }
-
-  impl Arbitrary for TruncateOptions {
-    fn arbitrary(g: &mut Gen) -> Self {
-      Self {
-        base_dir: Option::arbitrary(g),
-      }
-    }
-  }
-
   impl Arbitrary for OpenOptions {
     fn arbitrary(g: &mut Gen) -> Self {
       Self {
@@ -819,7 +958,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_create, "fs > create")]
   #[quickcheck_macros::quickcheck]
-  fn create(path: SafePathBuf, options: Option<CreateOptions>) {
+  fn create(path: SafePathBuf, options: Option<GenericOptions>) {
     let res = super::Cmd::create(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
@@ -839,7 +978,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
-  fn read_file(path: SafePathBuf, options: Option<ReadFileOptions>) {
+  fn read_file(path: SafePathBuf, options: Option<GenericOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
@@ -865,9 +1004,30 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
+  #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
+  #[quickcheck_macros::quickcheck]
+  fn stat(path: SafePathBuf, options: Option<GenericOptions>) {
+    let res = super::Cmd::stat(crate::test::mock_invoke_context(), path, options);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
+  #[quickcheck_macros::quickcheck]
+  fn lstat(path: SafePathBuf, options: Option<GenericOptions>) {
+    let res = super::Cmd::lstat(crate::test::mock_invoke_context(), path, options);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
+  #[quickcheck_macros::quickcheck]
+  fn fstat(rid: Rid) {
+    let res = super::Cmd::fstat(crate::test::mock_invoke_context(), rid);
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
-  fn truncate(path: SafePathBuf, len: Option<u64>, options: Option<TruncateOptions>) {
+  fn truncate(path: SafePathBuf, len: Option<u64>, options: Option<GenericOptions>) {
     let res = super::Cmd::truncate(crate::test::mock_invoke_context(), path, len, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
@@ -888,7 +1048,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_read_dir, "fs > readDir")]
   #[quickcheck_macros::quickcheck]
-  fn read_dir(path: SafePathBuf, options: Option<ReadDirOptions>) {
+  fn read_dir(path: SafePathBuf, options: Option<GenericOptions>) {
     let res = super::Cmd::read_dir(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }

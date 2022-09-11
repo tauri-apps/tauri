@@ -99,6 +99,104 @@ enum SeekMode {
   End = 2
 }
 
+/**
+ * A FileInfo describes a file and is returned by `stat`, `lstat` or `fstat`.
+ */
+interface FileInfo {
+  /**
+   * True if this is info for a regular file. Mutually exclusive to
+   * `FileInfo.isDirectory` and `FileInfo.isSymlink`.
+   */
+  isFile: boolean
+  /**
+   * True if this is info for a regular directory. Mutually exclusive to
+   * `FileInfo.isFile` and `FileInfo.isSymlink`.
+   */
+  isDirectory: boolean
+  /**
+   * True if this is info for a symlink. Mutually exclusive to
+   * `FileInfo.isFile` and `FileInfo.isDirectory`.
+   */
+  isSymlink: boolean
+  /**
+   * The size of the file, in bytes.
+   */
+  size: number
+  /**
+   * The last modification time of the file. This corresponds to the `mtime`
+   * field from `stat` on Linux/Mac OS and `ftLastWriteTime` on Windows. This
+   * may not be available on all platforms.
+   */
+  mtime: Date | null
+  /**
+   * The last access time of the file. This corresponds to the `atime`
+   * field from `stat` on Unix and `ftLastAccessTime` on Windows. This may not
+   * be available on all platforms.
+   */
+  atime: Date | null
+  /**
+   * The creation time of the file. This corresponds to the `birthtime`
+   * field from `stat` on Mac/BSD and `ftCreationTime` on Windows. This may
+   * not be available on all platforms.
+   */
+  birthtime: Date | null
+  /**
+   * ID of the device containing the file.
+   *
+   * _Linux/Mac OS only._
+   */
+  dev: number | null
+  /**
+   * Inode number.
+   *
+   * _Linux/Mac OS only._
+   */
+  ino: number | null
+  /**
+   * The underlying raw `st_mode` bits that contain the standard Unix
+   * permissions for this file/directory.
+   *
+   * _Linux/Mac OS only._
+   */
+  mode: number | null
+  /**
+   * Number of hard links pointing to this file.
+   *
+   * _Linux/Mac OS only._
+   */
+  nlink: number | null
+  /**
+   * User ID of the owner of this file.
+   *
+   * _Linux/Mac OS only._
+   */
+  uid: number | null
+  /**
+   * Group ID of the owner of this file.
+   *
+   * _Linux/Mac OS only._
+   */
+  gid: number | null
+  /**
+   * Device ID of this file.
+   *
+   * _Linux/Mac OS only._
+   */
+  rdev: number | null
+  /**
+   * Blocksize for filesystem I/O.
+   *
+   * _Linux/Mac OS only._
+   */
+  blksize: number | null
+  /**
+   * Number of blocks allocated to the file, in 512-byte units.
+   *
+   * _Linux/Mac OS only._
+   */
+  blocks: number | null
+}
+
 /** The Tauri abstraction for reading and writing files. */
 class FsFile {
   readonly rid: number
@@ -146,11 +244,18 @@ class FsFile {
   }
 
   /**
+   * Returns a {@link FileInfo |`FileInfo`} for this file.
+   */
+  async stat(): Promise<FileInfo> {
+    return fstat(this.rid)
+  }
+
+  /**
    * Truncates or extends this file, to reach the specified `len`.
    * If `len` is not specified then the entire file contents are truncated.
    */
   async truncate(len?: number): Promise<void> {
-    return ftruncate(this.rid, len);
+    return ftruncate(this.rid, len)
   }
 
   /**
@@ -670,6 +775,80 @@ async function seek(
   })
 }
 
+interface StatOptions {
+  /** Base directory for `path`. */
+  baseDir: BaseDirectory
+}
+
+/**
+ * Resolves to a {@link FileInfo | `FileInfo`} for the specified `path`. Will always
+ * follow symlinks but will reject if the symlink points to a path outside of the scope.
+ *
+ * ```ts
+ * import { stat, BaseDirectory } from '@tauri-apps/api/fs';
+ * const fileInfo = await stat("hello.txt", { baseDir: BaseDirectory.App });
+ * console.log(fileInfo.isFile); // true
+ * ```
+ */
+async function stat(
+  path: string | URL,
+  options?: StatOptions
+): Promise<FileInfo> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'stat',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+}
+
+/**
+ * Resolves to a {@link FileInfo | `FileInfo`} for the specified `path`. If `path` is a
+ * symlink, information for the symlink will be returned instead of what it
+ * points to.
+ *
+ * ```ts
+ * import { lstat, BaseDirectory } from '@tauri-apps/api/fs';
+ * const fileInfo = await lstat("hello.txt", { baseDir: BaseDirectory.App });
+ * console.log(fileInfo.isFile); // true
+ * ```
+ */
+async function lstat(
+  path: string | URL,
+  options?: StatOptions
+): Promise<FileInfo> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'lstat',
+      path: path instanceof URL ? path.toString() : path,
+      options
+    }
+  })
+}
+
+/**
+ * Returns a {@link FileInfo | `FileInfo`} for the given file stream.
+ *
+ * ```ts
+ * import { open, fstat, BaseDirectory } from '@tauri-apps/api/fs';
+ * const file = await open("file.txt", { read: true, baseDir: BaseDirectory.App });
+ * const fileInfo = await fstat(file.rid);
+ * console.log(fileInfo.isFile); // true
+ * ```
+ */
+async function fstat(rid: number): Promise<FileInfo> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'fstat',
+      rid
+    }
+  })
+}
+
 interface TruncateOptions {
   /** Base directory for `path`. */
   baseDir: BaseDirectory
@@ -713,34 +892,34 @@ async function truncate(
   })
 }
 
- /**
-   * Truncates or extends the specified file stream, to reach the specified `len`.
-   *
-   * If `len` is `0` or not specified then the entire file contents are truncated as if len was set to 0.
-   *
-   * If the file previously was larger than this new length, the extra  data  is  lost.
-   *
-   * If  the  file  previously  was shorter, it is extended, and the extended part reads as null bytes ('\0').
-   *
-   * @example
-   * ```typescript
-    * import { ftruncate, open, write, read, BaseDirectory } from '@tauri-apps/api/fs';
-   *
-   * // truncate the entire file
-   * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
-   * await ftruncate(file.rid);
-   *
-   * // truncate part of the file
-   * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
-   * await write(file.rid, new TextEncoder().encode("Hello World"));
-   * await ftruncate(file.rid, 7);
-   * const data = new Uint8Array(32);
-   * await read(file.rid, data);
-   * console.log(new TextDecoder().decode(data)); // Hello W
-   * ```
-   */
-async function ftruncate(rid: number,len?: number):Promise<void> {
- return invokeTauriCommand({
+/**
+ * Truncates or extends the specified file stream, to reach the specified `len`.
+ *
+ * If `len` is `0` or not specified then the entire file contents are truncated as if len was set to 0.
+ *
+ * If the file previously was larger than this new length, the extra  data  is  lost.
+ *
+ * If  the  file  previously  was shorter, it is extended, and the extended part reads as null bytes ('\0').
+ *
+ * @example
+ * ```typescript
+ * import { ftruncate, open, write, read, BaseDirectory } from '@tauri-apps/api/fs';
+ *
+ * // truncate the entire file
+ * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
+ * await ftruncate(file.rid);
+ *
+ * // truncate part of the file
+ * const file = await open("my_file.txt", { read: true, write: true, create: true, baseDir: BaseDirectory.App });
+ * await write(file.rid, new TextEncoder().encode("Hello World"));
+ * await ftruncate(file.rid, 7);
+ * const data = new Uint8Array(32);
+ * await read(file.rid, data);
+ * console.log(new TextDecoder().decode(data)); // Hello W
+ * ```
+ */
+async function ftruncate(rid: number, len?: number): Promise<void> {
+  return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'ftruncate',
@@ -858,8 +1037,10 @@ export type {
   ReadFileOptions,
   RemoveOptions,
   RenameOptions,
+  StatOptions,
   TruncateOptions,
-  WriteFileOptions
+  WriteFileOptions,
+  FileInfo
 }
 
 export {
@@ -878,6 +1059,9 @@ export {
   rename,
   SeekMode,
   seek,
+  stat,
+  lstat,
+  fstat,
   truncate,
   ftruncate,
   write,

@@ -189,10 +189,19 @@ impl Scope {
     Ok(())
   }
 
-  /// Determines if the given path is allowed on this scope.
+  /// Determines if the given path is allowed on this scope. Follows symlinks.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
+    self._is_allowed(path, true)
+  }
+
+  /// Determines if the given path is allowed on this scope. Doesn't follow symlinks.
+  pub fn is_symlink_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
+    self._is_allowed(path, false)
+  }
+
+  fn _is_allowed<P: AsRef<Path>>(&self, path: P, follow_symlink: bool) -> bool {
     let path = path.as_ref();
-    let path = if !path.exists() {
+    let path = if !path.exists() || !follow_symlink {
       crate::Result::Ok(path.to_path_buf())
     } else {
       std::fs::canonicalize(path).map_err(Into::into)

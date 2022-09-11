@@ -4,8 +4,7 @@
     "distDir": "../dist",
     "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev --host",
-    "beforeBuildCommand": "yarn build",
-    "withGlobalTauri": true
+    "beforeBuildCommand": "yarn build"
   },
   "package": {
     "productName": "Tauri API",
@@ -93,8 +92,7 @@
       "fs": {
         "scope": {
           "allow": [
-            "$APP/**",
-            "$APP",
+            "$APP/db/**",
             "$DOWNLOAD/**",
             "$RESOURCE/**"
           ],

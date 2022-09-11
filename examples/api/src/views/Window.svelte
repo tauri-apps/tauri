@@ -1,6 +1,6 @@
 <script>
   import {
-    appWindow,
+    getCurrent,
     WebviewWindow,
     LogicalSize,
     UserAttentionType,
@@ -10,6 +10,8 @@
   import { open as openDialog } from '@tauri-apps/api/dialog'
   import { open } from '@tauri-apps/api/shell'
 
+
+  let appWindow = getCurrent();
   let selectedWindow = appWindow.label
   const windowMap = {
     [appWindow.label]: appWindow

@@ -16,7 +16,7 @@
 
   <script>
     var WebviewWindow = window.__TAURI__.window.WebviewWindow
-    var appWindow = window.__TAURI__.window.appWindow
+    var appWindow = window.__TAURI__.window.getCurrent()
     var windowLabel = appWindow.label
     var windowLabelContainer = document.getElementById('window-label')
     windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'

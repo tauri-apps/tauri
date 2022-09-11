@@ -1,7 +1,7 @@
 <script>
   import { writable } from 'svelte/store'
   import { open } from '@tauri-apps/api/shell'
-  import { appWindow, getCurrent } from '@tauri-apps/api/window'
+  import { getCurrent } from '@tauri-apps/api/window'
   import * as os from '@tauri-apps/api/os'
 
   import Welcome from './views/Welcome.svelte'
@@ -22,6 +22,7 @@
   import { listen } from '@tauri-apps/api/event'
   import { ask } from '@tauri-apps/api/dialog'
 
+  const appWindow = getCurrent()
   if (appWindow.label !== 'main') {
     appWindow.onCloseRequested(async (event) => {
       const confirmed = await confirm('Are you sure?')

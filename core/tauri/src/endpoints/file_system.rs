@@ -839,8 +839,8 @@ fn get_stat(metadata: std::fs::Metadata) -> FileInfo {
 #[cfg(test)]
 mod tests {
   use super::{
-    BaseDirectory, CopyFileOptions, MkdirOptions, OpenOptions, RemoveOptions, RenameOptions, Rid,
-    SafePathBuf, SeekMode, WriteFileOptions,
+    BaseDirectory, CopyFileOptions, GenericOptions, MkdirOptions, OpenOptions, RemoveOptions,
+    RenameOptions, Rid, SafePathBuf, SeekMode, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};

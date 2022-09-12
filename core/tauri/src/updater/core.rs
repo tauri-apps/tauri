@@ -563,7 +563,7 @@ impl<R: Runtime> Update<R> {
     let mut buffer = Vec::new();
     #[cfg(feature = "reqwest-client")]
     {
-      use futures::StreamExt;
+      use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
       while let Some(chunk) = stream.next().await {
         let chunk = chunk?;

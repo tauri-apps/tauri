@@ -122,6 +122,7 @@ pub fn gen(
       }
 
       let mut options = fs::OpenOptions::new();
+      options.write(true);
 
       #[cfg(unix)]
       if path.file_name().unwrap() == OsStr::new("gradlew") {
@@ -129,7 +130,11 @@ pub fn gen(
         options.mode(0o755);
       }
 
-      options.create_new(true).write(true).open(path)
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+        options.create(true).open(path).map(Some)
+      } else {
+        Ok(None)
+      }
     },
   )
   .with_context(|| "failed to process template")?;

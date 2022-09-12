@@ -54,7 +54,7 @@ pub fn render<P: AsRef<Path>, D: Serialize>(
         create_dir_all(&parent)?;
         created_dirs.push(parent);
       }
-      File::create(path)
+      File::create(path).map(Some)
     },
   )
 }
@@ -62,7 +62,7 @@ pub fn render<P: AsRef<Path>, D: Serialize>(
 pub fn render_with_generator<
   P: AsRef<Path>,
   D: Serialize,
-  F: FnMut(&PathBuf) -> std::io::Result<File>,
+  F: FnMut(&PathBuf) -> std::io::Result<Option<File>>,
 >(
   handlebars: &Handlebars<'_>,
   data: &D,
@@ -80,13 +80,14 @@ pub fn render_with_generator<
         file_path.set_extension("toml");
       }
     }
-    let mut output_file = out_file_generator(&file_path)?;
-    if let Some(utf8) = file.contents_utf8() {
-      handlebars
-        .render_template_to_write(utf8, &data, &mut output_file)
-        .expect("Failed to render template");
-    } else {
-      output_file.write_all(file.contents())?;
+    if let Some(mut output_file) = out_file_generator(&file_path)? {
+      if let Some(utf8) = file.contents_utf8() {
+        handlebars
+          .render_template_to_write(utf8, &data, &mut output_file)
+          .expect("Failed to render template");
+      } else {
+        output_file.write_all(file.contents())?;
+      }
     }
   }
   for dir in dir.dirs() {

@@ -18,8 +18,8 @@ use cargo_mobile::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 use std::{
-  ffi::OsString,
-  fs::{create_dir_all, File},
+  ffi::{OsStr, OsString},
+  fs::{create_dir_all, OpenOptions},
   path::{Component, PathBuf},
 };
 
@@ -136,7 +136,14 @@ pub fn gen(
         created_dirs.push(parent);
       }
 
-      File::create(path)
+      let mut options = OpenOptions::new();
+      options.write(true);
+
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+        options.create(true).open(path).map(Some)
+      } else {
+        Ok(None)
+      }
     },
   )
   .with_context(|| "failed to process template")?;

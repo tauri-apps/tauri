@@ -641,7 +641,7 @@ pub fn command(_options: Options) -> Result<()> {
       InfoBlock::new("MSVC", "").display();
       for i in build_tools {
         indent(6);
-        println!("{}", format!("{} {}", "-".cyan(), i));
+        println!("{} {}", "-".cyan(), i);
       }
     }
   }

@@ -63,9 +63,11 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .add_item(CustomMenuItem::new("new", "New window"))
     .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
     .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"))
+    .add_item(CustomMenuItem::new("set_title", "Set Title (MacOS)"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
+
   let tray_menu2 = SystemTrayMenu::new()
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
@@ -117,6 +119,10 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
                 .title("Tauri")
                 .build()
                 .unwrap();
+            }
+            "set_title" => {
+              #[cfg(target_os = "macos")]
+              tray_handle.set_title("Tauri").unwrap();
             }
             "icon_1" => {
               #[cfg(target_os = "macos")]

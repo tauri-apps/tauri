@@ -62,6 +62,8 @@ pub struct SystemTray {
   menu_on_left_click_set: bool,
   #[cfg(target_os = "macos")]
   icon_as_template_set: bool,
+  #[cfg(target_os = "macos")]
+  title: Option<String>,
 }
 
 impl fmt::Debug for SystemTray {
@@ -94,6 +96,8 @@ impl Default for SystemTray {
       icon_as_template_set: false,
       #[cfg(target_os = "macos")]
       menu_on_left_click_set: false,
+      #[cfg(target_os = "macos")]
+      title: None,
     }
   }
 }
@@ -228,6 +232,31 @@ impl SystemTray {
     self
   }
 
+  /// Sets the menu title`
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let mut tray_builder = SystemTray::new();
+  ///     #[cfg(target_os = "macos")]
+  ///     {
+  ///       tray_builder = tray_builder.with_title("My App");
+  ///     }
+  ///     let tray_handle = tray_builder.build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_title(mut self, title: &str) -> Self {
+    self.title = Some(title.to_owned());
+    self
+  }
+
   /// Sets the event listener for this system tray.
   ///
   /// # Examples
@@ -341,6 +370,14 @@ impl SystemTray {
           .system_tray
           .as_ref()
           .map_or(false, |t| t.menu_on_left_click);
+      }
+      if self.title.is_none() {
+        self.title = manager
+          .config()
+          .tauri
+          .system_tray
+          .as_ref()
+          .and_then(|t| t.title.clone())
       }
     }
 
@@ -562,6 +599,12 @@ impl<R: Runtime> SystemTrayHandle<R> {
       .inner
       .set_icon_as_template(is_template)
       .map_err(Into::into)
+  }
+
+  /// Adds the title to the tray menu
+  #[cfg(target_os = "macos")]
+  pub fn set_title(&self, title: &str) -> crate::Result<()> {
+    self.inner.set_title(title).map_err(Into::into)
   }
 
   /// Destroys this system tray.

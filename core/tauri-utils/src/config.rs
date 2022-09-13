@@ -2341,6 +2341,8 @@ pub struct SystemTrayConfig {
     alias = "menu-on-left-click"
   )]
   pub menu_on_left_click: bool,
+  /// Title for MacOS tray
+  pub title: Option<String>,
 }
 
 fn default_tray_menu_on_left_click() -> bool {
@@ -3297,12 +3299,14 @@ mod build {
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
+      let title = opt_lit(self.title.as_ref());
       literal_struct!(
         tokens,
         SystemTrayConfig,
         icon_path,
         icon_as_template,
-        menu_on_left_click
+        menu_on_left_click,
+        title
       );
     }
   }

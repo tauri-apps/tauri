@@ -1078,6 +1078,8 @@ pub enum TrayMessage {
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
+  #[cfg(target_os = "macos")]
+  UpdateTitle(String),
   Create(SystemTray, Sender<Result<()>>),
   Destroy,
 }
@@ -2475,6 +2477,12 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::UpdateIconAsTemplate(is_template) => {
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               tray.set_icon_as_template(is_template);
+            }
+          }
+          #[cfg(target_os = "macos")]
+          TrayMessage::UpdateTitle(title) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_title(&title);
             }
           }
           TrayMessage::Create(_tray, _tx) => {

@@ -535,6 +535,11 @@ impl TrayHandle for MockTrayHandler {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
+    Ok(())
+  }
+
   fn destroy(&self) -> Result<()> {
     Ok(())
   }

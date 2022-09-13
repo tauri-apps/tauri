@@ -37,7 +37,7 @@ use walkdir::WalkDir;
 use std::{
   collections::BTreeSet,
   ffi::OsStr,
-  fs::{self, File},
+  fs::{self, read_to_string, File},
   io::{self, Write},
   path::{Path, PathBuf},
 };
@@ -149,10 +149,17 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   let file = &mut common::create_file(&desktop_file_path)?;
 
   let mut handlebars = Handlebars::new();
-  handlebars
-    .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
-    .map_err(|e| e.to_string())
-    .expect("Failed to setup handlebar template");
+  if let Some(template) = &settings.deb().desktop_template {
+    handlebars
+      .register_template_string("main.desktop", read_to_string(template)?)
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup custom handlebar template");
+  } else {
+    handlebars
+      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
+      .map_err(|e| e.to_string())
+      .expect("Failed to setup handlebar template");
+  }
 
   #[derive(Serialize)]
   struct DesktopTemplateParams<'a> {

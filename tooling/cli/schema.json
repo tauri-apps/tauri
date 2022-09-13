@@ -1107,6 +1107,13 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "desktopTemplate": {
+          "description": "By default, the bundler uses an internal template. This option allows you to define your own desktop file.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

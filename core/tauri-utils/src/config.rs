@@ -262,6 +262,9 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// By default, the bundler uses an internal template.
+  /// This option allows you to define your own desktop file.
+  pub desktop_template: Option<PathBuf>
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

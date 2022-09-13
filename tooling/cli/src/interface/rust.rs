@@ -789,6 +789,7 @@ fn tauri_config_to_bundle_settings(
         Some(depends)
       },
       files: config.deb.files,
+      desktop_template: config.deb.desktop_template,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

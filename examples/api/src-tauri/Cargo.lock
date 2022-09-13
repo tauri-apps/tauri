@@ -158,9 +158,9 @@ dependencies = [
 
 [[package]]
 name = "attohttpc"
-version = "0.20.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ca359af0239b00307656f0d6520fab5997a068cdfcfdb424e5466a3ea7958c5"
+checksum = "1fcf00bc6d5abb29b5f97e3c61a90b6d3caa12f3faf897d4a3e3607c050a35a7"
 dependencies = [
  "flate2",
  "http",
@@ -168,12 +168,10 @@ dependencies = [
  "mime",
  "multipart",
  "native-tls",
- "openssl",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "url",
- "wildmatch",
 ]
 
 [[package]]
@@ -853,28 +851,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "futures"
-version = "0.3.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f73fe65f54d1e12b726f517d3e2135ca3125a437b6d998caf1962961f7172d9e"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3083ce4b914124575708913bca19bfe887522d6e2e6d0952943f5eac4a74010"
 dependencies = [
  "futures-core",
- "futures-sink",
 ]
 
 [[package]]
@@ -899,21 +881,6 @@ name = "futures-io"
 version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc4045962a5a5e935ee2fdedaa4e08284547402885ab326734432bed5d12966b"
-
-[[package]]
-name = "futures-lite"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7694489acd39452c77daa48516b894c153f192c3578d5a839b62c58099fcbf48"
-dependencies = [
- "fastrand",
- "futures-core",
- "futures-io",
- "memchr",
- "parking",
- "pin-project-lite",
- "waker-fn",
-]
 
 [[package]]
 name = "futures-macro"
@@ -944,13 +911,9 @@ version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d8b7abd5d659d9b90c8cba917f6ec750a74e2dc23902ef9cd4cc8c8b22e6036a"
 dependencies = [
- "futures-channel",
  "futures-core",
- "futures-io",
  "futures-macro",
- "futures-sink",
  "futures-task",
- "memchr",
  "pin-project-lite",
  "pin-utils",
  "slab",
@@ -1477,9 +1440,9 @@ dependencies = [
 
 [[package]]
 name = "infer"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e035cede526e0b21d5adffc9fa0eb4ef5d6026fe9c5b0bfe8084b9472b587a55"
+checksum = "f178e61cdbfe084aa75a2f4f7a25a5bb09701a47ae1753608f194b15783c937a"
 dependencies = [
  "cfb 0.7.3",
 ]
@@ -2023,9 +1986,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.13.0"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18a6dbe30758c9f83eb00cbea4ac95966305f5a7772f3f42ebfc7fc7eddbd8e1"
+checksum = "2f7254b99e31cad77da24b08ebf628882739a608578bb1bcdfc1f9c21260d7c0"
 
 [[package]]
 name = "opaque-debug"
@@ -2139,12 +2102,6 @@ dependencies = [
  "libc",
  "system-deps 6.0.2",
 ]
-
-[[package]]
-name = "parking"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "427c3892f9e783d91cc128285287e70a59e206ca452770ece88a76f7a3eddd72"
 
 [[package]]
 name = "parking_lot"
@@ -3089,9 +3046,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.13.3"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2093fa6bba3cc0c185b21c900de1b757e66637e78848cbcdda967b836d8c0ec"
+checksum = "43336f5d1793543ba96e2a1e75f3a5c7dcd592743be06a0ab3a190f4fcb4b934"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -3130,8 +3087,8 @@ dependencies = [
  "serde",
  "unicode-segmentation",
  "uuid 1.1.2",
- "windows 0.37.0",
- "windows-implement 0.37.0",
+ "windows 0.39.0",
+ "windows-implement",
  "x11-dl",
 ]
 
@@ -3160,8 +3117,7 @@ dependencies = [
  "embed_plist",
  "encoding_rs",
  "flate2",
- "futures",
- "futures-lite",
+ "futures-util",
  "glib",
  "glob",
  "gtk",
@@ -3169,7 +3125,7 @@ dependencies = [
  "http",
  "ico",
  "ignore",
- "infer 0.8.1",
+ "infer 0.9.0",
  "minisign-verify",
  "notify-rust",
  "objc",
@@ -3203,7 +3159,7 @@ dependencies = [
  "url",
  "uuid 1.1.2",
  "webkit2gtk",
- "webview2-com 0.16.0",
+ "webview2-com",
  "win7-notifications",
  "windows 0.39.0",
  "zip",
@@ -3276,7 +3232,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "uuid 1.1.2",
- "webview2-com 0.19.1",
+ "webview2-com",
  "windows 0.39.0",
 ]
 
@@ -3293,7 +3249,7 @@ dependencies = [
  "tauri-utils",
  "uuid 1.1.2",
  "webkit2gtk",
- "webview2-com 0.19.1",
+ "webview2-com",
  "windows 0.39.0",
  "wry",
 ]
@@ -3641,13 +3597,12 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.2.2"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a507c383b2d33b5fc35d1861e77e6b383d158b2da5e14fe51b83dfedf6fd578c"
+checksum = "22fe195a4f217c25b25cb5058ced57059824a678474874038dc88d211bf508d3"
 dependencies = [
  "form_urlencoded",
  "idna",
- "matches",
  "percent-encoding",
  "serde",
 ]
@@ -3702,12 +3657,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "waker-fn"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d5b2c62b4012a3e1eca5a7e077d13b3bf498c4073e33ccd58626607748ceeca"
 
 [[package]]
 name = "walkdir"
@@ -3867,26 +3816,14 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a489a9420acabb3c2ed0434b6f71f6b56b9485ec32665a28dec1ee186d716e0f"
-dependencies = [
- "webview2-com-macros",
- "webview2-com-sys 0.16.0",
- "windows 0.37.0",
- "windows-implement 0.37.0",
-]
-
-[[package]]
-name = "webview2-com"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4a769c9f1a64a8734bde70caafac2b96cada12cd4aefa49196b3a386b8b4178"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys 0.19.0",
+ "webview2-com-sys",
  "windows 0.39.0",
- "windows-implement 0.39.0",
+ "windows-implement",
 ]
 
 [[package]]
@@ -3902,20 +3839,6 @@ dependencies = [
 
 [[package]]
 name = "webview2-com-sys"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0258c53ee9adc0a4f8ba1c8c317588f7a58c7048a55b621d469ba75ab3709ca1"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "thiserror",
- "windows 0.37.0",
- "windows-bindgen 0.37.0",
-]
-
-[[package]]
-name = "webview2-com-sys"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aac48ef20ddf657755fdcda8dfed2a7b4fc7e4581acce6fe9b88c3d64f29dee7"
@@ -3925,15 +3848,9 @@ dependencies = [
  "serde_json",
  "thiserror",
  "windows 0.39.0",
- "windows-bindgen 0.39.0",
- "windows-metadata 0.39.0",
+ "windows-bindgen",
+ "windows-metadata",
 ]
-
-[[package]]
-name = "wildmatch"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee583bdc5ff1cf9db20e9db5bb3ff4c3089a8f6b8b31aff265c9aba85812db86"
 
 [[package]]
 name = "win7-notifications"
@@ -4031,7 +3948,6 @@ version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57b543186b344cc61c85b5aab0d2e3adf4e0f99bc076eff9aa5927bcc0b8a647"
 dependencies = [
- "windows-implement 0.37.0",
  "windows_aarch64_msvc 0.37.0",
  "windows_i686_gnu 0.37.0",
  "windows_i686_msvc 0.37.0",
@@ -4045,7 +3961,7 @@ version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1c4bd0a50ac6020f65184721f758dba47bb9fbc2133df715ec74a237b26794a"
 dependencies = [
- "windows-implement 0.39.0",
+ "windows-implement",
  "windows_aarch64_msvc 0.39.0",
  "windows_i686_gnu 0.39.0",
  "windows_i686_msvc 0.39.0",
@@ -4055,32 +3971,12 @@ dependencies = [
 
 [[package]]
 name = "windows-bindgen"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bed7be31ade0af08fec9b5343e9edcc005d22b1f11859b8a59b24797f5858e8"
-dependencies = [
- "windows-metadata 0.37.0",
- "windows-tokens 0.37.0",
-]
-
-[[package]]
-name = "windows-bindgen"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68003dbd0e38abc0fb85b939240f4bce37c43a5981d3df37ccbaaa981b47cb41"
 dependencies = [
- "windows-metadata 0.39.0",
- "windows-tokens 0.39.0",
-]
-
-[[package]]
-name = "windows-implement"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67a1062e555f7d9d66fd1130ed4f7c6ec41a47529ee0850cd0e926d95b26bb14"
-dependencies = [
- "syn",
- "windows-tokens 0.37.0",
+ "windows-metadata",
+ "windows-tokens",
 ]
 
 [[package]]
@@ -4090,14 +3986,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba01f98f509cb5dc05f4e5fc95e535f78260f15fea8fe1a8abdd08f774f1cee7"
 dependencies = [
  "syn",
- "windows-tokens 0.39.0",
+ "windows-tokens",
 ]
-
-[[package]]
-name = "windows-metadata"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f33f2b90a6664e369c41ab5ff262d06f048fc9685d9bf8a0e99a47750bb0463"
 
 [[package]]
 name = "windows-metadata"
@@ -4117,12 +4007,6 @@ dependencies = [
  "windows_x86_64_gnu 0.36.1",
  "windows_x86_64_msvc 0.36.1",
 ]
-
-[[package]]
-name = "windows-tokens"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3263d25f1170419995b78ff10c06b949e8a986c35c208dc24333c64753a87169"
 
 [[package]]
 name = "windows-tokens"
@@ -4305,8 +4189,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.20.2"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#854d2226f4161d4fc783f64e79b6a8add31ac4eb"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "844db9289224ed80d186fa4a094365a6639c5790bb4b120e7a14a72d4c82e8fd"
 dependencies = [
  "base64",
  "block",
@@ -4333,9 +4218,9 @@ dependencies = [
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com 0.19.1",
+ "webview2-com",
  "windows 0.39.0",
- "windows-implement 0.39.0",
+ "windows-implement",
 ]
 
 [[package]]

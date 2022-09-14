@@ -151,7 +151,7 @@ pub struct DebianSettings {
   pub files: HashMap<PathBuf, PathBuf>,
   /// By default, the bundler uses an internal template.
   /// This option allows you to define your own desktop file.
-  pub desktop_template: Option<PathBuf>
+  pub desktop_template: Option<PathBuf>,
 }
 
 /// The macOS bundle settings.

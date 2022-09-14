@@ -634,6 +634,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-url"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d7439c3735f405729d52c3fbbe4de140eaf938a1fe47d227c27f8254d4302a5"
+
+[[package]]
 name = "dbus"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3173,6 +3179,7 @@ dependencies = [
  "bytes",
  "clap",
  "cocoa",
+ "data-url",
  "dirs-next",
  "embed_plist",
  "encoding_rs",

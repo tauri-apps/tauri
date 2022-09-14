@@ -4,37 +4,23 @@
 
 #![allow(unused_imports)]
 
-use super::InvokeContext;
-use crate::Runtime;
-use serde::Deserialize;
-use tauri_macros::{command_enum, module_command_handler, CommandModule};
-
-#[cfg(http_request)]
 use std::{
   collections::HashMap,
   sync::{Arc, Mutex},
 };
 
-#[cfg(http_request)]
-use crate::api::http::{ClientBuilder, HttpRequestBuilder, ResponseData};
-#[cfg(not(http_request))]
-type ClientBuilder = ();
-#[cfg(not(http_request))]
-type HttpRequestBuilder = ();
-#[cfg(not(http_request))]
-#[allow(dead_code)]
-type ResponseData = ();
+use super::InvokeContext;
+use crate::{
+  api::{file::SafePathBuf, http::HeaderMap},
+  endpoints::file_system::resolve_path,
+  Runtime,
+};
+use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
+use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
-type ClientId = u32;
-#[cfg(http_request)]
-type ClientStore = Arc<Mutex<HashMap<ClientId, crate::api::http::Client>>>;
-
-#[cfg(http_request)]
-fn clients() -> &'static ClientStore {
-  use once_cell::sync::Lazy;
-  static STORE: Lazy<ClientStore> = Lazy::new(Default::default);
-  &STORE
-}
+#[cfg(all(http_request, feature = "reqwest-client"))]
+static CLIENT: Lazy<reqwest::Client> = Lazy::new(Default::default);
 
 /// The API descriptor.
 #[command_enum]
@@ -42,113 +28,205 @@ fn clients() -> &'static ClientStore {
 #[cmd(async)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
-  /// Create a new HTTP client.
-  #[cmd(http_request, "http > request")]
-  CreateClient { options: Option<ClientBuilder> },
-  /// Drop a HTTP client.
-  #[cmd(http_request, "http > request")]
-  DropClient { client: ClientId },
   /// The HTTP request API.
   #[cmd(http_request, "http > request")]
-  HttpRequest {
-    client: ClientId,
-    options: Box<HttpRequestBuilder>,
+  Fetch {
+    method: String,
+    url: String,
+    headers: Vec<(String, String)>,
+    data: Option<Vec<u8>>,
   },
 }
 
 impl Cmd {
   #[module_command_handler(http_request)]
-  async fn create_client<R: Runtime>(
-    _context: InvokeContext<R>,
-    options: Option<ClientBuilder>,
-  ) -> super::Result<ClientId> {
-    let client = options.unwrap_or_default().build()?;
-    let mut store = clients().lock().unwrap();
-    let id = rand::random::<ClientId>();
-    store.insert(id, client);
-    Ok(id)
-  }
-
-  #[module_command_handler(http_request)]
-  async fn drop_client<R: Runtime>(
-    _context: InvokeContext<R>,
-    client: ClientId,
-  ) -> super::Result<()> {
-    let mut store = clients().lock().unwrap();
-    store.remove(&client);
-    Ok(())
-  }
-
-  #[module_command_handler(http_request)]
-  async fn http_request<R: Runtime>(
+  async fn fetch<R: Runtime>(
     context: InvokeContext<R>,
-    client_id: ClientId,
-    options: Box<HttpRequestBuilder>,
-  ) -> super::Result<ResponseData> {
-    use crate::Manager;
-    let scopes = context.window.state::<crate::Scopes>();
-    if scopes.http.is_allowed(&options.url) {
-      let client = clients()
-        .lock()
-        .unwrap()
-        .get(&client_id)
-        .ok_or_else(|| crate::Error::HttpClientNotInitialized.into_anyhow())?
-        .clone();
-      let options = *options;
-      if let Some(crate::api::http::Body::Form(form)) = &options.body {
-        for value in form.0.values() {
-          if let crate::api::http::FormPart::File {
-            file: crate::api::http::FilePart::Path(path),
-            ..
-          } = value
+    method: String,
+    url: String,
+    headers: Vec<(String, String)>,
+    data: Option<Vec<u8>>,
+  ) -> super::Result<FetchResponse> {
+    use crate::{error::into_anyhow, Manager};
+    use anyhow::Context;
+    use http::{header::*, Method};
+
+    let url = url::Url::parse(&url)?;
+    let scheme = url.scheme();
+    let method = Method::from_bytes(method.as_bytes()).map_err(into_anyhow)?;
+
+    match scheme {
+      "file" => {
+        let path = url
+          .to_file_path()
+          .map_err(|_| into_anyhow("Failed to get path from `file:` url"))?;
+        let path = SafePathBuf::new(path).map_err(into_anyhow)?;
+
+        let resolved_path = resolve_path(
+          &context.config,
+          &context.package_info,
+          &context.window,
+          path,
+          None,
+          true,
+        )?;
+
+        if method != Method::GET {
+          return Err(into_anyhow(format!(
+            "Fetching files only supports the GET method. Received {}.",
+            method
+          )));
+        }
+
+        let data = std::fs::read(&resolved_path)
+          .with_context(|| format!("path: {}", resolved_path.display()))?;
+
+        Ok(FetchResponse {
+          status: 200,
+          status_text: "OK".into(),
+          headers: Vec::new(),
+          url: url.to_string(),
+          data,
+        })
+      }
+      "http" | "https" => {
+        let scopes = &(context.window).state::<crate::Scopes>();
+        if scopes.http.is_allowed(&url) {
+          #[cfg(not(feature = "reqwest-client"))]
           {
-            if crate::api::file::SafePathBuf::new(path.clone()).is_err()
-              || !scopes.fs.is_allowed(&path)
-            {
-              return Err(crate::Error::PathNotAllowed(path.clone()).into_anyhow());
+            dbg!("attohttpc");
+            let mut request = attohttpc::RequestBuilder::try_new(method.clone(), &url)?;
+
+            for (key, value) in headers {
+              let name = HeaderName::from_bytes(key.as_bytes()).map_err(into_anyhow)?;
+              let v = HeaderValue::from_bytes(value.as_bytes()).map_err(into_anyhow)?;
+              if !matches!(name, HOST | CONTENT_LENGTH) {
+                request = request.header(name, v);
+              }
             }
+
+            // POST and PUT requests should always have a 0 length content-length,
+            // if there is no body. https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
+            if data.is_none() && matches!(method, Method::POST | Method::PUT) {
+              request = request.header(CONTENT_LENGTH, HeaderValue::from(0));
+            }
+
+            let response = if let Some(data) = data {
+              request.body(attohttpc::body::Bytes(data)).send()?
+            } else {
+              request.send()?
+            };
+
+            let status = response.status();
+            let mut headers = Vec::new();
+
+            for (key, val) in response.headers().iter() {
+              headers.push((
+                key.as_str().into(),
+                String::from_utf8(val.as_bytes().to_vec())?,
+              ));
+            }
+
+            Ok(FetchResponse {
+              status: status.as_u16(),
+              status_text: status.canonical_reason().unwrap_or_default().to_string(),
+              headers,
+              url: url.to_string(),
+              data: response.bytes().map_err(into_anyhow)?.to_vec(),
+            })
           }
+          #[cfg(feature = "reqwest-client")]
+          {
+            dbg!("reqwest");
+
+            let client = CLIENT.clone();
+            let mut request = client.request(method.clone(), url);
+
+            for (key, value) in headers {
+              let name = HeaderName::from_bytes(key.as_bytes()).map_err(into_anyhow)?;
+              let v = HeaderValue::from_bytes(value.as_bytes()).map_err(into_anyhow)?;
+              if !matches!(name, HOST | CONTENT_LENGTH) {
+                request = request.header(name, v);
+              }
+            }
+
+            // POST and PUT requests should always have a 0 length content-length,
+            // if there is no body. https://fetch.spec.whatwg.org/#http-network-or-cache-fetch
+            if data.is_none() && matches!(method, Method::POST | Method::PUT) {
+              request = request.header(CONTENT_LENGTH, HeaderValue::from(0));
+            }
+
+            if let Some(data) = data {
+              request = request.body(data);
+            }
+
+            let response = request.send().await?;
+
+            let status = response.status();
+            let mut headers = Vec::new();
+
+            for (key, val) in response.headers().iter() {
+              headers.push((
+                key.as_str().into(),
+                String::from_utf8(val.as_bytes().to_vec())?,
+              ));
+            }
+
+            Ok(FetchResponse {
+              status: status.as_u16(),
+              status_text: status.canonical_reason().unwrap_or_default().to_string(),
+              headers,
+              url: response.url().to_string(),
+              data: response.bytes().await.map_err(into_anyhow)?.to_vec(),
+            })
+          }
+        } else {
+          Err(crate::Error::UrlNotAllowed(url).into_anyhow())
         }
       }
-      let response = client.send(options).await?;
-      Ok(response.read().await?)
-    } else {
-      Err(crate::Error::UrlNotAllowed(options.url).into_anyhow())
+      "data" => {
+        let data_url = data_url::DataUrl::process(url.as_str())
+          .map_err(|_| into_anyhow("Failed to process data url"))?;
+        let (body, _) = data_url
+          .decode_to_vec()
+          .map_err(|_| into_anyhow("Failed to decode data url to vec"))?;
+
+        let status = http::StatusCode::OK;
+        Ok(FetchResponse {
+          status: status.as_u16(),
+          status_text: status.canonical_reason().unwrap_or_default().to_string(),
+          headers: vec![(CONTENT_TYPE.to_string(), data_url.mime_type().to_string())],
+          url: url.to_string(),
+          data: body,
+        })
+      }
+      _ => Err(into_anyhow(format!("scheme '{}' not supported", scheme))),
     }
   }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchResponse {
+  status: u16,
+  status_text: String,
+  headers: Vec<(String, String)>,
+  url: String,
+  data: Vec<u8>,
+}
+
 #[cfg(test)]
 mod tests {
-  use super::{ClientBuilder, ClientId};
-
   #[tauri_macros::module_command_test(http_request, "http > request")]
   #[quickcheck_macros::quickcheck]
-  fn create_client(options: Option<ClientBuilder>) {
-    assert!(crate::async_runtime::block_on(super::Cmd::create_client(
+  fn fetch(method: String, url: String, headers: Vec<(String, String)>, data: Option<Vec<u8>>) {
+    assert!(crate::async_runtime::block_on(super::Cmd::fetch(
       crate::test::mock_invoke_context(),
-      options
+      method,
+      url,
+      headers,
+      data,
     ))
     .is_ok());
-  }
-
-  #[tauri_macros::module_command_test(http_request, "http > request")]
-  #[quickcheck_macros::quickcheck]
-  fn drop_client(client_id: ClientId) {
-    crate::async_runtime::block_on(async move {
-      assert!(
-        super::Cmd::drop_client(crate::test::mock_invoke_context(), client_id)
-          .await
-          .is_ok()
-      );
-      let id = super::Cmd::create_client(crate::test::mock_invoke_context(), None)
-        .await
-        .unwrap();
-      assert!(
-        super::Cmd::drop_client(crate::test::mock_invoke_context(), id)
-          .await
-          .is_ok()
-      );
-    });
   }
 }

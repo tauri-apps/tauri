@@ -16,7 +16,6 @@ use crate::{
 };
 
 use super::InvokeContext;
-#[allow(unused_imports)]
 use anyhow::Context;
 use serde::{
   de::{Deserializer, Error as DeError},
@@ -711,7 +710,7 @@ fn write_file<R: Runtime>(
 }
 
 #[allow(dead_code)]
-fn resolve_path<R: Runtime>(
+pub(crate) fn resolve_path<R: Runtime>(
   config: &Config,
   package_info: &PackageInfo,
   window: &Window<R>,

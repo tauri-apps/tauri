@@ -284,7 +284,9 @@ interface CreateOptions {
  * Creates a file if none exists or truncates an existing file and resolves to
  *  an instance of {@link FsFile | `FsFile` }.
  *
- * ```ts
+ * @example
+ * ```typescript
+ * import { create, BaseDirectory } from "@tauri-apps/api/fs"
  * const file = await create("foo/bar.txt", { baseDir: BaseDirectory.App });
  * ```
  */
@@ -364,7 +366,9 @@ interface OpenOptions {
  * open options. It is the callers responsibility to close the file when finished
  * with it.
  *
- * ```ts
+ * @example
+ * ```typescript
+ * import { open, BaseDirectory } from "@tauri-apps/api/fs"
  * const file = await open("foo/bar.txt", { read: true, write: true, baseDir: BaseDirectory.App });
  * // Do work with file
  * await close(file.rid);
@@ -395,7 +399,9 @@ async function open(
  * as via opening or creating a file. Closing a file when you are finished
  * with it is important to avoid leaking resources.
  *
+ * @example
  * ```typescript
+ * import { open, close, BaseDirectory } from "@tauri-apps/api/fs"
  * const file = await open("my_file.txt", { baseDir: BaseDirectory.App });
  * // do work with "file" object
  * await close(file.rid);
@@ -558,7 +564,9 @@ async function readDir(
  *
  * **It is not guaranteed that the full buffer will be read in a single call.**
  *
+ * @example
  * ```typescript
+ * import { open, read, close, BaseDirectory } from "@tauri-apps/api/fs"
  * // if "$APP/foo/bar.txt" contains the text "hello world":
  * const file = await open("foo/bar.txt", { baseDir: BaseDirectory.App });
  * const buf = new Uint8Array(100);
@@ -568,7 +576,7 @@ async function readDir(
  * ```
  */
 async function read(rid: number, buffer: Uint8Array): Promise<number | null> {
-  if (buffer.length === 0) {
+  if (buffer.byteLength === 0) {
     return 0
   }
 
@@ -577,7 +585,7 @@ async function read(rid: number, buffer: Uint8Array): Promise<number | null> {
     message: {
       cmd: 'read',
       rid,
-      len: buffer.length
+      len: buffer.byteLength
     }
   })
 
@@ -727,6 +735,7 @@ async function rename(
  * Seek a resource ID (`rid`) to the given `offset` under mode given by `whence`.
  * The call resolves to the new position within the resource (bytes from the start).
  *
+ * @example
  * ```typescript
  * import { open, seek, write, SeekMode, BaseDirectory } from '@tauri-apps/api/fs';
  *
@@ -784,7 +793,8 @@ interface StatOptions {
  * Resolves to a {@link FileInfo | `FileInfo`} for the specified `path`. Will always
  * follow symlinks but will reject if the symlink points to a path outside of the scope.
  *
- * ```ts
+ * @example
+ * ```typescript
  * import { stat, BaseDirectory } from '@tauri-apps/api/fs';
  * const fileInfo = await stat("hello.txt", { baseDir: BaseDirectory.App });
  * console.log(fileInfo.isFile); // true
@@ -809,7 +819,8 @@ async function stat(
  * symlink, information for the symlink will be returned instead of what it
  * points to.
  *
- * ```ts
+ * @example
+ * ```typescript
  * import { lstat, BaseDirectory } from '@tauri-apps/api/fs';
  * const fileInfo = await lstat("hello.txt", { baseDir: BaseDirectory.App });
  * console.log(fileInfo.isFile); // true
@@ -832,7 +843,8 @@ async function lstat(
 /**
  * Returns a {@link FileInfo | `FileInfo`} for the given file stream.
  *
- * ```ts
+ * @example
+ * ```typescript
  * import { open, fstat, BaseDirectory } from '@tauri-apps/api/fs';
  * const file = await open("file.txt", { read: true, baseDir: BaseDirectory.App });
  * const fileInfo = await fstat(file.rid);
@@ -937,7 +949,9 @@ async function ftruncate(rid: number, len?: number): Promise<void> {
  * **It is not guaranteed that the full buffer will be written in a single
  * call.**
  *
+ * @example
  * ```typescript
+ * import { open, write, close, BaseDirectory } from '@tauri-apps/api/fs';
  * const encoder = new TextEncoder();
  * const data = encoder.encode("Hello world");
  * const file = await open("bar.txt", { write: true, baseDir: BaseDirectory.App });

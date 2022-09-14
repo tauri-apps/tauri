@@ -1,0 +1,11 @@
+[package]
+name = "config-schema"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-utils = { version = "1.0.0", features = [ "schema", "isolation" ], path = "../../core/tauri-utils" }
+schemars = { version = "0.8", features = [ "url", "preserve_order" ] }
+serde_json = "1.0"

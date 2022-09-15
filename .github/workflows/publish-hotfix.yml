@@ -46,6 +46,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
+          filterPackages: 'tauri'
 
       - name: Trigger cli.js publishing workflow
         if: |

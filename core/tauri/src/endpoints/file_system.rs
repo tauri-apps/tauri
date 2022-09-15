@@ -948,38 +948,10 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
-  #[tauri_macros::module_command_test(fs_close, "fs > close")]
-  #[quickcheck_macros::quickcheck]
-  fn close(rid: Rid) {
-    let res = super::Cmd::close(crate::test::mock_invoke_context(), rid);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
   #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
   #[quickcheck_macros::quickcheck]
   fn read_file(path: SafePathBuf, options: Option<GenericOptions>) {
     let res = super::Cmd::read_file(crate::test::mock_invoke_context(), path, options);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
-  #[tauri_macros::module_command_test(fs_write_file, "fs > readFile")]
-  #[quickcheck_macros::quickcheck]
-  fn read(rid: Rid, len: u32) {
-    let res = super::Cmd::read(crate::test::mock_invoke_context(), rid, len);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
-  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
-  #[quickcheck_macros::quickcheck]
-  fn ftruncate(rid: Rid, len: Option<u64>) {
-    let res = super::Cmd::ftruncate(crate::test::mock_invoke_context(), rid, len);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
-  #[tauri_macros::module_command_test(fs_seek_file, "fs > writeFile")]
-  #[quickcheck_macros::quickcheck]
-  fn seek(rid: Rid, offset: i64, whence: SeekMode) {
-    let res = super::Cmd::seek(crate::test::mock_invoke_context(), rid, offset, whence);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
@@ -997,24 +969,10 @@ mod tests {
     crate::test_utils::assert_not_allowlist_error(res);
   }
 
-  #[tauri_macros::module_command_test(fs_read_file, "fs > readFile")]
-  #[quickcheck_macros::quickcheck]
-  fn fstat(rid: Rid) {
-    let res = super::Cmd::fstat(crate::test::mock_invoke_context(), rid);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
   #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
   #[quickcheck_macros::quickcheck]
   fn truncate(path: SafePathBuf, len: Option<u64>, options: Option<GenericOptions>) {
     let res = super::Cmd::truncate(crate::test::mock_invoke_context(), path, len, options);
-    crate::test_utils::assert_not_allowlist_error(res);
-  }
-
-  #[tauri_macros::module_command_test(fs_write_file, "fs > writeFile")]
-  #[quickcheck_macros::quickcheck]
-  fn write(rid: Rid, data: Vec<u8>) {
-    let res = super::Cmd::write(crate::test::mock_invoke_context(), rid, data);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 

@@ -1,10 +1,11 @@
 {
-  "$schema": "../../../tooling/cli/schema.json",
+  "$schema": "../../../tooling/config-schema/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev --host",
-    "beforeBuildCommand": "yarn build"
+    "beforeBuildCommand": "yarn build",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "Tauri API",
@@ -92,7 +93,8 @@
       "fs": {
         "scope": {
           "allow": [
-            "$APP/db/**",
+            "$APP/**",
+            "$APP",
             "$DOWNLOAD/**",
             "$RESOURCE/**"
           ],
@@ -140,7 +142,9 @@
       },
       "http": {
         "scope": [
-          "http://localhost:3003"
+          "http://**",
+          "https://**",
+          "file://**"
         ]
       }
     },

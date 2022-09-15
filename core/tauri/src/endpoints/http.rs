@@ -19,9 +19,6 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
-#[cfg(all(http_request, feature = "reqwest-client"))]
-static CLIENT: Lazy<reqwest::Client> = Lazy::new(Default::default);
-
 /// The API descriptor.
 #[command_enum]
 #[derive(Deserialize, CommandModule)]
@@ -94,7 +91,6 @@ impl Cmd {
         if scopes.http.is_allowed(&url) {
           #[cfg(not(feature = "reqwest-client"))]
           {
-            dbg!("attohttpc");
             let mut request = attohttpc::RequestBuilder::try_new(method.clone(), &url)?;
 
             for (key, value) in headers {
@@ -137,10 +133,7 @@ impl Cmd {
           }
           #[cfg(feature = "reqwest-client")]
           {
-            dbg!("reqwest");
-
-            let client = CLIENT.clone();
-            let mut request = client.request(method.clone(), url);
+            let mut request = reqwest::Client::default().request(method.clone(), url);
 
             for (key, value) in headers {
               let name = HeaderName::from_bytes(key.as_bytes()).map_err(into_anyhow)?;
@@ -225,8 +218,8 @@ mod tests {
       method,
       url,
       headers,
-      data,
+      data
     ))
-    .is_ok());
+    .is_err());
   }
 }

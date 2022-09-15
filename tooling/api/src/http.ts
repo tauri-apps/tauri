@@ -61,11 +61,11 @@ async function fetch(
   input: URL | Request | string,
   init?: RequestInit
 ): Promise<Response> {
-  let req = new Request(input, init)
-  let buffer = await req.arrayBuffer()
-  let reqData = buffer.byteLength ? Array.from(new Uint8Array(buffer)) : null
+  const req = new Request(input, init)
+  const buffer = await req.arrayBuffer()
+  const reqData = buffer.byteLength ? Array.from(new Uint8Array(buffer)) : null
 
-  type FetchResponse = {
+  interface FetchResponse {
     status: number
     statusText: string
     headers: [[string, string]]

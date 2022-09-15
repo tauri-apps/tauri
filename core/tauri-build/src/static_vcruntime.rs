@@ -35,14 +35,14 @@ fn override_msvcrt_lib() {
   let arch = std::env::var("CARGO_CFG_TARGET_ARCH");
   let arch = arch.as_deref();
 
-  let machine: &[u8] = if let Ok(machine @ "x86_64") = arch {
-    trace!(machine, "adding machine byte header: {:?}", HEADER_X86_64);
+  let machine: &[u8] = if let Ok(arch @ "x86_64") = arch {
+    trace!(arch, "adding machine byte header: {:?}", HEADER_X86_64);
     HEADER_X86_64
-  } else if let Ok(machine @ "x86") = arch {
-    trace!(machine, "adding machine byte header: {:?}", HEADER_X86);
+  } else if let Ok(arch @ "x86") = arch {
+    trace!(arch, "adding machine byte header: {:?}", HEADER_X86);
     HEADER_X86
-  } else if let Ok(machine) = arch {
-    warn!(machine, "unsupported arch for static vcruntime");
+  } else if let Ok(arch) = arch {
+    warn!(arch, "unsupported arch for static vcruntime");
     return;
   } else {
     error!("no arch found in CARGO_CFG_TARGET_ARCH");

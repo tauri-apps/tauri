@@ -1,5 +1,22 @@
 # Changelog
 
+## \[1.1.0]
+
+- Rerun codegen if assets or icons change.
+  - [ff8fd761](https://www.github.com/tauri-apps/tauri/commit/ff8fd7619ae894b70f149b192d8635d842827141) fix(tauri-build): rerun if assets or icons change ([#4910](https://www.github.com/tauri-apps/tauri/pull/4910)) on 2022-08-10
+- Create the `desktop` and `mobile` cfg aliases.
+  - [c04d0340](https://www.github.com/tauri-apps/tauri/commit/c04d0340e2f163483f3556c7aabe35322ee71e6a) feat(core): prepare build for mobile targets ([#4830](https://www.github.com/tauri-apps/tauri/pull/4830)) on 2022-08-02
+- Added support to configuration files in TOML format (Tauri.toml file).
+  - [ae83d008](https://www.github.com/tauri-apps/tauri/commit/ae83d008f9e1b89bfc8dddaca42aa5c1fbc36f6d) feat: add support to TOML config file `Tauri.toml`, closes [#4806](https://www.github.com/tauri-apps/tauri/pull/4806) ([#4813](https://www.github.com/tauri-apps/tauri/pull/4813)) on 2022-08-02
+- Enhance the dialog style on Windows via the manifest dependency `Microsoft.Windows.Common-Controls v6.0.0.0`.
+  - [5c5c42ed](https://www.github.com/tauri-apps/tauri/commit/5c5c42edb64adf4250af6891d7d226fda7d4d783) feat(build): use modern dialog styles on Windows, closes [#4709](https://www.github.com/tauri-apps/tauri/pull/4709) ([#4840](https://www.github.com/tauri-apps/tauri/pull/4840)) on 2022-08-02
+- Fix root of codegen output when using the `CodegenContext` API.
+  - [ed581950](https://www.github.com/tauri-apps/tauri/commit/ed581950ea6fd0afee47aa73fb63083d2483429f) fix(tauri-build): use `::tauri` as root for the CodegenContext ([#4894](https://www.github.com/tauri-apps/tauri/pull/4894)) on 2022-08-08
+- Return an error if a sidecar is configured with the same file name as the application.
+  - [5cc1fd0f](https://www.github.com/tauri-apps/tauri/commit/5cc1fd0f7b01b257a461d4e867ddc8cd5072ff15) feat(tauri-build): validate sidecar name, closes [#4780](https://www.github.com/tauri-apps/tauri/pull/4780) closes [#4823](https://www.github.com/tauri-apps/tauri/pull/4823) ([#4814](https://www.github.com/tauri-apps/tauri/pull/4814)) on 2022-08-02
+- Only rewrite temporary icon files when the content change, avoid needless rebuilds.
+  - [f957cbb5](https://www.github.com/tauri-apps/tauri/commit/f957cbb56ccbd8d1c047a978b4579946252a6fd2) fix(codegen): write output file when contents change ([#4889](https://www.github.com/tauri-apps/tauri/pull/4889)) on 2022-08-09
+
 ## \[1.0.4]
 
 - Reduce the amount of allocations when converting cases.

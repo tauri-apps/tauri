@@ -36,8 +36,13 @@ switch (bump) {
 
 const inc = (version) => {
   const v = version.split('.')
-  const n = v[index]
-  v[index] = String(Number(n) + 1)
+  for (let i = 0; i < v.length; i++) {
+    if (i === index) {
+      v[i] = String(Number(v[i]) + 1)
+    } else if (i > index) {
+      v[i] = 0
+    }
+  }
   return v.join('.')
 }
 

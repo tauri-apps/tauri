@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.0.6]
+
+- Avoid re-downloading AppImage build tools on every build.
+  - [02462052](https://www.github.com/tauri-apps/tauri/commit/024620529ed7c6cc601501db45abb7257f0b58f4) fix(bundler): cache appimage bundle tools ([#4790](https://www.github.com/tauri-apps/tauri/pull/4790)) on 2022-07-30
+- Add `fips_compliant` configuration option for WiX.
+  - [d88b9de7](https://www.github.com/tauri-apps/tauri/commit/d88b9de7aaeaaa2e42e4795dbc2b8642b5ae7a50) feat(core): add `fips_compliant` wix config option, closes [#4541](https://www.github.com/tauri-apps/tauri/pull/4541) ([#4843](https://www.github.com/tauri-apps/tauri/pull/4843)) on 2022-08-04
+
 ## \[1.0.5]
 
 - Correctly fill the architecture when building Debian packages targeting ARM64 (aarch64).

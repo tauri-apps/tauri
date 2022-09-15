@@ -34,7 +34,7 @@ fn override_msvcrt_lib() {
   // Get the right machine type for the empty library.
   let arch = std::env::var("CARGO_CFG_TARGET_ARCH");
   let arch = arch.as_deref();
-  
+
   let machine: &[u8] = if let Ok(machine @ "x86_64") = arch {
     trace!(machine, "adding machine byte header: {:?}", HEADER_X86_64);
     HEADER_X86_64

@@ -553,7 +553,6 @@ async function renameFile(
 
 /**
  * Check if a path exists.
- * @since 1.1.0
  * @example
  * ```typescript
  * import { exists, BaseDirectory } from '@tauri-apps/api/fs';
@@ -561,9 +560,7 @@ async function renameFile(
  * await exists('avatar.png', { dir: BaseDirectory.App });
  * ```
  *
- * @param path A path of the file or directory to check.
- * @param options Configuration object.
- * @returns A promise indicating the success or failure of the operation.
+ * @since 1.1.0
  */
 async function exists(path: string, options: FsOptions = {}): Promise<void> {
   return invokeTauriCommand({

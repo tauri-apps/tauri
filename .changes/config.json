@@ -211,7 +211,11 @@
       "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion":  [
         "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --package config-schema"
+        {
+
+          "command": "cargo build",
+          "cwd": "./tooling/config-schema"
+        }
       ],
       "assets": [
         {

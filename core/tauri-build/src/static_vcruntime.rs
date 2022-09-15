@@ -6,6 +6,10 @@
 // we're not using static_vcruntime directly because we want this for debug builds too
 
 use std::{env, fs, io::Write, path::Path};
+use tracing::*;
+
+const HEADER_X86_64: &[u8] = &[0x64, 0x86];
+const HEADER_X86: &[u8] = &[0x4C, 0x01];
 
 pub fn build() {
   override_msvcrt_lib();
@@ -29,13 +33,22 @@ pub fn build() {
 fn override_msvcrt_lib() {
   // Get the right machine type for the empty library.
   let arch = std::env::var("CARGO_CFG_TARGET_ARCH");
-  let machine: &[u8] = if arch.as_deref() == Ok("x86_64") {
-    &[0x64, 0x86]
-  } else if arch.as_deref() == Ok("x86") {
-    &[0x4C, 0x01]
+  let arch = arch.as_deref();
+  
+  let machine: &[u8] = if let Ok(machine @ "x86_64") = arch {
+    trace!(machine, "adding machine byte header: {:?}", HEADER_X86_64);
+    HEADER_X86_64
+  } else if let Ok(machine @ "x86") = arch {
+    trace!(machine, "adding machine byte header: {:?}", HEADER_X86);
+    HEADER_X86
+  } else if let Ok(machine) = arch {
+    warn!(machine, "unsupported arch for static vcruntime");
+    return;
   } else {
+    error!("no arch found in CARGO_CFG_TARGET_ARCH");
     return;
   };
+
   let bytes: &[u8] = &[
     1, 0, 94, 3, 96, 98, 60, 0, 0, 0, 1, 0, 0, 0, 0, 0, 132, 1, 46, 100, 114, 101, 99, 116, 118,
     101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

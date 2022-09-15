@@ -1,10 +1,5 @@
 # Changelog
 
-## \[1.2.0]
-
-- Add `exists` function to the fs module.
-  - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
-
 ## \[1.1.0]
 
 - Update `mockIPC()` handler signature to allow async handler functions.

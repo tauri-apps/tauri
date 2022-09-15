@@ -111,7 +111,7 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -170,7 +170,7 @@ jobs:
   #            env
   #            freebsd-version
   #            cd ./tooling/cli/node/
-  #            yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+  #            yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
   #            yarn build:release
   #            strip -x *.node
   #            rm -rf node_modules
@@ -209,7 +209,7 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -243,7 +243,7 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -283,7 +283,7 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -330,7 +330,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Install dependencies
-        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download aarch64-gnu artifacts
         uses: actions/download-artifact@v3
         with:
@@ -380,7 +380,7 @@ jobs:
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: yarn install --prod --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:

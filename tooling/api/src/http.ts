@@ -65,16 +65,8 @@ async function fetch(
   const buffer = await req.arrayBuffer()
   const reqData = buffer.byteLength ? Array.from(new Uint8Array(buffer)) : null
 
-  interface FetchResponse {
-    status: number
-    statusText: string
-    headers: [[string, string]]
-    data: number[]
-    url: string
-  }
-
-  const { data, status, statusText, headers, url } =
-    await invokeTauriCommand<FetchResponse>({
+  const [reqRid, cancelRid] = await invokeTauriCommand<[number, number | null]>(
+    {
       __tauriModule: 'Http',
       message: {
         cmd: 'fetch',
@@ -82,6 +74,36 @@ async function fetch(
         url: req.url,
         headers: Array.from(req.headers.entries()),
         data: reqData
+      }
+    }
+  )
+
+  if (cancelRid) {
+    req.signal.addEventListener('abort', (e) => {
+      void invokeTauriCommand({
+        __tauriModule: 'Http',
+        message: {
+          cmd: 'fetchCancel',
+          rid: cancelRid
+        }
+      })
+    })
+  }
+
+  interface FetchSendResponse {
+    status: number
+    statusText: string
+    headers: [[string, string]]
+    data: number[]
+    url: string
+  }
+
+  const { status, statusText, url, headers, data } =
+    await invokeTauriCommand<FetchSendResponse>({
+      __tauriModule: 'Http',
+      message: {
+        cmd: 'fetchSend',
+        rid: reqRid
       }
     })
 

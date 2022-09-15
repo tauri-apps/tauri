@@ -41,6 +41,7 @@ use std::{
   sync::Arc,
 };
 
+/// Resource id
 type Rid = u32;
 type FsFileStore = Arc<Mutex<HashMap<Rid, File>>>;
 

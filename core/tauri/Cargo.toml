@@ -195,6 +195,7 @@ dialog-save = [ "dialog" ]
 fs-all = [
   "fs-copy-file",
   "fs-create-dir",
+  "fs-exists",
   "fs-read-file",
   "fs-read-dir",
   "fs-remove-dir",
@@ -204,6 +205,7 @@ fs-all = [
 ]
 fs-copy-file = [ ]
 fs-create-dir = [ ]
+fs-exists = [ ]
 fs-read-file = [ ]
 fs-read-dir = [ ]
 fs-remove-dir = [ ]

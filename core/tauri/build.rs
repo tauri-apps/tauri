@@ -59,6 +59,7 @@ fn main() {
       "remove-dir",
       "remove-file",
       "rename-file",
+      "exists",
     ],
     api_all,
   );

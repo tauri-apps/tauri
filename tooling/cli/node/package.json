@@ -56,7 +56,7 @@
     "build:release": "cross-env TARGET=node napi build --platform --release",
     "build": "cross-env TARGET=node napi build --platform",
     "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID",
-    "prepack": "cp ../config-schema/schema.json .",
+    "prepack": "cp ../schema.json .",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",
     "tauri": "node ./tauri.js",

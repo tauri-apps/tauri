@@ -134,8 +134,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let schema: JsonValue =
-      serde_json::from_str(include_str!("../../../config-schema/schema.json"))?;
+    let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
     let mut scope = valico::json_schema::Scope::new();
     let schema = scope.compile_and_return(schema, false).unwrap();
     let state = schema.validate(&config);

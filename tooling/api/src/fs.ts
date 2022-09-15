@@ -71,6 +71,7 @@
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
+import { EOL } from './os';
 
 /**
  * @since 1.0.0
@@ -103,6 +104,7 @@ export enum BaseDirectory {
  */
 interface FsOptions {
   dir?: BaseDirectory
+  removeLineEnding?: Boolean
   // note that adding fields here needs a change in the writeBinaryFile check
 }
 
@@ -169,14 +171,18 @@ async function readTextFile(
   filePath: string,
   options: FsOptions = {}
 ): Promise<string> {
-  return invokeTauriCommand<string>({
+  let fileContent = invokeTauriCommand<string>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'readTextFile',
       path: filePath,
       options
     }
-  })
+  });
+  if(options.removeLineEnding) {
+    return new Promise<string>((await fileContent).replace(EOL, ""));
+  }
+  return fileContent;
 }
 
 /**

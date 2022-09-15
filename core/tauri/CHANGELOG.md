@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.6]
+
+- Fix `fs.readDir` recursive option reading symlinked directories that are not allowed by the scope.
+  - [bb178829](https://www.github.com/tauri-apps/tauri/commit/bb178829086e80916f9be190f02d83bc25802799) fix(endpoints/fs/readDir): don't read symlinks that are not allowed b… ([#5123](https://www.github.com/tauri-apps/tauri/pull/5123)) on 2022-09-08
+
 ## \[1.0.5]
 
 - Escape the MSI file path when running msiexec via powershell.

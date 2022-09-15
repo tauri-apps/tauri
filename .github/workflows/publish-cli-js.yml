@@ -5,6 +5,10 @@ env:
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
   workflow_dispatch:
+    inputs:
+      releaseId:
+        description: 'ID of the cli.js release'
+        required: true
   repository_dispatch:
     types: [publish-clijs]
 
@@ -84,6 +88,8 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
+      - name: 'print release id'
+        run: echo ${{ github.event.inputs.releaseId }}
       - name: Setup node
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
@@ -397,4 +403,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          RELEASE_ID: ${{ github.event.client_payload.releaseId }}
+          RELEASE_ID: ${{ github.event.inputs.releaseId }}

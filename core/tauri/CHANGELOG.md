@@ -36,6 +36,8 @@
   - [331f3460](https://www.github.com/tauri-apps/tauri/commit/331f3460027614738ddbbbbcd04bfc59a349f3de) feat(core): add option to use vendored openssl, closes [#4470](https://www.github.com/tauri-apps/tauri/pull/4470) ([#4809](https://www.github.com/tauri-apps/tauri/pull/4809)) on 2022-08-02
 - Update windows to 0.39.0 and webview2-com to 0.19.1.
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
+- Add `exists` function to the fs module.
+  - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
 
 ## \[1.0.5]
 

@@ -8,6 +8,8 @@
   - [aa9f1243](https://www.github.com/tauri-apps/tauri/commit/aa9f1243e6c1629972a82e469f20c8399741740e) Improved EventEmitter for tauri api shell ([#4697](https://www.github.com/tauri-apps/tauri/pull/4697)) on 2022-07-26
 - Added the `encoding` option to the `Command` options.
   - [d8cf9f9f](https://www.github.com/tauri-apps/tauri/commit/d8cf9f9fcd617ac24fa418952fd4a32c08804f5c) Command support for specified character encoding, closes [#4644](https://www.github.com/tauri-apps/tauri/pull/4644) ([#4772](https://www.github.com/tauri-apps/tauri/pull/4772)) on 2022-07-28
+- Add `exists` function to the fs module.
+  - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
 
 ## \[1.0.2]
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.11.0]
+
+- Ignore window events with unknown IDs.
+  - [0668dd42](https://www.github.com/tauri-apps/tauri/commit/0668dd42204b163f11aaf31f45106c8551f15942) fix(tauri-runtime-wry): ignore events on unknown windows on 2022-08-29
+- Implement theme APIs for Linux.
+  - [f21cbecd](https://www.github.com/tauri-apps/tauri/commit/f21cbecdeb3571ac4ad971b9a865ff62a131a176) feat(core): implement theme APIs for Linux ([#4808](https://www.github.com/tauri-apps/tauri/pull/4808)) on 2022-08-02
+- Changed `windows` map to be stored in a `RefCell` instead of a `Mutex`.
+  - [64546cb9](https://www.github.com/tauri-apps/tauri/commit/64546cb9cca2fe56cf81cfc4aaf85c4e1d58877c) refactor: use RefCell instead of Mutex for windows map, closes [#4870](https://www.github.com/tauri-apps/tauri/pull/4870) ([#4909](https://www.github.com/tauri-apps/tauri/pull/4909)) on 2022-08-10
+- Added APIs to create a system tray at runtime.
+  - [4d063ae9](https://www.github.com/tauri-apps/tauri/commit/4d063ae9ee9538cd6fa5e01b80070c6edf8eaeb9) feat(core): create system tray at runtime, closes [#2278](https://www.github.com/tauri-apps/tauri/pull/2278) ([#4862](https://www.github.com/tauri-apps/tauri/pull/4862)) on 2022-08-09
+- Update windows to 0.39.0 and webview2-com to 0.19.1.
+  - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
+
 ## \[0.10.2]
 
 - Disable drag-n-drop of tao based on `fileDropEnabled` value.

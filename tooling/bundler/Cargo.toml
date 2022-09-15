@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.0.5"
+version = "1.0.6"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -14,14 +14,10 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
 rust-version = "1.57"
-exclude = [
-  "CHANGELOG.md",
-  "/target",
-  "rustfmt.toml"
-]
+exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "1.1.0", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.3"
 libflate = "1.2"
 anyhow = "1.0"

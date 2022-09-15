@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "1.0.5"
+version = "1.1.0"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.57"
@@ -23,6 +23,17 @@ include = [
   "LICENSE*"
 ]
 
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/cli.rs-v{ version }/{ bin }-{ target }.{ archive-format }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-fmt = "zip"
+
 [[bin]]
 name = "cargo-tauri"
 path = "src/main.rs"
@@ -30,7 +41,7 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "3.2", features = [ "derive" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "1.0.5", path = "../bundler" }
+tauri-bundler = { version = "1.0.6", path = "../bundler" }
 colored = "2.0"
 once_cell = "1"
 serde = { version = "1.0", features = [ "derive" ] }
@@ -40,7 +51,7 @@ notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.14"
 json-patch = "0.2"
-tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+tauri-utils = { version = "1.1.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.5"
 valico = "3.6"
 handlebars = "4.3"
@@ -87,14 +98,3 @@ url = { version = "2.3", features = [ "serde" ] }
 
 [profile.release]
 lto = true
-
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/cli.rs-v{ version }/{ bin }-{ target }.{ archive-format }"
-bin-dir = "{ bin }{ binary-ext }"
-pkg-fmt = "tgz"
-
-[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
-pkg-fmt = "zip"
-
-[package.metadata.binstall.overrides.x86_64-apple-darwin]
-pkg-fmt = "zip"

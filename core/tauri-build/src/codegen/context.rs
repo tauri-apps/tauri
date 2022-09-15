@@ -11,6 +11,7 @@ use std::{
 };
 use tauri_codegen::{context_codegen, ContextData};
 use tauri_utils::config::{AppUrl, WindowUrl};
+use tracing::*;
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
@@ -86,11 +87,15 @@ impl CodegenContext {
   pub fn build(self) -> PathBuf {
     match self.try_build() {
       Ok(out) => out,
-      Err(error) => panic!("Error found during Codegen::build: {}", error),
+      Err(error) => {
+        error!("Error found during CodegenContext::build: {}", error);
+        panic!("Error found during CodegenContext::build: {}", error);
+      }
     }
   }
 
   /// Non-panicking [`Self::build`]
+  #[instrument(level = "trace")]
   pub fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
 
@@ -100,6 +105,9 @@ impl CodegenContext {
     } else {
       &config.build.dist_dir
     };
+
+    trace!(dev = self.dev, "build_path: {}", app_url);
+
     match app_url {
       AppUrl::Url(WindowUrl::App(p)) => {
         println!("cargo:rerun-if-changed={}", config_parent.join(p).display());

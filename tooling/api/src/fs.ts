@@ -545,6 +545,7 @@ async function renameFile(
 
 /**
  * Check if a path exists.
+ * @since 1.1.0
  * @example
  * ```typescript
  * import { exists, BaseDirectory } from '@tauri-apps/api/fs';

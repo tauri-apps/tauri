@@ -8,7 +8,7 @@ repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
 rust-version = "1.57"
-exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
@@ -40,9 +40,8 @@ semver = "1"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.37.0"
+version = "0.39.0"
 features = [
-  "alloc",
   "implement",
   "Win32_Foundation",
   "Win32_System_Com",

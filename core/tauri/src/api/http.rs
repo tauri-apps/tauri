@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -599,7 +599,7 @@ impl Response {
   /// # Examples
   ///
   /// ```no_run
-  /// use futures::StreamExt;
+  /// use futures_util::StreamExt;
   ///
   /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
   /// let client = tauri::api::http::ClientBuilder::new().build()?;
@@ -617,8 +617,8 @@ impl Response {
   #[allow(dead_code)]
   pub(crate) fn bytes_stream(
     self,
-  ) -> impl futures::Stream<Item = crate::api::Result<bytes::Bytes>> {
-    use futures::StreamExt;
+  ) -> impl futures_util::Stream<Item = crate::api::Result<bytes::Bytes>> {
+    use futures_util::StreamExt;
     self.1.bytes_stream().map(|res| res.map_err(Into::into))
   }
 

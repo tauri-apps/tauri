@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -473,7 +474,7 @@ impl SettingsBuilder {
   ///
   /// Package settings will be read from Cargo.toml.
   ///
-  /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
+  /// Bundle settings will be read from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn build(self) -> crate::Result<Settings> {
     let target = if let Some(t) = self.target {
       t

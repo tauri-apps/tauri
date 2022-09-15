@@ -15,7 +15,6 @@ description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
 rust-version = "1.57"
 exclude = [
-  ".license_template",
   "CHANGELOG.md",
   "/target",
   "rustfmt.toml"
@@ -50,7 +49,7 @@ zip = "0.6"
 semver = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-icns = "0.3"
+icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = [ "formatting" ] }
 plist = "1"
 

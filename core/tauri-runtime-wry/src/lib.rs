@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -138,11 +138,7 @@ impl WebviewIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  pub fn get(&self, w: &WindowId) -> WebviewId {
-    *self.0.lock().unwrap().get(w).unwrap()
-  }
-
-  fn try_get(&self, w: &WindowId) -> Option<WebviewId> {
+  fn get(&self, w: &WindowId) -> Option<WebviewId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -2579,7 +2575,7 @@ fn handle_event_loop<T: UserEvent>(
       };
       let window_menu_event_listeners = {
         // on macOS the window id might be the inspector window if it is detached
-        let window_id = if let Some(window_id) = webview_id_map.try_get(&window_id) {
+        let window_id = if let Some(window_id) = webview_id_map.get(&window_id) {
           window_id
         } else {
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
@@ -2672,68 +2668,52 @@ fn handle_event_loop<T: UserEvent>(
     Event::WindowEvent {
       event, window_id, ..
     } => {
-      let window_id = webview_id_map.get(&window_id);
-      // NOTE(amrbashir): we handle this event here instead of `match` statement below because
-      // we want to focus the webview as soon as possible, especially on windows.
-      if event == WryWindowEvent::Focused(true) {
-        let w = windows
-          .borrow()
-          .get(&window_id)
-          .and_then(|w| w.inner.clone());
-        if let Some(WindowHandle::Webview(webview)) = w {
-          // only focus the webview if the window is visible
-          // somehow tao is sending a Focused(true) event even when the window is invisible,
-          // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
-          if webview.window().is_visible() {
-            webview.focus();
-          }
-        }
-      }
+      if let Some(window_id) = webview_id_map.get(&window_id) {
+        {
+          let windows_ref = windows.borrow();
+          if let Some(window) = windows_ref.get(&window_id) {
+            if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
+              let label = window.label.clone();
+              let window_event_listeners = window.window_event_listeners.clone();
 
-      {
-        let windows_ref = windows.borrow();
-        if let Some(window) = windows_ref.get(&window_id) {
-          if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
-            let label = window.label.clone();
-            let window_event_listeners = window.window_event_listeners.clone();
+              drop(windows_ref);
 
-            drop(windows_ref);
-
-            callback(RunEvent::WindowEvent {
-              label,
-              event: event.clone(),
-            });
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
-
-      match event {
-        WryWindowEvent::CloseRequested => {
-          on_close_requested(callback, window_id, windows.clone());
-        }
-        WryWindowEvent::Destroyed => {
-          let removed = windows.borrow_mut().remove(&window_id).is_some();
-          if removed {
-            let is_empty = windows.borrow().is_empty();
-            if is_empty {
-              let (tx, rx) = channel();
-              callback(RunEvent::ExitRequested { tx });
-
-              let recv = rx.try_recv();
-              let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
-
-              if !should_prevent {
-                *control_flow = ControlFlow::Exit;
+              callback(RunEvent::WindowEvent {
+                label,
+                event: event.clone(),
+              });
+              let listeners = window_event_listeners.lock().unwrap();
+              let handlers = listeners.values();
+              for handler in handlers {
+                handler(&event);
               }
             }
           }
         }
-        _ => {}
+
+        match event {
+          WryWindowEvent::CloseRequested => {
+            on_close_requested(callback, window_id, windows.clone());
+          }
+          WryWindowEvent::Destroyed => {
+            let removed = windows.borrow_mut().remove(&window_id).is_some();
+            if removed {
+              let is_empty = windows.borrow().is_empty();
+              if is_empty {
+                let (tx, rx) = channel();
+                callback(RunEvent::ExitRequested { tx });
+
+                let recv = rx.try_recv();
+                let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                if !should_prevent {
+                  *control_flow = ControlFlow::Exit;
+                }
+              }
+            }
+          }
+          _ => {}
+        }
       }
     }
     Event::UserEvent(message) => match message {
@@ -2983,7 +2963,7 @@ fn create_webview<T: UserEvent>(
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
@@ -2996,7 +2976,7 @@ fn create_webview<T: UserEvent>(
     .unwrap();
     unsafe {
       controller.add_LostFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
@@ -3027,7 +3007,7 @@ fn create_ipc_handler<T: UserEvent>(
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
   Box::new(move |window, request| {
-    let window_id = context.webview_id_map.get(&window.id());
+    let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {

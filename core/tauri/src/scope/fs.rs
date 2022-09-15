@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -32,7 +32,7 @@ type EventListener = Box<dyn Fn(&Event) + Send>;
 /// Scope for filesystem access.
 #[derive(Clone)]
 pub struct Scope {
-  alllowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
+  allowed_patterns: Arc<Mutex<HashSet<Pattern>>>,
   forbidden_patterns: Arc<Mutex<HashSet<Pattern>>>,
   event_listeners: Arc<Mutex<HashMap<Uuid, EventListener>>>,
 }
@@ -41,9 +41,9 @@ impl fmt::Debug for Scope {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Scope")
       .field(
-        "alllowed_patterns",
+        "allowed_patterns",
         &self
-          .alllowed_patterns
+          .allowed_patterns
           .lock()
           .unwrap()
           .iter()
@@ -86,10 +86,10 @@ impl Scope {
     env: &Env,
     scope: &FsAllowlistScope,
   ) -> crate::Result<Self> {
-    let mut alllowed_patterns = HashSet::new();
+    let mut allowed_patterns = HashSet::new();
     for path in scope.allowed_paths() {
       if let Ok(path) = parse_path(config, package_info, env, path) {
-        push_pattern(&mut alllowed_patterns, path)?;
+        push_pattern(&mut allowed_patterns, path)?;
       }
     }
 
@@ -103,7 +103,7 @@ impl Scope {
     }
 
     Ok(Self {
-      alllowed_patterns: Arc::new(Mutex::new(alllowed_patterns)),
+      allowed_patterns: Arc::new(Mutex::new(allowed_patterns)),
       forbidden_patterns: Arc::new(Mutex::new(forbidden_patterns)),
       event_listeners: Default::default(),
     })
@@ -111,7 +111,7 @@ impl Scope {
 
   /// The list of allowed patterns.
   pub fn allowed_patterns(&self) -> HashSet<Pattern> {
-    self.alllowed_patterns.lock().unwrap().clone()
+    self.allowed_patterns.lock().unwrap().clone()
   }
 
   /// The list of forbidden patterns.
@@ -141,7 +141,7 @@ impl Scope {
   pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
     let path = path.as_ref().to_path_buf();
     {
-      let mut list = self.alllowed_patterns.lock().unwrap();
+      let mut list = self.allowed_patterns.lock().unwrap();
 
       // allow the directory to be read
       push_pattern(&mut list, &path)?;
@@ -157,7 +157,7 @@ impl Scope {
   /// After this function has been called, the frontend will be able to use the Tauri API to read the contents of this file.
   pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     let path = path.as_ref();
-    push_pattern(&mut self.alllowed_patterns.lock().unwrap(), &path)?;
+    push_pattern(&mut self.allowed_patterns.lock().unwrap(), &path)?;
     self.trigger(Event::PathAllowed(path.to_path_buf()));
     Ok(())
   }
@@ -212,7 +212,7 @@ impl Scope {
         false
       } else {
         let allowed = self
-          .alllowed_patterns
+          .allowed_patterns
           .lock()
           .unwrap()
           .iter()

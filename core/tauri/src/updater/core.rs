@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -363,7 +363,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     let mut last_error: Option<Error> = None;
     for url in &self.urls {
       // replace {{current_version}}, {{target}} and {{arch}} in the provided URL
-      // this is usefull if we need to query example
+      // this is useful if we need to query example
       // https://releases.myapp.com/update/{{target}}/{{arch}}/{{current_version}}
       // will be translated into ->
       // https://releases.myapp.com/update/darwin/aarch64/1.0.0
@@ -420,7 +420,7 @@ impl<R: Runtime> UpdateBuilder<R> {
     // Extracted remote metadata
     let final_release = remote_release.ok_or(Error::ReleaseNotFound)?;
 
-    // did the announced version is greated than our current one?
+    // is the announced version greater than our current one?
     let should_update = if let Some(comparator) = self.should_install.take() {
       comparator(&self.current_version, &final_release)
     } else {
@@ -520,7 +520,7 @@ impl<R: Runtime> Update<R> {
     // We fail here because later we can add more linux support
     // actually if we use APPIMAGE, our extract path should already
     // be set with our APPIMAGE env variable, we don't need to do
-    // anythin with it yet
+    // anything with it yet
     #[cfg(target_os = "linux")]
     if self.app.state::<Env>().appimage.is_none() {
       return Err(Error::UnsupportedLinuxPackage);
@@ -563,7 +563,7 @@ impl<R: Runtime> Update<R> {
     let mut buffer = Vec::new();
     #[cfg(feature = "reqwest-client")]
     {
-      use futures::StreamExt;
+      use futures_util::StreamExt;
       let mut stream = response.bytes_stream();
       while let Some(chunk) = stream.next().await {
         let chunk = chunk?;
@@ -1309,7 +1309,7 @@ mod test {
   }
 
   #[test]
-  fn http_updater_fallback_urls_withs_array() {
+  fn http_updater_fallback_urls_with_array() {
     let _m = mockito::mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")

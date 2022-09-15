@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -9,6 +9,8 @@ use crate::{
 use state::Container;
 
 /// A guard for a state value.
+///
+/// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
 pub struct State<'r, T: Send + Sync + 'static>(&'r T);
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {

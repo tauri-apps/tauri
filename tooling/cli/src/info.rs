@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -927,7 +927,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> crate::Result<Pa
 
   if found.len() > 1 {
     return Err(anyhow::anyhow!(
-        "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
+        "only one package manager should be used, but found {}\nplease remove unused package manager lock files",
         found.join(" and ")
       ));
   }

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -197,9 +197,15 @@ impl Cmd {
       path,
       dir,
     )?;
-    dir::read_dir(&resolved_path, recursive)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
+    dir::read_dir_with_options(
+      &resolved_path,
+      recursive,
+      dir::ReadDirOptions {
+        scope: Some(&context.window.state::<Scopes>().fs),
+      },
+    )
+    .with_context(|| format!("path: {}", resolved_path.display()))
+    .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file)]

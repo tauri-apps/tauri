@@ -3,7 +3,7 @@ authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
@@ -85,6 +85,7 @@ infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.1", optional = true }
 encoding_rs = "0.8.31"
+tracing = "0.1"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true }

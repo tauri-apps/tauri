@@ -29,6 +29,7 @@ semver = "1"
 ico = "0.1"
 png = "0.17"
 json-patch = "0.2"
+tracing = "0.1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"

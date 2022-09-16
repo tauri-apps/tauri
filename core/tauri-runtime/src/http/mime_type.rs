@@ -2,7 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::fmt;
+use std::{
+  collections::HashMap,
+  fmt,
+  sync::{Arc, Mutex},
+};
+
+/// key is uri/path, value is the store mime type
+#[derive(Debug, Clone)]
+pub struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
+
+impl MimeTypeCache {
+  pub fn new() -> Self {
+    Self(Arc::new(Mutex::new(HashMap::new())))
+  }
+
+  pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
+    let mut cache = self.0.lock().unwrap();
+    let uri = uri.to_string();
+    if let Some(mime_type) = cache.get(&uri) {
+      mime_type.clone()
+    } else {
+      let mime_type = MimeType::parse(content, &uri);
+      cache.insert(uri, mime_type.clone());
+      mime_type
+    }
+  }
+}
 
 const MIMETYPE_PLAIN: &str = "text/plain";
 

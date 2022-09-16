@@ -32,9 +32,12 @@ use crate::scope::ShellScope;
 
 use raw_window_handle::HasRawDisplayHandle;
 use tauri_macros::default_runtime;
-use tauri_runtime::window::{
-  dpi::{PhysicalPosition, PhysicalSize},
-  FileDropEvent,
+use tauri_runtime::{
+  http::MimeTypeCache,
+  window::{
+    dpi::{PhysicalPosition, PhysicalSize},
+    FileDropEvent,
+  },
 };
 use tauri_utils::PackageInfo;
 
@@ -1499,6 +1502,8 @@ impl<R: Runtime> Builder<R> {
       #[cfg(shell_scope)]
       shell: ShellScope::new(shell_scope),
     });
+    #[cfg(protocol_asset)]
+    app.manage(MimeTypeCache::new());
     app.manage(env);
 
     #[cfg(windows)]

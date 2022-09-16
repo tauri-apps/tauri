@@ -8,7 +8,7 @@ mod request;
 mod response;
 
 pub use self::{
-  mime_type::MimeType,
+  mime_type::{MimeType, MimeTypeCache},
   request::{Request, RequestParts},
   response::{Builder as ResponseBuilder, Response, ResponseParts},
 };

@@ -36,7 +36,7 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     http::{
-      MimeType, Request as HttpRequest, Response as HttpResponse,
+      MimeType, MimeTypeCache, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::{WebviewIpcHandler, WindowBuilder},
@@ -507,7 +507,9 @@ impl<R: Runtime> WindowManager<R> {
       use crate::api::file::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
-      let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
+      let state = self.state();
+      let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
+      let mime_type_cache = state.get::<MimeTypeCache>().inner().clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -626,21 +628,7 @@ impl<R: Runtime> WindowManager<R> {
             response = response.header(k, v);
           }
 
-          let mime_type = {
-            use once_cell::sync::Lazy;
-            static MIME_TYPES_CACHE: Lazy<Arc<Mutex<HashMap<String, String>>>> =
-              Lazy::new(Default::default);
-
-            let mut cache = MIME_TYPES_CACHE.lock().unwrap();
-            if let Some(mime_type) = cache.get(&path) {
-              mime_type.clone()
-            } else {
-              let mime_type = MimeType::parse(&data, &path);
-              cache.insert(path, mime_type.clone());
-              mime_type
-            }
-          };
-
+          let mime_type = mime_type_cache.get_or_insert(&data, &path);
           response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {

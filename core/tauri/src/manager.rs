@@ -626,7 +626,21 @@ impl<R: Runtime> WindowManager<R> {
             response = response.header(k, v);
           }
 
-          let mime_type = MimeType::parse(&data, &path);
+          let mime_type = {
+            use once_cell::sync::Lazy;
+            static MIME_TYPES_CACHE: Lazy<Arc<Mutex<HashMap<String, String>>>> =
+              Lazy::new(Default::default);
+
+            let mut cache = MIME_TYPES_CACHE.lock().unwrap();
+            if let Some(mime_type) = cache.get(&path) {
+              mime_type.clone()
+            } else {
+              let mime_type = MimeType::parse(&data, &path);
+              cache.insert(path, mime_type.clone());
+              mime_type
+            }
+          };
+
           response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {

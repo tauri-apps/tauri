@@ -1,11 +1,10 @@
 {
-  "$schema": "../../../tooling/config-schema/schema.json",
+  "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev --host",
-    "beforeBuildCommand": "yarn build",
-    "withGlobalTauri": true
+    "beforeBuildCommand": "yarn build"
   },
   "package": {
     "productName": "Tauri API",
@@ -33,11 +32,7 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": [
-            "light",
-            "dark",
-            "system"
-          ]
+          "possibleValues": ["light", "dark", "system"]
         },
         {
           "short": "v",
@@ -92,15 +87,8 @@
       "all": true,
       "fs": {
         "scope": {
-          "allow": [
-            "$APP/**",
-            "$APP",
-            "$DOWNLOAD/**",
-            "$RESOURCE/**"
-          ],
-          "deny": [
-            "$APP/db/*.stronghold"
-          ]
+          "allow": ["$APP/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
         }
       },
       "shell": {
@@ -109,52 +97,31 @@
           {
             "name": "sh",
             "cmd": "sh",
-            "args": [
-              "-c",
-              {
-                "validator": "\\S+"
-              }
-            ]
+            "args": ["-c", { "validator": "\\S+" }]
           },
           {
             "name": "cmd",
             "cmd": "cmd",
-            "args": [
-              "/C",
-              {
-                "validator": "\\S+"
-              }
-            ]
+            "args": ["/C", { "validator": "\\S+" }]
           }
         ]
       },
       "protocol": {
         "asset": true,
         "assetScope": {
-          "allow": [
-            "$APP/db/**",
-            "$RESOURCE/**"
-          ],
-          "deny": [
-            "$APP/db/*.stronghold"
-          ]
+          "allow": ["$APP/db/**", "$RESOURCE/**"],
+          "deny": ["$APP/db/*.stronghold"]
         }
       },
       "http": {
-        "scope": [
-          "http://**",
-          "https://**",
-          "file://**"
-        ]
+        "scope": ["http://localhost:3003"]
       }
     },
     "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
-        "font-src": [
-          "https://fonts.gstatic.com"
-        ],
+        "font-src": ["https://fonts.gstatic.com"],
         "img-src": "'self' asset: https://asset.localhost blob: data:",
         "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
       },

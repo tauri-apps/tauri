@@ -1417,6 +1417,20 @@ impl Allowlist for WindowAllowlistConfig {
       check_feature!(self, features, set_focus, "window-set-focus");
       check_feature!(self, features, set_icon, "window-set-icon");
       check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
+      check_feature!(self, features, set_cursor_grab, "window-set-cursor-grab");
+      check_feature!(
+        self,
+        features,
+        set_cursor_visible,
+        "window-set-cursor-visible"
+      );
+      check_feature!(self, features, set_cursor_icon, "window-set-cursor-icon");
+      check_feature!(
+        self,
+        features,
+        set_cursor_position,
+        "window-set-cursor-position"
+      );
       check_feature!(self, features, start_dragging, "window-start-dragging");
       check_feature!(self, features, print, "window-print");
       features

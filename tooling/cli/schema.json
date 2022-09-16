@@ -100,6 +100,10 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
@@ -362,6 +366,10 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setCursorGrab": false,
+              "setCursorIcon": false,
+              "setCursorPosition": false,
+              "setCursorVisible": false,
               "setDecorations": false,
               "setFocus": false,
               "setFullscreen": false,
@@ -1528,6 +1536,10 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
@@ -1897,6 +1909,26 @@
         },
         "setSkipTaskbar": {
           "description": "Allows setting the skip_taskbar flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorGrab": {
+          "description": "Allows grabbing the cursor.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorVisible": {
+          "description": "Allows setting the cursor visibility.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorIcon": {
+          "description": "Allows changing the cursor icon.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorPosition": {
+          "description": "Allows setting the cusror position.",
           "default": false,
           "type": "boolean"
         },

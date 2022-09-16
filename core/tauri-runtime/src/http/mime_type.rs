@@ -9,7 +9,7 @@ use std::{
 };
 
 /// key is uri/path, value is the store mime type
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
 
 impl MimeTypeCache {

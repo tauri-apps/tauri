@@ -1331,7 +1331,7 @@ pub struct WindowAllowlistConfig {
   /// Allows changing the cursor icon.
   #[serde(default, alias = "set-cursor-icon")]
   pub set_cursor_icon: bool,
-  /// Allows setting the cusror position.
+  /// Allows setting the cursor position.
   #[serde(default, alias = "set-cursor-position")]
   pub set_cursor_position: bool,
   /// Allows start dragging on the window.

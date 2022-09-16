@@ -1928,7 +1928,7 @@
           "type": "boolean"
         },
         "setCursorPosition": {
-          "description": "Allows setting the cusror position.",
+          "description": "Allows setting the cursor position.",
           "default": false,
           "type": "boolean"
         },

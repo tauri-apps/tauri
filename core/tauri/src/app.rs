@@ -1500,7 +1500,7 @@ impl<R: Runtime> Builder<R> {
       shell: ShellScope::new(shell_scope),
     });
     #[cfg(protocol_asset)]
-    app.manage(tauri_runtime::MimeTypeCache::new());
+    app.manage(tauri_runtime::http::MimeTypeCache::new());
     app.manage(env);
 
     #[cfg(windows)]

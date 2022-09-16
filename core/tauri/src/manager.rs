@@ -36,7 +36,7 @@ use crate::{
   plugin::PluginStore,
   runtime::{
     http::{
-      MimeType, MimeTypeCache, Request as HttpRequest, Response as HttpResponse,
+      MimeType, Request as HttpRequest, Response as HttpResponse,
       ResponseBuilder as HttpResponseBuilder,
     },
     webview::{WebviewIpcHandler, WindowBuilder},
@@ -509,7 +509,7 @@ impl<R: Runtime> WindowManager<R> {
       use url::Position;
       let state = self.state();
       let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
-      let mime_type_cache = state.get::<MimeTypeCache>().inner().clone();
+      let mime_type_cache = state.get::<crate::http::MimeTypeCache>().inner().clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];

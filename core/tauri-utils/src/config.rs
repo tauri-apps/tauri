@@ -1322,6 +1322,18 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the skip_taskbar flag of the window.
   #[serde(default, alias = "set-skip-taskbar")]
   pub set_skip_taskbar: bool,
+  /// Allows grabbing the cursor.
+  #[serde(default, alias = "set-cursor-grab")]
+  pub set_cursor_grab: bool,
+  /// Allows setting the cursor visibility.
+  #[serde(default, alias = "set-cursor-visible")]
+  pub set_cursor_visible: bool,
+  /// Allows changing the cursor icon.
+  #[serde(default, alias = "set-cursor-icon")]
+  pub set_cursor_icon: bool,
+  /// Allows setting the cursor position.
+  #[serde(default, alias = "set-cursor-position")]
+  pub set_cursor_position: bool,
   /// Allows start dragging on the window.
   #[serde(default, alias = "start-dragging")]
   pub start_dragging: bool,
@@ -1356,6 +1368,10 @@ impl Allowlist for WindowAllowlistConfig {
       set_focus: true,
       set_icon: true,
       set_skip_taskbar: true,
+      set_cursor_grab: true,
+      set_cursor_visible: true,
+      set_cursor_icon: true,
+      set_cursor_position: true,
       start_dragging: true,
       print: true,
     };

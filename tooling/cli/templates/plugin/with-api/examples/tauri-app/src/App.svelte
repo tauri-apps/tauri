@@ -1,7 +1,5 @@
 <script>
   import Greet from './lib/Greet.svelte'
-	import { getCurrent } from '@tauri-apps/api/window'
-
   import { execute } from 'tauri-plugin-{{ plugin_name }}-api'
 
 	let response = ''
@@ -12,15 +10,6 @@
 
 	function _execute() {
 		execute().then(updateResponse).catch(updateResponse)
-	}
-
-	const webview = getCurrent()
-	const handleFullscreen = async () => {
-		await webview.setFullscreen(!(await webview.isFullscreen()))
-	}
-
-	const handleClose = async () => {
-		await webview.close()
 	}
 </script>
 

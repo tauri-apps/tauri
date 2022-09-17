@@ -46,7 +46,6 @@ colored = "2.0"
 once_cell = "1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "2.0"
 notify = "4.0"
 shared_child = "1.0"
 toml_edit = "0.14"
@@ -63,7 +62,6 @@ os_info = "3.5"
 semver = "1.0"
 regex = "1.6.0"
 lazy_static = "1"
-terminal_size = "0.2"
 unicode-width = "0.1"
 tempfile = "3"
 zeroize = "1.5"
@@ -93,7 +91,6 @@ tauri-utils = { version = "1.0.0", features = [ "schema", "isolation" ], path = 
 schemars = { version = "0.8", features = [ "url", "preserve_order" ] }
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
-serde_with = "2.0"
 url = { version = "2.3", features = [ "serde" ] }
 
 [profile.release]

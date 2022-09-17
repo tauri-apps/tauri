@@ -2,6 +2,7 @@ use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target}
 use crate::CommandExt;
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{

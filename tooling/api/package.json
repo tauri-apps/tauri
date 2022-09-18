@@ -49,9 +49,9 @@
     "@rollup/plugin-node-resolve": "13.3.0",
     "@rollup/plugin-sucrase": "4.0.4",
     "@rollup/plugin-typescript": "8.5.0",
-    "@typescript-eslint/eslint-plugin": "5.36.2",
-    "@typescript-eslint/parser": "5.36.2",
-    "eslint": "8.23.0",
+    "@typescript-eslint/eslint-plugin": "5.37.0",
+    "@typescript-eslint/parser": "5.37.0",
+    "eslint": "8.23.1",
     "eslint-config-prettier": "8.5.0",
     "eslint-config-standard-with-typescript": "22.0.0",
     "eslint-plugin-import": "2.26.0",
@@ -67,7 +67,7 @@
     "tslib": "2.4.0",
     "typedoc": "0.23.14",
     "typedoc-plugin-markdown": "3.13.6",
-    "typedoc-plugin-mdn-links": "^2.0.0",
-    "typescript": "4.8.2"
+    "typedoc-plugin-mdn-links": "2.0.0",
+    "typescript": "4.8.3"
   }
 }

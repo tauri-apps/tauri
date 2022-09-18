@@ -64,7 +64,7 @@ ignore = "0.4"
 flate2 = "1.0"
 http = "0.2"
 dirs-next = "2.0"
-percent-encoding = "2.1"
+percent-encoding = "2.2"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
@@ -79,7 +79,7 @@ time = { version = "0.3", features = [ "parsing", "formatting" ], optional = tru
 os_info = { version = "3.5.0", optional = true }
 regex = { version = "1.6.0", optional = true }
 glob = "0.3"
-data-url = { version = "0.1", optional = true }
+data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }

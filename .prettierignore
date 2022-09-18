@@ -6,8 +6,6 @@ node_modules
 target
 dist
 /core/tauri/scripts
-/core/tauri/bundle.js
-/core/tauri/hotkey.js
 /tooling/cli/templates
 /tooling/cli/node
 /tooling/cli/schema.json

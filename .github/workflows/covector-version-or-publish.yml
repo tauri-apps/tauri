@@ -155,7 +155,9 @@ jobs:
           body: ${{ steps.covector.outputs.change }}
 
       - name: Trigger doc update
-        if: steps.covector.outputs.successfulPublish == 'true'
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          steps.covector.outputs.packagesPublished != ''
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.TAURI_BOT_PAT }}

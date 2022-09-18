@@ -68,6 +68,7 @@
  * @module
  */
 
+import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
 
 enum BaseDirectory {
@@ -195,6 +196,29 @@ interface FileInfo {
    * _Linux/Mac OS only._
    */
   blocks: number | null
+}
+
+function parseFileInfo(response: any): FileInfo {
+  const unix = !isWindows()
+  return {
+    isFile: response.isFile,
+    isDirectory: response.isDirectory,
+    isSymlink: response.isSymlink,
+    size: response.size,
+    mtime: response.mtime != null ? new Date(response.mtime) : null,
+    atime: response.atime != null ? new Date(response.atime) : null,
+    birthtime: response.birthtime != null ? new Date(response.birthtime) : null,
+    // Only non-null if on Unix
+    dev: unix ? response.dev : null,
+    ino: unix ? response.ino : null,
+    mode: unix ? response.mode : null,
+    nlink: unix ? response.nlink : null,
+    uid: unix ? response.uid : null,
+    gid: unix ? response.gid : null,
+    rdev: unix ? response.rdev : null,
+    blksize: unix ? response.blksize : null,
+    blocks: unix ? response.blocks : null
+  }
 }
 
 /** The Tauri abstraction for reading and writing files. */
@@ -804,7 +828,7 @@ async function stat(
   path: string | URL,
   options?: StatOptions
 ): Promise<FileInfo> {
-  return invokeTauriCommand({
+  const res = await invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'stat',
@@ -812,6 +836,8 @@ async function stat(
       options
     }
   })
+
+  return parseFileInfo(res)
 }
 
 /**
@@ -830,7 +856,7 @@ async function lstat(
   path: string | URL,
   options?: StatOptions
 ): Promise<FileInfo> {
-  return invokeTauriCommand({
+  const res = await invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'lstat',
@@ -838,6 +864,8 @@ async function lstat(
       options
     }
   })
+
+  return parseFileInfo(res)
 }
 
 /**
@@ -852,13 +880,15 @@ async function lstat(
  * ```
  */
 async function fstat(rid: number): Promise<FileInfo> {
-  return invokeTauriCommand({
+  const res = await invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {
       cmd: 'fstat',
       rid
     }
   })
+
+  return parseFileInfo(res)
 }
 
 interface TruncateOptions {

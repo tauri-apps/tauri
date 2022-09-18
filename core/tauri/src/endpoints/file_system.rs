@@ -592,7 +592,6 @@ impl Cmd {
       options.as_ref().and_then(|o| o.base_dir),
       false,
     )?;
-    dbg!(&resolved_path);
     let metadata = fs::symlink_metadata(&resolved_path)?;
     Ok(get_stat(metadata))
   }

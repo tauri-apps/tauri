@@ -144,61 +144,96 @@ interface FileInfo {
   /**
    * ID of the device containing the file.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   dev: number | null
   /**
    * Inode number.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   ino: number | null
   /**
    * The underlying raw `st_mode` bits that contain the standard Unix
    * permissions for this file/directory.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   mode: number | null
   /**
    * Number of hard links pointing to this file.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   nlink: number | null
   /**
    * User ID of the owner of this file.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   uid: number | null
   /**
    * Group ID of the owner of this file.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   gid: number | null
   /**
    * Device ID of this file.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   rdev: number | null
   /**
    * Blocksize for filesystem I/O.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   blksize: number | null
   /**
    * Number of blocks allocated to the file, in 512-byte units.
    *
-   * _Linux/Mac OS only._
+   * #### Platform-specific
+   *
+   * - **Windows:** Unsupported.
    */
   blocks: number | null
 }
 
-function parseFileInfo(response: any): FileInfo {
+function parseFileInfo(response: {
+  isFile: boolean
+  isDirectory: boolean
+  isSymlink: boolean
+  size: number
+  mtime: Date | null
+  atime: Date | null
+  birthtime: Date | null
+  dev: number
+  ino: number
+  mode: number
+  nlink: number
+  uid: number
+  gid: number
+  rdev: number
+  blksize: number
+  blocks: number
+}): FileInfo {
   const unix = !isWindows()
   return {
     isFile: response.isFile,

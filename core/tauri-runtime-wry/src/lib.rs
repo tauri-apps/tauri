@@ -1520,8 +1520,28 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
 #[derive(Clone)]
 enum WindowHandle {
-  Webview(Arc<WebView>),
+  Webview {
+    inner: Arc<WebView>,
+    context_store: WebContextStore,
+    // the key of the WebContext if it's not shared
+    context_key: Option<PathBuf>,
+  },
   Window(Arc<Window>),
+}
+
+impl Drop for WindowHandle {
+  fn drop(&mut self) {
+    if let Self::Webview {
+      inner,
+      context_store,
+      context_key,
+    } = self
+    {
+      if Arc::get_mut(inner).is_some() {
+        context_store.lock().unwrap().remove(context_key);
+      }
+    }
+  }
 }
 
 impl fmt::Debug for WindowHandle {
@@ -1536,7 +1556,7 @@ impl Deref for WindowHandle {
   #[inline(always)]
   fn deref(&self) -> &Window {
     match self {
-      Self::Webview(w) => w.window(),
+      Self::Webview { inner, .. } => inner.window(),
       Self::Window(w) => w,
     }
   }
@@ -1546,7 +1566,7 @@ impl WindowHandle {
   fn inner_size(&self) -> WryPhysicalSize<u32> {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
-      WindowHandle::Webview(w) => w.inner_size(),
+      WindowHandle::Webview { inner, .. } => inner.inner_size(),
     }
   }
 }
@@ -2168,7 +2188,7 @@ fn handle_user_message<T: UserEvent>(
           match window_message {
             #[cfg(desktop)]
             WindowMessage::WithWebview(f) => {
-              if let WindowHandle::Webview(w) = window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 #[cfg(any(
                   target_os = "linux",
                   target_os = "dragonfly",
@@ -2209,19 +2229,19 @@ fn handle_user_message<T: UserEvent>(
 
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::OpenDevTools => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 w.open_devtools();
               }
             }
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::CloseDevTools => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 w.close_devtools();
               }
             }
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::IsDevToolsOpen(tx) => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 tx.send(w.is_devtools_open()).unwrap();
               } else {
                 tx.send(false).unwrap();
@@ -2357,7 +2377,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script) => {
-        if let Some(WindowHandle::Webview(webview)) =
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
@@ -2366,7 +2386,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::Print => {
-        if let Some(WindowHandle::Webview(webview)) =
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
@@ -2837,7 +2857,7 @@ fn to_wry_menu(
 fn create_webview<T: UserEvent>(
   window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
-  web_context: &WebContextStore,
+  web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
 ) -> Result<WindowWrapper> {
@@ -2916,19 +2936,18 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context.lock().expect("poisoned WebContext store");
+  let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
-  let entry = web_context.entry(
-    // force a unique WebContext when automation is false;
+  let web_context_key = // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
       webview_attributes.data_directory.clone()
     } else {
       // random unique key
       Some(Uuid::new_v4().as_hyphenated().to_string().into())
-    },
-  );
+    };
+  let entry = web_context.entry(web_context_key.clone());
   let web_context = match entry {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
@@ -2991,7 +3010,15 @@ fn create_webview<T: UserEvent>(
 
   Ok(WindowWrapper {
     label,
-    inner: Some(WindowHandle::Webview(Arc::new(webview))),
+    inner: Some(WindowHandle::Webview {
+      inner: Arc::new(webview),
+      context_store: web_context_store.clone(),
+      context_key: if automation_enabled {
+        None
+      } else {
+        web_context_key
+      },
+    }),
     menu_items,
     window_event_listeners,
     menu_event_listeners: Default::default(),

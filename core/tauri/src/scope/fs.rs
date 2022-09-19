@@ -139,7 +139,7 @@ impl Scope {
   /// After this function has been called, the frontend will be able to use the Tauri API to read
   /// the directory and all of its files and subdirectories.
   pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
-    let path = path.as_ref().to_path_buf();
+    let path = escape_pattern_in_path(path);
     {
       let mut list = self.allowed_patterns.lock().unwrap();
 
@@ -156,7 +156,7 @@ impl Scope {
   ///
   /// After this function has been called, the frontend will be able to use the Tauri API to read the contents of this file.
   pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
-    let path = path.as_ref();
+    let path = escape_pattern_in_path(path);
     push_pattern(&mut self.allowed_patterns.lock().unwrap(), &path)?;
     self.trigger(Event::PathAllowed(path.to_path_buf()));
     Ok(())
@@ -166,7 +166,7 @@ impl Scope {
   ///
   /// **Note:** this takes precedence over allowed paths, so its access gets denied **always**.
   pub fn forbid_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
-    let path = path.as_ref().to_path_buf();
+    let path = escape_pattern_in_path(path);
     {
       let mut list = self.forbidden_patterns.lock().unwrap();
 
@@ -183,7 +183,7 @@ impl Scope {
   ///
   /// **Note:** this takes precedence over allowed paths, so its access gets denied **always**.
   pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
-    let path = path.as_ref();
+    let path = escape_pattern_in_path(path);
     push_pattern(&mut self.forbidden_patterns.lock().unwrap(), &path)?;
     self.trigger(Event::PathForbidden(path.to_path_buf()));
     Ok(())
@@ -223,4 +223,9 @@ impl Scope {
       false
     }
   }
+}
+
+fn escape_pattern_in_path<P: AsRef<Path>>(p: P) -> PathBuf {
+  let p = p.as_ref().to_string_lossy();
+  PathBuf::from(glob::Pattern::escape(&p))
 }

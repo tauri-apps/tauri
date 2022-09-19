@@ -30,24 +30,17 @@ pub(crate) struct Scopes {
 impl Scopes {
   #[allow(dead_code)]
   pub(crate) fn allow_directory(&self, path: &Path, recursive: bool) -> crate::Result<()> {
-    let path = path.to_string_lossy();
-    let escaped_path = glob::Pattern::escape(&path);
-
-    self.fs.allow_directory(&escaped_path, recursive)?;
+    self.fs.allow_directory(path, recursive)?;
     #[cfg(protocol_asset)]
-    self
-      .asset_protocol
-      .allow_directory(&escaped_path, recursive)?;
+    self.asset_protocol.allow_directory(path, recursive)?;
     Ok(())
   }
 
   #[allow(dead_code)]
   pub(crate) fn allow_file(&self, path: &Path) -> crate::Result<()> {
-    let path = path.to_string_lossy();
-    let escaped_path = glob::Pattern::escape(&path);
-    self.fs.allow_file(&escaped_path)?;
+    self.fs.allow_file(path)?;
     #[cfg(protocol_asset)]
-    self.asset_protocol.allow_file(&escaped_path)?;
+    self.asset_protocol.allow_file(path)?;
     Ok(())
   }
 }

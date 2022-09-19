@@ -158,7 +158,7 @@ impl Scope {
   pub fn allow_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     let path = escape_pattern_in_path(path);
     push_pattern(&mut self.allowed_patterns.lock().unwrap(), &path)?;
-    self.trigger(Event::PathAllowed(path.to_path_buf()));
+    self.trigger(Event::PathAllowed(path));
     Ok(())
   }
 
@@ -185,7 +185,7 @@ impl Scope {
   pub fn forbid_file<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
     let path = escape_pattern_in_path(path);
     push_pattern(&mut self.forbidden_patterns.lock().unwrap(), &path)?;
-    self.trigger(Event::PathForbidden(path.to_path_buf()));
+    self.trigger(Event::PathForbidden(path));
     Ok(())
   }
 

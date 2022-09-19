@@ -107,7 +107,7 @@ pub fn create_tray<T>(
   {
     builder = builder
       .with_icon_as_template(system_tray.icon_as_template)
-      .with_icon_as_template(system_tray.menu_on_left_click)
+      .with_menu_on_left_click(system_tray.menu_on_left_click)
   }
 
   let tray = builder

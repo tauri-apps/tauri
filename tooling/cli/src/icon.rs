@@ -63,7 +63,7 @@ pub fn command(options: Options) -> Result<()> {
     Some(config_file) => {
       let mut f = File::open(config_file).context("Cannot read config")?;
       let mut buffer: Vec<u8> = Vec::new();
-      f.read_to_end(&mut buffer);
+      f.read_to_end(&mut buffer).context("Cannot read config")?;
       serde_json::from_slice(&buffer).context("Cannot parse config")?
     }
     _ => None,
@@ -186,7 +186,7 @@ fn ico(source: &DynamicImage, out_dir: &Path, config: Option<&IconFormatEntry>) 
 // Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, config: Option<&IconFormatEntry>) -> Result<()> {
   //if no config provided, use default
-  let (sizes, icon_name) = match config {
+  let (sizes, _icon_name) = match config {
     //TODO: implements icon_name
     Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
     None => (vec![32, 16, 24, 48, 64, 256], "any".to_string()),

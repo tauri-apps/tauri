@@ -160,7 +160,10 @@ macro_rules! window_getter {
   }};
 }
 
-fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) -> Result<()> {
+pub(crate) fn send_user_message<T: UserEvent>(
+  context: &Context<T>,
+  message: Message<T>,
+) -> Result<()> {
   if current_thread().id() == context.main_thread_id {
     handle_user_message(
       &context.main_thread.window_target,
@@ -1079,7 +1082,7 @@ pub enum TrayMessage {
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
   Create(SystemTray, Sender<Result<()>>),
-  Destroy,
+  Destroy(Sender<Result<()>>),
 }
 
 pub type CreateWebviewClosure<T> = Box<
@@ -1733,6 +1736,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     )?;
     rx.recv().unwrap()?;
     Ok(SystemTrayHandle {
+      context: self.context.clone(),
       id,
       proxy: self.context.proxy.clone(),
     })
@@ -1921,6 +1925,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       );
 
     Ok(SystemTrayHandle {
+      context: self.context.clone(),
       id,
       proxy: self.event_loop.create_proxy(),
     })
@@ -2480,10 +2485,11 @@ fn handle_user_message<T: UserEvent>(
           TrayMessage::Create(_tray, _tx) => {
             // already handled
           }
-          TrayMessage::Destroy => {
+          TrayMessage::Destroy(tx) => {
             *tray_context.tray.lock().unwrap() = None;
             tray_context.listeners.lock().unwrap().clear();
             tray_context.items.lock().unwrap().clear();
+            tx.send(Ok(())).unwrap();
           }
         }
       }
@@ -2612,14 +2618,13 @@ fn handle_event_loop<T: UserEvent>(
           items.contains_key(&menu_id.0)
         };
         if has_menu {
-          listeners.replace(tray_context.listeners.clone());
+          listeners.replace(tray_context.listeners.lock().unwrap().clone());
           tray_id = *id;
           break;
         }
       }
       drop(trays);
       if let Some(listeners) = listeners {
-        let listeners = listeners.lock().unwrap();
         let handlers = listeners.iter();
         for handler in handlers {
           handler(&event);

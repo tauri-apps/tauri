@@ -100,7 +100,7 @@ async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
 
   file
     .map(|mut f| {
-      let mime_type = MimeType::parse(&f, &uri);
+      let mime_type = MimeType::parse(&f, uri);
       if mime_type == MimeType::Html.to_string() {
         let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&f).into_owned());
         fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {

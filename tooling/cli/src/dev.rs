@@ -211,7 +211,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     .dev_path
     .clone();
   if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-    use crate::helpers::wev_dev_server::{start_dev_server, SERVER_URL};
+    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
     if path.exists() {
       let path = path.canonicalize()?;
       start_dev_server(path);

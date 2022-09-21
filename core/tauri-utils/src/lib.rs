@@ -14,6 +14,7 @@ pub mod assets;
 pub mod config;
 pub mod html;
 pub mod io;
+pub mod mime_type;
 pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]

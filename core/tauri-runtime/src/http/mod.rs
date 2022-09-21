@@ -8,10 +8,11 @@ mod request;
 mod response;
 
 pub use self::{
-  mime_type::MimeType,
   request::{Request, RequestParts},
   response::{Builder as ResponseBuilder, Response, ResponseParts},
 };
+
+pub use tauri_utils::mime_type::MimeType;
 
 // re-expose default http types
 pub use http::{header, method, status, uri::InvalidUri, version, Uri};

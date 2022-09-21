@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 // custom wry types
-mod mime_type;
 mod request;
 mod response;
 

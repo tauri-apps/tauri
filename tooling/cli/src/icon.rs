@@ -7,7 +7,7 @@ use crate::{helpers::app_paths::tauri_dir, Result};
 use std::{
   collections::HashMap,
   fs::{create_dir_all, File},
-  io::{BufWriter, Read, Write},
+  io::{BufReader, BufWriter, Write},
   path::{Path, PathBuf},
 };
 
@@ -61,10 +61,8 @@ pub fn command(options: Options) -> Result<()> {
   //load config json if possible.
   let icons_config: Option<HashMap<String, IconFormatEntry>> = match options.config {
     Some(config_file) => {
-      let mut f = File::open(config_file).context("Cannot read config")?;
-      let mut buffer: Vec<u8> = Vec::new();
-      f.read_to_end(&mut buffer).context("Cannot read config")?;
-      serde_json::from_slice(&buffer).context("Cannot parse config")?
+      let f = File::open(config_file).context("Cannot read config")?;
+      serde_json::from_reader(BufReader::new(f)).context("Cannot parse config")?
     }
     _ => None,
   };

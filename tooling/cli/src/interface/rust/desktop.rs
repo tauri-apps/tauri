@@ -344,7 +344,7 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
       .join(&product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
-    std::fs::create_dir_all(product_path.parent().unwrap());
+    std::fs::create_dir_all(product_path.parent().unwrap())?;
 
     rename(&bin_path, &product_path).with_context(|| {
       format!(

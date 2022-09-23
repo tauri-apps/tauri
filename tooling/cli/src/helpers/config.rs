@@ -139,13 +139,7 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     let result = schema.validate(&config);
     if let Err(errors) = result {
       for error in errors {
-        let path = error
-          .instance_path
-          .clone()
-          .into_vec()
-          .into_iter()
-          .collect::<String>()
-          .replace('/', " > ");
+        let path = error.instance_path.clone().into_vec().join(" > ");
         if path.is_empty() {
           eprintln!("`{config_file_name}` error: {}", error);
         } else {

@@ -147,9 +147,9 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
           .collect::<String>()
           .replace('/', " > ");
         if path.is_empty() {
-          eprintln!("`{config_file_name}` error: {:?}", error);
+          eprintln!("`{config_file_name}` error: {}", error);
         } else {
-          eprintln!("`{config_file_name}` error on `{}`: {:?}", path, error);
+          eprintln!("`{config_file_name}` error on `{}`: {}", path, error);
         }
       }
       exit(1);

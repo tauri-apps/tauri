@@ -533,9 +533,9 @@ async function videoDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}`.
- * - **macOS:** Resolves to `${homeDir}//Library/Logs/{bundleIdentifier}`
- * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}`.
+ * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * - **macOS:** Resolves to `${homeDir}/Library/Logs/{bundleIdentifier}`
+ * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
  * @example
  * ```typescript
  * import { logDir } from '@tauri-apps/api/path';

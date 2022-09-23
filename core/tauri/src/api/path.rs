@@ -472,9 +472,9 @@ pub fn app_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// ## Platform-specific
 ///
-/// - **Linux:** Resolves to `${config_dir}/${bundle_identifier}`.
+/// - **Linux:** Resolves to `${config_dir}/${bundle_identifier}/logs`.
 /// - **macOS:** Resolves to `${home_dir}//Library/Logs/{bundle_identifier}`
-/// - **Windows:** Resolves to `${config_dir}/${bundle_identifier}`.
+/// - **Windows:** Resolves to `${config_dir}/${bundle_identifier}/logs`.
 ///
 /// See [`PathResolver::log_dir`](crate::PathResolver#method.log_dir) for a more convenient helper function.
 pub fn log_dir(config: &Config) -> Option<PathBuf> {

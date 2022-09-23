@@ -48,7 +48,7 @@ async function appDir(): Promise<string> {
  *
  * @since 1.2.0
  */
- async function appConfigDir(): Promise<string> {
+async function appConfigDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -70,7 +70,7 @@ async function appDir(): Promise<string> {
  *
  * @since 1.2.0
  */
- async function appDataDir(): Promise<string> {
+async function appDataDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -92,7 +92,7 @@ async function appDir(): Promise<string> {
  *
  * @since 1.2.0
  */
- async function appLocalDataDir(): Promise<string> {
+async function appLocalDataDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -114,7 +114,7 @@ async function appDir(): Promise<string> {
  *
  * @since 1.2.0
  */
- async function appCacheDir(): Promise<string> {
+async function appCacheDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
@@ -610,7 +610,7 @@ async function videoDir(): Promise<string> {
  * @deprecated since 1.2.0: Will be removed in 2.0.0. Use {@link appLogDir} instead.
  * @since 1.0.0
  */
- async function logDir(): Promise<string> {
+async function logDir(): Promise<string> {
   return appLogDir()
 }
 

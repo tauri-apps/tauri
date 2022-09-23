@@ -102,7 +102,7 @@ export enum BaseDirectory {
   AppData,
   AppLocalData,
   AppCache,
-  AppLog,
+  AppLog
 }
 
 /**

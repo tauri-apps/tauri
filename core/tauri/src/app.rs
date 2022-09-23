@@ -314,13 +314,19 @@ impl PathResolver {
   }
 
   /// Returns the path to the suggested directory for your app's config files.
-  #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead.")]
+  #[deprecated(
+    since = "1.2.0",
+    note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead."
+  )]
   pub fn app_dir(&self) -> Option<PathBuf> {
     self.app_config_dir()
   }
 
   /// Returns the path to the suggested directory for your app's log files.
-  #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_log_dir` instead.")]
+  #[deprecated(
+    since = "1.2.0",
+    note = "Will be removed in 2.0.0. Use `app_log_dir` instead."
+  )]
   pub fn log_dir(&self) -> Option<PathBuf> {
     self.app_log_dir()
   }

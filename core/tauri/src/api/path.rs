@@ -65,12 +65,18 @@ mod base_directory {
     Resource,
     /// The default app config directory.
     /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
-    #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `BaseDirectory::AppConfig` or BaseDirectory::AppData` instead.")]
+    #[deprecated(
+      since = "1.2.0",
+      note = "Will be removed in 2.0.0. Use `BaseDirectory::AppConfig` or BaseDirectory::AppData` instead."
+    )]
     App,
     /// The default app log directory.
     /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
     /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
-    #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `BaseDirectory::AppLog` instead.")]
+    #[deprecated(
+      since = "1.2.0",
+      note = "Will be removed in 2.0.0. Use `BaseDirectory::AppLog` instead."
+    )]
     Log,
     /// A temporary directory.
     /// Resolves to [`temp_dir`].
@@ -571,7 +577,10 @@ pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
 /// Resolves to [`config_dir`]`/${bundle_identifier}`.
 ///
 /// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
-#[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead.")]
+#[deprecated(
+  since = "1.2.0",
+  note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead."
+)]
 pub fn app_dir(config: &Config) -> Option<PathBuf> {
   app_config_dir(config)
 }
@@ -585,7 +594,10 @@ pub fn app_dir(config: &Config) -> Option<PathBuf> {
 /// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}`.
 ///
 /// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
-#[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_log_dir` instead.")]
+#[deprecated(
+  since = "1.2.0",
+  note = "Will be removed in 2.0.0. Use `app_log_dir` instead."
+)]
 pub fn log_dir(config: &Config) -> Option<PathBuf> {
   app_log_dir(config)
 }

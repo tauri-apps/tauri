@@ -81,6 +81,9 @@ mod base_directory {
     /// The default app data directory.
     /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
     AppData,
+    /// The default app local data directory.
+    /// Resolves to [`BaseDirectory::LocalData`]`/{bundle_identifier}`.
+    AppLocalData,
     /// The default app cache directory.
     /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
     AppCache,
@@ -120,6 +123,7 @@ impl BaseDirectory {
       Self::Temp => "$TEMP",
       Self::AppConfig => "$APPCONFIG",
       Self::AppData => "$APPDATA",
+      Self::AppLocalData => "$APPLOCALDATA",
       Self::AppCache => "$APPCACHE",
       Self::AppLog => "$APPLOG",
     }
@@ -152,6 +156,7 @@ impl BaseDirectory {
       "$TEMP" => Self::Temp,
       "$APPCONFIG" => Self::AppConfig,
       "$APPDATA" => Self::AppData,
+      "$APPLOCALDATA" => Self::AppLocalData,
       "$APPCACHE" => Self::AppCache,
       "$APPLOG" => Self::AppLog,
       _ => return None,
@@ -284,6 +289,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Temp => Some(temp_dir()),
       BaseDirectory::AppConfig => app_config_dir(config),
       BaseDirectory::AppData => app_data_dir(config),
+      BaseDirectory::AppLocalData => app_local_data_dir(config),
       BaseDirectory::AppCache => app_cache_dir(config),
       BaseDirectory::AppLog => app_log_dir(config),
     };
@@ -516,6 +522,15 @@ pub fn app_config_dir(config: &Config) -> Option<PathBuf> {
 /// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
 pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's local data files.
+///
+/// Resolves to [`local_data_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
+pub fn app_local_data_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested directory for your app's cache files.

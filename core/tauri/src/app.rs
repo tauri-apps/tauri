@@ -298,6 +298,11 @@ impl PathResolver {
     crate::api::path::app_data_dir(&self.config)
   }
 
+  /// Returns the path to the suggested directory for your app's local data files.
+  pub fn app_local_data_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_local_data_dir(&self.config)
+  }
+
   /// Returns the path to the suggested directory for your app's cache files.
   pub fn app_cache_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_cache_dir(&self.config)

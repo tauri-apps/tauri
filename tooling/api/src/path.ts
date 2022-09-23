@@ -82,6 +82,28 @@ async function appDir(): Promise<string> {
 }
 
 /**
+ * Returns the path to the suggested directory for your app's local data files.
+ * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * @example
+ * ```typescript
+ * import { appLocalDataDir } from '@tauri-apps/api/path';
+ * const appLocalDataDirPath = await appLocalDataDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+ async function appLocalDataDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.AppLocalData
+    }
+  })
+}
+
+/**
  * Returns the path to the suggested directory for your app's cache files.
  * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
  * @example
@@ -792,6 +814,7 @@ export {
   appDir,
   appConfigDir,
   appDataDir,
+  appLocalDataDir,
   appCacheDir,
   appLogDir,
   audioDir,

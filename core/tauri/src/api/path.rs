@@ -227,7 +227,7 @@ pub fn parse<P: AsRef<Path>>(
 ///   context.package_info(),
 ///   &Env::default(),
 ///   "db/tauri.sqlite",
-///   Some(BaseDirectory::App))
+///   Some(BaseDirectory::AppData))
 /// .expect("failed to resolve path");
 /// assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/com.tauri.app/db/tauri.sqlite");
 ///

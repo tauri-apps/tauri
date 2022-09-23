@@ -400,5 +400,5 @@ jobs:
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           RELEASE_ID: ${{ github.event.inputs.releaseId }}

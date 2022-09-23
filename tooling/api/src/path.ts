@@ -28,8 +28,9 @@ import { BaseDirectory } from './fs'
 import { isWindows } from './helpers/os-check'
 
 /**
- * Alias of {@link appConfigDir} for backwards-compatibility purposes.
+ * Returns the path to the suggested directory for your app config files.
  *
+ * @deprecated since 1.2.0: Will be removed in 2.0.0. Use {@link appConfigDir} or {@link appDataDir} instead.
  * @since 1.0.0
  */
 async function appDir(): Promise<string> {
@@ -582,8 +583,9 @@ async function videoDir(): Promise<string> {
 }
 
 /**
- * Alias of {@link appLogDir} for backwards-compatibility purposes.
+ * Returns the path to the suggested log directory.
  *
+ * @deprecated since 1.2.0: Will be removed in 2.0.0. Use {@link appLogDir} instead.
  * @since 1.0.0
  */
  async function logDir(): Promise<string> {

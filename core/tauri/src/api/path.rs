@@ -13,71 +13,84 @@ use crate::{Config, Env, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/// A base directory to be used in [`resolve_path`].
-///
-/// The base directory is the optional root of a file system operation.
-/// If informed by the API call, all paths will be relative to the path of the given directory.
-///
-/// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
-#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
-#[repr(u16)]
-#[non_exhaustive]
-pub enum BaseDirectory {
-  /// The Audio directory.
-  Audio = 1,
-  /// The Cache directory.
-  Cache,
-  /// The Config directory.
-  Config,
-  /// The Data directory.
-  Data,
-  /// The LocalData directory.
-  LocalData,
-  /// The Desktop directory.
-  Desktop,
-  /// The Document directory.
-  Document,
-  /// The Download directory.
-  Download,
-  /// The Executable directory.
-  Executable,
-  /// The Font directory.
-  Font,
-  /// The Home directory.
-  Home,
-  /// The Picture directory.
-  Picture,
-  /// The Public directory.
-  Public,
-  /// The Runtime directory.
-  Runtime,
-  /// The Template directory.
-  Template,
-  /// The Video directory.
-  Video,
-  /// The Resource directory.
-  Resource,
-  /// Alias of [`BaseDirectory::AppConfig`]
-  App,
-  /// Alias of [`BaseDirectory::AppLog`]
-  Log,
-  /// A temporary directory.
-  /// Resolves to [`temp_dir`].
-  Temp,
-  /// The default App config directory.
-  /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
-  AppConfig,
-  /// The default App data directory.
-  /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
-  AppData,
-  /// The default App cache directory.
-  /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
-  AppCache,
-  /// The default App log directory.
-  /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
-  /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
-  AppLog,
+// we have to wrap the BaseDirectory enum in a module for #[allow(deprecated)]
+// to work, because the procedural macros on the enum prevent it from working directly
+#[allow(deprecated)]
+mod base_directory {
+  use super::*;
+
+  /// A base directory to be used in [`resolve_path`].
+  ///
+  /// The base directory is the optional root of a file system operation.
+  /// If informed by the API call, all paths will be relative to the path of the given directory.
+  ///
+  /// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
+  #[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
+  #[repr(u16)]
+  #[non_exhaustive]
+  pub enum BaseDirectory {
+    /// The Audio directory.
+    Audio = 1,
+    /// The Cache directory.
+    Cache,
+    /// The Config directory.
+    Config,
+    /// The Data directory.
+    Data,
+    /// The LocalData directory.
+    LocalData,
+    /// The Desktop directory.
+    Desktop,
+    /// The Document directory.
+    Document,
+    /// The Download directory.
+    Download,
+    /// The Executable directory.
+    Executable,
+    /// The Font directory.
+    Font,
+    /// The Home directory.
+    Home,
+    /// The Picture directory.
+    Picture,
+    /// The Public directory.
+    Public,
+    /// The Runtime directory.
+    Runtime,
+    /// The Template directory.
+    Template,
+    /// The Video directory.
+    Video,
+    /// The Resource directory.
+    Resource,
+    /// The default app config directory.
+    /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+    #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `BaseDirectory::AppConfig` or BaseDirectory::AppData` instead.")]
+    App,
+    /// The default app log directory.
+    /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
+    /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+    #[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `BaseDirectory::AppLog` instead.")]
+    Log,
+    /// A temporary directory.
+    /// Resolves to [`temp_dir`].
+    Temp,
+    /// The default app config directory.
+    /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+    AppConfig,
+    /// The default app data directory.
+    /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
+    AppData,
+    /// The default app cache directory.
+    /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
+    AppCache,
+    /// The default app log directory.
+    /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
+    /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+    AppLog,
+  }
 }
+pub use base_directory::BaseDirectory;
 
 impl BaseDirectory {
   /// Gets the variable that represents this [`BaseDirectory`] for string paths.
@@ -100,7 +113,9 @@ impl BaseDirectory {
       Self::Template => "$TEMPLATE",
       Self::Video => "$VIDEO",
       Self::Resource => "$RESOURCE",
+      #[allow(deprecated)]
       Self::App => "$APP",
+      #[allow(deprecated)]
       Self::Log => "$LOG",
       Self::Temp => "$TEMP",
       Self::AppConfig => "$APPCONFIG",
@@ -130,7 +145,9 @@ impl BaseDirectory {
       "$TEMPLATE" => Self::Template,
       "$VIDEO" => Self::Video,
       "$RESOURCE" => Self::Resource,
+      #[allow(deprecated)]
       "$APP" => Self::App,
+      #[allow(deprecated)]
       "$LOG" => Self::Log,
       "$TEMP" => Self::Temp,
       "$APPCONFIG" => Self::AppConfig,
@@ -260,8 +277,10 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(package_info, env),
-      BaseDirectory::App => app_dir(config),
-      BaseDirectory::Log => log_dir(config),
+      #[allow(deprecated)]
+      BaseDirectory::App => app_config_dir(config),
+      #[allow(deprecated)]
+      BaseDirectory::Log => app_log_dir(config),
       BaseDirectory::Temp => Some(temp_dir()),
       BaseDirectory::AppConfig => app_config_dir(config),
       BaseDirectory::AppData => app_data_dir(config),
@@ -532,12 +551,26 @@ pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
   path
 }
 
-/// Alias of [`app_config_dir`] for backwards-compatibility purposes.
+/// Returns the path to the suggested directory for your app's config files.
+///
+/// Resolves to [`config_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
+#[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead.")]
 pub fn app_dir(config: &Config) -> Option<PathBuf> {
   app_config_dir(config)
 }
 
-/// Alias of [`app_log_dir`] for backwards-compatibility purposes.
+/// Returns the path to the suggested directory for your app's log files.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+/// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
+/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
+#[deprecated(since = "1.2.0", note = "Will be removed in 2.0.0. Use `app_log_dir` instead.")]
 pub fn log_dir(config: &Config) -> Option<PathBuf> {
   app_log_dir(config)
 }

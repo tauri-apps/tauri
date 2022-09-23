@@ -57,16 +57,26 @@ pub enum BaseDirectory {
   Video,
   /// The Resource directory.
   Resource,
-  /// The default App config directory.
-  /// Resolves to [`BaseDirectory::Config`].
+  /// Alias of [`BaseDirectory::AppConfig`]
   App,
-  /// The Log directory.
-  /// Resolves to `BaseDirectory::Home/Library/Logs/{bundle_identifier}` on macOS
-  /// and `BaseDirectory::Config/{bundle_identifier}/logs` on linux and windows.
+  /// Alias of [`BaseDirectory::AppLog`]
   Log,
   /// A temporary directory.
   /// Resolves to [`temp_dir`].
   Temp,
+  /// The default App config directory.
+  /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+  AppConfig,
+  /// The default App data directory.
+  /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
+  AppData,
+  /// The default App cache directory.
+  /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
+  AppCache,
+  /// The default App log directory.
+  /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
+  /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+  AppLog,
 }
 
 impl BaseDirectory {
@@ -93,6 +103,10 @@ impl BaseDirectory {
       Self::App => "$APP",
       Self::Log => "$LOG",
       Self::Temp => "$TEMP",
+      Self::AppConfig => "$APPCONFIG",
+      Self::AppData => "$APPDATA",
+      Self::AppCache => "$APPCACHE",
+      Self::AppLog => "$APPLOG",
     }
   }
 
@@ -119,6 +133,10 @@ impl BaseDirectory {
       "$APP" => Self::App,
       "$LOG" => Self::Log,
       "$TEMP" => Self::Temp,
+      "$APPCONFIG" => Self::AppConfig,
+      "$APPDATA" => Self::AppData,
+      "$APPCACHE" => Self::AppCache,
+      "$APPLOG" => Self::AppLog,
       _ => return None,
     };
     Some(res)
@@ -245,6 +263,10 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::App => app_dir(config),
       BaseDirectory::Log => log_dir(config),
       BaseDirectory::Temp => Some(temp_dir()),
+      BaseDirectory::AppConfig => app_config_dir(config),
+      BaseDirectory::AppData => app_data_dir(config),
+      BaseDirectory::AppCache => app_cache_dir(config),
+      BaseDirectory::AppLog => app_log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       // use the same path resolution mechanism as the bundler's resource injection algorithm
@@ -459,25 +481,43 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
   crate::utils::platform::resource_dir(package_info, env).ok()
 }
 
-/// Returns the path to the suggested directory for your app config files.
+/// Returns the path to the suggested directory for your app's config files.
 ///
-/// Resolves to `${config_dir}/${bundle_identifier}`.
+/// Resolves to [`config_dir`]`/${bundle_identifier}`.
 ///
-/// See [`PathResolver::app_dir`](crate::PathResolver#method.app_dir) for a more convenient helper function.
-pub fn app_dir(config: &Config) -> Option<PathBuf> {
+/// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
+pub fn app_config_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
-/// Returns the path to the suggested log directory.
+/// Returns the path to the suggested directory for your app's data files.
+///
+/// Resolves to [`data_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
+pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's cache files.
+///
+/// Resolves to [`cache_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_cache_dir`](crate::PathResolver#method.app_cache_dir) for a more convenient helper function.
+pub fn app_cache_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::cache_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's log files.
 ///
 /// ## Platform-specific
 ///
-/// - **Linux:** Resolves to `${config_dir}/${bundle_identifier}`.
-/// - **macOS:** Resolves to `${home_dir}//Library/Logs/{bundle_identifier}`
-/// - **Windows:** Resolves to `${config_dir}/${bundle_identifier}`.
+/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+/// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
+/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}`.
 ///
-/// See [`PathResolver::log_dir`](crate::PathResolver#method.log_dir) for a more convenient helper function.
-pub fn log_dir(config: &Config) -> Option<PathBuf> {
+/// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
+pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
   #[cfg(target_os = "macos")]
   let path = dirs_next::home_dir().map(|dir| {
     dir
@@ -490,4 +530,14 @@ pub fn log_dir(config: &Config) -> Option<PathBuf> {
     dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
 
   path
+}
+
+/// Alias of [`app_config_dir`] for backwards-compatibility purposes.
+pub fn app_dir(config: &Config) -> Option<PathBuf> {
+  app_config_dir(config)
+}
+
+/// Alias of [`app_log_dir`] for backwards-compatibility purposes.
+pub fn log_dir(config: &Config) -> Option<PathBuf> {
+  app_log_dir(config)
 }

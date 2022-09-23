@@ -288,14 +288,34 @@ impl PathResolver {
       .map(|dir| dir.join(resource_relpath(path.as_ref())))
   }
 
-  /// Returns the path to the suggested directory for your app config files.
-  pub fn app_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_dir(&self.config)
+  /// Returns the path to the suggested directory for your app's config files.
+  pub fn app_config_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_config_dir(&self.config)
   }
 
-  /// Returns the path to the suggested log directory.
+  /// Returns the path to the suggested directory for your app's data files.
+  pub fn app_data_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_data_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's cache files.
+  pub fn app_cache_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_cache_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's log files.
+  pub fn app_log_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_log_dir(&self.config)
+  }
+
+  /// Alias of [`PathResolver::app_config_dir`] for backwards-compatibility purposes.
+  pub fn app_dir(&self) -> Option<PathBuf> {
+    self.app_config_dir()
+  }
+
+  /// Alias of [`PathResolver::app_log_dir`] for backwards-compatibility purposes.
   pub fn log_dir(&self) -> Option<PathBuf> {
-    crate::api::path::log_dir(&self.config)
+    self.app_log_dir()
   }
 }
 

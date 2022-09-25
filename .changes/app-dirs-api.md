@@ -1,5 +1,6 @@
 ---
 "tauri": minor
+"api": minor
 ---
 
-Add new app-specific directory APIs and deprecate existing `app_dir` and `log_dir` APIs.
+Add new app-specific `BaseDirectory` enum variants `AppConfig`, `AppData`, `AppLocalData`, `AppCache` and `AppLog` along with equivalent functions in `path` module and deprecated ambiguous variants `Log` and `App` along with their equivalent functions in `path` module.

@@ -15,6 +15,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 // we have to wrap the BaseDirectory enum in a module for #[allow(deprecated)]
 // to work, because the procedural macros on the enum prevent it from working directly
+// TODO: remove this workaround in v2 along with deprecated variants
 #[allow(deprecated)]
 mod base_directory {
   use super::*;

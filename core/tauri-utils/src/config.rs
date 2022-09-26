@@ -549,6 +549,8 @@ pub struct BundleConfig {
   /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
   /// and periods (.).
   pub identifier: String,
+  /// The application's publisher
+  pub publisher: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -3127,6 +3129,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      let publisher = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -3146,6 +3149,7 @@ mod build {
         BundleConfig,
         active,
         identifier,
+        publisher,
         icon,
         targets,
         resources,
@@ -3559,6 +3563,7 @@ mod test {
         active: false,
         targets: Default::default(),
         identifier: String::from(""),
+        publisher: None,
         icon: Vec::new(),
         resources: None,
         copyright: None,

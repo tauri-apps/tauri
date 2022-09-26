@@ -295,6 +295,8 @@ impl Default for WindowsSettings {
 pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
+  /// The app's publisher.
+  pub publisher: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -608,6 +610,11 @@ impl Settings {
   /// Returns the bundle's identifier
   pub fn bundle_identifier(&self) -> &str {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
+  }
+
+  /// Returns the bundle's identifier
+  pub fn publisher(&self) -> Option<&str> {
+    self.bundle_settings.publisher.as_deref()
   }
 
   /// Returns an iterator over the icon files to be used for this bundle.

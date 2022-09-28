@@ -336,7 +336,7 @@ pub fn local_data_dir() -> Option<PathBuf> {
 /// ## Platform-specific
 ///
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
-/// - **macOS:** Resolves to `$HOME/Library/Desktop`.
+/// - **macOS:** Resolves to `$HOME/Desktop`.
 /// - **Windows:** Resolves to `{FOLDERID_Desktop}`.
 pub fn desktop_dir() -> Option<PathBuf> {
   dirs_next::desktop_dir()

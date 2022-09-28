@@ -207,7 +207,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
           "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",

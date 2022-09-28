@@ -2585,6 +2585,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
+  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
   #[serde(deserialize_with = "version_deserializer", default)]

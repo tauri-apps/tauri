@@ -226,6 +226,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     let features = match tauri {
       Dependency::Simple(_) => Vec::new(),
       Dependency::Detailed(dep) => dep.features,
+      Dependency::Inherited(dep) => dep.features,
     };
 
     let all_cli_managed_features = TauriConfig::all_features();

@@ -301,12 +301,11 @@ dependencies = [
 
 [[package]]
 name = "cargo_toml"
-version = "0.11.7"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1946427680719501a282850618d74a03a8f456801ef805e0f083ab8325494384"
+checksum = "ee685beed1fe2ab3cb9eb95d65727413b5e27f2b34014a3ea9c92053f8c230fc"
 dependencies = [
  "serde",
- "serde_derive",
  "toml",
 ]
 
@@ -3213,7 +3212,6 @@ dependencies = [
  "gtk",
  "http",
  "http-range",
- "infer 0.7.0",
  "rand 0.8.5",
  "raw-window-handle",
  "serde",
@@ -3254,6 +3252,7 @@ dependencies = [
  "glob",
  "heck 0.4.0",
  "html5ever",
+ "infer 0.7.0",
  "json-patch",
  "kuchiki",
  "memchr",

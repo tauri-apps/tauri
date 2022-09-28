@@ -73,7 +73,7 @@ os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
 axum = { version = "0.5.16", features = ["ws"] }

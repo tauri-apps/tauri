@@ -549,7 +549,8 @@ pub struct BundleConfig {
   /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
   /// and periods (.).
   pub identifier: String,
-  /// The application's publisher
+  /// The application's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
   /// The app's icons
   #[serde(default)]

@@ -295,7 +295,8 @@ impl Default for WindowsSettings {
 pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
-  /// The app's publisher.
+  /// The app's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,

@@ -934,7 +934,7 @@
           "type": "string"
         },
         "publisher": {
-          "description": "The application's publisher",
+          "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
           "type": [
             "string",
             "null"

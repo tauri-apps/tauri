@@ -175,7 +175,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "setCursorPosition" => {
       crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
     }
-    "setIgnoreCursorEvents" => crate::Error::ApiNotAllowlisted("window > setIgnoreCursorEvents".to_string()),
+    "setIgnoreCursorEvents" => {
+      crate::Error::ApiNotAllowlisted("window > setIgnoreCursorEvents".to_string())
+    }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
     "internalToggleMaximize" => {
@@ -318,7 +320,9 @@ impl Cmd {
       #[cfg(window_set_cursor_position)]
       WindowManagerCmd::SetCursorPosition(position) => window.set_cursor_position(position)?,
       #[cfg(window_set_ignore_cursor_events)]
-      WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => window.set_ignore_cursor_events(ignore_cursor)?,
+      WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => {
+        window.set_ignore_cursor_events(ignore_cursor)?
+      }
       #[cfg(window_start_dragging)]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
       #[cfg(window_print)]

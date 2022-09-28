@@ -6,7 +6,7 @@ name = "tauri-cli"
 version = "1.1.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -52,7 +52,7 @@ toml_edit = "0.14"
 json-patch = "0.2"
 tauri-utils = { version = "1.1.1", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.5"
-valico = "3.6"
+jsonschema = "0.16"
 handlebars = "4.3"
 include_dir = "0.7"
 minisign = "0.7"
@@ -73,9 +73,15 @@ os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
-env_logger = "0.9.0"
+env_logger = "0.9.1"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
+axum = { version = "0.5.16", features = ["ws"] }
+html5ever = "0.25"
+infer = "0.9"
+kuchiki = "0.8"
+tokio = { version = "1.21.1", features = ["macros", "sync"] }
+
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

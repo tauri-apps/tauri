@@ -8,7 +8,7 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
@@ -30,7 +30,6 @@ tauri-utils = { version = "1.1.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"
-infer = "0.7"
 raw-window-handle = "0.5"
 rand = "0.8"
 

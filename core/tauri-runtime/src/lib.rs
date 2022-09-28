@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -35,15 +35,70 @@ use crate::http::{
 };
 
 #[cfg(all(desktop, feature = "system-tray"))]
+use std::fmt;
+
+pub type TrayId = u16;
+pub type TrayEventHandler = dyn Fn(&SystemTrayEvent) + Send + 'static;
+
+#[cfg(all(desktop, feature = "system-tray"))]
 #[non_exhaustive]
-#[derive(Debug, Default)]
 pub struct SystemTray {
+  pub id: TrayId,
   pub icon: Option<Icon>,
   pub menu: Option<menu::SystemTrayMenu>,
   #[cfg(target_os = "macos")]
   pub icon_as_template: bool,
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  pub on_event: Option<Box<TrayEventHandler>>,
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
+impl fmt::Debug for SystemTray {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut d = f.debug_struct("SystemTray");
+    d.field("id", &self.id)
+      .field("icon", &self.icon)
+      .field("menu", &self.menu);
+    #[cfg(target_os = "macos")]
+    {
+      d.field("icon_as_template", &self.icon_as_template)
+        .field("menu_on_left_click", &self.menu_on_left_click);
+    }
+    d.finish()
+  }
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
+impl Clone for SystemTray {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id,
+      icon: self.icon.clone(),
+      menu: self.menu.clone(),
+      on_event: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: self.icon_as_template,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: self.menu_on_left_click,
+    }
+  }
+}
+
+#[cfg(all(desktop, feature = "system-tray"))]
+impl Default for SystemTray {
+  fn default() -> Self {
+    Self {
+      id: rand::random(),
+      icon: None,
+      menu: None,
+      #[cfg(target_os = "macos")]
+      icon_as_template: false,
+      #[cfg(target_os = "macos")]
+      menu_on_left_click: false,
+      on_event: None,
+    }
+  }
 }
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -55,6 +110,13 @@ impl SystemTray {
 
   pub fn menu(&self) -> Option<&menu::SystemTrayMenu> {
     self.menu.as_ref()
+  }
+
+  /// Sets the tray id.
+  #[must_use]
+  pub fn with_id(mut self, id: TrayId) -> Self {
+    self.id = id;
+    self
   }
 
   /// Sets the tray icon.
@@ -84,6 +146,12 @@ impl SystemTray {
   #[must_use]
   pub fn with_menu(mut self, menu: menu::SystemTrayMenu) -> Self {
     self.menu.replace(menu);
+    self
+  }
+
+  #[must_use]
+  pub fn on_event<F: Fn(&SystemTrayEvent) + Send + 'static>(mut self, f: F) -> Self {
+    self.on_event.replace(Box::new(f));
     self
   }
 }
@@ -261,9 +329,13 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()>;
+  /// Adds an icon to the system tray with the specified menu items.
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
 
   fn raw_display_handle(&self) -> RawDisplayHandle;
 }
@@ -348,7 +420,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Registers a system tray event handler.
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid;
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F);
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
   #[cfg(target_os = "macos")]
@@ -557,6 +629,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Changes the position of the cursor in window coordinates.
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
+
+  /// Ignores the window cursor events.
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -127,6 +127,8 @@ pub enum WindowManagerCmd {
   SetCursorIcon(CursorIcon),
   #[cfg(window_set_cursor_position)]
   SetCursorPosition(Position),
+  #[cfg(window_set_ignore_cursor_events)]
+  SetIgnoreCursorEvents(bool),
   #[cfg(window_start_dragging)]
   StartDragging,
   #[cfg(window_print)]
@@ -172,6 +174,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "setCursorIcon" => crate::Error::ApiNotAllowlisted("window > setCursorIcon".to_string()),
     "setCursorPosition" => {
       crate::Error::ApiNotAllowlisted("window > setCursorPosition".to_string())
+    }
+    "setIgnoreCursorEvents" => {
+      crate::Error::ApiNotAllowlisted("window > setIgnoreCursorEvents".to_string())
     }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
@@ -314,6 +319,10 @@ impl Cmd {
       WindowManagerCmd::SetCursorIcon(icon) => window.set_cursor_icon(icon)?,
       #[cfg(window_set_cursor_position)]
       WindowManagerCmd::SetCursorPosition(position) => window.set_cursor_position(position)?,
+      #[cfg(window_set_ignore_cursor_events)]
+      WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => {
+        window.set_ignore_cursor_events(ignore_cursor)?
+      }
       #[cfg(window_start_dragging)]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
       #[cfg(window_print)]

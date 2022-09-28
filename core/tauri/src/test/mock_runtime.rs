@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -18,7 +18,7 @@ use tauri_runtime::{
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
-  SystemTray, SystemTrayEvent,
+  SystemTray, SystemTrayEvent, TrayId,
 };
 use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
@@ -80,10 +80,13 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()> {
-    Ok(())
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
+    unimplemented!()
   }
 
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
@@ -497,6 +500,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn start_dragging(&self) -> Result<()> {
     Ok(())
   }
@@ -529,6 +536,10 @@ impl TrayHandle for MockTrayHandler {
   }
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn destroy(&self) -> Result<()> {
     Ok(())
   }
 }
@@ -636,9 +647,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
 
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
-    Uuid::new_v4()
-  }
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]

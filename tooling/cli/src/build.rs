@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,9 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{
-      get as get_config, AppUrl, BeforeBuildCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME,
-    },
+    config::{get as get_config, AppUrl, HookCommand, WindowUrl, MERGE_CONFIG_EXTENSION_NAME},
     updater_signature::{read_key_from_file, secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
@@ -115,40 +113,7 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    let (script, script_cwd) = match before_build {
-      BeforeBuildCommand::Script(s) if s.is_empty() => (None, None),
-      BeforeBuildCommand::Script(s) => (Some(s), None),
-      BeforeBuildCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
-    };
-    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(before_build) = script {
-      info!(action = "Running"; "beforeBuildCommand `{}`", before_build);
-      #[cfg(target_os = "windows")]
-      let status = Command::new("cmd")
-        .arg("/S")
-        .arg("/C")
-        .arg(&before_build)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `cmd /C`", before_build))?;
-      #[cfg(not(target_os = "windows"))]
-      let status = Command::new("sh")
-        .arg("-c")
-        .arg(&before_build)
-        .current_dir(cwd)
-        .envs(command_env(options.debug))
-        .piped()
-        .with_context(|| format!("failed to run `{}` with `sh -c`", before_build))?;
-
-      if !status.success() {
-        bail!(
-          "beforeBuildCommand `{}` failed with exit code {}",
-          before_build,
-          status.code().unwrap_or_default()
-        );
-      }
-    }
+    run_hook("beforeBuildCommand", before_build, options.debug)?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -238,6 +203,13 @@ pub fn command(mut options: Options) -> Result<()> {
       }
     }
 
+    // if we have a package to bundle, let's run the `before_bundle_command`.
+    if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
+      if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
+        run_hook("beforeBundleCommand", before_bundle, options.debug)?;
+      }
+    }
+
     let settings = app_settings
       .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
@@ -313,7 +285,7 @@ pub fn command(mut options: Options) -> Result<()> {
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-      // make sure we have our package builts
+      // make sure we have our package built
       let mut signed_paths = Vec::new();
       for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add
@@ -331,6 +303,46 @@ pub fn command(mut options: Options) -> Result<()> {
       }
 
       print_signed_updater_archive(&signed_paths)?;
+    }
+  }
+
+  Ok(())
+}
+
+fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
+  let (script, script_cwd) = match hook {
+    HookCommand::Script(s) if s.is_empty() => (None, None),
+    HookCommand::Script(s) => (Some(s), None),
+    HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
+  };
+  let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+  if let Some(script) = script {
+    info!(action = "Running"; "{} `{}`", name, script);
+    #[cfg(target_os = "windows")]
+    let status = Command::new("cmd")
+      .arg("/S")
+      .arg("/C")
+      .arg(&script)
+      .current_dir(cwd)
+      .envs(command_env(debug))
+      .piped()
+      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
+    #[cfg(not(target_os = "windows"))]
+    let status = Command::new("sh")
+      .arg("-c")
+      .arg(&script)
+      .current_dir(cwd)
+      .envs(command_env(debug))
+      .piped()
+      .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
+
+    if !status.success() {
+      bail!(
+        "{} `{}` failed with exit code {}",
+        name,
+        script,
+        status.code().unwrap_or_default()
+      );
     }
   }
 

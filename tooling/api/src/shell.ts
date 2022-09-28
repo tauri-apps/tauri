@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -78,12 +78,19 @@
 import { invokeTauriCommand } from './helpers/tauri'
 import { transformCallback } from './tauri'
 
+/**
+ * @since 1.0.0
+ */
 interface SpawnOptions {
   /** Current working directory. */
   cwd?: string
   /** Environment variables. set to `null` to clear the process env. */
   env?: { [name: string]: string }
-  /** Character encoding for stdout/stderr */
+  /**
+   * Character encoding for stdout/stderr
+   *
+   * @since 1.1.0
+   *  */
   encoding?: string
 }
 
@@ -92,6 +99,9 @@ interface InternalSpawnOptions extends SpawnOptions {
   sidecar?: boolean
 }
 
+/**
+ * @since 1.0.0
+ */
 interface ChildProcess {
   /** Exit code of the process. `null` if the process was terminated by a signal on Unix. */
   code: number | null
@@ -135,6 +145,9 @@ async function execute(
   })
 }
 
+/**
+ * @since 1.0.0
+ */
 class EventEmitter<E extends string> {
   /** @ignore */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -143,6 +156,8 @@ class EventEmitter<E extends string> {
 
   /**
    * Alias for `emitter.on(eventName, listener)`.
+   *
+   * @since 1.1.0
    */
   addListener(eventName: E, listener: (...args: any[]) => void): this {
     return this.on(eventName, listener)
@@ -150,6 +165,8 @@ class EventEmitter<E extends string> {
 
   /**
    * Alias for `emitter.off(eventName, listener)`.
+   *
+   * @since 1.1.0
    */
   removeListener(eventName: E, listener: (...args: any[]) => void): this {
     return this.off(eventName, listener)
@@ -162,8 +179,8 @@ class EventEmitter<E extends string> {
    * times.
    *
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
-   * @param eventName The name of the event.
-   * @param listener The callback function
+   *
+   * @since 1.0.0
    */
   on(eventName: E, listener: (...args: any[]) => void): this {
     if (eventName in this.eventListeners) {
@@ -182,8 +199,7 @@ class EventEmitter<E extends string> {
    *
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
    *
-   * @param eventName The name of the event.
-   * @param listener The callback function
+   * @since 1.1.0
    */
   once(eventName: E, listener: (...args: any[]) => void): this {
     const wrapper = (...args: any[]): void => {
@@ -197,6 +213,8 @@ class EventEmitter<E extends string> {
   /**
    * Removes the all specified listener from the listener array for the event eventName
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
    */
   off(eventName: E, listener: (...args: any[]) => void): this {
     if (eventName in this.eventListeners) {
@@ -212,6 +230,8 @@ class EventEmitter<E extends string> {
    * Removes all listeners, or those of the specified eventName.
    *
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
+   *
+   * @since 1.1.0
    */
   removeAllListeners(event?: E): this {
     if (event) {
@@ -229,7 +249,7 @@ class EventEmitter<E extends string> {
    * Synchronously calls each of the listeners registered for the event named`eventName`, in the order they were registered, passing the supplied arguments
    * to each.
    *
-   * Returns `true` if the event had listeners, `false` otherwise.
+   * @returns `true` if the event had listeners, `false` otherwise.
    */
   emit(eventName: E, ...args: any[]): boolean {
     if (eventName in this.eventListeners) {
@@ -244,6 +264,8 @@ class EventEmitter<E extends string> {
 
   /**
    * Returns the number of listeners listening to the event named `eventName`.
+   *
+   * @since 1.1.0
    */
   listenerCount(eventName: E): number {
     if (eventName in this.eventListeners)
@@ -259,8 +281,8 @@ class EventEmitter<E extends string> {
    * times.
    *
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
-   * @param eventName The name of the event.
-   * @param listener The callback function
+   *
+   * @since 1.1.0
    */
   prependListener(eventName: E, listener: (...args: any[]) => void): this {
     if (eventName in this.eventListeners) {
@@ -278,8 +300,8 @@ class EventEmitter<E extends string> {
    * listener is removed, and then invoked.
    *
    * Returns a reference to the `EventEmitter`, so that calls can be chained.
-   * @param eventName The name of the event.
-   * @param listener The callback function
+   *
+   * @since 1.1.0
    */
   prependOnceListener(eventName: E, listener: (...args: any[]) => void): this {
     const wrapper = (...args: any[]): void => {
@@ -291,6 +313,9 @@ class EventEmitter<E extends string> {
   }
 }
 
+/**
+ * @since 1.1.0
+ */
 class Child {
   /** The child process `pid`. */
   pid: number
@@ -312,7 +337,7 @@ class Child {
    * await child.write([0, 1, 2, 3, 4, 5]);
    * ```
    *
-   * @return A promise indicating the success or failure of the operation.
+   * @returns A promise indicating the success or failure of the operation.
    */
   async write(data: string | Uint8Array): Promise<void> {
     return invokeTauriCommand({
@@ -329,7 +354,7 @@ class Child {
   /**
    * Kills the child process.
    *
-   * @return A promise indicating the success or failure of the operation.
+   * @returns A promise indicating the success or failure of the operation.
    */
   async kill(): Promise<void> {
     return invokeTauriCommand({
@@ -359,6 +384,9 @@ class Child {
  * const child = await command.spawn();
  * console.log('pid:', child.pid);
  * ```
+ *
+ * @since 1.1.0
+ *
  */
 class Command extends EventEmitter<'close' | 'error'> {
   /** @ignore Program to execute. */
@@ -402,9 +430,6 @@ class Command extends EventEmitter<'close' | 'error'> {
    *
    * @param program The program to execute.
    * It must be configured on `tauri.conf.json > tauri > allowlist > shell > scope`.
-   * @param args Program arguments.
-   * @param options Spawn options.
-   * @returns
    */
   static sidecar(
     program: string,
@@ -419,7 +444,7 @@ class Command extends EventEmitter<'close' | 'error'> {
   /**
    * Executes the command as a child process, returning a handle to it.
    *
-   * @return A promise resolving to the child process handle.
+   * @returns A promise resolving to the child process handle.
    */
   async spawn(): Promise<Child> {
     return execute(
@@ -457,7 +482,7 @@ class Command extends EventEmitter<'close' | 'error'> {
    * assert(output.stderr === '');
    * ```
    *
-   * @return A promise resolving to the child process output.
+   * @returns A promise resolving to the child process output.
    */
   async execute(): Promise<ChildProcess> {
     return new Promise((resolve, reject) => {
@@ -531,7 +556,8 @@ type CommandEvent =
  * which defaults to `^https?://`.
  * @param openWith The app to open the file or URL with.
  * Defaults to the system default application for the specified path type.
- * @returns
+ *
+ * @since 1.0.0
  */
 async function open(path: string, openWith?: string): Promise<void> {
   return invokeTauriCommand({

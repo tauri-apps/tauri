@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,7 @@ pub mod assets;
 pub mod config;
 pub mod html;
 pub mod io;
+pub mod mime_type;
 pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]

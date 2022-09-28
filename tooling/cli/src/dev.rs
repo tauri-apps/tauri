@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
   interface::{AppInterface, ExitReason, Interface},
   CommandExt, Result,
@@ -56,7 +56,7 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
   pub args: Vec<String>,
   /// Disable the file watcher
   #[clap(long)]
@@ -202,16 +202,42 @@ fn command_internal(mut options: Options) -> Result<()> {
     cargo_features.extend(features.clone());
   }
 
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+    if path.exists() {
+      let path = path.canonicalize()?;
+      start_dev_server(path);
+      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+
+      // TODO: in v2, use an env var to pass the url to the app context
+      // or better separate the config passed from the cli internally and
+      // config passed by the user in `--config` into to separate env vars
+      // and the context merges, the user first, then the internal cli config
+      if let Some(c) = options.config {
+        let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
+        c.build.dev_path = dev_path.clone();
+        options.config = Some(serde_json::to_string(&c).unwrap());
+      } else {
+        options.config = Some(format!(
+          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
+          SERVER_URL
+        ))
+      }
+    }
+  }
+
+  let config = reload_config(options.config.as_deref())?;
+
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
-    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .clone()
-    {
+    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));
@@ -308,11 +334,17 @@ fn kill_before_dev_process() {
       .unwrap()
       .store(true, Ordering::Relaxed);
     #[cfg(windows)]
-      let _ = Command::new("powershell")
-        .arg("-NoProfile")
-        .arg("-Command")
-        .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
-        .status();
+    {
+      let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
+        |_| "powershell.exe".to_string(),
+        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+      );
+      let _ = Command::new(powershell_path)
+      .arg("-NoProfile")
+      .arg("-Command")
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
+      .status();
+    }
     #[cfg(unix)]
     {
       use std::io::Write;

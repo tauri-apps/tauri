@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,9 +6,15 @@
 
 use std::path::{Path, PathBuf};
 
-use html5ever::{interface::QualName, namespace_url, ns, tendril::TendrilSink, LocalName};
+use html5ever::{
+  interface::QualName,
+  namespace_url, ns,
+  serialize::{HtmlSerializer, SerializeOpts, Serializer, TraversalScope},
+  tendril::TendrilSink,
+  LocalName,
+};
 pub use kuchiki::NodeRef;
-use kuchiki::{Attribute, ExpandedName};
+use kuchiki::{Attribute, ExpandedName, NodeData};
 use serde::Serialize;
 #[cfg(feature = "isolation")]
 use serialize_to_javascript::DefaultTemplate;
@@ -23,6 +29,90 @@ pub const CSP_TOKEN: &str = "__TAURI_CSP__";
 pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
 /// The token used for style nonces.
 pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
+
+// taken from https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12
+fn serialize_node_ref_internal<S: Serializer>(
+  node: &NodeRef,
+  serializer: &mut S,
+  traversal_scope: TraversalScope,
+) -> crate::Result<()> {
+  match (traversal_scope, node.data()) {
+    (ref scope, &NodeData::Element(ref element)) => {
+      if *scope == TraversalScope::IncludeNode {
+        let attrs = element.attributes.borrow();
+
+        // Unfortunately we need to allocate something to hold these &'a QualName
+        let attrs = attrs
+          .map
+          .iter()
+          .map(|(name, attr)| {
+            (
+              QualName::new(attr.prefix.clone(), name.ns.clone(), name.local.clone()),
+              &attr.value,
+            )
+          })
+          .collect::<Vec<_>>();
+
+        serializer.start_elem(
+          element.name.clone(),
+          attrs.iter().map(|&(ref name, value)| (name, &**value)),
+        )?
+      }
+
+      let children = match element.template_contents.as_ref() {
+        Some(template_root) => template_root.children(),
+        None => node.children(),
+      };
+      for child in children {
+        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
+      }
+
+      if *scope == TraversalScope::IncludeNode {
+        serializer.end_elem(element.name.clone())?
+      }
+      Ok(())
+    }
+
+    (_, &NodeData::DocumentFragment) | (_, &NodeData::Document(_)) => {
+      for child in node.children() {
+        serialize_node_ref_internal(&child, serializer, TraversalScope::IncludeNode)?
+      }
+      Ok(())
+    }
+
+    (TraversalScope::ChildrenOnly(_), _) => Ok(()),
+
+    (TraversalScope::IncludeNode, &NodeData::Doctype(ref doctype)) => {
+      serializer.write_doctype(&doctype.name).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, &NodeData::Text(ref text)) => {
+      serializer.write_text(&text.borrow()).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, &NodeData::Comment(ref text)) => {
+      serializer.write_comment(&text.borrow()).map_err(Into::into)
+    }
+    (TraversalScope::IncludeNode, &NodeData::ProcessingInstruction(ref contents)) => {
+      let contents = contents.borrow();
+      serializer
+        .write_processing_instruction(&contents.0, &contents.1)
+        .map_err(Into::into)
+    }
+  }
+}
+
+/// Serializes the node to HTML.
+pub fn serialize_node(node: &NodeRef) -> Vec<u8> {
+  let mut u8_vec = Vec::new();
+  let mut ser = HtmlSerializer::new(
+    &mut u8_vec,
+    SerializeOpts {
+      traversal_scope: TraversalScope::IncludeNode,
+      ..Default::default()
+    },
+  );
+  serialize_node_ref_internal(node, &mut ser, TraversalScope::IncludeNode).unwrap();
+  u8_vec
+}
 
 /// Parses the given HTML string.
 pub fn parse(html: String) -> NodeRef {

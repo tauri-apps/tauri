@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -17,7 +18,7 @@ const KEYCHAIN_PWD: &str = "tauri-build";
 // APPLE_CERTIFICATE is the p12 certificate base64 encoded.
 // By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
 // Then use the value of the base64 in APPLE_CERTIFICATE env variable.
-// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when youy exported your certificate.
+// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when you exported your certificate.
 // https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
 pub fn setup_keychain(
   certificate_encoded: OsString,

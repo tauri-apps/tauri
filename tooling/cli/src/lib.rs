@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +7,7 @@ pub use anyhow::Result;
 mod build;
 mod dev;
 mod helpers;
+mod icon;
 mod info;
 mod init;
 mod interface;
@@ -62,6 +63,7 @@ struct Cli {
 enum Commands {
   Build(build::Options),
   Dev(dev::Options),
+  Icon(icon::Options),
   Info(info::Options),
   Init(init::Options),
   Plugin(plugin::Cli),
@@ -73,7 +75,7 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments, exiting if an error occurrs.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///
@@ -160,6 +162,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,

@@ -135,28 +135,15 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     || config_path.extension() == Some(OsStr::new("json5"))
   {
     let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
-    let mut scope = valico::json_schema::Scope::new();
-    let schema = scope.compile_and_return(schema, false).unwrap();
-    let state = schema.validate(&config);
-    if !state.errors.is_empty() {
-      for error in state.errors {
-        let path = error
-          .get_path()
-          .chars()
-          .skip(1)
-          .collect::<String>()
-          .replace('/', " > ");
+    let schema = jsonschema::JSONSchema::compile(&schema).unwrap();
+    let result = schema.validate(&config);
+    if let Err(errors) = result {
+      for error in errors {
+        let path = error.instance_path.clone().into_vec().join(" > ");
         if path.is_empty() {
-          eprintln!(
-            "`{config_file_name}` error: {}",
-            error.get_detail().unwrap_or_else(|| error.get_title()),
-          );
+          eprintln!("`{config_file_name}` error: {}", error);
         } else {
-          eprintln!(
-            "`{config_file_name}` error on `{}`: {}",
-            path,
-            error.get_detail().unwrap_or_else(|| error.get_title()),
-          );
+          eprintln!("`{config_file_name}` error on `{}`: {}", path, error);
         }
       }
       exit(1);

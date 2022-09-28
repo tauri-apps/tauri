@@ -163,7 +163,7 @@ async function dataDir(): Promise<string> {
  * #### Platform-specific
  *
  * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
- * - **macOS:** Resolves to `$HOME/Library/Desktop`.
+ * - **macOS:** Resolves to `$HOME/Desktop`.
  * - **Windows:** Resolves to `{FOLDERID_Desktop}`.
  * @example
  * ```typescript
@@ -533,9 +533,9 @@ async function videoDir(): Promise<string> {
  *
  * #### Platform-specific
  *
- * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}`.
- * - **macOS:** Resolves to `${homeDir}//Library/Logs/{bundleIdentifier}`
- * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}`.
+ * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * - **macOS:** Resolves to `${homeDir}/Library/Logs/{bundleIdentifier}`
+ * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
  * @example
  * ```typescript
  * import { logDir } from '@tauri-apps/api/path';

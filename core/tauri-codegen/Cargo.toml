@@ -8,7 +8,7 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 

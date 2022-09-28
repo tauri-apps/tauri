@@ -11,6 +11,7 @@ use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
 use std::{
   net::SocketAddr,
   path::{Path, PathBuf},
+  str::FromStr,
   sync::Arc,
   thread,
   time::Duration,
@@ -77,7 +78,7 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P) {
               ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
             }),
           );
-        Server::bind(&SocketAddr::from(([127, 0, 0, 1], 1430)))
+        Server::bind(&SocketAddr::from_str(SERVER_URL.split('/').nth(2).unwrap()).unwrap())
           .serve(router.into_make_service())
           .await
           .unwrap();

@@ -40,6 +40,7 @@
  *         "setCursorVisible": true,
  *         "setCursorIcon": true,
  *         "setCursorPosition": true,
+ *         "setIgnoreCursorEvents": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -1511,7 +1512,7 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Ignores the cursor's events.
+   * Changes the cursor events behavior.
    *
    * @example
    * ```typescript
@@ -1519,10 +1520,10 @@ class WindowManager extends WebviewWindowHandle {
    * await appWindow.setIgnoreCursorEvents(true);
    * ```
    *
-   * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
+   * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
    * @returns A promise indicating the success or failure of the operation.
    */
-   async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
+  async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {

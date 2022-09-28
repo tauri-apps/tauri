@@ -108,6 +108,7 @@
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -375,6 +376,7 @@
               "setFocus": false,
               "setFullscreen": false,
               "setIcon": false,
+              "setIgnoreCursorEvents": false,
               "setMaxSize": false,
               "setMinSize": false,
               "setPosition": false,
@@ -1552,6 +1554,7 @@
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -1937,6 +1940,11 @@
         },
         "setCursorPosition": {
           "description": "Allows setting the cursor position.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setIgnoreCursorEvents": {
+          "description": "Allows ignoring cursor events.",
           "default": false,
           "type": "boolean"
         },

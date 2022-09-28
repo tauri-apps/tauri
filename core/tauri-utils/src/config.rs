@@ -1338,6 +1338,9 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the cursor position.
   #[serde(default, alias = "set-cursor-position")]
   pub set_cursor_position: bool,
+  /// Allows ignoring cursor events.
+  #[serde(default, alias = "set-ignore-cursor-events")]
+  pub set_ignore_cursor_events: bool,
   /// Allows start dragging on the window.
   #[serde(default, alias = "start-dragging")]
   pub start_dragging: bool,
@@ -1376,6 +1379,7 @@ impl Allowlist for WindowAllowlistConfig {
       set_cursor_visible: true,
       set_cursor_icon: true,
       set_cursor_position: true,
+      set_ignore_cursor_events: true,
       start_dragging: true,
       print: true,
     };
@@ -1434,6 +1438,12 @@ impl Allowlist for WindowAllowlistConfig {
         features,
         set_cursor_position,
         "window-set-cursor-position"
+      );
+      check_feature!(
+        self,
+        features,
+        set_ignore_cursor_events,
+        "window-set-ignore-cursor-events"
       );
       check_feature!(self, features, start_dragging, "window-start-dragging");
       check_feature!(self, features, print, "window-print");

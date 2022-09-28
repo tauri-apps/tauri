@@ -6,7 +6,7 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, BeforeDevCommand, WindowUrl},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
   interface::{AppInterface, ExitReason, Interface},
   CommandExt, Result,
@@ -202,16 +202,42 @@ fn command_internal(mut options: Options) -> Result<()> {
     cargo_features.extend(features.clone());
   }
 
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+    if path.exists() {
+      let path = path.canonicalize()?;
+      start_dev_server(path);
+      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+
+      // TODO: in v2, use an env var to pass the url to the app context
+      // or better separate the config passed from the cli internally and
+      // config passed by the user in `--config` into to separate env vars
+      // and the context merges, the user first, then the internal cli config
+      if let Some(c) = options.config {
+        let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
+        c.build.dev_path = dev_path.clone();
+        options.config = Some(serde_json::to_string(&c).unwrap());
+      } else {
+        options.config = Some(format!(
+          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
+          SERVER_URL
+        ))
+      }
+    }
+  }
+
+  let config = reload_config(options.config.as_deref())?;
+
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
-    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .clone()
-    {
+    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));

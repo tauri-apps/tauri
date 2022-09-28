@@ -74,7 +74,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date

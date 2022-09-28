@@ -77,10 +77,10 @@ env_logger = "0.9.1"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.24", default-features = false, features = [ "ico" ] }
 axum = { version = "0.5.16", features = ["ws"] }
-html5ever = "0.25"
+html5ever = "0.26"
 infer = "0.9"
 kuchiki = "0.8"
-tokio = { version = "1.21.1", features = ["macros", "sync"] }
+tokio = { version = "1.21.2", features = ["macros", "sync"] }
 
 
 [target."cfg(windows)".dependencies]

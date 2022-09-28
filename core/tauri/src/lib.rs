@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -69,6 +69,7 @@
 //! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
 //! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
 //! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
+//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
 //! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).

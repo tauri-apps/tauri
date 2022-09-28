@@ -1,5 +1,6 @@
 # The Tauri Architecture
-https://tauri.studio
+https://tauri.app
+
 https://github.com/tauri-apps/tauri
 
 ## Introduction
@@ -39,7 +40,7 @@ This is common code that is reused in many places and offers useful utilities li
 
 ### Tauri Tooling
 #### [api](https://github.com/tauri-apps/tauri/tree/dev/tooling/api) [TS -> JS]
-A typescript library that creates `cjs` and `esm` Javascript endpoints for you to import into your Frontend framework so that the Webview can call and listen to backend activity. We also ship the pure typescript, because for some frameworks this is more optimal. It uses the message passing of webviews to their hosts.
+A TypeScript library that creates `cjs` and `esm` JavaScript endpoints for you to import into your Frontend framework so that the Webview can call and listen to backend activity. We also ship the pure TypeScript, because for some frameworks this is more optimal. It uses the message passing of webviews to their hosts.
 
 #### [bundler](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) [RUST / SHELL]
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
@@ -81,7 +82,7 @@ This plugin allows you to very quickly install tauri in a vue-cli project.
 ## [tauri-vscode](https://github.com/tauri-apps/tauri-vscode)
 This project enhances the VS Code interface with several nice-to-have features.
 
-# Tauri Plugins [documentation](https://tauri.studio/en/docs/guides/plugin)
+# Tauri Plugins [documentation](https://tauri.app/v1/guides/features/plugin/)
 
 Generally speaking, plugins are authored by third parties (even though there may be official, supported plugins). A plugin generally does 3 things:
 1. It provides rust code to do "something".

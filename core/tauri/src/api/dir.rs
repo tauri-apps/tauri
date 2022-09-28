@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@
 
 use serde::Serialize;
 use std::{
-  fs::{self, metadata},
+  fs::{self, metadata, symlink_metadata},
   path::{Path, PathBuf},
 };
 use tempfile::{self, tempdir};
@@ -31,8 +31,36 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
   metadata(path).map(|md| md.is_dir()).map_err(Into::into)
 }
 
+fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
+  // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
+  #[cfg(windows)]
+  let ret = symlink_metadata(path)
+    .map(|md| md.is_symlink())
+    .map_err(Into::into);
+
+  #[cfg(not(windows))]
+  let ret = symlink_metadata(path)
+    .map(|md| md.file_type().is_symlink())
+    .map_err(Into::into);
+
+  ret
+}
+
 /// Reads a directory. Can perform recursive operations.
 pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::api::Result<Vec<DiskEntry>> {
+  read_dir_with_options(path, recursive, ReadDirOptions { scope: None })
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct ReadDirOptions<'a> {
+  pub scope: Option<&'a crate::FsScope>,
+}
+
+pub(crate) fn read_dir_with_options<P: AsRef<Path>>(
+  path: P,
+  recursive: bool,
+  options: ReadDirOptions<'_>,
+) -> crate::api::Result<Vec<DiskEntry>> {
   let mut files_and_dirs: Vec<DiskEntry> = vec![];
   for entry in fs::read_dir(path)? {
     let path = entry?.path();
@@ -42,11 +70,16 @@ pub fn read_dir<P: AsRef<Path>>(path: P, recursive: bool) -> crate::api::Result<
       files_and_dirs.push(DiskEntry {
         path: path.clone(),
         children: if flag {
-          Some(if recursive {
-            read_dir(&path_as_string, true)?
-          } else {
-            vec![]
-          })
+          Some(
+            if recursive
+              && (!is_symlink(&path_as_string)?
+                || options.scope.map(|s| s.is_allowed(&path)).unwrap_or(true))
+            {
+              read_dir_with_options(&path_as_string, true, options)?
+            } else {
+              vec![]
+            },
+          )
         } else {
           None
         },

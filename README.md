@@ -49,7 +49,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 ## Get Started
 
-If you are interested in making a tauri app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
+If you are interested in making a tauri app, please visit the [documentation website](https://tauri.app). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
 
 ### Platforms
 

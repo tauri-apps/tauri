@@ -1,6 +1,6 @@
 [package]
 name = "tauri-codegen"
-version = "1.0.4"
+version = "1.1.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -9,7 +9,7 @@ repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen"
 description = "code generation meant to be consumed inside of `tauri` through `tauri-build` or `tauri-macros`"
 edition = "2021"
 rust-version = "1.57"
-exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
@@ -19,7 +19,7 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
-tauri-utils = { version = "1.0.3", path = "../tauri-utils", features = [ "build" ] }
+tauri-utils = { version = "1.1.1", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }

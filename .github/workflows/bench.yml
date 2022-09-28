@@ -43,7 +43,7 @@ jobs:
           python-version: '3.x'
           architecture: x64
 
-      - name: install depedencies
+      - name: install dependencies
         run: |
           python -m pip install --upgrade pip
           sudo apt-get update

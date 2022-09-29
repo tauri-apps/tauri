@@ -549,6 +549,9 @@ pub struct BundleConfig {
   /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
   /// and periods (.).
   pub identifier: String,
+  /// The application's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
+  pub publisher: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -1126,7 +1129,8 @@ macro_rules! check_feature {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
@@ -1322,6 +1326,21 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the skip_taskbar flag of the window.
   #[serde(default, alias = "set-skip-taskbar")]
   pub set_skip_taskbar: bool,
+  /// Allows grabbing the cursor.
+  #[serde(default, alias = "set-cursor-grab")]
+  pub set_cursor_grab: bool,
+  /// Allows setting the cursor visibility.
+  #[serde(default, alias = "set-cursor-visible")]
+  pub set_cursor_visible: bool,
+  /// Allows changing the cursor icon.
+  #[serde(default, alias = "set-cursor-icon")]
+  pub set_cursor_icon: bool,
+  /// Allows setting the cursor position.
+  #[serde(default, alias = "set-cursor-position")]
+  pub set_cursor_position: bool,
+  /// Allows ignoring cursor events.
+  #[serde(default, alias = "set-ignore-cursor-events")]
+  pub set_ignore_cursor_events: bool,
   /// Allows start dragging on the window.
   #[serde(default, alias = "start-dragging")]
   pub start_dragging: bool,
@@ -1356,6 +1375,11 @@ impl Allowlist for WindowAllowlistConfig {
       set_focus: true,
       set_icon: true,
       set_skip_taskbar: true,
+      set_cursor_grab: true,
+      set_cursor_visible: true,
+      set_cursor_icon: true,
+      set_cursor_position: true,
+      set_ignore_cursor_events: true,
       start_dragging: true,
       print: true,
     };
@@ -1401,6 +1425,26 @@ impl Allowlist for WindowAllowlistConfig {
       check_feature!(self, features, set_focus, "window-set-focus");
       check_feature!(self, features, set_icon, "window-set-icon");
       check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
+      check_feature!(self, features, set_cursor_grab, "window-set-cursor-grab");
+      check_feature!(
+        self,
+        features,
+        set_cursor_visible,
+        "window-set-cursor-visible"
+      );
+      check_feature!(self, features, set_cursor_icon, "window-set-cursor-icon");
+      check_feature!(
+        self,
+        features,
+        set_cursor_position,
+        "window-set-cursor-position"
+      );
+      check_feature!(
+        self,
+        features,
+        set_ignore_cursor_events,
+        "window-set-ignore-cursor-events"
+      );
       check_feature!(self, features, start_dragging, "window-start-dragging");
       check_feature!(self, features, print, "window-print");
       features
@@ -1422,7 +1466,8 @@ pub struct ShellAllowedCommand {
   /// It can start with a variable that resolves to a system base directory.
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+  /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
   #[serde(rename = "cmd", default)] // use default just so the schema doesn't flag it as required
   pub command: PathBuf,
 
@@ -2555,6 +2600,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
+  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -3097,6 +3143,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      let publisher = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -3116,6 +3163,7 @@ mod build {
         BundleConfig,
         active,
         identifier,
+        publisher,
         icon,
         targets,
         resources,
@@ -3529,6 +3577,7 @@ mod test {
         active: false,
         targets: Default::default(),
         identifier: String::from(""),
+        publisher: None,
         icon: Vec::new(),
         resources: None,
         copyright: None,

@@ -3,14 +3,14 @@ authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.1.0"
+version = "1.1.1"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -49,10 +49,10 @@ url = { version = "2.3" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "0.11.0", path = "../tauri-runtime" }
-tauri-macros = { version = "1.1.0", path = "../tauri-macros" }
-tauri-utils = { version = "1.1.0", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.11.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.11.1", path = "../tauri-runtime" }
+tauri-macros = { version = "1.1.1", path = "../tauri-macros" }
+tauri-utils = { version = "1.1.1", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.11.1", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
@@ -64,7 +64,7 @@ ignore = "0.4"
 flate2 = "1.0"
 http = "0.2"
 dirs-next = "2.0"
-percent-encoding = "2.1"
+percent-encoding = "2.2"
 base64 = { version = "0.13", optional = true }
 clap = { version = "3", optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
@@ -79,7 +79,7 @@ time = { version = "0.3", features = [ "parsing", "formatting" ], optional = tru
 os_info = { version = "3.5.0", optional = true }
 regex = { version = "1.6.0", optional = true }
 glob = "0.3"
-data-url = { version = "0.1", optional = true }
+data-url = { version = "0.2", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
@@ -250,6 +250,7 @@ window-all = [
   "window-set-cursor-visible",
   "window-set-cursor-icon",
   "window-set-cursor-position",
+  "window-set-ignore-cursor-events",
   "window-start-dragging",
   "window-print"
 ]
@@ -279,6 +280,7 @@ window-set-cursor-grab = [ ]
 window-set-cursor-visible = [ ]
 window-set-cursor-icon = [ ]
 window-set-cursor-position = [ ]
+window-set-ignore-cursor-events = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]

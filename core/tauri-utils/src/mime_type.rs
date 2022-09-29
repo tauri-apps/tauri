@@ -2,37 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::HashMap,
-  fmt,
-  sync::{Arc, Mutex},
-};
+//! Determine a mime type from a URI or file contents.
 
-/// key is uri/path, value is the store mime type
-#[derive(Debug, Clone, Default)]
-pub struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
-
-impl MimeTypeCache {
-  pub fn new() -> Self {
-    Self(Arc::new(Mutex::new(HashMap::new())))
-  }
-
-  pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
-    let mut cache = self.0.lock().unwrap();
-    let uri = uri.to_string();
-    if let Some(mime_type) = cache.get(&uri) {
-      mime_type.clone()
-    } else {
-      let mime_type = MimeType::parse(content, &uri);
-      cache.insert(uri, mime_type.clone());
-      mime_type
-    }
-  }
-}
+use std::fmt;
 
 const MIMETYPE_PLAIN: &str = "text/plain";
 
 /// [Web Compatible MimeTypes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#important_mime_types_for_web_developers)
+#[allow(missing_docs)]
 pub enum MimeType {
   Css,
   Csv,

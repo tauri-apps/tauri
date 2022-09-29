@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.1.1]
+
+- Fix wrong cli metadata that caused new projects (created through `tauri init`) fail to build
+  - [db26aaf2](https://www.github.com/tauri-apps/tauri/commit/db26aaf2b44ce5335c9223c571ef2b2175e0cd6d) fix: fix wrong cli metadata ([#5214](https://www.github.com/tauri-apps/tauri/pull/5214)) on 2022-09-16
+
 ## \[1.1.0]
 
 - Allow adding `build > beforeBundleCommand` in tauri.conf.json to run a shell command before the bundling phase.

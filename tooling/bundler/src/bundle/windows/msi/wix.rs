@@ -594,7 +594,9 @@ pub fn build_wix_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(

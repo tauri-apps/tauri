@@ -285,7 +285,7 @@ pub fn command(mut options: Options) -> Result<()> {
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-      // make sure we have our package builts
+      // make sure we have our package built
       let mut signed_paths = Vec::new();
       for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add

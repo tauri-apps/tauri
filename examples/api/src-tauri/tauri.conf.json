@@ -2,7 +2,7 @@
   "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
-    "devPath": "http://localhost:5000",
+    "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
   },
@@ -87,8 +87,8 @@
       "all": true,
       "fs": {
         "scope": {
-          "allow": ["$APP/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
-          "deny": ["$APP/db/*.stronghold"]
+          "allow": ["$APPDATA/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
         }
       },
       "shell": {
@@ -109,8 +109,8 @@
       "protocol": {
         "asset": true,
         "assetScope": {
-          "allow": ["$APP/db/**", "$RESOURCE/**"],
-          "deny": ["$APP/db/*.stronghold"]
+          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
         }
       },
       "http": {

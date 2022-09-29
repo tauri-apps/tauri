@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.0.5"
+version = "1.0.7"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -13,16 +13,12 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.57"
-exclude = [
-  "CHANGELOG.md",
-  "/target",
-  "rustfmt.toml"
-]
+rust-version = "1.59"
+exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "1.0.3", path = "../../core/tauri-utils", features = [ "resources" ] }
-image = "0.24.3"
+tauri-utils = { version = "1.1.1", path = "../../core/tauri-utils", features = [ "resources" ] }
+image = "0.24.4"
 libflate = "1.2"
 anyhow = "1.0"
 thiserror = "1.0"
@@ -49,7 +45,7 @@ zip = "0.6"
 semver = "1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
-icns = "0.3"
+icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = [ "formatting" ] }
 plist = "1"
 

@@ -772,6 +772,7 @@ fn tauri_config_to_bundle_settings(
 
   Ok(BundleSettings {
     identifier: Some(config.identifier),
+    publisher: config.publisher,
     icon: Some(config.icon),
     resources: if resources.is_empty() {
       None

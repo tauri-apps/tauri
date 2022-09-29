@@ -358,7 +358,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -773,14 +773,13 @@ impl<R: Runtime> Window<R> {
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
-        menu_item_id: menu_ids
-          .lock()
-          .unwrap()
-          .get(&event.menu_item_id)
-          .unwrap()
-          .clone(),
-      })
+      let id = menu_ids
+        .lock()
+        .unwrap()
+        .get(&event.menu_item_id)
+        .unwrap()
+        .clone();
+      f(MenuEvent { menu_item_id: id })
     })
   }
 }
@@ -844,7 +843,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
@@ -917,7 +916,7 @@ impl<R: Runtime> Window<R> {
       })
   }
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this can only be used on the main thread.
   #[cfg(any(
@@ -1173,6 +1172,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_cursor_position(position)
+      .map_err(Into::into)
+  }
+
+  /// Ignores the window cursor events.
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_ignore_cursor_events(ignore)
       .map_err(Into::into)
   }
 

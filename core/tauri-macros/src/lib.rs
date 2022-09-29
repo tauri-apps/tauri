@@ -88,7 +88,7 @@ pub fn derive_command_module(input: TokenStream) -> TokenStream {
 /// The `run` method takes a `tauri::endpoints::InvokeContext`
 /// and returns a `tauri::Result<tauri::endpoints::InvokeResponse>`.
 /// It matches on each enum variant and call a method with name equal to the variant name, lowercased and snake_cased,
-/// passing the the context and the variant's fields as arguments.
+/// passing the context and the variant's fields as arguments.
 /// That function must also return the same `Result<InvokeResponse>`.
 #[doc(hidden)]
 #[proc_macro_attribute]

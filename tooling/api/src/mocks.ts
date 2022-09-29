@@ -56,7 +56,7 @@ interface IPCMessage {
  * })
  * ```
  *
- * @param cb
+ * @since 1.0.0
  */
 export function mockIPC(
   cb: (cmd: string, args: Record<string, unknown>) => any | Promise<any>
@@ -125,6 +125,8 @@ export function mockIPC(
  *
  * @param current Label of window this JavaScript context is running in.
  * @param additionalWindows Label of additional windows the app has.
+ *
+ * @since 1.0.0
  */
 export function mockWindows(
   current: string,
@@ -159,6 +161,8 @@ export function mockWindows(
  *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
  * })
  * ```
+ *
+ * @since 1.0.0
  */
 export function clearMocks(): void {
   // @ts-expect-error

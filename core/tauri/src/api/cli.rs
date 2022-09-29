@@ -9,32 +9,13 @@ use crate::{
   PackageInfo,
 };
 
-use clap::{Arg, ArgMatches, ErrorKind};
+use clap::{builder::ArgPredicate, error::ErrorKind, Arg, ArgAction, ArgMatches, Command};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
 #[macro_use]
 mod macros;
-
-mod clapfix {
-  //! Compatibility between `clap` 3.0 and 3.1+ without deprecation errors.
-  #![allow(deprecated)]
-
-  pub type ClapCommand<'help> = clap::App<'help>;
-
-  pub trait ErrorExt {
-    fn kind(&self) -> clap::ErrorKind;
-  }
-
-  impl ErrorExt for clap::Error {
-    fn kind(&self) -> clap::ErrorKind {
-      self.kind
-    }
-  }
-}
-
-use clapfix::{ClapCommand as App, ErrorExt};
 
 /// The resolution of a argument match.
 #[derive(Default, Debug, Serialize)]
@@ -85,7 +66,7 @@ impl Matches {
 /// Gets the argument matches of the CLI definition.
 ///
 /// This is a low level API. If the application has been built,
-/// prefer [`App::get_cli_matches`](`crate::App#method.get_cli_matches`).
+/// prefer [`Command::get_cli_matches`](`crate::App#method.get_cli_matches`).
 ///
 /// # Examples
 ///
@@ -106,7 +87,7 @@ pub fn get_matches(cli: &CliConfig, package_info: &PackageInfo) -> crate::api::R
   let app = get_app(package_info, version, &package_info.name, Some(&about), cli);
   match app.try_get_matches() {
     Ok(matches) => Ok(get_matches_internal(cli, &matches)),
-    Err(e) => match ErrorExt::kind(&e) {
+    Err(e) => match e.kind() {
       ErrorKind::DisplayHelp => {
         let mut matches = Matches::default();
         let help_text = e.to_string();
@@ -154,57 +135,77 @@ fn get_matches_internal(config: &CliConfig, matches: &ArgMatches) -> Matches {
 fn map_matches(config: &CliConfig, matches: &ArgMatches, cli_matches: &mut Matches) {
   if let Some(args) = config.args() {
     for arg in args {
-      #[allow(deprecated)]
-      let occurrences = matches.occurrences_of(arg.name.clone());
-      let value = if occurrences == 0 || !arg.takes_value {
-        Value::Bool(occurrences > 0)
+      let mut occurrences = if arg.multiple_occurrences {
+        Some(matches.get_count(&arg.name) as u64)
+      } else {
+        None
+      };
+      let value = if !arg.takes_value {
+        Value::Bool(if arg.multiple_occurrences {
+          occurrences.unwrap_or(0) > 0
+        } else {
+          let v = matches
+            .get_one::<bool>(&arg.name)
+            .copied()
+            .unwrap_or_default();
+          occurrences.replace(1);
+          v
+        })
       } else if arg.multiple {
-        #[allow(deprecated)]
         matches
-          .values_of(arg.name.clone())
+          .get_many::<String>(&arg.name)
           .map(|v| {
             let mut values = Vec::new();
             for value in v {
               values.push(Value::String(value.to_string()));
             }
+            occurrences.replace(1);
             Value::Array(values)
           })
           .unwrap_or(Value::Null)
       } else {
-        #[allow(deprecated)]
         matches
-          .value_of(arg.name.clone())
-          .map(|v| Value::String(v.to_string()))
+          .get_one::<String>(&arg.name)
+          .map(|v| {
+            occurrences.replace(1);
+            Value::String(v.to_string())
+          })
           .unwrap_or(Value::Null)
       };
 
-      cli_matches.set_arg(arg.name.clone(), ArgData { value, occurrences });
+      cli_matches.set_arg(
+        arg.name.clone(),
+        ArgData {
+          value,
+          occurrences: occurrences.unwrap_or(0),
+        },
+      );
     }
   }
 }
 
-fn get_app<'a>(
-  package_info: &'a PackageInfo,
-  version: &'a str,
-  command_name: &'a str,
-  about: Option<&'a String>,
-  config: &'a CliConfig,
-) -> App<'a> {
-  let mut app = App::new(command_name)
+fn get_app(
+  package_info: &PackageInfo,
+  version: &str,
+  command_name: &str,
+  about: Option<&String>,
+  config: &CliConfig,
+) -> Command {
+  let mut app = Command::new(command_name.to_string())
     .author(package_info.authors)
-    .version(version);
+    .version(version.to_string());
 
   if let Some(about) = about {
-    app = app.about(&**about);
+    app = app.about(about);
   }
   if let Some(long_description) = config.long_description() {
-    app = app.long_about(&**long_description);
+    app = app.long_about(long_description);
   }
   if let Some(before_help) = config.before_help() {
-    app = app.before_help(&**before_help);
+    app = app.before_help(before_help);
   }
   if let Some(after_help) = config.after_help() {
-    app = app.after_help(&**after_help);
+    app = app.after_help(after_help);
   }
 
   if let Some(args) = config.args() {
@@ -230,11 +231,11 @@ fn get_app<'a>(
   app
 }
 
-fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
-  let mut clap_arg = Arg::new(arg_name);
+fn get_arg(arg_name: &str, arg: &CliArg) -> Arg {
+  let mut clap_arg = Arg::new(arg_name.to_string());
 
   if arg.index.is_none() {
-    clap_arg = clap_arg.long(arg_name);
+    clap_arg = clap_arg.long(arg_name.to_string());
     if let Some(short) = arg.short {
       clap_arg = clap_arg.short(short);
     }
@@ -242,19 +243,48 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
 
   clap_arg = bind_string_arg!(arg, clap_arg, description, help);
   clap_arg = bind_string_arg!(arg, clap_arg, long_description, long_help);
-  clap_arg = clap_arg.takes_value(arg.takes_value);
-  clap_arg = clap_arg.multiple_values(arg.multiple);
-  #[allow(deprecated)]
-  {
-    clap_arg = clap_arg.multiple_occurrences(arg.multiple_occurrences);
+
+  if arg.multiple {
+    clap_arg = clap_arg.num_args(if arg.required { 1.. } else { 0.. });
   }
-  clap_arg = bind_value_arg!(arg, clap_arg, number_of_values);
-  #[allow(deprecated)]
-  {
-    clap_arg = bind_string_slice_arg!(arg, clap_arg, possible_values);
+
+  if arg.multiple_occurrences {
+    clap_arg = clap_arg.action(if arg.takes_value {
+      ArgAction::Append
+    } else {
+      ArgAction::Count
+    });
+  } else if arg.takes_value {
+    clap_arg = clap_arg.action(if arg.multiple {
+      ArgAction::Append
+    } else {
+      ArgAction::Set
+    });
+  } else {
+    clap_arg = clap_arg.action(ArgAction::SetTrue);
   }
-  clap_arg = bind_value_arg!(arg, clap_arg, min_values);
-  clap_arg = bind_value_arg!(arg, clap_arg, max_values);
+
+  if let Some(number_of_values) = arg.number_of_values {
+    clap_arg = clap_arg.num_args(number_of_values);
+  }
+
+  if let Some(values) = &arg.possible_values {
+    clap_arg = clap_arg.value_parser(clap::builder::PossibleValuesParser::new(values));
+  }
+
+  match (arg.min_values, arg.max_values) {
+    (Some(min), Some(max)) => {
+      clap_arg = clap_arg.num_args(min..=max);
+    }
+    (Some(min), None) => {
+      clap_arg = clap_arg.num_args(min..);
+    }
+    (None, Some(max)) => {
+      clap_arg = clap_arg.num_args(..=max);
+    }
+    (None, None) => (),
+  }
+
   clap_arg = clap_arg.required(arg.required);
   clap_arg = bind_string_arg!(
     arg,
@@ -266,13 +296,11 @@ fn get_arg<'a>(arg_name: &'a str, arg: &'a CliArg) -> Arg<'a> {
   clap_arg = bind_string_slice_arg!(arg, clap_arg, required_unless_present_any);
   clap_arg = bind_string_arg!(arg, clap_arg, conflicts_with, conflicts_with);
   if let Some(value) = &arg.conflicts_with_all {
-    let v: Vec<&str> = value.iter().map(|x| &**x).collect();
-    clap_arg = clap_arg.conflicts_with_all(&v);
+    clap_arg = clap_arg.conflicts_with_all(value);
   }
   clap_arg = bind_string_arg!(arg, clap_arg, requires, requires);
   if let Some(value) = &arg.requires_all {
-    let v: Vec<&str> = value.iter().map(|x| &**x).collect();
-    clap_arg = clap_arg.requires_all(&v);
+    clap_arg = clap_arg.requires_ifs(value.iter().map(|v| (ArgPredicate::IsPresent, v)));
   }
   clap_arg = bind_if_arg!(arg, clap_arg, requires_if);
   clap_arg = bind_if_arg!(arg, clap_arg, required_if_eq);

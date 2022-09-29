@@ -6,10 +6,7 @@
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
-  http::{
-    Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
-    ResponseParts as HttpResponseParts,
-  },
+  http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
@@ -59,10 +56,7 @@ use wry::{
       UserAttentionType as WryUserAttentionType,
     },
   },
-  http::{
-    Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
-    ResponseParts as WryResponseParts,
-  },
+  http::{Request as WryRequest, Response as WryResponse},
   webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
 };
 
@@ -269,70 +263,36 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
   }
 }
 
-struct HttpRequestPartsWrapper(HttpRequestParts);
-
-impl From<HttpRequestPartsWrapper> for HttpRequestParts {
-  fn from(parts: HttpRequestPartsWrapper) -> Self {
-    Self {
-      method: parts.0.method,
-      uri: parts.0.uri,
-      headers: parts.0.headers,
-    }
-  }
-}
-
-impl From<HttpRequestParts> for HttpRequestPartsWrapper {
-  fn from(request: HttpRequestParts) -> Self {
-    Self(HttpRequestParts {
-      method: request.method,
-      uri: request.uri,
-      headers: request.headers,
-    })
-  }
-}
-
-impl From<WryRequestParts> for HttpRequestPartsWrapper {
-  fn from(request: WryRequestParts) -> Self {
-    Self(HttpRequestParts {
-      method: request.method,
-      uri: request.uri,
-      headers: request.headers,
-    })
-  }
-}
-
 struct HttpRequestWrapper(HttpRequest);
 
-impl From<&WryHttpRequest> for HttpRequestWrapper {
-  fn from(req: &WryHttpRequest) -> Self {
-    Self(HttpRequest::new_internal(
-      HttpRequestPartsWrapper::from(req.head.clone()).0,
-      req.body.clone(),
-    ))
+impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
+  fn from(req: &WryRequest<Vec<u8>>) -> Self {
+    let parts = RequestParts {
+      uri: req.uri().to_string(),
+      method: req.method().clone(),
+      headers: req.headers().clone(),
+    };
+    Self(HttpRequest::new_internal(parts, req.body().clone()))
   }
 }
 
 // response
-struct HttpResponsePartsWrapper(WryResponseParts);
-impl From<HttpResponseParts> for HttpResponsePartsWrapper {
-  fn from(response: HttpResponseParts) -> Self {
-    Self(WryResponseParts {
-      mimetype: response.mimetype,
-      status: response.status,
-      version: response.version,
-      headers: response.headers,
-    })
-  }
-}
-
-struct HttpResponseWrapper(WryHttpResponse);
+struct HttpResponseWrapper(WryResponse<Vec<u8>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
-    Self(WryHttpResponse {
-      body,
-      head: HttpResponsePartsWrapper::from(parts).0,
-    })
+    let mut res_builder = WryResponse::builder()
+      .status(parts.status)
+      .version(parts.version);
+    if let Some(mime) = parts.mimetype {
+      res_builder = res_builder.header(CONTENT_TYPE, mime);
+    }
+    for (name, val) in parts.headers.iter() {
+      res_builder = res_builder.header(name, val);
+    }
+
+    let res = res_builder.body(body).unwrap();
+    Self(res)
   }
 }
 

@@ -569,7 +569,7 @@ async function renameFile(
  *
  * @since 1.1.0
  */
-async function exists(path: string, options: FsOptions = {}): Promise<void> {
+async function exists(path: string, options: FsOptions = {}): Promise<boolean> {
   return invokeTauriCommand({
     __tauriModule: 'Fs',
     message: {

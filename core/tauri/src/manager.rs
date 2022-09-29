@@ -509,7 +509,7 @@ impl<R: Runtime> WindowManager<R> {
       use url::Position;
       let state = self.state();
       let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
-      let mime_type_cache = state.get::<MimeTypeCache>().inner().clone();
+      let mime_type_cache = MimeTypeCache::default();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -1435,7 +1435,7 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
 
 // key is uri/path, value is the store mime type
 #[derive(Debug, Clone, Default)]
-pub(crate) struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
+struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
 
 impl MimeTypeCache {
   pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {

@@ -11,7 +11,7 @@ use crate::{
   hooks::{
     window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
   },
-  manager::{Asset, CustomProtocol, WindowManager},
+  manager::{Asset, CustomProtocol, MimeTypeCache, WindowManager},
   plugin::{Plugin, PluginStore},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
@@ -1533,7 +1533,7 @@ impl<R: Runtime> Builder<R> {
       shell: ShellScope::new(shell_scope),
     });
     #[cfg(protocol_asset)]
-    app.manage(tauri_runtime::http::MimeTypeCache::new());
+    app.manage(MimeTypeCache::default());
     app.manage(env);
 
     #[cfg(windows)]

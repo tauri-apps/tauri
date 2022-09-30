@@ -35,6 +35,8 @@ use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
@@ -739,6 +741,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
+    #[cfg(target_os = "macos")]
+    {
+      window = window
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+    }
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       window = window.transparent(config.transparent);
@@ -876,6 +885,32 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(windows)]
   fn owner_window(mut self, owner: HWND) -> Self {
     self.inner = self.inner.with_owner_window(owner);
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    match style {
+      TitleBarStyle::Visible => {
+        self.inner = self.inner.with_titlebar_transparent(false);
+        // Fixes rendering issue when resizing window with devtools open (https://github.com/tauri-apps/tauri/issues/3914)
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      TitleBarStyle::Transparent => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(false);
+      }
+      TitleBarStyle::Overlay => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+    }
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hidden_title(mut self, hidden: bool) -> Self {
+    self.inner = self.inner.with_title_hidden(hidden);
     self
   }
 
@@ -2878,10 +2913,6 @@ fn create_webview<T: UserEvent>(
 
   let window_event_listeners = WindowEventListeners::default();
 
-  #[cfg(target_os = "macos")]
-  {
-    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
-  }
   #[cfg(windows)]
   {
     window_builder.inner = window_builder

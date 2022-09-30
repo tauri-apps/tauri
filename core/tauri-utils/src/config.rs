@@ -34,6 +34,8 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
+use crate::TitleBarStyle;
+
 pub use self::parse::parse;
 
 /// An URL to open on a Tauri webview window.
@@ -859,6 +861,12 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
+  /// The style of the macOS title bar.
+  #[serde(default, alias = "title-bar-style")]
+  pub title_bar_style: TitleBarStyle,
+  /// If `true`, sets the window title to be hidden on macOS.
+  #[serde(default, alias = "hidden-title")]
+  pub hidden_title: bool,
 }
 
 impl Default for WindowConfig {
@@ -887,6 +895,8 @@ impl Default for WindowConfig {
       always_on_top: false,
       skip_taskbar: false,
       theme: None,
+      title_bar_style: Default::default(),
+      hidden_title: false,
     }
   }
 }
@@ -2934,6 +2944,18 @@ mod build {
     }
   }
 
+  impl ToTokens for crate::TitleBarStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::TitleBarStyle };
+
+      tokens.append_all(match self {
+        Self::Visible => quote! { #prefix::Visible },
+        Self::Transparent => quote! { #prefix::Transparent },
+        Self::Overlay => quote! { #prefix::Overlay },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -2959,6 +2981,8 @@ mod build {
       let always_on_top = self.always_on_top;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
+      let title_bar_style = &self.title_bar_style;
+      let hidden_title = self.hidden_title;
 
       literal_struct!(
         tokens,
@@ -2985,7 +3009,9 @@ mod build {
         decorations,
         always_on_top,
         skip_taskbar,
-        theme
+        theme,
+        title_bar_style,
+        hidden_title
       );
     }
   }

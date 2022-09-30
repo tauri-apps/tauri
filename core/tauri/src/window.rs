@@ -8,6 +8,8 @@ pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
 
+#[cfg(target_os = "macos")]
+use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -430,6 +432,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn owner_window(mut self, owner: HWND) -> Self {
     self.window_builder = self.window_builder.owner_window(owner);
+    self
+  }
+
+  /// Sets the [`TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.window_builder = self.window_builder.title_bar_style(style);
+    self
+  }
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn hidden_title(mut self, hidden: bool) -> Self {
+    self.window_builder = self.window_builder.hidden_title(hidden);
     self
   }
 

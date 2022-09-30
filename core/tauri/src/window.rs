@@ -326,7 +326,9 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window will be initially hidden or focused.
+  /// Whether the window will be initially focused or not.
+  ///
+  /// **This doesn't work at the moment and the window will always be initially focused**
   #[must_use]
   pub fn focus(mut self) -> Self {
     self.window_builder = self.window_builder.focus();

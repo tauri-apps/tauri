@@ -1159,12 +1159,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1201,12 +1201,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -2003,7 +2003,11 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
-  /** Whether the window will be initially hidden or focused. */
+  /**
+   * Whether the window will be initially hidden or focused.
+   *
+   * **This doesn't work at the moment and the window will always be initially focused**
+   */
   focus?: boolean
   /**
    * Whether the window is transparent or not.

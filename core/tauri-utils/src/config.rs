@@ -3352,7 +3352,7 @@ mod build {
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
-      let title = opt_lit(self.title.as_ref());
+      let title = opt_str_lit(self.title.as_ref());
       literal_struct!(
         tokens,
         SystemTrayConfig,

@@ -409,6 +409,9 @@ impl SystemTray {
     {
       runtime_tray = runtime_tray.with_icon_as_template(self.icon_as_template);
       runtime_tray = runtime_tray.with_menu_on_left_click(self.menu_on_left_click);
+      if let Some(title) = self.title {
+        runtime_tray = runtime_tray.with_title(&title);
+      }
     }
 
     let id = runtime_tray.id;

@@ -105,7 +105,9 @@ pub fn create_tray<T>(
 
   #[cfg(target_os = "macos")]
   {
-    builder = builder.with_icon_as_template(system_tray.icon_as_template)
+    builder = builder
+      .with_icon_as_template(system_tray.icon_as_template)
+      .with_menu_on_left_click(system_tray.menu_on_left_click)
   }
 
   let tray = builder

@@ -2047,7 +2047,7 @@ interface WindowOptions {
  * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  const m: Monitor = await invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2058,6 +2058,13 @@ async function currentMonitor(): Promise<Monitor | null> {
       }
     }
   })
+
+  return {
+    name: m.name,
+    scaleFactor: m.scaleFactor,
+    position: new PhysicalPosition(m.position.x, m.position.y),
+    size: new PhysicalSize(m.size.width, m.size.height)
+  }
 }
 
 /**
@@ -2072,7 +2079,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  const m: Monitor = await invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2083,6 +2090,13 @@ async function primaryMonitor(): Promise<Monitor | null> {
       }
     }
   })
+
+  return {
+    name: m.name,
+    scaleFactor: m.scaleFactor,
+    position: new PhysicalPosition(m.position.x, m.position.y),
+    size: new PhysicalSize(m.size.width, m.size.height)
+  }
 }
 
 /**
@@ -2096,7 +2110,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function availableMonitors(): Promise<Monitor[]> {
-  return invokeTauriCommand({
+  const ms: Monitor[] = await invokeTauriCommand({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2107,6 +2121,13 @@ async function availableMonitors(): Promise<Monitor[]> {
       }
     }
   })
+
+  return ms.map((m) => ({
+    name: m.name,
+    scaleFactor: m.scaleFactor,
+    position: new PhysicalPosition(m.position.x, m.position.y),
+    size: new PhysicalSize(m.size.width, m.size.height)
+  }))
 }
 
 export {

@@ -2470,6 +2470,13 @@
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
           "default": true,
           "type": "boolean"
+        },
+        "title": {
+          "description": "Title for MacOS tray",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -1,11 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
 
 use crate::{
-  helpers::updater_signature::{read_key_from_file, sign_file},
+  helpers::updater_signature::{read_key_from_file, secret_key, sign_file},
   Result,
 };
 use anyhow::Context;
@@ -45,13 +45,14 @@ pub fn command(mut options: Options) -> Result<()> {
     println!("Signing without password.");
   }
 
-  let (manifest_dir, signature) = sign_file(private_key, options.password, options.file)
-    .with_context(|| "failed to sign file")?;
+  let (manifest_dir, signature) =
+    sign_file(&secret_key(private_key, options.password)?, options.file)
+      .with_context(|| "failed to sign file")?;
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
            manifest_dir.display(),
-           signature
+           base64::encode(signature.to_string())
          );
 
   Ok(())

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,6 +22,8 @@
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
+//! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
+//! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
 //! - **global-shortcut**: Enables the global shortcut APIs.
 //! - **clipboard**: Enables the clipboard APIs.
@@ -36,6 +38,7 @@
 //! - **window-data-url**: Enables usage of data URLs on the webview.
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
+//! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
 //! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
 //!
@@ -66,6 +69,7 @@
 //! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
 //! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
 //! - **fs-create-dir**: Enables the [`createDir` API](https://tauri.app/en/docs/api/js/modules/fs#createdir).
+//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readBinaryFile` API](https://tauri.app/en/docs/api/js/modules/fs#readbinaryfile).
 //! - **fs-remove-dir**: Enables the [`removeDir` API](https://tauri.app/en/docs/api/js/modules/fs#removedir).
@@ -141,6 +145,7 @@
 //! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
 //! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
 //! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
+//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
 //! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
 //! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
 
@@ -203,14 +208,11 @@ pub use runtime::{menu::NativeImage, ActivationPolicy};
 
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
-  self::app::tray::{SystemTrayEvent, SystemTrayHandle},
-  self::runtime::{
-    menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
-    SystemTray,
-  },
+  self::app::tray::{SystemTray, SystemTrayEvent, SystemTrayHandle},
+  self::runtime::menu::{SystemTrayMenu, SystemTrayMenuItem, SystemTraySubmenu},
 };
 pub use {
   self::app::WindowMenuEvent,
@@ -250,7 +252,7 @@ pub use {
 #[cfg_attr(doc_cfg, doc(cfg(feature = "clipboard")))]
 pub use self::runtime::ClipboardManager;
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
 
@@ -278,7 +280,7 @@ pub enum UpdaterEvent {
     /// The total
     content_length: Option<u64>,
   },
-  /// The update has been download and is now about to be installed.
+  /// The update has been downloaded and is now about to be installed.
   Downloaded,
   /// The update has been applied and the app is now up to date.
   Updated,

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@
 // Typically this could be c++, we use rust here just for convenience
 // See https://michael-f-bryan.github.io/rust-ffi-guide/dynamic_loading.html
 
-use libloading::{Library, library_filename, Symbol};
+use libloading::{library_filename, Library, Symbol};
 type LibFunctionType1 = fn();
 
 fn main() {

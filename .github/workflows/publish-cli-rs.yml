@@ -1,0 +1,82 @@
+name: publish cli.rs
+env:
+  MACOSX_DEPLOYMENT_TARGET: '10.13'
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [publish-clirs]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.target.platform }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - {
+              name: 'x86_64-unknown-linux-gnu',
+              platform: 'ubuntu-18.04',
+              ext: ''
+            }
+          - { name: 'x86_64-apple-darwin', platform: 'macos-latest', ext: '' }
+          - {
+              name: 'x86_64-pc-windows-msvc',
+              platform: 'windows-latest',
+              ext: '.exe'
+            }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: install Linux dependencies
+        if: matrix.target.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./tooling/cli/Cargo.toml --release
+
+      - name: Upload CLI
+        uses: actions/upload-artifact@v3
+        with:
+          name: cargo-tauri-${{ matrix.target.name }}${{ matrix.target.ext }}
+          path: tooling/cli/target/release/cargo-tauri${{ matrix.target.ext }}
+          if-no-files-found: error
+
+  upload:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Download built CLIs
+        uses: actions/download-artifact@v3
+        with:
+          path: outputs
+
+      - name: Pack archives
+        run: ./.scripts/ci/pack-cli.sh
+
+      - name: Get CLI version
+        run: echo "CLI_VERSION=$(cat tooling/cli/metadata.json | jq '."cli.js".version' -r)" >> $GITHUB_ENV
+
+      - name: Publish release
+        uses: softprops/action-gh-release@50195ba7f6f93d1ac97ba8332a178e008ad176aa
+        with:
+          tag_name: cli.rs-v${{ env.CLI_VERSION }}
+          files: |
+            outputs/cargo-tauri-*.zip
+            outputs/cargo-tauri-*.tgz

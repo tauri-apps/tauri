@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -62,8 +62,6 @@ pub enum WindowEvent {
   /// The system window theme has changed.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
-  ///
-  /// At the moment this is only supported on Windows.
   ThemeChanged(Theme),
 }
 

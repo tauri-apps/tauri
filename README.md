@@ -1,15 +1,13 @@
 <img src=".github/splash.png" alt="Tauri" />
 
-[![status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/tauri-apps/tauri/tree/dev)
+[![status](https://img.shields.io/badge/status-stable-blue.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
 [![test library](https://img.shields.io/github/workflow/status/tauri-apps/tauri/test%20library?label=test%20library)](https://github.com/tauri-apps/tauri/actions?query=workflow%3A%22test+library%22)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftauri-apps%2Ftauri?ref=badge_shield)
-
-[![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
-[![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
-[![devto](https://img.shields.io/badge/documentation-tauri.app-purple.svg)](https://tauri.app)
+[![Chat Server](https://img.shields.io/badge/chat-discord-7289da.svg)](https://discord.gg/SpmNs4S)
+[![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
-[![support](https://img.shields.io/badge/sponsor-open%20collective-blue.svg)](https://opencollective.com/tauri)
+[![support](https://img.shields.io/badge/sponsor-Open%20Collective-blue.svg)](https://opencollective.com/tauri)
 
 ## Current Releases
 
@@ -51,7 +49,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 ## Get Started
 
-If you are interested in making a tauri app, please visit the [documentation website](https://tauri.studio). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
+If you are interested in making a tauri app, please visit the [documentation website](https://tauri.app). This README is directed towards those who are interested in contributing to the core library. But if you just want a quick overview about where `tauri` is at in its development, here's a quick burndown:
 
 ### Platforms
 
@@ -80,22 +78,16 @@ For **running** Tauri apps we support the below configurations (these are automa
 
 <sup>1</sup> `appindicator` is only required if system trays are used
 
-### App Bundles
+### Features
 
-- [x] App Icons
-- [x] Build on macOS (.app, .dmg)
-- [x] Build on Linux (.deb, AppImage)
-- [x] Build on Windows (.exe, .msi)
-- [x] Copy Buffer
-- [x] Device Notifications (toast)
+- [x] Desktop Bundler (.app, .dmg, .deb, AppImage, .msi)
 - [x] Self Updater
 - [x] App Signing
-- [x] Frameless Mode
-- [x] Transparent Mode
-- [x] Multiwindow Mode
-- [x] Tray
-- [ ] deeplink RPC (in progress)
-- [ ] One-Time commands (coming soon)
+- [x] Native Notifications (toast)
+- [x] App Tray
+- [x] Core Plugin System
+- [x] Scoped Filesystem
+- [x] Sidecar
 
 ### Security Features
 
@@ -108,39 +100,9 @@ For **running** Tauri apps we support the below configurations (these are automa
 
 ### Utilities
 
+- [x] Rust-based CLI
 - [x] GH Action for creating binaries for all platforms
 - [x] VS Code Extension
-- [x] Tauri Core Plugins
-- [x] Update core dependencies automatically from the command line
-- [x] Rust-based CLI
-
-### Comparison between Tauri and Electron
-
-| Detail                     | Tauri  | Electron             |
-| -------------------------- | ------ | -------------------- |
-| Installer Size Linux       | 3.1 MB | 52.1 MB              |
-| Memory Consumption Linux   | 180 MB | 462 MB               |
-| Launch Time Linux          | 0.39s  | 0.80s                |
-| Interface Service Provider | WRY    | Chromium             |
-| Backend Binding            | Rust   | Node.js (ECMAScript) |
-| Underlying Engine          | Rust   | V8 (C/C++)           |
-| FLOSS                      | Yes    | No                   |
-| Multithreading             | Yes    | Yes                  |
-| Bytecode Delivery          | Yes    | No                   |
-| Multiple Windows           | Yes    | Yes                  |
-| Auto Updater               | Yes    | Yes<sup>1</sup>      |
-| Custom App Icon            | Yes    | Yes                  |
-| Windows Binary             | Yes    | Yes                  |
-| macOS Binary               | Yes    | Yes                  |
-| Linux Binary               | Yes    | Yes                  |
-| iOS Binary                 | Soon   | No                   |
-| Android Binary             | Soon   | No                   |
-| Desktop Tray               | Yes    | Yes                  |
-| Sidecar Binaries           | Yes    | No                   |
-
-#### Notes
-
-1. Electron has no native auto updater on Linux, but is offered by electron-packager
 
 ## Development
 
@@ -154,18 +116,6 @@ Tauri is a system composed of a number of moving pieces:
 - Discord for discussions
 - Netlify-hosted documentation website
 - DigitalOcean Meilisearch instance
-
-### Major Runtimes
-
-- Node.js for running the CLI (deno and pure rust are on the roadmap)
-- Cargo for testing, running the dev service, building binaries and as the runtime harness for the webview
-
-### Major Languages
-
-- Rust for the CLI
-- ECMAScript bindings to the Rust API, written in typescript
-- Rust for bindings, rust side of the API, harnesses
-- Rust plugins to Tauri backend
 
 ### Operating systems
 
@@ -188,7 +138,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 Test all the things! We have a number of test suites, but are always looking to improve our coverage:
 
 - Rust (`cargo test`) => sourced via inline `#[cfg(test)]` declarations
-- TS (`jest`) => via spec files
+- Typescript (`jest`) => via spec files
 - Smoke Tests (run on merges to latest)
 - eslint, clippy
 

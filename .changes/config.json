@@ -17,12 +17,7 @@
           "pipe": true
         },
         {
-          "command": "echo \"# Cargo Audit\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -33,7 +28,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -45,12 +40,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Cargo Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -60,7 +50,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -87,12 +77,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -115,12 +100,7 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -130,7 +110,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -158,12 +138,7 @@
           "dryRunCommand": true
         },
         {
-          "command": "echo \"# Yarn Audit\n\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '<details>\n<summary>click to view</summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -185,12 +160,7 @@
       ],
       "publish": [
         {
-          "command": "echo \"# Yarn Package Publish\"",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```'",
+          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -200,7 +170,7 @@
           "pipe": true
         },
         {
-          "command": "echo '```'",
+          "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
         }
@@ -239,7 +209,13 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "assets": [
+        {
+          "path": "./tooling/cli/schema.json",
+          "name": "schema.json"
+        }
+      ]
     },
     "tauri": {
       "path": "./core/tauri",

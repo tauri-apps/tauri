@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -21,6 +21,8 @@ import { invokeTauriCommand } from './helpers/tauri'
  *
  * @param exitCode The exit code to use.
  * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
  */
 async function exit(exitCode: number = 0): Promise<void> {
   return invokeTauriCommand({
@@ -41,6 +43,8 @@ async function exit(exitCode: number = 0): Promise<void> {
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
  */
 async function relaunch(): Promise<void> {
   return invokeTauriCommand({

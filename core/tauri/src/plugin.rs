@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -28,11 +28,14 @@ pub trait Plugin<R: Runtime>: Send {
     Ok(())
   }
 
-  /// The JS script to evaluate on webview initialization.
+  /// Add the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicity declared.
-  ///
-  /// It's guaranteed that this script is executed before the page is loaded.
   fn initialization_script(&self) -> Option<String> {
     None
   }
@@ -193,11 +196,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// The JS script to evaluate on webview initialization.
+  /// Sets the provided JavaScript to be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
-  /// It's guaranteed that this script is executed before the page is loaded.
+  /// Note that calling this function multiple times overrides previous values.
   ///
   /// # Examples
   ///
@@ -205,9 +213,11 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// const INIT_SCRIPT: &str = r#"
-  ///    console.log("hello world from js init script");
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
   ///
-  ///   window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' }
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
   /// "#;
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {

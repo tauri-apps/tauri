@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -55,6 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "x86_64" => "amd64",
     // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
     "arm" => "armhf",
+    "aarch64" => "arm64",
     other => other,
   };
   let package_base_name = format!(

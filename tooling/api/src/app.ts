@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -19,7 +19,7 @@ import { invokeTauriCommand } from './helpers/tauri'
  * const appVersion = await getVersion();
  * ```
  *
- * @returns A promise resolving to the application version.
+ * @since 1.0.0
  */
 async function getVersion(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -38,7 +38,7 @@ async function getVersion(): Promise<string> {
  * const appName = await getName();
  * ```
  *
- * @returns A promise resolving to application name.
+ * @since 1.0.0
  */
 async function getName(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -58,7 +58,7 @@ async function getName(): Promise<string> {
  * const tauriVersion = await getTauriVersion();
  * ```
  *
- * @returns A promise resolving to Tauri version.
+ * @since 1.0.0
  */
 async function getTauriVersion(): Promise<string> {
   return invokeTauriCommand<string>({

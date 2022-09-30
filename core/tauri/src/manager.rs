@@ -507,9 +507,7 @@ impl<R: Runtime> WindowManager<R> {
       use crate::api::file::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
-      let state = self.state();
-      let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
-      let mime_type_cache = MimeTypeCache::default();
+      let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -624,7 +622,7 @@ impl<R: Runtime> WindowManager<R> {
             response = response.header(k, v);
           }
 
-          let mime_type = mime_type_cache.get_or_insert(&data, &path);
+          let mime_type = MimeType::parse(&data, &path);
           response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
@@ -1426,26 +1424,6 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
-  }
-}
-
-// key is uri/path, value is the store mime type
-#[cfg(protocol_asset)]
-#[derive(Debug, Clone, Default)]
-struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
-
-#[cfg(protocol_asset)]
-impl MimeTypeCache {
-  pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
-    let mut cache = self.0.lock().unwrap();
-    let uri = uri.to_string();
-    if let Some(mime_type) = cache.get(&uri) {
-      mime_type.clone()
-    } else {
-      let mime_type = MimeType::parse(content, &uri);
-      cache.insert(uri, mime_type.clone());
-      mime_type
-    }
   }
 }
 

@@ -51,8 +51,8 @@ impl PackageInfo {
 }
 
 /// How the window title bar should be displayed.
-#[cfg(target_os = "macos")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {
   /// A normal title bar.
   Visible,
@@ -67,6 +67,49 @@ pub enum TitleBarStyle {
   /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316).
   /// - The color of the window title depends on the system theme.
   Overlay,
+}
+
+impl Default for TitleBarStyle {
+  fn default() -> Self {
+    Self::Visible
+  }
+}
+
+impl Serialize for TitleBarStyle {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for TitleBarStyle {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "transparent" => Self::Transparent,
+      "overlay" => Self::Overlay,
+      _ => Self::Visible,
+    })
+  }
+}
+
+impl Display for TitleBarStyle {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Visible => "Visible",
+        Self::Transparent => "Transparent",
+        Self::Overlay => "Overlay",
+      }
+    )
+  }
 }
 
 /// System theme.

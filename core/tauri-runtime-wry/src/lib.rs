@@ -741,6 +741,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
+    #[cfg(target_os = "macos")]
+    {
+      window = window
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+    }
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       window = window.transparent(config.transparent);
@@ -2898,10 +2905,6 @@ fn create_webview<T: UserEvent>(
 
   let window_event_listeners = WindowEventListeners::default();
 
-  #[cfg(target_os = "macos")]
-  {
-    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
-  }
   #[cfg(windows)]
   {
     window_builder.inner = window_builder

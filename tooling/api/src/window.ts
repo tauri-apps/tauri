@@ -67,6 +67,7 @@ import { emit, Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
+type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -2033,6 +2034,14 @@ interface WindowOptions {
    * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
+  /**
+   * The style of the macOS title bar.
+   */
+  titleBarStyle?: TitleBarStyle
+  /**
+   * If `true`, sets the window title to be hidden on macOS.
+   */
+  hiddenTitle?: boolean
 }
 
 /**

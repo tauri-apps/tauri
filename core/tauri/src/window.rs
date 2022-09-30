@@ -435,7 +435,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Hide the titlebar. Titlebar buttons will still be visible.
+  /// Sets the [`TitleBarStyle`].
   #[cfg(target_os = "macos")]
   #[must_use]
   pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {

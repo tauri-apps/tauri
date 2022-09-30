@@ -11,7 +11,9 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html};
+use tauri_utils::html::{
+  inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
+};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -37,10 +39,10 @@ fn map_core_assets(
     options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
-
       #[allow(clippy::collapsible_if)]
       if csp {
+        let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+
         if target == Target::Linux {
           ::tauri_utils::html::inject_csp_token(&mut document);
         }
@@ -77,9 +79,9 @@ fn map_core_assets(
               .push(format!("'sha256-{}'", base64::encode(&hash)));
           }
         }
-      }
 
-      *input = document.to_string().as_bytes().to_vec();
+        *input = serialize_html_node(&document);
+      }
     }
     Ok(())
   }

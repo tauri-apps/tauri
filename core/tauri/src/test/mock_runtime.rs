@@ -500,6 +500,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn start_dragging(&self) -> Result<()> {
     Ok(())
   }

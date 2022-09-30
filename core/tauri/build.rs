@@ -59,6 +59,7 @@ fn main() {
       "remove-dir",
       "remove-file",
       "rename-file",
+      "exists",
     ],
     api_all,
   );
@@ -92,6 +93,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],

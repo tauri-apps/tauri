@@ -45,6 +45,7 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
+            "exists": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -99,10 +100,15 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -202,7 +208,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
           "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
@@ -306,6 +313,7 @@
               "all": false,
               "copyFile": false,
               "createDir": false,
+              "exists": false,
               "readDir": false,
               "readFile": false,
               "removeDir": false,
@@ -360,10 +368,15 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setCursorGrab": false,
+              "setCursorIcon": false,
+              "setCursorPosition": false,
+              "setCursorVisible": false,
               "setDecorations": false,
               "setFocus": false,
               "setFullscreen": false,
               "setIcon": false,
+              "setIgnoreCursorEvents": false,
               "setMaxSize": false,
               "setMinSize": false,
               "setPosition": false,
@@ -922,6 +935,13 @@
         "identifier": {
           "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`). This string must be unique across applications since it is used in system configurations like the bundle ID and path to the webview data directory. This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
           "type": "string"
+        },
+        "publisher": {
+          "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "icon": {
           "description": "The app's icons",
@@ -1498,6 +1518,7 @@
             "all": false,
             "copyFile": false,
             "createDir": false,
+            "exists": false,
             "readDir": false,
             "readFile": false,
             "removeDir": false,
@@ -1525,10 +1546,15 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -1735,12 +1761,17 @@
           "description": "Rename file from local filesystem.",
           "default": false,
           "type": "boolean"
+        },
+        "exists": {
+          "description": "Check if path exists on the local filesystem.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
       "anyOf": [
         {
           "description": "A list of paths that are allowed by this scope.",
@@ -1892,6 +1923,31 @@
           "default": false,
           "type": "boolean"
         },
+        "setCursorGrab": {
+          "description": "Allows grabbing the cursor.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorVisible": {
+          "description": "Allows setting the cursor visibility.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorIcon": {
+          "description": "Allows changing the cursor icon.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorPosition": {
+          "description": "Allows setting the cursor position.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setIgnoreCursorEvents": {
+          "description": "Allows ignoring cursor events.",
+          "default": false,
+          "type": "boolean"
+        },
         "startDragging": {
           "description": "Allows start dragging on the window.",
           "default": false,
@@ -1964,7 +2020,7 @@
           "type": "string"
         },
         "cmd": {
-          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
           "default": "",
           "type": "string"
         },

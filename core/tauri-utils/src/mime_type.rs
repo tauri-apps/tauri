@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+//! Determine a mime type from a URI or file contents.
+
 use std::fmt;
 
 const MIMETYPE_PLAIN: &str = "text/plain";
 
 /// [Web Compatible MimeTypes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#important_mime_types_for_web_developers)
+#[allow(missing_docs)]
 pub enum MimeType {
   Css,
   Csv,

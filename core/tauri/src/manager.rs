@@ -1434,9 +1434,11 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
 }
 
 // key is uri/path, value is the store mime type
+#[cfg(protocol_asset)]
 #[derive(Debug, Clone, Default)]
 struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
 
+#[cfg(protocol_asset)]
 impl MimeTypeCache {
   pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
     let mut cache = self.0.lock().unwrap();

@@ -509,6 +509,13 @@
             }
           ]
         },
+        "userAgent": {
+          "description": "The user agent for the webview",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "fileDropEnabled": {
           "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
           "default": true,

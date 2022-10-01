@@ -473,6 +473,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set the user agent for the webview
+  #[must_use]
+  pub fn set_user_agent(mut self, user_agent: &str) -> Self {
+    self.webview_attributes.user_agent = Some(user_agent.to_string());
+    self
+  }
+
   /// Data directory for the webview.
   #[must_use]
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {

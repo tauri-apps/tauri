@@ -2906,6 +2906,9 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(user_agent) = webview_attributes.user_agent {
+    webview_builder = webview_builder.with_user_agent(&user_agent);
+  }
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,

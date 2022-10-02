@@ -2042,6 +2042,10 @@ interface WindowOptions {
    * If `true`, sets the window title to be hidden on macOS.
    */
   hiddenTitle?: boolean
+  /**
+   * The user agent for the webview.
+   */
+  userAgent?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

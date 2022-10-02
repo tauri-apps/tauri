@@ -44,7 +44,7 @@ impl WebviewAttributes {
 
   /// Sets the user agent
   #[must_use]
-  pub fn set_user_agent(mut self, user_agent: &str) -> Self {
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
     self.user_agent = Some(user_agent.to_string());
     self
   }

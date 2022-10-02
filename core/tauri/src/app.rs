@@ -1467,7 +1467,7 @@ impl<R: Runtime> Builder<R> {
 
       let mut webview_attributes = WebviewAttributes::new(url);
       if let Some(ua) = user_agent {
-        webview_attributes = webview_attributes.set_user_agent(&ua.to_string());
+        webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
       if !file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();

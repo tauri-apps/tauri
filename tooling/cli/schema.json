@@ -646,6 +646,20 @@
               "type": "null"
             }
           ]
+        },
+        "titleBarStyle": {
+          "description": "The style of the macOS title bar.",
+          "default": "Visible",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TitleBarStyle"
+            }
+          ]
+        },
+        "hiddenTitle": {
+          "description": "Sets the window title to be hidden on macOS.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -670,6 +684,15 @@
       "enum": [
         "Light",
         "Dark"
+      ]
+    },
+    "TitleBarStyle": {
+      "description": "How the window title bar should be displayed.",
+      "type": "string",
+      "enum": [
+        "Visible",
+        "Transparent",
+        "Overlay"
       ]
     },
     "CliConfig": {
@@ -2477,6 +2500,13 @@
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
           "default": true,
           "type": "boolean"
+        },
+        "title": {
+          "description": "Title for MacOS tray",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -6,6 +6,8 @@
 
 use crate::{menu::Menu, window::DetachedWindow, Icon};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::{WindowConfig, WindowUrl},
   Theme,
@@ -197,6 +199,16 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg(windows)]
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
+
+  /// Hide the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn title_bar_style(self, style: TitleBarStyle) -> Self;
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn hidden_title(self, hidden: bool) -> Self;
 
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;

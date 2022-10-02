@@ -105,7 +105,13 @@ pub fn create_tray<T>(
 
   #[cfg(target_os = "macos")]
   {
-    builder = builder.with_icon_as_template(system_tray.icon_as_template)
+    builder = builder
+      .with_icon_as_template(system_tray.icon_as_template)
+      .with_menu_on_left_click(system_tray.menu_on_left_click);
+
+    if let Some(title) = system_tray.title {
+      builder = builder.with_title(&title);
+    }
   }
 
   let tray = builder
@@ -150,6 +156,17 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
       .send_event(Message::Tray(
         self.id,
         TrayMessage::UpdateIconAsTemplate(is_template),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTitle(title.to_owned()),
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }

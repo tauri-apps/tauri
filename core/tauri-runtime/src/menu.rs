@@ -152,6 +152,8 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> crate::Result<()>;
   fn destroy(&self) -> crate::Result<()>;
 }
 

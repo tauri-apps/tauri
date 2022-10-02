@@ -50,6 +50,8 @@ pub struct SystemTray {
   pub icon_as_template: bool,
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  #[cfg(target_os = "macos")]
+  pub title: Option<String>,
   pub on_event: Option<Box<TrayEventHandler>>,
 }
 
@@ -63,7 +65,8 @@ impl fmt::Debug for SystemTray {
     #[cfg(target_os = "macos")]
     {
       d.field("icon_as_template", &self.icon_as_template)
-        .field("menu_on_left_click", &self.menu_on_left_click);
+        .field("menu_on_left_click", &self.menu_on_left_click)
+        .field("title", &self.title);
     }
     d.finish()
   }
@@ -81,6 +84,8 @@ impl Clone for SystemTray {
       icon_as_template: self.icon_as_template,
       #[cfg(target_os = "macos")]
       menu_on_left_click: self.menu_on_left_click,
+      #[cfg(target_os = "macos")]
+      title: self.title.clone(),
     }
   }
 }
@@ -96,6 +101,8 @@ impl Default for SystemTray {
       icon_as_template: false,
       #[cfg(target_os = "macos")]
       menu_on_left_click: false,
+      #[cfg(target_os = "macos")]
+      title: None,
       on_event: None,
     }
   }
@@ -139,6 +146,13 @@ impl SystemTray {
   #[must_use]
   pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
     self.menu_on_left_click = menu_on_left_click;
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_title(mut self, title: &str) -> Self {
+    self.title = Some(title.to_owned());
     self
   }
 

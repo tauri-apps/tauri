@@ -796,6 +796,9 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
+  /// The user agent for the webview
+  #[serde(alias = "user-agent")]
+  pub user_agent: Option<String>,
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use drag and drop on the frontend on Windows.
@@ -874,6 +877,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WindowUrl::default(),
+      user_agent: None,
       file_drop_enabled: default_file_drop_enabled(),
       center: false,
       x: None,
@@ -2960,6 +2964,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
       let url = &self.url;
+      let user_agent = opt_str_lit(self.user_agent.as_ref());
       let file_drop_enabled = self.file_drop_enabled;
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
@@ -2989,6 +2994,7 @@ mod build {
         WindowConfig,
         label,
         url,
+        user_agent,
         file_drop_enabled,
         center,
         x,

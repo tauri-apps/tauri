@@ -1415,7 +1415,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1423,7 +1422,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
-  #[cfg(target_os = "macos")]
   fn hide(&self) -> Result<()> {
     send_user_message(
       &self.context,

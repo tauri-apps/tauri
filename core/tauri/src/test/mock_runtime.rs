@@ -682,6 +682,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) {}
+
   #[cfg(any(
     target_os = "macos",
     windows,

@@ -2004,7 +2004,7 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
-  /** Whether the window will be initially hidden or focused. */
+  /** Whether the window will be initially focused or not. */
   focus?: boolean
   /**
    * Whether the window is transparent or not.

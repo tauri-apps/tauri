@@ -28,6 +28,11 @@
       "default": {
         "allowlist": {
           "all": false,
+          "app": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
           "clipboard": {
             "all": false,
             "readText": false,
@@ -296,6 +301,11 @@
           "description": "The allowlist configuration.",
           "default": {
             "all": false,
+            "app": {
+              "all": false,
+              "hide": false,
+              "show": false
+            },
             "clipboard": {
               "all": false,
               "readText": false,
@@ -657,7 +667,7 @@
           ]
         },
         "hiddenTitle": {
-          "description": "Sets the window title to be hidden on macOS.",
+          "description": "If `true`, sets the window title to be hidden on macOS.",
           "default": false,
           "type": "boolean"
         }
@@ -1730,6 +1740,19 @@
               "$ref": "#/definitions/ClipboardAllowlistConfig"
             }
           ]
+        },
+        "app": {
+          "description": "App APIs allowlist.",
+          "default": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppAllowlistConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -2310,6 +2333,28 @@
         },
         "readText": {
           "description": "Enables the clipboard's `readText` API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AppAllowlistConfig": {
+      "description": "Allowlist for the app APIs.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all app APIs.",
+          "default": false,
+          "type": "boolean"
+        },
+        "show": {
+          "description": "Enables the app's `show` API.",
+          "default": false,
+          "type": "boolean"
+        },
+        "hide": {
+          "description": "Enables the app's `hide` API.",
           "default": false,
           "type": "boolean"
         }

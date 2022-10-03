@@ -94,6 +94,18 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     unimplemented!()
   }
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> Result<()> {
+    Ok(())
+  }
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -669,6 +681,14 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) {}
 
   #[cfg(any(
     target_os = "macos",

@@ -283,13 +283,8 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
 
 fn clear_env_for_wix(cmd: &mut Command) {
   cmd.env_clear();
-  for var in ["SYSTEMROOT", "TMP", "TEMP"] {
-    if let Some(value) = std::env::var_os(var) {
-      cmd.env(var, value);
-    }
-  }
   for (k, v) in std::env::vars_os() {
-    if k.to_string_lossy().starts_with("TAURI") {
+    if ["SYSTEMROOT", "TMP", "TEMP"].contains(k) || k.to_string_lossy().starts_with("TAURI") {
       cmd.env(k, v);
     }
   }

@@ -273,8 +273,10 @@ impl Cmd {
     context: InvokeContext<R>,
     options: Box<WindowConfigDto>,
   ) -> super::Result<()> {
-    let mut config = WindowConfig::default();
-    config.label = options.label;
+    let mut config = WindowConfig {
+      label: options.label,
+      ..Default::default()
+    };
     add_required_option_if_enabled!(options, config, "window-option-url", url);
     add_option_if_enabled!(options, config, "window-option-user-agent", user_agent);
     add_required_option_if_enabled!(

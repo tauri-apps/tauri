@@ -283,8 +283,10 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
 
 fn clear_env_for_wix(cmd: &mut Command) {
   cmd.env_clear();
+  let required_vars: Vec<std::ffi::OsString> =
+    vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
   for (k, v) in std::env::vars_os() {
-    if ["SYSTEMROOT", "TMP", "TEMP"].contains(k) || k.to_string_lossy().starts_with("TAURI") {
+    if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
       cmd.env(k, v);
     }
   }

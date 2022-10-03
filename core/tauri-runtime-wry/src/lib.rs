@@ -1415,6 +1415,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1422,6 +1423,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  #[cfg(target_os = "macos")]
   fn hide(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2020,6 +2022,16 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
         _ => unimplemented!(),
       });
+  }
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) {
+    self.event_loop.show_application();
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) {
+    self.event_loop.hide_application();
   }
 
   #[cfg(desktop)]

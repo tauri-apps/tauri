@@ -519,18 +519,6 @@ impl<R: Runtime> AppHandle<R> {
     std::process::exit(exit_code);
   }
 
-  /// Shows the application, but does not automatically focus it.
-  #[cfg(target_os = "macos")]
-  pub fn show(&self) -> crate::Result<()> {
-    self.runtime_handle.show().map_err(Into::into)
-  }
-
-  /// Hides the application.
-  #[cfg(target_os = "macos")]
-  pub fn hide(&self) -> crate::Result<()> {
-    self.runtime_handle.hide().map_err(Into::into)
-  }
-
   /// Restarts the app. This is the same as [`crate::api::process::restart`], but it performs cleanup on this application.
   pub fn restart(&self) {
     self.cleanup_before_exit();
@@ -745,6 +733,28 @@ macro_rules! shared_app_impl {
         AssetResolver {
           manager: self.manager.clone(),
         }
+      }
+
+      /// Shows the application, but does not automatically focus it.
+      #[cfg(target_os = "macos")]
+      pub fn show(&self) -> crate::Result<()> {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.show(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.show()?,
+          _ => unreachable!(),
+        }
+        Ok(())
+      }
+
+      /// Hides the application.
+      #[cfg(target_os = "macos")]
+      pub fn hide(&self) -> crate::Result<()> {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.hide(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.hide()?,
+          _ => unreachable!(),
+        }
+        Ok(())
       }
     }
   };

@@ -355,10 +355,12 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn show(&self) -> Result<()>;
 
   /// Hides the application.
   #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
 }
 
@@ -448,6 +450,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self);
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]

@@ -242,7 +242,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     }
   }
 
-  let config = reload_config(options.config.as_deref())?;
+  reload_config(options.config.as_deref())?;
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {

@@ -727,7 +727,7 @@ unsafe impl Send for WindowBuilderWrapper {}
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Default::default()
+    Self::default().focused(true)
   }
 
   fn with_config(config: WindowConfig) -> Self {
@@ -840,9 +840,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Deprecated since 0.1.4 (noop)
-  /// Windows is automatically focused when created.
-  fn focus(self) -> Self {
+  fn focused(mut self, focused: bool) -> Self {
+    self.inner = self.inner.with_focused(focused);
     self
   }
 

@@ -2,4 +2,4 @@
 "cli.rs": "patch"
 ---
 
-Expose `TAURI_TARGET_TRIPLET` to `beforeDevCommand`, `beforeBuildCommand` and `beforeBundleCommand`
+Expose `TAURI_TARGET_TRIPLE` to `beforeDevCommand`, `beforeBuildCommand` and `beforeBundleCommand`

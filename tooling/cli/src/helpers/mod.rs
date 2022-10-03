@@ -14,7 +14,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-pub fn command_env<'a>(debug: bool) -> HashMap<&'a str, String> {
+pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
 
   map.insert(

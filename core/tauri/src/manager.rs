@@ -68,6 +68,9 @@ const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
+const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
+const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
+const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
 #[derive(Default)]
@@ -215,7 +218,7 @@ pub struct InnerWindowManager<R: Runtime> {
   pub(crate) tray_icon: Option<Icon>,
 
   package_info: PackageInfo,
-  /// The webview protocols protocols available to all windows.
+  /// The webview protocols available to all windows.
   uri_scheme_protocols: HashMap<String, Arc<CustomProtocol<R>>>,
   /// The menu set to all windows.
   menu: Option<Menu>,
@@ -504,7 +507,9 @@ impl<R: Runtime> WindowManager<R> {
       use crate::api::file::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
-      let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
+      let state = self.state();
+      let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
+      let mime_type_cache = MimeTypeCache::default();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -623,7 +628,7 @@ impl<R: Runtime> WindowManager<R> {
             response = response.header(k, v);
           }
 
-          let mime_type = MimeType::parse(&data, &path);
+          let mime_type = mime_type_cache.get_or_insert(&data, &path);
           response.mimetype(&mime_type).status(status_code).body(data)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
@@ -1369,7 +1374,7 @@ fn on_window_event<R: Runtime>(
       },
     )?,
     WindowEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered(paths) => window.emit("tauri://file-drop-hover", paths)?,
+      FileDropEvent::Hovered(paths) => window.emit(WINDOW_FILE_DROP_HOVER_EVENT, paths)?,
       FileDropEvent::Dropped(paths) => {
         let scopes = window.state::<Scopes>();
         for path in paths {
@@ -1379,9 +1384,9 @@ fn on_window_event<R: Runtime>(
             let _ = scopes.allow_directory(path, false);
           }
         }
-        window.emit("tauri://file-drop", paths)?
+        window.emit(WINDOW_FILE_DROP_EVENT, paths)?
       }
-      FileDropEvent::Cancelled => window.emit("tauri://file-drop-cancelled", ())?,
+      FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
     WindowEvent::ThemeChanged(theme) => window.emit(WINDOW_THEME_CHANGED, theme.to_string())?,
@@ -1425,6 +1430,26 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
+  }
+}
+
+// key is uri/path, value is the store mime type
+#[cfg(protocol_asset)]
+#[derive(Debug, Clone, Default)]
+struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
+
+#[cfg(protocol_asset)]
+impl MimeTypeCache {
+  pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
+    let mut cache = self.0.lock().unwrap();
+    let uri = uri.to_string();
+    if let Some(mime_type) = cache.get(&uri) {
+      mime_type.clone()
+    } else {
+      let mime_type = MimeType::parse(content, &uri);
+      cache.insert(uri, mime_type.clone());
+      mime_type
+    }
   }
 }
 

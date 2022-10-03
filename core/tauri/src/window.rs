@@ -8,6 +8,8 @@ pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
 
+#[cfg(target_os = "macos")]
+use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -358,7 +360,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -433,6 +435,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets the [`TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.window_builder = self.window_builder.title_bar_style(style);
+    self
+  }
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn hidden_title(mut self, hidden: bool) -> Self {
+    self.window_builder = self.window_builder.hidden_title(hidden);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
@@ -470,6 +488,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       .webview_attributes
       .initialization_scripts
       .push(script.to_string());
+    self
+  }
+
+  /// Set the user agent for the webview
+  #[must_use]
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
+    self.webview_attributes.user_agent = Some(user_agent.to_string());
     self
   }
 
@@ -773,14 +798,13 @@ impl<R: Runtime> Window<R> {
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
-        menu_item_id: menu_ids
-          .lock()
-          .unwrap()
-          .get(&event.menu_item_id)
-          .unwrap()
-          .clone(),
-      })
+      let id = menu_ids
+        .lock()
+        .unwrap()
+        .get(&event.menu_item_id)
+        .unwrap()
+        .clone();
+      f(MenuEvent { menu_item_id: id })
     })
   }
 }
@@ -844,7 +868,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window's current vibility state.
+  /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
@@ -917,7 +941,7 @@ impl<R: Runtime> Window<R> {
       })
   }
 
-  /// Returns the `ApplicatonWindow` from gtk crate that is used by this window.
+  /// Returns the `ApplicationWindow` from gtk crate that is used by this window.
   ///
   /// Note that this can only be used on the main thread.
   #[cfg(any(
@@ -1173,6 +1197,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_cursor_position(position)
+      .map_err(Into::into)
+  }
+
+  /// Ignores the window cursor events.
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_ignore_cursor_events(ignore)
       .map_err(Into::into)
   }
 

@@ -295,6 +295,9 @@ impl Default for WindowsSettings {
 pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
+  /// The app's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
+  pub publisher: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -474,7 +477,7 @@ impl SettingsBuilder {
   ///
   /// Package settings will be read from Cargo.toml.
   ///
-  /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
+  /// Bundle settings will be read from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn build(self) -> crate::Result<Settings> {
     let target = if let Some(t) = self.target {
       t
@@ -608,6 +611,11 @@ impl Settings {
   /// Returns the bundle's identifier
   pub fn bundle_identifier(&self) -> &str {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
+  }
+
+  /// Returns the bundle's identifier
+  pub fn publisher(&self) -> Option<&str> {
+    self.bundle_settings.publisher.as_deref()
   }
 
   /// Returns an iterator over the icon files to be used for this bundle.

@@ -6,6 +6,8 @@
 
 use crate::{menu::Menu, window::DetachedWindow, Icon};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{
   config::{WindowConfig, WindowUrl},
   Theme,
@@ -20,6 +22,7 @@ use std::{fmt, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct WebviewAttributes {
   pub url: WindowUrl,
+  pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
   pub file_drop_handler_enabled: bool,
@@ -31,11 +34,19 @@ impl WebviewAttributes {
   pub fn new(url: WindowUrl) -> Self {
     Self {
       url,
+      user_agent: None,
       initialization_scripts: Vec::new(),
       data_directory: None,
       file_drop_handler_enabled: true,
       clipboard: false,
     }
+  }
+
+  /// Sets the user agent
+  #[must_use]
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
+    self.user_agent = Some(user_agent.to_string());
+    self
   }
 
   /// Sets the init script.
@@ -134,7 +145,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn visible(self, visible: bool) -> Self;
 
-  /// Whether the the window should be transparent. If this is true, writing colors
+  /// Whether the window should be transparent. If this is true, writing colors
   /// with alpha values different than `1.0` will produce a transparent window.
   #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
   #[cfg_attr(
@@ -188,6 +199,16 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[cfg(windows)]
   #[must_use]
   fn owner_window(self, owner: HWND) -> Self;
+
+  /// Hide the titlebar. Titlebar buttons will still be visible.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn title_bar_style(self, style: TitleBarStyle) -> Self;
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn hidden_title(self, hidden: bool) -> Self;
 
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;

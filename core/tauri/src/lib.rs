@@ -116,6 +116,37 @@
 //! - **shell-sidecar**: Enables [executing a `sidecar` program](https://tauri.app/en/docs/api/js/classes/shell.Command#sidecar).
 //! - **shell-open**: Enables the [`open` API](https://tauri.app/en/docs/api/js/modules/shell#open).
 //!
+//! ### Window options allowlist
+//!
+//! Configures the options available to create windows.
+//!
+//! - **window-option-all**: Enables all [options](https://tauri.app/v1/api/js/window/#windowoptions).
+//! - **window-option-url**: Enables the [url option](https://tauri.app/v1/api/js/window/#url).
+//! - **window-option-user-agent**: Enables the [userAgent option](https://tauri.app/v1/api/js/window/#useragent).
+//! - **window-option-file-drop-enabled**: Enables the [fileDropEnabled option](https://tauri.app/v1/api/js/window/#filedropenabled).
+//! - **window-option-center**: Enables the [center option](https://tauri.app/v1/api/js/window/#center).
+//! - **window-option-x**: Enables the [x option](https://tauri.app/v1/api/js/window/#x).
+//! - **window-option-y**: Enables the [y option](https://tauri.app/v1/api/js/window/#y).
+//! - **window-option-width**: Enables the [width option](https://tauri.app/v1/api/js/window/#width).
+//! - **window-option-height**: Enables the [height option](https://tauri.app/v1/api/js/window/#height).
+//! - **window-option-min-width**: Enables the [minWidth option](https://tauri.app/v1/api/js/window/#minwidth).
+//! - **window-option-min-height**: Enables the [minHeight option](https://tauri.app/v1/api/js/window/#minheight).
+//! - **window-option-max-width**: Enables the [maxWidth option](https://tauri.app/v1/api/js/window/#maxwidth).
+//! - **window-option-max-height**: Enables the [maxHeight option](https://tauri.app/v1/api/js/window/#maxheight).
+//! - **window-option-resizable**: Enables the [resizable option](https://tauri.app/v1/api/js/window/#resizable).
+//! - **window-option-title**: Enables the [title option](https://tauri.app/v1/api/js/window/#title).
+//! - **window-option-fullscreen**: Enables the [fullscreen option](https://tauri.app/v1/api/js/window/#fullscreen).
+//! - **window-option-focus**: Enables the [focus option](https://tauri.app/v1/api/js/window/#focus).
+//! - **window-option-transparent**: Enables the [transparent option](https://tauri.app/v1/api/js/window/#transparent).
+//! - **window-option-maximized**: Enables the [maximized option](https://tauri.app/v1/api/js/window/#maximized).
+//! - **window-option-visible**: Enables the [visible option](https://tauri.app/v1/api/js/window/#visible).
+//! - **window-option-decorations**: Enables the [decorations option](https://tauri.app/v1/api/js/window/#decorations).
+//! - **window-option-always-on-top**: Enables the [alwaysOnTop option](https://tauri.app/v1/api/js/window/#alwaysontop).
+//! - **window-option-skip-taskbar**: Enables the [skipTaskbar option](https://tauri.app/v1/api/js/window/#skiptaskbar).
+//! - **window-option-theme**: Enables the [theme option](https://tauri.app/v1/api/js/window/#theme).
+//! - **window-option-title-bar-style**: Enables the [titleBarStyle option](https://tauri.app/v1/api/js/window/#titlebarstyle).
+//! - **window-option-hidden-title**: Enables the [hiddenTitle option](https://tauri.app/v1/api/js/window/#hiddentitle).
+//!
 //! ### Window allowlist
 //!
 //! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
@@ -891,6 +922,9 @@ mod tests {
 
     for module_all_feature in all_modules {
       let module = module_all_feature.replace("-all", "");
+      if module == "window-option" {
+        continue;
+      }
       assert!(
         checked_features.contains(&module_all_feature.as_str()),
         "`{}` is not aliased",
@@ -907,7 +941,8 @@ mod tests {
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(
-          allowed.contains(&module_feature.as_str())
+          module_feature.starts_with("window-option-")
+            || allowed.contains(&module_feature.as_str())
             || checked_features.contains(&module_feature.as_str()),
           "`{}` is not aliased",
           module_feature

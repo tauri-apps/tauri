@@ -12,11 +12,46 @@ use crate::{
     window::dpi::{Position, Size},
     UserAttentionType,
   },
-  utils::config::WindowConfig,
+  utils::{
+    config::{WindowConfig, WindowUrl},
+    TitleBarStyle,
+  },
   CursorIcon, Icon, Manager, Runtime,
 };
 use serde::Deserialize;
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
+
+#[cfg(window_create)]
+macro_rules! add_option_if_enabled {
+  ($options: ident, $config: ident, $feature: expr, $field: ident) => {
+    if let Some(value) = $options.$field {
+      if cfg!(feature = "window-option-all") || cfg!(feature = $feature) {
+        $config.$field.replace(value);
+      } else {
+        return Err(anyhow::anyhow!(
+          "Window option {} is not enabled in the allowlist",
+          stringify!($field)
+        ));
+      }
+    }
+  };
+}
+
+#[cfg(window_create)]
+macro_rules! add_required_option_if_enabled {
+  ($options: ident, $config: ident, $feature: expr, $field: ident) => {
+    if let Some(value) = $options.$field {
+      if cfg!(feature = "window-option-all") || cfg!(feature = $feature) {
+        $config.$field = value;
+      } else {
+        return Err(anyhow::anyhow!(
+          "Window option {} is not enabled in the allowlist",
+          stringify!($field)
+        ));
+      }
+    }
+  };
+}
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -50,6 +85,37 @@ impl From<IconDto> for Icon {
       },
     }
   }
+}
+
+#[derive(Debug, PartialEq, Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowConfigDto {
+  label: String,
+  url: Option<WindowUrl>,
+  user_agent: Option<String>,
+  file_drop_enabled: Option<bool>,
+  center: Option<bool>,
+  x: Option<f64>,
+  y: Option<f64>,
+  width: Option<f64>,
+  height: Option<f64>,
+  min_width: Option<f64>,
+  min_height: Option<f64>,
+  max_width: Option<f64>,
+  max_height: Option<f64>,
+  resizable: Option<bool>,
+  title: Option<String>,
+  fullscreen: Option<bool>,
+  focus: Option<bool>,
+  transparent: Option<bool>,
+  maximized: Option<bool>,
+  visible: Option<bool>,
+  decorations: Option<bool>,
+  always_on_top: Option<bool>,
+  skip_taskbar: Option<bool>,
+  theme: Option<crate::Theme>,
+  title_bar_style: Option<TitleBarStyle>,
+  hidden_title: Option<bool>,
 }
 
 /// Window management API descriptor.
@@ -194,7 +260,7 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
 #[serde(tag = "cmd", content = "data", rename_all = "camelCase")]
 pub enum Cmd {
   #[cmd(window_create, "window > create")]
-  CreateWebview { options: Box<WindowConfig> },
+  CreateWebview { options: Box<WindowConfigDto> },
   Manage {
     label: Option<String>,
     cmd: WindowManagerCmd,
@@ -205,11 +271,54 @@ impl Cmd {
   #[module_command_handler(window_create)]
   async fn create_webview<R: Runtime>(
     context: InvokeContext<R>,
-    options: Box<WindowConfig>,
+    options: Box<WindowConfigDto>,
   ) -> super::Result<()> {
-    let label = options.label.clone();
-    let url = options.url.clone();
-    let file_drop_enabled = options.file_drop_enabled;
+    let mut config = WindowConfig::default();
+    config.label = options.label;
+    add_required_option_if_enabled!(options, config, "window-option-url", url);
+    add_option_if_enabled!(options, config, "window-option-user-agent", user_agent);
+    add_required_option_if_enabled!(
+      options,
+      config,
+      "window-option-file-drop-enabled",
+      file_drop_enabled
+    );
+    add_required_option_if_enabled!(options, config, "window-option-center", center);
+    add_option_if_enabled!(options, config, "window-option-x", x);
+    add_option_if_enabled!(options, config, "window-option-y", y);
+    add_required_option_if_enabled!(options, config, "window-option-width", width);
+    add_required_option_if_enabled!(options, config, "window-option-height", height);
+    add_option_if_enabled!(options, config, "window-option-min-width", min_width);
+    add_option_if_enabled!(options, config, "window-option-min-height", min_height);
+    add_option_if_enabled!(options, config, "window-option-max-width", max_width);
+    add_option_if_enabled!(options, config, "window-option-max-height", max_height);
+    add_required_option_if_enabled!(options, config, "window-option-resizable", resizable);
+    add_required_option_if_enabled!(options, config, "window-option-title", title);
+    add_required_option_if_enabled!(options, config, "window-option-fullscreen", fullscreen);
+    add_required_option_if_enabled!(options, config, "window-option-focus", focus);
+    add_required_option_if_enabled!(options, config, "window-option-transparent", transparent);
+    add_required_option_if_enabled!(options, config, "window-option-maximized", maximized);
+    add_required_option_if_enabled!(options, config, "window-option-visible", visible);
+    add_required_option_if_enabled!(options, config, "window-option-decorations", decorations);
+    add_required_option_if_enabled!(
+      options,
+      config,
+      "window-option-always-on-top",
+      always_on_top
+    );
+    add_required_option_if_enabled!(options, config, "window-option-skip-taskbar", skip_taskbar);
+    add_option_if_enabled!(options, config, "window-option-theme", theme);
+    add_required_option_if_enabled!(
+      options,
+      config,
+      "window-option-title-bar-style",
+      title_bar_style
+    );
+    add_required_option_if_enabled!(options, config, "window-option-hidden-title", hidden_title);
+
+    let label = config.label.clone();
+    let url = config.url.clone();
+    let file_drop_enabled = config.file_drop_enabled;
 
     let mut builder = crate::window::Window::builder(&context.window, label, url);
     if !file_drop_enabled {
@@ -217,7 +326,7 @@ impl Cmd {
     }
 
     builder.window_builder =
-      <<R::Dispatcher as Dispatch<crate::EventLoopMessage>>::WindowBuilder>::with_config(*options);
+      <<R::Dispatcher as Dispatch<crate::EventLoopMessage>>::WindowBuilder>::with_config(config);
     builder.build().map_err(crate::error::into_anyhow)?;
 
     Ok(())

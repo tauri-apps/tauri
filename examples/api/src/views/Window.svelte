@@ -123,8 +123,8 @@
 
     const webview = new WebviewWindow(newWindowLabel)
     windowMap[newWindowLabel] = webview
-    webview.once('tauri://error', function () {
-      onMessage('Error creating new webview')
+    webview.once('tauri://error', function (e) {
+      onMessage('Error creating new webview: ' + e.payload)
     })
   }
 

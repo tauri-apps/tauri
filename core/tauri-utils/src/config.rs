@@ -796,7 +796,7 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
-  /// The user agent for the webview
+  /// The user agent for the webview.
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
@@ -807,9 +807,9 @@ pub struct WindowConfig {
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
-  /// The horizontal position of the window's top left corner
+  /// The horizontal position of the window's top left corner.
   pub x: Option<f64>,
-  /// The vertical position of the window's top left corner
+  /// The vertical position of the window's top left corner.
   pub y: Option<f64>,
   /// The window width.
   #[serde(default = "default_width")]
@@ -1266,6 +1266,171 @@ impl Allowlist for FsAllowlistConfig {
   }
 }
 
+/// Allowlist for the available options when creating a new window.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WindowOptionsAllowlistConfig {
+  /// Use this flag to enable all window options.
+  #[serde(default)]
+  pub all: bool,
+  /// Allows setting the window webview URL.
+  #[serde(default)]
+  pub url: bool,
+  /// Allows setting the user agent for the webview.
+  #[serde(default, alias = "user-agent")]
+  pub user_agent: bool,
+  /// Allows setting whether the file drop is enabled or not on the webview.
+  #[serde(default, alias = "file-drop-enabled")]
+  pub file_drop_enabled: bool,
+  /// Allows setting whether or not the window starts centered or not.
+  #[serde(default)]
+  pub center: bool,
+  /// Allows setting the horizontal position of the window's top left corner.
+  #[serde(default)]
+  pub x: bool,
+  /// Allows setting the vertical position of the window's top left corner.
+  #[serde(default)]
+  pub y: bool,
+  /// Allows setting the window width.
+  #[serde(default)]
+  pub width: bool,
+  /// Allows setting the window height.
+  #[serde(default)]
+  pub height: bool,
+  /// Allows setting the min window width.
+  #[serde(default, alias = "min-width")]
+  pub min_width: bool,
+  /// Allows setting the min window height.
+  #[serde(default, alias = "min-height")]
+  pub min_height: bool,
+  /// Allows setting the max window width.
+  #[serde(default, alias = "max-width")]
+  pub max_width: bool,
+  /// Allows setting the max window height.
+  #[serde(default, alias = "max-height")]
+  pub max_height: bool,
+  /// Allows setting whether the window is resizable or not.
+  #[serde(default)]
+  pub resizable: bool,
+  /// Allows setting the window title.
+  #[serde(default)]
+  pub title: bool,
+  /// Allows setting whether the window starts as fullscreen or not.
+  #[serde(default)]
+  pub fullscreen: bool,
+  /// Allows setting whether the window will be initially hidden or focused.
+  #[serde(default)]
+  pub focus: bool,
+  /// Allows setting whether the window is transparent or not.
+  #[serde(default)]
+  pub transparent: bool,
+  /// Allows setting whether the window is maximized or not.
+  #[serde(default)]
+  pub maximized: bool,
+  /// Allows setting whether the window is visible or not.
+  #[serde(default)]
+  pub visible: bool,
+  /// Allows setting whether the window should have borders and bars.
+  #[serde(default)]
+  pub decorations: bool,
+  /// Allows setting whether the window should always be on top of other windows.
+  #[serde(default, alias = "always-on-top")]
+  pub always_on_top: bool,
+  /// Allows setting whether or not the window icon should be added to the taskbar.
+  #[serde(default, alias = "skip-taskbar")]
+  pub skip_taskbar: bool,
+  /// Allows setting the initial window theme.
+  #[serde(default)]
+  pub theme: bool,
+  /// Allows setting the style of the macOS title bar.
+  #[serde(default, alias = "title-bar-style")]
+  pub title_bar_style: bool,
+  /// Allows setting the title to be hidden on macOS.
+  #[serde(default, alias = "hidden-title")]
+  pub hidden_title: bool,
+}
+
+impl Allowlist for WindowOptionsAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      url: true,
+      user_agent: true,
+      file_drop_enabled: true,
+      center: true,
+      x: true,
+      y: true,
+      width: true,
+      height: true,
+      min_width: true,
+      min_height: true,
+      max_width: true,
+      max_height: true,
+      resizable: true,
+      title: true,
+      fullscreen: true,
+      focus: true,
+      transparent: true,
+      maximized: true,
+      visible: true,
+      decorations: true,
+      always_on_top: true,
+      skip_taskbar: true,
+      theme: true,
+      title_bar_style: true,
+      hidden_title: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("window-option-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["window-option-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, url, "window-option-url");
+      check_feature!(self, features, user_agent, "window-option-user-agent");
+      check_feature!(
+        self,
+        features,
+        file_drop_enabled,
+        "window-option-file-drop-enabled"
+      );
+      check_feature!(self, features, center, "window-option-center");
+      check_feature!(self, features, x, "window-option-x");
+      check_feature!(self, features, y, "window-option-y");
+      check_feature!(self, features, width, "window-option-width");
+      check_feature!(self, features, height, "window-option-height");
+      check_feature!(self, features, min_width, "window-option-min-width");
+      check_feature!(self, features, min_height, "window-option-min-height");
+      check_feature!(self, features, max_width, "window-option-max-width");
+      check_feature!(self, features, max_height, "window-option-max-height");
+      check_feature!(self, features, resizable, "window-option-resizable");
+      check_feature!(self, features, title, "window-option-title");
+      check_feature!(self, features, fullscreen, "window-option-fullscreen");
+      check_feature!(self, features, focus, "window-option-focus");
+      check_feature!(self, features, transparent, "window-option-transparent");
+      check_feature!(self, features, maximized, "window-option-maximized");
+      check_feature!(self, features, visible, "window-option-visible");
+      check_feature!(self, features, decorations, "window-option-decorations");
+      check_feature!(self, features, always_on_top, "window-option-always-on-top");
+      check_feature!(self, features, skip_taskbar, "window-option-skip-taskbar");
+      check_feature!(self, features, theme, "window-option-theme");
+      check_feature!(
+        self,
+        features,
+        title_bar_style,
+        "window-option-title-bar-style"
+      );
+      check_feature!(self, features, hidden_title, "window-option-hidden-title");
+      features
+    }
+  }
+}
+
 /// Allowlist for the window APIs.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1274,6 +1439,9 @@ pub struct WindowAllowlistConfig {
   /// Use this flag to enable all window API features.
   #[serde(default)]
   pub all: bool,
+  /// Configures the options available to create windows.
+  #[serde(default)]
+  pub options: WindowOptionsAllowlistConfig,
   /// Allows dynamic window creation.
   #[serde(default)]
   pub create: bool,
@@ -1367,6 +1535,7 @@ impl Allowlist for WindowAllowlistConfig {
   fn all_features() -> Vec<&'static str> {
     let allowlist = Self {
       all: false,
+      options: Default::default(),
       create: true,
       center: true,
       request_user_attention: true,
@@ -1398,6 +1567,7 @@ impl Allowlist for WindowAllowlistConfig {
       print: true,
     };
     let mut features = allowlist.to_features();
+    features.extend(WindowOptionsAllowlistConfig::default().to_features());
     features.push("window-all");
     features
   }
@@ -1406,7 +1576,7 @@ impl Allowlist for WindowAllowlistConfig {
     if self.all {
       vec!["window-all"]
     } else {
-      let mut features = Vec::new();
+      let mut features = self.options.to_features();
       check_feature!(self, features, create, "window-create");
       check_feature!(self, features, center, "window-center");
       check_feature!(

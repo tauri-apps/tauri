@@ -14,6 +14,33 @@
  *     "allowlist": {
  *       "window": {
  *         "all": true, // enable all window APIs
+ *         "options": {
+ *            "url": true,
+ *            "userAgent": true,
+ *            "fileDropEnabled": true,
+ *            "center": true,
+ *            "x": true,
+ *            "y": true,
+ *            "width": true,
+ *            "height": true,
+ *            "minWidth": true,
+ *            "minHeight": true,
+ *            "maxWidth": true,
+ *            "maxHeight": true,
+ *            "resizable": true,
+ *            "title": true,
+ *            "fullscreen": true,
+ *            "focus": true,
+ *            "transparent": true,
+ *            "maximized": true,
+ *            "visible": true,
+ *            "decorations": true,
+ *            "alwaysOnTop": true,
+ *            "skipTaskbar": true,
+ *            "theme": true,
+ *            "titleBarStyle": true,
+ *            "hiddenTitle": true,
+ *         },
  *         "create": true, // enable window creation
  *         "center": true,
  *         "requestUserAttention": true,
@@ -1888,6 +1915,9 @@ class CloseRequestedEvent {
 class WebviewWindow extends WindowManager {
   /**
    * Creates a new WebviewWindow.
+   *
+   * Note that since 1.2.0, each option must be enabled in the allowlist in order to be set in this function.
+   *
    * @example
    * ```typescript
    * import { WebviewWindow } from '@tauri-apps/api/window';
@@ -1968,6 +1998,8 @@ if ('__TAURI_METADATA__' in window) {
 
 /**
  * Configuration for the window to create.
+ *
+ * Note that since 1.2.0, each option must be enabled in the allowlist in order to be used.
  *
  * @since 1.0.0
  */

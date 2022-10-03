@@ -224,7 +224,60 @@ shell-all = [ "shell-execute", "shell-sidecar", "shell-open" ]
 shell-execute = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
 shell-sidecar = [ "process-command-api", "regex", "tauri-macros/shell-scope" ]
 shell-open = [ "shell-open-api" ]
+window-option-url = [ ]
+window-option-user-agent = [ ]
+window-option-file-drop-enabled = [ ]
+window-option-center = [ ]
+window-option-x = [ ]
+window-option-y = [ ]
+window-option-width = [ ]
+window-option-height = [ ]
+window-option-min-width = [ ]
+window-option-min-height = [ ]
+window-option-max-width = [ ]
+window-option-max-height = [ ]
+window-option-resizable = [ ]
+window-option-title = [ ]
+window-option-fullscreen = [ ]
+window-option-focus = [ ]
+window-option-transparent = [ ]
+window-option-maximized = [ ]
+window-option-visible = [ ]
+window-option-decorations = [ ]
+window-option-always-on-top = [ ]
+window-option-skip-taskbar = [ ]
+window-option-theme = [ ]
+window-option-title-bar-style = [ ]
+window-option-hidden-title = [ ]
+window-option-all = [
+  "window-option-url",
+  "window-option-user-agent",
+  "window-option-file-drop-enabled",
+  "window-option-center",
+  "window-option-x",
+  "window-option-y",
+  "window-option-width",
+  "window-option-height",
+  "window-option-min-width",
+  "window-option-min-height",
+  "window-option-max-width",
+  "window-option-max-height",
+  "window-option-resizable",
+  "window-option-title",
+  "window-option-fullscreen",
+  "window-option-focus",
+  "window-option-transparent",
+  "window-option-maximized",
+  "window-option-visible",
+  "window-option-decorations",
+  "window-option-always-on-top",
+  "window-option-skip-taskbar",
+  "window-option-theme",
+  "window-option-title-bar-style",
+  "window-option-hidden-title"
+]
 window-all = [
+  "window-option-all",
   "window-create",
   "window-center",
   "window-request-user-attention",

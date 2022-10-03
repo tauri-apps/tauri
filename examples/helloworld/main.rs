@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,9 +8,9 @@
 )]
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/helloworld/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/helloworld/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

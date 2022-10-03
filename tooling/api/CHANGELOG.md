@@ -1,5 +1,27 @@
 # Changelog
 
+## \[1.1.0]
+
+- Update `mockIPC()` handler signature to allow async handler functions.
+  - [4fa968dc](https://www.github.com/tauri-apps/tauri/commit/4fa968dc0e74b5206bfcd54e704d180c16b67b08) fix(api): add async `mockIPC()` handler signature ([#5056](https://www.github.com/tauri-apps/tauri/pull/5056)) on 2022-08-26
+- Improve shell's `Command`, `Command.stdout` and `Command.stderr` events with new `once`, `off`, `listenerCount`, `prependListener`, `prependOnceListener` and `removeAllListeners` functions.
+  - [aa9f1243](https://www.github.com/tauri-apps/tauri/commit/aa9f1243e6c1629972a82e469f20c8399741740e) Improved EventEmitter for tauri api shell ([#4697](https://www.github.com/tauri-apps/tauri/pull/4697)) on 2022-07-26
+- Added the `encoding` option to the `Command` options.
+  - [d8cf9f9f](https://www.github.com/tauri-apps/tauri/commit/d8cf9f9fcd617ac24fa418952fd4a32c08804f5c) Command support for specified character encoding, closes [#4644](https://www.github.com/tauri-apps/tauri/pull/4644) ([#4772](https://www.github.com/tauri-apps/tauri/pull/4772)) on 2022-07-28
+- Add `exists` function to the fs module.
+  - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.2]
+
+- Added helper functions to listen to updater and window events.
+  - [b02fc90f](https://www.github.com/tauri-apps/tauri/commit/b02fc90f450ff9e9d8a35ee55dc1beced4957869) feat(api): add abstractions to updater and window event listeners ([#4569](https://www.github.com/tauri-apps/tauri/pull/4569)) on 2022-07-05
+- Add support to `ArrayBuffer` in `Body.bytes` and `writeBinaryFile`.
+  - [92aca55a](https://www.github.com/tauri-apps/tauri/commit/92aca55a6f1f899d5c0c3a6aae9ac9cb0a7e9a86) feat(api): add support to ArrayBuffer ([#4579](https://www.github.com/tauri-apps/tauri/pull/4579)) on 2022-07-05
+- Use `toString()` on message/confirm/ask dialogs title and message values.
+  - [b8cd2a79](https://www.github.com/tauri-apps/tauri/commit/b8cd2a7993cd2aa5b71b30c545b3307245d254bf) feat(api): call `toString()` on dialog title and message, closes [#4583](https://www.github.com/tauri-apps/tauri/pull/4583) ([#4588](https://www.github.com/tauri-apps/tauri/pull/4588)) on 2022-07-04
+- Remove the `type-fest` dependency, changing the OS types to the specific enum instead of allowing any string.
+  - [d5e910eb](https://www.github.com/tauri-apps/tauri/commit/d5e910ebcc6c8d7f055ab0691286722b140ffcd4) chore(api): remove `type-fest` ([#4605](https://www.github.com/tauri-apps/tauri/pull/4605)) on 2022-07-06
+
 ## \[1.0.1]
 
 - Fixes the `writeBinaryFile` sending an empty file contents when only the first argument is passed.

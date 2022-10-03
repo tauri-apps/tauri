@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -152,6 +152,9 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> crate::Result<()>;
+  fn destroy(&self) -> crate::Result<()>;
 }
 
 /// A window menu.
@@ -615,7 +618,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Hide,
 
@@ -647,7 +650,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   CloseWindow,
 
@@ -655,7 +658,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Quit,
 
@@ -663,7 +666,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Copy,
 
@@ -671,7 +674,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Cut,
 
@@ -697,7 +700,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Windows / Android / iOS / Linux:** Unsupported
   ///
   SelectAll,
 
@@ -705,7 +708,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS / Linux:** Unsupported
   ///
   Paste,
 
@@ -721,7 +724,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Minimize,
 
@@ -737,7 +740,7 @@ pub enum MenuItem {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows / Android / iOS:** Unsupported
+  /// - **Android / iOS:** Unsupported
   ///
   Separator,
 }

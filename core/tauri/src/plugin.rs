@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -28,11 +28,14 @@ pub trait Plugin<R: Runtime>: Send {
     Ok(())
   }
 
-  /// The JS script to evaluate on webview initialization.
+  /// Add the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicity declared.
-  ///
-  /// It's guaranteed that this script is executed before the page is loaded.
   fn initialization_script(&self) -> Option<String> {
     None
   }
@@ -59,6 +62,7 @@ type SetupWithConfigHook<R, T> = dyn FnOnce(&AppHandle<R>, T) -> Result<()> + Se
 type OnWebviewReady<R> = dyn FnMut(Window<R>) + Send;
 type OnEvent<R> = dyn FnMut(&AppHandle<R>, &RunEvent) + Send;
 type OnPageLoad<R> = dyn FnMut(Window<R>, PageLoadPayload) + Send;
+type OnDrop<R> = dyn FnOnce(AppHandle<R>) + Send;
 
 /// Builds a [`TauriPlugin`].
 ///
@@ -141,6 +145,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_drop: Option<Box<OnDrop<R>>>,
 }
 
 impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
@@ -155,6 +160,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
+      on_drop: None,
     }
   }
 
@@ -190,11 +196,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// The JS script to evaluate on webview initialization.
+  /// Sets the provided JavaScript to be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicity declared.
   ///
-  /// It's guaranteed that this script is executed before the page is loaded.
+  /// Note that calling this function multiple times overrides previous values.
   ///
   /// # Examples
   ///
@@ -202,9 +213,11 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
   ///
   /// const INIT_SCRIPT: &str = r#"
-  ///    console.log("hello world from js init script");
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
   ///
-  ///   window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' }
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
   /// "#;
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
@@ -311,7 +324,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_page_load<F>(mut self, on_page_load: F) -> Self
   where
-    F: FnMut(Window<R>, PageLoadPayload) + Send + Sync + 'static,
+    F: FnMut(Window<R>, PageLoadPayload) + Send + 'static,
   {
     self.on_page_load = Box::new(on_page_load);
     self
@@ -335,7 +348,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_webview_ready<F>(mut self, on_webview_ready: F) -> Self
   where
-    F: FnMut(Window<R>) + Send + Sync + 'static,
+    F: FnMut(Window<R>) + Send + 'static,
   {
     self.on_webview_ready = Box::new(on_webview_ready);
     self
@@ -367,9 +380,34 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn on_event<F>(mut self, on_event: F) -> Self
   where
-    F: FnMut(&AppHandle<R>, &RunEvent) + Send + Sync + 'static,
+    F: FnMut(&AppHandle<R>, &RunEvent) + Send + 'static,
   {
     self.on_event = Box::new(on_event);
+    self
+  }
+
+  /// Callback invoked when the plugin is dropped.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use tauri::{plugin::{Builder, TauriPlugin}, Runtime};
+  ///
+  /// fn init<R: Runtime>() -> TauriPlugin<R> {
+  ///   Builder::new("example")
+  ///     .on_drop(|app| {
+  ///       println!("plugin has been dropped and is no longer running");
+  ///       // you can run cleanup logic here
+  ///     })
+  ///     .build()
+  /// }
+  /// ```
+  #[must_use]
+  pub fn on_drop<F>(mut self, on_drop: F) -> Self
+  where
+    F: FnOnce(AppHandle<R>) + Send + 'static,
+  {
+    self.on_drop.replace(Box::new(on_drop));
     self
   }
 
@@ -377,6 +415,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   pub fn build(self) -> TauriPlugin<R, C> {
     TauriPlugin {
       name: self.name,
+      app: None,
       invoke_handler: self.invoke_handler,
       setup: self.setup,
       setup_with_config: self.setup_with_config,
@@ -384,6 +423,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_page_load: self.on_page_load,
       on_webview_ready: self.on_webview_ready,
       on_event: self.on_event,
+      on_drop: self.on_drop,
     }
   }
 }
@@ -391,6 +431,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
 /// Plugin struct that is returned by the [`Builder`]. Should only be constructed through the builder.
 pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
+  app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R>>>,
   setup_with_config: Option<Box<SetupWithConfigHook<R, C>>>,
@@ -398,6 +439,15 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   on_page_load: Box<OnPageLoad<R>>,
   on_webview_ready: Box<OnWebviewReady<R>>,
   on_event: Box<OnEvent<R>>,
+  on_drop: Option<Box<OnDrop<R>>>,
+}
+
+impl<R: Runtime, C: DeserializeOwned> Drop for TauriPlugin<R, C> {
+  fn drop(&mut self) {
+    if let (Some(on_drop), Some(app)) = (self.on_drop.take(), self.app.take()) {
+      on_drop(app);
+    }
+  }
 }
 
 impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
@@ -406,6 +456,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   }
 
   fn initialize(&mut self, app: &AppHandle<R>, config: JsonValue) -> Result<()> {
+    self.app.replace(app.clone());
     if let Some(s) = self.setup.take() {
       (s)(app)?;
     }
@@ -464,6 +515,11 @@ impl<R: Runtime> PluginStore<R> {
   /// Returns `true` if a plugin with the same name is already in the store.
   pub fn register<P: Plugin<R> + 'static>(&mut self, plugin: P) -> bool {
     self.store.insert(plugin.name(), Box::new(plugin)).is_some()
+  }
+
+  /// Removes the plugin with the given name from the store.
+  pub fn unregister(&mut self, plugin: &'static str) -> bool {
+    self.store.remove(plugin).is_some()
   }
 
   /// Initializes all plugins in the store.

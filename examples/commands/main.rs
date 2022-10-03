@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -36,88 +36,148 @@ fn window_label(window: Window) {
 // Async commands
 
 #[command]
-async fn async_simple_command(argument: String) {
-  println!("{}", argument);
+async fn async_simple_command(the_argument: String) {
+  println!("{}", the_argument);
+}
+
+#[command(rename_all = "snake_case")]
+async fn async_simple_command_snake(the_argument: String) {
+  println!("{}", the_argument);
 }
 
 #[command]
 async fn async_stateful_command(
-  argument: Option<String>,
+  the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<(), ()> {
-  println!("{:?} {:?}", argument, state.inner());
+  println!("{:?} {:?}", the_argument, state.inner());
   Ok(())
 }
+// ------------------------ Raw future commands ------------------------
 
-// Raw future commands
 #[command(async)]
-fn future_simple_command(argument: String) -> impl std::future::Future<Output = ()> {
-  println!("{}", argument);
+fn future_simple_command(the_argument: String) -> impl std::future::Future<Output = ()> {
+  println!("{}", the_argument);
   std::future::ready(())
 }
 
 #[command(async)]
 fn future_simple_command_with_return(
-  argument: String,
+  the_argument: String,
 ) -> impl std::future::Future<Output = String> {
-  println!("{}", argument);
-  std::future::ready(argument)
+  println!("{}", the_argument);
+  std::future::ready(the_argument)
 }
 
 #[command(async)]
 fn future_simple_command_with_result(
-  argument: String,
+  the_argument: String,
 ) -> impl std::future::Future<Output = Result<String, ()>> {
-  println!("{}", argument);
-  std::future::ready(Ok(argument))
+  println!("{}", the_argument);
+  std::future::ready(Ok(the_argument))
 }
 
 #[command(async)]
-fn force_async(argument: String) -> String {
-  argument
+fn force_async(the_argument: String) -> String {
+  the_argument
 }
 
 #[command(async)]
-fn force_async_with_result(argument: &str) -> Result<&str, MyError> {
-  (!argument.is_empty())
-    .then(|| argument)
+fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
+  (!the_argument.is_empty())
+    .then(|| the_argument)
+    .ok_or(MyError::FooError)
+}
+
+// ------------------------ Raw future commands - snake_case ------------------------
+
+#[command(async, rename_all = "snake_case")]
+fn future_simple_command_snake(the_argument: String) -> impl std::future::Future<Output = ()> {
+  println!("{}", the_argument);
+  std::future::ready(())
+}
+
+#[command(async, rename_all = "snake_case")]
+fn future_simple_command_with_return_snake(
+  the_argument: String,
+) -> impl std::future::Future<Output = String> {
+  println!("{}", the_argument);
+  std::future::ready(the_argument)
+}
+
+#[command(async, rename_all = "snake_case")]
+fn future_simple_command_with_result_snake(
+  the_argument: String,
+) -> impl std::future::Future<Output = Result<String, ()>> {
+  println!("{}", the_argument);
+  std::future::ready(Ok(the_argument))
+}
+
+#[command(async, rename_all = "snake_case")]
+fn force_async_snake(the_argument: String) -> String {
+  the_argument
+}
+
+#[command(rename_all = "snake_case", async)]
+fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
+  (!the_argument.is_empty())
+    .then(|| the_argument)
     .ok_or(MyError::FooError)
 }
 
 // ------------------------ Commands returning Result ------------------------
 
 #[command]
-fn simple_command_with_result(argument: String) -> Result<String, MyError> {
-  println!("{}", argument);
-  (!argument.is_empty())
-    .then(|| argument)
+fn simple_command_with_result(the_argument: String) -> Result<String, MyError> {
+  println!("{}", the_argument);
+  (!the_argument.is_empty())
+    .then(|| the_argument)
     .ok_or(MyError::FooError)
 }
 
 #[command]
 fn stateful_command_with_result(
-  argument: Option<String>,
+  the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", argument, state.inner());
-  dbg!(argument.ok_or(MyError::FooError))
+  println!("{:?} {:?}", the_argument, state.inner());
+  dbg!(the_argument.ok_or(MyError::FooError))
+}
+
+// ------------------------ Commands returning Result - snake_case ------------------------
+
+#[command(rename_all = "snake_case")]
+fn simple_command_with_result_snake(the_argument: String) -> Result<String, MyError> {
+  println!("{}", the_argument);
+  (!the_argument.is_empty())
+    .then(|| the_argument)
+    .ok_or(MyError::FooError)
+}
+
+#[command(rename_all = "snake_case")]
+fn stateful_command_with_result_snake(
+  the_argument: Option<String>,
+  state: State<'_, MyState>,
+) -> Result<String, MyError> {
+  println!("{:?} {:?}", the_argument, state.inner());
+  dbg!(the_argument.ok_or(MyError::FooError))
 }
 
 // Async commands
 
 #[command]
-async fn async_simple_command_with_result(argument: String) -> Result<String, MyError> {
-  println!("{}", argument);
-  Ok(argument)
+async fn async_simple_command_with_result(the_argument: String) -> Result<String, MyError> {
+  println!("{}", the_argument);
+  Ok(the_argument)
 }
 
 #[command]
 async fn async_stateful_command_with_result(
-  argument: Option<String>,
+  the_argument: Option<String>,
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
-  println!("{:?} {:?}", argument, state.inner());
-  Ok(argument.unwrap_or_else(|| "".to_string()))
+  println!("{:?} {:?}", the_argument, state.inner());
+  Ok(the_argument.unwrap_or_else(|| "".to_string()))
 }
 
 // Non-Ident command function arguments
@@ -147,19 +207,17 @@ fn command_arguments_tuple_struct(InlinePerson(name, age): InlinePerson<'_>) {
 }
 
 #[command]
-fn borrow_cmd(argument: &str) -> &str {
-  argument
+fn borrow_cmd(the_argument: &str) -> &str {
+  the_argument
 }
 
 #[command]
-fn borrow_cmd_async(argument: &str) -> &str {
-  argument
+fn borrow_cmd_async(the_argument: &str) -> &str {
+  the_argument
 }
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/commands/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .manage(MyState {
       value: 0,
       label: "Tauri!".into(),
@@ -182,6 +240,14 @@ fn main() {
       command_arguments_wild,
       command_arguments_struct,
       simple_command_with_result,
+      async_simple_command_snake,
+      future_simple_command_snake,
+      future_simple_command_with_return_snake,
+      future_simple_command_with_result_snake,
+      force_async_snake,
+      force_async_with_result_snake,
+      simple_command_with_result_snake,
+      stateful_command_with_result_snake,
       stateful_command_with_result,
       command_arguments_tuple_struct,
       async_simple_command_with_result,
@@ -189,6 +255,8 @@ fn main() {
       future_simple_command_with_result,
       async_stateful_command_with_result,
     ])
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/commands/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

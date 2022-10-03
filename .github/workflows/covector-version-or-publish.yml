@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -60,7 +60,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date
@@ -96,6 +96,14 @@ jobs:
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
 
+      - name: run CLI tests
+        timeout-minutes: 30
+        run: |
+          cd ./tooling/cli/node
+          yarn
+          yarn build
+          yarn test
+
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
@@ -118,7 +126,7 @@ jobs:
           cache-dependency-path: tooling/*/yarn.lock
 
       - name: cargo login
-        run: cargo login ${{ secrets.crate_token }}
+        run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
       - name: git config
         run: |
           git config --global user.name "${{ github.event.pusher.name }}"
@@ -128,7 +136,7 @@ jobs:
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -137,7 +145,7 @@ jobs:
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
-        uses: tauri-apps/create-pull-request@v3.4.1
+        uses: tauri-apps/create-pull-request@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates
@@ -147,10 +155,12 @@ jobs:
           body: ${{ steps.covector.outputs.change }}
 
       - name: Trigger doc update
-        if: steps.covector.outputs.successfulPublish == 'true'
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          steps.covector.outputs.packagesPublished != ''
         uses: peter-evans/repository-dispatch@v1
         with:
-          token: ${{ secrets.TAURI_BOT_PAT }}
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
@@ -160,6 +170,17 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'cli.rs')
         uses: peter-evans/repository-dispatch@v1
         with:
-          token: ${{ secrets.TAURI_BOT_PAT }}
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
+          inputs: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+
+      - name: Trigger cli.rs publishing workflow
+        if: |
+          steps.covector.outputs.successfulPublish == 'true' &&
+          contains(steps.covector.outputs.packagesPublished, 'cli.rs')
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          repository: tauri-apps/tauri
+          event-type: publish-clirs

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -26,11 +26,11 @@
 //!         "https://releases.myapp.com/{target}}/{current_version}}"
 //!     ],
 //!     "dialog": true,
-//!     "pubkey": ""
+//!     "pubkey": "YOUR_UPDATER_PUBLIC_KEY_HERE"
 //! }
 //! ```
 //!
-//! The required keys are "active" and "endpoints", others are optional.
+//! The required keys are "active", "endpoints" and "pubkey"; others are optional.
 //!
 //! "active" must be a boolean. By default, it's set to false.
 //!
@@ -38,7 +38,7 @@
 //!
 //! "dialog" if present must be a boolean. By default, it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
 //!
-//! "pubkey" if present must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
+//! "pubkey" must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
 //!
 //! ## Update Requests
 //!
@@ -64,7 +64,7 @@
 //!
 //! If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
 //!
-//! ## Javascript API
+//! ## JavaScript API
 //!
 //! **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT work.**
 //!
@@ -107,7 +107,7 @@
 //!   });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update");
@@ -145,7 +145,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { listen } from "@tauri-apps/api/event";
 //! listen("tauri://update-available", function (res) {
@@ -180,7 +180,7 @@
 //!   });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! ```js
 //! import { emit } from "@tauri-apps/api/event";
 //! emit("tauri://update-install");
@@ -209,7 +209,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //!
 //! Event : `tauri://update-download-progress`
 //!
@@ -270,7 +270,7 @@
 //! });
 //! ```
 //!
-//! #### Javascript
+//! #### JavaScript
 //! Event : `tauri://update-status`
 //!
 //! Emitted data:
@@ -308,7 +308,7 @@
 //! }
 //! ```
 //!
-//! The only required keys are "url" and "version", the others are optional.
+//! The required keys are "url", "version" and "signature"; the others are optional.
 //!
 //! "pub_date" if present must be formatted according to ISO 8601.
 //!
@@ -456,10 +456,19 @@ pub use self::{core::RemoteRelease, error::Error};
 /// Alias for [`std::result::Result`] using our own [`Error`].
 pub type Result<T> = std::result::Result<T, Error>;
 
-use crate::{
-  api::dialog::blocking::ask, runtime::EventLoopProxy, AppHandle, EventLoopMessage, Manager,
-  Runtime, UpdaterEvent,
-};
+use crate::{runtime::EventLoopProxy, AppHandle, EventLoopMessage, Manager, Runtime, UpdaterEvent};
+
+#[cfg(desktop)]
+use crate::api::dialog::blocking::ask;
+
+#[cfg(mobile)]
+fn ask<R: Runtime>(
+  _parent_window: Option<&crate::Window<R>>,
+  _title: impl AsRef<str>,
+  _message: impl AsRef<str>,
+) -> bool {
+  true
+}
 
 /// Check for new updates
 pub const EVENT_CHECK_UPDATE: &str = "tauri://update";

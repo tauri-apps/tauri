@@ -1,11 +1,12 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::{
-  config::get as get_config, framework::infer_from_package_json as infer_framework,
+use crate::{
+  helpers::{config::get as get_config, framework::infer_from_package_json as infer_framework},
+  interface::rust::get_workspace_dir,
+  Result,
 };
-use crate::Result;
 use clap::Parser;
 use colored::Colorize;
 use serde::Deserialize;
@@ -285,8 +286,12 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
 
 #[cfg(windows)]
 fn webview2_version() -> crate::Result<Option<String>> {
+  let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
+    |_| "powershell.exe".to_string(),
+    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+  );
   // check 64bit machine-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
       .args(&["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
@@ -296,7 +301,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
     ));
   }
   // check 32bit machine-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
         .args(&["-NoProfile", "-Command"])
         .arg("Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
         .output()?;
@@ -306,7 +311,7 @@ fn webview2_version() -> crate::Result<Option<String>> {
     ));
   }
   // check user-wide installation
-  let output = Command::new("powershell")
+  let output = Command::new(&powershell_path)
       .args(&["-NoProfile", "-Command"])
       .arg("Get-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' | ForEach-Object {$_.pv}")
       .output()?;
@@ -476,12 +481,12 @@ fn crate_version(
         };
 
         let lock_version = match (lock, crate_lock_packages.is_empty()) {
-          (Some(_lock), true) => crate_lock_packages
+          (Some(_lock), false) => crate_lock_packages
             .iter()
             .map(|p| p.version.clone())
             .collect::<Vec<String>>()
             .join(", "),
-          (Some(_lock), false) => "unknown lockfile".to_string(),
+          (Some(_lock), true) => "unknown lockfile".to_string(),
           _ => "no lockfile".to_string(),
         };
 
@@ -789,12 +794,10 @@ pub fn command(_options: Options) -> Result<()> {
         } else {
           None
         };
-      let lock: Option<CargoLock> =
-        if let Ok(lock_contents) = read_to_string(tauri_dir.join("Cargo.lock")) {
-          toml::from_str(&lock_contents).ok()
-        } else {
-          None
-        };
+      let lock: Option<CargoLock> = get_workspace_dir()
+        .ok()
+        .and_then(|p| read_to_string(p.join("Cargo.lock")).ok())
+        .and_then(|s| toml::from_str(&s).ok());
 
       for (dep, label) in [
         ("tauri", format!("{} {}", "tauri", "[RUST]".dimmed())),
@@ -924,7 +927,7 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> crate::Result<Pa
 
   if found.len() > 1 {
     return Err(anyhow::anyhow!(
-        "only one package mangager should be used, but found {}\nplease remove unused package manager lock files",
+        "only one package manager should be used, but found {}\nplease remove unused package manager lock files",
         found.join(" and ")
       ));
   }

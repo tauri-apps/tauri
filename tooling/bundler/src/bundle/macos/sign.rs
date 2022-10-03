@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -17,7 +18,7 @@ const KEYCHAIN_PWD: &str = "tauri-build";
 // APPLE_CERTIFICATE is the p12 certificate base64 encoded.
 // By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
 // Then use the value of the base64 in APPLE_CERTIFICATE env variable.
-// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when youy exported your certificate.
+// You need to set APPLE_CERTIFICATE_PASSWORD to the password you set when you exported your certificate.
 // https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
 pub fn setup_keychain(
   certificate_encoded: OsString,
@@ -275,9 +276,13 @@ pub fn notarize(
     .output_ok()
     .context("failed to upload app to Apple's notarization servers.")?;
 
-  let stdout = std::str::from_utf8(&output.stdout)?;
+  // combine both stdout and stderr to support macOS below 10.15
+  let mut notarize_response = std::str::from_utf8(&output.stdout)?.to_string();
+  notarize_response.push('\n');
+  notarize_response.push_str(std::str::from_utf8(&output.stderr)?);
+  notarize_response.push('\n');
   if let Some(uuid) = Regex::new(r"\nRequestUUID = (.+?)\n")?
-    .captures_iter(stdout)
+    .captures_iter(&notarize_response)
     .next()
   {
     info!("notarization started; waiting for Apple response...");
@@ -287,7 +292,11 @@ pub fn notarize(
     staple_app(app_bundle_path.clone())?;
   } else {
     return Err(
-      anyhow::anyhow!("failed to parse RequestUUID from upload output. {}", stdout).into(),
+      anyhow::anyhow!(
+        "failed to parse RequestUUID from upload output. {}",
+        notarize_response
+      )
+      .into(),
     );
   }
 
@@ -325,9 +334,13 @@ fn get_notarization_status(
     .output_ok();
 
   if let Ok(output) = result {
-    let stdout = std::str::from_utf8(&output.stdout)?;
+    // combine both stdout and stderr to support macOS below 10.15
+    let mut notarize_status = std::str::from_utf8(&output.stdout)?.to_string();
+    notarize_status.push('\n');
+    notarize_status.push_str(std::str::from_utf8(&output.stderr)?);
+    notarize_status.push('\n');
     if let Some(status) = Regex::new(r"\n *Status: (.+?)\n")?
-      .captures_iter(stdout)
+      .captures_iter(&notarize_status)
       .next()
     {
       let status = status[1].to_string();
@@ -337,7 +350,7 @@ fn get_notarization_status(
         Err(
           anyhow::anyhow!(format!(
             "Apple failed to notarize your app. {}",
-            std::str::from_utf8(&output.stdout)?
+            notarize_status
           ))
           .into(),
         )
@@ -345,8 +358,7 @@ fn get_notarization_status(
         Err(
           anyhow::anyhow!(format!(
             "Unknown notarize status {}. {}",
-            status,
-            std::str::from_utf8(&output.stdout)?
+            status, notarize_status
           ))
           .into(),
         )

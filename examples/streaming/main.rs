@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -38,10 +38,7 @@ fn main() {
     assert!(video_file.exists());
   }
 
-  let context = tauri::generate_context!("../../examples/streaming/tauri.conf.json");
-
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
@@ -115,6 +112,8 @@ fn main() {
 
       response.mimetype("video/mp4").status(status_code).body(buf)
     })
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/streaming/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

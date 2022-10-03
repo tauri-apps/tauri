@@ -1,10 +1,10 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::cli::Args;
 use anyhow::Error;
-use futures::TryFutureExt;
+use futures_util::TryFutureExt;
 use hyper::header::CONTENT_LENGTH;
 use hyper::http::uri::Authority;
 use hyper::service::{make_service_fn, service_fn};
@@ -141,7 +141,7 @@ fn map_capabilities(mut json: Value) -> Value {
 pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
   #[cfg(unix)]
   let (signals_handle, signals_task) = {
-    use futures::StreamExt;
+    use futures_util::StreamExt;
     use signal_hook::consts::signal::*;
 
     let signals = signal_hook_tokio::Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;

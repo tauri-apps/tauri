@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,6 +7,7 @@ pub use anyhow::Result;
 mod build;
 mod dev;
 mod helpers;
+mod icon;
 mod info;
 mod init;
 mod interface;
@@ -18,9 +19,12 @@ use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
 use serde::Deserialize;
-use std::ffi::OsString;
 use std::io::{BufReader, Write};
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{exit, Command, ExitStatus, Output, Stdio};
+use std::{
+  ffi::OsString,
+  sync::{Arc, Mutex},
+};
 
 #[derive(Deserialize)]
 pub struct VersionMetadata {
@@ -59,6 +63,7 @@ struct Cli {
 enum Commands {
   Build(build::Options),
   Dev(dev::Options),
+  Icon(icon::Options),
   Info(info::Options),
   Init(init::Options),
   Plugin(plugin::Cli),
@@ -70,7 +75,7 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///
@@ -82,7 +87,21 @@ fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
 /// The passed `bin_name` parameter should be how you want the help messages to display the command.
 /// This defaults to `cargo-tauri`, but should be set to how the program was called, such as
 /// `cargo tauri`.
-pub fn run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
+pub fn run<I, A>(args: I, bin_name: Option<String>)
+where
+  I: IntoIterator<Item = A>,
+  A: Into<OsString> + Clone,
+{
+  if let Err(e) = try_run(args, bin_name) {
+    log::error!("{:#}", e);
+    exit(1);
+  }
+}
+
+/// Run the Tauri CLI with the passed arguments.
+///
+/// It is similar to [`run`], but instead of exiting on an error, it returns a result.
+pub fn try_run<I, A>(args: I, bin_name: Option<String>) -> Result<()>
 where
   I: IntoIterator<Item = A>,
   A: Into<OsString> + Clone,
@@ -143,6 +162,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
@@ -176,12 +196,12 @@ fn prettyprint_level(lvl: Level) -> &'static str {
 pub trait CommandExt {
   // The `pipe` function sets the stdout and stderr to properly
   // show the command output in the Node.js wrapper.
-  fn piped(&mut self) -> Result<ExitStatus>;
-  fn output_ok(&mut self) -> crate::Result<()>;
+  fn piped(&mut self) -> std::io::Result<ExitStatus>;
+  fn output_ok(&mut self) -> crate::Result<Output>;
 }
 
 impl CommandExt for Command {
-  fn piped(&mut self) -> crate::Result<ExitStatus> {
+  fn piped(&mut self) -> std::io::Result<ExitStatus> {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();
@@ -190,7 +210,7 @@ impl CommandExt for Command {
     self.status().map_err(Into::into)
   }
 
-  fn output_ok(&mut self) -> crate::Result<()> {
+  fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
     debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
 
@@ -200,8 +220,11 @@ impl CommandExt for Command {
     let mut child = self.spawn()?;
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
+    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
+    let stdout_lines_ = stdout_lines.clone();
     std::thread::spawn(move || {
       let mut buf = Vec::new();
+      let mut lines = stdout_lines_.lock().unwrap();
       loop {
         buf.clear();
         match tauri_utils::io::read_line(&mut stdout, &mut buf) {
@@ -209,12 +232,17 @@ impl CommandExt for Command {
           _ => (),
         }
         debug!(action = "stdout"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
       }
     });
 
     let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
+    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
+    let stderr_lines_ = stderr_lines.clone();
     std::thread::spawn(move || {
       let mut buf = Vec::new();
+      let mut lines = stderr_lines_.lock().unwrap();
       loop {
         buf.clear();
         match tauri_utils::io::read_line(&mut stderr, &mut buf) {
@@ -222,13 +250,21 @@ impl CommandExt for Command {
           _ => (),
         }
         debug!(action = "stderr"; "{}", String::from_utf8_lossy(&buf));
+        lines.extend(buf.clone());
+        lines.push(b'\n');
       }
     });
 
     let status = child.wait()?;
 
-    if status.success() {
-      Ok(())
+    let output = Output {
+      status,
+      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
+      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
+    };
+
+    if output.status.success() {
+      Ok(output)
     } else {
       Err(anyhow::anyhow!("failed to run {}", program))
     }

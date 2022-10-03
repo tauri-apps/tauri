@@ -1,16 +1,19 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * Parse arguments from your Command Line Interface.
  *
- * This package is also accessible with `window.__TAURI__.cli` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.cli` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
 import { invokeTauriCommand } from './helpers/tauri'
 
+/**
+ * @since 1.0.0
+ */
 interface ArgMatch {
   /**
    * string if takes value
@@ -24,18 +27,24 @@ interface ArgMatch {
   occurrences: number
 }
 
+/**
+ * @since 1.0.0
+ */
 interface SubcommandMatch {
   name: string
   matches: CliMatches
 }
 
+/**
+ * @since 1.0.0
+ */
 interface CliMatches {
   args: { [name: string]: ArgMatch }
   subcommand: SubcommandMatch | null
 }
 
 /**
- * Parse the arguments provided to the current process and get the matches using the configuration defined `tauri.conf.json > tauri > cli`.
+ * Parse the arguments provided to the current process and get the matches using the configuration defined [`tauri.cli`](https://tauri.app/v1/api/config/#tauriconfig.cli) in `tauri.conf.json`
  * @example
  * ```typescript
  * import { getMatches } from '@tauri-apps/api/cli';
@@ -52,7 +61,7 @@ interface CliMatches {
  * }
  * ```
  *
- * @returns A promise resolving to the parsed arguments.
+ * @since 1.0.0
  */
 async function getMatches(): Promise<CliMatches> {
   return invokeTauriCommand<CliMatches>({

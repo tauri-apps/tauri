@@ -1,11 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import { WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
-import { LiteralUnion } from 'type-fest'
+import type { EventName } from '../event'
 
 export interface Event<T> {
   /** Event name */
@@ -17,26 +17,6 @@ export interface Event<T> {
   /** Event payload */
   payload: T
 }
-
-export type EventName = LiteralUnion<
-  | 'tauri://update'
-  | 'tauri://update-available'
-  | 'tauri://update-download-progress'
-  | 'tauri://update-install'
-  | 'tauri://update-status'
-  | 'tauri://resize'
-  | 'tauri://move'
-  | 'tauri://close-requested'
-  | 'tauri://focus'
-  | 'tauri://blur'
-  | 'tauri://scale-change'
-  | 'tauri://menu'
-  | 'tauri://file-drop'
-  | 'tauri://file-drop-hover'
-  | 'tauri://file-drop-cancelled'
-  | 'tauri://theme-changed',
-  string
->
 
 export type EventCallback<T> = (event: Event<T>) => void
 

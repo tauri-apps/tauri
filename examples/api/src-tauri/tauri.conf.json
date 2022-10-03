@@ -2,13 +2,13 @@
   "$schema": "../../../tooling/cli/schema.json",
   "build": {
     "distDir": "../dist",
-    "devPath": "http://localhost:5000",
+    "devPath": "http://localhost:5173",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
   },
   "package": {
     "productName": "Tauri API",
-    "version": "../package.json"
+    "version": "1.0.0"
   },
   "tauri": {
     "pattern": {
@@ -87,8 +87,8 @@
       "all": true,
       "fs": {
         "scope": {
-          "allow": ["$APP/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
-          "deny": ["$APP/db/*.stronghold"]
+          "allow": ["$APPDATA/db/**", "$DOWNLOAD/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
         }
       },
       "shell": {
@@ -109,20 +109,15 @@
       "protocol": {
         "asset": true,
         "assetScope": {
-          "allow": ["$APP/db/**", "$RESOURCE/**"],
-          "deny": ["$APP/db/*.stronghold"]
+          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
         }
       },
       "http": {
         "scope": ["http://localhost:3003"]
       }
     },
-    "windows": [
-      {
-        "title": "Tauri API Validation",
-        "transparent": true
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": {
         "default-src": "'self' customprotocol: asset:",
@@ -134,7 +129,8 @@
     },
     "systemTray": {
       "iconPath": "../../.icons/tray_icon_with_transparency.png",
-      "iconAsTemplate": true
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
     }
   }
 }

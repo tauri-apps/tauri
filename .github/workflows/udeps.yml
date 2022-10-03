@@ -1,16 +1,14 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
 name: Udeps
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/udeps.yml'
-      - 'core/**'
-      - 'tooling/bundler/**'
-      - 'tooling/cli/**'
+  push:
+    branches:
+      - dev
+      - next
 
 env:
   RUST_BACKTRACE: 1
@@ -22,26 +20,112 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      tauri: ${{ steps.filter.outputs.tauri }}
+      build: ${{ steps.filter.outputs.build }}
+      codegen: ${{ steps.filter.outputs.codegen }}
+      macros: ${{ steps.filter.outputs.macros }}
+      runtime: ${{ steps.filter.outputs.runtime }}
+      wry: ${{ steps.filter.outputs.wry }}
+      utils: ${{ steps.filter.outputs.utils }}
+      bundler: ${{ steps.filter.outputs.bundler }}
+      cli: ${{ steps.filter.outputs.cli }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            tauri:
+              - 'core/tauri/**'
+              - '!core/tauri/scripts/**'
+            build:
+              - 'core/tauri-build/**'
+            codegen:
+              - 'core/tauri-codegen/**'
+            macros:
+              - 'core/tauri-macros/**'
+            runtime:
+              - 'core/tauri-runtime/**'
+            wry:
+              - 'core/tauri-runtime-wry/**'
+            utils:
+              - 'core/tauri-utils/**'
+            bundler:
+              - 'tooling/bundler/**'
+            cli:
+              - 'tooling/cli/**'
+
+  setup:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: |
+      needs.changes.outputs.tauri == 'true' ||
+      needs.changes.outputs.build == 'true' ||
+      needs.changes.outputs.codegen == 'true' ||
+      needs.changes.outputs.macros == 'true' ||
+      needs.changes.outputs.runtime == 'true' ||
+      needs.changes.outputs.wry == 'true' ||
+      needs.changes.outputs.utils == 'true' ||
+      needs.changes.outputs.bundler == 'true' ||
+      needs.changes.outputs.cli == 'true'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-udeps --locked --force
+
+      - name: Upload udeps
+        uses: actions/upload-artifact@v3
+        with:
+          name: udeps
+          path: '~/.cargo/bin/cargo-udeps'
+          if-no-files-found: error
+
+      - name: Create udeps matrix
+        id: create-matrix
+        env:
+          TAURI: ${{ needs.changes.outputs.tauri == 'true' }}
+          BUILD: ${{ needs.changes.outputs.build == 'true' }}
+          CODEGEN: ${{ needs.changes.outputs.codegen == 'true' }}
+          MACROS: ${{ needs.changes.outputs.macros == 'true' }}
+          RUNTIME: ${{ needs.changes.outputs.runtime == 'true' }}
+          WRY: ${{ needs.changes.outputs.wry == 'true' }}
+          UTILS: ${{ needs.changes.outputs.utils == 'true' }}
+          BUNDLER: ${{ needs.changes.outputs.bundler == 'true' }}
+          CLI: ${{ needs.changes.outputs.cli == 'true' }}
+        run: |
+          crates=()
+          if [ "${TAURI}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri\""; fi
+          if [ "${BUILD}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-build\""; fi
+          if [ "${CODEGEN}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-codegen\""; fi
+          if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-macros\""; fi
+          if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime\""; fi
+          if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime-wry\""; fi
+          if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
+          if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
+          if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
+          echo ::set-output name=matrix::[$crates]
+    outputs:
+      matrix: ${{ steps.create-matrix.outputs.matrix }}
+
   udeps:
     runs-on: ubuntu-latest
+    needs: setup
     strategy:
       matrix:
-        clippy:
-          - {
-              path: './core/tauri/Cargo.toml',
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,http-multipart'
-            }
-          - { path: './core/tauri-build/Cargo.toml', args: '--all-features' }
-          - { path: './core/tauri-codegen/Cargo.toml', args: '--all-features' }
-          - { path: './core/tauri-macros/Cargo.toml', args: '--all-features' }
-          - { path: './core/tauri-runtime/Cargo.toml', args: '--all-features' }
-          - {
-              path: './core/tauri-runtime-wry/Cargo.toml',
-              args: '--features devtools,system-tray,macos-private-api,objc-exception'
-            }
-          - { path: './core/tauri-utils/Cargo.toml', args: '--all-features' }
-          - { path: './tooling/bundler/Cargo.toml', args: '--all-features' }
-          - { path: './tooling/cli/Cargo.toml', args: '--all-features' }
+        path: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v2
 
@@ -78,7 +162,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date
@@ -120,10 +204,13 @@ jobs:
             ubuntu-latest-nightly-
             ubuntu-latest-
 
-      - uses: actions-rs/cargo@v1
+      - name: Download udeps
+        uses: actions/download-artifact@v3
         with:
-          command: install
-          args: cargo-udeps --locked --force
+          name: udeps
+          path: '~/.cargo/bin'
+
+      - run: chmod +x $HOME/.cargo/bin/cargo-udeps
 
       - name: Install required packages
         run: |
@@ -133,4 +220,4 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: udeps
-          args: --manifest-path ${{ matrix.clippy.path }} --all-targets ${{ matrix.clippy.args }}
+          args: --manifest-path ${{ matrix.path }}/Cargo.toml --all-targets --all-features

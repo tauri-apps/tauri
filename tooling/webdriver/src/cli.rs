@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -44,7 +44,9 @@ impl From<pico_args::Arguments> for Args {
     let parsed = Args {
       port: args.value_from_str("--port").unwrap_or(4444),
       native_port: args.value_from_str("--native-port").unwrap_or(4445),
-      native_host: args.value_from_str("--native-host").unwrap_or(String::from("127.0.0.1")),
+      native_host: args
+        .value_from_str("--native-host")
+        .unwrap_or(String::from("127.0.0.1")),
       native_driver,
     };
 

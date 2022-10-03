@@ -1,14 +1,14 @@
 [package]
 name = "tauri-utils"
-version = "1.0.0"
+version = "1.1.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Utilities for Tauri"
 edition = "2021"
-rust-version = "1.57"
-exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+rust-version = "1.59"
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
@@ -29,14 +29,26 @@ getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.1"
 json5 = { version = "0.4", optional = true }
+toml = { version = "0.5", optional = true }
 json-patch = "0.2"
 glob = { version = "0.3.0", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2.4"
 semver = "1"
+infer = "0.7"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.4"
+
+[target."cfg(windows)".dependencies.windows]
+version = "0.39.0"
+features = [
+  "implement",
+  "Win32_Foundation",
+  "Win32_System_Com",
+  "Win32_System_LibraryLoader",
+  "Win32_System_SystemInformation"
+]
 
 [features]
 build = [ "proc-macro2", "quote" ]
@@ -45,4 +57,5 @@ schema = [ "schemars" ]
 isolation = [ "aes-gcm", "getrandom", "serialize-to-javascript" ]
 process-relaunch-dangerous-allow-symlink-macos = [ ]
 config-json5 = [ "json5" ]
+config-toml = [ "toml" ]
 resources = [ "glob", "walkdir" ]

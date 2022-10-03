@@ -1,13 +1,13 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * Provides operating system-related utility methods and properties.
  *
- * This package is also accessible with `window.__TAURI__.os` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.os` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.os`](https://tauri.app/v1/api/config/#allowlistconfig.os) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -23,14 +23,42 @@
  * @module
  */
 
-import { LiteralUnion } from 'type-fest'
 import { isWindows } from './helpers/os-check'
 import { invokeTauriCommand } from './helpers/tauri'
+
+type Platform =
+  | 'linux'
+  | 'darwin'
+  | 'ios'
+  | 'freebsd'
+  | 'dragonfly'
+  | 'netbsd'
+  | 'openbsd'
+  | 'solaris'
+  | 'android'
+  | 'win32'
+
+type OsType = 'Linux' | 'Darwin' | 'Windows_NT'
+
+type Arch =
+  | 'x86'
+  | 'x86_64'
+  | 'arm'
+  | 'aarch64'
+  | 'mips'
+  | 'mips64'
+  | 'powerpc'
+  | 'powerpc64'
+  | 'riscv64'
+  | 's390x'
+  | 'sparc64'
 
 /**
  * The operating system-specific end-of-line marker.
  * - `\n` on POSIX
  * - `\r\n` on Windows
+ *
+ * @since 1.0.0
  * */
 const EOL = isWindows() ? '\r\n' : '\n'
 
@@ -42,23 +70,12 @@ const EOL = isWindows() ? '\r\n' : '\n'
  * import { platform } from '@tauri-apps/api/os';
  * const platformName = await platform();
  * ```
+ *
+ * @since 1.0.0
+ *
  */
-async function platform(): Promise<
-  LiteralUnion<
-    | 'linux'
-    | 'darwin'
-    | 'ios'
-    | 'freebsd'
-    | 'dragonfly'
-    | 'netbsd'
-    | 'openbsd'
-    | 'solaris'
-    | 'android'
-    | 'win32',
-    string
-  >
-> {
-  return invokeTauriCommand<string>({
+async function platform(): Promise<Platform> {
+  return invokeTauriCommand<Platform>({
     __tauriModule: 'Os',
     message: {
       cmd: 'platform'
@@ -73,6 +90,8 @@ async function platform(): Promise<
  * import { version } from '@tauri-apps/api/os';
  * const osVersion = await version();
  * ```
+ *
+ * @since 1.0.0
  */
 async function version(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -90,11 +109,11 @@ async function version(): Promise<string> {
  * import { type } from '@tauri-apps/api/os';
  * const osType = await type();
  * ```
+ *
+ * @since 1.0.0
  */
-async function type(): Promise<
-  LiteralUnion<'Linux' | 'Darwin' | 'Windows_NT', string>
-> {
-  return invokeTauriCommand<string>({
+async function type(): Promise<OsType> {
+  return invokeTauriCommand<OsType>({
     __tauriModule: 'Os',
     message: {
       cmd: 'osType'
@@ -110,24 +129,11 @@ async function type(): Promise<
  * import { arch } from '@tauri-apps/api/os';
  * const archName = await arch();
  * ```
+ *
+ * @since 1.0.0
  */
-async function arch(): Promise<
-  LiteralUnion<
-    | 'x86'
-    | 'x86_64'
-    | 'arm'
-    | 'aarch64'
-    | 'mips'
-    | 'mips64'
-    | 'powerpc'
-    | 'powerpc64'
-    | 'riscv64'
-    | 's390x'
-    | 'sparc64',
-    string
-  >
-> {
-  return invokeTauriCommand<string>({
+async function arch(): Promise<Arch> {
+  return invokeTauriCommand<Arch>({
     __tauriModule: 'Os',
     message: {
       cmd: 'arch'
@@ -142,6 +148,8 @@ async function arch(): Promise<
  * import { tempdir } from '@tauri-apps/api/os';
  * const tempdirPath = await tempdir();
  * ```
+ *
+ * @since 1.0.0
  */
 async function tempdir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -153,3 +161,4 @@ async function tempdir(): Promise<string> {
 }
 
 export { EOL, platform, version, type, arch, tempdir }
+export type { Platform, OsType, Arch }

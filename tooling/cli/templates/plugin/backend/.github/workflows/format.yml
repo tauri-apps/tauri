@@ -18,11 +18,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install rustfmt with nightly toolchain
+    - name: Install rustfmt with stable toolchain
       uses: actions-rs/toolchain@v1
       with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           override: true
           components: rustfmt
     - uses: actions-rs/cargo@v1

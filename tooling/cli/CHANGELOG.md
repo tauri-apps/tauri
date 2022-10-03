@@ -1,5 +1,113 @@
 # Changelog
 
+## \[1.1.1]
+
+- Fix wrong cli metadata that caused new projects (created through `tauri init`) fail to build
+  - [db26aaf2](https://www.github.com/tauri-apps/tauri/commit/db26aaf2b44ce5335c9223c571ef2b2175e0cd6d) fix: fix wrong cli metadata ([#5214](https://www.github.com/tauri-apps/tauri/pull/5214)) on 2022-09-16
+
+## \[1.1.0]
+
+- Allow adding `build > beforeBundleCommand` in tauri.conf.json to run a shell command before the bundling phase.
+  - [57ab9847](https://www.github.com/tauri-apps/tauri/commit/57ab9847eb2d8c9a5da584b873b7c072e9ee26bf) feat(cli): add `beforeBundleCommand`, closes [#4879](https://www.github.com/tauri-apps/tauri/pull/4879) ([#4893](https://www.github.com/tauri-apps/tauri/pull/4893)) on 2022-08-09
+- Change `before_dev_command` and `before_build_command` config value to allow configuring the current working directory.
+  - [d6f7d3cf](https://www.github.com/tauri-apps/tauri/commit/d6f7d3cfe8a7ec8d68c8341016c4e0a3103da587) Add cwd option to `before` commands, add wait option to dev [#4740](https://www.github.com/tauri-apps/tauri/pull/4740) [#3551](https://www.github.com/tauri-apps/tauri/pull/3551) ([#4834](https://www.github.com/tauri-apps/tauri/pull/4834)) on 2022-08-02
+- Allow configuring the `before_dev_command` to force the CLI to wait for the command to finish before proceeding.
+  - [d6f7d3cf](https://www.github.com/tauri-apps/tauri/commit/d6f7d3cfe8a7ec8d68c8341016c4e0a3103da587) Add cwd option to `before` commands, add wait option to dev [#4740](https://www.github.com/tauri-apps/tauri/pull/4740) [#3551](https://www.github.com/tauri-apps/tauri/pull/3551) ([#4834](https://www.github.com/tauri-apps/tauri/pull/4834)) on 2022-08-02
+- Check if the default build target is set in the Cargo configuration.
+  - [436f3d8d](https://www.github.com/tauri-apps/tauri/commit/436f3d8d66727f5b64165522f0b55f4ab54bd1ae) feat(cli): load Cargo configuration to check default build target ([#4990](https://www.github.com/tauri-apps/tauri/pull/4990)) on 2022-08-21
+- Add support to cargo-binstall.
+  - [90d5929f](https://www.github.com/tauri-apps/tauri/commit/90d5929fea6df575a2aa3c0a749374358f1ddb9b) feat(cli.rs): add support to cargo-binstall, closes [#4651](https://www.github.com/tauri-apps/tauri/pull/4651) ([#4817](https://www.github.com/tauri-apps/tauri/pull/4817)) on 2022-08-02
+- Use `cargo metadata` to detect the workspace root and target directory.
+  - [fea70eff](https://www.github.com/tauri-apps/tauri/commit/fea70effad219c0794d919f8834fa1a1ffd204c7) refactor(cli): Use `cargo metadata` to detect the workspace root and target directory, closes [#4632](https://www.github.com/tauri-apps/tauri/pull/4632), [#4928](https://www.github.com/tauri-apps/tauri/pull/4928). ([#4932](https://www.github.com/tauri-apps/tauri/pull/4932)) on 2022-08-21
+- Prompt for `beforeDevCommand` and `beforeBuildCommand` in `tauri init`.
+  - [6d4945c9](https://www.github.com/tauri-apps/tauri/commit/6d4945c9f06cd1f7018e1c48686ba682aae817df) feat(cli): prompt for before\*Command, closes [#4691](https://www.github.com/tauri-apps/tauri/pull/4691) ([#4721](https://www.github.com/tauri-apps/tauri/pull/4721)) on 2022-07-25
+- Add `icon` command to generate icons.
+  - [12e9d811](https://www.github.com/tauri-apps/tauri/commit/12e9d811e69813e7e9db5344b422101ddc09589f) feat(cli): Add `icon` command (tauricon) ([#4992](https://www.github.com/tauri-apps/tauri/pull/4992)) on 2022-09-03
+- Added support to configuration files in TOML format (Tauri.toml file).
+  - [ae83d008](https://www.github.com/tauri-apps/tauri/commit/ae83d008f9e1b89bfc8dddaca42aa5c1fbc36f6d) feat: add support to TOML config file `Tauri.toml`, closes [#4806](https://www.github.com/tauri-apps/tauri/pull/4806) ([#4813](https://www.github.com/tauri-apps/tauri/pull/4813)) on 2022-08-02
+- Automatically use any `.taurignore` file as ignore rules for dev watcher and app path finder.
+  - [596fa08d](https://www.github.com/tauri-apps/tauri/commit/596fa08d48e371c7bd29e1ef799119ac8fca0d0b) feat(cli): automatically use `.taurignore`, ref [#4617](https://www.github.com/tauri-apps/tauri/pull/4617) ([#4623](https://www.github.com/tauri-apps/tauri/pull/4623)) on 2022-07-28
+- Enable WiX FIPS compliance when the `TAURI_FIPS_COMPLIANT` environment variable is set to `true`.
+  - [d88b9de7](https://www.github.com/tauri-apps/tauri/commit/d88b9de7aaeaaa2e42e4795dbc2b8642b5ae7a50) feat(core): add `fips_compliant` wix config option, closes [#4541](https://www.github.com/tauri-apps/tauri/pull/4541) ([#4843](https://www.github.com/tauri-apps/tauri/pull/4843)) on 2022-08-04
+- Fixes dev watcher incorrectly exiting the CLI when sequential file updates are detected.
+  - [47fab680](https://www.github.com/tauri-apps/tauri/commit/47fab6809a1e23b3b9a84695e2d91ff0826ba79a) fix(cli): dev watcher incorrectly killing process on multiple file write ([#4684](https://www.github.com/tauri-apps/tauri/pull/4684)) on 2022-07-25
+- Set the `MACOSX_DEPLOYMENT_TARGET` environment variable with the configuration `minimum_system_version` value.
+  - [fa23310f](https://www.github.com/tauri-apps/tauri/commit/fa23310f23cb9e6a02ec2524f1ef394a5b42990e) fix(cli): set MACOSX_DEPLOYMENT_TARGET env var, closes [#4704](https://www.github.com/tauri-apps/tauri/pull/4704) ([#4842](https://www.github.com/tauri-apps/tauri/pull/4842)) on 2022-08-02
+- Added `--no-watch` argument to the `dev` command to disable the file watcher.
+  - [0983d7ce](https://www.github.com/tauri-apps/tauri/commit/0983d7ce7f24ab43f9ae7b5e1177ff244d8885a8) feat(cli): add `--no-watch` argument to the dev command, closes [#4617](https://www.github.com/tauri-apps/tauri/pull/4617) ([#4793](https://www.github.com/tauri-apps/tauri/pull/4793)) on 2022-07-29
+- Validate updater signature matches configured public key.
+  - [b2a8930b](https://www.github.com/tauri-apps/tauri/commit/b2a8930b3c4b72c50ce72e73575f42c9cbe91bad) feat(cli): validate updater private key when signing ([#4754](https://www.github.com/tauri-apps/tauri/pull/4754)) on 2022-07-25
+
+## \[1.0.5]
+
+- Correctly fill the architecture when building Debian packages targeting ARM64 (aarch64).
+  - Bumped due to a bump in tauri-bundler.
+  - [635f23b8](https://www.github.com/tauri-apps/tauri/commit/635f23b88adbb8726d628f67840709cd870836dc) fix(bundler): correctly set debian architecture for aarch64 ([#4700](https://www.github.com/tauri-apps/tauri/pull/4700)) on 2022-07-17
+
+## \[1.0.4]
+
+- Do not capture and force colors of `cargo build` output.
+  - [c635a0da](https://www.github.com/tauri-apps/tauri/commit/c635a0dad437860d54109adffaf245b7c21bc684) refactor(cli): do not capture and force colors of cargo build output ([#4627](https://www.github.com/tauri-apps/tauri/pull/4627)) on 2022-07-12
+- Reduce the amount of allocations when converting cases.
+  - [bc370e32](https://www.github.com/tauri-apps/tauri/commit/bc370e326810446e15b1f50fb962b980114ba16b) feat: reduce the amount of `heck`-related allocations ([#4634](https://www.github.com/tauri-apps/tauri/pull/4634)) on 2022-07-11
+
+## \[1.0.3]
+
+- Changed the app template to not set the default app menu as it is now set automatically on macOS which is the platform that needs a menu to function properly.
+  - [91055883](https://www.github.com/tauri-apps/tauri/commit/9105588373cc8401bd9ad79bdef26f509b2d76b7) feat: add implicit default menu for macOS only, closes [#4551](https://www.github.com/tauri-apps/tauri/pull/4551) ([#4570](https://www.github.com/tauri-apps/tauri/pull/4570)) on 2022-07-04
+- Improved bundle identifier validation showing the exact source of the configuration value.
+  - [8e3e7fc6](https://www.github.com/tauri-apps/tauri/commit/8e3e7fc64641afc7a6833bc93205e6f525562545) feat(cli): improve bundle identifier validation, closes [#4589](https://www.github.com/tauri-apps/tauri/pull/4589) ([#4596](https://www.github.com/tauri-apps/tauri/pull/4596)) on 2022-07-05
+- Improve configuration deserialization error messages.
+  - [9170c920](https://www.github.com/tauri-apps/tauri/commit/9170c9207044fa561535f624916dfdbaa41ff79d) feat(core): improve config deserialization error messages ([#4607](https://www.github.com/tauri-apps/tauri/pull/4607)) on 2022-07-06
+- Skip the static link of the `vcruntime140.dll` if the `STATIC_VCRUNTIME` environment variable is set to `false`.
+  - [2e61abaa](https://www.github.com/tauri-apps/tauri/commit/2e61abaa9ae5d7a41ca1fa6505b5d6c368625ce5) feat(cli): allow dynamic link vcruntime, closes [#4565](https://www.github.com/tauri-apps/tauri/pull/4565) ([#4601](https://www.github.com/tauri-apps/tauri/pull/4601)) on 2022-07-06
+- The `TAURI_CONFIG` environment variable now represents the configuration to be merged instead of the entire JSON.
+  - [fa028ebf](https://www.github.com/tauri-apps/tauri/commit/fa028ebf3c8ca7b43a70d283a01dbea86217594f) refactor: do not pass entire config from CLI to core, send patch instead ([#4598](https://www.github.com/tauri-apps/tauri/pull/4598)) on 2022-07-06
+- Watch for Cargo workspace members in the `dev` file watcher.
+  - [dbb8c87b](https://www.github.com/tauri-apps/tauri/commit/dbb8c87b96dec9942b1bf877b29bafb8246514d4) feat(cli): watch Cargo workspaces in the dev command, closes [#4222](https://www.github.com/tauri-apps/tauri/pull/4222) ([#4572](https://www.github.com/tauri-apps/tauri/pull/4572)) on 2022-07-03
+
+## \[1.0.2]
+
+- Fixes a crash on the `signer sign` command.
+  - [8e808fec](https://www.github.com/tauri-apps/tauri/commit/8e808fece95f2e506acf2c446d37b9913fd67d50) fix(cli.rs): conflicts_with arg doesn't exist closes  ([#4538](https://www.github.com/tauri-apps/tauri/pull/4538)) on 2022-06-30
+
+## \[1.0.1]
+
+- No longer adds the `pkg-config` dependency to `.deb` packages when the `systemTray` is used.
+  This only works with recent versions of `libappindicator-sys` (including https://github.com/tauri-apps/libappindicator-rs/pull/38),
+  so a `cargo update` may be necessary if you create `.deb` bundles and use the tray feature.
+  - [0e6edeb1](https://www.github.com/tauri-apps/tauri/commit/0e6edeb14f379af1e02a7cebb4e3a5c9e87ebf7f) fix(cli): Don't add `pkg-config` to `deb` ([#4508](https://www.github.com/tauri-apps/tauri/pull/4508)) on 2022-06-29
+- AppImage bundling will now prefer bundling correctly named appindicator library (including `.1` version suffix). With a symlink for compatibility with the old naming.
+  - [bf45ca1d](https://www.github.com/tauri-apps/tauri/commit/bf45ca1df6691c05bdf72c5716cc01e89a7791d4) fix(cli,bundler): prefer AppImage libraries with ABI version ([#4505](https://www.github.com/tauri-apps/tauri/pull/4505)) on 2022-06-29
+- Improve error message when `cargo` is not installed.
+  - [e0e5f772](https://www.github.com/tauri-apps/tauri/commit/e0e5f772430f6349ec99ba891e601331e376e3c7) feat(cli): improve `cargo not found` error message, closes [#4428](https://www.github.com/tauri-apps/tauri/pull/4428) ([#4430](https://www.github.com/tauri-apps/tauri/pull/4430)) on 2022-06-21
+- The app template now only sets the default menu on macOS.
+  - [5105b428](https://www.github.com/tauri-apps/tauri/commit/5105b428c4726b2179cd4b3244350d1a1ee73734) feat(cli): change app template to only set default menu on macOS ([#4518](https://www.github.com/tauri-apps/tauri/pull/4518)) on 2022-06-29
+- Warn if updater is enabled but not in the bundle target list.
+  - [31c15cd2](https://www.github.com/tauri-apps/tauri/commit/31c15cd2bd94dbe39fb94982a15cbe02ac5d8925) docs(config): enhance documentation for bundle targets, closes [#3251](https://www.github.com/tauri-apps/tauri/pull/3251) ([#4418](https://www.github.com/tauri-apps/tauri/pull/4418)) on 2022-06-21
+- Check if target exists and is installed on dev and build commands.
+  - [13b8a240](https://www.github.com/tauri-apps/tauri/commit/13b8a2403d1353a8c3a643fbc6b6e862af68376e) feat(cli): validate target argument ([#4458](https://www.github.com/tauri-apps/tauri/pull/4458)) on 2022-06-24
+- Fixes the covector configuration on the plugin templates.
+  - [b8a64d01](https://www.github.com/tauri-apps/tauri/commit/b8a64d01bab11f955b7bbdf323d0afa1a3db4b64) fix(cli): add prepublish scripts to the plugin templates on 2022-06-19
+- Set the binary name to the product name in development.
+  - [b025b9f5](https://www.github.com/tauri-apps/tauri/commit/b025b9f581ac1a6ae0a26789c2be1e9928fb0282) refactor(cli): set binary name on dev ([#4447](https://www.github.com/tauri-apps/tauri/pull/4447)) on 2022-06-23
+- Allow registering a `.gitignore` file to skip watching some project files and directories via the `TAURI_DEV_WATCHER_IGNORE_FILE` environment variable.
+  - [83186dd8](https://www.github.com/tauri-apps/tauri/commit/83186dd89768407984db35fb67c3cc51f50ea8f5) Read extra ignore file for dev watcher, closes [#4406](https://www.github.com/tauri-apps/tauri/pull/4406) ([#4409](https://www.github.com/tauri-apps/tauri/pull/4409)) on 2022-06-20
+- Fix shebang for `kill-children.sh`.
+  - [35dd51db](https://www.github.com/tauri-apps/tauri/commit/35dd51db6826ec1eed7b90082b9eb6b2a699b627) fix(cli): add shebang for kill-children.sh, closes [#4262](https://www.github.com/tauri-apps/tauri/pull/4262) ([#4416](https://www.github.com/tauri-apps/tauri/pull/4416)) on 2022-06-22
+- Update plugin templates to use newer `tauri-apps/create-pull-request` GitHub action.
+  - [07f90795](https://www.github.com/tauri-apps/tauri/commit/07f9079532a42f3517d96faeaf46cad6176b31ac) chore(cli): update plugin template tauri-apps/create-pull-request on 2022-06-19
+- Use UNIX path separator on the init `$schema` field.
+  - [01053045](https://www.github.com/tauri-apps/tauri/commit/010530459ef62c48eed68ca965f2688accabcf69) chore(cli): use unix path separator on $schema ([#4384](https://www.github.com/tauri-apps/tauri/pull/4384)) on 2022-06-19
+- The `info` command now can check the Cargo lockfile on workspaces.
+  - [12f65219](https://www.github.com/tauri-apps/tauri/commit/12f65219ea75a51ebd38659ddce1563e015a036c) fix(cli): read lockfile from workspace on the info command, closes [#4232](https://www.github.com/tauri-apps/tauri/pull/4232) ([#4423](https://www.github.com/tauri-apps/tauri/pull/4423)) on 2022-06-21
+- Preserve the `Cargo.toml` formatting when the features array is not changed.
+  - [6650e5d6](https://www.github.com/tauri-apps/tauri/commit/6650e5d6720c215530ca1fdccd19bd2948dd6ca3) fix(cli): preserve Cargo manifest formatting when possible ([#4431](https://www.github.com/tauri-apps/tauri/pull/4431)) on 2022-06-21
+- Change the updater signature metadata to include the file name instead of its full path.
+  - [094b3eb3](https://www.github.com/tauri-apps/tauri/commit/094b3eb352bcf5de28414015e7c44290d619ea8c) fix(cli): file name instead of path on updater sig comment, closes [#4467](https://www.github.com/tauri-apps/tauri/pull/4467) ([#4484](https://www.github.com/tauri-apps/tauri/pull/4484)) on 2022-06-27
+- Validate bundle identifier as it must only contain alphanumeric characters, hyphens and periods.
+  - [0674a801](https://www.github.com/tauri-apps/tauri/commit/0674a80129d7c31bc93257849afc0a5069129fed) fix: assert config.bundle.identifier to be only alphanumeric, hyphens or dots. closes [#4359](https://www.github.com/tauri-apps/tauri/pull/4359) ([#4363](https://www.github.com/tauri-apps/tauri/pull/4363)) on 2022-06-17
+
 ## \[1.0.0]
 
 - Upgrade to `stable`!

@@ -24,10 +24,6 @@ describe('[CLI] cli.js template', () => {
     }
 
     await cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
-      .catch(err => {
-        console.error(err)
-        throw err
-      })
 
     if (outExists) {
       await move(cacheOutPath, outPath)
@@ -43,10 +39,7 @@ describe('[CLI] cli.js template', () => {
     const config = readFileSync(configPath).toString()
     writeFileSync(configPath, config.replace('com.tauri.dev', 'com.tauri.test'))
 
-    await cli.run(['build', '--verbose']).catch(err => {
-      console.error(err)
-      throw err
-    })
+    await cli.run(['build', '--verbose'])
     process.chdir(cwd)
   })
 })

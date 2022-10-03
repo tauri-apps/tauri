@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "0.9.0"
+version = "0.11.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -8,8 +8,8 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Runtime for Tauri applications"
 edition = "2021"
-rust-version = "1.57"
-exclude = [ ".license_template", "CHANGELOG.md", "/target" ]
+rust-version = "1.59"
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [package.metadata.docs.rs]
@@ -26,17 +26,18 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "1.0.0", path = "../tauri-utils" }
+tauri-utils = { version = "1.1.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"
-infer = "0.7"
+raw-window-handle = "0.5"
+rand = "0.8"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.16.0"
+webview2-com = "0.19.1"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.37.0"
+  version = "0.39.0"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

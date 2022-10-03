@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -364,7 +365,7 @@ mod tests {
       AppCategory::from_str("Developer Tool"),
       Ok(AppCategory::DeveloperTool)
     );
-    // Lowercase, spaces, and hypens are fine:
+    // Lowercase, spaces, and hyphens are fine:
     assert_eq!(
       AppCategory::from_str(" puzzle  game "),
       Ok(AppCategory::PuzzleGame)

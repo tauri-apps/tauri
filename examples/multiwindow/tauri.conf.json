@@ -5,6 +5,10 @@
     "devPath": ["index.html"],
     "withGlobalTauri": true
   },
+  "package": {
+    "productName": "Multi Window",
+    "version": "0.1.0"
+  },
   "tauri": {
     "bundle": {
       "active": true,

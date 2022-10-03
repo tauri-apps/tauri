@@ -3,17 +3,50 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 license = "Apache-2.0 OR MIT"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["isolation"] }
+tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = ["api-all", "cli", "global-shortcut", "http-multipart", "icon-ico", "icon-png", "isolation", "macos-private-api", "reqwest-client", "system-tray", "updater"] }
 tiny_http = "0.11"
+
+[dependencies.tauri]
+path = "../../../core/tauri"
+features = [
+  "api-all",
+  "cli",
+  "global-shortcut",
+  "http-multipart",
+  "icon-ico",
+  "icon-png",
+  "isolation",
+  "macos-private-api",
+  "windows7-compat",
+  "reqwest-client",
+  "system-tray",
+  "updater"
+]
+
+[target."cfg(target_os = \"windows\")".dependencies]
+window-vibrancy = "0.2"
+window-shadows= "0.2"
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+log = "0.4"
+tauri-runtime-wry = { path = "../../../core/tauri-runtime-wry/" }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.9.0"
+jni = "0.19.0"
+paste = "1.0"
+
+[target.'cfg(target_os = "ios")'.dependencies]
+mobile-entry-point = "0.1.0"
+env_logger = "0.9.0"
 
 [features]
 default = [ "custom-protocol" ]

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -251,7 +251,7 @@
       __tauriModule: 'Dialog',
       message: {
         cmd: 'messageDialog',
-        message: message
+        message: message.toString()
       }
     })
   }
@@ -261,7 +261,7 @@
       __tauriModule: 'Dialog',
       message: {
         cmd: 'confirmDialog',
-        message: message
+        message: message.toString()
       }
     })
   }

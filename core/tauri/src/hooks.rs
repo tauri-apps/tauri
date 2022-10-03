@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -18,7 +18,7 @@ use tauri_macros::default_runtime;
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
 
-/// A closure that is run everytime Tauri receives a message it doesn't explicitly handle.
+/// A closure that is run every time Tauri receives a message it doesn't explicitly handle.
 pub type InvokeHandler<R> = dyn Fn(Invoke<R>) + Send + Sync + 'static;
 
 /// A closure that is responsible for respond a JS message.
@@ -39,7 +39,7 @@ pub(crate) struct IpcJavascript<'a> {
 #[derive(Template)]
 #[default_template("../scripts/isolation.js")]
 pub(crate) struct IsolationJavascript<'a> {
-  pub(crate) origin: &'a str,
+  pub(crate) origin: String,
   pub(crate) isolation_src: &'a str,
   pub(crate) style: &'a str,
 }

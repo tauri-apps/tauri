@@ -1,13 +1,13 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * The path module provides utilities for working with file and directory paths.
  *
- * This package is also accessible with `window.__TAURI__.path` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.path` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.path`](https://tauri.app/v1/api/config/#allowlistconfig.path) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -29,22 +29,98 @@ import { isWindows } from './helpers/os-check'
 
 /**
  * Returns the path to the suggested directory for your app config files.
- * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value configured on `tauri.conf.json > tauri > bundle > identifier`.
- * @example
- * ```typescript
- * import { appDir } from '@tauri-apps/api/path';
- * const appDirPath = await appDir();
- * ```
  *
- * @returns
+ * @deprecated since 1.2.0: Will be removed in 2.0.0. Use {@link appConfigDir} or {@link appDataDir} instead.
+ * @since 1.0.0
  */
 async function appDir(): Promise<string> {
+  return appConfigDir()
+}
+
+/**
+ * Returns the path to the suggested directory for your app's config files.
+ * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * @example
+ * ```typescript
+ * import { appConfigDir } from '@tauri-apps/api/path';
+ * const appConfigDirPath = await appConfigDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+async function appConfigDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
-      directory: BaseDirectory.App
+      directory: BaseDirectory.AppConfig
+    }
+  })
+}
+
+/**
+ * Returns the path to the suggested directory for your app's data files.
+ * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * @example
+ * ```typescript
+ * import { appDataDir } from '@tauri-apps/api/path';
+ * const appDataDirPath = await appDataDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+async function appDataDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.AppData
+    }
+  })
+}
+
+/**
+ * Returns the path to the suggested directory for your app's local data files.
+ * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * @example
+ * ```typescript
+ * import { appLocalDataDir } from '@tauri-apps/api/path';
+ * const appLocalDataDirPath = await appLocalDataDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+async function appLocalDataDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.AppLocalData
+    }
+  })
+}
+
+/**
+ * Returns the path to the suggested directory for your app's cache files.
+ * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * @example
+ * ```typescript
+ * import { appCacheDir } from '@tauri-apps/api/path';
+ * const appCacheDirPath = await appCacheDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+async function appCacheDir(): Promise<string> {
+  return invokeTauriCommand<string>({
+    __tauriModule: 'Path',
+    message: {
+      cmd: 'resolvePath',
+      path: '',
+      directory: BaseDirectory.AppCache
     }
   })
 }
@@ -63,7 +139,7 @@ async function appDir(): Promise<string> {
  * const audioDirPath = await audioDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function audioDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -90,7 +166,7 @@ async function audioDir(): Promise<string> {
  * const cacheDirPath = await cacheDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function cacheDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -110,14 +186,14 @@ async function cacheDir(): Promise<string> {
  *
  * - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
  * - **macOS:** Resolves to `$HOME/Library/Application Support`.
- * - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
+ * - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
  * @example
  * ```typescript
  * import { configDir } from '@tauri-apps/api/path';
  * const configDirPath = await configDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function configDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -144,7 +220,7 @@ async function configDir(): Promise<string> {
  * const dataDirPath = await dataDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function dataDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -163,15 +239,15 @@ async function dataDir(): Promise<string> {
  * #### Platform-specific
  *
  * - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
- * - **macOS:** Resolves to `$HOME/Library/Desktop`.
+ * - **macOS:** Resolves to `$HOME/Desktop`.
  * - **Windows:** Resolves to `{FOLDERID_Desktop}`.
  * @example
  * ```typescript
  * import { desktopDir } from '@tauri-apps/api/path';
  * const desktopPath = await desktopDir();
  * ```
-
- * @returns
+ *
+ * @since 1.0.0
  */
 async function desktopDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -198,7 +274,7 @@ async function desktopDir(): Promise<string> {
  * - **macOS:** Resolves to `$HOME/Documents`.
  * - **Windows:** Resolves to `{FOLDERID_Documents}`.
  *
- * @returns
+ * @since 1.0.0
  */
 async function documentDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -225,7 +301,7 @@ async function documentDir(): Promise<string> {
  * const downloadDirPath = await downloadDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function downloadDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -252,7 +328,7 @@ async function downloadDir(): Promise<string> {
  * const executableDirPath = await executableDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function executableDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -279,7 +355,7 @@ async function executableDir(): Promise<string> {
  * const fontDirPath = await fontDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function fontDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -306,7 +382,7 @@ async function fontDir(): Promise<string> {
  * const homeDirPath = await homeDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function homeDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -333,7 +409,7 @@ async function homeDir(): Promise<string> {
  * const localDataDirPath = await localDataDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function localDataDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -360,7 +436,7 @@ async function localDataDir(): Promise<string> {
  * const pictureDirPath = await pictureDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function pictureDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -387,7 +463,7 @@ async function pictureDir(): Promise<string> {
  * const publicDirPath = await publicDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function publicDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -409,7 +485,7 @@ async function publicDir(): Promise<string> {
  * const resourceDirPath = await resourceDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function resourceDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -433,6 +509,8 @@ async function resourceDir(): Promise<string> {
  * @param resourcePath The path to the resource.
  * Must follow the same syntax as defined in `tauri.conf.json > tauri > bundle > resources`, i.e. keeping subfolders and parent dir components (`../`).
  * @returns The full path to the resource.
+ *
+ * @since 1.0.0
  */
 async function resolveResource(resourcePath: string): Promise<string> {
   return invokeTauriCommand<string>({
@@ -459,7 +537,7 @@ async function resolveResource(resourcePath: string): Promise<string> {
  * const runtimeDirPath = await runtimeDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function runtimeDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -486,7 +564,7 @@ async function runtimeDir(): Promise<string> {
  * const templateDirPath = await templateDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function templateDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -513,7 +591,7 @@ async function templateDir(): Promise<string> {
  * const videoDirPath = await videoDir();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function videoDir(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -529,26 +607,36 @@ async function videoDir(): Promise<string> {
 /**
  * Returns the path to the suggested log directory.
  *
- * ### Platform-specific
- *
- * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}`.
- * - **macOS:** Resolves to `${homeDir}//Library/Logs/{bundleIdentifier}`
- * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}`.
- * @example
- * ```typescript
- * import { logDir } from '@tauri-apps/api/path';
- * const logDirPath = await logDir();
- * ```
- *
- * @returns
+ * @deprecated since 1.2.0: Will be removed in 2.0.0. Use {@link appLogDir} instead.
+ * @since 1.0.0
  */
 async function logDir(): Promise<string> {
+  return appLogDir()
+}
+
+/**
+ * Returns the path to the suggested directory for your app's log files.
+ *
+ * #### Platform-specific
+ *
+ * - **Linux:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * - **macOS:** Resolves to `${homeDir}/Library/Logs/{bundleIdentifier}`
+ * - **Windows:** Resolves to `${configDir}/${bundleIdentifier}/logs`.
+ * @example
+ * ```typescript
+ * import { appLogDir } from '@tauri-apps/api/path';
+ * const appLogDirPath = await appLogDir();
+ * ```
+ *
+ * @since 1.2.0
+ */
+async function appLogDir(): Promise<string> {
   return invokeTauriCommand<string>({
     __tauriModule: 'Path',
     message: {
       cmd: 'resolvePath',
       path: '',
-      directory: BaseDirectory.Log
+      directory: BaseDirectory.AppLog
     }
   })
 }
@@ -557,6 +645,8 @@ async function logDir(): Promise<string> {
  * Provides the platform-specific path segment separator:
  * - `\` on Windows
  * - `/` on POSIX
+ *
+ * @since 1.0.0
  */
 const sep = isWindows() ? '\\' : '/'
 
@@ -564,6 +654,8 @@ const sep = isWindows() ? '\\' : '/'
  * Provides the platform-specific path segment delimiter:
  * - `;` on Windows
  * - `:` on POSIX
+ *
+ * @since 1.0.0
  */
 const delimiter = isWindows() ? ';' : ':'
 
@@ -571,12 +663,12 @@ const delimiter = isWindows() ? ';' : ':'
  * Resolves a sequence of `paths` or `path` segments into an absolute path.
  * @example
  * ```typescript
- * import { resolve, appDir } from '@tauri-apps/api/path';
- * const appDirPath = await appDir();
- * const path = await resolve(appDirPath, '..', 'users', 'tauri', 'avatar.png');
+ * import { resolve, appDataDir } from '@tauri-apps/api/path';
+ * const appDataDirPath = await appDataDir();
+ * const path = await resolve(appDataDirPath, '..', 'users', 'tauri', 'avatar.png');
  * ```
  *
- * @param paths A sequence of paths or path segments.
+ * @since 1.0.0
  */
 async function resolve(...paths: string[]): Promise<string> {
   return invokeTauriCommand<string>({
@@ -589,13 +681,15 @@ async function resolve(...paths: string[]): Promise<string> {
 }
 
 /**
- * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symolic links.
+ * Normalizes the given `path`, resolving `'..'` and `'.'` segments and resolve symbolic links.
  * @example
  * ```typescript
- * import { normalize, appDir } from '@tauri-apps/api/path';
- * const appDirPath = await appDir();
- * const path = await normalize(appDirPath, '..', 'users', 'tauri', 'avatar.png');
+ * import { normalize, appDataDir } from '@tauri-apps/api/path';
+ * const appDataDirPath = await appDataDir();
+ * const path = await normalize(appDataDirPath, '..', 'users', 'tauri', 'avatar.png');
  * ```
+ *
+ * @since 1.0.0
  */
 async function normalize(path: string): Promise<string> {
   return invokeTauriCommand<string>({
@@ -611,12 +705,12 @@ async function normalize(path: string): Promise<string> {
  *  Joins all given `path` segments together using the platform-specific separator as a delimiter, then normalizes the resulting path.
  * @example
  * ```typescript
- * import { join, appDir } from '@tauri-apps/api/path';
- * const appDirPath = await appDir();
- * const path = await join(appDirPath, 'users', 'tauri', 'avatar.png');
+ * import { join, appDataDir } from '@tauri-apps/api/path';
+ * const appDataDirPath = await appDataDir();
+ * const path = await join(appDataDirPath, 'users', 'tauri', 'avatar.png');
  * ```
  *
- * @param paths A sequence of path segments.
+ * @since 1.0.0
  */
 async function join(...paths: string[]): Promise<string> {
   return invokeTauriCommand<string>({
@@ -632,10 +726,12 @@ async function join(...paths: string[]): Promise<string> {
  * Returns the directory name of a `path`. Trailing directory separators are ignored.
  * @example
  * ```typescript
- * import { dirname, appDir } from '@tauri-apps/api/path';
- * const appDirPath = await appDir();
- * const dir = await dirname(appDirPath);
+ * import { dirname, appDataDir } from '@tauri-apps/api/path';
+ * const appDataDirPath = await appDataDir();
+ * const dir = await dirname(appDataDirPath);
  * ```
+ *
+ * @since 1.0.0
  */
 async function dirname(path: string): Promise<string> {
   return invokeTauriCommand<string>({
@@ -656,6 +752,8 @@ async function dirname(path: string): Promise<string> {
  * const ext = await extname(resourcePath);
  * assert(ext === 'conf');
  * ```
+ *
+ * @since 1.0.0
  */
 async function extname(path: string): Promise<string> {
   return invokeTauriCommand<string>({
@@ -678,6 +776,8 @@ async function extname(path: string): Promise<string> {
  * ```
  *
  * @param ext An optional file extension to be removed from the returned path.
+ *
+ * @since 1.0.0
  */
 async function basename(path: string, ext?: string): Promise<string> {
   return invokeTauriCommand<string>({
@@ -695,8 +795,10 @@ async function basename(path: string, ext?: string): Promise<string> {
  * @example
  * ```typescript
  * import { isAbsolute } from '@tauri-apps/api/path';
- * assert(await ibsolute('/home/tauri'));
+ * assert(await isAbsolute('/home/tauri'));
  * ```
+ *
+ * @since 1.0.0
  */
 async function isAbsolute(path: string): Promise<boolean> {
   return invokeTauriCommand<boolean>({
@@ -710,6 +812,11 @@ async function isAbsolute(path: string): Promise<boolean> {
 
 export {
   appDir,
+  appConfigDir,
+  appDataDir,
+  appLocalDataDir,
+  appCacheDir,
+  appLogDir,
   audioDir,
   cacheDir,
   configDir,

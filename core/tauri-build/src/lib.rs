@@ -1,11 +1,12 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 pub use anyhow::Result;
-use heck::ToSnakeCase;
+use heck::AsShoutySnakeCase;
+
 use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
 
 use std::path::{Path, PathBuf};
@@ -34,17 +35,29 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
+fn copy_binaries<'a>(
+  binaries: ResourcePaths<'a>,
+  target_triple: &str,
+  path: &Path,
+  package_name: Option<&String>,
+) -> Result<()> {
   for src in binaries {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
-    let dest = path.join(
-      src
-        .file_name()
-        .expect("failed to extract external binary filename")
-        .to_string_lossy()
-        .replace(&format!("-{}", target_triple), ""),
-    );
+    let file_name = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", target_triple), "");
+
+    if package_name.map_or(false, |n| n == &file_name) {
+      return Err(anyhow::anyhow!(
+        "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
+        file_name
+      ));
+    }
+
+    let dest = path.join(file_name);
     if dest.exists() {
       std::fs::remove_file(&dest).unwrap();
     }
@@ -68,12 +81,9 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
 fn has_feature(feature: &str) -> bool {
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!(
-    "CARGO_FEATURE_{}",
-    feature.to_snake_case().to_uppercase()
-  ))
-  .map(|x| x == "1")
-  .unwrap_or(false)
+  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
+    .map(|x| x == "1")
+    .unwrap_or(false)
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -96,7 +106,7 @@ pub struct WindowsAttributes {
   ///
   /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
   /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the corret bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
+  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
   ///
   /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
   sdk_dir: Option<PathBuf>,
@@ -118,7 +128,7 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a vaild UTF-8
+  /// Sets the sdk dir for windows. Currently only used on Windows. This must be a valid UTF-8
   /// path. Defaults to whatever the `winres` crate determines is best.
   #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
@@ -169,7 +179,15 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    panic!("error found during tauri-build: {:#?}", error);
+    let error = format!("{:#}", error);
+    println!("{}", error);
+    if error.starts_with("unknown field") {
+      print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
+      println!(
+        "Please try updating the Rust crates by running `cargo update` in the Tauri app folder."
+      );
+    }
+    std::process::exit(1);
   }
 }
 
@@ -184,14 +202,22 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
+  #[cfg(feature = "config-toml")]
+  println!("cargo:rerun-if-changed=Tauri.toml");
 
-  let config: Config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
-    serde_json::from_str(&env)?
-  } else {
-    serde_json::from_value(tauri_utils::config::parse::read_from(
-      std::env::current_dir().unwrap(),
-    )?)?
-  };
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  cfg_alias("desktop", !mobile);
+  cfg_alias("mobile", mobile);
+
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
+    std::env::current_dir().unwrap(),
+  )?)?;
+  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
+  let config: Config = serde_json::from_value(config)?;
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 
@@ -200,6 +226,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     let features = match tauri {
       Dependency::Simple(_) => Vec::new(),
       Dependency::Detailed(dep) => dep.features,
+      Dependency::Inherited(dep) => dep.features,
     };
 
     let all_cli_managed_features = TauriConfig::all_features();
@@ -263,6 +290,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
+      manifest.package.as_ref().map(|p| &p.name),
     )?;
   }
 
@@ -307,6 +335,26 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if window_icon_path.exists() {
       let mut res = WindowsResource::new();
+
+      res.set_manifest(
+        r#"
+        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+          <dependency>
+              <dependentAssembly>
+                  <assemblyIdentity
+                      type="win32"
+                      name="Microsoft.Windows.Common-Controls"
+                      version="6.0.0.0"
+                      processorArchitecture="*"
+                      publicKeyToken="6595b64144ccf1df"
+                      language="*"
+                  />
+              </dependentAssembly>
+          </dependency>
+        </assembly>
+        "#,
+      );
+
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
           res.set_toolkit_path(sdk_dir_str);

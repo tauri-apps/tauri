@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,10 +13,7 @@ fn main() {
     Manager,
   };
 
-  let context = tauri::generate_context!();
-
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .setup(move |app| {
       let window = app.get_window("main").unwrap();
       let script_path = app
@@ -43,6 +40,6 @@ fn main() {
 
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

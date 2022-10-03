@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,11 +57,21 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
   // project than the target crate.
-  let config = if let Ok(env) = std::env::var("TAURI_CONFIG") {
-    serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?
-  } else {
-    serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?)?
-  };
+  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(parent.clone())?)?;
+  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value =
+      serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
+
+  let old_cwd = std::env::current_dir().map_err(CodegenConfigError::CurrentDir)?;
+  // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
+  std::env::set_current_dir(parent.clone()).map_err(CodegenConfigError::CurrentDir)?;
+
+  let config = serde_json::from_value(config)?;
+
+  // Reset working directory.
+  std::env::set_current_dir(old_cwd).map_err(CodegenConfigError::CurrentDir)?;
 
   Ok((config, parent))
 }

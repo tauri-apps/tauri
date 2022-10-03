@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -56,6 +56,11 @@ impl Cmd {
     if let Some(icon) = options.icon {
       notification = notification.icon(icon);
     }
+    #[cfg(feature = "windows7-compat")]
+    {
+      notification.notify(&context.window.app_handle)?;
+    }
+    #[cfg(not(feature = "windows7-compat"))]
     notification.show()?;
     Ok(())
   }

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,9 +6,9 @@
  * Send toast notifications (brief auto-expiring OS window element) to your user.
  * Can also be used with the Notification Web API.
  *
- * This package is also accessible with `window.__TAURI__.notification` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.notification` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
- * The APIs must be allowlisted on `tauri.conf.json`:
+ * The APIs must be added to [`tauri.allowlist.notification`](https://tauri.app/v1/api/config/#allowlistconfig.notification) in `tauri.conf.json`:
  * ```json
  * {
  *   "tauri": {
@@ -28,6 +28,8 @@ import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Options to send a notification.
+ *
+ * @since 1.0.0
  */
 interface Options {
   /** Notification title. */
@@ -49,7 +51,7 @@ type Permission = 'granted' | 'denied' | 'default'
  * const permissionGranted = await isPermissionGranted();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
@@ -76,6 +78,8 @@ async function isPermissionGranted(): Promise<boolean> {
  * ```
  *
  * @returns A promise resolving to whether the user granted the permission or not.
+ *
+ * @since 1.0.0
  */
 async function requestPermission(): Promise<Permission> {
   return window.Notification.requestPermission()
@@ -97,7 +101,7 @@ async function requestPermission(): Promise<Permission> {
  * }
  * ```
  *
- * @param options Notification options.
+ * @since 1.0.0
  */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {

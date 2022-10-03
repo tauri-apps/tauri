@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -24,9 +24,7 @@ async fn create_child_window(id: String, window: Window) {
 }
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/parent-window/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
@@ -41,6 +39,8 @@ fn main() {
         .build()?;
       Ok(())
     })
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/parent-window/tauri.conf.json"
+    ))
     .expect("failed to run tauri application");
 }

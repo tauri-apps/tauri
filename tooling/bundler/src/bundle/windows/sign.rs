@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -90,7 +91,7 @@ fn locate_signtool() -> crate::Result<PathBuf> {
 }
 
 pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
-  // Convert path to string reference, as we need to pass it as a commandline parameter to signtool
+  // Convert path to string reference, as we need to pass it as a command-line parameter to signtool
   let path_str = path.as_ref().to_str().unwrap();
 
   info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);

@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 # Adapted from https://superuser.com/a/532109
@@ -16,7 +16,7 @@ if ((Test-Admin) -eq $false) {
     else {
         $InstallDirectory = Get-Location
         $ArgList = ('-File "{0}" -ChangeDir "{1}" -Elevated' -f ($myinvocation.MyCommand.Definition, $InstallDirectory))
-        Start-Process powershell.exe -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
+        Start-Process "$env:SYSTEMROOT\System32\WindowsPowerShell\v1.0\powershell.exe" -WindowStyle hidden -Verb RunAs -ArgumentList $ArgList
     }
     exit
 }

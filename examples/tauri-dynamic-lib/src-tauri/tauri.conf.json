@@ -6,6 +6,10 @@
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },
+  "package": {
+    "productName": "Dynamic Lib",
+    "version": "0.1.0"
+  },
   "tauri": {
     "bundle": {
       "active": true,

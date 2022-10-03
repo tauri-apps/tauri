@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,12 +10,55 @@ use serde_json::Value as JsonValue;
 pub use tauri_utils::config::*;
 
 use std::{
-  env::set_var,
+  collections::HashMap,
+  env::{set_var, var_os},
+  ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex},
 };
 
-pub type ConfigHandle = Arc<Mutex<Option<Config>>>;
+pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
+
+pub struct ConfigMetadata {
+  /// The actual configuration, merged with any extension.
+  inner: Config,
+  /// The config extensions (platform-specific config files or the config CLI argument).
+  /// Maps the extension name to its value.
+  extensions: HashMap<String, JsonValue>,
+}
+
+impl std::ops::Deref for ConfigMetadata {
+  type Target = Config;
+
+  #[inline(always)]
+  fn deref(&self) -> &Config {
+    &self.inner
+  }
+}
+
+impl ConfigMetadata {
+  /// Checks which config is overwriting the bundle identifier.
+  pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
+    for (ext, config) in &self.extensions {
+      if let Some(identifier) = config
+        .as_object()
+        .and_then(|config| config.get("tauri"))
+        .and_then(|tauri_config| tauri_config.as_object())
+        .and_then(|tauri_config| tauri_config.get("bundle"))
+        .and_then(|bundle_config| bundle_config.as_object())
+        .and_then(|bundle_config| bundle_config.get("identifier"))
+        .and_then(|id| id.as_str())
+      {
+        if identifier == self.inner.tauri.bundle.identifier {
+          return Some(ext.clone());
+        }
+      }
+    }
+    None
+  }
+}
+
+pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
@@ -49,6 +92,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
+    fips_compliant: var_os("TAURI_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
   }
 }
 
@@ -63,37 +107,55 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
     return Ok(config_handle().clone());
   }
 
-  let mut config = tauri_utils::config::parse::read_from(super::app_paths::tauri_dir())?;
+  let tauri_dir = super::app_paths::tauri_dir();
+  let (mut config, config_path) =
+    tauri_utils::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))?;
+  let config_file_name = config_path.file_name().unwrap().to_string_lossy();
+  let mut extensions = HashMap::new();
+
+  if let Some((platform_config, config_path)) =
+    tauri_utils::config::parse::read_platform(tauri_dir)?
+  {
+    merge(&mut config, &platform_config);
+    extensions.insert(
+      config_path.file_name().unwrap().to_str().unwrap().into(),
+      platform_config,
+    );
+  }
 
   if let Some(merge_config) = merge_config {
+    set_var("TAURI_CONFIG", merge_config);
     let merge_config: JsonValue =
       serde_json::from_str(merge_config).with_context(|| "failed to parse config to merge")?;
     merge(&mut config, &merge_config);
-  }
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
+  };
 
-  let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
-  let mut scope = valico::json_schema::Scope::new();
-  let schema = scope.compile_and_return(schema, false).unwrap();
-  let state = schema.validate(&config);
-  if !state.errors.is_empty() {
-    for error in state.errors {
-      eprintln!(
-        "`tauri.conf.json` error on `{}`: {}",
-        error
-          .get_path()
-          .chars()
-          .skip(1)
-          .collect::<String>()
-          .replace('/', " > "),
-        error.get_detail().unwrap_or_else(|| error.get_title()),
-      );
+  if config_path.extension() == Some(OsStr::new("json"))
+    || config_path.extension() == Some(OsStr::new("json5"))
+  {
+    let schema: JsonValue = serde_json::from_str(include_str!("../../schema.json"))?;
+    let schema = jsonschema::JSONSchema::compile(&schema).unwrap();
+    let result = schema.validate(&config);
+    if let Err(errors) = result {
+      for error in errors {
+        let path = error.instance_path.clone().into_vec().join(" > ");
+        if path.is_empty() {
+          eprintln!("`{config_file_name}` error: {}", error);
+        } else {
+          eprintln!("`{config_file_name}` error on `{}`: {}", path, error);
+        }
+      }
+      exit(1);
     }
-    exit(1);
   }
 
   let config: Config = serde_json::from_value(config)?;
-  set_var("TAURI_CONFIG", serde_json::to_string(&config)?);
-  *config_handle().lock().unwrap() = Some(config);
+
+  *config_handle().lock().unwrap() = Some(ConfigMetadata {
+    inner: config,
+    extensions,
+  });
 
   Ok(config_handle().clone())
 }
@@ -102,7 +164,6 @@ pub fn get(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
   get_internal(merge_config, false)
 }
 
-pub fn reload(merge_config: Option<&str>) -> crate::Result<()> {
-  get_internal(merge_config, true)?;
-  Ok(())
+pub fn reload(merge_config: Option<&str>) -> crate::Result<ConfigHandle> {
+  get_internal(merge_config, true)
 }

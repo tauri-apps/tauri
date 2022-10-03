@@ -1,5 +1,41 @@
 # Changelog
 
+## \[1.1.1]
+
+- Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
+  - Bumped due to a bump in tauri-utils.
+  - [c764408d](https://www.github.com/tauri-apps/tauri/commit/c764408da7fae123edd41115bda42fa75a4731d2) fix: Add missing allowlist config for cursor apis, closes [#5207](https://www.github.com/tauri-apps/tauri/pull/5207) ([#5211](https://www.github.com/tauri-apps/tauri/pull/5211)) on 2022-09-16
+
+## \[1.1.0]
+
+- Added support to configuration files in TOML format (Tauri.toml file).
+  - [ae83d008](https://www.github.com/tauri-apps/tauri/commit/ae83d008f9e1b89bfc8dddaca42aa5c1fbc36f6d) feat: add support to TOML config file `Tauri.toml`, closes [#4806](https://www.github.com/tauri-apps/tauri/pull/4806) ([#4813](https://www.github.com/tauri-apps/tauri/pull/4813)) on 2022-08-02
+
+## \[1.0.4]
+
+- Adjust command imports to fix `items_after_statements` Clippy warning.
+  - [d3e19e34](https://www.github.com/tauri-apps/tauri/commit/d3e19e3420a023cddc46173a2d1f1e6c5a390a1b) fix(macros): `items_after_statements` Clippy warning, closes [#4639](https://www.github.com/tauri-apps/tauri/pull/4639) on 2022-07-11
+- Remove raw identifier (`r#`) prefix from command arguments.
+  - [ac72800f](https://www.github.com/tauri-apps/tauri/commit/ac72800fb630738e2502569935ecdc83e3e78055) fix(macros): strip `r#` from command arguments, closes [#4654](https://www.github.com/tauri-apps/tauri/pull/4654) ([#4657](https://www.github.com/tauri-apps/tauri/pull/4657)) on 2022-07-12
+
+## \[1.0.3]
+
+- Add `#[doc(hidden)]` attribute to the `#[command]` generated macro.
+  - [d4cdf807](https://www.github.com/tauri-apps/tauri/commit/d4cdf80781a7955ac620fe6d394e82d067178c4d) feat(macros): hide command macro from docs, closes [#4550](https://www.github.com/tauri-apps/tauri/pull/4550) ([#4556](https://www.github.com/tauri-apps/tauri/pull/4556)) on 2022-07-01
+
+## \[1.0.2]
+
+- Expose `platform::windows_version` function.
+  - Bumped due to a bump in tauri-utils.
+  - [bf764e83](https://www.github.com/tauri-apps/tauri/commit/bf764e83e01e7443e6cc54572001e1c98c357465) feat(utils): expose `windows_version` function ([#4534](https://www.github.com/tauri-apps/tauri/pull/4534)) on 2022-06-30
+
+## \[1.0.1]
+
+- Set the bundle name and app metadata in the Info.plist file in development mode.
+  - [38f5db6e](https://www.github.com/tauri-apps/tauri/commit/38f5db6e6a8b496b50d486db6fd8204266de3a69) feat(codegen): fill app metadata in development Info.plist on 2022-06-21
+- Set the application icon in development mode on macOS.
+  - [307c2ebf](https://www.github.com/tauri-apps/tauri/commit/307c2ebfb68238dacab6088f9c6ba310c727c68c) feat(core): set macOS app icon in development ([#4385](https://www.github.com/tauri-apps/tauri/pull/4385)) on 2022-06-19
+
 ## \[1.0.0]
 
 - Upgrade to `stable`!

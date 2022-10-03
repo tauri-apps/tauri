@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -279,7 +279,7 @@ mod test {
     assert_eq!(escape_single_quoted_json_test, result);
   }
 
-  // check abritrary strings in the format callback function
+  // check arbitrary strings in the format callback function
   #[quickcheck]
   fn qc_formating(f: CallbackFn, a: String) -> bool {
     // call format callback

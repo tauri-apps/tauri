@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -74,6 +74,7 @@ pub fn read_binary<P: AsRef<Path>>(file: P) -> crate::api::Result<Vec<u8>> {
 #[cfg(test)]
 mod test {
   use super::*;
+  #[cfg(not(windows))]
   use crate::api::Error;
   use quickcheck::{Arbitrary, Gen};
 

@@ -1,11 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * Access the HTTP client written in Rust.
  *
- * This package is also accessible with `window.__TAURI__.http` when `tauri.conf.json > build > withGlobalTauri` is set to true.
+ * This package is also accessible with `window.__TAURI__.http` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * The APIs must be allowlisted on `tauri.conf.json`:
  * ```json
@@ -45,22 +45,38 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
+/**
+ * @since 1.0.0
+ */
 interface Duration {
   secs: number
   nanos: number
 }
 
+/**
+ * @since 1.0.0
+ */
 interface ClientOptions {
   maxRedirections?: number
+  /**
+   * Defines the maximum number of redirects the client should follow.
+   * If set to 0, no redirects will be followed.
+   */
   connectTimeout?: number | Duration
 }
 
+/**
+ * @since 1.0.0
+ */
 enum ResponseType {
   JSON = 1,
   Text = 2,
   Binary = 3
 }
 
+/**
+ * @since 1.0.0
+ */
 interface FilePart<T> {
   file: string | T
   mime?: string
@@ -69,7 +85,11 @@ interface FilePart<T> {
 
 type Part = string | Uint8Array | FilePart<Uint8Array>
 
-/** The body object to be used on POST and PUT requests. */
+/**
+ * The body object to be used on POST and PUT requests.
+ *
+ * @since 1.0.0
+ */
 class Body {
   type: string
   payload: unknown
@@ -103,7 +123,7 @@ class Body {
    *
    * @param data The body data.
    *
-   * @return The body object ready to be used on the POST and PUT requests.
+   * @returns The body object ready to be used on the POST and PUT requests.
    */
   static form(data: Record<string, Part>): Body {
     const form: Record<string, string | number[] | FilePart<number[]>> = {}
@@ -139,7 +159,7 @@ class Body {
    *
    * @param data The body JSON object.
    *
-   * @return The body object ready to be used on the POST and PUT requests.
+   * @returns The body object ready to be used on the POST and PUT requests.
    */
   static json(data: Record<any, any>): Body {
     return new Body('Json', data)
@@ -153,9 +173,9 @@ class Body {
    * Body.text('The body content as a string');
    * ```
    *
-   * @param data The body string.
+   * @param value The body string.
    *
-   * @return The body object ready to be used on the POST and PUT requests.
+   * @returns The body object ready to be used on the POST and PUT requests.
    */
   static text(value: string): Body {
     return new Body('Text', value)
@@ -169,13 +189,18 @@ class Body {
    * Body.bytes(new Uint8Array([1, 2, 3]));
    * ```
    *
-   * @param data The body byte array.
+   * @param bytes The body byte array.
    *
-   * @return The body object ready to be used on the POST and PUT requests.
+   * @returns The body object ready to be used on the POST and PUT requests.
    */
-  static bytes(bytes: Iterable<number> | ArrayLike<number>): Body {
+  static bytes(
+    bytes: Iterable<number> | ArrayLike<number> | ArrayBuffer
+  ): Body {
     // stringifying Uint8Array doesn't return an array of numbers, so we create one here
-    return new Body('Bytes', Array.from(bytes))
+    return new Body(
+      'Bytes',
+      Array.from(bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes)
+    )
   }
 }
 
@@ -191,7 +216,11 @@ type HttpVerb =
   | 'CONNECT'
   | 'TRACE'
 
-/** Options object sent to the backend. */
+/**
+ * Options object sent to the backend.
+ *
+ * @since 1.0.0
+ */
 interface HttpOptions {
   method: HttpVerb
   url: string
@@ -216,7 +245,11 @@ interface IResponse<T> {
   data: T
 }
 
-/** Response object. */
+/**
+ * Response object.
+ *
+ * @since 1.0.0
+ * */
 class Response<T> {
   /** The request URL. */
   url: string
@@ -242,6 +275,9 @@ class Response<T> {
   }
 }
 
+/**
+ * @since 1.0.0
+ */
 class Client {
   id: number
   /** @ignore */
@@ -257,8 +293,6 @@ class Client {
    * const client = await getClient();
    * await client.drop();
    * ```
-   *
-   * @returns
    */
   async drop(): Promise<void> {
     return invokeTauriCommand({
@@ -281,9 +315,6 @@ class Client {
    *   url: 'http://localhost:3003/users',
    * });
    * ```
-   *
-   * @param options The request options.
-   * @returns A promise resolving to the response.
    */
   async request<T>(options: HttpOptions): Promise<Response<T>> {
     const jsonResponse =
@@ -303,7 +334,6 @@ class Client {
       if (jsonResponse) {
         /* eslint-disable */
         try {
-          // @ts-expect-error
           response.data = JSON.parse(response.data as string)
         } catch (e) {
           if (response.ok && (response.data as unknown as string) === '') {
@@ -335,10 +365,6 @@ class Client {
    *   responseType: ResponseType.JSON
    * });
    * ```
-   *
-   * @param url The request URL.
-   * @param options The request options.
-   * @returns A promise resolving to the response.
    */
   async get<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
@@ -363,11 +389,6 @@ class Client {
    *   responseType: ResponseType.Text,
    * });
    * ```
-   *
-   * @param url The request URL.
-   * @param body The body of the request.
-   * @param options The request options.
-   * @returns A promise resolving to the response.
    */
   async post<T>(
     url: string,
@@ -398,11 +419,6 @@ class Client {
    *   })
    * });
    * ```
-   *
-   * @param url The request URL.
-   * @param body The body of the request.
-   * @param options Request options.
-   * @returns A promise resolving to the response.
    */
   async put<T>(
     url: string,
@@ -427,10 +443,6 @@ class Client {
    *   body: Body.json({ email: 'contact@tauri.app' })
    * });
    * ```
-   *
-   * @param url The request URL.
-   * @param options The request options.
-   * @returns A promise resolving to the response.
    */
   async patch<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
@@ -448,10 +460,6 @@ class Client {
    * const client = await getClient();
    * const response = await client.delete('http://localhost:3003/users/1');
    * ```
-   *
-   * @param url The request URL.
-   * @param options The request options.
-   * @returns A promise resolving to the response.
    */
   async delete<T>(url: string, options?: RequestOptions): Promise<Response<T>> {
     return this.request({
@@ -472,7 +480,9 @@ class Client {
  *
  * @param options Client configuration.
  *
- * @return A promise resolving to the client instance.
+ * @returns A promise resolving to the client instance.
+ *
+ * @since 1.0.0
  */
 async function getClient(options?: ClientOptions): Promise<Client> {
   return invokeTauriCommand<number>({
@@ -497,10 +507,6 @@ let defaultClient: Client | null = null
  *   timeout: 30,
  * });
  * ```
- *
- * @param url The request URL.
- * @param options The fetch options.
- * @return The response object.
  */
 async function fetch<T>(
   url: string,

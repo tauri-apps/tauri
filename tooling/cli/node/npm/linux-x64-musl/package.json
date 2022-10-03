@@ -10,6 +10,9 @@
   "cpu": [
     "x64"
   ],
+  "libc": [
+    "musl"
+  ],
   "main": "cli.linux-x64-musl.node",
   "files": [
     "cli.linux-x64-musl.node"

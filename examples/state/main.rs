@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -69,9 +69,7 @@ fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
 }
 
 fn main() {
-  let context = tauri::generate_context!("../../examples/state/tauri.conf.json");
   tauri::Builder::default()
-    .menu(tauri::Menu::os_default(&context.package_info().name))
     .manage(Counter(AtomicUsize::new(0)))
     .manage(Database(Default::default()))
     .manage(Connection(Default::default()))
@@ -83,6 +81,8 @@ fn main() {
       disconnect,
       connection_send
     ])
-    .run(context)
+    .run(tauri::generate_context!(
+      "../../examples/state/tauri.conf.json"
+    ))
     .expect("error while running tauri application");
 }

@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,7 +9,7 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
 };
-use anyhow::Context;
+use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
 use log::info;
 use regex::Regex;
@@ -21,16 +22,21 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::resources::resource_relpath;
+use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 use zip::ZipArchive;
 
-// URLS for the WIX toolchain.  Can be used for crossplatform compilation.
+// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+pub const MSI_FOLDER_NAME: &str = "msi";
+pub const MSI_UPDATER_FOLDER_NAME: &str = "msi-updater";
+const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
+const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
+const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
 
-// For Cross Platform Complilation.
+// For Cross Platform Compilation.
 
 // const VC_REDIST_X86_URL: &str =
 //     "https://download.visualstudio.microsoft.com/download/pr/c8edbb87-c7ec-4500-a461-71e8912d25e9/99ba493d660597490cbb8b3211d2cae4/vc_redist.x86.exe";
@@ -151,7 +157,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
-  std::fs::create_dir_all(&resource_dir)?;
+  create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
   let icon_path = std::env::current_dir()?.join(&path);
@@ -168,14 +174,15 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   Ok(icon_target_path)
 }
 
-/// Function used to download Wix and VC_REDIST. Checks SHA256 to verify the download.
-fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
+fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
-
   let response = attohttpc::get(url).send()?;
+  response.bytes().map_err(Into::into)
+}
 
-  let data: Vec<u8> = response.bytes()?;
-
+/// Function used to download Wix. Checks SHA256 to verify the download.
+fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
+  let data = download(url)?;
   info!("validating hash");
 
   let mut hasher = sha2::Sha256::new();
@@ -192,7 +199,11 @@ fn download_and_verify(url: &str, hash: &str) -> crate::Result<Vec<u8>> {
 }
 
 /// The app installer output path.
-fn app_installer_output_path(settings: &Settings, language: &str) -> crate::Result<PathBuf> {
+fn app_installer_output_path(
+  settings: &Settings,
+  language: &str,
+  updater: bool,
+) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
     "x86" => "x86",
     "x86_64" => "x64",
@@ -212,12 +223,15 @@ fn app_installer_output_path(settings: &Settings, language: &str) -> crate::Resu
     language,
   );
 
-  Ok(
-    settings
-      .project_out_directory()
-      .to_path_buf()
-      .join(format!("bundle/msi/{}.msi", package_base_name)),
-  )
+  Ok(settings.project_out_directory().to_path_buf().join(format!(
+    "bundle/{}/{}.msi",
+    if updater {
+      MSI_UPDATER_FOLDER_NAME
+    } else {
+      MSI_FOLDER_NAME
+    },
+    package_base_name
+  )))
 }
 
 /// Extracts the zips from Wix and VC_REDIST into a useable path.
@@ -272,7 +286,8 @@ fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
   cwd: &Path,
-  wxs_file_path: &Path,
+  wxs_file_path: PathBuf,
+  extensions: Vec<PathBuf>,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -291,7 +306,7 @@ fn run_candle(
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
 
-  let args = vec![
+  let mut args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_path.to_string_lossy().to_string(),
@@ -301,10 +316,25 @@ fn run_candle(
     ),
   ];
 
+  if settings
+    .windows()
+    .wix
+    .as_ref()
+    .map(|w| w.fips_compliant)
+    .unwrap_or_default()
+  {
+    args.push("-fips".into());
+  }
+
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  cmd
     .args(&args)
     .current_dir(cwd)
     .output_ok()
@@ -318,6 +348,7 @@ fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
+  extensions: &Vec<PathBuf>,
   output_path: &Path,
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
@@ -331,11 +362,14 @@ fn run_light(
     output_path.display().to_string(),
   ];
 
-  for p in arguments {
-    args.push(p);
-  }
+  args.extend(arguments);
 
-  Command::new(&light_exe)
+  let mut cmd = Command::new(&light_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  cmd
     .args(&args)
     .current_dir(build_path)
     .output_ok()
@@ -348,10 +382,29 @@ fn run_light(
 //   Ok(())
 // }
 
+fn validate_version(version: &str) -> anyhow::Result<()> {
+  let version = semver::Version::parse(version).context("invalid app version")?;
+  if version.major > 255 {
+    bail!("app version major number cannot be greater than 255");
+  }
+  if version.minor > 255 {
+    bail!("app version minor number cannot be greater than 255");
+  }
+  if version.patch > 65535 {
+    bail!("app version patch number cannot be greater than 65535");
+  }
+  if !(version.pre.is_empty() && version.build.is_empty()) {
+    bail!("app version cannot have build metadata or pre-release identifier");
+  }
+
+  Ok(())
+}
+
 // Entry point for bundling and creating the MSI installer. For now the only supported platform is Windows x64.
 pub fn build_wix_app_installer(
   settings: &Settings,
   wix_toolset_path: &Path,
+  updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -363,6 +416,8 @@ pub fn build_wix_app_installer(
       )))
     }
   };
+
+  validate_version(settings.version_string())?;
 
   // target only supports x64.
   info!("Target: {}", arch);
@@ -401,12 +456,106 @@ pub fn build_wix_app_installer(
 
   try_sign(&app_exe_source)?;
 
-  // ensure that `target/{release, debug}/wix` folder exists
-  std::fs::create_dir_all(settings.project_out_directory().join("wix"))?;
-
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
+  if output_path.exists() {
+    remove_dir_all(&output_path)?;
+  }
+  create_dir_all(&output_path)?;
+
   let mut data = BTreeMap::new();
+
+  let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent }
+  | WebviewInstallMode::EmbedBootstrapper { silent }
+  | WebviewInstallMode::OfflineInstaller { silent } =
+    settings.windows().webview_install_mode
+  {
+    silent
+  } else {
+    true
+  };
+
+  let webview_install_mode = if updater {
+    WebviewInstallMode::DownloadBootstrapper {
+      silent: silent_webview_install,
+    }
+  } else {
+    let mut webview_install_mode = settings.windows().webview_install_mode.clone();
+    if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
+      webview_install_mode = WebviewInstallMode::FixedRuntime {
+        path: fixed_runtime_path,
+      };
+    } else if let Some(wix) = &settings.windows().wix {
+      if wix.skip_webview_install {
+        webview_install_mode = WebviewInstallMode::Skip;
+      }
+    }
+    webview_install_mode
+  };
+
+  data.insert("install_webview", to_json(true));
+  data.insert(
+    "webview_installer_args",
+    to_json(if silent_webview_install {
+      "/silent"
+    } else {
+      ""
+    }),
+  );
+
+  match webview_install_mode {
+    WebviewInstallMode::Skip | WebviewInstallMode::FixedRuntime { .. } => {
+      data.insert("install_webview", to_json(false));
+    }
+    WebviewInstallMode::DownloadBootstrapper { silent: _ } => {
+      data.insert("download_bootstrapper", to_json(true));
+      data.insert(
+        "webview_installer_args",
+        to_json(if silent_webview_install {
+          "&apos;/silent&apos;,"
+        } else {
+          ""
+        }),
+      );
+    }
+    WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
+      let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
+      std::fs::write(
+        &webview2_bootstrapper_path,
+        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
+      )?;
+      data.insert(
+        "webview2_bootstrapper_path",
+        to_json(webview2_bootstrapper_path),
+      );
+    }
+    WebviewInstallMode::OfflineInstaller { silent: _ } => {
+      let guid = if arch == "x64" {
+        WEBVIEW2_X64_INSTALLER_GUID
+      } else {
+        WEBVIEW2_X86_INSTALLER_GUID
+      };
+      let mut offline_installer_path = dirs_next::cache_dir().unwrap();
+      offline_installer_path.push("tauri");
+      offline_installer_path.push(guid);
+      offline_installer_path.push(arch);
+      create_dir_all(&offline_installer_path)?;
+      let webview2_installer_path =
+        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
+      if !webview2_installer_path.exists() {
+        std::fs::write(
+          &webview2_installer_path,
+          download(
+            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
+              guid,
+              arch.to_uppercase(),
+            ),
+          )?,
+        )?;
+      }
+      data.insert("webview2_installer_path", to_json(webview2_installer_path));
+    }
+  }
 
   let language_map: HashMap<String, LanguageMetadata> =
     serde_json::from_str(include_str!("./languages.json")).unwrap();
@@ -445,7 +594,9 @@ pub fn build_wix_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
@@ -501,7 +652,6 @@ pub fn build_wix_app_installer(
   let mut fragment_paths = Vec::new();
   let mut handlebars = Handlebars::new();
   let mut has_custom_template = false;
-  let mut install_webview = settings.windows().webview_fixed_runtime_path.is_none();
   let mut enable_elevated_update_task = false;
 
   if let Some(wix) = &settings.windows().wix {
@@ -511,9 +661,6 @@ pub fn build_wix_app_installer(
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
     fragment_paths = wix.fragment_paths.clone();
-    if wix.skip_webview_install {
-      install_webview = false;
-    }
     enable_elevated_update_task = wix.enable_elevated_update_task;
 
     if let Some(temp_path) = &wix.template {
@@ -556,16 +703,6 @@ pub fn build_wix_app_installer(
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
-
-  if install_webview {
-    data.insert("install_webview", to_json(true));
-  }
-
-  if output_path.exists() {
-    remove_dir_all(&output_path)?;
-  }
-
-  create_dir_all(&output_path)?;
 
   if enable_elevated_update_task {
     data.insert(
@@ -618,15 +755,24 @@ pub fn build_wix_app_installer(
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let mut candle_inputs = vec!["main.wxs".into()];
+  let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
   let current_dir = std::env::current_dir()?;
+  let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
   for fragment_path in fragment_paths {
-    candle_inputs.push(current_dir.join(fragment_path));
+    let fragment_path = current_dir.join(fragment_path);
+    let fragment = read_to_string(&fragment_path)?;
+    let mut extensions = Vec::new();
+    for cap in extension_regex.captures_iter(&fragment) {
+      extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
+    }
+    candle_inputs.push((fragment_path, extensions));
   }
 
-  for wxs in &candle_inputs {
-    run_candle(settings, wix_toolset_path, &output_path, wxs)?;
+  let mut fragment_extensions = Vec::new();
+  for (path, extensions) in candle_inputs {
+    fragment_extensions.extend(extensions.clone());
+    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
   }
 
   let mut output_paths = Vec::new();
@@ -695,12 +841,18 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language)?;
+    let msi_path = app_installer_output_path(settings, &language, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(wix_toolset_path, &output_path, arguments, &msi_output_path)?;
+    run_light(
+      wix_toolset_path,
+      &output_path,
+      arguments,
+      &fragment_extensions,
+      &msi_output_path,
+    )?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);
@@ -714,6 +866,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
+  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -722,7 +875,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
       .expect("failed to extract external binary filename")
       .to_string_lossy()
       .replace(&format!("-{}", settings.target()), "");
-    let dest = tmp_dir.join(dest_filename);
+    let dest = tmp_dir.join(&dest_filename);
     std::fs::copy(binary_path, &dest)?;
 
     binaries.push(Binary {
@@ -731,7 +884,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: format!("I{}", Uuid::new_v4().as_simple()),
+      id: regex
+        .replace_all(&dest_filename.replace('-', "_"), "")
+        .to_string(),
     });
   }
 
@@ -744,7 +899,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: format!("I{}", Uuid::new_v4().as_simple()),
+        id: regex
+          .replace_all(&bin.name().replace('-', "_"), "")
+          .to_string(),
       })
     }
   }

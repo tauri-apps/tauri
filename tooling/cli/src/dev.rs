@@ -89,6 +89,11 @@ fn command_internal(mut options: Options) -> Result<()> {
 
   let config = get_config(options.config.as_deref())?;
 
+  let mut interface = AppInterface::new(
+    config.lock().unwrap().as_ref().unwrap(),
+    options.target.clone(),
+  )?;
+
   if let Some(before_dev) = config
     .lock()
     .unwrap()
@@ -108,6 +113,9 @@ fn command_internal(mut options: Options) -> Result<()> {
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
     if let Some(before_dev) = script {
       info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
+      let mut env = command_env(true);
+      env.extend(interface.env());
+
       #[cfg(windows)]
       let mut command = {
         let mut command = Command::new("cmd");
@@ -116,7 +124,7 @@ fn command_internal(mut options: Options) -> Result<()> {
           .arg("/C")
           .arg(&before_dev)
           .current_dir(cwd)
-          .envs(command_env(true));
+          .envs(env);
         command
       };
       #[cfg(not(windows))]
@@ -126,7 +134,7 @@ fn command_internal(mut options: Options) -> Result<()> {
           .arg("-c")
           .arg(&before_dev)
           .current_dir(cwd)
-          .envs(command_env(true));
+          .envs(env);
         command
       };
 
@@ -234,7 +242,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     }
   }
 
-  let config = reload_config(options.config.as_deref())?;
+  reload_config(options.config.as_deref())?;
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
@@ -286,8 +294,6 @@ fn command_internal(mut options: Options) -> Result<()> {
       }
     }
   }
-
-  let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;

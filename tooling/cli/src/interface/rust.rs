@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  collections::HashMap,
   ffi::OsStr,
   fs::{File, FileType},
   io::{Read, Write},
@@ -123,7 +124,7 @@ pub struct Rust {
 impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self> {
+  fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -154,7 +155,7 @@ impl Interface for Rust {
     }
 
     Ok(Self {
-      app_settings: RustAppSettings::new(config, manifest)?,
+      app_settings: RustAppSettings::new(config, manifest, target)?,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
@@ -205,6 +206,52 @@ impl Interface for Rust {
 
       self.run_dev_watcher(child, options, on_exit)
     }
+  }
+
+  fn env(&self) -> HashMap<&str, String> {
+    let mut env = HashMap::new();
+    env.insert(
+      "TAURI_TARGET_TRIPLE",
+      self.app_settings.target_triple.clone(),
+    );
+
+    let mut s = self.app_settings.target_triple.split('-');
+    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
+    env.insert(
+      "TAURI_ARCH",
+      match arch {
+        // keeps compatibility with old `std::env::consts::ARCH` implementation
+        "i686" | "i586" => "x86".into(),
+        a => a.into(),
+      },
+    );
+    env.insert(
+      "TAURI_PLATFORM",
+      match host {
+        // keeps compatibility with old `std::env::consts::OS` implementation
+        "darwin" => "macos".into(),
+        "ios-sim" => "ios".into(),
+        "androideabi" => "android".into(),
+        h => h.into(),
+      },
+    );
+
+    env.insert(
+      "TAURI_FAMILY",
+      match host {
+        "windows" => "windows".into(),
+        _ => "unix".into(),
+      },
+    );
+
+    match host {
+      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      _ => None,
+    };
+
+    env
   }
 }
 
@@ -437,6 +484,7 @@ pub struct RustAppSettings {
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
+  target_triple: String,
 }
 
 impl AppSettings for RustAppSettings {
@@ -468,13 +516,8 @@ impl AppSettings for RustAppSettings {
     let out_dir = self
       .out_dir(options.target.clone(), options.debug)
       .with_context(|| "failed to get project out directory")?;
-    let target: String = if let Some(target) = options.target.clone() {
-      target
-    } else {
-      tauri_utils::platform::target_triple()?
-    };
 
-    let binary_extension: String = if target.contains("windows") {
+    let binary_extension: String = if self.target_triple.contains("windows") {
       "exe"
     } else {
       ""
@@ -590,7 +633,7 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
-  pub fn new(config: &Config, manifest: Manifest) -> crate::Result<Self> {
+  pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let cargo_settings =
       CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
@@ -626,12 +669,31 @@ impl RustAppSettings {
 
     let cargo_config = CargoConfig::load(&tauri_dir())?;
 
+    let target_triple = target.unwrap_or_else(|| {
+      cargo_config
+        .build()
+        .target()
+        .map(|t| t.to_string())
+        .unwrap_or_else(|| {
+          let output = Command::new("rustc").args(&["-vV"]).output().unwrap();
+          let stdout = String::from_utf8_lossy(&output.stdout);
+          stdout
+            .split('\n')
+            .find(|l| l.starts_with("host:"))
+            .unwrap()
+            .replace("host:", "")
+            .trim()
+            .to_string()
+        })
+    });
+
     Ok(Self {
       manifest,
       cargo_settings,
       cargo_package_settings,
       package_settings,
       cargo_config,
+      target_triple,
     })
   }
 

@@ -176,7 +176,8 @@ api-all = [
   "process-all",
   "protocol-all",
   "shell-all",
-  "window-all"
+  "window-all",
+  "app-all"
 ]
 clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
 clipboard-read-text = [ "clipboard" ]
@@ -283,6 +284,9 @@ window-set-cursor-position = [ ]
 window-set-ignore-cursor-events = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
+app-all = [ "app-show", "app-hide" ]
+app-show = [ ]
+app-hide = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]

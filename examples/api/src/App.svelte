@@ -17,6 +17,7 @@
   import Updater from './views/Updater.svelte'
   import Clipboard from './views/Clipboard.svelte'
   import WebRTC from './views/WebRTC.svelte'
+  import App from './views/App.svelte'
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
@@ -74,6 +75,11 @@
       label: 'Notifications',
       component: Notifications,
       icon: 'i-codicon-bell-dot'
+    },
+    !isMobile && {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
     },
     !isMobile && {
       label: 'Window',

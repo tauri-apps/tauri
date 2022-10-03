@@ -2009,6 +2009,46 @@ impl Allowlist for ClipboardAllowlistConfig {
   }
 }
 
+/// Allowlist for the app APIs.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppAllowlistConfig {
+  /// Use this flag to enable all app APIs.
+  #[serde(default)]
+  pub all: bool,
+  /// Enables the app's `show` API.
+  #[serde(default)]
+  pub show: bool,
+  /// Enables the app's `hide` API.
+  #[serde(default)]
+  pub hide: bool,
+}
+
+impl Allowlist for AppAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      show: true,
+      hide: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("app-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["app-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, show, "app-show");
+      check_feature!(self, features, hide, "app-hide");
+      features
+    }
+  }
+}
+
 /// Allowlist configuration.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2053,6 +2093,9 @@ pub struct AllowlistConfig {
   /// Clipboard APIs allowlist.
   #[serde(default)]
   pub clipboard: ClipboardAllowlistConfig,
+  /// App APIs allowlist.
+  #[serde(default)]
+  pub app: AppAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -2070,6 +2113,7 @@ impl Allowlist for AllowlistConfig {
     features.extend(ProtocolAllowlistConfig::all_features());
     features.extend(ProcessAllowlistConfig::all_features());
     features.extend(ClipboardAllowlistConfig::all_features());
+    features.extend(AppAllowlistConfig::all_features());
     features
   }
 

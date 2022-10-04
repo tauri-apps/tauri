@@ -1,10 +1,10 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! The [`wry`] Tauri [`Runtime`].
 
-pub use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
   http::{
     Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
@@ -22,24 +22,23 @@ use tauri_runtime::{
 };
 
 use tauri_runtime::window::MenuEvent;
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{SystemTray, SystemTrayEvent};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
 #[cfg(target_os = "macos")]
+use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
+#[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
-#[cfg(all(feature = "system-tray", target_os = "macos"))]
-use wry::application::platform::macos::{SystemTrayBuilderExtMacOS, SystemTrayExtMacOS};
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
-#[cfg(feature = "system-tray")]
-use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
-
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
@@ -86,17 +85,17 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
     HashMap, HashSet,
   },
   fmt,
-  marker::PhantomData,
   ops::Deref,
   path::PathBuf,
   sync::{
     mpsc::{channel, Sender},
-    Arc, Mutex, MutexGuard, Weak,
+    Arc, Mutex, Weak,
   },
   thread::{current as current_thread, ThreadId},
 };
@@ -104,18 +103,22 @@ use std::{
 pub type WebviewId = u64;
 type IpcHandler = dyn Fn(&Window, String) + 'static;
 type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
+#[cfg(all(desktop, feature = "system-tray"))]
+pub use tauri_runtime::TrayId;
 
+#[cfg(desktop)]
 mod webview;
+#[cfg(desktop)]
 pub use webview::Webview;
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 mod system_tray;
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 use system_tray::*;
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 mod global_shortcut;
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 use global_shortcut::*;
 
 #[cfg(feature = "clipboard")]
@@ -139,11 +142,7 @@ impl WebviewIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  pub fn get(&self, w: &WindowId) -> WebviewId {
-    *self.0.lock().unwrap().get(w).unwrap()
-  }
-
-  fn try_get(&self, w: &WindowId) -> Option<WebviewId> {
+  fn get(&self, w: &WindowId) -> Option<WebviewId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -171,15 +170,14 @@ fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) ->
       &context.main_thread.window_target,
       message,
       UserMessageContext {
-        marker: &PhantomData,
         webview_id_map: context.webview_id_map.clone(),
-        #[cfg(feature = "global-shortcut")]
+        #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
         #[cfg(feature = "clipboard")]
         clipboard_manager: context.main_thread.clipboard_manager.clone(),
         windows: context.main_thread.windows.clone(),
-        #[cfg(feature = "system-tray")]
-        tray_context: &context.main_thread.tray_context,
+        #[cfg(all(desktop, feature = "system-tray"))]
+        system_tray_manager: context.main_thread.system_tray_manager.clone(),
       },
       &context.main_thread.web_context,
     );
@@ -248,13 +246,13 @@ impl<T: UserEvent> Context<T> {
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  #[cfg(feature = "system-tray")]
-  pub tray_context: TrayContext,
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  #[cfg(all(desktop, feature = "system-tray"))]
+  system_tray_manager: SystemTrayManager,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -745,6 +743,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
+    #[cfg(target_os = "macos")]
+    {
+      window = window
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+    }
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       window = window.transparent(config.transparent);
@@ -885,6 +890,32 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    match style {
+      TitleBarStyle::Visible => {
+        self.inner = self.inner.with_titlebar_transparent(false);
+        // Fixes rendering issue when resizing window with devtools open (https://github.com/tauri-apps/tauri/issues/3914)
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      TitleBarStyle::Transparent => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(false);
+      }
+      TitleBarStyle::Overlay => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+    }
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hidden_title(mut self, hidden: bool) -> Self {
+    self.inner = self.inner.with_title_hidden(hidden);
+    self
+  }
+
   fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
@@ -898,24 +929,21 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[cfg(target_os = "macos")]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "android"))]
   fn skip_taskbar(self, _skip: bool) -> Self {
     self
   }
 
   #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
-    #[cfg(any(windows, target_os = "macos"))]
-    {
-      self.inner = self.inner.with_theme(if let Some(t) = theme {
-        match t {
-          Theme::Dark => Some(WryTheme::Dark),
-          _ => Some(WryTheme::Light),
-        }
-      } else {
-        None
-      });
-    }
+    self.inner = self.inner.with_theme(if let Some(t) = theme {
+      match t {
+        Theme::Dark => Some(WryTheme::Dark),
+        _ => Some(WryTheme::Light),
+      }
+    } else {
+      None
+    });
 
     self
   }
@@ -995,7 +1023,15 @@ unsafe impl Send for GtkWindow {}
 pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone)]
+pub enum ApplicationMessage {
+  Show,
+  Hide,
+}
+
 pub enum WindowMessage {
+  #[cfg(desktop)]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
   AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
@@ -1059,6 +1095,7 @@ pub enum WindowMessage {
   SetCursorVisible(bool),
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
+  SetIgnoreCursorEvents(bool),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1078,7 +1115,7 @@ pub enum WebviewEvent {
   Focused(bool),
 }
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 #[derive(Debug, Clone)]
 pub enum TrayMessage {
   UpdateItem(u16, MenuUpdate),
@@ -1086,7 +1123,10 @@ pub enum TrayMessage {
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
-  Close,
+  #[cfg(target_os = "macos")]
+  UpdateTitle(String),
+  Create(SystemTray, Sender<Result<()>>),
+  Destroy,
 }
 
 pub type CreateWebviewClosure<T> = Box<
@@ -1095,17 +1135,19 @@ pub type CreateWebviewClosure<T> = Box<
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  #[cfg(target_os = "macos")]
+  Application(ApplicationMessage),
   Window(WebviewId, WindowMessage),
   Webview(WebviewId, WebviewMessage),
-  #[cfg(feature = "system-tray")]
-  Tray(TrayMessage),
+  #[cfg(all(desktop, feature = "system-tray"))]
+  Tray(TrayId, TrayMessage),
   CreateWebview(WebviewId, CreateWebviewClosure<T>),
   CreateWindow(
     WebviewId,
     Box<dyn FnOnce() -> (String, WryWindowBuilder) + Send>,
     Sender<Result<Weak<Window>>>,
   ),
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   GlobalShortcut(GlobalShortcutMessage),
   #[cfg(feature = "clipboard")]
   Clipboard(ClipboardMessage),
@@ -1116,9 +1158,9 @@ impl<T: UserEvent> Clone for Message<T> {
   fn clone(&self) -> Self {
     match self {
       Self::Webview(i, m) => Self::Webview(*i, m.clone()),
-      #[cfg(feature = "system-tray")]
-      Self::Tray(m) => Self::Tray(m.clone()),
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "system-tray"))]
+      Self::Tray(i, m) => Self::Tray(*i, m.clone()),
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       Self::GlobalShortcut(m) => Self::GlobalShortcut(m.clone()),
       #[cfg(feature = "clipboard")]
       Self::Clipboard(m) => Self::Clipboard(m.clone()),
@@ -1140,6 +1182,7 @@ pub struct WryDispatcher<T: UserEvent> {
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
 impl<T: UserEvent> WryDispatcher<T> {
+  #[cfg(desktop)]
   pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1499,6 +1542,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
+    )
+  }
+
   fn start_dragging(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1521,23 +1571,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       &self.context,
       Message::Window(self.window_id, WindowMessage::UpdateMenuItem(id, update)),
     )
-  }
-}
-
-#[cfg(feature = "system-tray")]
-#[derive(Clone, Default)]
-pub struct TrayContext {
-  tray: Arc<Mutex<Option<Arc<Mutex<WrySystemTray>>>>>,
-  listeners: SystemTrayEventListeners,
-  items: SystemTrayItems,
-}
-
-#[cfg(feature = "system-tray")]
-impl fmt::Debug for TrayContext {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("TrayContext")
-      .field("items", &self.items)
-      .finish()
   }
 }
 
@@ -1595,6 +1628,10 @@ impl fmt::Debug for WindowWrapper {
 #[derive(Debug, Clone)]
 pub struct EventProxy<T: UserEvent>(WryEventLoopProxy<Message<T>>);
 
+#[cfg(target_os = "ios")]
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl<T: UserEvent> Sync for EventProxy<T> {}
+
 impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
   fn send_event(&self, event: T) -> Result<()> {
     self
@@ -1627,7 +1664,7 @@ pub struct Wry<T: UserEvent> {
 
   plugins: Vec<Box<dyn Plugin<T>>>,
 
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
   #[cfg(feature = "clipboard")]
@@ -1644,9 +1681,13 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
       .field("windows", &self.context.main_thread.windows)
       .field("web_context", &self.context.main_thread.web_context);
 
-    #[cfg(feature = "system-tray")]
-    d.field("tray_context", &self.context.main_thread.tray_context);
+    #[cfg(all(desktop, feature = "system-tray"))]
+    d.field(
+      "system_tray_manager",
+      &self.context.main_thread.system_tray_manager,
+    );
 
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     #[cfg(feature = "global-shortcut")]
     d.field(
       "global_shortcut_manager",
@@ -1735,9 +1776,42 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  fn remove_system_tray(&self) -> Result<()> {
-    send_user_message(&self.context, Message::Tray(TrayMessage::Close))
+  #[cfg(all(desktop, feature = "system-tray"))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
+    let id = system_tray.id;
+    let (tx, rx) = channel();
+    send_user_message(
+      &self.context,
+      Message::Tray(id, TrayMessage::Create(system_tray, tx)),
+    )?;
+    rx.recv().unwrap()?;
+    Ok(SystemTrayHandle {
+      id,
+      proxy: self.context.proxy.clone(),
+    })
+  }
+
+  fn raw_display_handle(&self) -> RawDisplayHandle {
+    self.context.main_thread.window_target.raw_display_handle()
+  }
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Show),
+    )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Hide),
+    )
   }
 }
 
@@ -1746,17 +1820,17 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = Arc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
 
     #[cfg(feature = "clipboard")]
     let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
 
-    let windows = Arc::new(Mutex::new(HashMap::default()));
+    let windows = Arc::new(RefCell::new(HashMap::default()));
     let webview_id_map = WebviewIdStore::default();
 
-    #[cfg(feature = "system-tray")]
-    let tray_context = TrayContext::default();
+    #[cfg(all(desktop, feature = "system-tray"))]
+    let system_tray_manager = Default::default();
 
     let context = Context {
       webview_id_map,
@@ -1765,17 +1839,17 @@ impl<T: UserEvent> Wry<T> {
       main_thread: DispatcherMainThreadContext {
         window_target: event_loop.deref().clone(),
         web_context,
-        #[cfg(feature = "global-shortcut")]
+        #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager,
         #[cfg(feature = "clipboard")]
         clipboard_manager,
         windows,
-        #[cfg(feature = "system-tray")]
-        tray_context,
+        #[cfg(all(desktop, feature = "system-tray"))]
+        system_tray_manager,
       },
     };
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = GlobalShortcutManagerHandle {
       context: context.clone(),
       shortcuts: Default::default(),
@@ -1793,7 +1867,7 @@ impl<T: UserEvent> Wry<T> {
 
       plugins: Default::default(),
 
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager_handle,
 
       #[cfg(feature = "clipboard")]
@@ -1814,13 +1888,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type Dispatcher = WryDispatcher<T>;
   type Handle = WryHandle<T>;
 
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager = GlobalShortcutManagerHandle<T>;
 
   #[cfg(feature = "clipboard")]
   type ClipboardManager = ClipboardManagerWrapper<T>;
 
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = SystemTrayHandle<T>;
 
   type EventLoopProxy = EventProxy<T>;
@@ -1850,7 +1924,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     }
   }
 
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
     self.global_shortcut_manager_handle.clone()
   }
@@ -1883,8 +1957,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
-      .lock()
-      .unwrap()
+      .borrow_mut()
       .insert(window_id, webview);
 
     Ok(DetachedWindow {
@@ -1895,51 +1968,46 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     })
   }
 
-  #[cfg(feature = "system-tray")]
-  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
-    let icon = TrayIcon::try_from(system_tray.icon.expect("tray icon not set"))?;
-
-    let mut items = HashMap::new();
-
-    #[allow(unused_mut)]
-    let mut tray_builder = SystemTrayBuilder::new(
-      icon.0,
-      system_tray
-        .menu
-        .map(|menu| to_wry_context_menu(&mut items, menu)),
-    );
-
-    #[cfg(target_os = "macos")]
-    {
-      tray_builder = tray_builder
-        .with_icon_as_template(system_tray.icon_as_template)
-        .with_menu_on_left_click(system_tray.menu_on_left_click);
+  #[cfg(all(desktop, feature = "system-tray"))]
+  fn system_tray(&self, mut system_tray: SystemTray) -> Result<Self::TrayHandler> {
+    let id = system_tray.id;
+    let mut listeners = Vec::new();
+    if let Some(l) = system_tray.on_event.take() {
+      listeners.push(Arc::new(l));
     }
-
-    let tray = tray_builder
-      .build(&self.event_loop)
-      .map_err(|e| Error::SystemTray(Box::new(e)))?;
-
-    *self.context.main_thread.tray_context.items.lock().unwrap() = items;
-    *self.context.main_thread.tray_context.tray.lock().unwrap() = Some(Arc::new(Mutex::new(tray)));
+    let (tray, items) = create_tray(WryTrayId(id), system_tray, &self.event_loop)?;
+    self
+      .context
+      .main_thread
+      .system_tray_manager
+      .trays
+      .lock()
+      .unwrap()
+      .insert(
+        id,
+        TrayContext {
+          tray: Arc::new(Mutex::new(Some(tray))),
+          listeners: Arc::new(Mutex::new(listeners)),
+          items: Arc::new(Mutex::new(items)),
+        },
+      );
 
     Ok(SystemTrayHandle {
+      id,
       proxy: self.event_loop.create_proxy(),
     })
   }
 
-  #[cfg(feature = "system-tray")]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
-    let id = Uuid::new_v4();
+  #[cfg(all(desktop, feature = "system-tray"))]
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {
     self
       .context
       .main_thread
-      .tray_context
-      .listeners
+      .system_tray_manager
+      .global_listeners
       .lock()
       .unwrap()
-      .insert(id, Arc::new(Box::new(f)));
-    id
+      .push(Arc::new(Box::new(f)));
   }
 
   #[cfg(target_os = "macos")]
@@ -1954,18 +2022,29 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       });
   }
 
+  #[cfg(target_os = "macos")]
+  fn show(&self) {
+    self.event_loop.show_application();
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) {
+    self.event_loop.hide_application();
+  }
+
+  #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
     let plugins = &mut self.plugins;
-    #[cfg(feature = "system-tray")]
-    let tray_context = self.context.main_thread.tray_context.clone();
+    #[cfg(all(desktop, feature = "system-tray"))]
+    let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     #[cfg(feature = "clipboard")]
@@ -1992,14 +2071,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               callback: &mut callback,
               webview_id_map: webview_id_map.clone(),
               windows: windows.clone(),
-              #[cfg(feature = "global-shortcut")]
+              #[cfg(all(desktop, feature = "global-shortcut"))]
               global_shortcut_manager: global_shortcut_manager.clone(),
-              #[cfg(feature = "global-shortcut")]
+              #[cfg(all(desktop, feature = "global-shortcut"))]
               global_shortcut_manager_handle: &global_shortcut_manager_handle,
               #[cfg(feature = "clipboard")]
               clipboard_manager: clipboard_manager.clone(),
-              #[cfg(feature = "system-tray")]
-              tray_context: &tray_context,
+              #[cfg(all(desktop, feature = "system-tray"))]
+              system_tray_manager: system_tray_manager.clone(),
             },
             web_context,
           );
@@ -2016,14 +2095,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             windows: windows.clone(),
             webview_id_map: webview_id_map.clone(),
-            #[cfg(feature = "global-shortcut")]
+            #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager: global_shortcut_manager.clone(),
-            #[cfg(feature = "global-shortcut")]
+            #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
-            #[cfg(feature = "system-tray")]
-            tray_context: &tray_context,
+            #[cfg(all(desktop, feature = "system-tray"))]
+            system_tray_manager: system_tray_manager.clone(),
           },
           web_context,
         );
@@ -2038,12 +2117,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = self.context.main_thread.web_context;
     let mut plugins = self.plugins;
 
-    #[cfg(feature = "system-tray")]
-    let tray_context = self.context.main_thread.tray_context;
+    #[cfg(all(desktop, feature = "system-tray"))]
+    let system_tray_manager = self.context.main_thread.system_tray_manager;
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
     #[cfg(feature = "clipboard")]
@@ -2062,14 +2141,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             callback: &mut callback,
             webview_id_map: webview_id_map.clone(),
             windows: windows.clone(),
-            #[cfg(feature = "global-shortcut")]
+            #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager: global_shortcut_manager.clone(),
-            #[cfg(feature = "global-shortcut")]
+            #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
             #[cfg(feature = "clipboard")]
             clipboard_manager: clipboard_manager.clone(),
-            #[cfg(feature = "system-tray")]
-            tray_context: &tray_context,
+            #[cfg(all(desktop, feature = "system-tray"))]
+            system_tray_manager: system_tray_manager.clone(),
           },
           &web_context,
         );
@@ -2085,14 +2164,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           callback: &mut callback,
           webview_id_map: webview_id_map.clone(),
           windows: windows.clone(),
-          #[cfg(feature = "global-shortcut")]
+          #[cfg(all(desktop, feature = "global-shortcut"))]
           global_shortcut_manager: global_shortcut_manager.clone(),
-          #[cfg(feature = "global-shortcut")]
+          #[cfg(all(desktop, feature = "global-shortcut"))]
           global_shortcut_manager_handle: &global_shortcut_manager_handle,
           #[cfg(feature = "clipboard")]
           clipboard_manager: clipboard_manager.clone(),
-          #[cfg(feature = "system-tray")]
-          tray_context: &tray_context,
+          #[cfg(all(desktop, feature = "system-tray"))]
+          system_tray_manager: system_tray_manager.clone(),
         },
         &web_context,
       );
@@ -2103,57 +2182,58 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  #[cfg(feature = "global-shortcut")]
+  pub windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle<T>,
   #[cfg(feature = "clipboard")]
   pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  #[cfg(feature = "system-tray")]
-  pub tray_context: &'a TrayContext,
+  #[cfg(all(desktop, feature = "system-tray"))]
+  pub system_tray_manager: SystemTrayManager,
 }
 
-struct UserMessageContext<'a> {
-  #[allow(dead_code)]
-  marker: &'a PhantomData<()>,
+struct UserMessageContext {
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
   webview_id_map: WebviewIdStore,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
   #[cfg(feature = "clipboard")]
   clipboard_manager: Arc<Mutex<Clipboard>>,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
-  #[cfg(feature = "system-tray")]
-  tray_context: &'a TrayContext,
+  #[cfg(all(desktop, feature = "system-tray"))]
+  system_tray_manager: SystemTrayManager,
 }
 
 fn handle_user_message<T: UserEvent>(
   event_loop: &EventLoopWindowTarget<Message<T>>,
   message: Message<T>,
-  context: UserMessageContext<'_>,
+  context: UserMessageContext,
   web_context: &WebContextStore,
 ) -> RunIteration {
   let UserMessageContext {
-    marker: _,
     webview_id_map,
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager,
     #[cfg(feature = "clipboard")]
     clipboard_manager,
     windows,
-    #[cfg(feature = "system-tray")]
-    tray_context,
+    #[cfg(all(desktop, feature = "system-tray"))]
+    system_tray_manager,
   } = context;
   match message {
     Message::Task(task) => task(),
+    #[cfg(target_os = "macos")]
+    Message::Application(application_message) => match application_message {
+      ApplicationMessage::Show => {
+        event_loop.show_application();
+      }
+      ApplicationMessage::Hide => {
+        event_loop.hide_application();
+      }
+    },
     Message::Window(id, window_message) => {
       if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
-        if let Some(menu_items) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get_mut(&id)
-          .map(|w| &mut w.menu_items)
-        {
+        if let Some(menu_items) = windows.borrow_mut().get_mut(&id).map(|w| &mut w.menu_items) {
           if let Some(menu_items) = menu_items.as_mut() {
             let item = menu_items.get_mut(&item_id).expect("menu item not found");
             match update {
@@ -2168,18 +2248,16 @@ fn handle_user_message<T: UserEvent>(
           }
         }
       } else {
-        let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some((Some(window), window_event_listeners, menu_event_listeners)) =
-          windows_lock.get(&id).map(|w| {
-            (
-              w.inner.clone(),
-              w.window_event_listeners.clone(),
-              w.menu_event_listeners.clone(),
-            )
-          })
-        {
-          drop(windows_lock);
+        let w = windows.borrow().get(&id).map(|w| {
+          (
+            w.inner.clone(),
+            w.window_event_listeners.clone(),
+            w.menu_event_listeners.clone(),
+          )
+        });
+        if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
+            #[cfg(desktop)]
             WindowMessage::WithWebview(f) => {
               if let WindowHandle::Webview(w) = window {
                 #[cfg(any(
@@ -2289,10 +2367,7 @@ fn handle_user_message<T: UserEvent>(
               .send(RawWindowHandle(window.raw_window_handle()))
               .unwrap(),
             WindowMessage::Theme(tx) => {
-              #[cfg(any(windows, target_os = "macos"))]
               tx.send(map_theme(&window.theme())).unwrap();
-              #[cfg(not(any(windows, target_os = "macos")))]
-              tx.send(Theme::Light).unwrap();
             }
             // Setters
             WindowMessage::Center => {
@@ -2358,6 +2433,9 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::SetCursorPosition(position) => {
               let _ = window.set_cursor_position(PositionWrapper::from(position).0);
             }
+            WindowMessage::SetIgnoreCursorEvents(ignore) => {
+              let _ = window.set_ignore_cursor_events(ignore);
+            }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();
             }
@@ -2373,11 +2451,8 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script) => {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get(&id)
-          .and_then(|w| w.inner.as_ref())
+        if let Some(WindowHandle::Webview(webview)) =
+          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
@@ -2385,19 +2460,15 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::Print => {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get(&id)
-          .and_then(|w| w.inner.as_ref())
+        if let Some(WindowHandle::Webview(webview)) =
+          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
         }
       }
       WebviewMessage::WebviewEvent(event) => {
         let window_event_listeners = windows
-          .lock()
-          .expect("poisoned webview collection")
+          .borrow()
           .get(&id)
           .map(|w| w.window_event_listeners.clone());
         if let Some(window_event_listeners) = window_event_listeners {
@@ -2413,10 +2484,7 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
-        windows
-          .lock()
-          .expect("poisoned webview collection")
-          .insert(window_id, webview);
+        windows.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
         debug_eprintln!("{}", e);
@@ -2429,7 +2497,7 @@ fn handle_user_message<T: UserEvent>(
 
         let w = Arc::new(window);
 
-        windows.lock().expect("poisoned webview collection").insert(
+        windows.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
@@ -2445,51 +2513,82 @@ fn handle_user_message<T: UserEvent>(
       }
     }
 
-    #[cfg(feature = "system-tray")]
-    Message::Tray(tray_message) => match tray_message {
-      TrayMessage::UpdateItem(menu_id, update) => {
-        let mut tray = tray_context.items.as_ref().lock().unwrap();
-        let item = tray.get_mut(&menu_id).expect("menu item not found");
-        match update {
-          MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
-          MenuUpdate::SetTitle(title) => item.set_title(&title),
-          MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+    #[cfg(all(desktop, feature = "system-tray"))]
+    Message::Tray(tray_id, tray_message) => {
+      let mut trays = system_tray_manager.trays.lock().unwrap();
+
+      if let TrayMessage::Create(tray, tx) = tray_message {
+        match create_tray(WryTrayId(tray_id), tray, event_loop) {
+          Ok((tray, items)) => {
+            trays.insert(
+              tray_id,
+              TrayContext {
+                tray: Arc::new(Mutex::new(Some(tray))),
+                listeners: Default::default(),
+                items: Arc::new(Mutex::new(items)),
+              },
+            );
+
+            tx.send(Ok(())).unwrap();
+          }
+
+          Err(e) => {
+            tx.send(Err(e)).unwrap();
+          }
+        }
+      } else if let Some(tray_context) = trays.get(&tray_id) {
+        match tray_message {
+          TrayMessage::UpdateItem(menu_id, update) => {
+            let mut tray = tray_context.items.as_ref().lock().unwrap();
+            let item = tray.get_mut(&menu_id).expect("menu item not found");
+            match update {
+              MenuUpdate::SetEnabled(enabled) => item.set_enabled(enabled),
+              MenuUpdate::SetTitle(title) => item.set_title(&title),
+              MenuUpdate::SetSelected(selected) => item.set_selected(selected),
+              #[cfg(target_os = "macos")]
+              MenuUpdate::SetNativeImage(image) => {
+                item.set_native_image(NativeImageWrapper::from(image).0)
+              }
+            }
+          }
+          TrayMessage::UpdateMenu(menu) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              let mut items = HashMap::new();
+              tray.set_menu(&to_wry_context_menu(&mut items, menu));
+              *tray_context.items.lock().unwrap() = items;
+            }
+          }
+          TrayMessage::UpdateIcon(icon) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              if let Ok(icon) = TrayIcon::try_from(icon) {
+                tray.set_icon(icon.0);
+              }
+            }
+          }
           #[cfg(target_os = "macos")]
-          MenuUpdate::SetNativeImage(image) => {
-            item.set_native_image(NativeImageWrapper::from(image).0)
+          TrayMessage::UpdateIconAsTemplate(is_template) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_icon_as_template(is_template);
+            }
+          }
+          #[cfg(target_os = "macos")]
+          TrayMessage::UpdateTitle(title) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_title(&title);
+            }
+          }
+          TrayMessage::Create(_tray, _tx) => {
+            // already handled
+          }
+          TrayMessage::Destroy => {
+            *tray_context.tray.lock().unwrap() = None;
+            tray_context.listeners.lock().unwrap().clear();
+            tray_context.items.lock().unwrap().clear();
           }
         }
       }
-      TrayMessage::UpdateMenu(menu) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          let mut items = HashMap::new();
-          tray
-            .lock()
-            .unwrap()
-            .set_menu(&to_wry_context_menu(&mut items, menu));
-          *tray_context.items.lock().unwrap() = items;
-        }
-      }
-      TrayMessage::UpdateIcon(icon) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          if let Ok(icon) = TrayIcon::try_from(icon) {
-            tray.lock().unwrap().set_icon(icon.0);
-          }
-        }
-      }
-      #[cfg(target_os = "macos")]
-      TrayMessage::UpdateIconAsTemplate(is_template) => {
-        if let Some(tray) = &*tray_context.tray.lock().unwrap() {
-          tray.lock().unwrap().set_icon_as_template(is_template);
-        }
-      }
-      TrayMessage::Close => {
-        *tray_context.tray.lock().unwrap() = None;
-        tray_context.listeners.lock().unwrap().clear();
-        tray_context.items.lock().unwrap().clear();
-      }
-    },
-    #[cfg(feature = "global-shortcut")]
+    }
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     Message::GlobalShortcut(message) => {
       handle_global_shortcut_message(message, &global_shortcut_manager)
     }
@@ -2499,7 +2598,7 @@ fn handle_user_message<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.lock().expect("poisoned webview collection").len(),
+    window_count: windows.borrow().len(),
   };
   it
 }
@@ -2515,14 +2614,14 @@ fn handle_event_loop<T: UserEvent>(
     callback,
     webview_id_map,
     windows,
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager,
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager_handle,
     #[cfg(feature = "clipboard")]
     clipboard_manager,
-    #[cfg(feature = "system-tray")]
-    tray_context,
+    #[cfg(all(desktop, feature = "system-tray"))]
+    system_tray_manager,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2545,7 +2644,7 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
-    #[cfg(feature = "global-shortcut")]
+    #[cfg(all(desktop, feature = "global-shortcut"))]
     Event::GlobalShortcutEvent(accelerator_id) => {
       for (id, handler) in &*global_shortcut_manager_handle.listeners.lock().unwrap() {
         if accelerator_id == *id {
@@ -2576,14 +2675,13 @@ fn handle_event_loop<T: UserEvent>(
       };
       let window_menu_event_listeners = {
         // on macOS the window id might be the inspector window if it is detached
-        let window_id = if let Some(window_id) = webview_id_map.try_get(&window_id) {
+        let window_id = if let Some(window_id) = webview_id_map.get(&window_id) {
           window_id
         } else {
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
         };
         windows
-          .lock()
-          .unwrap()
+          .borrow()
           .get(&window_id)
           .unwrap()
           .menu_event_listeners
@@ -2595,7 +2693,7 @@ fn handle_event_loop<T: UserEvent>(
         handler(&event);
       }
     }
-    #[cfg(feature = "system-tray")]
+    #[cfg(all(desktop, feature = "system-tray"))]
     Event::MenuEvent {
       window_id: _,
       menu_id,
@@ -2603,13 +2701,40 @@ fn handle_event_loop<T: UserEvent>(
       ..
     } => {
       let event = SystemTrayEvent::MenuItemClick(menu_id.0);
-      let listeners = tray_context.listeners.lock().unwrap().clone();
-      for handler in listeners.values() {
-        handler(&event);
+
+      let trays = system_tray_manager.trays.lock().unwrap();
+      let trays_iter = trays.iter();
+
+      let (mut listeners, mut tray_id) = (None, 0);
+      for (id, tray_context) in trays_iter {
+        let has_menu = {
+          let items = tray_context.items.lock().unwrap();
+          items.contains_key(&menu_id.0)
+        };
+        if has_menu {
+          listeners.replace(tray_context.listeners.clone());
+          tray_id = *id;
+          break;
+        }
+      }
+      drop(trays);
+      if let Some(listeners) = listeners {
+        let listeners = listeners.lock().unwrap();
+        let handlers = listeners.iter();
+        for handler in handlers {
+          handler(&event);
+        }
+
+        let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
+        let global_listeners_iter = global_listeners.iter();
+        for global_listener in global_listeners_iter {
+          global_listener(tray_id, &event);
+        }
       }
     }
-    #[cfg(feature = "system-tray")]
+    #[cfg(all(desktop, feature = "system-tray"))]
     Event::TrayEvent {
+      id,
       bounds,
       event,
       position: _cursor_position,
@@ -2625,80 +2750,75 @@ fn handle_event_loop<T: UserEvent>(
         // default to left click
         _ => SystemTrayEvent::LeftClick { position, size },
       };
-      let listeners = tray_context.listeners.lock().unwrap();
-      let handlers = listeners.values();
-      for handler in handlers {
-        handler(&event);
+      let trays = system_tray_manager.trays.lock().unwrap();
+      if let Some(tray_context) = trays.get(&id.0) {
+        let listeners = tray_context.listeners.lock().unwrap();
+        let iter = listeners.iter();
+        for handler in iter {
+          handler(&event);
+        }
+      }
+
+      let global_listeners = system_tray_manager.global_listeners.lock().unwrap();
+      let global_listeners_iter = global_listeners.iter();
+      for global_listener in global_listeners_iter {
+        global_listener(id.0, &event);
       }
     }
     Event::WindowEvent {
       event, window_id, ..
     } => {
-      let window_id = webview_id_map.get(&window_id);
-      // NOTE(amrbashir): we handle this event here instead of `match` statement below because
-      // we want to focus the webview as soon as possible, especially on windows.
-      if event == WryWindowEvent::Focused(true) {
-        if let Some(WindowHandle::Webview(webview)) = windows
-          .lock()
-          .expect("poisoned webview collection")
-          .get(&window_id)
-          .and_then(|w| w.inner.as_ref())
+      if let Some(window_id) = webview_id_map.get(&window_id) {
         {
-          // only focus the webview if the window is visible
-          // somehow tao is sending a Focused(true) event even when the window is invisible,
-          // which causes a deadlock: https://github.com/tauri-apps/tauri/issues/3534
-          if webview.window().is_visible() {
-            webview.focus();
-          }
-        }
-      }
+          let windows_ref = windows.borrow();
+          if let Some(window) = windows_ref.get(&window_id) {
+            if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
+              let label = window.label.clone();
+              let window_event_listeners = window.window_event_listeners.clone();
 
-      {
-        let windows_lock = windows.lock().expect("poisoned webview collection");
-        if let Some(window) = windows_lock.get(&window_id) {
-          if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
-            let label = window.label.clone();
-            let window_event_listeners = window.window_event_listeners.clone();
-            drop(windows_lock);
-            callback(RunEvent::WindowEvent {
-              label,
-              event: event.clone(),
-            });
-            let listeners = window_event_listeners.lock().unwrap();
-            let handlers = listeners.values();
-            for handler in handlers {
-              handler(&event);
-            }
-          }
-        }
-      }
+              drop(windows_ref);
 
-      match event {
-        WryWindowEvent::CloseRequested => {
-          on_close_requested(callback, window_id, windows.clone());
-        }
-        WryWindowEvent::Destroyed => {
-          if windows.lock().unwrap().remove(&window_id).is_some() {
-            let is_empty = windows.lock().unwrap().is_empty();
-            if is_empty {
-              let (tx, rx) = channel();
-              callback(RunEvent::ExitRequested { tx });
-
-              let recv = rx.try_recv();
-              let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
-
-              if !should_prevent {
-                *control_flow = ControlFlow::Exit;
+              callback(RunEvent::WindowEvent {
+                label,
+                event: event.clone(),
+              });
+              let listeners = window_event_listeners.lock().unwrap();
+              let handlers = listeners.values();
+              for handler in handlers {
+                handler(&event);
               }
             }
           }
         }
-        _ => {}
+
+        match event {
+          WryWindowEvent::CloseRequested => {
+            on_close_requested(callback, window_id, windows.clone());
+          }
+          WryWindowEvent::Destroyed => {
+            let removed = windows.borrow_mut().remove(&window_id).is_some();
+            if removed {
+              let is_empty = windows.borrow().is_empty();
+              if is_empty {
+                let (tx, rx) = channel();
+                callback(RunEvent::ExitRequested { tx });
+
+                let recv = rx.try_recv();
+                let should_prevent = matches!(recv, Ok(ExitRequestedEventAction::Prevent));
+
+                if !should_prevent {
+                  *control_flow = ControlFlow::Exit;
+                }
+              }
+            }
+          }
+          _ => {}
+        }
       }
     }
     Event::UserEvent(message) => match message {
       Message::Window(id, WindowMessage::Close) => {
-        on_window_close(id, windows.lock().expect("poisoned webview collection"));
+        on_window_close(id, windows.clone());
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
@@ -2706,15 +2826,14 @@ fn handle_event_loop<T: UserEvent>(
           event_loop,
           message,
           UserMessageContext {
-            marker: &PhantomData,
             webview_id_map,
-            #[cfg(feature = "global-shortcut")]
+            #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager,
             #[cfg(feature = "clipboard")]
             clipboard_manager,
             windows,
-            #[cfg(feature = "system-tray")]
-            tray_context,
+            #[cfg(all(desktop, feature = "system-tray"))]
+            system_tray_manager,
           },
           web_context,
         );
@@ -2724,7 +2843,7 @@ fn handle_event_loop<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.lock().expect("poisoned webview collection").len(),
+    window_count: windows.borrow().len(),
   };
   it
 }
@@ -2732,14 +2851,16 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Arc<Mutex<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
 ) {
   let (tx, rx) = channel();
-  let windows_guard = windows.lock().expect("poisoned webview collection");
-  if let Some(w) = windows_guard.get(&window_id) {
+  let windows_ref = windows.borrow();
+  if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
-    drop(windows_guard);
+
+    drop(windows_ref);
+
     let listeners = window_event_listeners.lock().unwrap();
     let handlers = listeners.values();
     for handler in handlers {
@@ -2753,19 +2874,13 @@ fn on_close_requested<'a, T: UserEvent>(
     });
     if let Ok(true) = rx.try_recv() {
     } else {
-      on_window_close(
-        window_id,
-        windows.lock().expect("poisoned webview collection"),
-      );
+      on_window_close(window_id, windows);
     }
   }
 }
 
-fn on_window_close(
-  window_id: WebviewId,
-  mut windows: MutexGuard<'_, HashMap<WebviewId, WindowWrapper>>,
-) {
-  if let Some(mut window_wrapper) = windows.get_mut(&window_id) {
+fn on_window_close(window_id: WebviewId, windows: Arc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
+  if let Some(mut window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
 }
@@ -2842,10 +2957,8 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   let proxy = context.proxy.clone();
 
-  #[cfg(target_os = "macos")]
-  {
-    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
-  }
+  let window_event_listeners = WindowEventListeners::default();
+
   #[cfg(windows)]
   {
     window_builder.inner = window_builder
@@ -2875,7 +2988,11 @@ fn create_webview<T: UserEvent>(
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent);
   if webview_attributes.file_drop_handler_enabled {
-    webview_builder = webview_builder.with_file_drop_handler(create_file_drop_handler(&context));
+    webview_builder = webview_builder
+      .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
+  }
+  if let Some(user_agent) = webview_attributes.user_agent {
+    webview_builder = webview_builder.with_user_agent(&user_agent);
   }
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
@@ -2945,7 +3062,7 @@ fn create_webview<T: UserEvent>(
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy_.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(true)),
@@ -2958,7 +3075,7 @@ fn create_webview<T: UserEvent>(
     .unwrap();
     unsafe {
       controller.add_LostFocus(
-        FocusChangedEventHandler::create(Box::new(move |_, _| {
+        &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
             window_id,
             WebviewMessage::WebviewEvent(WebviewEvent::Focused(false)),
@@ -2975,7 +3092,7 @@ fn create_webview<T: UserEvent>(
     label,
     inner: Some(WindowHandle::Webview(Arc::new(webview))),
     menu_items,
-    window_event_listeners: Default::default(),
+    window_event_listeners,
     menu_event_listeners: Default::default(),
   })
 }
@@ -2989,7 +3106,7 @@ fn create_ipc_handler<T: UserEvent>(
   handler: WebviewIpcHandler<T, Wry<T>>,
 ) -> Box<IpcHandler> {
   Box::new(move |window, request| {
-    let window_id = context.webview_id_map.get(&window.id());
+    let window_id = context.webview_id_map.get(&window.id()).unwrap();
     handler(
       DetachedWindow {
         dispatcher: WryDispatcher {
@@ -3006,28 +3123,17 @@ fn create_ipc_handler<T: UserEvent>(
 }
 
 /// Create a wry file drop handler.
-fn create_file_drop_handler<T: UserEvent>(context: &Context<T>) -> Box<FileDropHandler> {
-  let windows = context.main_thread.windows.clone();
-  let webview_id_map = context.webview_id_map.clone();
-  Box::new(move |window, event| {
+fn create_file_drop_handler(window_event_listeners: WindowEventListeners) -> Box<FileDropHandler> {
+  Box::new(move |_window, event| {
     let event: FileDropEvent = FileDropEventWrapper(event).into();
     let window_event = WindowEvent::FileDrop(event);
-    let window_event_listeners = windows
-      .lock()
-      .unwrap()
-      .get(&webview_id_map.get(&window.id()))
-      .map(|w| w.window_event_listeners.clone());
-    if let Some(window_event_listeners) = window_event_listeners {
-      let listeners_map = window_event_listeners.lock().unwrap();
-      let has_listener = !listeners_map.is_empty();
-      let handlers = listeners_map.values();
-      for listener in handlers {
-        listener(&window_event);
-      }
-      // block the default OS action on file drop if we had a listener
-      has_listener
-    } else {
-      false
+    let listeners_map = window_event_listeners.lock().unwrap();
+    let has_listener = !listeners_map.is_empty();
+    let handlers = listeners_map.values();
+    for listener in handlers {
+      listener(&window_event);
     }
+    // block the default OS action on file drop if we had a listener
+    has_listener
   })
 }

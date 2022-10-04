@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -219,7 +219,7 @@ impl From<MessageDialogKind> for rfd::MessageLevel {
 /// which makes them easier to use.
 ///
 /// **NOTE:** You cannot block the main thread when executing the dialog APIs, so you must use the [`crate::api::dialog`] methods instead.
-/// Examples of main thread context are the [`crate::App::run`] closure and non-async commmands.
+/// Examples of main thread context are the [`crate::App::run`] closure and non-async commands.
 pub mod blocking {
   use super::{MessageDialogButtons, MessageDialogKind};
   use crate::{Runtime, Window};

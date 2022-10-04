@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Context;
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
-use heck::{ToKebabCase, ToSnakeCase};
+use heck::{AsKebabCase, ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use log::warn;
 use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
@@ -58,7 +58,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.load();
   let template_target_path = PathBuf::from(options.directory).join(&format!(
     "tauri-plugin-{}",
-    options.plugin_name.to_kebab_case()
+    AsKebabCase(&options.plugin_name)
   ));
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../../metadata.json"))?;
   if template_target_path.exists() {
@@ -108,19 +108,9 @@ pub fn command(mut options: Options) -> Result<()> {
 
     if options.tauri {
       data.insert(
-        "license_template",
-        to_json(
-          "// Copyright {20\\d{2}(-20\\d{2})?} Tauri Programme within The Commons Conservancy
-             // SPDX-License-Identifier: Apache-2.0
-             // SPDX-License-Identifier: MIT\n\n"
-            .replace("  ", "")
-            .replace(" //", "//"),
-        ),
-      );
-      data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")

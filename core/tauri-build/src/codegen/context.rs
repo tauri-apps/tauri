@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,6 +10,7 @@ use std::{
   path::PathBuf,
 };
 use tauri_codegen::{context_codegen, ContextData};
+use tauri_utils::config::{AppUrl, WindowUrl};
 
 // TODO docs
 /// A builder for generating a Tauri application context during compile time.
@@ -52,13 +53,13 @@ impl CodegenContext {
   ///
   /// **Note:** This path should be relative to the `OUT_DIR`.
   ///
-  /// Don't set this if you are using [`tauri::include_codegen_context!`] as that helper macro
+  /// Don't set this if you are using [`tauri::tauri_build_context!`] as that helper macro
   /// expects the default value. This option can be useful if you are not using the helper and
   /// instead using [`std::include!`] on the generated code yourself.
   ///
   /// Defaults to `tauri-build-context.rs`.
   ///
-  /// [`tauri::include_codegen_context!`]: https://docs.rs/tauri/0.12/tauri/macro.include_codegen_context.html
+  /// [`tauri::tauri_build_context!`]: https://docs.rs/tauri/latest/tauri/macro.tauri_build_context.html
   #[must_use]
   pub fn out_file(mut self, filename: PathBuf) -> Self {
     self.out_file = filename;
@@ -92,13 +93,53 @@ impl CodegenContext {
   /// Non-panicking [`Self::build`]
   pub fn try_build(self) -> Result<PathBuf> {
     let (config, config_parent) = tauri_codegen::get_config(&self.config_path)?;
+
+    // rerun if changed
+    let app_url = if self.dev {
+      &config.build.dev_path
+    } else {
+      &config.build.dist_dir
+    };
+    match app_url {
+      AppUrl::Url(WindowUrl::App(p)) => {
+        println!("cargo:rerun-if-changed={}", config_parent.join(p).display());
+      }
+      AppUrl::Files(files) => {
+        for path in files {
+          println!(
+            "cargo:rerun-if-changed={}",
+            config_parent.join(path).display()
+          );
+        }
+      }
+      _ => (),
+    }
+    for icon in &config.tauri.bundle.icon {
+      println!(
+        "cargo:rerun-if-changed={}",
+        config_parent.join(icon).display()
+      );
+    }
+    if let Some(tray_icon) = config.tauri.system_tray.as_ref().map(|t| &t.icon_path) {
+      println!(
+        "cargo:rerun-if-changed={}",
+        config_parent.join(tray_icon).display()
+      );
+    }
+
+    #[cfg(target_os = "macos")]
+    println!(
+      "cargo:rerun-if-changed={}",
+      config_parent.join("Info.plist").display()
+    );
+
     let code = context_codegen(ContextData {
       dev: self.dev,
       config,
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from
       // outside the tauri crate, making the ::tauri root valid.
-      root: quote::quote!(::tauri::Context),
+      root: quote::quote!(::tauri),
     })?;
 
     // get the full output file path

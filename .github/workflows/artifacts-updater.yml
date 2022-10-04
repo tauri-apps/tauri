@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -11,10 +11,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'
-      - 'core/tauri/**'
-      - 'tooling/cli/**'
-      - 'tooling/bundler/**'
       - 'examples/updater/**'
+  workflow_dispatch:
 
 env:
   RUST_BACKTRACE: 1
@@ -26,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-artifacs:
+  build-artifacts:
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -74,7 +72,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date
@@ -116,7 +114,7 @@ jobs:
         working-directory: ./examples/updater
         run: |
           yarn install
-          cargo tauri build
+          cargo tauri build --verbose
         env:
           # Notarization (disabled)
           # FIXME: enable only on `dev` push maybe? as it take some times...
@@ -136,7 +134,7 @@ jobs:
         working-directory: ./examples/updater
         run: |
           yarn install
-          cargo tauri build
+          cargo tauri build --verbose
         env:
           TAURI_PRIVATE_KEY: dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5YTBGV3JiTy9lRDZVd3NkL0RoQ1htZmExNDd3RmJaNmRMT1ZGVjczWTBKZ0FBQkFBQUFBQUFBQUFBQUlBQUFBQWdMekUzVkE4K0tWQ1hjeGt1Vkx2QnRUR3pzQjVuV0ZpM2czWXNkRm9hVUxrVnB6TUN3K1NheHJMREhQbUVWVFZRK3NIL1VsMDBHNW5ET1EzQno0UStSb21nRW4vZlpTaXIwZFh5ZmRlL1lSN0dKcHdyOUVPclVvdzFhVkxDVnZrbHM2T1o4Tk1NWEU9Cg==
       # upload assets

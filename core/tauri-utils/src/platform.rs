@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -172,7 +172,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   {
     res = if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
-      Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
+      exe_dir
+        .join(format!("../lib/{}", package_info.package_name()))
+        .canonicalize()
+        .map_err(Into::into)
     } else if let Some(appdir) = &env.appdir {
       let appdir: &std::path::Path = appdir.as_ref();
       Ok(PathBuf::from(format!(
@@ -191,7 +194,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 
   #[cfg(target_os = "macos")]
   {
-    res = Ok(exe_dir.join("../Resources"));
+    res = exe_dir
+      .join("../Resources")
+      .canonicalize()
+      .map_err(Into::into);
   }
 
   res
@@ -202,11 +208,15 @@ pub use windows_platform::{is_windows_7, windows_version};
 
 #[cfg(windows)]
 mod windows_platform {
-  use windows::Win32::{
-    Foundation::FARPROC,
-    System::{
-      LibraryLoader::{GetProcAddress, LoadLibraryA},
-      SystemInformation::OSVERSIONINFOW,
+  use std::{iter::once, os::windows::prelude::OsStrExt};
+  use windows::{
+    core::{PCSTR, PCWSTR},
+    Win32::{
+      Foundation::FARPROC,
+      System::{
+        LibraryLoader::{GetProcAddress, LoadLibraryW},
+        SystemInformation::OSVERSIONINFOW,
+      },
     },
   };
 
@@ -221,11 +231,19 @@ mod windows_platform {
     false
   }
 
-  fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
-    assert_eq!(library.chars().last(), Some('\0'));
-    assert_eq!(function.chars().last(), Some('\0'));
+  fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+    string.as_ref().encode_wide().chain(once(0)).collect()
+  }
 
-    let module = unsafe { LoadLibraryA(library) }.unwrap_or_default();
+  // Helper function to dynamically load function pointer.
+  // `library` and `function` must be zero-terminated.
+  fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
+    let library = encode_wide(library);
+    assert_eq!(function.chars().last(), Some('\0'));
+    let function = PCSTR::from_raw(function.as_ptr());
+
+    // Library names we will use are ASCII so we can use the A version to avoid string conversion.
+    let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
     if module.is_invalid() {
       None
     } else {

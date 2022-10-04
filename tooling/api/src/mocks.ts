@@ -35,10 +35,31 @@ interface IPCMessage {
  * })
  * ```
  *
- * @param cb
+ * The callback function can also return a Promise:
+ * ```js
+ * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
+ * import { invoke } from "@tauri-apps/api/tauri"
+ *
+ * afterEach(() => {
+ *    clearMocks()
+ * })
+ *
+ * test("mocked command", () => {
+ *  mockIPC((cmd, args) => {
+ *   if(cmd === "get_data") {
+ *    return fetch("https://example.com/data.json")
+ *      .then((response) => response.json())
+ *   }
+ *  });
+ *
+ *  expect(invoke('get_data')).resolves.toBe({ foo: 'bar' });
+ * })
+ * ```
+ *
+ * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, args: Record<string, unknown>) => any
+  cb: (cmd: string, args: Record<string, unknown>) => any | Promise<any>
 ): void {
   // eslint-disable-next-line @typescript-eslint/no-misused-promises
   window.__TAURI_IPC__ = async ({
@@ -104,6 +125,8 @@ export function mockIPC(
  *
  * @param current Label of window this JavaScript context is running in.
  * @param additionalWindows Label of additional windows the app has.
+ *
+ * @since 1.0.0
  */
 export function mockWindows(
   current: string,
@@ -138,6 +161,8 @@ export function mockWindows(
  *    expect(window).not.toHaveProperty("__TAURI_METADATA__")
  * })
  * ```
+ *
+ * @since 1.0.0
  */
 export function clearMocks(): void {
   // @ts-expect-error

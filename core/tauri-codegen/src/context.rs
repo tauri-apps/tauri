@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,7 +11,9 @@ use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{AppUrl, Config, PatternKind, WindowUrl};
-use tauri_utils::html::{inject_nonce_token, parse as parse_html};
+use tauri_utils::html::{
+  inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
+};
 
 #[cfg(feature = "shell-scope")]
 use tauri_utils::config::{ShellAllowedArg, ShellAllowedArgs, ShellAllowlistScope};
@@ -28,6 +30,7 @@ pub struct ContextData {
 
 fn map_core_assets(
   options: &AssetOptions,
+  target: Target,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
@@ -36,12 +39,13 @@ fn map_core_assets(
     options.dangerous_disable_asset_csp_modification.clone();
   move |key, path, input, csp_hashes| {
     if path.extension() == Some(OsStr::new("html")) {
-      let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
-
       #[allow(clippy::collapsible_if)]
       if csp {
-        #[cfg(target_os = "linux")]
-        ::tauri_utils::html::inject_csp_token(&mut document);
+        let mut document = parse_html(String::from_utf8_lossy(input).into_owned());
+
+        if target == Target::Linux {
+          ::tauri_utils::html::inject_csp_token(&mut document);
+        }
 
         inject_nonce_token(&mut document, &dangerous_disable_asset_csp_modification);
 
@@ -75,9 +79,9 @@ fn map_core_assets(
               .push(format!("'sha256-{}'", base64::encode(&hash)));
           }
         }
-      }
 
-      *input = document.to_string().as_bytes().to_vec();
+        *input = serialize_html_node(&document);
+      }
     }
     Ok(())
   }
@@ -106,6 +110,16 @@ fn map_isolation(
   }
 }
 
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum Target {
+  Linux,
+  Windows,
+  Darwin,
+  Android,
+  // iOS.
+  Ios,
+}
+
 /// Build a `tauri::Context` for including in application code.
 pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
   let ContextData {
@@ -114,6 +128,34 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
   } = data;
+
+  let target = if let Ok(target) = std::env::var("TARGET") {
+    if target.contains("unknown-linux") {
+      Target::Linux
+    } else if target.contains("pc-windows") {
+      Target::Windows
+    } else if target.contains("apple-darwin") {
+      Target::Darwin
+    } else if target.contains("android") {
+      Target::Android
+    } else if target.contains("apple-ios") {
+      Target::Ios
+    } else {
+      panic!("unknown codegen target {}", target);
+    }
+  } else if cfg!(target_os = "linux") {
+    Target::Linux
+  } else if cfg!(windows) {
+    Target::Windows
+  } else if cfg!(target_os = "macos") {
+    Target::Darwin
+  } else if cfg!(target_os = "android") {
+    Target::Android
+  } else if cfg!(target_os = "ios") {
+    Target::Ios
+  } else {
+    panic!("unknown codegen target");
+  };
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
     .freeze_prototype(config.tauri.security.freeze_prototype)
@@ -162,7 +204,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             path
           )
         }
-        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
+        EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
       }
       _ => unimplemented!(),
     },
@@ -172,7 +214,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         .map(|p| config_parent.join(p))
         .collect::<Vec<_>>(),
       &options,
-      map_core_assets(&options),
+      map_core_assets(&options, target),
     )?,
     _ => unimplemented!(),
   };
@@ -189,18 +231,28 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     out_dir
   };
 
-  // handle default window icons for Windows targets
-  #[cfg(windows)]
   let default_window_icon = {
-    let icon_path = find_icon(
-      &config,
-      &config_parent,
-      |i| i.ends_with(".ico"),
-      "icons/icon.ico",
-    );
-    if icon_path.exists() {
-      ico_icon(&root, &out_dir, icon_path)?
-    } else {
+    if target == Target::Windows {
+      // handle default window icons for Windows targets
+      let icon_path = find_icon(
+        &config,
+        &config_parent,
+        |i| i.ends_with(".ico"),
+        "icons/icon.ico",
+      );
+      if icon_path.exists() {
+        ico_icon(&root, &out_dir, icon_path)?
+      } else {
+        let icon_path = find_icon(
+          &config,
+          &config_parent,
+          |i| i.ends_with(".png"),
+          "icons/icon.png",
+        );
+        png_icon(&root, &out_dir, icon_path)?
+      }
+    } else if target == Target::Linux {
+      // handle default window icons for Linux targets
       let icon_path = find_icon(
         &config,
         &config_parent,
@@ -208,23 +260,12 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.png",
       );
       png_icon(&root, &out_dir, icon_path)?
+    } else {
+      quote!(None)
     }
   };
-  #[cfg(target_os = "linux")]
-  let default_window_icon = {
-    let icon_path = find_icon(
-      &config,
-      &config_parent,
-      |i| i.ends_with(".png"),
-      "icons/icon.png",
-    );
-    png_icon(&root, &out_dir, icon_path)?
-  };
-  #[cfg(not(any(windows, target_os = "linux")))]
-  let default_window_icon = quote!(None);
 
-  #[cfg(target_os = "macos")]
-  let app_icon = if dev {
+  let app_icon = if target == Target::Darwin && dev {
     let mut icon_path = find_icon(
       &config,
       &config_parent,
@@ -243,8 +284,6 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   } else {
     quote!(None)
   };
-  #[cfg(not(target_os = "macos"))]
-  let app_icon = quote!(None);
 
   let package_name = if let Some(product_name) = &config.package.product_name {
     quote!(#product_name.to_string())
@@ -283,42 +322,40 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = {
-    if dev {
-      let info_plist_path = config_parent.join("Info.plist");
-      let mut info_plist = if info_plist_path.exists() {
-        plist::Value::from_file(&info_plist_path)
-          .unwrap_or_else(|e| panic!("failed to read plist {}: {}", info_plist_path.display(), e))
-      } else {
-        plist::Value::Dictionary(Default::default())
-      };
-
-      if let Some(plist) = info_plist.as_dictionary_mut() {
-        if let Some(product_name) = &config.package.product_name {
-          plist.insert("CFBundleName".into(), product_name.clone().into());
-        }
-        if let Some(version) = &config.package.version {
-          plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-        }
-        let format =
-          time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
-        if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
-          plist.insert("CFBundleVersion".into(), build_number.into());
-        }
-      }
-
-      let out_path = out_dir.join("Info.plist");
-      info_plist
-        .to_file_xml(&out_path)
-        .expect("failed to write Info.plist");
-
-      let info_plist_path = out_path.display().to_string();
-      quote!({
-        tauri::embed_plist::embed_info_plist!(#info_plist_path);
-      })
+  let info_plist = if target == Target::Darwin && dev {
+    let info_plist_path = config_parent.join("Info.plist");
+    let mut info_plist = if info_plist_path.exists() {
+      plist::Value::from_file(&info_plist_path)
+        .unwrap_or_else(|e| panic!("failed to read plist {}: {}", info_plist_path.display(), e))
     } else {
-      quote!(())
+      plist::Value::Dictionary(Default::default())
+    };
+
+    if let Some(plist) = info_plist.as_dictionary_mut() {
+      if let Some(product_name) = &config.package.product_name {
+        plist.insert("CFBundleName".into(), product_name.clone().into());
+      }
+      if let Some(version) = &config.package.version {
+        plist.insert("CFBundleShortVersionString".into(), version.clone().into());
+      }
+      let format =
+        time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
+      if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
+        plist.insert("CFBundleVersion".into(), build_number.into());
+      }
     }
+
+    let out_path = out_dir.join("Info.plist");
+    info_plist
+      .to_file_xml(&out_path)
+      .expect("failed to write Info.plist");
+
+    let info_plist_path = out_path.display().to_string();
+    quote!({
+      tauri::embed_plist::embed_info_plist!(#info_plist_path);
+    })
+  } else {
+    quote!(())
   };
   #[cfg(not(target_os = "macos"))]
   let info_plist = quote!(());
@@ -330,13 +367,28 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       let dir = config_parent.join(dir);
       if !dir.exists() {
         panic!(
-          "The isolation dir configuration is set to `{:?}` but this path doesn't exist",
+          "The isolation application path is set to `{:?}` but it does not exist",
           dir
         )
       }
 
+      let mut sets_isolation_hook = false;
+
       let key = uuid::Uuid::new_v4().to_string();
-      let assets = EmbeddedAssets::new(dir.clone(), &options, map_isolation(&options, dir))?;
+      let map_isolation = map_isolation(&options, dir.clone());
+      let assets = EmbeddedAssets::new(dir, &options, |key, path, input, csp_hashes| {
+        // we check if `__TAURI_ISOLATION_HOOK__` exists in the isolation code
+        // before modifying the files since we inject our own `__TAURI_ISOLATION_HOOK__` reference in HTML files
+        if String::from_utf8_lossy(input).contains("__TAURI_ISOLATION_HOOK__") {
+          sets_isolation_hook = true;
+        }
+        map_isolation(key, path, input, csp_hashes)
+      })?;
+
+      if !sets_isolation_hook {
+        panic!("The isolation application does not contain a file setting the `window.__TAURI_ISOLATION_HOOK__` value.");
+      }
+
       let schema = options.isolation_schema;
 
       quote!(#root::Pattern::Isolation {
@@ -400,36 +452,26 @@ fn ico_icon<P: AsRef<Path>>(
   out_dir: &Path,
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|_| panic!("failed to parse icon {}", path.display()));
+    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
   let entry = &icon_dir.entries()[0];
   let rgba = entry
     .decode()
-    .unwrap_or_else(|_| panic!("failed to decode icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
     .rgba_data()
     .to_vec();
   let width = entry.width();
   let height = entry.height();
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&rgba)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
@@ -437,28 +479,17 @@ fn ico_icon<P: AsRef<Path>>(
   Ok(icon)
 }
 
-#[cfg(target_os = "macos")]
 fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&bytes)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
@@ -471,17 +502,14 @@ fn png_icon<P: AsRef<Path>>(
   out_dir: &Path,
   path: P,
 ) -> Result<TokenStream, EmbeddedAssetsError> {
-  use std::fs::File;
-  use std::io::Write;
-
   let path = path.as_ref();
   let bytes = std::fs::read(&path)
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()))
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
     .to_vec();
   let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
   let mut reader = decoder
     .read_info()
-    .unwrap_or_else(|_| panic!("failed to read icon {}", path.display()));
+    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
   let mut buffer: Vec<u8> = Vec::new();
   while let Ok(Some(row)) = reader.next_row() {
     buffer.extend(row.data());
@@ -490,22 +518,29 @@ fn png_icon<P: AsRef<Path>>(
   let height = reader.info().height;
 
   let out_path = out_dir.join(path.file_name().unwrap());
-  let mut out_file = File::create(&out_path).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: out_path.clone(),
+  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
+    path: path.to_owned(),
     error,
   })?;
-
-  out_file
-    .write_all(&buffer)
-    .map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
 
   let out_path = out_path.display().to_string();
 
   let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
   Ok(icon)
+}
+
+fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
+  use std::fs::File;
+  use std::io::Write;
+
+  if let Ok(curr) = std::fs::read(&out_path) {
+    if curr == data {
+      return Ok(());
+    }
+  }
+
+  let mut out_file = File::create(&out_path)?;
+  out_file.write_all(data)
 }
 
 fn find_icon<F: Fn(&&String) -> bool>(

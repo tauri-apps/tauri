@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,7 +10,6 @@
 //! one you need isn't here, you could use types in [`tokio`] directly.
 //! For custom command handlers, it's recommended to use a plain `async fn` command.
 
-use futures_lite::future::FutureExt;
 use once_cell::sync::OnceCell;
 pub use tokio::{
   runtime::{Handle as TokioHandle, Runtime as TokioRuntime},
@@ -159,7 +158,7 @@ impl<T> Future for JoinHandle<T> {
   type Output = crate::Result<T>;
   fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
     match self.get_mut() {
-      Self::Tokio(t) => t.poll(cx).map_err(Into::into),
+      Self::Tokio(t) => Pin::new(t).poll(cx).map_err(Into::into),
     }
   }
 }

@@ -6,7 +6,7 @@ PackageSupplier: Organization: The Tauri Programme in the Commons Conservancy
 PackageHomePage: https://tauri.app
 PackageLicenseDeclared: Apache-2.0
 PackageLicenseDeclared: MIT
-PackageCopyrightText: 2019-2021, The Tauri Programme in the Commons Conservancy
+PackageCopyrightText: 2019-2022, The Tauri Programme in the Commons Conservancy
 PackageSummary: <text>Tauri is a rust project that enables developers to make secure
 and small desktop applications using a web frontend.
                 </text>

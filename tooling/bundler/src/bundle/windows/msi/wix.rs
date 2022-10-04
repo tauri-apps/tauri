@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -25,7 +26,7 @@ use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 use zip::ZipArchive;
 
-// URLS for the WIX toolchain.  Can be used for crossplatform compilation.
+// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
@@ -280,12 +281,24 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
+fn clear_env_for_wix(cmd: &mut Command) {
+  cmd.env_clear();
+  let required_vars: Vec<std::ffi::OsString> =
+    vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
+  for (k, v) in std::env::vars_os() {
+    if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
+      cmd.env(k, v);
+    }
+  }
+}
+
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
   wix_toolset_path: &Path,
   cwd: &Path,
-  wxs_file_path: &Path,
+  wxs_file_path: PathBuf,
+  extensions: Vec<PathBuf>,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -304,7 +317,7 @@ fn run_candle(
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
 
-  let args = vec![
+  let mut args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_path.to_string_lossy().to_string(),
@@ -314,10 +327,26 @@ fn run_candle(
     ),
   ];
 
+  if settings
+    .windows()
+    .wix
+    .as_ref()
+    .map(|w| w.fips_compliant)
+    .unwrap_or_default()
+  {
+    args.push("-fips".into());
+  }
+
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  Command::new(&candle_exe)
+  let mut cmd = Command::new(&candle_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  clear_env_for_wix(&mut cmd);
+  cmd
     .args(&args)
     .current_dir(cwd)
     .output_ok()
@@ -331,6 +360,7 @@ fn run_light(
   wix_toolset_path: &Path,
   build_path: &Path,
   arguments: Vec<String>,
+  extensions: &Vec<PathBuf>,
   output_path: &Path,
 ) -> crate::Result<()> {
   let light_exe = wix_toolset_path.join("light.exe");
@@ -344,11 +374,15 @@ fn run_light(
     output_path.display().to_string(),
   ];
 
-  for p in arguments {
-    args.push(p);
-  }
+  args.extend(arguments);
 
-  Command::new(&light_exe)
+  let mut cmd = Command::new(&light_exe);
+  for ext in extensions {
+    cmd.arg("-ext");
+    cmd.arg(ext);
+  }
+  clear_env_for_wix(&mut cmd);
+  cmd
     .args(&args)
     .current_dir(build_path)
     .output_ok()
@@ -573,7 +607,9 @@ pub fn build_wix_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
@@ -732,15 +768,24 @@ pub fn build_wix_app_installer(
   let main_wxs_path = output_path.join("main.wxs");
   write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
-  let mut candle_inputs = vec!["main.wxs".into()];
+  let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
   let current_dir = std::env::current_dir()?;
+  let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
   for fragment_path in fragment_paths {
-    candle_inputs.push(current_dir.join(fragment_path));
+    let fragment_path = current_dir.join(fragment_path);
+    let fragment = read_to_string(&fragment_path)?;
+    let mut extensions = Vec::new();
+    for cap in extension_regex.captures_iter(&fragment) {
+      extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
+    }
+    candle_inputs.push((fragment_path, extensions));
   }
 
-  for wxs in &candle_inputs {
-    run_candle(settings, wix_toolset_path, &output_path, wxs)?;
+  let mut fragment_extensions = Vec::new();
+  for (path, extensions) in candle_inputs {
+    fragment_extensions.extend(extensions.clone());
+    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
   }
 
   let mut output_paths = Vec::new();
@@ -814,7 +859,13 @@ pub fn build_wix_app_installer(
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
 
-    run_light(wix_toolset_path, &output_path, arguments, &msi_output_path)?;
+    run_light(
+      wix_toolset_path,
+      &output_path,
+      arguments,
+      &fragment_extensions,
+      &msi_output_path,
+    )?;
     rename(&msi_output_path, &msi_path)?;
     try_sign(&msi_path)?;
     output_paths.push(msi_path);
@@ -828,6 +879,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
   let mut binaries = Vec::new();
   let cwd = std::env::current_dir()?;
   let tmp_dir = std::env::temp_dir();
+  let regex = Regex::new(r"[^\w\d\.]")?;
   for src in settings.external_binaries() {
     let src = src?;
     let binary_path = cwd.join(&src);
@@ -836,7 +888,7 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
       .expect("failed to extract external binary filename")
       .to_string_lossy()
       .replace(&format!("-{}", settings.target()), "");
-    let dest = tmp_dir.join(dest_filename);
+    let dest = tmp_dir.join(&dest_filename);
     std::fs::copy(binary_path, &dest)?;
 
     binaries.push(Binary {
@@ -845,7 +897,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
         .into_os_string()
         .into_string()
         .expect("failed to read external binary path"),
-      id: format!("I{}", Uuid::new_v4().as_simple()),
+      id: regex
+        .replace_all(&dest_filename.replace('-', "_"), "")
+        .to_string(),
     });
   }
 
@@ -858,7 +912,9 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<Vec<Binary>> {
           .into_os_string()
           .into_string()
           .expect("failed to read binary path"),
-        id: format!("I{}", Uuid::new_v4().as_simple()),
+        id: regex
+          .replace_all(&bin.name().replace('-', "_"), "")
+          .to_string(),
       })
     }
   }

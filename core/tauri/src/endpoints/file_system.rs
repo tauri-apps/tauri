@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -114,6 +114,12 @@ pub(crate) enum Cmd {
     new_path: SafePathBuf,
     options: Option<FileOperationOptions>,
   },
+  /// The exists API.
+  #[cmd(fs_exists, "fs > exists")]
+  Exists {
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  },
 }
 
 impl Cmd {
@@ -191,9 +197,15 @@ impl Cmd {
       path,
       dir,
     )?;
-    dir::read_dir(&resolved_path, recursive)
-      .with_context(|| format!("path: {}", resolved_path.display()))
-      .map_err(Into::into)
+    dir::read_dir_with_options(
+      &resolved_path,
+      recursive,
+      dir::ReadDirOptions {
+        scope: Some(&context.window.state::<Scopes>().fs),
+      },
+    )
+    .with_context(|| format!("path: {}", resolved_path.display()))
+    .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file)]
@@ -333,6 +345,22 @@ impl Cmd {
       .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))
       .map_err(Into::into)
   }
+
+  #[module_command_handler(fs_exists)]
+  fn exists<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  ) -> super::Result<bool> {
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.and_then(|o| o.dir),
+    )?;
+    Ok(resolved_path.as_ref().exists())
+  }
 }
 
 #[allow(dead_code)]
@@ -371,7 +399,7 @@ mod tests {
   impl Arbitrary for BaseDirectory {
     fn arbitrary(g: &mut Gen) -> Self {
       if bool::arbitrary(g) {
-        BaseDirectory::App
+        BaseDirectory::AppData
       } else {
         BaseDirectory::Resource
       }
@@ -466,6 +494,13 @@ mod tests {
       new_path,
       options,
     );
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_exists, "fs > exists")]
+  #[quickcheck_macros::quickcheck]
+  fn exists(path: SafePathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::exists(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 }

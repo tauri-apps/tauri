@@ -154,7 +154,7 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let mut interface = AppInterface::new(config_)?;
+  let mut interface = AppInterface::new(config_, options.target.clone())?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 

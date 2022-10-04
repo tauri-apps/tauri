@@ -281,6 +281,17 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
+fn clear_env_for_wix(cmd: &mut Command) {
+  cmd.env_clear();
+  let required_vars: Vec<std::ffi::OsString> =
+    vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
+  for (k, v) in std::env::vars_os() {
+    if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
+      cmd.env(k, v);
+    }
+  }
+}
+
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
@@ -334,6 +345,7 @@ fn run_candle(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(cwd)
@@ -369,6 +381,7 @@ fn run_light(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(build_path)
@@ -594,7 +607,9 @@ pub fn build_wix_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(

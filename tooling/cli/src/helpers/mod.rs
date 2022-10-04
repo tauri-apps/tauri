@@ -7,32 +7,23 @@ pub mod config;
 pub mod framework;
 pub mod template;
 pub mod updater_signature;
+pub mod web_dev_server;
 
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
 };
 
-pub fn command_env(debug: bool) -> HashMap<String, String> {
+pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
 
-  map.insert("TAURI_PLATFORM".into(), std::env::consts::OS.into());
-  map.insert("TAURI_ARCH".into(), std::env::consts::ARCH.into());
-  map.insert("TAURI_FAMILY".into(), std::env::consts::FAMILY.into());
   map.insert(
-    "TAURI_PLATFORM_VERSION".into(),
+    "TAURI_PLATFORM_VERSION",
     os_info::get().version().to_string(),
   );
 
-  #[cfg(target_os = "linux")]
-  map.insert("TAURI_PLATFORM_TYPE".into(), "Linux".into());
-  #[cfg(target_os = "windows")]
-  map.insert("TAURI_PLATFORM_TYPE".into(), "Windows_NT".into());
-  #[cfg(target_os = "macos")]
-  map.insert("TAURI_PLATFORM_TYPE".into(), "Darwin".into());
-
   if debug {
-    map.insert("TAURI_DEBUG".into(), "true".to_string());
+    map.insert("TAURI_DEBUG", "true".into());
   }
 
   map

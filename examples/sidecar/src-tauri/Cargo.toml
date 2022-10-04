@@ -3,7 +3,7 @@ name = "sidecar"
 version = "0.1.0"
 description = "A Tauri application with a sidecar binary"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }

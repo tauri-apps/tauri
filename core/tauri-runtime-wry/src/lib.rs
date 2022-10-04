@@ -29,12 +29,16 @@ use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
 #[cfg(target_os = "macos")]
+use wry::application::platform::macos::EventLoopWindowTargetExtMacOS;
+#[cfg(target_os = "macos")]
 use wry::application::platform::macos::WindowBuilderExtMacOS;
 #[cfg(target_os = "linux")]
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use uuid::Uuid;
 use wry::{
@@ -160,7 +164,10 @@ macro_rules! window_getter {
   }};
 }
 
-fn send_user_message<T: UserEvent>(context: &Context<T>, message: Message<T>) -> Result<()> {
+pub(crate) fn send_user_message<T: UserEvent>(
+  context: &Context<T>,
+  message: Message<T>,
+) -> Result<()> {
   if current_thread().id() == context.main_thread_id {
     handle_user_message(
       &context.main_thread.window_target,
@@ -739,6 +746,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
+    #[cfg(target_os = "macos")]
+    {
+      window = window
+        .hidden_title(config.hidden_title)
+        .title_bar_style(config.title_bar_style);
+    }
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       window = window.transparent(config.transparent);
@@ -879,6 +893,32 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    match style {
+      TitleBarStyle::Visible => {
+        self.inner = self.inner.with_titlebar_transparent(false);
+        // Fixes rendering issue when resizing window with devtools open (https://github.com/tauri-apps/tauri/issues/3914)
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      TitleBarStyle::Transparent => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(false);
+      }
+      TitleBarStyle::Overlay => {
+        self.inner = self.inner.with_titlebar_transparent(true);
+        self.inner = self.inner.with_fullsize_content_view(true);
+      }
+    }
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hidden_title(mut self, hidden: bool) -> Self {
+    self.inner = self.inner.with_title_hidden(hidden);
+    self
+  }
+
   fn icon(mut self, icon: Icon) -> Result<Self> {
     self.inner = self
       .inner
@@ -986,6 +1026,13 @@ unsafe impl Send for GtkWindow {}
 pub struct RawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for RawWindowHandle {}
 
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone)]
+pub enum ApplicationMessage {
+  Show,
+  Hide,
+}
+
 pub enum WindowMessage {
   #[cfg(desktop)]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
@@ -1051,6 +1098,7 @@ pub enum WindowMessage {
   SetCursorVisible(bool),
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
+  SetIgnoreCursorEvents(bool),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1078,8 +1126,10 @@ pub enum TrayMessage {
   UpdateIcon(Icon),
   #[cfg(target_os = "macos")]
   UpdateIconAsTemplate(bool),
+  #[cfg(target_os = "macos")]
+  UpdateTitle(String),
   Create(SystemTray, Sender<Result<()>>),
-  Destroy,
+  Destroy(Sender<Result<()>>),
 }
 
 pub type CreateWebviewClosure<T> = Box<
@@ -1088,6 +1138,8 @@ pub type CreateWebviewClosure<T> = Box<
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
+  #[cfg(target_os = "macos")]
+  Application(ApplicationMessage),
   Window(WebviewId, WindowMessage),
   Webview(WebviewId, WebviewMessage),
   #[cfg(all(desktop, feature = "system-tray"))]
@@ -1493,6 +1545,13 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
+    )
+  }
+
   fn start_dragging(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1733,6 +1792,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     )?;
     rx.recv().unwrap()?;
     Ok(SystemTrayHandle {
+      context: self.context.clone(),
       id,
       proxy: self.context.proxy.clone(),
     })
@@ -1740,6 +1800,22 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
 
   fn raw_display_handle(&self) -> RawDisplayHandle {
     self.context.main_thread.window_target.raw_display_handle()
+  }
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Show),
+    )
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> tauri_runtime::Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::Hide),
+    )
   }
 }
 
@@ -1921,6 +1997,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       );
 
     Ok(SystemTrayHandle {
+      context: self.context.clone(),
       id,
       proxy: self.event_loop.create_proxy(),
     })
@@ -1948,6 +2025,16 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         ActivationPolicy::Prohibited => WryActivationPolicy::Prohibited,
         _ => unimplemented!(),
       });
+  }
+
+  #[cfg(target_os = "macos")]
+  fn show(&self) {
+    self.event_loop.show_application();
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hide(&self) {
+    self.event_loop.hide_application();
   }
 
   #[cfg(desktop)]
@@ -2140,6 +2227,15 @@ fn handle_user_message<T: UserEvent>(
   } = context;
   match message {
     Message::Task(task) => task(),
+    #[cfg(target_os = "macos")]
+    Message::Application(application_message) => match application_message {
+      ApplicationMessage::Show => {
+        event_loop.show_application();
+      }
+      ApplicationMessage::Hide => {
+        event_loop.hide_application();
+      }
+    },
     Message::Window(id, window_message) => {
       if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
         if let Some(menu_items) = windows.borrow_mut().get_mut(&id).map(|w| &mut w.menu_items) {
@@ -2342,6 +2438,9 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::SetCursorPosition(position) => {
               let _ = window.set_cursor_position(PositionWrapper::from(position).0);
             }
+            WindowMessage::SetIgnoreCursorEvents(ignore) => {
+              let _ = window.set_ignore_cursor_events(ignore);
+            }
             WindowMessage::DragWindow => {
               let _ = window.drag_window();
             }
@@ -2477,13 +2576,20 @@ fn handle_user_message<T: UserEvent>(
               tray.set_icon_as_template(is_template);
             }
           }
+          #[cfg(target_os = "macos")]
+          TrayMessage::UpdateTitle(title) => {
+            if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
+              tray.set_title(&title);
+            }
+          }
           TrayMessage::Create(_tray, _tx) => {
             // already handled
           }
-          TrayMessage::Destroy => {
+          TrayMessage::Destroy(tx) => {
             *tray_context.tray.lock().unwrap() = None;
             tray_context.listeners.lock().unwrap().clear();
             tray_context.items.lock().unwrap().clear();
+            tx.send(Ok(())).unwrap();
           }
         }
       }
@@ -2612,14 +2718,13 @@ fn handle_event_loop<T: UserEvent>(
           items.contains_key(&menu_id.0)
         };
         if has_menu {
-          listeners.replace(tray_context.listeners.clone());
+          listeners.replace(tray_context.listeners.lock().unwrap().clone());
           tray_id = *id;
           break;
         }
       }
       drop(trays);
       if let Some(listeners) = listeners {
-        let listeners = listeners.lock().unwrap();
         let handlers = listeners.iter();
         for handler in handlers {
           handler(&event);
@@ -2859,10 +2964,6 @@ fn create_webview<T: UserEvent>(
 
   let window_event_listeners = WindowEventListeners::default();
 
-  #[cfg(target_os = "macos")]
-  {
-    window_builder.inner = window_builder.inner.with_fullsize_content_view(true);
-  }
   #[cfg(windows)]
   {
     window_builder.inner = window_builder
@@ -2894,6 +2995,9 @@ fn create_webview<T: UserEvent>(
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
+  }
+  if let Some(user_agent) = webview_attributes.user_agent {
+    webview_builder = webview_builder.with_user_agent(&user_agent);
   }
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(

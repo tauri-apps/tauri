@@ -3,7 +3,7 @@ authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 homepage = "https://tauri.app"
 license = "Apache-2.0 OR MIT"
@@ -176,7 +176,8 @@ api-all = [
   "process-all",
   "protocol-all",
   "shell-all",
-  "window-all"
+  "window-all",
+  "app-all"
 ]
 clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
 clipboard-read-text = [ "clipboard" ]
@@ -250,6 +251,7 @@ window-all = [
   "window-set-cursor-visible",
   "window-set-cursor-icon",
   "window-set-cursor-position",
+  "window-set-ignore-cursor-events",
   "window-start-dragging",
   "window-print"
 ]
@@ -279,8 +281,12 @@ window-set-cursor-grab = [ ]
 window-set-cursor-visible = [ ]
 window-set-cursor-icon = [ ]
 window-set-cursor-position = [ ]
+window-set-ignore-cursor-events = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
+app-all = [ "app-show", "app-hide" ]
+app-show = [ ]
+app-hide = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]

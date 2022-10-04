@@ -172,7 +172,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   {
     res = if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
-      Ok(exe_dir.join(format!("../lib/{}", package_info.package_name())))
+      exe_dir
+        .join(format!("../lib/{}", package_info.package_name()))
+        .canonicalize()
+        .map_err(Into::into)
     } else if let Some(appdir) = &env.appdir {
       let appdir: &std::path::Path = appdir.as_ref();
       Ok(PathBuf::from(format!(
@@ -191,7 +194,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 
   #[cfg(target_os = "macos")]
   {
-    res = Ok(exe_dir.join("../Resources"));
+    res = exe_dir
+      .join("../Resources")
+      .canonicalize()
+      .map_err(Into::into);
   }
 
   res

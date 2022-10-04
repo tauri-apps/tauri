@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,7 +20,7 @@ fn has_feature(feature: &str) -> bool {
     .unwrap()
     .push(feature.to_string());
 
-  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
+  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
   // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
   std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
     .map(|x| x == "1")
@@ -59,6 +59,7 @@ fn main() {
       "remove-dir",
       "remove-file",
       "rename-file",
+      "exists",
     ],
     api_all,
   );
@@ -92,6 +93,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],
@@ -128,6 +130,8 @@ fn main() {
   alias_module("process", &["relaunch", "exit"], api_all);
 
   alias_module("clipboard", &["write-text", "read-text"], api_all);
+
+  alias_module("app", &["show", "hide"], api_all);
 
   let checked_features_out_path =
     Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");

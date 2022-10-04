@@ -87,6 +87,7 @@
   let cursorX = null
   let cursorY = null
   let cursorIcon = 'default'
+  let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
 
   function openUrl() {
@@ -212,6 +213,7 @@
     windowMap[selectedWindow]?.setCursorPosition(
       new PhysicalPosition(cursorX, cursorY)
     )
+  $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -236,7 +238,7 @@
   {/if}
   {#if windowMap[selectedWindow]}
     <br />
-    <div>
+    <div class="flex flex-wrap gap-2">
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
@@ -412,6 +414,10 @@
       <label>
         <input type="checkbox" bind:checked={cursorVisible} />
         Visible
+      </label>
+      <label>
+        <input type="checkbox" bind:checked={cursorIgnoreEvents} />
+        Ignore events
       </label>
     </div>
     <div class="flex gap-2">

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --clearScreen false --port 5000",
+    "dev": "vite --clearScreen false --port 5173",
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "node ../../tooling/cli/node/tauri.js"
@@ -18,6 +18,6 @@
     "@sveltejs/vite-plugin-svelte": "^1.0.0-next.49",
     "svelte": "^3.49.0",
     "unocss": "^0.39.3",
-    "vite": "^2.9.12"
+    "vite": "^2.9.13"
   }
 }

@@ -25,7 +25,6 @@ exclude = [
 
 # default to small, optimized workspace release binaries
 [profile.release]
-strip = true
 panic = "abort"
 codegen-units = 1
 lto = true

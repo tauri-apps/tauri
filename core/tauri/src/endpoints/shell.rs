@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -25,7 +25,7 @@ type ChildId = u32;
 type ChildStore = Arc<Mutex<HashMap<ChildId, crate::api::process::CommandChild>>>;
 
 #[cfg(any(shell_execute, shell_sidecar))]
-fn command_childs() -> &'static ChildStore {
+fn command_child_store() -> &'static ChildStore {
   use once_cell::sync::Lazy;
   static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
   &STORE
@@ -160,12 +160,12 @@ impl Cmd {
       let (mut rx, child) = command.spawn()?;
 
       let pid = child.pid();
-      command_childs().lock().unwrap().insert(pid, child);
+      command_child_store().lock().unwrap().insert(pid, child);
 
       crate::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
           if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
-            command_childs().lock().unwrap().remove(&pid);
+            command_child_store().lock().unwrap().remove(&pid);
           }
           let js = crate::api::ipc::format_callback(on_event_fn, &event)
             .expect("unable to serialize CommandEvent");
@@ -184,7 +184,7 @@ impl Cmd {
     pid: ChildId,
     buffer: Buffer,
   ) -> super::Result<()> {
-    if let Some(child) = command_childs().lock().unwrap().get_mut(&pid) {
+    if let Some(child) = command_child_store().lock().unwrap().get_mut(&pid) {
       match buffer {
         Buffer::Text(t) => child.write(t.as_bytes())?,
         Buffer::Raw(r) => child.write(&r)?,
@@ -195,7 +195,7 @@ impl Cmd {
 
   #[module_command_handler(shell_script)]
   fn kill_child<R: Runtime>(_context: InvokeContext<R>, pid: ChildId) -> super::Result<()> {
-    if let Some(child) = command_childs().lock().unwrap().remove(&pid) {
+    if let Some(child) = command_child_store().lock().unwrap().remove(&pid) {
       child.kill()?;
     }
     Ok(())

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,10 +8,6 @@
 )]
 
 mod cmd;
-#[cfg(mobile)]
-mod mobile;
-#[cfg(mobile)]
-pub use mobile::*;
 
 use serde::Serialize;
 use tauri::{window::WindowBuilder, App, AppHandle, RunEvent, WindowUrl};
@@ -66,6 +62,7 @@ impl AppBuilder {
 
         #[allow(unused_mut)]
         let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
+          .user_agent("Tauri API")
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.);

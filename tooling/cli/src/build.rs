@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -154,7 +154,7 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let mut interface = AppInterface::new(config_)?;
+  let mut interface = AppInterface::new(config_, options.target.clone())?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
@@ -285,7 +285,7 @@ pub fn command(mut options: Options) -> Result<()> {
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-      // make sure we have our package builts
+      // make sure we have our package built
       let mut signed_paths = Vec::new();
       for elem in updater_bundles {
         // we expect to have only one path in the vec but we iter if we add

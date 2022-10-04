@@ -17,6 +17,7 @@
   import Updater from './views/Updater.svelte'
   import Clipboard from './views/Clipboard.svelte'
   import WebRTC from './views/WebRTC.svelte'
+  import App from './views/App.svelte'
 
   import { onMount } from 'svelte'
   import { listen } from '@tauri-apps/api/event'
@@ -36,6 +37,9 @@
     onMessage(`File drop: ${JSON.stringify(event.payload)}`)
   })
 
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
+
   const views = [
     {
       label: 'Welcome',
@@ -47,12 +51,12 @@
       component: Communication,
       icon: 'i-codicon-radio-tower'
     },
-    {
+    !isMobile && {
       label: 'CLI',
       component: Cli,
       icon: 'i-codicon-terminal'
     },
-    {
+    !isMobile && {
       label: 'Dialog',
       component: Dialog,
       icon: 'i-codicon-multiple-windows'
@@ -67,17 +71,22 @@
       component: Http,
       icon: 'i-ph-globe-hemisphere-west'
     },
-    {
+    !isMobile && {
       label: 'Notifications',
       component: Notifications,
       icon: 'i-codicon-bell-dot'
     },
-    {
+    !isMobile && {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
+    },
+    !isMobile && {
       label: 'Window',
       component: Window,
       icon: 'i-codicon-window'
     },
-    {
+    !isMobile && {
       label: 'Shortcuts',
       component: Shortcuts,
       icon: 'i-codicon-record-keys'
@@ -87,12 +96,12 @@
       component: Shell,
       icon: 'i-codicon-terminal-bash'
     },
-    {
+    !isMobile && {
       label: 'Updater',
       component: Updater,
       icon: 'i-codicon-cloud-download'
     },
-    {
+    !isMobile && {
       label: 'Clipboard',
       component: Clipboard,
       icon: 'i-codicon-clippy'
@@ -146,13 +155,13 @@
   // dark/light
   let isDark
   onMount(() => {
-    isDark = localStorage.getItem('theme') == 'dark'
+    isDark = localStorage && localStorage.getItem('theme') == 'dark'
     applyTheme(isDark)
   })
   function applyTheme(isDark) {
     const html = document.querySelector('html')
     isDark ? html.classList.add('dark') : html.classList.remove('dark')
-    localStorage.setItem('theme', isDark ? 'dark' : '')
+    localStorage && localStorage.setItem('theme', isDark ? 'dark' : '')
   }
   function toggleDark() {
     isDark = !isDark
@@ -218,14 +227,82 @@
   onMount(async () => {
     isWindows = (await os.platform()) === 'win32'
   })
+
+  // mobile
+  let isSideBarOpen = false
+  let sidebar
+  let sidebarToggle
+  let isDraggingSideBar = false
+  let draggingStartPosX = 0
+  let draggingEndPosX = 0
+  const clamp = (min, num, max) => Math.min(Math.max(num, min), max)
+
+  function toggleSidebar(sidebar, isSideBarOpen) {
+    sidebar.style.setProperty(
+      '--translate-x',
+      `${isSideBarOpen ? '0' : '-18.75'}rem`
+    )
+  }
+
+  onMount(() => {
+    sidebar = document.querySelector('#sidebar')
+    sidebarToggle = document.querySelector('#sidebarToggle')
+
+    document.addEventListener('click', (e) => {
+      if (sidebarToggle.contains(e.target)) {
+        isSideBarOpen = !isSideBarOpen
+      } else if (isSideBarOpen && !sidebar.contains(e.target)) {
+        isSideBarOpen = false
+      }
+    })
+
+    document.addEventListener('touchstart', (e) => {
+      if (sidebarToggle.contains(e.target)) return
+
+      const x = e.touches[0].clientX
+      if ((0 < x && x < 20 && !isSideBarOpen) || isSideBarOpen) {
+        isDraggingSideBar = true
+        draggingStartPosX = x
+      }
+    })
+
+    document.addEventListener('touchmove', (e) => {
+      if (isDraggingSideBar) {
+        const x = e.touches[0].clientX
+        draggingEndPosX = x
+        const delta = (x - draggingStartPosX) / 10
+        sidebar.style.setProperty(
+          '--translate-x',
+          `-${clamp(0, isSideBarOpen ? 0 - delta : 18.75 - delta, 18.75)}rem`
+        )
+      }
+    })
+
+    document.addEventListener('touchend', () => {
+      if (isDraggingSideBar) {
+        const delta = (draggingEndPosX - draggingStartPosX) / 10
+        isSideBarOpen = isSideBarOpen ? delta > -(18.75 / 2) : delta > 18.75 / 2
+      }
+
+      isDraggingSideBar = false
+    })
+  })
+
+  $: {
+    const sidebar = document.querySelector('#sidebar')
+    if (sidebar) {
+      toggleSidebar(sidebar, isSideBarOpen)
+    }
+  }
 </script>
 
+<!-- custom titlebar for Windows -->
 {#if isWindows}
   <div
     class="w-screen select-none h-8 pl-2 flex justify-between items-center absolute text-primaryText dark:text-darkPrimaryText"
     data-tauri-drag-region
   >
-    <span class="text-darkPrimaryText">Tauri API Validation</span>
+    <span class="lt-sm:pl-10 text-darkPrimaryText">Tauri API Validation</span>
     <span
       class="
       h-100%
@@ -272,12 +349,27 @@
   </div>
 {/if}
 
+<!-- Sidebar toggle, only visible on small screens -->
+<div
+  id="sidebarToggle"
+  class="z-2000 display-none lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
+            bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
+>
+  {#if isSideBarOpen}
+    <span class="i-codicon-close animate-duration-300ms animate-fade-in" />
+  {:else}
+    <span class="i-codicon-menu animate-duration-300ms animate-fade-in" />
+  {/if}
+</div>
+
 <div
   class="flex h-screen w-screen overflow-hidden children-pt8 children-pb-2 text-primaryText dark:text-darkPrimaryText"
 >
   <aside
-    class="w-75 {isWindows
-      ? 'bg-darkPrimaryLighter/60'
+    id="sidebar"
+    class="lt-sm:h-screen lt-sm:shadow-lg lt-sm:shadow lt-sm:transition-transform lt-sm:absolute lt-sm:z-1999
+     {isWindows
+      ? 'bg-darkPrimaryLighter/60 lt-sm:bg-darkPrimaryLighter'
       : 'bg-darkPrimaryLighter'} transition-colors-250 overflow-hidden grid select-none px-2"
   >
     <img
@@ -314,7 +406,7 @@
       target="_blank"
       href="https://github.com/tauri-apps/tauri"
     >
-      Github
+      GitHub
       <span class="i-codicon-link-external" />
     </a>
     <a
@@ -332,19 +424,24 @@
       class="flex flex-col overflow-y-auto children-h-10 children-flex-none gap-1"
     >
       {#each views as view}
-        <a
-          href="##"
-          class="nv {selected === view ? 'nv_selected' : ''}"
-          on:click={() => select(view)}
-        >
-          <div class="{view.icon} mr-2" />
-          <p>{view.label}</p></a
-        >
+        {#if view}
+          <a
+            href="##"
+            class="nv {selected === view ? 'nv_selected' : ''}"
+            on:click={() => {
+              select(view)
+              isSideBarOpen = false
+            }}
+          >
+            <div class="{view.icon} mr-2" />
+            <p>{view.label}</p></a
+          >
+        {/if}
       {/each}
     </div>
   </aside>
   <main
-    class="flex-1 bg-primary dark:bg-darkPrimary transition-colors-250 grid grid-rows-[2fr_auto]"
+    class="flex-1 bg-primary dark:bg-darkPrimary transition-transform transition-colors-250 grid grid-rows-[2fr_auto]"
   >
     <div class="px-5 overflow-hidden grid grid-rows-[auto_1fr]">
       <h1>{selected.label}</h1>

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -291,14 +291,47 @@ impl PathResolver {
       .map(|dir| dir.join(resource_relpath(path.as_ref())))
   }
 
-  /// Returns the path to the suggested directory for your app config files.
-  pub fn app_dir(&self) -> Option<PathBuf> {
-    crate::api::path::app_dir(&self.config)
+  /// Returns the path to the suggested directory for your app's config files.
+  pub fn app_config_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_config_dir(&self.config)
   }
 
-  /// Returns the path to the suggested log directory.
+  /// Returns the path to the suggested directory for your app's data files.
+  pub fn app_data_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_data_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's local data files.
+  pub fn app_local_data_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_local_data_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's cache files.
+  pub fn app_cache_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_cache_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's log files.
+  pub fn app_log_dir(&self) -> Option<PathBuf> {
+    crate::api::path::app_log_dir(&self.config)
+  }
+
+  /// Returns the path to the suggested directory for your app's config files.
+  #[deprecated(
+    since = "1.2.0",
+    note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead."
+  )]
+  pub fn app_dir(&self) -> Option<PathBuf> {
+    self.app_config_dir()
+  }
+
+  /// Returns the path to the suggested directory for your app's log files.
+  #[deprecated(
+    since = "1.2.0",
+    note = "Will be removed in 2.0.0. Use `app_log_dir` instead."
+  )]
   pub fn log_dir(&self) -> Option<PathBuf> {
-    crate::api::path::log_dir(&self.config)
+    self.app_log_dir()
   }
 }
 
@@ -704,6 +737,28 @@ macro_rules! shared_app_impl {
           manager: self.manager.clone(),
         }
       }
+
+      /// Shows the application, but does not automatically focus it.
+      #[cfg(target_os = "macos")]
+      pub fn show(&self) -> crate::Result<()> {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.show(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.show()?,
+          _ => unreachable!(),
+        }
+        Ok(())
+      }
+
+      /// Hides the application.
+      #[cfg(target_os = "macos")]
+      pub fn hide(&self) -> crate::Result<()> {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.hide(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.hide()?,
+          _ => unreachable!(),
+        }
+        Ok(())
+      }
     }
   };
 }
@@ -868,7 +923,7 @@ impl<R: Runtime> App<R> {
         // we only listen for `tauri://update`
         // once we receive the call, we check if an update is available or not
         // if there is a new update we emit `tauri://update-available` with details
-        // this is the user responsabilities to display dialog and ask if user want to install
+        // this is the user responsibilities to display dialog and ask if user want to install
         // to install the update you need to invoke the Event `tauri://update-install`
         updater::listener(handle);
       }
@@ -1433,8 +1488,12 @@ impl<R: Runtime> Builder<R> {
       let url = config.url.clone();
       let label = config.label.clone();
       let file_drop_enabled = config.file_drop_enabled;
+      let user_agent = config.user_agent.clone();
 
       let mut webview_attributes = WebviewAttributes::new(url);
+      if let Some(ua) = user_agent {
+        webview_attributes = webview_attributes.user_agent(&ua.to_string());
+      }
       if !file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }

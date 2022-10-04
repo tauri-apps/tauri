@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -30,6 +30,8 @@ function uid(): number {
  * The backend uses the identifier to `eval()` the callback.
  *
  * @return A unique identifier associated with the callback function.
+ *
+ * @since 1.0.0
  */
 function transformCallback(
   callback?: (response: any) => void,
@@ -53,7 +55,11 @@ function transformCallback(
   return identifier
 }
 
-/** Command arguments. */
+/**
+ * Command arguments.
+ *
+ * @since 1.0.0
+ */
 interface InvokeArgs {
   [key: string]: unknown
 }
@@ -69,6 +75,8 @@ interface InvokeArgs {
  * @param cmd The command name.
  * @param args The optional arguments to pass to the command.
  * @return A promise resolving or rejecting to the backend response.
+ *
+ * @since 1.0.0
  */
 async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -82,7 +90,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
     }, true)
 
     window.__TAURI_IPC__({
-      __cmd: cmd,
+      cmd,
       callback,
       error,
       ...args
@@ -102,10 +110,10 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
  * @example
  * ```typescript
- * import { appDir, join } from '@tauri-apps/api/path';
+ * import { appDataDir, join } from '@tauri-apps/api/path';
  * import { convertFileSrc } from '@tauri-apps/api/tauri';
- * const appDirPath = await appDir();
- * const filePath = await join(appDir, 'assets/video.mp4');
+ * const appDataDirPath = await appDataDir();
+ * const filePath = await join(appDataDirPath, 'assets/video.mp4');
  * const assetUrl = convertFileSrc(filePath);
  *
  * const video = document.getElementById('my-video');
@@ -117,6 +125,8 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * ```
  *
  * @return the URL that can be used as source on the webview.
+ *
+ * @since 1.0.0
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
   const path = encodeURIComponent(filePath)

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -70,7 +70,7 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
 
   let config = serde_json::from_value(config)?;
 
-  // Reset workding directory.
+  // Reset working directory.
   std::env::set_current_dir(old_cwd).map_err(CodegenConfigError::CurrentDir)?;
 
   Ok((config, parent))

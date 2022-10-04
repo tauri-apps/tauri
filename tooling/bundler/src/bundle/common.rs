@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,7 +15,7 @@ use std::{
 };
 
 /// Returns true if the path has a filename indicating that it is a high-density
-/// "retina" icon.  Specifically, returns true the the file stem ends with
+/// "retina" icon.  Specifically, returns true the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
 /// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
 #[allow(dead_code)]

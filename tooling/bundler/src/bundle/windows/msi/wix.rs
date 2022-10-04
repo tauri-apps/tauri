@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -25,7 +26,7 @@ use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 use zip::ZipArchive;
 
-// URLS for the WIX toolchain.  Can be used for crossplatform compilation.
+// URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
 pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
@@ -280,6 +281,17 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
+fn clear_env_for_wix(cmd: &mut Command) {
+  cmd.env_clear();
+  let required_vars: Vec<std::ffi::OsString> =
+    vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
+  for (k, v) in std::env::vars_os() {
+    if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
+      cmd.env(k, v);
+    }
+  }
+}
+
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
@@ -333,6 +345,7 @@ fn run_candle(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(cwd)
@@ -368,6 +381,7 @@ fn run_light(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(build_path)
@@ -593,7 +607,9 @@ pub fn build_wix_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(settings.version_string()));
   let bundle_id = settings.bundle_identifier();
-  let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
+  let manufacturer = settings
+    .publisher()
+    .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(

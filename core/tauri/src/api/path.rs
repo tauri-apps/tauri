@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,61 +13,94 @@ use crate::{Config, Env, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-/// A base directory to be used in [`resolve_path`].
-///
-/// The base directory is the optional root of a file system operation.
-/// If informed by the API call, all paths will be relative to the path of the given directory.
-///
-/// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
-#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
-#[repr(u16)]
-#[non_exhaustive]
-pub enum BaseDirectory {
-  /// The Audio directory.
-  Audio = 1,
-  /// The Cache directory.
-  Cache,
-  /// The Config directory.
-  Config,
-  /// The Data directory.
-  Data,
-  /// The LocalData directory.
-  LocalData,
-  /// The Desktop directory.
-  Desktop,
-  /// The Document directory.
-  Document,
-  /// The Download directory.
-  Download,
-  /// The Executable directory.
-  Executable,
-  /// The Font directory.
-  Font,
-  /// The Home directory.
-  Home,
-  /// The Picture directory.
-  Picture,
-  /// The Public directory.
-  Public,
-  /// The Runtime directory.
-  Runtime,
-  /// The Template directory.
-  Template,
-  /// The Video directory.
-  Video,
-  /// The Resource directory.
-  Resource,
-  /// The default App config directory.
-  /// Resolves to [`BaseDirectory::Config`].
-  App,
-  /// The Log directory.
-  /// Resolves to `BaseDirectory::Home/Library/Logs/{bundle_identifier}` on macOS
-  /// and `BaseDirectory::Config/{bundle_identifier}/logs` on linux and windows.
-  Log,
-  /// A temporary directory.
-  /// Resolves to [`temp_dir`].
-  Temp,
+// we have to wrap the BaseDirectory enum in a module for #[allow(deprecated)]
+// to work, because the procedural macros on the enum prevent it from working directly
+// TODO: remove this workaround in v2 along with deprecated variants
+#[allow(deprecated)]
+mod base_directory {
+  use super::*;
+
+  /// A base directory to be used in [`resolve_path`].
+  ///
+  /// The base directory is the optional root of a file system operation.
+  /// If informed by the API call, all paths will be relative to the path of the given directory.
+  ///
+  /// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
+  #[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
+  #[repr(u16)]
+  #[non_exhaustive]
+  pub enum BaseDirectory {
+    /// The Audio directory.
+    Audio = 1,
+    /// The Cache directory.
+    Cache,
+    /// The Config directory.
+    Config,
+    /// The Data directory.
+    Data,
+    /// The LocalData directory.
+    LocalData,
+    /// The Desktop directory.
+    Desktop,
+    /// The Document directory.
+    Document,
+    /// The Download directory.
+    Download,
+    /// The Executable directory.
+    Executable,
+    /// The Font directory.
+    Font,
+    /// The Home directory.
+    Home,
+    /// The Picture directory.
+    Picture,
+    /// The Public directory.
+    Public,
+    /// The Runtime directory.
+    Runtime,
+    /// The Template directory.
+    Template,
+    /// The Video directory.
+    Video,
+    /// The Resource directory.
+    Resource,
+    /// The default app config directory.
+    /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+    #[deprecated(
+      since = "1.2.0",
+      note = "Will be removed in 2.0.0. Use `BaseDirectory::AppConfig` or BaseDirectory::AppData` instead."
+    )]
+    App,
+    /// The default app log directory.
+    /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
+    /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+    #[deprecated(
+      since = "1.2.0",
+      note = "Will be removed in 2.0.0. Use `BaseDirectory::AppLog` instead."
+    )]
+    Log,
+    /// A temporary directory.
+    /// Resolves to [`temp_dir`].
+    Temp,
+    /// The default app config directory.
+    /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
+    AppConfig,
+    /// The default app data directory.
+    /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
+    AppData,
+    /// The default app local data directory.
+    /// Resolves to [`BaseDirectory::LocalData`]`/{bundle_identifier}`.
+    AppLocalData,
+    /// The default app cache directory.
+    /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
+    AppCache,
+    /// The default app log directory.
+    /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
+    /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
+    AppLog,
+  }
 }
+pub use base_directory::BaseDirectory;
 
 impl BaseDirectory {
   /// Gets the variable that represents this [`BaseDirectory`] for string paths.
@@ -90,9 +123,16 @@ impl BaseDirectory {
       Self::Template => "$TEMPLATE",
       Self::Video => "$VIDEO",
       Self::Resource => "$RESOURCE",
+      #[allow(deprecated)]
       Self::App => "$APP",
+      #[allow(deprecated)]
       Self::Log => "$LOG",
       Self::Temp => "$TEMP",
+      Self::AppConfig => "$APPCONFIG",
+      Self::AppData => "$APPDATA",
+      Self::AppLocalData => "$APPLOCALDATA",
+      Self::AppCache => "$APPCACHE",
+      Self::AppLog => "$APPLOG",
     }
   }
 
@@ -116,9 +156,16 @@ impl BaseDirectory {
       "$TEMPLATE" => Self::Template,
       "$VIDEO" => Self::Video,
       "$RESOURCE" => Self::Resource,
+      #[allow(deprecated)]
       "$APP" => Self::App,
+      #[allow(deprecated)]
       "$LOG" => Self::Log,
       "$TEMP" => Self::Temp,
+      "$APPCONFIG" => Self::AppConfig,
+      "$APPDATA" => Self::AppData,
+      "$APPLOCALDATA" => Self::AppLocalData,
+      "$APPCACHE" => Self::AppCache,
+      "$APPLOG" => Self::AppLog,
       _ => return None,
     };
     Some(res)
@@ -192,7 +239,7 @@ pub fn parse<P: AsRef<Path>>(
 ///   context.package_info(),
 ///   &Env::default(),
 ///   "db/tauri.sqlite",
-///   Some(BaseDirectory::App))
+///   Some(BaseDirectory::AppData))
 /// .expect("failed to resolve path");
 /// assert_eq!(path.to_str().unwrap(), "/home/${whoami}/.config/com.tauri.app/db/tauri.sqlite");
 ///
@@ -242,9 +289,16 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::Template => template_dir(),
       BaseDirectory::Video => video_dir(),
       BaseDirectory::Resource => resource_dir(package_info, env),
-      BaseDirectory::App => app_dir(config),
-      BaseDirectory::Log => log_dir(config),
+      #[allow(deprecated)]
+      BaseDirectory::App => app_config_dir(config),
+      #[allow(deprecated)]
+      BaseDirectory::Log => app_log_dir(config),
       BaseDirectory::Temp => Some(temp_dir()),
+      BaseDirectory::AppConfig => app_config_dir(config),
+      BaseDirectory::AppData => app_data_dir(config),
+      BaseDirectory::AppLocalData => app_local_data_dir(config),
+      BaseDirectory::AppCache => app_cache_dir(config),
+      BaseDirectory::AppLog => app_log_dir(config),
     };
     if let Some(mut base_dir_path_value) = base_dir_path {
       // use the same path resolution mechanism as the bundler's resource injection algorithm
@@ -336,7 +390,7 @@ pub fn local_data_dir() -> Option<PathBuf> {
 /// ## Platform-specific
 ///
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
-/// - **macOS:** Resolves to `$HOME/Library/Desktop`.
+/// - **macOS:** Resolves to `$HOME/Desktop`.
 /// - **Windows:** Resolves to `{FOLDERID_Desktop}`.
 pub fn desktop_dir() -> Option<PathBuf> {
   dirs_next::desktop_dir()
@@ -459,25 +513,52 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
   crate::utils::platform::resource_dir(package_info, env).ok()
 }
 
-/// Returns the path to the suggested directory for your app config files.
+/// Returns the path to the suggested directory for your app's config files.
 ///
-/// Resolves to `${config_dir}/${bundle_identifier}`.
+/// Resolves to [`config_dir`]`/${bundle_identifier}`.
 ///
-/// See [`PathResolver::app_dir`](crate::PathResolver#method.app_dir) for a more convenient helper function.
-pub fn app_dir(config: &Config) -> Option<PathBuf> {
+/// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
+pub fn app_config_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
-/// Returns the path to the suggested log directory.
+/// Returns the path to the suggested directory for your app's data files.
+///
+/// Resolves to [`data_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
+pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's local data files.
+///
+/// Resolves to [`local_data_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
+pub fn app_local_data_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's cache files.
+///
+/// Resolves to [`cache_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_cache_dir`](crate::PathResolver#method.app_cache_dir) for a more convenient helper function.
+pub fn app_cache_dir(config: &Config) -> Option<PathBuf> {
+  dirs_next::cache_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+}
+
+/// Returns the path to the suggested directory for your app's log files.
 ///
 /// ## Platform-specific
 ///
-/// - **Linux:** Resolves to `${config_dir}/${bundle_identifier}`.
-/// - **macOS:** Resolves to `${home_dir}//Library/Logs/{bundle_identifier}`
-/// - **Windows:** Resolves to `${config_dir}/${bundle_identifier}`.
+/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
+/// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
+/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}/logs`.
 ///
-/// See [`PathResolver::log_dir`](crate::PathResolver#method.log_dir) for a more convenient helper function.
-pub fn log_dir(config: &Config) -> Option<PathBuf> {
+/// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
+pub fn app_log_dir(config: &Config) -> Option<PathBuf> {
   #[cfg(target_os = "macos")]
   let path = dirs_next::home_dir().map(|dir| {
     dir
@@ -490,4 +571,34 @@ pub fn log_dir(config: &Config) -> Option<PathBuf> {
     dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier).join("logs"));
 
   path
+}
+
+/// Returns the path to the suggested directory for your app's config files.
+///
+/// Resolves to [`config_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
+#[deprecated(
+  since = "1.2.0",
+  note = "Will be removed in 2.0.0. Use `app_config_dir` or `app_data_dir` instead."
+)]
+pub fn app_dir(config: &Config) -> Option<PathBuf> {
+  app_config_dir(config)
+}
+
+/// Returns the path to the suggested directory for your app's log files.
+///
+/// ## Platform-specific
+///
+/// - **Linux:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+/// - **macOS:** Resolves to [`home_dir`]`/Library/Logs/${bundle_identifier}`
+/// - **Windows:** Resolves to [`config_dir`]`/${bundle_identifier}`.
+///
+/// See [`PathResolver::app_log_dir`](crate::PathResolver#method.app_log_dir) for a more convenient helper function.
+#[deprecated(
+  since = "1.2.0",
+  note = "Will be removed in 2.0.0. Use `app_log_dir` instead."
+)]
+pub fn log_dir(config: &Config) -> Option<PathBuf> {
+  app_log_dir(config)
 }

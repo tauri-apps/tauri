@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -126,6 +126,12 @@ impl CodegenContext {
         config_parent.join(tray_icon).display()
       );
     }
+
+    #[cfg(target_os = "macos")]
+    println!(
+      "cargo:rerun-if-changed={}",
+      config_parent.join("Info.plist").display()
+    );
 
     let code = context_codegen(ContextData {
       dev: self.dev,

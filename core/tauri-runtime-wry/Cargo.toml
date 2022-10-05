@@ -30,7 +30,7 @@ webview2-com = "0.19.1"
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
-percent-encoding = "2.1"
+percent-encoding = "2"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.24"

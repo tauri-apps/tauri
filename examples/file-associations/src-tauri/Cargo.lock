@@ -2340,7 +2340,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.14.0"
-source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#956e31e49abc65270fdc0fc04808e11e7a6bed34"
+source = "git+https://github.com/meowtec/tao/?branch=feat-open-file#eaa7f09ffcfbdac2ac6a83a01f0068878d6caee3"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -2376,6 +2376,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "unicode-segmentation",
+ "url",
  "uuid 1.1.1",
  "windows 0.39.0",
  "windows-implement",
@@ -2480,6 +2481,7 @@ dependencies = [
 name = "tauri-file-associations-demo"
 version = "0.1.0"
 dependencies = [
+ "percent-encoding",
  "serde",
  "serde_json",
  "tauri",
@@ -2512,6 +2514,7 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "thiserror",
+ "url",
  "uuid 1.1.1",
  "webview2-com",
  "windows 0.39.0",

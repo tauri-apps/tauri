@@ -179,8 +179,9 @@ pub enum RunEvent {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
-  /// Emitted when urls are opened by application.
-  OpenURLs(Vec<String>),
+  /// Emitted when the user wants to open the specified URLs with the app.
+  #[cfg(target_os = "macos")]
+  OpenURLs(Vec<url::Url>),
   /// Updater event.
   #[cfg(updater)]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]
@@ -1669,10 +1670,6 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     manager.on_window_close(label);
   }
 
-  if let RuntimeRunEvent::OpenURLs(urls) = &event {
-    app_handle.trigger_global("open-urls", Some(to_string(urls).unwrap()));
-  }
-
   let event = match event {
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { tx } => RunEvent::ExitRequested {
@@ -1708,7 +1705,11 @@ fn on_event_loop_event<R: Runtime, F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
     RuntimeRunEvent::Resumed => RunEvent::Resumed,
     RuntimeRunEvent::MainEventsCleared => RunEvent::MainEventsCleared,
     RuntimeRunEvent::UserEvent(t) => t.into(),
-    RuntimeRunEvent::OpenURLs(urls) => RunEvent::OpenURLs(urls),
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::OpenURLs(urls) => {
+      app_handle.trigger_global("open-urls", Some(to_string(&urls).unwrap()));
+      RunEvent::OpenURLs(urls)
+    }
     _ => unimplemented!(),
   };
 

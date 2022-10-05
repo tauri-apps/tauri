@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.2", features = [ "derive" ] }
+clap = { version = "4.0", features = [ "derive" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "1.0.7", path = "../bundler" }
 colored = "2.0"

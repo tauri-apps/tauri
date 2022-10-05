@@ -17,3 +17,6 @@ url = "2.2.2"
 [features]
 default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
+
+[patch.crates-io]
+tao = { git = "https://github.com/meowtec/tao/", branch = "feat-open-file" }

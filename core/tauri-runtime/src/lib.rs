@@ -280,6 +280,7 @@ pub enum RunEvent<T: UserEvent> {
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
+  /// Emitted when urls are opened by application.
   OpenURLs(Vec<String>),
   /// A custom event defined by the user.
   UserEvent(T),

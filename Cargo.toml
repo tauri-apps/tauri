@@ -30,3 +30,6 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+[patch.crates-io]
+tao = { git = "https://github.com/meowtec/tao/", branch = "feat-open-file" }

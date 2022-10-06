@@ -1160,12 +1160,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1202,12 +1202,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -2036,27 +2036,39 @@ interface WindowOptions {
   theme?: Theme
   /**
    * The style of the macOS title bar.
+   *
+   * @since 1.2.0
    */
   titleBarStyle?: TitleBarStyle
   /**
    * If `true`, sets the window title to be hidden on macOS.
+   *
+   * @since 1.2.0
    */
   hiddenTitle?: boolean
   /**
    * The user agent for the webview.
+   *
+   * @since 1.2.0
    */
   userAgent?: string
+  /**
+   * Data directory for the webview.
+   *
+   * @since 1.2.0
+   */
+  dataDirectory?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: new PhysicalPosition(m.position.x, m.position.y),
+      size: new PhysicalSize(m.size.width, m.size.height)
+    }
 }
 
 /**

@@ -670,6 +670,13 @@
           "description": "If `true`, sets the window title to be hidden on macOS.",
           "default": false,
           "type": "boolean"
+        },
+        "dataDirectory": {
+          "description": "Data directory for the webview.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

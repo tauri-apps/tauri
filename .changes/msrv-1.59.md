@@ -10,3 +10,4 @@
 "tauri-runtime-wry": minor
 ---
 
+Update MSRV to 1.59

@@ -870,6 +870,9 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
+  /// Data directory for the webview.
+  #[serde(default, alias = "data-directory")]
+  pub data_directory: Option<PathBuf>,
 }
 
 impl Default for WindowConfig {
@@ -901,6 +904,7 @@ impl Default for WindowConfig {
       theme: None,
       title_bar_style: Default::default(),
       hidden_title: false,
+      data_directory: None,
     }
   }
 }
@@ -3032,6 +3036,7 @@ mod build {
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
+      let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
 
       literal_struct!(
         tokens,
@@ -3061,7 +3066,8 @@ mod build {
         skip_taskbar,
         theme,
         title_bar_style,
-        hidden_title
+        hidden_title,
+        data_directory
       );
     }
   }

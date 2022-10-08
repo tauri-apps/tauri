@@ -283,6 +283,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self
+  }
+
   fn theme(self, theme: Option<Theme>) -> Self {
     self
   }

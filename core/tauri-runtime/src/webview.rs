@@ -210,6 +210,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn hidden_title(self, hidden: bool) -> Self;
 
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[cfg(target_os = "macos")]
+  fn accept_first_mouse(self, transparent: bool) -> Self;
+
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;
 

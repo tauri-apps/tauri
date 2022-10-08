@@ -2151,4 +2151,11 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }
+export type {
+  Theme,
+  TitleBarStyle,
+  Monitor,
+  ScaleFactorChanged,
+  FileDropEvent,
+  WindowOptions
+}

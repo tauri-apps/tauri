@@ -27,7 +27,7 @@ pub use wry::application::platform::macos::{
 
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use crate::{Error, Message, Result, TrayId, TrayMessage};
+use crate::{send_user_message, Context, Error, Message, Result, TrayId, TrayMessage};
 
 use tauri_runtime::{menu::MenuHash, SystemTray, UserEvent};
 
@@ -123,6 +123,7 @@ pub fn create_tray<T>(
 
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
+  pub(crate) context: Context<T>,
   pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
@@ -172,10 +173,13 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   }
 
   fn destroy(&self) -> Result<()> {
-    self
-      .proxy
-      .send_event(Message::Tray(self.id, TrayMessage::Destroy))
-      .map_err(|_| Error::FailedToSendMessage)
+    let (tx, rx) = std::sync::mpsc::channel();
+    send_user_message(
+      &self.context,
+      Message::Tray(self.id, TrayMessage::Destroy(tx)),
+    )?;
+    rx.recv().unwrap()?;
+    Ok(())
   }
 }
 

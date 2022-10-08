@@ -710,8 +710,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       window = window
         .hidden_title(config.hidden_title)
-        .title_bar_style(config.title_bar_style)
-        .accept_first_mouse(config.accept_first_mouse);
+        .title_bar_style(config.title_bar_style);
     }
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -876,12 +875,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
-    self
-  }
-
-  #[cfg(target_os = "macos")]
-  fn accept_first_mouse(mut self, accept: bool) -> Self {
-    self.inner = self.inner.with_accept_first_mouse(accept);
     self
   }
 
@@ -2957,7 +2950,8 @@ fn create_webview<T: UserEvent>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
-    .with_transparent(is_window_transparent);
+    .with_transparent(is_window_transparent)
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));

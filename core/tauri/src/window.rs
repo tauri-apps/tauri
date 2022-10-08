@@ -462,14 +462,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Sets whether clicking an inactive window also clicks through to the webview.
-  #[cfg(target_os = "macos")]
-  #[must_use]
-  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
-    self.window_builder = self.window_builder.accept_first_mouse(accept);
-    self
-  }
-
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
@@ -541,6 +533,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.webview_attributes.clipboard = true;
+    self
+  }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
     self
   }
 }

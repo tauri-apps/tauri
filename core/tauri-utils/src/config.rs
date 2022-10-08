@@ -838,7 +838,7 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
-  /// Whether the window will be initially hidden or focused.
+  /// Whether the window will be initially focused or not.
   #[serde(default = "default_focus")]
   pub focus: bool,
   /// Whether the window is transparent or not.

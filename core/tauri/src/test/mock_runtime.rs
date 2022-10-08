@@ -221,7 +221,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn focus(self) -> Self {
+  fn focused(self, focused: bool) -> Self {
     self
   }
 

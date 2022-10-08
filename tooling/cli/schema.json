@@ -612,7 +612,7 @@
           "type": "boolean"
         },
         "focus": {
-          "description": "Whether the window will be initially hidden or focused.",
+          "description": "Whether the window will be initially focused or not.",
           "default": true,
           "type": "boolean"
         },

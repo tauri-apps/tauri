@@ -189,7 +189,7 @@ async function open(
  *
  * @since 1.0.0
  */
-async function save(options: SaveDialogOptions = {}): Promise<string> {
+async function save(options: SaveDialogOptions = {}): Promise<string | null> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }

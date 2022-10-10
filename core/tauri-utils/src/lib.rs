@@ -211,6 +211,108 @@ impl Default for Env {
   }
 }
 
+/// Size unit type. Effective to size related settings
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum SizeUnit {
+  /// Use logical pixel size
+  Logical,
+  /// Use physical pixel size
+  Physical
+}
+
+impl Default for SizeUnit {
+    fn default() -> Self {
+        SizeUnit::Logical
+    }
+}
+
+impl Serialize for SizeUnit {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for SizeUnit {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "physical" => Self::Physical,
+      _ => Self::Logical,
+    })
+  }
+}
+
+impl Display for SizeUnit {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Logical => "Logical",
+        Self::Physical => "Physical"
+      }
+    )
+  }
+}
+
+/// Position unit type. Effective to position related settings
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum PositionUnit {
+  /// Use logical pixel size
+  Logical,
+  /// Use physical pixel size
+  Physical
+}
+
+impl Default for PositionUnit {
+    fn default() -> Self {
+      PositionUnit::Logical
+    }
+}
+
+impl Serialize for PositionUnit {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for PositionUnit {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "physical" => Self::Physical,
+      _ => Self::Logical,
+    })
+  }
+}
+
+impl Display for PositionUnit {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Logical => "Logical",
+        Self::Physical => "Physical"
+      }
+    )
+  }
+}
+
 /// The result type of `tauri-utils`.
 pub type Result<T> = std::result::Result<T, Error>;
 

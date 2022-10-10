@@ -197,7 +197,15 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn position_physical(self, x: f64, y: f64) -> Self {
+    self
+  }
+
   fn inner_size(self, min_width: f64, min_height: f64) -> Self {
+    self
+  }
+
+  fn inner_physical_size(self, min_width: f64, min_height: f64) -> Self {
     self
   }
 
@@ -205,7 +213,15 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn min_inner_physical_size(self, min_width: f64, min_height: f64) -> Self {
+    self
+  }
+
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
+    self
+  }
+
+  fn max_inner_physical_size(self, max_width: f64, max_height: f64) -> Self {
     self
   }
 

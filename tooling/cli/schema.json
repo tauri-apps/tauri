@@ -564,6 +564,24 @@
           "type": "number",
           "format": "double"
         },
+        "sizeUnit": {
+          "description": "Size unit type. Effective to size related settings",
+          "default": "logical",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SizeUnit"
+            }
+          ]
+        },
+        "positionUnit": {
+          "description": "Size unit type. Effective to position related settings",
+          "default": "logical",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PositionUnit"
+            }
+          ]
+        },
         "minWidth": {
           "description": "The min window width.",
           "type": [
@@ -703,6 +721,22 @@
         "Visible",
         "Transparent",
         "Overlay"
+      ]
+    },
+    "SizeUnit": {
+      "description": "Size unit type. Effective to size related settings",
+      "type": "string",
+      "enum": [
+        "logical",
+        "physical"
+      ]
+    },
+    "PositionUnit": {
+      "description": "Position unit type. Effective to position related settings",
+      "type": "string",
+      "enum": [
+        "logical",
+        "physical"
       ]
     },
     "CliConfig": {

@@ -35,8 +35,7 @@ use std::{
 pub mod parse;
 
 use crate::TitleBarStyle;
-use crate::SizeUnit;
-use crate::PositionUnit;
+use crate::PixelUnit;
 
 pub use self::parse::parse;
 
@@ -869,12 +868,9 @@ pub struct WindowConfig {
   /// The style of the macOS title bar.
   #[serde(default, alias = "title-bar-style")]
   pub title_bar_style: TitleBarStyle,
-  /// Size unit type. Effective to size related settings
+  /// Pixel unit type. Effective to size and position related settings
   #[serde(default, alias = "size-unit")]
-  pub size_unit: SizeUnit,
-  /// Position unit type. Effective to position related settings
-  #[serde(default, alias = "position-unit")]
-  pub position_unit: PositionUnit,
+  pub pixel_unit: PixelUnit,
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
@@ -908,8 +904,7 @@ impl Default for WindowConfig {
       skip_taskbar: false,
       theme: None,
       title_bar_style: Default::default(),
-      size_unit: Default::default(),
-      position_unit: Default::default(),
+      pixel_unit: Default::default(),
       hidden_title: false,
     }
   }
@@ -3014,20 +3009,9 @@ mod build {
     }
   }
 
-  impl ToTokens for crate::SizeUnit {
+  impl ToTokens for crate::PixelUnit {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::SizeUnit };
-
-      tokens.append_all(match self {
-        Self::Logical => quote! { #prefix::Logical },
-        Self::Physical => quote! { #prefix::Physical }
-      })
-    }
-  }
-
-  impl ToTokens for crate::PositionUnit {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::PositionUnit };
+      let prefix = quote! { ::tauri::utils::PixelUnit };
 
       tokens.append_all(match self {
         Self::Logical => quote! { #prefix::Logical },
@@ -3063,8 +3047,7 @@ mod build {
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
-      let size_unit = &self.size_unit;
-      let position_unit = &self.position_unit;
+      let pixel_unit = &self.pixel_unit;
       let hidden_title = self.hidden_title;
 
       literal_struct!(
@@ -3095,8 +3078,7 @@ mod build {
         skip_taskbar,
         theme,
         title_bar_style,
-        size_unit,
-        position_unit,
+        pixel_unit,
         hidden_title
       );
     }

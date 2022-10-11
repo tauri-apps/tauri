@@ -36,7 +36,7 @@ use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWind
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme, SizeUnit, PositionUnit};
+use tauri_utils::{config::WindowConfig, debug_eprintln, Theme, PixelUnit};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -727,14 +727,17 @@ impl WindowBuilder for WindowBuilderWrapper {
         This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
     }
-    match config.size_unit {
-        SizeUnit::Physical => {
+    match config.pixel_unit {
+        PixelUnit::Physical => {
           window = window.inner_physical_size(config.width, config.height);
           if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
             window = window.min_inner_physical_size(min_width, min_height);
           }
           if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
             window = window.max_inner_physical_size(max_width, max_height);
+          }
+          if let (Some(x), Some(y)) = (config.x, config.y) {
+            window = window.position_physical(x, y);
           }
         },
         _ => {
@@ -745,21 +748,11 @@ impl WindowBuilder for WindowBuilderWrapper {
           if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
             window = window.max_inner_size(max_width, max_height);
           }
+          if let (Some(x), Some(y)) = (config.x, config.y) {
+            window = window.position(x, y);
+          }
         }
     }
-    match config.position_unit {
-      PositionUnit::Physical => {
-        if let (Some(x), Some(y)) = (config.x, config.y) {
-          window = window.position_physical(x, y);
-        }
-      }
-      _ => {
-        if let (Some(x), Some(y)) = (config.x, config.y) {
-          window = window.position(x, y);
-        }
-      },
-    }
-
     if config.center {
       window = window.center();
     }

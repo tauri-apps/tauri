@@ -6,4 +6,4 @@
 "tauri-runtime": minor
 ---
 
-Add `sizeUnit` and `positionUnit` configs to allow using of physical pixels as unit.
+Add `pixelUnit`  configs to allow using of physical pixels as unit.

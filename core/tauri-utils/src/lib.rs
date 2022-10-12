@@ -223,11 +223,10 @@ pub enum PixelUnit {
 }
 
 impl Default for PixelUnit {
-    fn default() -> Self {
-        PixelUnit::Logical
-    }
+  fn default() -> Self {
+    PixelUnit::Logical
+  }
 }
-
 
 impl Display for PixelUnit {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

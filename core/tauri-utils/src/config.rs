@@ -34,8 +34,8 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::TitleBarStyle;
 use crate::PixelUnit;
+use crate::TitleBarStyle;
 
 pub use self::parse::parse;
 

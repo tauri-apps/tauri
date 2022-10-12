@@ -219,7 +219,7 @@ pub enum PixelUnit {
   /// Use logical pixel size
   Logical,
   /// Use physical pixel size
-  Physical
+  Physical,
 }
 
 impl Default for PixelUnit {
@@ -236,7 +236,7 @@ impl Display for PixelUnit {
       "{}",
       match self {
         Self::Logical => "Logical",
-        Self::Physical => "Physical"
+        Self::Physical => "Physical",
       }
     )
   }

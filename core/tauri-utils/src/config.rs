@@ -3015,7 +3015,7 @@ mod build {
 
       tokens.append_all(match self {
         Self::Logical => quote! { #prefix::Logical },
-        Self::Physical => quote! { #prefix::Physical }
+        Self::Physical => quote! { #prefix::Physical },
       })
     }
   }

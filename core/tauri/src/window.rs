@@ -462,6 +462,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets whether macOS can automatically organize windows into tabs.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn automatic_tabbing(mut self, enabled: bool) -> Self {
+    self.window_builder = self.window_builder.automatic_tabbing(enabled);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,

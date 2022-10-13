@@ -670,6 +670,11 @@
           "description": "If `true`, sets the window title to be hidden on macOS.",
           "default": false,
           "type": "boolean"
+        },
+        "automaticTabbing": {
+          "description": "Sets whether macOS can automatically organize windows into tabs.",
+          "default": true,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

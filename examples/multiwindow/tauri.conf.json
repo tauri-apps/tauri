@@ -35,12 +35,14 @@
       {
         "label": "Main",
         "title": "Tauri - Main",
+        "automaticTabbing": false,
         "width": 800,
         "height": 600
       },
       {
         "label": "Secondary",
         "title": "Tauri - Secondary",
+        "automaticTabbing": false,
         "width": 600,
         "height": 400
       }

@@ -210,6 +210,11 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn hidden_title(self, hidden: bool) -> Self;
 
+  /// Sets whether the system can automatically organize windows into tabs.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn automatic_tabbing(self, enabled: bool) -> Self;
+
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;
 

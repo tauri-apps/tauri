@@ -2043,6 +2043,10 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
+   * Sets whether macOS can automatically organize windows into tabs.
+   */
+   automaticTabbing?: boolean
+  /**
    * The user agent for the webview.
    */
   userAgent?: string

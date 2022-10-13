@@ -710,7 +710,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     {
       window = window
         .hidden_title(config.hidden_title)
-        .title_bar_style(config.title_bar_style);
+        .title_bar_style(config.title_bar_style)
+        .automatic_tabbing(config.automatic_tabbing);
     }
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -875,6 +876,12 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn automatic_tabbing(mut self, enabled: bool) -> Self {
+    self.inner = self.inner.with_automatic_window_tabbing(enabled);
     self
   }
 

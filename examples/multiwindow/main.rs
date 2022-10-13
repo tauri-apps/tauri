@@ -24,7 +24,6 @@ fn main() {
         tauri::WindowUrl::App("index.html".into()),
       )
       .title("Tauri - Rust")
-      .automatic_tabbing(false)
       .build()?;
       Ok(())
     })

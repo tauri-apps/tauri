@@ -144,7 +144,7 @@ pub enum Error {
 
   /// a "safety valve" error for authors not finding a more appropriate error variant
   #[error("{0}")]
-  OtherError(String)
+  OtherError(String),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

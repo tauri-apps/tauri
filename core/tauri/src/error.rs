@@ -143,7 +143,7 @@ pub enum Error {
   InvalidWindowHandle,
 
   /// a _safety valve_ error for authors not finding a more appropriate error variant
-  #[error("{0)")]
+  #[error("{0}")]
   OtherError(String)
 }
 

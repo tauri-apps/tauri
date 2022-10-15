@@ -142,7 +142,7 @@ pub enum Error {
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
 
-  /// a _safety valve_ error for authors not finding a more appropriate error variant
+  /// a "safety valve" error for authors not finding a more appropriate error variant
   #[error("{0}")]
   OtherError(String)
 }

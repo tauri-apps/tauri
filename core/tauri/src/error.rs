@@ -88,6 +88,16 @@ pub enum Error {
   /// Error initializing plugin.
   #[error("failed to initialize plugin `{0}`: {1}")]
   PluginInitialization(String, String),
+
+  /// An error which occurs while trying to fulfil a plugin's `#[command]` request from
+  /// a frontend request during run time.
+  #[error("the {0} Tauri plugin ran into problems executing the \"{1}\" command: {2}")]
+  PluginCommandError(String, String, String),
+  /// An error which occurs while trying to fulfil a locally defined app/user `#[command]` request from
+  /// a frontend request during run time.  
+  #[error("the user/app defined command \"{0}\" ran into problems executing: {1}")]
+  CommandError(String, String),
+
   /// A part of the URL is malformed or invalid. This may occur when parsing and combining
   /// user-provided URLs and paths.
   #[error("invalid url: {0}")]
@@ -131,6 +141,10 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
+
+  /// a _safety valve_ error for authors not finding a more appropriate error variant
+  #[error("{0)")]
+  OtherError(String)
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

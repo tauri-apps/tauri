@@ -671,6 +671,11 @@
           "default": false,
           "type": "boolean"
         },
+        "acceptFirstMouse": {
+          "description": "Whether clicking an inactive window also clicks through to the webview.",
+          "default": false,
+          "type": "boolean"
+        },
         "automaticTabbing": {
           "description": "Sets whether macOS can automatically organize windows into tabs.",
           "default": true,

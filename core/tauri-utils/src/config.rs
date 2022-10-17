@@ -870,6 +870,9 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
+  /// Whether clicking an inactive window also clicks through to the webview.
+  #[serde(default, alias = "accept-first-mouse")]
+  pub accept_first_mouse: bool,
   /// Sets whether macOS can automatically organize windows into tabs.
   #[serde(default, alias = "automatic-tabbing")]
   pub automatic_tabbing: bool,
@@ -904,6 +907,7 @@ impl Default for WindowConfig {
       theme: None,
       title_bar_style: Default::default(),
       hidden_title: false,
+      accept_first_mouse: false,
       automatic_tabbing: true,
     }
   }
@@ -3036,6 +3040,7 @@ mod build {
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
+      let accept_first_mouse = self.accept_first_mouse;
       let automatic_tabbing = self.automatic_tabbing;
 
       literal_struct!(
@@ -3067,6 +3072,7 @@ mod build {
         theme,
         title_bar_style,
         hidden_title,
+        accept_first_mouse,
         automatic_tabbing
       );
     }

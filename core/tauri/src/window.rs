@@ -543,6 +543,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self.webview_attributes.clipboard = true;
     self
   }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
 }
 
 // TODO: expand these docs since this is a pretty important type

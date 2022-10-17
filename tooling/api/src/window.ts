@@ -2043,6 +2043,10 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
+   * Whether clicking an inactive window also clicks through to the webview.
+   */
+  acceptFirstMouse?: boolean
+  /**
    * Sets whether macOS can automatically organize windows into tabs.
    */
   automaticTabbing?: boolean

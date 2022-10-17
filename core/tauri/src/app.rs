@@ -1484,14 +1484,13 @@ impl<R: Runtime> Builder<R> {
     for config in manager.config().tauri.windows.clone() {
       let url = config.url.clone();
       let label = config.label.clone();
-      let file_drop_enabled = config.file_drop_enabled;
-      let user_agent = config.user_agent.clone();
 
-      let mut webview_attributes = WebviewAttributes::new(url);
-      if let Some(ua) = user_agent {
+      let mut webview_attributes =
+        WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
+      if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
-      if !file_drop_enabled {
+      if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }
 

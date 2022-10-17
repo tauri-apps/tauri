@@ -27,6 +27,7 @@ pub struct WebviewAttributes {
   pub data_directory: Option<PathBuf>,
   pub file_drop_handler_enabled: bool,
   pub clipboard: bool,
+  pub accept_first_mouse: bool,
 }
 
 impl WebviewAttributes {
@@ -39,6 +40,7 @@ impl WebviewAttributes {
       data_directory: None,
       file_drop_handler_enabled: true,
       clipboard: false,
+      accept_first_mouse: false,
     }
   }
 
@@ -77,6 +79,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.clipboard = true;
+    self
+  }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.accept_first_mouse = accept;
     self
   }
 }

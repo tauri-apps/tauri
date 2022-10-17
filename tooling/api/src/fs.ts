@@ -503,6 +503,33 @@ async function copyFile(
 }
 
 /**
+ * Removes a file.
+ * @example
+ * ```typescript
+ * import { removeFile, BaseDirectory } from '@tauri-apps/api/fs';
+ * // Remove the `$APPConfig/app.conf` file
+ * await removeFile('app.conf', { dir: BaseDirectory.AppConfig });
+ * ```
+ *
+ * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
+ */
+async function removeFile(
+  file: string,
+  options: FsOptions = {}
+): Promise<void> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'removeFile',
+      path: file,
+      options
+    }
+  })
+}
+
+/**
  * Renames a file.
  * @example
  * ```typescript
@@ -573,6 +600,7 @@ export {
   createDir,
   removeDir,
   copyFile,
+  removeFile,
   renameFile,
   exists
 }

@@ -8,7 +8,9 @@ on:
   push:
     paths:
       - '.github/workflows/check-generated-files.yml'
+      - 'tooling/api/src/**'
       - 'core/tauri/scripts/bundle.global.js'
+      - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
 
 concurrency:
@@ -28,8 +30,10 @@ jobs:
         with:
           filters: |
             bundle:
+              - 'tooling/api/src/**'
               - 'core/tauri/scripts/bundle.global.js'
             schema:
+              - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
 
   check-bundle:

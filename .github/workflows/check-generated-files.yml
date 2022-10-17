@@ -1,0 +1,117 @@
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: Check generated files
+
+on:
+  push:
+    paths:
+      - '.github/workflows/check-generated-files.yml'
+      - 'tooling/api/src/**'
+      - 'core/tauri/scripts/bundle.global.js'
+      - 'core/tauri-utils/src/config.rs'
+      - 'tooling/cli/schema.json'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      bundle: ${{ steps.filter.outputs.bundle }}
+      schema: ${{ steps.filter.outputs.schema }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            bundle:
+              - 'tooling/api/src/**'
+              - 'core/tauri/scripts/bundle.global.js'
+            schema:
+              - 'core/tauri-utils/src/config.rs'
+              - 'tooling/cli/schema.json'
+
+  check-bundle:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
+    steps:
+      - uses: actions/checkout@v2
+      - name: generate bundle
+        working-directory: tooling/api
+        run: yarn && yarn build
+      - name: check bundle
+        run: ./.scripts/ci/has-diff.sh
+
+  check-schema:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/checkout@v2
+      - name: install stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev
+
+      - name: Get current date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
+
+      - name: Get current date
+        if: matrix.platform == 'windows-latest'
+        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Cache cargo state
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo_state
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          restore-keys: |
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
+
+      - name: Cache CLI cargo target
+        uses: actions/cache@v2
+        env:
+          cache-name: cargo_cli
+        with:
+          path: tooling/cli/target
+          # Add date to the cache to keep it up to date
+          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          # Restore from outdated cache for speed
+          restore-keys: |
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}
+            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
+            ${{ matrix.platform }}-stable-
+            ${{ matrix.platform }}-
+
+      - name: generate schema.json
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./tooling/cli/Cargo.toml
+
+      - name: check schema
+        run: ./.scripts/ci/has-diff.sh

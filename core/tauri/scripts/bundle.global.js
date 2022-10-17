@@ -6,4 +6,3 @@ Note that this is not an issue if running this frontend on a browser instead of 
 `:`
 `;async function Kt(){return i({__tauriModule:"Os",message:{cmd:"platform"}})}async function Qt(){return i({__tauriModule:"Os",message:{cmd:"version"}})}async function Zt(){return i({__tauriModule:"Os",message:{cmd:"osType"}})}async function Yt(){return i({__tauriModule:"Os",message:{cmd:"arch"}})}async function Xt(){return i({__tauriModule:"Os",message:{cmd:"tempdir"}})}var Bt=b;return ve(en);})();
 window.__TAURI__ = __TAURI_IIFE__
-

@@ -2045,6 +2045,10 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
+   * Whether clicking an inactive window also clicks through to the webview.
+   */
+  acceptFirstMouse?: boolean
+  /**
    * The user agent for the webview.
    */
   userAgent?: string

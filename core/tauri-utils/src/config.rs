@@ -874,6 +874,9 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
+  /// Whether clicking an inactive window also clicks through to the webview.
+  #[serde(default, alias = "accept-first-mouse")]
+  pub accept_first_mouse: bool,
 }
 
 impl Default for WindowConfig {
@@ -906,6 +909,7 @@ impl Default for WindowConfig {
       title_bar_style: Default::default(),
       pixel_unit: Default::default(),
       hidden_title: false,
+      accept_first_mouse: false,
     }
   }
 }
@@ -3049,6 +3053,7 @@ mod build {
       let title_bar_style = &self.title_bar_style;
       let pixel_unit = &self.pixel_unit;
       let hidden_title = self.hidden_title;
+      let accept_first_mouse = self.accept_first_mouse;
 
       literal_struct!(
         tokens,
@@ -3079,7 +3084,8 @@ mod build {
         theme,
         title_bar_style,
         pixel_unit,
-        hidden_title
+        hidden_title,
+        accept_first_mouse
       );
     }
   }

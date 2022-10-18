@@ -18,6 +18,7 @@ fn main() {
       });
     })
     .setup(|app| {
+      #[allow(unused_mut)]
       let mut builder = WindowBuilder::new(
         app,
         "Rust".to_string(),

@@ -462,11 +462,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Sets whether macOS can automatically organize windows into tabs.
+  /// Defines the window [tabbing identifier].
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[cfg(target_os = "macos")]
   #[must_use]
-  pub fn automatic_tabbing(mut self, enabled: bool) -> Self {
-    self.window_builder = self.window_builder.automatic_tabbing(enabled);
+  pub fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.window_builder = self.window_builder.tabbing_identifier(identifier);
     self
   }
 

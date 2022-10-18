@@ -676,10 +676,12 @@
           "default": false,
           "type": "boolean"
         },
-        "automaticTabbing": {
-          "description": "Sets whether macOS can automatically organize windows into tabs.",
-          "default": true,
-          "type": "boolean"
+        "tabbingIdentifier": {
+          "description": "Defines the window [tabbing identifier].\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

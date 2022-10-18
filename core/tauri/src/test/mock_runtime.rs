@@ -284,7 +284,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "macos")]
-  fn automatic_tabbing(self, enabled: bool) -> Self {
+  fn tabbing_identifier(self, identifier: &str) -> Self {
     self
   }
 

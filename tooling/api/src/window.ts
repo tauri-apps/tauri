@@ -2047,9 +2047,11 @@ interface WindowOptions {
    */
   acceptFirstMouse?: boolean
   /**
-   * Sets whether macOS can automatically organize windows into tabs.
+   * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
+   *
+   * Windows with the same tabbing identifier are grouped together.
    */
-  automaticTabbing?: boolean
+  tabbingIdentifier?: boolean
   /**
    * The user agent for the webview.
    */

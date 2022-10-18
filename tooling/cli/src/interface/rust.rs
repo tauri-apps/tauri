@@ -391,6 +391,7 @@ impl Rust {
         for event in events {
           let on_exit = on_exit.clone();
           let event_path = event.path;
+          info!("File {} changed!", event_path.display());
 
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
             let config = reload_config(options.config.as_deref())?;

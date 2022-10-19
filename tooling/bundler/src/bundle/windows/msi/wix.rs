@@ -281,6 +281,17 @@ pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   extract_zip(&data, path)
 }
 
+fn clear_env_for_wix(cmd: &mut Command) {
+  cmd.env_clear();
+  let required_vars: Vec<std::ffi::OsString> =
+    vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
+  for (k, v) in std::env::vars_os() {
+    if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
+      cmd.env(k, v);
+    }
+  }
+}
+
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
 fn run_candle(
   settings: &Settings,
@@ -334,6 +345,7 @@ fn run_candle(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(cwd)
@@ -369,6 +381,7 @@ fn run_light(
     cmd.arg("-ext");
     cmd.arg(ext);
   }
+  clear_env_for_wix(&mut cmd);
   cmd
     .args(&args)
     .current_dir(build_path)

@@ -93,7 +93,7 @@ notify-rust = { version = "4.5", default-features = false, features = [ "d" ], o
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
-webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
+webkit2gtk = { version = "0.18.2", features = [ "v2_36" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -176,7 +176,8 @@ api-all = [
   "process-all",
   "protocol-all",
   "shell-all",
-  "window-all"
+  "window-all",
+  "app-all"
 ]
 clipboard-all = [ "clipboard-write-text", "clipboard-read-text" ]
 clipboard-read-text = [ "clipboard" ]
@@ -250,6 +251,7 @@ window-all = [
   "window-set-cursor-visible",
   "window-set-cursor-icon",
   "window-set-cursor-position",
+  "window-set-ignore-cursor-events",
   "window-start-dragging",
   "window-print"
 ]
@@ -279,8 +281,12 @@ window-set-cursor-grab = [ ]
 window-set-cursor-visible = [ ]
 window-set-cursor-icon = [ ]
 window-set-cursor-position = [ ]
+window-set-ignore-cursor-events = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
+app-all = [ "app-show", "app-hide" ]
+app-show = [ ]
+app-hide = [ ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]

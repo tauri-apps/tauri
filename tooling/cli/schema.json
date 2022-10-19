@@ -28,6 +28,11 @@
       "default": {
         "allowlist": {
           "all": false,
+          "app": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
           "clipboard": {
             "all": false,
             "readText": false,
@@ -108,6 +113,7 @@
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -295,6 +301,11 @@
           "description": "The allowlist configuration.",
           "default": {
             "all": false,
+            "app": {
+              "all": false,
+              "hide": false,
+              "show": false
+            },
             "clipboard": {
               "all": false,
               "readText": false,
@@ -375,6 +386,7 @@
               "setFocus": false,
               "setFullscreen": false,
               "setIcon": false,
+              "setIgnoreCursorEvents": false,
               "setMaxSize": false,
               "setMinSize": false,
               "setPosition": false,
@@ -507,6 +519,13 @@
             }
           ]
         },
+        "userAgent": {
+          "description": "The user agent for the webview",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "fileDropEnabled": {
           "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
           "default": true,
@@ -593,7 +612,7 @@
           "type": "boolean"
         },
         "focus": {
-          "description": "Whether the window will be initially hidden or focused.",
+          "description": "Whether the window will be initially focused or not.",
           "default": true,
           "type": "boolean"
         },
@@ -637,6 +656,32 @@
               "type": "null"
             }
           ]
+        },
+        "titleBarStyle": {
+          "description": "The style of the macOS title bar.",
+          "default": "Visible",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TitleBarStyle"
+            }
+          ]
+        },
+        "hiddenTitle": {
+          "description": "If `true`, sets the window title to be hidden on macOS.",
+          "default": false,
+          "type": "boolean"
+        },
+        "acceptFirstMouse": {
+          "description": "Whether clicking an inactive window also clicks through to the webview.",
+          "default": false,
+          "type": "boolean"
+        },
+        "tabbingIdentifier": {
+          "description": "Defines the window [tabbing identifier] for macOS.\n\nWindows with matching tabbing identifiers will be grouped together. If the tabbing identifier is not set, automatic tabbing will be disabled.\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -661,6 +706,15 @@
       "enum": [
         "Light",
         "Dark"
+      ]
+    },
+    "TitleBarStyle": {
+      "description": "How the window title bar should be displayed.",
+      "type": "string",
+      "enum": [
+        "Visible",
+        "Transparent",
+        "Overlay"
       ]
     },
     "CliConfig": {
@@ -1552,6 +1606,7 @@
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -1697,6 +1752,19 @@
               "$ref": "#/definitions/ClipboardAllowlistConfig"
             }
           ]
+        },
+        "app": {
+          "description": "App APIs allowlist.",
+          "default": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppAllowlistConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1768,7 +1836,7 @@
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
       "anyOf": [
         {
           "description": "A list of paths that are allowed by this scope.",
@@ -1940,6 +2008,11 @@
           "default": false,
           "type": "boolean"
         },
+        "setIgnoreCursorEvents": {
+          "description": "Allows ignoring cursor events.",
+          "default": false,
+          "type": "boolean"
+        },
         "startDragging": {
           "description": "Allows start dragging on the window.",
           "default": false,
@@ -2012,7 +2085,7 @@
           "type": "string"
         },
         "cmd": {
-          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
           "default": "",
           "type": "string"
         },
@@ -2278,6 +2351,28 @@
       },
       "additionalProperties": false
     },
+    "AppAllowlistConfig": {
+      "description": "Allowlist for the app APIs.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all app APIs.",
+          "default": false,
+          "type": "boolean"
+        },
+        "show": {
+          "description": "Enables the app's `show` API.",
+          "default": false,
+          "type": "boolean"
+        },
+        "hide": {
+          "description": "Enables the app's `hide` API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "SecurityConfig": {
       "description": "Security configuration.",
       "type": "object",
@@ -2462,6 +2557,13 @@
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
           "default": true,
           "type": "boolean"
+        },
+        "title": {
+          "description": "Title for MacOS tray",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

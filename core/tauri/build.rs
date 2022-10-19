@@ -93,6 +93,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],
@@ -129,6 +130,8 @@ fn main() {
   alias_module("process", &["relaunch", "exit"], api_all);
 
   alias_module("clipboard", &["write-text", "read-text"], api_all);
+
+  alias_module("app", &["show", "hide"], api_all);
 
   let checked_features_out_path =
     Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");

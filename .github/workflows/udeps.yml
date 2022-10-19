@@ -40,6 +40,7 @@ jobs:
           filters: |
             tauri:
               - 'core/tauri/**'
+              - '!core/tauri/scripts/**'
             build:
               - 'core/tauri-build/**'
             codegen:

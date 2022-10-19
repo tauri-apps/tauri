@@ -27,7 +27,7 @@ pub use wry::application::platform::macos::{
 
 use wry::application::system_tray::{SystemTray as WrySystemTray, SystemTrayBuilder};
 
-use crate::{Error, Message, Result, TrayId, TrayMessage};
+use crate::{send_user_message, Context, Error, Message, Result, TrayId, TrayMessage};
 
 use tauri_runtime::{menu::MenuHash, SystemTray, UserEvent};
 
@@ -105,7 +105,13 @@ pub fn create_tray<T>(
 
   #[cfg(target_os = "macos")]
   {
-    builder = builder.with_icon_as_template(system_tray.icon_as_template)
+    builder = builder
+      .with_icon_as_template(system_tray.icon_as_template)
+      .with_menu_on_left_click(system_tray.menu_on_left_click);
+
+    if let Some(title) = system_tray.title {
+      builder = builder.with_title(&title);
+    }
   }
 
   let tray = builder
@@ -117,6 +123,7 @@ pub fn create_tray<T>(
 
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
+  pub(crate) context: Context<T>,
   pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }
@@ -154,11 +161,25 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  fn destroy(&self) -> Result<()> {
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
     self
       .proxy
-      .send_event(Message::Tray(self.id, TrayMessage::Destroy))
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTitle(title.to_owned()),
+      ))
       .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn destroy(&self) -> Result<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    send_user_message(
+      &self.context,
+      Message::Tray(self.id, TrayMessage::Destroy(tx)),
+    )?;
+    rx.recv().unwrap()?;
+    Ok(())
   }
 }
 

@@ -873,6 +873,14 @@ pub struct WindowConfig {
   /// Whether clicking an inactive window also clicks through to the webview.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[serde(default, alias = "tabbing-identifier")]
+  pub tabbing_identifier: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -905,6 +913,7 @@ impl Default for WindowConfig {
       title_bar_style: Default::default(),
       hidden_title: false,
       accept_first_mouse: false,
+      tabbing_identifier: None,
     }
   }
 }
@@ -3037,6 +3046,7 @@ mod build {
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
+      let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
 
       literal_struct!(
         tokens,
@@ -3067,7 +3077,8 @@ mod build {
         theme,
         title_bar_style,
         hidden_title,
-        accept_first_mouse
+        accept_first_mouse,
+        tabbing_identifier
       );
     }
   }

@@ -675,6 +675,13 @@
           "description": "Whether clicking an inactive window also clicks through to the webview.",
           "default": false,
           "type": "boolean"
+        },
+        "tabbingIdentifier": {
+          "description": "Defines the window [tabbing identifier].\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

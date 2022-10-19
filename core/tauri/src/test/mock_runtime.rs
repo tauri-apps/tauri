@@ -283,6 +283,11 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(self, identifier: &str) -> Self {
+    self
+  }
+
   fn theme(self, theme: Option<Theme>) -> Self {
     self
   }

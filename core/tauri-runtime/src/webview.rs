@@ -219,6 +219,16 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn hidden_title(self, hidden: bool) -> Self;
 
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  fn tabbing_identifier(self, identifier: &str) -> Self;
+
   /// Forces a theme or uses the system settings if None was provided.
   fn theme(self, theme: Option<Theme>) -> Self;
 

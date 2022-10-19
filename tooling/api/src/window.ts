@@ -2047,6 +2047,13 @@ interface WindowOptions {
    */
   acceptFirstMouse?: boolean
   /**
+   * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
+   *
+   * Windows with the same tabbing identifier will be grouped together.
+   * If the tabbing identifier is not set, automatic tabbing will be disabled.
+   */
+  tabbingIdentifier?: string
+  /**
    * The user agent for the webview.
    */
   userAgent?: string

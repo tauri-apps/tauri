@@ -680,6 +680,8 @@ impl From<CursorIcon> for CursorIconWrapper {
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
+  #[cfg(target_os = "macos")]
+  tabbing_identifier: Option<String>,
   menu: Option<Menu>,
 }
 
@@ -711,6 +713,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window
         .hidden_title(config.hidden_title)
         .title_bar_style(config.title_bar_style);
+      if let Some(identifier) = &config.tabbing_identifier {
+        window = window.tabbing_identifier(identifier);
+      }
     }
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -875,6 +880,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.inner = self.inner.with_tabbing_identifier(identifier);
+    self.tabbing_identifier.replace(identifier.into());
     self
   }
 
@@ -2928,6 +2940,16 @@ fn create_webview<T: UserEvent>(
     window_builder.inner = window_builder
       .inner
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    if window_builder.tabbing_identifier.is_none()
+      || window_builder.inner.window.transparent
+      || !window_builder.inner.window.decorations
+    {
+      window_builder.inner = window_builder.inner.with_automatic_window_tabbing(false);
+    }
   }
 
   let is_window_transparent = window_builder.inner.window.transparent;

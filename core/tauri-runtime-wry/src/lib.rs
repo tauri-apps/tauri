@@ -6,10 +6,7 @@
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 use tauri_runtime::{
-  http::{
-    Request as HttpRequest, RequestParts as HttpRequestParts, Response as HttpResponse,
-    ResponseParts as HttpResponseParts,
-  },
+  http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
   monitor::Monitor,
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
@@ -63,10 +60,7 @@ use wry::{
       UserAttentionType as WryUserAttentionType,
     },
   },
-  http::{
-    Request as WryHttpRequest, RequestParts as WryRequestParts, Response as WryHttpResponse,
-    ResponseParts as WryResponseParts,
-  },
+  http::{Request as WryRequest, Response as WryResponse},
   webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
 };
 
@@ -276,70 +270,36 @@ impl<T: UserEvent> fmt::Debug for Context<T> {
   }
 }
 
-struct HttpRequestPartsWrapper(HttpRequestParts);
-
-impl From<HttpRequestPartsWrapper> for HttpRequestParts {
-  fn from(parts: HttpRequestPartsWrapper) -> Self {
-    Self {
-      method: parts.0.method,
-      uri: parts.0.uri,
-      headers: parts.0.headers,
-    }
-  }
-}
-
-impl From<HttpRequestParts> for HttpRequestPartsWrapper {
-  fn from(request: HttpRequestParts) -> Self {
-    Self(HttpRequestParts {
-      method: request.method,
-      uri: request.uri,
-      headers: request.headers,
-    })
-  }
-}
-
-impl From<WryRequestParts> for HttpRequestPartsWrapper {
-  fn from(request: WryRequestParts) -> Self {
-    Self(HttpRequestParts {
-      method: request.method,
-      uri: request.uri,
-      headers: request.headers,
-    })
-  }
-}
-
 struct HttpRequestWrapper(HttpRequest);
 
-impl From<&WryHttpRequest> for HttpRequestWrapper {
-  fn from(req: &WryHttpRequest) -> Self {
-    Self(HttpRequest::new_internal(
-      HttpRequestPartsWrapper::from(req.head.clone()).0,
-      req.body.clone(),
-    ))
+impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
+  fn from(req: &WryRequest<Vec<u8>>) -> Self {
+    let parts = RequestParts {
+      uri: req.uri().to_string(),
+      method: req.method().clone(),
+      headers: req.headers().clone(),
+    };
+    Self(HttpRequest::new_internal(parts, req.body().clone()))
   }
 }
 
 // response
-struct HttpResponsePartsWrapper(WryResponseParts);
-impl From<HttpResponseParts> for HttpResponsePartsWrapper {
-  fn from(response: HttpResponseParts) -> Self {
-    Self(WryResponseParts {
-      mimetype: response.mimetype,
-      status: response.status,
-      version: response.version,
-      headers: response.headers,
-    })
-  }
-}
-
-struct HttpResponseWrapper(WryHttpResponse);
+struct HttpResponseWrapper(WryResponse<Vec<u8>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
-    Self(WryHttpResponse {
-      body,
-      head: HttpResponsePartsWrapper::from(parts).0,
-    })
+    let mut res_builder = WryResponse::builder()
+      .status(parts.status)
+      .version(parts.version);
+    if let Some(mime) = parts.mimetype {
+      res_builder = res_builder.header(CONTENT_TYPE, mime);
+    }
+    for (name, val) in parts.headers.iter() {
+      res_builder = res_builder.header(name, val);
+    }
+
+    let res = res_builder.body(body).unwrap();
+    Self(res)
   }
 }
 
@@ -720,6 +680,8 @@ impl From<CursorIcon> for CursorIconWrapper {
 pub struct WindowBuilderWrapper {
   inner: WryWindowBuilder,
   center: bool,
+  #[cfg(target_os = "macos")]
+  tabbing_identifier: Option<String>,
   menu: Option<Menu>,
 }
 
@@ -730,7 +692,7 @@ unsafe impl Send for WindowBuilderWrapper {}
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Default::default()
+    Self::default().focused(true)
   }
 
   fn with_config(config: WindowConfig) -> Self {
@@ -751,6 +713,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window
         .hidden_title(config.hidden_title)
         .title_bar_style(config.title_bar_style);
+      if let Some(identifier) = &config.tabbing_identifier {
+        window = window.tabbing_identifier(identifier);
+      }
     }
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -843,9 +808,8 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  /// Deprecated since 0.1.4 (noop)
-  /// Windows is automatically focused when created.
-  fn focus(self) -> Self {
+  fn focused(mut self, focused: bool) -> Self {
+    self.inner = self.inner.with_focused(focused);
     self
   }
 
@@ -916,6 +880,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.inner = self.inner.with_tabbing_identifier(identifier);
+    self.tabbing_identifier.replace(identifier.into());
     self
   }
 
@@ -1579,8 +1550,28 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
 #[derive(Clone)]
 enum WindowHandle {
-  Webview(Arc<WebView>),
+  Webview {
+    inner: Arc<WebView>,
+    context_store: WebContextStore,
+    // the key of the WebContext if it's not shared
+    context_key: Option<PathBuf>,
+  },
   Window(Arc<Window>),
+}
+
+impl Drop for WindowHandle {
+  fn drop(&mut self) {
+    if let Self::Webview {
+      inner,
+      context_store,
+      context_key,
+    } = self
+    {
+      if Arc::get_mut(inner).is_some() {
+        context_store.lock().unwrap().remove(context_key);
+      }
+    }
+  }
 }
 
 impl fmt::Debug for WindowHandle {
@@ -1595,7 +1586,7 @@ impl Deref for WindowHandle {
   #[inline(always)]
   fn deref(&self) -> &Window {
     match self {
-      Self::Webview(w) => w.window(),
+      Self::Webview { inner, .. } => inner.window(),
       Self::Window(w) => w,
     }
   }
@@ -1605,7 +1596,7 @@ impl WindowHandle {
   fn inner_size(&self) -> WryPhysicalSize<u32> {
     match self {
       WindowHandle::Window(w) => w.inner_size(),
-      WindowHandle::Webview(w) => w.inner_size(),
+      WindowHandle::Webview { inner, .. } => inner.inner_size(),
     }
   }
 }
@@ -2264,7 +2255,7 @@ fn handle_user_message<T: UserEvent>(
           match window_message {
             #[cfg(desktop)]
             WindowMessage::WithWebview(f) => {
-              if let WindowHandle::Webview(w) = window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 #[cfg(any(
                   target_os = "linux",
                   target_os = "dragonfly",
@@ -2305,19 +2296,19 @@ fn handle_user_message<T: UserEvent>(
 
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::OpenDevTools => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 w.open_devtools();
               }
             }
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::CloseDevTools => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 w.close_devtools();
               }
             }
             #[cfg(any(debug_assertions, feature = "devtools"))]
             WindowMessage::IsDevToolsOpen(tx) => {
-              if let WindowHandle::Webview(w) = &window {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
                 tx.send(w.is_devtools_open()).unwrap();
               } else {
                 tx.send(false).unwrap();
@@ -2456,7 +2447,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::Webview(id, webview_message) => match webview_message {
       WebviewMessage::EvaluateScript(script) => {
-        if let Some(WindowHandle::Webview(webview)) =
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
@@ -2465,7 +2456,7 @@ fn handle_user_message<T: UserEvent>(
         }
       }
       WebviewMessage::Print => {
-        if let Some(WindowHandle::Webview(webview)) =
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
           windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
@@ -2942,7 +2933,7 @@ fn to_wry_menu(
 fn create_webview<T: UserEvent>(
   window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
-  web_context: &WebContextStore,
+  web_context_store: &WebContextStore,
   context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
 ) -> Result<WindowWrapper> {
@@ -2971,6 +2962,16 @@ fn create_webview<T: UserEvent>(
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
+  #[cfg(target_os = "macos")]
+  {
+    if window_builder.tabbing_identifier.is_none()
+      || window_builder.inner.window.transparent
+      || !window_builder.inner.window.decorations
+    {
+      window_builder.inner = window_builder.inner.with_automatic_window_tabbing(false);
+    }
+  }
+
   let is_window_transparent = window_builder.inner.window.transparent;
   let menu_items = if let Some(menu) = window_builder.menu {
     let mut menu_items = HashMap::new();
@@ -2991,7 +2992,8 @@ fn create_webview<T: UserEvent>(
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
-    .with_transparent(is_window_transparent);
+    .with_transparent(is_window_transparent)
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
@@ -3020,19 +3022,18 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = web_context.lock().expect("poisoned WebContext store");
+  let mut web_context = web_context_store.lock().expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
   let automation_enabled = std::env::var("TAURI_AUTOMATION").as_deref() == Ok("true");
-  let entry = web_context.entry(
-    // force a unique WebContext when automation is false;
+  let web_context_key = // force a unique WebContext when automation is false;
     // the context must be stored on the HashMap because it must outlive the WebView on macOS
     if automation_enabled {
       webview_attributes.data_directory.clone()
     } else {
       // random unique key
       Some(Uuid::new_v4().as_hyphenated().to_string().into())
-    },
-  );
+    };
+  let entry = web_context.entry(web_context_key.clone());
   let web_context = match entry {
     Occupied(occupied) => occupied.into_mut(),
     Vacant(vacant) => {
@@ -3095,7 +3096,15 @@ fn create_webview<T: UserEvent>(
 
   Ok(WindowWrapper {
     label,
-    inner: Some(WindowHandle::Webview(Arc::new(webview))),
+    inner: Some(WindowHandle::Webview {
+      inner: Arc::new(webview),
+      context_store: web_context_store.clone(),
+      context_key: if automation_enabled {
+        None
+      } else {
+        web_context_key
+      },
+    }),
     menu_items,
     window_event_listeners,
     menu_event_listeners: Default::default(),

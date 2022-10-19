@@ -513,15 +513,11 @@ impl<R: Runtime> WindowManager<R> {
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
-        #[cfg(target_os = "windows")]
         let path = filtered_path
           .strip_prefix("asset://localhost/")
           // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
           // where `$P` is not `localhost/*`
           .unwrap_or("");
-        // safe to unwrap: request.uri() always starts with this prefix
-        #[cfg(not(target_os = "windows"))]
-        let path = filtered_path.strip_prefix("asset://").unwrap();
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();

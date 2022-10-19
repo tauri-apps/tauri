@@ -221,7 +221,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn focus(self) -> Self {
+  fn focused(self, focused: bool) -> Self {
     self
   }
 
@@ -280,6 +280,11 @@ impl WindowBuilder for MockWindowBuilder {
 
   #[cfg(target_os = "macos")]
   fn hidden_title(self, transparent: bool) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(self, identifier: &str) -> Self {
     self
   }
 

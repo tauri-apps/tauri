@@ -33,7 +33,7 @@ use tauri_bundler::{
 
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
-  app_paths::tauri_dir,
+  app_paths::{app_dir, tauri_dir},
   config::{reload as reload_config, wix_settings, Config},
 };
 
@@ -342,6 +342,7 @@ impl Rust {
   ) -> crate::Result<()> {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
+    let app_path = app_dir();
     let tauri_path = tauri_dir();
     let workspace_path = get_workspace_dir()?;
 
@@ -393,10 +394,18 @@ impl Rust {
           let event_path = event.path;
 
           if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+            info!("Tauri configuration changed. Rewriting manifest...");
             let config = reload_config(options.config.as_deref())?;
             self.app_settings.manifest =
               rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
           } else {
+            info!(
+              "File {} changed. Rebuilding application...",
+              event_path
+                .strip_prefix(&app_path)
+                .unwrap_or(&event_path)
+                .display()
+            );
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again
             // So the app should only be started when a file other than tauri.conf.json is changed

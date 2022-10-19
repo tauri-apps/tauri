@@ -4,7 +4,6 @@
 
 use std::{
   collections::HashMap,
-  ffi::OsStr,
   fs::{File, FileType},
   io::{Read, Write},
   path::{Path, PathBuf},
@@ -30,6 +29,7 @@ use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
+use tauri_utils::config::parse::is_configuration_file;
 
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
@@ -393,7 +393,7 @@ impl Rust {
           let on_exit = on_exit.clone();
           let event_path = event.path;
 
-          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+          if is_configuration_file(&event_path) {
             info!("Tauri configuration changed. Rewriting manifest...");
             let config = reload_config(options.config.as_deref())?;
             self.app_settings.manifest =

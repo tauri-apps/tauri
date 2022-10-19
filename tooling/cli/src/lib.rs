@@ -14,7 +14,7 @@ mod interface;
 mod plugin;
 mod signer;
 
-use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -53,8 +53,8 @@ pub struct PackageJson {
 )]
 struct Cli {
   /// Enables verbose logging
-  #[clap(short, long, global = true, parse(from_occurrences))]
-  verbose: usize,
+  #[clap(short, long, global = true, action = ArgAction::Count)]
+  verbose: u8,
   #[clap(subcommand)]
   command: Commands,
 }
@@ -70,7 +70,7 @@ enum Commands {
   Signer(signer::Cli),
 }
 
-fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
+fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
   let mut app = I::command();
   err.format(&mut app)
 }
@@ -121,7 +121,7 @@ where
   let mut builder = Builder::from_default_env();
   let init_res = builder
     .format_indent(Some(12))
-    .filter(None, level_from_usize(cli.verbose).to_level_filter())
+    .filter(None, verbosity_level(cli.verbose).to_level_filter())
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {
@@ -173,12 +173,11 @@ where
 }
 
 /// This maps the occurrence of `--verbose` flags to the correct log level
-fn level_from_usize(num: usize) -> Level {
+fn verbosity_level(num: u8) -> Level {
   match num {
     0 => Level::Info,
     1 => Level::Debug,
     2.. => Level::Trace,
-    _ => panic!(),
   }
 }
 

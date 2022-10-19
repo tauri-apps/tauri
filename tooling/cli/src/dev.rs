@@ -11,7 +11,7 @@ use crate::{
   interface::{AppInterface, ExitReason, Interface},
   CommandExt, Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 use anyhow::{bail, Context};
 use log::{error, info, warn};
@@ -45,7 +45,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]

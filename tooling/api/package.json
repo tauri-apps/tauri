@@ -49,7 +49,7 @@
     "eslint-plugin-import": "2.26.0",
     "eslint-plugin-n": "15.3.0",
     "eslint-plugin-node": "11.1.0",
-    "eslint-plugin-promise": "6.1.0",
+    "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-security": "1.5.0",
     "prettier": "2.7.1",
     "tsup": "6.3.0",

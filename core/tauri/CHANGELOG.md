@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.1.1]
+
+- Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
+  - Bumped due to a bump in tauri-utils.
+  - [c764408d](https://www.github.com/tauri-apps/tauri/commit/c764408da7fae123edd41115bda42fa75a4731d2) fix: Add missing allowlist config for cursor apis, closes [#5207](https://www.github.com/tauri-apps/tauri/pull/5207) ([#5211](https://www.github.com/tauri-apps/tauri/pull/5211)) on 2022-09-16
+
 ## \[1.1.0]
 
 - Implement `api::http::ClientBuilder::max_redirections` for the default attohttpc client.
@@ -38,6 +44,11 @@
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
 - Add `exists` function to the fs module.
   - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.6]
+
+- Fix `fs.readDir` recursive option reading symlinked directories that are not allowed by the scope.
+  - [bb178829](https://www.github.com/tauri-apps/tauri/commit/bb178829086e80916f9be190f02d83bc25802799) fix(endpoints/fs/readDir): don't read symlinks that are not allowed b… ([#5123](https://www.github.com/tauri-apps/tauri/pull/5123)) on 2022-09-08
 
 ## \[1.0.5]
 

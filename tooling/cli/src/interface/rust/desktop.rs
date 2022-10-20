@@ -2,6 +2,7 @@ use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target}
 use crate::CommandExt;
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{
@@ -342,6 +343,8 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
       .unwrap()
       .join(&product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
+
+    std::fs::create_dir_all(product_path.parent().unwrap())?;
 
     rename(&bin_path, &product_path).with_context(|| {
       format!(

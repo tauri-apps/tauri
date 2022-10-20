@@ -50,16 +50,30 @@ impl Config {
   pub fn load(path: &Path) -> Result<Self> {
     let mut config = Self::default();
 
+    let get_config = |path: PathBuf| -> Result<ConfigSchema> {
+      let contents = fs::read_to_string(&path)
+        .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
+      toml::from_str(&contents)
+        .with_context(|| format!("could not parse TOML configuration in `{}`", path.display()))
+    };
+
     for current in PathAncestors::new(path) {
       if let Some(path) = get_file_path(&current.join(".cargo"), "config", true)? {
-        let contents = fs::read_to_string(&path)
-          .with_context(|| format!("failed to read configuration file `{}`", path.display()))?;
-        let toml: ConfigSchema = toml::from_str(&contents)
-          .with_context(|| format!("could not parse TOML configuration in `{}`", path.display()))?;
-
+        let toml = get_config(path)?;
         if let Some(target) = toml.build.and_then(|b| b.target) {
           config.build.target = Some(target);
           break;
+        }
+      }
+    }
+
+    if config.build.target.is_none() {
+      if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+        if let Some(path) = get_file_path(&PathBuf::from(cargo_home), "config", true)? {
+          let toml = get_config(path)?;
+          if let Some(target) = toml.build.and_then(|b| b.target) {
+            config.build.target = Some(target);
+          }
         }
       }
     }

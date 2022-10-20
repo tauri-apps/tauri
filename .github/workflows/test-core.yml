@@ -13,6 +13,7 @@ on:
     paths:
       - '.github/workflows/test-core.yml'
       - 'core/**'
+      - '!core/tauri/scripts/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -39,12 +40,12 @@ jobs:
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.57.0'
+              toolchain: '1.59.0'
             }
           - {
               target: x86_64-apple-darwin,
               os: macos-latest,
-              toolchain: '1.57.0'
+              toolchain: '1.59.0'
             }
 
     steps:
@@ -88,7 +89,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date
@@ -99,10 +100,6 @@ jobs:
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
             ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
             ${{ matrix.platform.os }}-
-
-      - name: pin time
-        run: |
-          cargo update -p time --precise 0.3.13
 
       - name: test
         run: |

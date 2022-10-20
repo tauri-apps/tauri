@@ -40,6 +40,7 @@
  *         "setCursorVisible": true,
  *         "setCursorIcon": true,
  *         "setCursorPosition": true,
+ *         "setIgnoreCursorEvents": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -66,6 +67,7 @@ import { emit, Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
+type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -1511,6 +1513,34 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Changes the cursor events behavior.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setIgnoreCursorEvents(true);
+   * ```
+   *
+   * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setIgnoreCursorEvents',
+            payload: ignore
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    * @example
    * ```typescript
@@ -1974,7 +2004,7 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
-  /** Whether the window will be initially hidden or focused. */
+  /** Whether the window will be initially focused or not. */
   focus?: boolean
   /**
    * Whether the window is transparent or not.
@@ -2004,6 +2034,40 @@ interface WindowOptions {
    * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
+  /**
+   * The style of the macOS title bar.
+   */
+  titleBarStyle?: TitleBarStyle
+  /**
+   * If `true`, sets the window title to be hidden on macOS.
+   */
+  hiddenTitle?: boolean
+  /**
+   * Whether clicking an inactive window also clicks through to the webview.
+   */
+  acceptFirstMouse?: boolean
+  /**
+   * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
+   *
+   * Windows with the same tabbing identifier will be grouped together.
+   * If the tabbing identifier is not set, automatic tabbing will be disabled.
+   */
+  tabbingIdentifier?: string
+  /**
+   * The user agent for the webview.
+   */
+  userAgent?: string
+}
+
+function mapMonitor(m: Monitor | null): Monitor | null {
+  return m === null
+    ? null
+    : {
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position.x, m.position.y),
+        size: new PhysicalSize(m.size.width, m.size.height)
+      }
 }
 
 /**
@@ -2018,7 +2082,7 @@ interface WindowOptions {
  * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2028,7 +2092,7 @@ async function currentMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -2043,7 +2107,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2053,7 +2117,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -2067,7 +2131,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function availableMonitors(): Promise<Monitor[]> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor[]>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -2077,7 +2141,7 @@ async function availableMonitors(): Promise<Monitor[]> {
         }
       }
     }
-  })
+  }).then((ms) => ms.map(mapMonitor) as Monitor[])
 }
 
 export {
@@ -2098,4 +2162,11 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }
+export type {
+  Theme,
+  TitleBarStyle,
+  Monitor,
+  ScaleFactorChanged,
+  FileDropEvent,
+  WindowOptions
+}

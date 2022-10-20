@@ -8,6 +8,8 @@ pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
 
+#[cfg(target_os = "macos")]
+use crate::TitleBarStyle;
 use crate::{
   app::AppHandle,
   command::{CommandArg, CommandItem},
@@ -326,10 +328,21 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Whether the window will be initially hidden or focused.
+  /// Sets the window to be initially focused.
   #[must_use]
+  #[deprecated(
+    since = "1.2.0",
+    note = "The window is automatically focused by default. This function Will be removed in 2.0.0. Use `focused` instead."
+  )]
   pub fn focus(mut self) -> Self {
-    self.window_builder = self.window_builder.focus();
+    self.window_builder = self.window_builder.focused(true);
+    self
+  }
+
+  /// Whether the window will be initially focused or not.
+  #[must_use]
+  pub fn focused(mut self, focused: bool) -> Self {
+    self.window_builder = self.window_builder.focused(focused);
     self
   }
 
@@ -433,6 +446,35 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Sets the [`TitleBarStyle`].
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn title_bar_style(mut self, style: TitleBarStyle) -> Self {
+    self.window_builder = self.window_builder.title_bar_style(style);
+    self
+  }
+
+  /// Hide the window title.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn hidden_title(mut self, hidden: bool) -> Self {
+    self.window_builder = self.window_builder.hidden_title(hidden);
+    self
+  }
+
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn tabbing_identifier(mut self, identifier: &str) -> Self {
+    self.window_builder = self.window_builder.tabbing_identifier(identifier);
+    self
+  }
+
   // ------------------------------------------- Webview attributes -------------------------------------------
 
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
@@ -473,6 +515,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Set the user agent for the webview
+  #[must_use]
+  pub fn user_agent(mut self, user_agent: &str) -> Self {
+    self.webview_attributes.user_agent = Some(user_agent.to_string());
+    self
+  }
+
   /// Data directory for the webview.
   #[must_use]
   pub fn data_directory(mut self, data_directory: PathBuf) -> Self {
@@ -497,6 +546,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.webview_attributes.clipboard = true;
+    self
+  }
+
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
     self
   }
 }
@@ -773,14 +829,13 @@ impl<R: Runtime> Window<R> {
   pub fn on_menu_event<F: Fn(MenuEvent) + Send + 'static>(&self, f: F) -> uuid::Uuid {
     let menu_ids = self.window.menu_ids.clone();
     self.window.dispatcher.on_menu_event(move |event| {
-      f(MenuEvent {
-        menu_item_id: menu_ids
-          .lock()
-          .unwrap()
-          .get(&event.menu_item_id)
-          .unwrap()
-          .clone(),
-      })
+      let id = menu_ids
+        .lock()
+        .unwrap()
+        .get(&event.menu_item_id)
+        .unwrap()
+        .clone();
+      f(MenuEvent { menu_item_id: id })
     })
   }
 }
@@ -1173,6 +1228,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_cursor_position(position)
+      .map_err(Into::into)
+  }
+
+  /// Ignores the window cursor events.
+  pub fn set_ignore_cursor_events(&self, ignore: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_ignore_cursor_events(ignore)
       .map_err(Into::into)
   }
 

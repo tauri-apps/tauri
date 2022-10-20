@@ -13,7 +13,7 @@ use crate::{
   CommandExt, Result,
 };
 use anyhow::{bail, Context};
-use clap::Parser;
+use clap::{ArgAction, Parser};
 use log::warn;
 use log::{error, info};
 use std::{
@@ -40,7 +40,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
@@ -48,7 +48,7 @@ pub struct Options {
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -154,7 +154,7 @@ pub fn command(mut options: Options) -> Result<()> {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
 
-  let mut interface = AppInterface::new(config_)?;
+  let mut interface = AppInterface::new(config_, options.target.clone())?;
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 

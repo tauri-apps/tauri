@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::OsStr,
+  collections::HashMap,
   fs::{File, FileType},
   io::{Read, Write},
   path::{Path, PathBuf},
@@ -11,7 +11,7 @@ use std::{
   str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{channel, sync_channel},
+    mpsc::sync_channel,
     Arc, Mutex,
   },
   time::{Duration, Instant},
@@ -21,17 +21,19 @@ use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use log::{debug, info};
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use notify::RecursiveMode;
+use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
+use tauri_utils::config::parse::is_configuration_file;
 
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
-  app_paths::tauri_dir,
+  app_paths::{app_dir, tauri_dir},
   config::{reload as reload_config, wix_settings, Config},
 };
 
@@ -122,11 +124,18 @@ pub struct Rust {
 impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self> {
+  fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
-      let (tx, rx) = channel();
-      let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
+      let (tx, rx) = sync_channel(1);
+      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+        if let Ok(events) = r {
+          tx.send(events).unwrap()
+        }
+      })
+      .unwrap();
+      watcher
+        .watcher()
+        .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
       let manifest = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
@@ -134,7 +143,7 @@ impl Interface for Rust {
         if now.elapsed() >= timeout {
           break;
         }
-        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.try_recv() {
+        if rx.try_recv().is_ok() {
           break;
         }
       }
@@ -146,7 +155,7 @@ impl Interface for Rust {
     }
 
     Ok(Self {
-      app_settings: RustAppSettings::new(config, manifest)?,
+      app_settings: RustAppSettings::new(config, manifest, target)?,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
@@ -197,6 +206,52 @@ impl Interface for Rust {
 
       self.run_dev_watcher(child, options, on_exit)
     }
+  }
+
+  fn env(&self) -> HashMap<&str, String> {
+    let mut env = HashMap::new();
+    env.insert(
+      "TAURI_TARGET_TRIPLE",
+      self.app_settings.target_triple.clone(),
+    );
+
+    let mut s = self.app_settings.target_triple.split('-');
+    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
+    env.insert(
+      "TAURI_ARCH",
+      match arch {
+        // keeps compatibility with old `std::env::consts::ARCH` implementation
+        "i686" | "i586" => "x86".into(),
+        a => a.into(),
+      },
+    );
+    env.insert(
+      "TAURI_PLATFORM",
+      match host {
+        // keeps compatibility with old `std::env::consts::OS` implementation
+        "darwin" => "macos".into(),
+        "ios-sim" => "ios".into(),
+        "androideabi" => "android".into(),
+        h => h.into(),
+      },
+    );
+
+    env.insert(
+      "TAURI_FAMILY",
+      match host {
+        "windows" => "windows".into(),
+        _ => "unix".into(),
+      },
+    );
+
+    match host {
+      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      _ => None,
+    };
+
+    env
   }
 }
 
@@ -286,7 +341,8 @@ impl Rust {
     on_exit: Arc<F>,
   ) -> crate::Result<()> {
     let process = Arc::new(Mutex::new(child));
-    let (tx, rx) = channel();
+    let (tx, rx) = sync_channel(1);
+    let app_path = app_dir();
     let tauri_path = tauri_dir();
     let workspace_path = get_workspace_dir()?;
 
@@ -308,14 +364,19 @@ impl Rust {
         .unwrap_or_else(|| vec![tauri_path])
     };
 
-    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      if let Ok(events) = r {
+        tx.send(events).unwrap()
+      }
+    })
+    .unwrap();
     for path in watch_folders {
       info!("Watching {} for changes...", path.display());
       lookup(&path, |file_type, p| {
         if p != path {
           debug!("Watching {} for changes...", p.display());
-          let _ = watcher.watch(
-            p,
+          let _ = watcher.watcher().watch(
+            &p,
             if file_type.is_dir() {
               RecursiveMode::Recursive
             } else {
@@ -327,22 +388,24 @@ impl Rust {
     }
 
     loop {
-      let on_exit = on_exit.clone();
-      if let Ok(event) = rx.recv() {
-        let event_path = match event {
-          DebouncedEvent::Create(path) => Some(path),
-          DebouncedEvent::Remove(path) => Some(path),
-          DebouncedEvent::Rename(_, dest) => Some(dest),
-          DebouncedEvent::Write(path) => Some(path),
-          _ => None,
-        };
+      if let Ok(events) = rx.recv() {
+        for event in events {
+          let on_exit = on_exit.clone();
+          let event_path = event.path;
 
-        if let Some(event_path) = event_path {
-          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
+          if is_configuration_file(&event_path) {
+            info!("Tauri configuration changed. Rewriting manifest...");
             let config = reload_config(options.config.as_deref())?;
             self.app_settings.manifest =
               rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
           } else {
+            info!(
+              "File {} changed. Rebuilding application...",
+              event_path
+                .strip_prefix(&app_path)
+                .unwrap_or(&event_path)
+                .display()
+            );
             // When tauri.conf.json is changed, rewrite_manifest will be called
             // which will trigger the watcher again
             // So the app should only be started when a file other than tauri.conf.json is changed
@@ -430,6 +493,7 @@ pub struct RustAppSettings {
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
+  target_triple: String,
 }
 
 impl AppSettings for RustAppSettings {
@@ -461,13 +525,8 @@ impl AppSettings for RustAppSettings {
     let out_dir = self
       .out_dir(options.target.clone(), options.debug)
       .with_context(|| "failed to get project out directory")?;
-    let target: String = if let Some(target) = options.target.clone() {
-      target
-    } else {
-      tauri_utils::platform::target_triple()?
-    };
 
-    let binary_extension: String = if target.contains("windows") {
+    let binary_extension: String = if self.target_triple.contains("windows") {
       "exe"
     } else {
       ""
@@ -583,7 +642,7 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
-  pub fn new(config: &Config, manifest: Manifest) -> crate::Result<Self> {
+  pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let cargo_settings =
       CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
@@ -619,12 +678,31 @@ impl RustAppSettings {
 
     let cargo_config = CargoConfig::load(&tauri_dir())?;
 
+    let target_triple = target.unwrap_or_else(|| {
+      cargo_config
+        .build()
+        .target()
+        .map(|t| t.to_string())
+        .unwrap_or_else(|| {
+          let output = Command::new("rustc").args(&["-vV"]).output().unwrap();
+          let stdout = String::from_utf8_lossy(&output.stdout);
+          stdout
+            .split('\n')
+            .find(|l| l.starts_with("host:"))
+            .unwrap()
+            .replace("host:", "")
+            .trim()
+            .to_string()
+        })
+    });
+
     Ok(Self {
       manifest,
       cargo_settings,
       cargo_package_settings,
       package_settings,
       cargo_config,
+      target_triple,
     })
   }
 
@@ -765,6 +843,7 @@ fn tauri_config_to_bundle_settings(
 
   Ok(BundleSettings {
     identifier: Some(config.identifier),
+    publisher: config.publisher,
     icon: Some(config.icon),
     resources: if resources.is_empty() {
       None

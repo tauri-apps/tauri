@@ -50,6 +50,8 @@ pub struct SystemTray {
   pub icon_as_template: bool,
   #[cfg(target_os = "macos")]
   pub menu_on_left_click: bool,
+  #[cfg(target_os = "macos")]
+  pub title: Option<String>,
   pub on_event: Option<Box<TrayEventHandler>>,
 }
 
@@ -63,7 +65,8 @@ impl fmt::Debug for SystemTray {
     #[cfg(target_os = "macos")]
     {
       d.field("icon_as_template", &self.icon_as_template)
-        .field("menu_on_left_click", &self.menu_on_left_click);
+        .field("menu_on_left_click", &self.menu_on_left_click)
+        .field("title", &self.title);
     }
     d.finish()
   }
@@ -81,6 +84,8 @@ impl Clone for SystemTray {
       icon_as_template: self.icon_as_template,
       #[cfg(target_os = "macos")]
       menu_on_left_click: self.menu_on_left_click,
+      #[cfg(target_os = "macos")]
+      title: self.title.clone(),
     }
   }
 }
@@ -96,6 +101,8 @@ impl Default for SystemTray {
       icon_as_template: false,
       #[cfg(target_os = "macos")]
       menu_on_left_click: false,
+      #[cfg(target_os = "macos")]
+      title: None,
       on_event: None,
     }
   }
@@ -139,6 +146,13 @@ impl SystemTray {
   #[must_use]
   pub fn with_menu_on_left_click(mut self, menu_on_left_click: bool) -> Self {
     self.menu_on_left_click = menu_on_left_click;
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn with_title(mut self, title: &str) -> Self {
+    self.title = Some(title.to_owned());
     self
   }
 
@@ -338,6 +352,16 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler>;
 
   fn raw_display_handle(&self) -> RawDisplayHandle;
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) -> Result<()>;
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) -> Result<()>;
 }
 
 /// A global shortcut manager.
@@ -426,6 +450,16 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self);
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
@@ -629,6 +663,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Changes the position of the cursor in window coordinates.
   fn set_cursor_position<Pos: Into<Position>>(&self, position: Pos) -> Result<()>;
+
+  /// Ignores the window cursor events.
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;

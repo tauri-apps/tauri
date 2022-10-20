@@ -1,5 +1,5 @@
 #!/usr/bin/env node
- // Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,26 +10,26 @@ we should look to find a more "rusty way" to import / "pin" a version value in o
 rust binaries.
 */
 
-const {
-  readFileSync,
-  writeFileSync
-} = require('fs')
+const { readFileSync, writeFileSync } = require('fs')
 
 const packageNickname = process.argv[2]
-const filePath = packageNickname === 'cli.js' ? `../../../tooling/cli/metadata.json` : `../../tooling/cli/metadata.json`
+const filePath =
+  packageNickname === 'cli.js'
+    ? `../../../tooling/cli/metadata.json`
+    : `../../tooling/cli/metadata.json`
 const bump = process.argv[3]
 let index = null
 
 switch (bump) {
   case 'major':
-    index = 0;
-    break;
+    index = 0
+    break
   case 'minor':
-    index = 1;
-    break;
+    index = 1
+    break
   case 'patch':
-    index = 2;
-    break;
+    index = 2
+    break
   default:
     throw new Error('unexpected bump ' + bump)
 }

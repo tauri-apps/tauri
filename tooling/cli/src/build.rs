@@ -14,7 +14,7 @@ use crate::{
 };
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
-use log::{error, info, warn, debug};
+use log::{debug, error, info, warn};
 use std::{
   env::{set_current_dir, var_os},
   path::{Path, PathBuf},
@@ -116,7 +116,12 @@ pub fn command(mut options: Options) -> Result<()> {
   let interface_options = options.clone().into();
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook("beforeBuildCommand", before_build, &interface, options.debug)?;
+    run_hook(
+      "beforeBuildCommand",
+      before_build,
+      &interface,
+      options.debug,
+    )?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -205,7 +210,12 @@ pub fn command(mut options: Options) -> Result<()> {
     // if we have a package to bundle, let's run the `before_bundle_command`.
     if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
-        run_hook("beforeBundleCommand", before_bundle, &interface, options.debug)?;
+        run_hook(
+          "beforeBundleCommand",
+          before_bundle,
+          &interface,
+          options.debug,
+        )?;
       }
     }
 
@@ -322,7 +332,7 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
     env.extend(interface.env());
 
     debug!("Setting environment for hook {:?}", env);
-    
+
     #[cfg(target_os = "windows")]
     let status = Command::new("cmd")
       .arg("/S")

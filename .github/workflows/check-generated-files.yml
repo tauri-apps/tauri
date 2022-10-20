@@ -12,6 +12,7 @@ on:
       - 'core/tauri/scripts/bundle.global.js'
       - 'core/tauri-utils/src/config.rs'
       - 'tooling/cli/schema.json'
+      - 'core/config-schema/schema.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,6 +36,7 @@ jobs:
             schema:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
+              - 'core/config-schema/schema.json'
 
   check-bundle:
     runs-on: ubuntu-latest
@@ -63,18 +65,12 @@ jobs:
           override: true
 
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
       - name: Get current date
         run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
-
-      - name: Get current date
-        if: matrix.platform == 'windows-latest'
-        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Cache cargo state
         uses: actions/cache@v2
@@ -92,26 +88,26 @@ jobs:
             ${{ matrix.platform }}-stable-
             ${{ matrix.platform }}-
 
-      - name: Cache CLI cargo target
+      - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_cli
+          cache-name: cargo-core
         with:
-          path: tooling/cli/target
+          path: target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
+          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
+            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
+            ${{ matrix.platform.os }}-
 
       - name: generate schema.json
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+          args: --manifest-path ./core/config-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

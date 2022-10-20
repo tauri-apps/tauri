@@ -14,8 +14,7 @@ use crate::{
 };
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
-use log::warn;
-use log::{error, info};
+use log::{error, info, warn, debug};
 use std::{
   env::{set_current_dir, var_os},
   path::{Path, PathBuf},
@@ -321,6 +320,8 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
 
     let mut env = command_env(debug);
     env.extend(interface.env());
+
+    debug!("Setting environment for hook {:?}", env);
     
     #[cfg(target_os = "windows")]
     let status = Command::new("cmd")

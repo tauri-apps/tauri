@@ -71,6 +71,7 @@ pub enum WindowManagerCmd {
   PrimaryMonitor,
   AvailableMonitors,
   Theme,
+  IsValid,
   // Setters
   #[cfg(window_center)]
   Center,
@@ -261,6 +262,10 @@ impl Cmd {
       WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
       WindowManagerCmd::Theme => return Ok(window.theme()?.into()),
+      WindowManagerCmd::IsValid => {
+        // this is unreachable unless the window is valid and exists in the cache.
+        return Ok(true.into());
+      }
       // Setters
       #[cfg(window_center)]
       WindowManagerCmd::Center => window.center()?,

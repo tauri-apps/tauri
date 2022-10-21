@@ -710,6 +710,27 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
+  /**
+   * Checks if this WebviewWindow is valid against the app core cache.
+   * Useful for checking if a WebviewWindow created through {@link WebviewWindow.getByLabelUnchecked} is valid.
+   *
+   * @since 1.2.0
+   */
+  async isValid(): Promise<boolean> {
+    return invokeTauriCommand<boolean>({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isValid'
+          }
+        }
+      }
+    }).catch((_) => false)
+  }
+
   // Setters
 
   /**

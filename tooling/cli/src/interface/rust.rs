@@ -4,7 +4,7 @@
 
 use std::{
   collections::HashMap,
-  fs::{File, FileType},
+  fs::File,
   io::{Read, Write},
   path::{Path, PathBuf},
   process::{Command, ExitStatus},
@@ -255,7 +255,10 @@ impl Interface for Rust {
   }
 }
 
-fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
+fn lookup_and_build_ignore_matcher<F: FnMut(PathBuf)>(
+  dir: &Path,
+  mut f: F,
+) -> ignore::gitignore::Gitignore {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".tauri-dev");
   let _ = std::fs::create_dir_all(&default_gitignore);
@@ -266,17 +269,53 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
     }
   }
 
-  let mut builder = ignore::WalkBuilder::new(dir);
-  builder.add_custom_ignore_filename(".taurignore");
-  let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
-    builder.add_ignore(ignore_file);
-  }
-  builder.require_git(false).ignore(false).max_depth(Some(1));
+  // ignore crate doesn't expose an API to build `ignore::gitignore::GitIgnore`
+  // with custom ignore file names so we have to walk the directory and collect
+  // our custom ignore files and add it using `ignore::gitignore::GitIgnoreBuilder::add`
+  let mut taurignore_files = Vec::new();
+  taurignore_files.extend(
+    ignore::WalkBuilder::new(dir)
+      .require_git(false)
+      .ignore(false)
+      .overrides(
+        ignore::overrides::OverrideBuilder::new(dir)
+          .add(".taurignore")
+          .unwrap()
+          .build()
+          .unwrap(),
+      )
+      .build()
+      .flatten(),
+  );
 
-  for entry in builder.build().flatten() {
-    f(entry.file_type().unwrap(), dir.join(entry.path()));
+  let mut walk_builder = ignore::WalkBuilder::new(dir);
+
+  walk_builder.add_custom_ignore_filename(".taurignore");
+  let _ = walk_builder.add_ignore(default_gitignore);
+
+  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+    walk_builder.add_ignore(&ignore_file);
+
+    taurignore_files.extend(
+      ignore::WalkBuilder::new(dir)
+        .require_git(false)
+        .ignore(false)
+        .filter_entry(move |d| d.file_name() == ignore_file.as_str())
+        .build()
+        .flatten(),
+    );
   }
+  walk_builder.require_git(false).ignore(false);
+
+  for entry in walk_builder.build().flatten() {
+    f(dir.join(entry.path()));
+  }
+
+  let mut ignore_builder = ignore::gitignore::GitignoreBuilder::new(dir);
+  for p in taurignore_files {
+    ignore_builder.add(p.path());
+  }
+  ignore_builder.build().unwrap()
 }
 
 impl Rust {
@@ -370,21 +409,21 @@ impl Rust {
       }
     })
     .unwrap();
-    for path in watch_folders {
-      info!("Watching {} for changes...", path.display());
-      lookup(&path, |file_type, p| {
-        if p != path {
-          debug!("Watching {} for changes...", p.display());
-          let _ = watcher.watcher().watch(
-            &p,
-            if file_type.is_dir() {
-              RecursiveMode::Recursive
-            } else {
-              RecursiveMode::NonRecursive
-            },
-          );
-        }
-      });
+
+    let common_ancestor =
+      common_path::common_path_all(watch_folders.iter().map(Path::new).collect::<Vec<_>>())
+        .unwrap();
+    let ignore_matcher = lookup_and_build_ignore_matcher(&common_ancestor, |p| {
+      if watch_folders.iter().any(|w| p.starts_with(w)) {
+        debug!("Watching {} for changes...", p.display());
+        let _ = watcher.watcher().watch(&p, RecursiveMode::NonRecursive);
+      }
+    });
+
+    for p in watch_folders {
+      if !ignore_matcher.matched(&p, p.is_dir()).is_ignore() {
+        info!("Watching {} for changes...", p.display());
+      }
     }
 
     loop {
@@ -398,7 +437,7 @@ impl Rust {
             let config = reload_config(options.config.as_deref())?;
             self.app_settings.manifest =
               rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-          } else {
+          } else if !ignore_matcher.matched(&event_path, false).is_ignore() {
             info!(
               "File {} changed. Rebuilding application...",
               event_path

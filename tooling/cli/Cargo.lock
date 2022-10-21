@@ -482,6 +482,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-path"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2382f75942f4b3be3690fe4f86365e9c853c1587d6ee58212cebf6e2a9ccd101"
+
+[[package]]
 name = "console"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3242,6 +3248,7 @@ dependencies = [
  "base64",
  "clap 4.0.9",
  "colored",
+ "common-path",
  "ctrlc",
  "dialoguer",
  "env_logger",

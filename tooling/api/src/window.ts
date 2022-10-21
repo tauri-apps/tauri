@@ -1160,12 +1160,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMinSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1202,12 +1202,12 @@ class WindowManager extends WebviewWindowHandle {
             type: 'setMaxSize',
             payload: size
               ? {
-                  type: size.type,
-                  data: {
-                    width: size.width,
-                    height: size.height
-                  }
+                type: size.type,
+                data: {
+                  width: size.width,
+                  height: size.height
                 }
+              }
               : null
           }
         }
@@ -1944,6 +1944,29 @@ class WebviewWindow extends WindowManager {
     }
     return null
   }
+
+  /**
+   * Gets the WebviewWindow for the webview associated with the given label without validating against the window labels cache.
+   * This is useful when you are sure that a window with this label exists but the cache haven't been updated yet.
+   * @example
+   * ```typescript
+   * import { listen } from '@tauri-apps/api/event';
+   * import { WebviewWindow } from '@tauri-apps/api/window';
+   *
+   * listen('tauri://window-created', (event) => {
+   *   const newWindow = WebviewWindow.getByLabelUnchecked(event.payload.label);
+   * });
+   * ```
+   *
+   * @param label The webview window label.
+   * @returns The WebviewWindow instance to communicate with the webview.
+   *
+   * @since 1.2.0
+   */
+  static getByLabelUnchecked(label: string): WebviewWindow {
+    // @ts-expect-error
+    return new WebviewWindow(label, { skip: true })
+  }
 }
 
 /** The WebviewWindow for the current window. */
@@ -2063,11 +2086,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: new PhysicalPosition(m.position.x, m.position.y),
-        size: new PhysicalSize(m.size.width, m.size.height)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: new PhysicalPosition(m.position.x, m.position.y),
+      size: new PhysicalSize(m.size.width, m.size.height)
+    }
 }
 
 /**

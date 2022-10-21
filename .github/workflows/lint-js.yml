@@ -42,6 +42,9 @@ jobs:
       - name: run api lint
         working-directory: ./tooling/api/
         run: yarn lint
+      - name: run api ts:check
+        working-directory: ./tooling/api/
+        run: yarn ts:check
       - name: run api format
         working-directory: ./tooling/api/
         run: yarn format:check

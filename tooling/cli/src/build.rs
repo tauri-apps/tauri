@@ -14,8 +14,7 @@ use crate::{
 };
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
-use log::warn;
-use log::{error, info};
+use log::{debug, error, info, warn};
 use std::{
   env::{set_current_dir, var_os},
   path::{Path, PathBuf},
@@ -112,8 +111,17 @@ pub fn command(mut options: Options) -> Result<()> {
     std::process::exit(1);
   }
 
+  let mut interface = AppInterface::new(config_, options.target.clone())?;
+  let app_settings = interface.app_settings();
+  let interface_options = options.clone().into();
+
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook("beforeBuildCommand", before_build, options.debug)?;
+    run_hook(
+      "beforeBuildCommand",
+      before_build,
+      &interface,
+      options.debug,
+    )?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -153,10 +161,6 @@ pub fn command(mut options: Options) -> Result<()> {
   if let Some(list) = options.features.as_mut() {
     list.extend(config_.build.features.clone().unwrap_or_default());
   }
-
-  let mut interface = AppInterface::new(config_, options.target.clone())?;
-  let app_settings = interface.app_settings();
-  let interface_options = options.clone().into();
 
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
@@ -206,7 +210,12 @@ pub fn command(mut options: Options) -> Result<()> {
     // if we have a package to bundle, let's run the `before_bundle_command`.
     if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
-        run_hook("beforeBundleCommand", before_bundle, options.debug)?;
+        run_hook(
+          "beforeBundleCommand",
+          before_bundle,
+          &interface,
+          options.debug,
+        )?;
       }
     }
 
@@ -309,7 +318,7 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
+fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
@@ -318,13 +327,19 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
   let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
   if let Some(script) = script {
     info!(action = "Running"; "{} `{}`", name, script);
+
+    let mut env = command_env(debug);
+    env.extend(interface.env());
+
+    debug!("Setting environment for hook {:?}", env);
+
     #[cfg(target_os = "windows")]
     let status = Command::new("cmd")
       .arg("/S")
       .arg("/C")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
       .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
     #[cfg(not(target_os = "windows"))]
@@ -332,7 +347,7 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
       .arg("-c")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
       .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
 

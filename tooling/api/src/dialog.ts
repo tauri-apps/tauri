@@ -177,10 +177,9 @@ async function open(
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
- *   multiple: true,
  *   filters: [{
  *     name: 'Image',
- *     extensions: ['stronghold']
+ *     extensions: ['png', 'jpeg']
  *   }]
  * });
  * ```

@@ -179,7 +179,7 @@ async function open(
  * const filePath = await save({
  *   filters: [{
  *     name: 'Image',
- *     extensions: ['stronghold']
+ *     extensions: ['png', 'jpeg']
  *   }]
  * });
  * ```

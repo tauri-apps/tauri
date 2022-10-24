@@ -32,8 +32,8 @@ if (binStem.match(/(((nodejs|node)([1-9]*)*)|cli)$/g)) {
     }
 
     binName = `${manager} run ${process.env.npm_lifecycle_event}`
-  } else if (binStem == "cli") {
-    binName = "@tauri-apps/cli"
+  } else if (binStem == 'cli') {
+    binName = '@tauri-apps/cli'
   } else {
     // Assume running NodeJS if we didn't detect a manager from the env.
     // We normalize the path to prevent the script's absolute path being used.

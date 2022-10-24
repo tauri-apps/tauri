@@ -285,7 +285,20 @@ impl Rust {
     mut options: Options,
     on_exit: F,
   ) -> crate::Result<DevChild> {
-    if !options.args.contains(&"--no-default-features".into()) {
+    let mut args = Vec::new();
+    let mut run_args = Vec::new();
+    let mut reached_run_args = false;
+    for arg in options.args.clone() {
+      if reached_run_args {
+        run_args.push(arg);
+      } else if arg == "--" {
+        reached_run_args = true;
+      } else {
+        args.push(arg);
+      }
+    }
+
+    if !args.contains(&"--no-default-features".into()) {
       let manifest_features = self.app_settings.manifest.features();
       let enable_features: Vec<String> = manifest_features
         .get("default")
@@ -300,7 +313,7 @@ impl Rust {
           }
         })
         .collect();
-      options.args.push("--no-default-features".into());
+      args.push("--no-default-features".into());
       if !enable_features.is_empty() {
         options
           .features
@@ -309,18 +322,6 @@ impl Rust {
       }
     }
 
-    let mut args = Vec::new();
-    let mut run_args = Vec::new();
-    let mut reached_run_args = false;
-    for arg in options.args.clone() {
-      if reached_run_args {
-        run_args.push(arg);
-      } else if arg == "--" {
-        reached_run_args = true;
-      } else {
-        args.push(arg);
-      }
-    }
     options.args = args;
 
     desktop::run_dev(

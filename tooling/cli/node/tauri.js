@@ -10,9 +10,13 @@ const binStem = path.parse(bin).name.toLowerCase()
 // can successfully detect what command likely started the execution.
 let binName
 
+// deno run -A --unstable --node-modules-dir npm:@tauri-apps/cli
+if (bin === '@tauri-apps/cli') {
+  binName = '@tauri-apps/cli'
+}
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.
-if (binStem.match(/(((nodejs|node)([1-9]*)*)|cli)$/g)) {
+else if (binStem.match(/(nodejs|node)([1-9]*)*$/g)) {
   const managerStem = process.env.npm_execpath
     ? path.parse(process.env.npm_execpath).name.toLowerCase()
     : null
@@ -32,8 +36,6 @@ if (binStem.match(/(((nodejs|node)([1-9]*)*)|cli)$/g)) {
     }
 
     binName = `${manager} run ${process.env.npm_lifecycle_event}`
-  } else if (binStem == 'cli') {
-    binName = '@tauri-apps/cli'
   } else {
     // Assume running NodeJS if we didn't detect a manager from the env.
     // We normalize the path to prevent the script's absolute path being used.

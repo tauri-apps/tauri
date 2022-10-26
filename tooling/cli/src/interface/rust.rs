@@ -291,10 +291,8 @@ fn build_ignore_matcher(dir: &Path) -> ignore::gitignore::Gitignore {
     ignore_builder.add(p.path());
   }
 
-  for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines() {
-    if let Ok(line) = line {
-      let _ = ignore_builder.add_line(None, &line);
-    }
+  for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+    let _ = ignore_builder.add_line(None, &line);
   }
 
   ignore_builder.build().unwrap()

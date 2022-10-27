@@ -133,6 +133,7 @@ impl Cmd {
     // dispatch the event to Rust listeners
     context.window.trigger(
       &event.0,
+      // TODO: dispatch any serializable value instead of a string in v2
       payload.as_ref().and_then(|p| {
         serde_json::to_string(&p)
           .map_err(|e| {

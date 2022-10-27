@@ -22,7 +22,7 @@ use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use log::{debug, info};
+use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
@@ -457,10 +457,21 @@ impl Rust {
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(&event_path) {
-              info!("Tauri configuration changed. Rewriting manifest...");
-              let config = reload_config(options.config.as_deref())?;
-              self.app_settings.manifest =
-                rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+              match reload_config(options.config.as_deref()) {
+                Ok(config) => {
+                  info!("Tauri configuration changed. Rewriting manifest...");
+                  self.app_settings.manifest =
+                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
+                }
+                Err(err) => {
+                  let p = process.lock().unwrap();
+                  let is_building_app = p.app_child.lock().unwrap().is_none();
+                  if is_building_app {
+                    p.kill().with_context(|| "failed to kill app process")?;
+                  }
+                  error!("{}", err);
+                }
+              }
             } else {
               info!(
                 "File {} changed. Rebuilding application...",

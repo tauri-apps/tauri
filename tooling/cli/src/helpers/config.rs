@@ -4,6 +4,7 @@
 
 use anyhow::Context;
 use json_patch::merge;
+use log::error;
 use once_cell::sync::Lazy;
 use serde_json::Value as JsonValue;
 
@@ -141,12 +142,14 @@ fn get_internal(merge_config: Option<&str>, reload: bool) -> crate::Result<Confi
       for error in errors {
         let path = error.instance_path.clone().into_vec().join(" > ");
         if path.is_empty() {
-          eprintln!("`{config_file_name}` error: {}", error);
+          error!("`{}` error: {}", config_file_name, error);
         } else {
-          eprintln!("`{config_file_name}` error on `{}`: {}", path, error);
+          error!("`{}` error on `{}`: {}", config_file_name, path, error);
         }
       }
-      exit(1);
+      if !reload {
+        exit(1);
+      }
     }
   }
 

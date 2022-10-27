@@ -4,8 +4,9 @@
 
 use std::{
   collections::HashMap,
+  ffi::OsStr,
   fs::{File, FileType},
-  io::{Read, Write},
+  io::{BufRead, Read, Write},
   path::{Path, PathBuf},
   process::{Command, ExitStatus},
   str::FromStr,
@@ -20,6 +21,7 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -255,6 +257,59 @@ impl Interface for Rust {
   }
 }
 
+struct IgnoreMatcher(Vec<Gitignore>);
+
+impl IgnoreMatcher {
+  fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
+    for gitignore in &self.0 {
+      if gitignore.matched(path, is_dir).is_ignore() {
+        return true;
+      }
+    }
+    false
+  }
+}
+
+fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
+  let mut matchers = Vec::new();
+
+  // ignore crate doesn't expose an API to build `ignore::gitignore::GitIgnore`
+  // with custom ignore file names so we have to walk the directory and collect
+  // our custom ignore files and add it using `ignore::gitignore::GitIgnoreBuilder::add`
+  for entry in ignore::WalkBuilder::new(dir)
+    .require_git(false)
+    .ignore(false)
+    .overrides(
+      ignore::overrides::OverrideBuilder::new(dir)
+        .add(".taurignore")
+        .unwrap()
+        .build()
+        .unwrap(),
+    )
+    .build()
+    .flatten()
+  {
+    let path = entry.path();
+    if path.file_name() == Some(OsStr::new(".taurignore")) {
+      let mut ignore_builder = GitignoreBuilder::new(path.parent().unwrap());
+
+      ignore_builder.add(path);
+
+      if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+        ignore_builder.add(dir.join(ignore_file));
+      }
+
+      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+        let _ = ignore_builder.add_line(None, &line);
+      }
+
+      matchers.push(ignore_builder.build().unwrap());
+    }
+  }
+
+  IgnoreMatcher(matchers)
+}
+
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".tauri-dev");
@@ -285,7 +340,20 @@ impl Rust {
     mut options: Options,
     on_exit: F,
   ) -> crate::Result<DevChild> {
-    if !options.args.contains(&"--no-default-features".into()) {
+    let mut args = Vec::new();
+    let mut run_args = Vec::new();
+    let mut reached_run_args = false;
+    for arg in options.args.clone() {
+      if reached_run_args {
+        run_args.push(arg);
+      } else if arg == "--" {
+        reached_run_args = true;
+      } else {
+        args.push(arg);
+      }
+    }
+
+    if !args.contains(&"--no-default-features".into()) {
       let manifest_features = self.app_settings.manifest.features();
       let enable_features: Vec<String> = manifest_features
         .get("default")
@@ -300,7 +368,7 @@ impl Rust {
           }
         })
         .collect();
-      options.args.push("--no-default-features".into());
+      args.push("--no-default-features".into());
       if !enable_features.is_empty() {
         options
           .features
@@ -309,18 +377,6 @@ impl Rust {
       }
     }
 
-    let mut args = Vec::new();
-    let mut run_args = Vec::new();
-    let mut reached_run_args = false;
-    for arg in options.args.clone() {
-      if reached_run_args {
-        run_args.push(arg);
-      } else if arg == "--" {
-        reached_run_args = true;
-      } else {
-        args.push(arg);
-      }
-    }
     options.args = args;
 
     desktop::run_dev(
@@ -364,6 +420,10 @@ impl Rust {
         .unwrap_or_else(|| vec![tauri_path])
     };
 
+    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
+    let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
+    let ignore_matcher = build_ignore_matcher(&common_ancestor);
+
     let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
@@ -371,20 +431,22 @@ impl Rust {
     })
     .unwrap();
     for path in watch_folders {
-      info!("Watching {} for changes...", path.display());
-      lookup(&path, |file_type, p| {
-        if p != path {
-          debug!("Watching {} for changes...", p.display());
-          let _ = watcher.watcher().watch(
-            &p,
-            if file_type.is_dir() {
-              RecursiveMode::Recursive
-            } else {
-              RecursiveMode::NonRecursive
-            },
-          );
-        }
-      });
+      if !ignore_matcher.is_ignore(path, true) {
+        info!("Watching {} for changes...", path.display());
+        lookup(path, |file_type, p| {
+          if p != path {
+            debug!("Watching {} for changes...", p.display());
+            let _ = watcher.watcher().watch(
+              &p,
+              if file_type.is_dir() {
+                RecursiveMode::Recursive
+              } else {
+                RecursiveMode::NonRecursive
+              },
+            );
+          }
+        });
+      }
     }
 
     loop {
@@ -393,33 +455,35 @@ impl Rust {
           let on_exit = on_exit.clone();
           let event_path = event.path;
 
-          if is_configuration_file(&event_path) {
-            info!("Tauri configuration changed. Rewriting manifest...");
-            let config = reload_config(options.config.as_deref())?;
-            self.app_settings.manifest =
-              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-          } else {
-            info!(
-              "File {} changed. Rebuilding application...",
-              event_path
-                .strip_prefix(&app_path)
-                .unwrap_or(&event_path)
-                .display()
-            );
-            // When tauri.conf.json is changed, rewrite_manifest will be called
-            // which will trigger the watcher again
-            // So the app should only be started when a file other than tauri.conf.json is changed
-            let mut p = process.lock().unwrap();
-            p.kill().with_context(|| "failed to kill app process")?;
-            // wait for the process to exit
-            loop {
-              if let Ok(Some(_)) = p.try_wait() {
-                break;
+          if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
+            if is_configuration_file(&event_path) {
+              info!("Tauri configuration changed. Rewriting manifest...");
+              let config = reload_config(options.config.as_deref())?;
+              self.app_settings.manifest =
+                rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+            } else {
+              info!(
+                "File {} changed. Rebuilding application...",
+                event_path
+                  .strip_prefix(&app_path)
+                  .unwrap_or(&event_path)
+                  .display()
+              );
+              // When tauri.conf.json is changed, rewrite_manifest will be called
+              // which will trigger the watcher again
+              // So the app should only be started when a file other than tauri.conf.json is changed
+              let mut p = process.lock().unwrap();
+              p.kill().with_context(|| "failed to kill app process")?;
+              // wait for the process to exit
+              loop {
+                if let Ok(Some(_)) = p.try_wait() {
+                  break;
+                }
               }
+              *p = self.run_dev(options.clone(), move |status, reason| {
+                on_exit(status, reason)
+              })?;
             }
-            *p = self.run_dev(options.clone(), move |status, reason| {
-              on_exit(status, reason)
-            })?;
           }
         }
       }

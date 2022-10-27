@@ -81,12 +81,12 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
+            ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
+            ubuntu-latest-stable-${{ env.cache-name }}-
+            ubuntu-latest-stable-
+            ubuntu-latest-
 
       - name: Cache core cargo target
         uses: actions/cache@v2
@@ -95,13 +95,13 @@ jobs:
         with:
           path: target
           # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
+          key: ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
           # Restore from outdated cache for speed
           restore-keys: |
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
-            ${{ matrix.platform.os }}-
+            ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
+            ubuntu-latest-stable-${{ env.cache-name }}-
+            ubuntu-latest-stable-
+            ubuntu-latest-
 
       - name: generate schema.json
         uses: actions-rs/cargo@v1

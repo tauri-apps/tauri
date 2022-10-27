@@ -90,6 +90,12 @@ pub struct Invoke<R: Runtime> {
 pub struct InvokeError(JsonValue);
 
 impl InvokeError {
+  /// Create a new [`InvokeError`] from a [`serde_json::Value`].
+  #[inline(always)]
+  pub fn new(error: JsonValue) -> Self {
+    InvokeError(error)
+  }
+
   /// Create an [`InvokeError`] as a string of the [`serde_json::Error`] message.
   #[inline(always)]
   pub fn from_serde_json(error: serde_json::Error) -> Self {

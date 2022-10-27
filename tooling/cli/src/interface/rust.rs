@@ -20,7 +20,7 @@ use std::{
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
-use log::{debug, info};
+use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
@@ -395,10 +395,16 @@ impl Rust {
           let event_path = event.path;
 
           if is_configuration_file(&event_path) {
-            info!("Tauri configuration changed. Rewriting manifest...");
-            let config = reload_config(options.config.as_deref())?;
-            self.app_settings.manifest =
-              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+            match reload_config(options.config.as_deref()) {
+              Ok(config) => {
+                info!("Tauri configuration changed. Rewriting manifest...");
+                self.app_settings.manifest =
+                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
+              }
+              Err(err) => {
+                error!("{}", err)
+              }
+            }
           } else {
             info!(
               "File {} changed. Rebuilding application...",

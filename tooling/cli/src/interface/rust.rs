@@ -402,7 +402,12 @@ impl Rust {
                   rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
               }
               Err(err) => {
-                error!("{}", err)
+                let p = process.lock().unwrap();
+                let is_building_app = p.app_child.lock().unwrap().is_none();
+                if is_building_app {
+                  p.kill().with_context(|| "failed to kill app process")?;
+                }
+                error!("{}", err);
               }
             }
           } else {

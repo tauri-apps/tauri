@@ -2736,7 +2736,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1847b767a3d62d95cbf3d8a9f0e421cf57a0d8aa4f411d4b16525afb0284d4ed"
 dependencies = [
  "dyn-clone",
- "indexmap",
  "schemars_derive",
  "serde",
  "serde_json",
@@ -3273,7 +3272,6 @@ dependencies = [
  "os_info",
  "os_pipe",
  "regex",
- "schemars",
  "semver",
  "serde",
  "serde_json",

@@ -212,7 +212,6 @@ impl From<&PatternKind> for PatternObject {
   fn from(pattern_kind: &PatternKind) -> Self {
     match pattern_kind {
       PatternKind::Brownfield => Self::Brownfield,
-      #[cfg(feature = "isolation")]
       PatternKind::Isolation { .. } => Self::Isolation {
         side: IsolationSide::default(),
       },

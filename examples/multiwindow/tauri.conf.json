@@ -1,8 +1,12 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/config-schema/schema.json",
   "build": {
-    "distDir": ["index.html"],
-    "devPath": ["index.html"],
+    "distDir": [
+      "index.html"
+    ],
+    "devPath": [
+      "index.html"
+    ],
     "withGlobalTauri": true
   },
   "package": {

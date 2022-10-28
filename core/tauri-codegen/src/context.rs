@@ -362,6 +362,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    #[cfg(not(feature = "isolation"))]
+    PatternKind::Isolation { dir: _ } => {
+      quote!(#root::Pattern::Brownfield(std::marker::PhantomData))
+    }
     #[cfg(feature = "isolation")]
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);

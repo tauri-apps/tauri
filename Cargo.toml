@@ -8,6 +8,7 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
+  "core/config-schema",
 
   # integration tests
   "core/tests/restart",

@@ -375,6 +375,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(true)
   }
 
+  fn title(&self) -> Result<Option<String>> {
+    Ok(Some(String::new()))
+  }
+
   fn is_menu_visible(&self) -> Result<bool> {
     Ok(true)
   }

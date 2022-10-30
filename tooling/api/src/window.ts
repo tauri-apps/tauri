@@ -28,6 +28,7 @@
  *         "close": true,
  *         "setDecorations": true,
  *         "setAlwaysOnTop": true,
+ *         "setContentProtected": true,
  *         "setSize": true,
  *         "setMinSize": true,
  *         "setMaxSize": true,
@@ -1094,6 +1095,34 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Prevents the window contents from being captured by other apps.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setContentProtected(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 1.2.0
+   */
+  async setContentProtected(protected_: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setContentProtected',
+            payload: protected_
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Resizes the window with a new inner size.
    * @example
    * ```typescript
@@ -2020,6 +2049,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Prevents the window contents from being captured by other apps. */
+  contentPortected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
   /**

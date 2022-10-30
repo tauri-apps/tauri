@@ -250,6 +250,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn content_protected(self, protected: bool) -> Self {
+    self
+  }
+
   fn icon(self, icon: Icon) -> Result<Self> {
     Ok(self)
   }
@@ -478,6 +482,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
     Ok(())
   }
 

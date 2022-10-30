@@ -905,7 +905,7 @@ impl<R: Runtime> Window<R> {
   }
 
   /// Gets the window's current title.
-  pub fn title(&self) -> crate::Result<Option<String>> {
+  pub fn title(&self) -> crate::Result<String> {
     self.window.dispatcher.title().map_err(Into::into)
   }
 

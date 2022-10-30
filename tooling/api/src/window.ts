@@ -689,7 +689,7 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @since 1.2.0
    * */
-  async title(): Promise<string | null> {
+  async title(): Promise<string> {
     return invokeTauriCommand({
       __tauriModule: 'Window',
       message: {

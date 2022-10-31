@@ -89,6 +89,8 @@
 
         <UIRef Id="WixUI_InstallDir" />
 
+
+
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">
@@ -107,6 +109,19 @@
 
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">
+            {{#each deep_link_protocols as |protocol| ~}}
+                <RegistryKey Root="HKCR" Key="{{{protocol}}}" ForceDeleteOnUninstall="yes" ForceCreateOnInstall="yes">
+                  <RegistryValue Type="string" Name="URL Protocol" Value=""/>
+                  <RegistryValue Type="string" Value="URL:{{{protocol}}}"/>
+                  <RegistryKey Key="DefaultIcon">
+                    <RegistryValue Type="string" Value="{{{app_exe_name}}}" />
+                  </RegistryKey>
+                  <RegistryKey Key="shell\open\command">
+                    <RegistryValue Type="string" Value="&quot;[!Path]&quot; &quot;%1&quot;" />
+                  </RegistryKey>
+                </RegistryKey>
+            {{/each~}}
+
                 <RegistryKey Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
                 </RegistryKey>

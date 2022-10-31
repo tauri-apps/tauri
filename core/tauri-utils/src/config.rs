@@ -596,6 +596,9 @@ pub struct BundleConfig {
   /// so don't forget to provide binaries for all targeted platforms.
   #[serde(alias = "external-bin")]
   pub external_bin: Option<Vec<String>>,
+  /// Deep-link protocols.
+  #[serde(alias = "Deep-link-protocols")]
+  pub deep_link_protocols: Option<Vec<String>>,
   /// Configuration for the Windows bundle.
   #[serde(default)]
   pub windows: WindowsConfig,
@@ -3266,6 +3269,7 @@ mod build {
       let deb = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
+      let deep_link_protocols = opt_vec_str_lit(self.deep_link_protocols.as_ref());
       let windows = &self.windows;
       let ios = quote!(Default::default());
 
@@ -3286,6 +3290,7 @@ mod build {
         deb,
         macos,
         external_bin,
+        deep_link_protocols,
         windows,
         ios
       );
@@ -3702,6 +3707,7 @@ mod test {
         deb: Default::default(),
         macos: Default::default(),
         external_bin: None,
+        deep_link_protocols: None,
         windows: Default::default(),
         ios: Default::default(),
       },

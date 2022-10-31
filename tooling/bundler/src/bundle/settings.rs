@@ -332,6 +332,8 @@ pub struct BundleSettings {
   /// e.g. `sqlite3-universal-apple-darwin`. See
   /// <https://developer.apple.com/documentation/apple-silicon/building-a-universal-macos-binary>
   pub external_bin: Option<Vec<String>>,
+  /// Deep-link protocols.
+  pub deep_link_protocols: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
   /// MacOS-specific settings.
@@ -642,6 +644,16 @@ impl Settings {
       Some(ref paths) => ResourcePaths::new(paths.as_slice(), true),
       None => ResourcePaths::new(&[], true),
     }
+  }
+
+  /// Returns an iterator over the external binaries to be included in this
+  /// bundle.
+  pub fn deep_link_protocols(&self) -> Vec<String> {
+    self
+      .bundle_settings
+      .deep_link_protocols
+      .clone()
+      .unwrap_or_else(Vec::new)
   }
 
   /// Copies external binaries to a path.

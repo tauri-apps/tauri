@@ -1114,6 +1114,16 @@
             "type": "string"
           }
         },
+        "deepLinkProtocols": {
+          "description": "Deep-link protocols.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "windows": {
           "description": "Configuration for the Windows bundle.",
           "default": {

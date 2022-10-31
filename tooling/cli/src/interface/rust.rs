@@ -948,6 +948,7 @@ fn tauri_config_to_bundle_settings(
     short_description: config.short_description,
     long_description: config.long_description,
     external_bin: config.external_bin,
+    deep_link_protocols: config.deep_link_protocols,
     deb: DebianSettings {
       depends: if depends.is_empty() {
         None

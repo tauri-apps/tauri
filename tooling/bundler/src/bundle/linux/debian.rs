@@ -158,6 +158,18 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   writeln!(file, "Name={}", settings.product_name())?;
   writeln!(file, "Terminal=false")?;
   writeln!(file, "Type=Application")?;
+  let protocols = settings.deep_link_protocols();
+  if !protocols.is_empty() {
+    writeln!(
+      file,
+      "MimeType={};",
+      protocols
+        .iter()
+        .map(|p| format!("x-scheme-handler/{}", p))
+        .collect::<Vec<_>>()
+        .join(";")
+    )?;
+  }
   Ok(())
 }
 

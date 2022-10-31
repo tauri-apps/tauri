@@ -110,7 +110,7 @@
         <DirectoryRef Id="INSTALLDIR">
             <Component Id="RegistryEntries" Guid="*">
             {{#each deep_link_protocols as |protocol| ~}}
-                <RegistryKey Root="HKCR" Key="{{{protocol}}}" ForceDeleteOnUninstall="yes" ForceCreateOnInstall="yes">
+                <RegistryKey Root="HKCR" Key="{{{protocol}}}">
                   <RegistryValue Type="string" Name="URL Protocol" Value=""/>
                   <RegistryValue Type="string" Value="URL:{{{protocol}}}"/>
                   <RegistryKey Key="DefaultIcon">

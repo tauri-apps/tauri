@@ -56,14 +56,14 @@ jobs:
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.57.0',
+              toolchain: '1.59.0',
               cross: false,
               acommand: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.57.0',
+              toolchain: '1.59.0',
               cross: true,
               command: 'build'
             }

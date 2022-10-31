@@ -207,7 +207,13 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "assets": [
+        {
+          "path": "./tooling/cli/schema.json",
+          "name": "schema.json"
+        }
+      ]
     },
     "tauri": {
       "path": "./core/tauri",
@@ -224,7 +230,10 @@
       "path": "./tooling/cli/node",
       "manager": "javascript",
       "dependencies": ["cli.rs"],
-      "postversion": "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "postversion": [
+        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../core/config-schema/Cargo.toml"
+      ],
       "prepublish": [],
       "publish": [],
       "postpublish": []
@@ -238,10 +247,6 @@
         {
           "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",
           "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
-        },
-        {
-          "path": "${ pkg.path }/schema.json",
-          "name": "schema.json"
         }
       ]
     },

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.10.2"
+version = "0.11.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -8,14 +8,14 @@ homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
 wry = { git = "https://github.com/tauri-apps/wry", branch = "dev", default-features = false, features = [ "file-drop", "protocol" ] }
-tauri-runtime = { version = "0.10.2", path = "../tauri-runtime" }
-tauri-utils = { version = "1.0.3", path = "../tauri-utils" }
+tauri-runtime = { version = "0.11.1", path = "../tauri-runtime" }
+tauri-utils = { version = "1.1.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
@@ -29,7 +29,7 @@ webview2-com = "0.19.1"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
-webkit2gtk = { version = "0.18", features = [ "v2_22" ] }
+webkit2gtk = { version = "0.18.2", features = [ "v2_36" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]

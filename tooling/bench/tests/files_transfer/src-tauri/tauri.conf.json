@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../../tooling/cli/schema.json",
+  "$schema": "../../../../../core/config-schema/schema.json",
   "build": {
     "distDir": "../public",
     "devPath": "../public",
@@ -37,7 +37,9 @@
       "all": false,
       "fs": {
         "readFile": true,
-        "scope": ["$HOME/.tauri_3mb.json"]
+        "scope": [
+          "$HOME/.tauri_3mb.json"
+        ]
       }
     },
     "windows": [

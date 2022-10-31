@@ -5,6 +5,10 @@ env:
   MACOSX_DEPLOYMENT_TARGET: '10.13'
 on:
   workflow_dispatch:
+    inputs:
+      releaseId:
+        description: 'ID of the cli.js release'
+        required: true
   repository_dispatch:
     types: [publish-clijs]
 
@@ -396,5 +400,5 @@ jobs:
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          RELEASE_ID: ${{ github.event.client_payload.releaseId }}
+          NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
+          RELEASE_ID: ${{ github.event.inputs.releaseId }}

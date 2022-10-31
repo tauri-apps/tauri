@@ -1,6 +1,6 @@
 use super::{detect_target_ok, ensure_init, env, with_config, MobileTarget};
 use crate::Result;
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 use cargo_mobile::{
   android::target::Target,
@@ -14,8 +14,8 @@ pub struct Options {
   #[clap(
     short,
     long = "target",
-    multiple_occurrences(true),
-    multiple_values(true),
+    action = ArgAction::Append,
+    num_args(0..),
     default_value = Target::DEFAULT_KEY,
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]

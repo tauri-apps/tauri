@@ -76,7 +76,7 @@ enum Commands {
   XcodeScript(xcode_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(MobileTarget::Ios, options.ci, options.reinstall_deps)?,

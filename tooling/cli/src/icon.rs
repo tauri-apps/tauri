@@ -157,7 +157,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   for size in [32, 128, 256, 512] {
     let file_name = match size {
-      256 => "128x128@2.png".to_string(),
+      256 => "128x128@2x.png".to_string(),
       512 => "icon.png".to_string(),
       _ => format!("{}x{}.png", size, size),
     };

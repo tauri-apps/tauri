@@ -34,6 +34,8 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
+use crate::TitleBarStyle;
+
 pub use self::parse::parse;
 
 /// An URL to open on a Tauri webview window.
@@ -549,6 +551,9 @@ pub struct BundleConfig {
   /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
   /// and periods (.).
   pub identifier: String,
+  /// The application's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
+  pub publisher: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -794,6 +799,9 @@ pub struct WindowConfig {
   /// The window webview URL.
   #[serde(default)]
   pub url: WindowUrl,
+  /// The user agent for the webview
+  #[serde(alias = "user-agent")]
+  pub user_agent: Option<String>,
   /// Whether the file drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use drag and drop on the frontend on Windows.
@@ -833,7 +841,7 @@ pub struct WindowConfig {
   /// Whether the window starts as fullscreen or not.
   #[serde(default)]
   pub fullscreen: bool,
-  /// Whether the window will be initially hidden or focused.
+  /// Whether the window will be initially focused or not.
   #[serde(default = "default_focus")]
   pub focus: bool,
   /// Whether the window is transparent or not.
@@ -859,6 +867,23 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
+  /// The style of the macOS title bar.
+  #[serde(default, alias = "title-bar-style")]
+  pub title_bar_style: TitleBarStyle,
+  /// If `true`, sets the window title to be hidden on macOS.
+  #[serde(default, alias = "hidden-title")]
+  pub hidden_title: bool,
+  /// Whether clicking an inactive window also clicks through to the webview.
+  #[serde(default, alias = "accept-first-mouse")]
+  pub accept_first_mouse: bool,
+  /// Defines the window [tabbing identifier] for macOS.
+  ///
+  /// Windows with matching tabbing identifiers will be grouped together.
+  /// If the tabbing identifier is not set, automatic tabbing will be disabled.
+  ///
+  /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
+  #[serde(default, alias = "tabbing-identifier")]
+  pub tabbing_identifier: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -866,6 +891,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WindowUrl::default(),
+      user_agent: None,
       file_drop_enabled: default_file_drop_enabled(),
       center: false,
       x: None,
@@ -887,6 +913,10 @@ impl Default for WindowConfig {
       always_on_top: false,
       skip_taskbar: false,
       theme: None,
+      title_bar_style: Default::default(),
+      hidden_title: false,
+      accept_first_mouse: false,
+      tabbing_identifier: None,
     }
   }
 }
@@ -1129,7 +1159,8 @@ macro_rules! check_feature {
 /// Each pattern can start with a variable that resolves to a system base directory.
 /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
 /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
+/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
@@ -1207,6 +1238,9 @@ pub struct FsAllowlistConfig {
   /// Rename file from local filesystem.
   #[serde(default, alias = "rename-file")]
   pub rename_file: bool,
+  /// Check if path exists on the local filesystem.
+  #[serde(default)]
+  pub exists: bool,
 }
 
 impl Allowlist for FsAllowlistConfig {
@@ -1222,6 +1256,7 @@ impl Allowlist for FsAllowlistConfig {
       remove_dir: true,
       remove_file: true,
       rename_file: true,
+      exists: true,
     };
     let mut features = allowlist.to_features();
     features.push("fs-all");
@@ -1241,6 +1276,7 @@ impl Allowlist for FsAllowlistConfig {
       check_feature!(self, features, remove_dir, "fs-remove-dir");
       check_feature!(self, features, remove_file, "fs-remove-file");
       check_feature!(self, features, rename_file, "fs-rename-file");
+      check_feature!(self, features, exists, "fs-exists");
       features
     }
   }
@@ -1320,6 +1356,21 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the skip_taskbar flag of the window.
   #[serde(default, alias = "set-skip-taskbar")]
   pub set_skip_taskbar: bool,
+  /// Allows grabbing the cursor.
+  #[serde(default, alias = "set-cursor-grab")]
+  pub set_cursor_grab: bool,
+  /// Allows setting the cursor visibility.
+  #[serde(default, alias = "set-cursor-visible")]
+  pub set_cursor_visible: bool,
+  /// Allows changing the cursor icon.
+  #[serde(default, alias = "set-cursor-icon")]
+  pub set_cursor_icon: bool,
+  /// Allows setting the cursor position.
+  #[serde(default, alias = "set-cursor-position")]
+  pub set_cursor_position: bool,
+  /// Allows ignoring cursor events.
+  #[serde(default, alias = "set-ignore-cursor-events")]
+  pub set_ignore_cursor_events: bool,
   /// Allows start dragging on the window.
   #[serde(default, alias = "start-dragging")]
   pub start_dragging: bool,
@@ -1354,6 +1405,11 @@ impl Allowlist for WindowAllowlistConfig {
       set_focus: true,
       set_icon: true,
       set_skip_taskbar: true,
+      set_cursor_grab: true,
+      set_cursor_visible: true,
+      set_cursor_icon: true,
+      set_cursor_position: true,
+      set_ignore_cursor_events: true,
       start_dragging: true,
       print: true,
     };
@@ -1399,6 +1455,26 @@ impl Allowlist for WindowAllowlistConfig {
       check_feature!(self, features, set_focus, "window-set-focus");
       check_feature!(self, features, set_icon, "window-set-icon");
       check_feature!(self, features, set_skip_taskbar, "window-set-skip-taskbar");
+      check_feature!(self, features, set_cursor_grab, "window-set-cursor-grab");
+      check_feature!(
+        self,
+        features,
+        set_cursor_visible,
+        "window-set-cursor-visible"
+      );
+      check_feature!(self, features, set_cursor_icon, "window-set-cursor-icon");
+      check_feature!(
+        self,
+        features,
+        set_cursor_position,
+        "window-set-cursor-position"
+      );
+      check_feature!(
+        self,
+        features,
+        set_ignore_cursor_events,
+        "window-set-ignore-cursor-events"
+      );
       check_feature!(self, features, start_dragging, "window-start-dragging");
       check_feature!(self, features, print, "window-print");
       features
@@ -1420,7 +1496,8 @@ pub struct ShellAllowedCommand {
   /// It can start with a variable that resolves to a system base directory.
   /// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
   /// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.
+  /// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
+  /// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
   #[serde(rename = "cmd", default)] // use default just so the schema doesn't flag it as required
   pub command: PathBuf,
 
@@ -1948,6 +2025,46 @@ impl Allowlist for ClipboardAllowlistConfig {
   }
 }
 
+/// Allowlist for the app APIs.
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppAllowlistConfig {
+  /// Use this flag to enable all app APIs.
+  #[serde(default)]
+  pub all: bool,
+  /// Enables the app's `show` API.
+  #[serde(default)]
+  pub show: bool,
+  /// Enables the app's `hide` API.
+  #[serde(default)]
+  pub hide: bool,
+}
+
+impl Allowlist for AppAllowlistConfig {
+  fn all_features() -> Vec<&'static str> {
+    let allowlist = Self {
+      all: false,
+      show: true,
+      hide: true,
+    };
+    let mut features = allowlist.to_features();
+    features.push("app-all");
+    features
+  }
+
+  fn to_features(&self) -> Vec<&'static str> {
+    if self.all {
+      vec!["app-all"]
+    } else {
+      let mut features = Vec::new();
+      check_feature!(self, features, show, "app-show");
+      check_feature!(self, features, hide, "app-hide");
+      features
+    }
+  }
+}
+
 /// Allowlist configuration.
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -1992,6 +2109,9 @@ pub struct AllowlistConfig {
   /// Clipboard APIs allowlist.
   #[serde(default)]
   pub clipboard: ClipboardAllowlistConfig,
+  /// App APIs allowlist.
+  #[serde(default)]
+  pub app: AppAllowlistConfig,
 }
 
 impl Allowlist for AllowlistConfig {
@@ -2009,6 +2129,7 @@ impl Allowlist for AllowlistConfig {
     features.extend(ProtocolAllowlistConfig::all_features());
     features.extend(ProcessAllowlistConfig::all_features());
     features.extend(ClipboardAllowlistConfig::all_features());
+    features.extend(AppAllowlistConfig::all_features());
     features
   }
 
@@ -2043,7 +2164,6 @@ pub enum PatternKind {
   /// Brownfield pattern.
   Brownfield,
   /// Isolation pattern. Recommended for security purposes.
-  #[cfg(feature = "isolation")]
   Isolation {
     /// The dir containing the index.html file that contains the secure isolation application.
     dir: PathBuf,
@@ -2121,7 +2241,6 @@ impl TauriConfig {
     if self.macos_private_api {
       features.push("macos-private-api");
     }
-    #[cfg(feature = "isolation")]
     if let PatternKind::Isolation { .. } = self.pattern {
       features.push("isolation");
     }
@@ -2344,6 +2463,8 @@ pub struct SystemTrayConfig {
     alias = "menu-on-left-click"
   )]
   pub menu_on_left_click: bool,
+  /// Title for MacOS tray
+  pub title: Option<String>,
 }
 
 fn default_tray_menu_on_left_click() -> bool {
@@ -2565,6 +2686,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
 pub struct PackageConfig {
   /// App name.
   #[serde(alias = "product-name")]
+  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -2896,10 +3018,23 @@ mod build {
     }
   }
 
+  impl ToTokens for crate::TitleBarStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::TitleBarStyle };
+
+      tokens.append_all(match self {
+        Self::Visible => quote! { #prefix::Visible },
+        Self::Transparent => quote! { #prefix::Transparent },
+        Self::Overlay => quote! { #prefix::Overlay },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
       let url = &self.url;
+      let user_agent = opt_str_lit(self.user_agent.as_ref());
       let file_drop_enabled = self.file_drop_enabled;
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
@@ -2921,12 +3056,17 @@ mod build {
       let always_on_top = self.always_on_top;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
+      let title_bar_style = &self.title_bar_style;
+      let hidden_title = self.hidden_title;
+      let accept_first_mouse = self.accept_first_mouse;
+      let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
 
       literal_struct!(
         tokens,
         WindowConfig,
         label,
         url,
+        user_agent,
         file_drop_enabled,
         center,
         x,
@@ -2947,7 +3087,11 @@ mod build {
         decorations,
         always_on_top,
         skip_taskbar,
-        theme
+        theme,
+        title_bar_style,
+        hidden_title,
+        accept_first_mouse,
+        tabbing_identifier
       );
     }
   }
@@ -3055,6 +3199,8 @@ mod build {
 
       tokens.append_all(match self {
         Self::Brownfield => quote! { #prefix::Brownfield },
+        #[cfg(not(feature = "isolation"))]
+        Self::Isolation { dir: _ } => quote! { #prefix::Brownfield },
         #[cfg(feature = "isolation")]
         Self::Isolation { dir } => {
           let dir = path_buf_lit(dir);
@@ -3107,6 +3253,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      let publisher = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -3127,6 +3274,7 @@ mod build {
         BundleConfig,
         active,
         identifier,
+        publisher,
         icon,
         targets,
         resources,
@@ -3314,12 +3462,14 @@ mod build {
       let icon_as_template = self.icon_as_template;
       let menu_on_left_click = self.menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
+      let title = opt_str_lit(self.title.as_ref());
       literal_struct!(
         tokens,
         SystemTrayConfig,
         icon_path,
         icon_as_template,
-        menu_on_left_click
+        menu_on_left_click,
+        title
       );
     }
   }
@@ -3541,6 +3691,7 @@ mod test {
         active: false,
         targets: Default::default(),
         identifier: String::from(""),
+        publisher: None,
         icon: Vec::new(),
         resources: None,
         copyright: None,

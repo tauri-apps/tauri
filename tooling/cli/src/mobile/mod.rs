@@ -75,6 +75,10 @@ impl DevProcess for DevChild {
   fn manually_killed_process(&self) -> bool {
     self.manually_killed_process.load(Ordering::Relaxed)
   }
+
+  fn is_building_app(&self) -> bool {
+    false
+  }
 }
 
 #[derive(PartialEq, Eq, Copy, Clone)]

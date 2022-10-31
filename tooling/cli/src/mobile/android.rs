@@ -72,7 +72,7 @@ enum Commands {
   AndroidStudioScript(android_studio_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(MobileTarget::Android, options.ci, false)?,

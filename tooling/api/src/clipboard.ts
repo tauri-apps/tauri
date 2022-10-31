@@ -38,6 +38,8 @@ import { invokeTauriCommand } from './helpers/tauri'
  * ```
  *
  * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0.
  */
 async function writeText(text: string): Promise<void> {
   return invokeTauriCommand({
@@ -56,8 +58,7 @@ async function writeText(text: string): Promise<void> {
  * import { readText } from '@tauri-apps/api/clipboard';
  * const clipboardText = await readText();
  * ```
- *
- * @returns A promise resolving to the clipboard content as plain text.
+ * @since 1.0.0.
  */
 async function readText(): Promise<string | null> {
   return invokeTauriCommand({

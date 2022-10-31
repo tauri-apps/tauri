@@ -6,31 +6,31 @@ use std::{
   collections::HashMap,
   ffi::OsStr,
   fs::{File, FileType},
-  io::{Read, Write},
+  io::{BufRead, Read, Write},
   path::{Path, PathBuf},
   process::{Command, ExitStatus},
   str::FromStr,
-  sync::{
-    mpsc::{channel, sync_channel},
-    Arc, Mutex,
-  },
+  sync::{mpsc::sync_channel, Arc, Mutex},
   time::{Duration, Instant},
 };
 
 use anyhow::Context;
 #[cfg(target_os = "linux")]
 use heck::ToKebabCase;
-use log::{debug, info};
-use notify::{watcher, DebouncedEvent, RecursiveMode, Watcher};
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
+use log::{debug, error, info};
+use notify::RecursiveMode;
+use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
+use tauri_utils::config::parse::is_configuration_file;
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
-  app_paths::tauri_dir,
+  app_paths::{app_dir, tauri_dir},
   config::{reload as reload_config, wix_settings, Config},
 };
 
@@ -104,11 +104,18 @@ pub struct Rust {
 impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
-  fn new(config: &Config) -> crate::Result<Self> {
+  fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
-      let (tx, rx) = channel();
-      let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
+      let (tx, rx) = sync_channel(1);
+      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+        if let Ok(events) = r {
+          tx.send(events).unwrap()
+        }
+      })
+      .unwrap();
+      watcher
+        .watcher()
+        .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
       let manifest = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
@@ -116,7 +123,7 @@ impl Interface for Rust {
         if now.elapsed() >= timeout {
           break;
         }
-        if let Ok(DebouncedEvent::NoticeWrite(_)) = rx.try_recv() {
+        if rx.try_recv().is_ok() {
           break;
         }
       }
@@ -127,7 +134,7 @@ impl Interface for Rust {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
-    let app_settings = RustAppSettings::new(config, manifest)?;
+    let app_settings = RustAppSettings::new(config, manifest, target)?;
 
     Ok(Self {
       app_settings,
@@ -163,8 +170,10 @@ impl Interface for Rust {
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
 
-    let run_args = dev_options(
+    let mut run_args = Vec::new();
+    dev_options(
       &mut options.args,
+      &mut run_args,
       &mut options.features,
       self.app_settings.manifest.features(),
     );
@@ -195,8 +204,10 @@ impl Interface for Rust {
     mut options: MobileOptions,
     runner: R,
   ) -> crate::Result<()> {
+    let mut run_args = Vec::new();
     dev_options(
       &mut options.args,
+      &mut run_args,
       &mut options.features,
       self.app_settings.manifest.features(),
     );
@@ -210,6 +221,105 @@ impl Interface for Rust {
       self.run_dev_watcher(config, run)
     }
   }
+
+  fn env(&self) -> HashMap<&str, String> {
+    let mut env = HashMap::new();
+    env.insert(
+      "TAURI_TARGET_TRIPLE",
+      self.app_settings.target_triple.clone(),
+    );
+
+    let mut s = self.app_settings.target_triple.split('-');
+    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
+    env.insert(
+      "TAURI_ARCH",
+      match arch {
+        // keeps compatibility with old `std::env::consts::ARCH` implementation
+        "i686" | "i586" => "x86".into(),
+        a => a.into(),
+      },
+    );
+    env.insert(
+      "TAURI_PLATFORM",
+      match host {
+        // keeps compatibility with old `std::env::consts::OS` implementation
+        "darwin" => "macos".into(),
+        "ios-sim" => "ios".into(),
+        "androideabi" => "android".into(),
+        h => h.into(),
+      },
+    );
+
+    env.insert(
+      "TAURI_FAMILY",
+      match host {
+        "windows" => "windows".into(),
+        _ => "unix".into(),
+      },
+    );
+
+    match host {
+      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
+      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
+      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
+      _ => None,
+    };
+
+    env
+  }
+}
+
+struct IgnoreMatcher(Vec<Gitignore>);
+
+impl IgnoreMatcher {
+  fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
+    for gitignore in &self.0 {
+      if gitignore.matched(path, is_dir).is_ignore() {
+        return true;
+      }
+    }
+    false
+  }
+}
+
+fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
+  let mut matchers = Vec::new();
+
+  // ignore crate doesn't expose an API to build `ignore::gitignore::GitIgnore`
+  // with custom ignore file names so we have to walk the directory and collect
+  // our custom ignore files and add it using `ignore::gitignore::GitIgnoreBuilder::add`
+  for entry in ignore::WalkBuilder::new(dir)
+    .require_git(false)
+    .ignore(false)
+    .overrides(
+      ignore::overrides::OverrideBuilder::new(dir)
+        .add(".taurignore")
+        .unwrap()
+        .build()
+        .unwrap(),
+    )
+    .build()
+    .flatten()
+  {
+    let path = entry.path();
+    if path.file_name() == Some(OsStr::new(".taurignore")) {
+      let mut ignore_builder = GitignoreBuilder::new(path.parent().unwrap());
+
+      ignore_builder.add(path);
+
+      if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+        ignore_builder.add(dir.join(ignore_file));
+      }
+
+      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+        let _ = ignore_builder.add_line(None, &line);
+      }
+
+      matchers.push(ignore_builder.build().unwrap());
+    }
+  }
+
+  IgnoreMatcher(matchers)
 }
 
 fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
@@ -238,9 +348,23 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
 
 fn dev_options(
   args: &mut Vec<String>,
+  run_args: &mut Vec<String>,
   features: &mut Option<Vec<String>>,
   manifest_features: HashMap<String, Vec<String>>,
-) -> Vec<String> {
+) {
+  let mut dev_args = Vec::new();
+  let mut reached_run_args = false;
+  for arg in args.clone() {
+    if reached_run_args {
+      run_args.push(arg);
+    } else if arg == "--" {
+      reached_run_args = true;
+    } else {
+      dev_args.push(arg);
+    }
+  }
+  *args = dev_args;
+
   if !args.contains(&"--no-default-features".into()) {
     let enable_features: Vec<String> = manifest_features
       .get("default")
@@ -260,21 +384,6 @@ fn dev_options(
       features.get_or_insert(Vec::new()).extend(enable_features);
     }
   }
-
-  let mut dev_args = Vec::new();
-  let mut run_args = Vec::new();
-  let mut reached_run_args = false;
-  for arg in args.clone() {
-    if reached_run_args {
-      run_args.push(arg);
-    } else if arg == "--" {
-      reached_run_args = true;
-    } else {
-      dev_args.push(arg);
-    }
-  }
-  *args = dev_args;
-  run_args
 }
 
 impl Rust {
@@ -304,7 +413,8 @@ impl Rust {
     let child = run(self)?;
 
     let process = Arc::new(Mutex::new(child));
-    let (tx, rx) = channel();
+    let (tx, rx) = sync_channel(1);
+    let app_path = app_dir();
     let tauri_path = tauri_dir();
     let workspace_path = get_workspace_dir()?;
 
@@ -326,53 +436,77 @@ impl Rust {
         .unwrap_or_else(|| vec![tauri_path])
     };
 
-    let mut watcher = watcher(tx, Duration::from_secs(1)).unwrap();
+    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
+    let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
+    let ignore_matcher = build_ignore_matcher(&common_ancestor);
+
+    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      if let Ok(events) = r {
+        tx.send(events).unwrap()
+      }
+    })
+    .unwrap();
     for path in watch_folders {
-      info!("Watching {} for changes...", path.display());
-      lookup(&path, |file_type, p| {
-        if p != path {
-          debug!("Watching {} for changes...", p.display());
-          let _ = watcher.watch(
-            p,
-            if file_type.is_dir() {
-              RecursiveMode::Recursive
-            } else {
-              RecursiveMode::NonRecursive
-            },
-          );
-        }
-      });
+      if !ignore_matcher.is_ignore(path, true) {
+        info!("Watching {} for changes...", path.display());
+        lookup(path, |file_type, p| {
+          if p != path {
+            debug!("Watching {} for changes...", p.display());
+            let _ = watcher.watcher().watch(
+              &p,
+              if file_type.is_dir() {
+                RecursiveMode::Recursive
+              } else {
+                RecursiveMode::NonRecursive
+              },
+            );
+          }
+        });
+      }
     }
 
     loop {
-      let run = run.clone();
-      if let Ok(event) = rx.recv() {
-        let event_path = match event {
-          DebouncedEvent::Create(path) => Some(path),
-          DebouncedEvent::Remove(path) => Some(path),
-          DebouncedEvent::Rename(_, dest) => Some(dest),
-          DebouncedEvent::Write(path) => Some(path),
-          _ => None,
-        };
+      if let Ok(events) = rx.recv() {
+        for event in events {
+          let event_path = event.path;
 
-        if let Some(event_path) = event_path {
-          if event_path.file_name() == Some(OsStr::new("tauri.conf.json")) {
-            let config = reload_config(config.as_deref())?;
-            self.app_settings.manifest =
-              rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-          } else {
-            // When tauri.conf.json is changed, rewrite_manifest will be called
-            // which will trigger the watcher again
-            // So the app should only be started when a file other than tauri.conf.json is changed
-            let mut p = process.lock().unwrap();
-            p.kill().with_context(|| "failed to kill app process")?;
-            // wait for the process to exit
-            loop {
-              if let Ok(Some(_)) = p.try_wait() {
-                break;
+          if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
+            if is_configuration_file(&event_path) {
+              match reload_config(config.as_deref()) {
+                Ok(config) => {
+                  info!("Tauri configuration changed. Rewriting manifest...");
+                  self.app_settings.manifest =
+                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
+                }
+                Err(err) => {
+                  let p = process.lock().unwrap();
+                  if p.is_building_app() {
+                    p.kill().with_context(|| "failed to kill app process")?;
+                  }
+                  error!("{}", err);
+                }
               }
+            } else {
+              info!(
+                "File {} changed. Rebuilding application...",
+                event_path
+                  .strip_prefix(&app_path)
+                  .unwrap_or(&event_path)
+                  .display()
+              );
+              // When tauri.conf.json is changed, rewrite_manifest will be called
+              // which will trigger the watcher again
+              // So the app should only be started when a file other than tauri.conf.json is changed
+              let mut p = process.lock().unwrap();
+              p.kill().with_context(|| "failed to kill app process")?;
+              // wait for the process to exit
+              loop {
+                if let Ok(Some(_)) = p.try_wait() {
+                  break;
+                }
+              }
+              *p = run(self)?;
             }
-            *p = run(self)?;
           }
         }
       }
@@ -446,6 +580,7 @@ pub struct RustAppSettings {
   cargo_package_settings: CargoPackageSettings,
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
+  target_triple: String,
 }
 
 impl AppSettings for RustAppSettings {
@@ -477,13 +612,8 @@ impl AppSettings for RustAppSettings {
     let out_dir = self
       .out_dir(options.target.clone(), options.debug)
       .with_context(|| "failed to get project out directory")?;
-    let target: String = if let Some(target) = options.target.clone() {
-      target
-    } else {
-      tauri_utils::platform::target_triple()?
-    };
 
-    let binary_extension: String = if target.contains("windows") {
+    let binary_extension: String = if self.target_triple.contains("windows") {
       "exe"
     } else {
       ""
@@ -599,7 +729,7 @@ impl AppSettings for RustAppSettings {
 }
 
 impl RustAppSettings {
-  pub fn new(config: &Config, manifest: Manifest) -> crate::Result<Self> {
+  pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let cargo_settings =
       CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
@@ -635,12 +765,31 @@ impl RustAppSettings {
 
     let cargo_config = CargoConfig::load(&tauri_dir())?;
 
+    let target_triple = target.unwrap_or_else(|| {
+      cargo_config
+        .build()
+        .target()
+        .map(|t| t.to_string())
+        .unwrap_or_else(|| {
+          let output = Command::new("rustc").args(&["-vV"]).output().unwrap();
+          let stdout = String::from_utf8_lossy(&output.stdout);
+          stdout
+            .split('\n')
+            .find(|l| l.starts_with("host:"))
+            .unwrap()
+            .replace("host:", "")
+            .trim()
+            .to_string()
+        })
+    });
+
     Ok(Self {
       manifest,
       cargo_settings,
       cargo_package_settings,
       package_settings,
       cargo_config,
+      target_triple,
     })
   }
 
@@ -781,6 +930,7 @@ fn tauri_config_to_bundle_settings(
 
   Ok(BundleSettings {
     identifier: Some(config.identifier),
+    publisher: config.publisher,
     icon: Some(config.icon),
     resources: if resources.is_empty() {
       None

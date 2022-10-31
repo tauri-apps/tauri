@@ -8,7 +8,7 @@ use crate::{
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 use cargo_mobile::{
   android::{
@@ -34,7 +34,7 @@ const WEBVIEW_CLASS_INIT: &str =
 #[clap(about = "Android dev")]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]

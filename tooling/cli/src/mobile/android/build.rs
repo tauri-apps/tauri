@@ -8,7 +8,7 @@ use crate::{
   mobile::{write_options, CliOptions},
   Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 use cargo_mobile::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
@@ -28,13 +28,13 @@ pub struct Options {
   #[clap(
     short,
     long = "target",
-    multiple_occurrences(true),
-    multiple_values(true),
+    action = ArgAction::Append,
+    num_args(0..),
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]

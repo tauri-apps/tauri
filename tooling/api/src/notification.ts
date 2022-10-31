@@ -28,6 +28,8 @@ import { invokeTauriCommand } from './helpers/tauri'
 
 /**
  * Options to send a notification.
+ *
+ * @since 1.0.0
  */
 interface Options {
   /** Notification title. */
@@ -49,7 +51,7 @@ type Permission = 'granted' | 'denied' | 'default'
  * const permissionGranted = await isPermissionGranted();
  * ```
  *
- * @returns
+ * @since 1.0.0
  */
 async function isPermissionGranted(): Promise<boolean> {
   if (window.Notification.permission !== 'default') {
@@ -76,6 +78,8 @@ async function isPermissionGranted(): Promise<boolean> {
  * ```
  *
  * @returns A promise resolving to whether the user granted the permission or not.
+ *
+ * @since 1.0.0
  */
 async function requestPermission(): Promise<Permission> {
   return window.Notification.requestPermission()
@@ -97,7 +101,7 @@ async function requestPermission(): Promise<Permission> {
  * }
  * ```
  *
- * @param options Notification options.
+ * @since 1.0.0
  */
 function sendNotification(options: Options | string): void {
   if (typeof options === 'string') {

@@ -56,6 +56,10 @@ impl DevProcess for DevChild {
   fn manually_killed_process(&self) -> bool {
     self.manually_killed_app.load(Ordering::Relaxed)
   }
+
+  fn is_building_app(&self) -> bool {
+    self.app_child.lock().unwrap().is_none()
+  }
 }
 
 pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
@@ -381,6 +385,8 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
       .unwrap()
       .join(&product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
+
+    std::fs::create_dir_all(product_path.parent().unwrap())?;
 
     rename(&bin_path, &product_path).with_context(|| {
       format!(

@@ -1258,7 +1258,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsVisible)
   }
 
-  fn title(&self) -> Result<Option<String>> {
+  fn title(&self) -> Result<String> {
     window_getter!(self, WindowMessage::Title)
   }
 

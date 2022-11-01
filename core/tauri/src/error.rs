@@ -131,6 +131,10 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
+  #[cfg(target_os = "windows")]
+  #[error(transparent)]
+  /// Error performing raw win32 api calls.
+  Win32Error(#[from] windows::core::Error),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

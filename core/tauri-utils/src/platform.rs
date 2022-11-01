@@ -204,11 +204,15 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
 }
 
 #[cfg(windows)]
-pub use windows_platform::{is_windows_7, windows_version};
+pub use windows_platform::{decode_wide, encode_wide, is_windows_7, windows_version};
 
 #[cfg(windows)]
 mod windows_platform {
-  use std::{iter::once, os::windows::prelude::OsStrExt};
+  use std::{
+    ffi::OsString,
+    iter::once,
+    os::windows::prelude::{OsStrExt, OsStringExt},
+  };
   use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{
@@ -231,8 +235,17 @@ mod windows_platform {
     false
   }
 
-  fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
+  /// Encodes a rust String as a wide c string
+  pub fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
     string.as_ref().encode_wide().chain(once(0)).collect()
+  }
+  /// Deccodes a wide c string into a rust String
+  pub fn decode_wide(mut wide_c_string: &[u16]) -> OsString {
+    if let Some(null_pos) = wide_c_string.iter().position(|c| *c == 0) {
+      wide_c_string = &wide_c_string[..null_pos];
+    }
+
+    OsString::from_wide(wide_c_string)
   }
 
   // Helper function to dynamically load function pointer.

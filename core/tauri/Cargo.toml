@@ -109,7 +109,7 @@ paste = "1.0"
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.39.0"
-features = [ "Win32_Foundation" ]
+features = [ "Win32_Foundation", "Win32_System_Registry"]
 
 [build-dependencies]
 heck = "0.4"

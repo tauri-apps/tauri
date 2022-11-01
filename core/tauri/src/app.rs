@@ -6,7 +6,7 @@
 pub(crate) mod tray;
 
 use crate::{
-  api::ipc::CallbackFn,
+  api::{ipc::CallbackFn, process::current_binary},
   command::{CommandArg, CommandItem},
   hooks::{
     window_invoke_responder, InvokeHandler, InvokeResponder, OnPageLoad, PageLoadPayload, SetupHook,
@@ -538,6 +538,212 @@ impl<R: Runtime> AppHandle<R> {
         let _ = tray.destroy();
       }
     }
+  }
+
+  /// Sets the current executable as the default handler for a protocol (aka URI scheme).
+  ///
+  /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
+  ///  `tauri://` links, call this method with `electron` as the protocol.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// -**macOS**: no-op
+  pub fn set_as_default_protocol_client<S: AsRef<str>>(&self, protocol: S) -> crate::Result<()> {
+    let protocol = protocol.as_ref();
+    if protocol.is_empty() {
+      return Ok(());
+    }
+
+    #[cfg(windows)]
+    {
+      use tauri_utils::platform::encode_wide;
+      use windows::{
+        core::PCWSTR,
+        Win32::System::Registry::{
+          RegCloseKey, RegCreateKeyW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, REG_SZ,
+        },
+      };
+
+      let protocol_key = format!("Software\\Classes\\{}", protocol);
+      let protocol_key_wide = encode_wide(&protocol_key);
+      let protocol_key_pcwstr = PCWSTR::from_raw(protocol_key_wide.as_ptr());
+      let protocol_command_key = format!("{}\\shell\\open\\command", protocol_key);
+      let protocol_command_key_wide = encode_wide(&protocol_command_key);
+      let protocol_comamnd_key_pcwstr = PCWSTR::from_raw(protocol_command_key_wide.as_ptr());
+
+      unsafe {
+        let mut hkey = HKEY::default();
+        RegCreateKeyW(HKEY_CURRENT_USER, protocol_key_pcwstr, &mut hkey).ok()?;
+
+        let value = encode_wide(format!("URL:{}", protocol));
+        RegSetValueExW(
+          hkey,
+          PCWSTR::null(),
+          0,
+          REG_SZ,
+          value.as_ptr() as _,
+          (value.len() * std::mem::size_of::<u32>()) as _,
+        )
+        .ok()?;
+        RegSetValueExW(
+          hkey,
+          PCWSTR::from_raw(encode_wide("URL Protocol").as_ptr()),
+          0,
+          REG_SZ,
+          0 as *const _,
+          0,
+        )
+        .ok()?;
+        RegCloseKey(hkey).ok()?;
+      }
+
+      let current_exe = current_binary(&self.env())?
+        .to_string_lossy()
+        .replace("\\\\?\\", "");
+
+      unsafe {
+        let mut hkey = HKEY::default();
+        RegCreateKeyW(HKEY_CURRENT_USER, protocol_comamnd_key_pcwstr, &mut hkey).ok()?;
+
+        let value = encode_wide(format!(r#""{}" "%1""#, current_exe));
+        RegSetValueExW(
+          hkey,
+          PCWSTR::null(),
+          0,
+          REG_SZ,
+          value.as_ptr() as _,
+          (value.len() * std::mem::size_of::<u32>()) as _,
+        )
+        .ok()?;
+        RegCloseKey(hkey).ok()?;
+      }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      todo!()
+    }
+
+    Ok(())
+  }
+
+  /// Checks if the current executable as the default handler for a protocol (aka URI scheme).
+  ///
+  pub fn is_default_protocol_client<S: AsRef<str>>(&self, protocol: S) -> crate::Result<bool> {
+    let protocol = protocol.as_ref();
+    if protocol.is_empty() {
+      return Ok(false);
+    }
+
+    #[cfg(windows)]
+    {
+      use tauri_utils::platform::{decode_wide, encode_wide};
+      use windows::{
+        core::PCWSTR,
+        Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_SZ},
+      };
+
+      let protocol_command_key = format!("Software\\Classes\\{}\\shell\\open\\command", protocol);
+      let protocol_command_key_wide = encode_wide(&protocol_command_key);
+      let protocol_comamnd_key_pcwstr = PCWSTR::from_raw(protocol_command_key_wide.as_ptr());
+
+      let mut len = 0;
+      unsafe {
+        RegGetValueW(
+          HKEY_CURRENT_USER,
+          protocol_comamnd_key_pcwstr,
+          PCWSTR::null(),
+          RRF_RT_REG_SZ,
+          0 as _,
+          0 as _,
+          &mut len,
+        )
+        .ok()?;
+      }
+
+      let mut buf: Vec<u16> = vec![0; len as _];
+
+      unsafe {
+        RegGetValueW(
+          HKEY_CURRENT_USER,
+          protocol_comamnd_key_pcwstr,
+          PCWSTR::null(),
+          RRF_RT_REG_SZ,
+          0 as _,
+          buf.as_mut_ptr() as _,
+          &mut len,
+        )
+        .ok()?;
+      }
+
+      let current_exe = current_binary(&self.env())?
+        .to_string_lossy()
+        .replace("\\\\?\\", "");
+
+      Ok(decode_wide(&buf) == format!(r#""{}" "%1""#, current_exe).as_str())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      todo!()
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+      Ok(false)
+    }
+  }
+
+  /// This method checks if the current executable as the default handler for a protocol (aka URI scheme).
+  /// If so, it will remove the app as the default handler.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// -**macOS**: no-op
+  pub fn remove_as_default_protocol_client<S: AsRef<str>>(&self, protocol: S) -> crate::Result<()> {
+    let protocol = protocol.as_ref();
+    if protocol.is_empty() {
+      return Ok(());
+    }
+
+    #[cfg(windows)]
+    {
+      use tauri_utils::platform::encode_wide;
+      use windows::{
+        core::PCWSTR,
+        Win32::System::Registry::{
+          RegCloseKey, RegDeleteKeyW, RegDeleteTreeW, RegOpenKeyExW, HKEY, HKEY_CURRENT_USER,
+          KEY_ENUMERATE_SUB_KEYS, KEY_QUERY_VALUE, KEY_SET_VALUE,
+        },
+      };
+
+      let protocol_key = format!("Software\\Classes\\{}", protocol);
+      let protocol_key_wide = encode_wide(&protocol_key);
+      let protocol_key_pcwstr = PCWSTR::from_raw(protocol_key_wide.as_ptr());
+
+      unsafe {
+        let mut hkey = HKEY::default();
+        RegOpenKeyExW(
+          HKEY_CURRENT_USER,
+          protocol_key_pcwstr,
+          0,
+          KEY_SET_VALUE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE,
+          &mut hkey,
+        )
+        .ok()?;
+
+        RegDeleteTreeW(hkey, PCWSTR::null()).ok()?;
+        RegCloseKey(hkey).ok()?;
+
+        RegDeleteKeyW(HKEY_CURRENT_USER, protocol_key_pcwstr).ok()?;
+      }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      todo!()
+    }
+    Ok(())
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,7 @@ use crate::{
   Manager, Runtime,
 };
 use serde::{de::Deserializer, Deserialize};
+use serde_json::Value as JsonValue;
 use tauri_macros::{command_enum, CommandModule};
 
 pub struct EventId(String);
@@ -73,7 +74,7 @@ pub enum Cmd {
   Emit {
     event: EventId,
     window_label: Option<WindowLabel>,
-    payload: Option<String>,
+    payload: Option<JsonValue>,
   },
 }
 
@@ -127,10 +128,22 @@ impl Cmd {
     context: InvokeContext<R>,
     event: EventId,
     window_label: Option<WindowLabel>,
-    payload: Option<String>,
+    payload: Option<JsonValue>,
   ) -> super::Result<()> {
     // dispatch the event to Rust listeners
-    context.window.trigger(&event.0, payload.clone());
+    context.window.trigger(
+      &event.0,
+      // TODO: dispatch any serializable value instead of a string in v2
+      payload.as_ref().and_then(|p| {
+        serde_json::to_string(&p)
+          .map_err(|e| {
+            #[cfg(debug_assertions)]
+            eprintln!("{}", e);
+            e
+          })
+          .ok()
+      }),
+    );
 
     if let Some(target) = window_label {
       context

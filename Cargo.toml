@@ -8,7 +8,8 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
-  
+  "core/config-schema",
+
   # integration tests
   "core/tests/restart",
   "core/tests/app-updater"
@@ -24,7 +25,6 @@ exclude = [
 
 # default to small, optimized workspace release binaries
 [profile.release]
-strip = true
 panic = "abort"
 codegen-units = 1
 lto = true

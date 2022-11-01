@@ -1,8 +1,12 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/config-schema/schema.json",
   "build": {
-    "distDir": ["index.html"],
-    "devPath": ["index.html"],
+    "distDir": [
+      "index.html"
+    ],
+    "devPath": [
+      "index.html"
+    ],
     "withGlobalTauri": true
   },
   "package": {
@@ -35,12 +39,14 @@
       {
         "label": "Main",
         "title": "Tauri - Main",
+        "tabbingIdentifier": "Main",
         "width": 800,
         "height": 600
       },
       {
         "label": "Secondary",
         "title": "Tauri - Secondary",
+        "tabbingIdentifier": "Secondary",
         "width": 600,
         "height": 400
       }

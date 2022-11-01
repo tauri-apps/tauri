@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,7 @@ pub mod assets;
 pub mod config;
 pub mod html;
 pub mod io;
+pub mod mime_type;
 pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
@@ -46,6 +47,68 @@ impl PackageInfo {
     }
     #[cfg(not(target_os = "linux"))]
     self.name.clone()
+  }
+}
+
+/// How the window title bar should be displayed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum TitleBarStyle {
+  /// A normal title bar.
+  Visible,
+  /// Makes the title bar transparent, so the window background color is shown instead.
+  ///
+  /// Useful if you don't need to have actual HTML under the title bar. This lets you avoid the caveats of using `TitleBarStyle::Overlay`. Will be more useful when Tauri lets you set a custom window background color.
+  Transparent,
+  /// Shows the title bar as a transparent overlay over the window's content.
+  ///
+  /// Keep in mind:
+  /// - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect.
+  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316).
+  /// - The color of the window title depends on the system theme.
+  Overlay,
+}
+
+impl Default for TitleBarStyle {
+  fn default() -> Self {
+    Self::Visible
+  }
+}
+
+impl Serialize for TitleBarStyle {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for TitleBarStyle {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+      "transparent" => Self::Transparent,
+      "overlay" => Self::Overlay,
+      _ => Self::Visible,
+    })
+  }
+}
+
+impl Display for TitleBarStyle {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Visible => "Visible",
+        Self::Transparent => "Transparent",
+        Self::Overlay => "Overlay",
+      }
+    )
   }
 }
 
@@ -105,11 +168,14 @@ pub struct Env {
   /// The APPDIR environment variable.
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
+  /// The command line arguments of the current process.
+  pub args: Vec<String>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
+    let args = std::env::args().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -117,6 +183,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
+        args,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -139,7 +206,7 @@ impl Default for Env {
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self {}
+      Self { args }
     }
   }
 }

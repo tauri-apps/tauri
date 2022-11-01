@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,11 +15,13 @@ use tauri_runtime::{
   Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
   UserEvent,
 };
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
   menu::{SystemTrayMenu, TrayHandle},
-  SystemTray, SystemTrayEvent,
+  SystemTray, SystemTrayEvent, TrayId,
 };
+#[cfg(target_os = "macos")]
+use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
 use uuid::Uuid;
 
@@ -80,9 +82,28 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
-  #[cfg(all(windows, feature = "system-tray"))]
-  #[cfg_attr(doc_cfg, doc(cfg(all(windows, feature = "system-tray"))))]
-  fn remove_system_tray(&self) -> Result<()> {
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(all(desktop, feature = "system-tray"))))]
+  fn system_tray(
+    &self,
+    system_tray: SystemTray,
+  ) -> Result<<Self::Runtime as Runtime<T>>::TrayHandler> {
+    unimplemented!()
+  }
+
+  fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
+    unimplemented!()
+  }
+
+  /// Shows the application, but does not automatically focus it.
+  #[cfg(target_os = "macos")]
+  fn show(&self) -> Result<()> {
+    Ok(())
+  }
+
+  /// Hides the application.
+  #[cfg(target_os = "macos")]
+  fn hide(&self) -> Result<()> {
     Ok(())
   }
 }
@@ -92,13 +113,13 @@ pub struct MockDispatcher {
   context: RuntimeContext,
 }
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 #[derive(Debug, Clone)]
 pub struct MockGlobalShortcutManager {
   context: RuntimeContext,
 }
 
-#[cfg(feature = "global-shortcut")]
+#[cfg(all(desktop, feature = "global-shortcut"))]
 impl tauri_runtime::GlobalShortcutManager for MockGlobalShortcutManager {
   fn is_registered(&self, accelerator: &str) -> Result<bool> {
     Ok(
@@ -200,7 +221,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn focus(self) -> Self {
+  fn focused(self, focused: bool) -> Self {
     self
   }
 
@@ -249,6 +270,21 @@ impl WindowBuilder for MockWindowBuilder {
 
   #[cfg(windows)]
   fn owner_window(self, owner: HWND) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn title_bar_style(self, style: TitleBarStyle) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn hidden_title(self, transparent: bool) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
+  fn tabbing_identifier(self, identifier: &str) -> Self {
     self
   }
 
@@ -493,6 +529,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(())
   }
 
+  fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn start_dragging(&self) -> Result<()> {
     Ok(())
   }
@@ -506,13 +546,13 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 }
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 #[derive(Debug, Clone)]
 pub struct MockTrayHandler {
   context: RuntimeContext,
 }
 
-#[cfg(feature = "system-tray")]
+#[cfg(all(desktop, feature = "system-tray"))]
 impl TrayHandle for MockTrayHandler {
   fn set_icon(&self, icon: Icon) -> Result<()> {
     Ok(())
@@ -525,6 +565,15 @@ impl TrayHandle for MockTrayHandler {
   }
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> Result<()> {
+    Ok(())
+  }
+
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
+    Ok(())
+  }
+
+  fn destroy(&self) -> Result<()> {
     Ok(())
   }
 }
@@ -541,11 +590,11 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy {
 #[derive(Debug)]
 pub struct MockRuntime {
   pub context: RuntimeContext,
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: MockGlobalShortcutManager,
   #[cfg(feature = "clipboard")]
   clipboard_manager: MockClipboardManager,
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   tray_handler: MockTrayHandler,
 }
 
@@ -556,7 +605,7 @@ impl MockRuntime {
       clipboard: Default::default(),
     };
     Self {
-      #[cfg(feature = "global-shortcut")]
+      #[cfg(all(desktop, feature = "global-shortcut"))]
       global_shortcut_manager: MockGlobalShortcutManager {
         context: context.clone(),
       },
@@ -564,7 +613,7 @@ impl MockRuntime {
       clipboard_manager: MockClipboardManager {
         context: context.clone(),
       },
-      #[cfg(feature = "system-tray")]
+      #[cfg(all(desktop, feature = "system-tray"))]
       tray_handler: MockTrayHandler {
         context: context.clone(),
       },
@@ -576,11 +625,11 @@ impl MockRuntime {
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type Dispatcher = MockDispatcher;
   type Handle = MockRuntimeHandle;
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   type GlobalShortcutManager = MockGlobalShortcutManager;
   #[cfg(feature = "clipboard")]
   type ClipboardManager = MockClipboardManager;
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = MockTrayHandler;
   type EventLoopProxy = EventProxy;
 
@@ -603,7 +652,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
   }
 
-  #[cfg(feature = "global-shortcut")]
+  #[cfg(all(desktop, feature = "global-shortcut"))]
   fn global_shortcut_manager(&self) -> Self::GlobalShortcutManager {
     self.global_shortcut_manager.clone()
   }
@@ -624,22 +673,37 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     })
   }
 
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
   fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
     Ok(self.tray_handler.clone())
   }
 
-  #[cfg(feature = "system-tray")]
+  #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  fn on_system_tray_event<F: Fn(&SystemTrayEvent) + Send + 'static>(&mut self, f: F) -> Uuid {
-    Uuid::new_v4()
-  }
+  fn on_system_tray_event<F: Fn(TrayId, &SystemTrayEvent) + Send + 'static>(&mut self, f: F) {}
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn show(&self) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  fn hide(&self) {}
+
+  #[cfg(any(
+    target_os = "macos",
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
   fn run_iteration<F: Fn(RunEvent<T>) + 'static>(
     &mut self,
     callback: F,

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -27,7 +27,11 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 
-/** Extension filters for the file dialog. */
+/**
+ * Extension filters for the file dialog.
+ *
+ * @since 1.0.0
+ */
 interface DialogFilter {
   /** Filter name. */
   name: string
@@ -41,7 +45,11 @@ interface DialogFilter {
   extensions: string[]
 }
 
-/** Options for the open dialog. */
+/**
+ * Options for the open dialog.
+ *
+ * @since 1.0.0
+ */
 interface OpenDialogOptions {
   /** The title of the dialog window. */
   title?: string
@@ -60,7 +68,11 @@ interface OpenDialogOptions {
   recursive?: boolean
 }
 
-/** Options for the save dialog. */
+/**
+ * Options for the save dialog.
+ *
+ * @since 1.0.0
+ */
 interface SaveDialogOptions {
   /** The title of the dialog window. */
   title?: string
@@ -74,6 +86,9 @@ interface SaveDialogOptions {
   defaultPath?: string
 }
 
+/**
+ * @since 1.0.0
+ */
 interface MessageDialogOptions {
   /** The title of the dialog. Defaults to the app name. */
   title?: string
@@ -130,6 +145,8 @@ interface MessageDialogOptions {
  * ```
  *
  * @returns A promise resolving to the selected path(s)
+ *
+ * @since 1.0.0
  */
 async function open(
   options: OpenDialogOptions = {}
@@ -160,17 +177,18 @@ async function open(
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
- *   multiple: true,
  *   filters: [{
  *     name: 'Image',
- *     extensions: ['stronghold']
+ *     extensions: ['png', 'jpeg']
  *   }]
  * });
  * ```
  *
  * @returns A promise resolving to the selected path.
+ *
+ * @since 1.0.0
  */
-async function save(options: SaveDialogOptions = {}): Promise<string> {
+async function save(options: SaveDialogOptions = {}): Promise<string | null> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }
@@ -193,10 +211,13 @@ async function save(options: SaveDialogOptions = {}): Promise<string> {
  * await message('File not found', { title: 'Tauri', type: 'error' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise indicating the success or failure of the operation.
+ * @returns A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
+ *
  */
 async function message(
   message: string,
@@ -223,10 +244,12 @@ async function message(
  * const yes2 = await ask('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise resolving to a boolean indicating whether `Yes` was clicked or not.
+ * @returns A promise resolving to a boolean indicating whether `Yes` was clicked or not.
+ *
+ * @since 1.0.0
  */
 async function ask(
   message: string,
@@ -253,10 +276,12 @@ async function ask(
  * const confirmed2 = await confirm('This action cannot be reverted. Are you sure?', { title: 'Tauri', type: 'warning' });
  * ```
  *
- * @param {string} message The message to show.
- * @param {string|MessageDialogOptions|undefined} options The dialog's options. If a string, it represents the dialog title.
+ * @param message The message to show.
+ * @param options The dialog's options. If a string, it represents the dialog title.
  *
- * @return {Promise<void>} A promise resolving to a boolean indicating whether `Ok` was clicked or not.
+ * @returns A promise resolving to a boolean indicating whether `Ok` was clicked or not.
+ *
+ * @since 1.0.0
  */
 async function confirm(
   message: string,

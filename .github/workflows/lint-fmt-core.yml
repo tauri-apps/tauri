@@ -1,4 +1,4 @@
-# Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -13,6 +13,7 @@ on:
     paths:
       - '.github/workflows/lint-fmt-core.yml'
       - 'core/**'
+      - '!core/tauri/scripts/**'
       - 'examples/**'
 
 env:
@@ -97,7 +98,7 @@ jobs:
       - name: Cache core cargo target
         uses: actions/cache@v2
         env:
-          cache-name: cargo_core
+          cache-name: cargo-core
         with:
           path: target
           # Add date to the cache to keep it up to date

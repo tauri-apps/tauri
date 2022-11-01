@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -327,17 +327,26 @@ pub fn listen_js(
   handler: String,
 ) -> String {
   format!(
-    "if (window['{listeners}'] === void 0) {{
-      Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
-    }}
-    if (window['{listeners}'][{event}] === void 0) {{
-      Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
-    }}
-    window['{listeners}'][{event}].push({{
-      id: {event_id},
-      windowLabel: {window_label},
-      handler: {handler}
-    }});
+    "
+    (function () {{
+      if (window['{listeners}'] === void 0) {{
+        Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
+      }}
+      if (window['{listeners}'][{event}] === void 0) {{
+        Object.defineProperty(window['{listeners}'], {event}, {{ value: [] }});
+      }}
+      const eventListeners = window['{listeners}'][{event}]
+      const listener = {{
+        id: {event_id},
+        windowLabel: {window_label},
+        handler: {handler}
+      }};
+      if ({event} == 'tauri://window-created') {{
+        eventListeners.splice(eventListeners.length - 1, 0, listener)
+      }} else {{
+        eventListeners.push(listener);
+      }}
+    }})()
   ",
     listeners = listeners_object_name,
     event = event,

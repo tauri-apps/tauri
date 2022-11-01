@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,12 +10,33 @@
  */
 
 import * as eventApi from './helpers/event'
-import type {
-  EventName,
-  EventCallback,
-  UnlistenFn,
-  Event
-} from './helpers/event'
+import type { EventCallback, UnlistenFn, Event } from './helpers/event'
+
+export type EventName = TauriEvent | string
+
+/**
+ * @since 1.1.0
+ */
+export enum TauriEvent {
+  WINDOW_RESIZED = 'tauri://resize',
+  WINDOW_MOVED = 'tauri://move',
+  WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
+  WINDOW_CREATED = 'tauri://window-created',
+  WINDOW_DESTROYED = 'tauri://destroyed',
+  WINDOW_FOCUS = 'tauri://focus',
+  WINDOW_BLUR = 'tauri://blur',
+  WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
+  WINDOW_THEME_CHANGED = 'tauri://theme-changed',
+  WINDOW_FILE_DROP = 'tauri://file-drop',
+  WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
+  WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
+  MENU = 'tauri://menu',
+  CHECK_UPDATE = 'tauri://update',
+  UPDATE_AVAILABLE = 'tauri://update-available',
+  INSTALL_UPDATE = 'tauri://update-install',
+  STATUS_UPDATE = 'tauri://update-status',
+  DOWNLOAD_PROGRESS = 'tauri://update-download-progress'
+}
 
 /**
  * Listen to an event from the backend.
@@ -24,7 +45,7 @@ import type {
  * ```typescript
  * import { listen } from '@tauri-apps/api/event';
  * const unlisten = await listen<string>('error', (event) => {
- *   console.log(`Got error in window ${event.windowLabel}, payload: ${payload}`);
+ *   console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -33,8 +54,10 @@ import type {
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param handler Event handler callback.
- * @return A promise resolving to a function to unlisten to the event.
+ * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @since 1.0.0
  */
 async function listen<T>(
   event: EventName,
@@ -54,7 +77,7 @@ async function listen<T>(
  *   token: string
  * }
  * const unlisten = await once<LoadedPayload>('loaded', (event) => {
- *   console.log(`App is loaded, logggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
+ *   console.log(`App is loaded, loggedIn: ${event.payload.loggedIn}, token: ${event.payload.token}`);
  * });
  *
  * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
@@ -62,9 +85,10 @@ async function listen<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
- * @param handler Event handler callback.
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @since 1.0.0
  */
 async function once<T>(
   event: EventName,
@@ -82,13 +106,13 @@ async function once<T>(
  * ```
  *
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
- * @param [payload] Event payload
- * @returns
+ *
+ * @since 1.0.0
  */
 async function emit(event: string, payload?: unknown): Promise<void> {
   return eventApi.emit(event, undefined, payload)
 }
 
-export type { Event, EventName, EventCallback, UnlistenFn }
+export type { Event, EventCallback, UnlistenFn }
 
 export { listen, once, emit }

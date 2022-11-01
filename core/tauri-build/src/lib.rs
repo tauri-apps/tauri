@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -35,17 +35,29 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(binaries: ResourcePaths<'a>, target_triple: &str, path: &Path) -> Result<()> {
+fn copy_binaries<'a>(
+  binaries: ResourcePaths<'a>,
+  target_triple: &str,
+  path: &Path,
+  package_name: Option<&String>,
+) -> Result<()> {
   for src in binaries {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
-    let dest = path.join(
-      src
-        .file_name()
-        .expect("failed to extract external binary filename")
-        .to_string_lossy()
-        .replace(&format!("-{}", target_triple), ""),
-    );
+    let file_name = src
+      .file_name()
+      .expect("failed to extract external binary filename")
+      .to_string_lossy()
+      .replace(&format!("-{}", target_triple), "");
+
+    if package_name.map_or(false, |n| n == &file_name) {
+      return Err(anyhow::anyhow!(
+        "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
+        file_name
+      ));
+    }
+
+    let dest = path.join(file_name);
     if dest.exists() {
       std::fs::remove_file(&dest).unwrap();
     }
@@ -94,7 +106,7 @@ pub struct WindowsAttributes {
   ///
   /// For MSVC the Windows SDK has to be installed. It comes with the resource compiler rc.exe.
   /// This should be set to the root directory of the Windows SDK, e.g., "C:\Program Files (x86)\Windows Kits\10" or,
-  /// if multiple 10 versions are installed, set it directly to the corret bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
+  /// if multiple 10 versions are installed, set it directly to the correct bin directory "C:\Program Files (x86)\Windows Kits\10\bin\10.0.14393.0\x64"
   ///
   /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
   sdk_dir: Option<PathBuf>,
@@ -190,6 +202,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rerun-if-changed=tauri.conf.json");
   #[cfg(feature = "config-json5")]
   println!("cargo:rerun-if-changed=tauri.conf.json5");
+  #[cfg(feature = "config-toml")]
+  println!("cargo:rerun-if-changed=Tauri.toml");
+
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let mobile = target_os == "ios" || target_os == "android";
+  cfg_alias("desktop", !mobile);
+  cfg_alias("mobile", mobile);
 
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
     std::env::current_dir().unwrap(),
@@ -207,6 +226,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     let features = match tauri {
       Dependency::Simple(_) => Vec::new(),
       Dependency::Detailed(dep) => dep.features,
+      Dependency::Inherited(dep) => dep.features,
     };
 
     let all_cli_managed_features = TauriConfig::all_features();
@@ -270,6 +290,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
       &target_triple,
       target_dir,
+      manifest.package.as_ref().map(|p| &p.name),
     )?;
   }
 
@@ -314,6 +335,26 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if window_icon_path.exists() {
       let mut res = WindowsResource::new();
+
+      res.set_manifest(
+        r#"
+        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+          <dependency>
+              <dependentAssembly>
+                  <assemblyIdentity
+                      type="win32"
+                      name="Microsoft.Windows.Common-Controls"
+                      version="6.0.0.0"
+                      processorArchitecture="*"
+                      publicKeyToken="6595b64144ccf1df"
+                      language="*"
+                  />
+              </dependentAssembly>
+          </dependency>
+        </assembly>
+        "#,
+      );
+
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {
           res.set_toolkit_path(sdk_dir_str);

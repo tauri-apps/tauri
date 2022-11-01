@@ -1,10 +1,11 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import { WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
+import type { EventName } from '../event'
 
 export interface Event<T> {
   /** Event name */
@@ -16,8 +17,6 @@ export interface Event<T> {
   /** Event payload */
   payload: T
 }
-
-export type EventName = string
 
 export type EventCallback<T> = (event: Event<T>) => void
 
@@ -61,7 +60,7 @@ async function emit(
       cmd: 'emit',
       event,
       windowLabel,
-      payload: typeof payload === 'string' ? payload : JSON.stringify(payload)
+      payload
     }
   })
 }

@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -156,7 +156,7 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 #[doc(hidden)]
 pub mod private {
   use crate::{InvokeError, InvokeResolver, Runtime};
-  use futures::{FutureExt, TryFutureExt};
+  use futures_util::{FutureExt, TryFutureExt};
   use serde::Serialize;
   use serde_json::Value;
   use std::future::Future;

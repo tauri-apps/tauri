@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,13 +7,14 @@ pub use anyhow::Result;
 mod build;
 mod dev;
 mod helpers;
+mod icon;
 mod info;
 mod init;
 mod interface;
 mod plugin;
 mod signer;
 
-use clap::{FromArgMatches, IntoApp, Parser, Subcommand};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
 use env_logger::fmt::Color;
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
@@ -52,8 +53,8 @@ pub struct PackageJson {
 )]
 struct Cli {
   /// Enables verbose logging
-  #[clap(short, long, global = true, parse(from_occurrences))]
-  verbose: usize,
+  #[clap(short, long, global = true, action = ArgAction::Count)]
+  verbose: u8,
   #[clap(subcommand)]
   command: Commands,
 }
@@ -62,18 +63,19 @@ struct Cli {
 enum Commands {
   Build(build::Options),
   Dev(dev::Options),
+  Icon(icon::Options),
   Info(info::Options),
   Init(init::Options),
   Plugin(plugin::Cli),
   Signer(signer::Cli),
 }
 
-fn format_error<I: IntoApp>(err: clap::Error) -> clap::Error {
+fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
   let mut app = I::command();
   err.format(&mut app)
 }
 
-/// Run the Tauri CLI with the passed arguments, exiting if an error occurrs.
+/// Run the Tauri CLI with the passed arguments, exiting if an error occurs.
 ///
 /// The passed arguments should have the binary argument(s) stripped out before being passed.
 ///
@@ -119,7 +121,7 @@ where
   let mut builder = Builder::from_default_env();
   let init_res = builder
     .format_indent(Some(12))
-    .filter(None, level_from_usize(cli.verbose).to_level_filter())
+    .filter(None, verbosity_level(cli.verbose).to_level_filter())
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {
@@ -160,6 +162,7 @@ where
   match cli.command {
     Commands::Build(options) => build::command(options)?,
     Commands::Dev(options) => dev::command(options)?,
+    Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,
     Commands::Plugin(cli) => plugin::command(cli)?,
@@ -170,12 +173,11 @@ where
 }
 
 /// This maps the occurrence of `--verbose` flags to the correct log level
-fn level_from_usize(num: usize) -> Level {
+fn verbosity_level(num: u8) -> Level {
   match num {
     0 => Level::Info,
     1 => Level::Debug,
     2.. => Level::Trace,
-    _ => panic!(),
   }
 }
 

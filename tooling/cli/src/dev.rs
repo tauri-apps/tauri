@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,14 +6,14 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, AppUrl, WindowUrl},
+    config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
   interface::{AppInterface, ExitReason, Interface},
-  Result,
+  CommandExt, Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use log::{error, info, warn};
 use once_cell::sync::OnceCell;
 use shared_child::SharedChild;
@@ -45,7 +45,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
@@ -56,8 +56,11 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
   pub args: Vec<String>,
+  /// Disable the file watcher
+  #[clap(long)]
+  pub no_watch: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -86,65 +89,100 @@ fn command_internal(mut options: Options) -> Result<()> {
 
   let config = get_config(options.config.as_deref())?;
 
-  if let Some(before_dev) = &config
+  let mut interface = AppInterface::new(
+    config.lock().unwrap().as_ref().unwrap(),
+    options.target.clone(),
+  )?;
+
+  if let Some(before_dev) = config
     .lock()
     .unwrap()
     .as_ref()
     .unwrap()
     .build
     .before_dev_command
+    .clone()
   {
-    if !before_dev.is_empty() {
+    let (script, script_cwd, wait) = match before_dev {
+      BeforeDevCommand::Script(s) if s.is_empty() => (None, None, false),
+      BeforeDevCommand::Script(s) => (Some(s), None, false),
+      BeforeDevCommand::ScriptWithOptions { script, cwd, wait } => {
+        (Some(script), cwd.map(Into::into), wait)
+      }
+    };
+    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+    if let Some(before_dev) = script {
       info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
-      #[cfg(target_os = "windows")]
+      let mut env = command_env(true);
+      env.extend(interface.env());
+
+      #[cfg(windows)]
       let mut command = {
         let mut command = Command::new("cmd");
         command
           .arg("/S")
           .arg("/C")
-          .arg(before_dev)
-          .current_dir(app_dir())
-          .envs(command_env(true));
+          .arg(&before_dev)
+          .current_dir(cwd)
+          .envs(env);
         command
       };
-      #[cfg(not(target_os = "windows"))]
+      #[cfg(not(windows))]
       let mut command = {
         let mut command = Command::new("sh");
         command
           .arg("-c")
-          .arg(before_dev)
-          .current_dir(app_dir())
-          .envs(command_env(true));
+          .arg(&before_dev)
+          .current_dir(cwd)
+          .envs(env);
         command
       };
-      command.stdin(Stdio::piped());
-      command.stdout(os_pipe::dup_stdout()?);
-      command.stderr(os_pipe::dup_stderr()?);
 
-      let child = SharedChild::spawn(&mut command)
-        .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
-      let child = Arc::new(child);
-      let child_ = child.clone();
-
-      std::thread::spawn(move || {
-        let status = child_
-          .wait()
-          .expect("failed to wait on \"beforeDevCommand\"");
-        if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-          error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
-          exit(status.code().unwrap_or(1));
+      if wait {
+        let status = command.piped().with_context(|| {
+          format!(
+            "failed to run `{}` with `{}`",
+            before_dev,
+            if cfg!(windows) { "cmd /S /C" } else { "sh -c" }
+          )
+        })?;
+        if !status.success() {
+          bail!(
+            "beforeDevCommand `{}` failed with exit code {}",
+            before_dev,
+            status.code().unwrap_or_default()
+          );
         }
-      });
+      } else {
+        command.stdin(Stdio::piped());
+        command.stdout(os_pipe::dup_stdout()?);
+        command.stderr(os_pipe::dup_stderr()?);
 
-      BEFORE_DEV.set(Mutex::new(child)).unwrap();
-      KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
+        let child = SharedChild::spawn(&mut command)
+          .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+        let child = Arc::new(child);
+        let child_ = child.clone();
 
-      let _ = ctrlc::set_handler(move || {
-        kill_before_dev_process();
-        #[cfg(not(debug_assertions))]
-        let _ = check_for_updates();
-        exit(130);
-      });
+        std::thread::spawn(move || {
+          let status = child_
+            .wait()
+            .expect("failed to wait on \"beforeDevCommand\"");
+          if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
+            error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
+            exit(status.code().unwrap_or(1));
+          }
+        });
+
+        BEFORE_DEV.set(Mutex::new(child)).unwrap();
+        KILL_BEFORE_DEV_FLAG.set(AtomicBool::default()).unwrap();
+
+        let _ = ctrlc::set_handler(move || {
+          kill_before_dev_process();
+          #[cfg(not(debug_assertions))]
+          let _ = check_for_updates();
+          exit(130);
+        });
+      }
     }
   }
 
@@ -172,16 +210,42 @@ fn command_internal(mut options: Options) -> Result<()> {
     cargo_features.extend(features.clone());
   }
 
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+    if path.exists() {
+      let path = path.canonicalize()?;
+      start_dev_server(path);
+      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+
+      // TODO: in v2, use an env var to pass the url to the app context
+      // or better separate the config passed from the cli internally and
+      // config passed by the user in `--config` into to separate env vars
+      // and the context merges, the user first, then the internal cli config
+      if let Some(c) = options.config {
+        let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
+        c.build.dev_path = dev_path.clone();
+        options.config = Some(serde_json::to_string(&c).unwrap());
+      } else {
+        options.config = Some(format!(
+          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
+          SERVER_URL
+        ))
+      }
+    }
+  }
+
+  reload_config(options.config.as_deref())?;
+
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
-    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
-      .dev_path
-      .clone()
-    {
+    if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {
       let host = dev_server_url
         .host()
         .unwrap_or_else(|| panic!("No host name in the URL"));
@@ -212,7 +276,7 @@ fn command_internal(mut options: Options) -> Result<()> {
         if std::net::TcpStream::connect(addrs).is_ok() {
           break;
         }
-        if i % 3 == 0 {
+        if i % 3 == 1 {
           warn!(
             "Waiting for your frontend dev server to start on {}...",
             dev_server_url
@@ -231,17 +295,17 @@ fn command_internal(mut options: Options) -> Result<()> {
     }
   }
 
-  let mut interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap())?;
-
   let exit_on_panic = options.exit_on_panic;
+  let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
-    on_dev_exit(status, reason, exit_on_panic)
+    on_dev_exit(status, reason, exit_on_panic, no_watch)
   })
 }
 
-fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool) {
-  if !matches!(reason, ExitReason::TriggeredKill)
-    && (exit_on_panic || matches!(reason, ExitReason::NormalExit))
+fn on_dev_exit(status: ExitStatus, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
+  if no_watch
+    || (!matches!(reason, ExitReason::TriggeredKill)
+      && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
   {
     kill_before_dev_process();
     #[cfg(not(debug_assertions))]
@@ -276,11 +340,17 @@ fn kill_before_dev_process() {
       .unwrap()
       .store(true, Ordering::Relaxed);
     #[cfg(windows)]
-      let _ = Command::new("powershell")
-        .arg("-NoProfile")
-        .arg("-Command")
-        .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
-        .status();
+    {
+      let powershell_path = std::env::var("SYSTEMROOT").map_or_else(
+        |_| "powershell.exe".to_string(),
+        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+      );
+      let _ = Command::new(powershell_path)
+      .arg("-NoProfile")
+      .arg("-Command")
+      .arg(format!("function Kill-Tree {{ Param([int]$ppid); Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $ppid }} | ForEach-Object {{ Kill-Tree $_.ProcessId }}; Stop-Process -Id $ppid -ErrorAction SilentlyContinue }}; Kill-Tree {}", child.id()))
+      .status();
+    }
     #[cfg(unix)]
     {
       use std::io::Write;

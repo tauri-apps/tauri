@@ -1,4 +1,4 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,16 +6,19 @@ use std::{
   cmp::Ordering,
   env::current_dir,
   ffi::OsStr,
-  fs::FileType,
   path::{Path, PathBuf},
 };
 
 use ignore::WalkBuilder;
 use once_cell::sync::Lazy;
 
+use tauri_utils::config::parse::{
+  folder_has_configuration_file, is_configuration_file, ConfigFormat,
+};
+
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
 
-fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
+fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
   let mut default_gitignore = std::env::temp_dir();
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
@@ -26,6 +29,7 @@ fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<P
   }
 
   let mut builder = WalkBuilder::new(dir);
+  builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
   builder
     .require_git(false)
@@ -48,7 +52,7 @@ fn lookup<F: Fn(&PathBuf, FileType) -> bool>(dir: &Path, checker: F) -> Option<P
 
   for entry in builder.build().flatten() {
     let path = dir.join(entry.path());
-    if checker(&path, entry.file_type().unwrap()) {
+    if checker(&path) {
       return Some(path);
     }
   }
@@ -64,19 +68,19 @@ fn get_tauri_dir() -> PathBuf {
     return cwd.join("src-tauri/");
   }
 
-  lookup(&cwd, |path, file_type| if file_type.is_dir() {
-    path.join("tauri.conf.json").exists() || path.join("tauri.conf.json5").exists()
-  } else if let Some(file_name) = path.file_name() {
-    file_name == OsStr::new("tauri.conf.json") || file_name == OsStr::new("tauri.conf.json5")
-  } else {
-    false
-  })
+  lookup(&cwd, |path| folder_has_configuration_file(path) || is_configuration_file(path))
   .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
-  .expect("Couldn't recognize the current folder as a Tauri project. It must contain a `tauri.conf.json` or `tauri.conf.json5` file in any subfolder.")
+  .unwrap_or_else(||
+    panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
+      ConfigFormat::Json.into_file_name(),
+      ConfigFormat::Json5.into_file_name(),
+      ConfigFormat::Toml.into_file_name()
+    )
+  )
 }
 
 fn get_app_dir() -> Option<PathBuf> {
-  lookup(&current_dir().expect("failed to read cwd"), |path, _| {
+  lookup(&current_dir().expect("failed to read cwd"), |path| {
     if let Some(file_name) = path.file_name() {
       file_name == OsStr::new("package.json")
     } else {

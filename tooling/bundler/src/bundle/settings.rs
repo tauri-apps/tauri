@@ -1,4 +1,5 @@
-// Copyright 2019-2021 Tauri Programme within The Commons Conservancy
+// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
+// Copyright 2019-2022 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -244,6 +245,8 @@ pub struct WixSettings {
 
   /// The required dimensions are 493px × 312px.
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  pub fips_compliant: bool,
 }
 
 /// Settings specific to the NSIS implementation.
@@ -321,6 +324,9 @@ impl Default for WindowsSettings {
 pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
+  /// The app's publisher. Defaults to the second element in the identifier string.
+  /// Currently maps to the Manufacturer property of the Windows Installer.
+  pub publisher: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -500,7 +506,7 @@ impl SettingsBuilder {
   ///
   /// Package settings will be read from Cargo.toml.
   ///
-  /// Bundle settings will be read from from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
+  /// Bundle settings will be read from $TAURI_DIR/tauri.conf.json if it exists and fallback to Cargo.toml's [package.metadata.bundle].
   pub fn build(self) -> crate::Result<Settings> {
     let target = if let Some(t) = self.target {
       t
@@ -634,6 +640,11 @@ impl Settings {
   /// Returns the bundle's identifier
   pub fn bundle_identifier(&self) -> &str {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
+  }
+
+  /// Returns the bundle's identifier
+  pub fn publisher(&self) -> Option<&str> {
+    self.bundle_settings.publisher.as_deref()
   }
 
   /// Returns an iterator over the icon files to be used for this bundle.

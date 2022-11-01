@@ -259,7 +259,7 @@ Section Install
 
   ; Registry information for add/remove programs
   WriteRegStr SHCTX "${APR}" "DisplayName" "${PRODUCTNAME}"
-  WriteRegStr SHCTX "${APR}" "DisplayIcon" "$\"$INSTDIR\Resources.exe$\""
+  WriteRegStr SHCTX "${APR}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
   WriteRegStr SHCTX "${APR}" "DisplayVersion" "$\"${VERSION}$\""
   WriteRegStr SHCTX "${APR}" "Publisher" "${MANUFACTURER}"
   WriteRegStr SHCTX "${APR}" "InstallLocation" "$\"$INSTDIR$\""

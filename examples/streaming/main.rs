@@ -39,6 +39,7 @@ fn main() {
   }
 
   tauri::Builder::default()
+    .invoke_handler(tauri::generate_handler![video_uri])
     .register_uri_scheme_protocol("stream", move |_app, request| {
       // prepare our response
       let mut response = ResponseBuilder::new();
@@ -116,4 +117,19 @@ fn main() {
       "../../examples/streaming/tauri.conf.json"
     ))
     .expect("error while running tauri application");
+}
+
+// returns the scheme and the path of the video file
+// we're using this just to allow using the custom `stream` protocol or tauri built-in `asset` protocol
+#[tauri::command]
+fn video_uri() -> (&'static str, std::path::PathBuf) {
+  #[cfg(feature = "protocol-asset")]
+  {
+    let mut path = std::env::current_dir().unwrap();
+    path.push("test_video.mp4");
+    ("asset", path)
+  }
+
+  #[cfg(not(feature = "protocol-asset"))]
+  ("stream", "example/test_video.mp4".into())
 }

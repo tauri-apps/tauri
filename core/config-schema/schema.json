@@ -6,10 +6,7 @@
   "properties": {
     "$schema": {
       "description": "The JSON schema for the Tauri config.",
-      "type": [
-        "string",
-        "null"
-      ]
+      "type": ["string", "null"]
     },
     "package": {
       "description": "Package settings.",
@@ -210,19 +207,13 @@
       "properties": {
         "productName": {
           "description": "App name.",
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
           "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
           "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -459,37 +450,26 @@
         {
           "description": "Brownfield pattern.",
           "type": "object",
-          "required": [
-            "use"
-          ],
+          "required": ["use"],
           "properties": {
             "use": {
               "type": "string",
-              "enum": [
-                "brownfield"
-              ]
+              "enum": ["brownfield"]
             }
           }
         },
         {
           "description": "Isolation pattern. Recommended for security purposes.",
           "type": "object",
-          "required": [
-            "options",
-            "use"
-          ],
+          "required": ["options", "use"],
           "properties": {
             "use": {
               "type": "string",
-              "enum": [
-                "isolation"
-              ]
+              "enum": ["isolation"]
             },
             "options": {
               "type": "object",
-              "required": [
-                "dir"
-              ],
+              "required": ["dir"],
               "properties": {
                 "dir": {
                   "description": "The dir containing the index.html file that contains the secure isolation application.",
@@ -521,10 +501,7 @@
         },
         "userAgent": {
           "description": "The user agent for the webview",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "fileDropEnabled": {
           "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
@@ -538,18 +515,12 @@
         },
         "x": {
           "description": "The horizontal position of the window's top left corner",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "y": {
           "description": "The vertical position of the window's top left corner",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "width": {
@@ -566,34 +537,22 @@
         },
         "minWidth": {
           "description": "The min window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "minHeight": {
           "description": "The min window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "maxWidth": {
           "description": "The max window width.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "maxHeight": {
           "description": "The max window height.",
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "format": "double"
         },
         "resizable": {
@@ -678,10 +637,7 @@
         },
         "tabbingIdentifier": {
           "description": "Defines the window [tabbing identifier] for macOS.\n\nWindows with matching tabbing identifiers will be grouped together. If the tabbing identifier is not set, automatic tabbing will be disabled.\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -706,16 +662,12 @@
         {
           "description": "Light theme.",
           "type": "string",
-          "enum": [
-            "Light"
-          ]
+          "enum": ["Light"]
         },
         {
           "description": "Dark theme.",
           "type": "string",
-          "enum": [
-            "Dark"
-          ]
+          "enum": ["Dark"]
         }
       ]
     },
@@ -725,23 +677,17 @@
         {
           "description": "A normal title bar.",
           "type": "string",
-          "enum": [
-            "Visible"
-          ]
+          "enum": ["Visible"]
         },
         {
           "description": "Makes the title bar transparent, so the window background color is shown instead.\n\nUseful if you don't need to have actual HTML under the title bar. This lets you avoid the caveats of using `TitleBarStyle::Overlay`. Will be more useful when Tauri lets you set a custom window background color.",
           "type": "string",
-          "enum": [
-            "Transparent"
-          ]
+          "enum": ["Transparent"]
         },
         {
           "description": "Shows the title bar as a transparent overlay over the window's content.\n\nKeep in mind: - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect. - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316). - The color of the window title depends on the system theme.",
           "type": "string",
-          "enum": [
-            "Overlay"
-          ]
+          "enum": ["Overlay"]
         }
       ]
     },
@@ -751,48 +697,30 @@
       "properties": {
         "description": {
           "description": "Command description which will be shown on the help information.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "longDescription": {
           "description": "Command long description which will be shown on the help information.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "beforeHelp": {
           "description": "Adds additional help information to be displayed in addition to auto-generated help. This information is displayed before the auto-generated help information. This is often used for header information.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "afterHelp": {
           "description": "Adds additional help information to be displayed in addition to auto-generated help. This information is displayed after the auto-generated help information. This is often used to describe how to use the arguments, or caveats to be noted.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "args": {
           "description": "List of arguments for the command",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "$ref": "#/definitions/CliArg"
           }
         },
         "subcommands": {
           "description": "List of subcommands of this command",
-          "type": [
-            "object",
-            "null"
-          ],
+          "type": ["object", "null"],
           "additionalProperties": {
             "$ref": "#/definitions/CliConfig"
           }
@@ -803,16 +731,11 @@
     "CliArg": {
       "description": "A CLI argument definition.",
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "properties": {
         "short": {
           "description": "The short version of the argument, without the preceding -.\n\nNOTE: Any leading `-` characters will be stripped, and only the first non-character will be used as the short version.",
-          "type": [
-            "string",
-            "null"
-          ],
+          "type": ["string", "null"],
           "maxLength": 1,
           "minLength": 1
         },
@@ -822,17 +745,11 @@
         },
         "description": {
           "description": "The argument description which will be shown on the help information. Typically, this is a short (one line) description of the arg.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "longDescription": {
           "description": "The argument long description which will be shown on the help information. Typically this a more detailed (multi-line) message that describes the argument.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "takesValue": {
           "description": "Specifies that the argument takes a value at run time.\n\nNOTE: values for arguments may be specified in any of the following methods - Using a space such as -o value or --option value - Using an equals and no space such as -o=value or --option=value - Use a short and no space such as -ovalue",
@@ -851,38 +768,26 @@
         },
         "numberOfValues": {
           "description": "Specifies how many values are required to satisfy this argument. For example, if you had a `-f <file>` argument where you wanted exactly 3 'files' you would set `number_of_values = 3`, and this argument wouldn't be satisfied unless the user provided 3 and only 3 values.\n\n**NOTE:** Does *not* require `multiple_occurrences = true` to be set. Setting `multiple_occurrences = true` would allow `-f <file> <file> <file> -f <file> <file> <file>` where as *not* setting it would only allow one occurrence of this argument.\n\n**NOTE:** implicitly sets `takes_value = true` and `multiple_values = true`.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint",
           "minimum": 0.0
         },
         "possibleValues": {
           "description": "Specifies a list of possible values for this argument. At runtime, the CLI verifies that only one of the specified values was used, or fails with an error message.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "minValues": {
           "description": "Specifies the minimum number of values for this argument. For example, if you had a -f `<file>` argument where you wanted at least 2 'files', you would set `minValues: 2`, and this argument would be satisfied if the user provided, 2 or more values.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint",
           "minimum": 0.0
         },
         "maxValues": {
           "description": "Specifies the maximum number of values are for this argument. For example, if you had a -f `<file>` argument where you wanted up to 3 'files', you would set .max_values(3), and this argument would be satisfied if the user provided, 1, 2, or 3 values.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint",
           "minimum": 0.0
         },
@@ -893,98 +798,65 @@
         },
         "requiredUnlessPresent": {
           "description": "Sets an arg that override this arg's required setting i.e. this arg will be required unless this other argument is present.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "requiredUnlessPresentAll": {
           "description": "Sets args that override this arg's required setting i.e. this arg will be required unless all these other arguments are present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiredUnlessPresentAny": {
           "description": "Sets args that override this arg's required setting i.e. this arg will be required unless at least one of these other arguments are present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "conflictsWith": {
           "description": "Sets a conflicting argument by name i.e. when using this argument, the following argument can't be present and vice versa.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "conflictsWithAll": {
           "description": "The same as conflictsWith but allows specifying multiple two-way conflicts per argument.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requires": {
           "description": "Tets an argument by name that is required when this one is present i.e. when using this argument, the following argument must be present.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "requiresAll": {
           "description": "Sts multiple arguments by names that are required when this one is present i.e. when using this argument, the following arguments must be present.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiresIf": {
           "description": "Allows a conditional requirement with the signature [arg, value] the requirement will only become valid if `arg`'s value equals `${value}`.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requiredIfEq": {
           "description": "Allows specifying that an argument is required conditionally with the signature [arg, value] the requirement will only become valid if the `arg`'s value equals `${value}`.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "requireEquals": {
           "description": "Requires that options use the --option=val syntax i.e. an equals between the option and associated value.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "type": ["boolean", "null"]
         },
         "index": {
           "description": "The positional argument index, starting at 1.\n\nThe index refers to position according to other positional argument. It does not define position in the argument list as a whole. When utilized with multiple=true, only the last positional argument may be defined as multiple (i.e. the one with the highest index).",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint",
           "minimum": 1.0
         }
@@ -994,9 +866,7 @@
     "BundleConfig": {
       "description": "Configuration for tauri-bundler.",
       "type": "object",
-      "required": [
-        "identifier"
-      ],
+      "required": ["identifier"],
       "properties": {
         "active": {
           "description": "Whether Tauri should bundle your application or just output the executable.",
@@ -1018,10 +888,7 @@
         },
         "publisher": {
           "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "icon": {
           "description": "The app's icons",
@@ -1033,41 +900,26 @@
         },
         "resources": {
           "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
         },
         "copyright": {
           "description": "A copyright string associated with your application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "category": {
           "description": "The application kind.\n\nShould be one of the following: Business, DeveloperTool, Education, Entertainment, Finance, Game, ActionGame, AdventureGame, ArcadeGame, BoardGame, CardGame, CasinoGame, DiceGame, EducationalGame, FamilyGame, KidsGame, MusicGame, PuzzleGame, RacingGame, RolePlayingGame, SimulationGame, SportsGame, StrategyGame, TriviaGame, WordGame, GraphicsAndDesign, HealthcareAndFitness, Lifestyle, Medical, Music, News, Photography, Productivity, Reference, SocialNetworking, Sports, Travel, Utility, Video, Weather.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "shortDescription": {
           "description": "A short description of your application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "longDescription": {
           "description": "A longer, multi-line description of the application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "appimage": {
           "description": "Configuration for the AppImage bundle.",
@@ -1104,10 +956,7 @@
         },
         "externalBin": {
           "description": "A list of—either absolute or relative—paths to binaries to embed with your application.\n\nNote that Tauri will look for system-specific binaries following the pattern \"binary-name{-target-triple}{.system-extension}\".\n\nE.g. for the external binary \"my-binary\", Tauri looks for:\n\n- \"my-binary-x86_64-pc-windows-msvc.exe\" for Windows - \"my-binary-x86_64-apple-darwin\" for macOS - \"my-binary-x86_64-unknown-linux-gnu\" for Linux\n\nso don't forget to provide binaries for all targeted platforms.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
@@ -1141,9 +990,7 @@
       "anyOf": [
         {
           "description": "Bundle all targets.",
-          "enum": [
-            "all"
-          ]
+          "enum": ["all"]
         },
         {
           "description": "A list of bundle targets.",
@@ -1168,44 +1015,32 @@
         {
           "description": "The debian bundle (.deb).",
           "type": "string",
-          "enum": [
-            "deb"
-          ]
+          "enum": ["deb"]
         },
         {
           "description": "The AppImage bundle (.appimage).",
           "type": "string",
-          "enum": [
-            "appimage"
-          ]
+          "enum": ["appimage"]
         },
         {
           "description": "The Microsoft Installer bundle (.msi).",
           "type": "string",
-          "enum": [
-            "msi"
-          ]
+          "enum": ["msi"]
         },
         {
           "description": "The macOS application bundle (.app).",
           "type": "string",
-          "enum": [
-            "app"
-          ]
+          "enum": ["app"]
         },
         {
           "description": "The Apple Disk Image bundle (.dmg).",
           "type": "string",
-          "enum": [
-            "dmg"
-          ]
+          "enum": ["dmg"]
         },
         {
           "description": "The Tauri updater bundle.",
           "type": "string",
-          "enum": [
-            "updater"
-          ]
+          "enum": ["updater"]
         }
       ]
     },
@@ -1227,10 +1062,7 @@
       "properties": {
         "depends": {
           "description": "The list of deb dependencies your application relies on.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
@@ -1252,10 +1084,7 @@
       "properties": {
         "frameworks": {
           "description": "A list of strings indicating any macOS X frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
@@ -1263,45 +1092,27 @@
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\nSetting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist` and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\nAn empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "exceptionDomain": {
           "description": "Allows your application to communicate with the outside world. It should be a lowercase, without port and protocol domain name.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "license": {
           "description": "The path to the license file to add to the DMG bundle.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "signingIdentity": {
           "description": "Identity to use for code signing.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "entitlements": {
           "description": "Path to the entitlements file.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -1312,24 +1123,15 @@
       "properties": {
         "digestAlgorithm": {
           "description": "Specifies the file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "certificateThumbprint": {
           "description": "Specifies the SHA1 hash of the signing certificate.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "timestampUrl": {
           "description": "Server to use during timestamping.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "tsp": {
           "description": "Whether to use Time-Stamp Protocol (TSP, a.k.a. RFC 3161) for the timestamp server. Your code signing provider may use a TSP timestamp server, like e.g. SSL.com does. If so, enable TSP by setting to true.",
@@ -1350,10 +1152,7 @@
         },
         "webviewFixedRuntimePath": {
           "description": "Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.\n\nWill be removed in v2, prefer the [`Self::webview_install_mode`] option.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "allowDowngrades": {
           "description": "Validates a second app installation, blocking the user from installing an older version if set to `false`.\n\nFor instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.\n\nThe default value of this flag is `true`.",
@@ -1380,15 +1179,11 @@
         {
           "description": "Do not install the Webview2 as part of the Windows Installer.",
           "type": "object",
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "skip"
-              ]
+              "enum": ["skip"]
             }
           },
           "additionalProperties": false
@@ -1396,15 +1191,11 @@
         {
           "description": "Download the bootstrapper and run it. Requires internet connection. Results in a smaller installer size, but is not recommended on Windows 7.",
           "type": "object",
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "downloadBootstrapper"
-              ]
+              "enum": ["downloadBootstrapper"]
             },
             "silent": {
               "description": "Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.",
@@ -1417,15 +1208,11 @@
         {
           "description": "Embed the bootstrapper and run it. Requires internet connection. Increases the installer size by around 1.8MB, but offers better support on Windows 7.",
           "type": "object",
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "embedBootstrapper"
-              ]
+              "enum": ["embedBootstrapper"]
             },
             "silent": {
               "description": "Instructs the installer to run the bootstrapper in silent mode. Defaults to `true`.",
@@ -1438,15 +1225,11 @@
         {
           "description": "Embed the offline installer and run it. Does not require internet connection. Increases the installer size by around 127MB.",
           "type": "object",
-          "required": [
-            "type"
-          ],
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "offlineInstaller"
-              ]
+              "enum": ["offlineInstaller"]
             },
             "silent": {
               "description": "Instructs the installer to run the installer in silent mode. Defaults to `true`.",
@@ -1459,16 +1242,11 @@
         {
           "description": "Embed a fixed webview2 version and use it at runtime. Increases the installer size by around 180MB.",
           "type": "object",
-          "required": [
-            "path",
-            "type"
-          ],
+          "required": ["path", "type"],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "fixedRuntime"
-              ]
+              "enum": ["fixedRuntime"]
             },
             "path": {
               "description": "The path to the fixed runtime to use.\n\nThe fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section). The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
@@ -1494,10 +1272,7 @@
         },
         "template": {
           "description": "A custom .wxs template to use.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "fragmentPaths": {
           "description": "A list of paths to .wxs files with WiX fragments to use.",
@@ -1554,10 +1329,7 @@
         },
         "license": {
           "description": "The path to the license file to render on the installer.\n\nMust be an RTF file, so if a different extension is provided, we convert it to the RTF format.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "enableElevatedUpdateTask": {
           "description": "Create an elevated update task within Windows Task Scheduler.",
@@ -1566,17 +1338,11 @@
         },
         "bannerPath": {
           "description": "Path to a bitmap file to use as the installation user interface banner. This bitmap will appear at the top of all but the first page of the installer.\n\nThe required dimensions are 493px × 58px.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "dialogImagePath": {
           "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs. The required dimensions are 493px × 312px.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -1610,10 +1376,7 @@
       "properties": {
         "localePath": {
           "description": "The path to a locale (`.wxl`) file. See <https://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/build_a_localized_version.html>.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -2139,9 +1902,7 @@
     "ShellAllowedCommand": {
       "description": "A command allowed to be executed by the webview API.",
       "type": "object",
-      "required": [
-        "name"
-      ],
+      "required": ["name"],
       "properties": {
         "name": {
           "description": "The name for this allowed shell command configuration.\n\nThis name will be used inside of the webview API to call this command along with any specified arguments.",
@@ -2194,9 +1955,7 @@
         {
           "description": "A variable that is set while calling the command from the webview API.",
           "type": "object",
-          "required": [
-            "validator"
-          ],
+          "required": ["validator"],
           "properties": {
             "validator": {
               "description": "[regex] validator to require passed values to conform to an expected input.\n\nThis will require the argument value passed to this variable to match the `validator` regex before it will be executed.\n\n[regex]: https://docs.rs/regex/latest/regex/#syntax",
@@ -2543,10 +2302,7 @@
         },
         "endpoints": {
           "description": "The updater endpoints. TLS is enforced on production.\n\nThe updater URL can contain the following variables: - {{current_version}}: The version of the app that is requesting the update - {{target}}: The operating system name (one of `linux`, `windows` or `darwin`). - {{arch}}: The architecture of the machine (one of `x86_64`, `i686`, `aarch64` or `armv7`).\n\n# Examples - \"https://my.cdn.com/latest.json\": a raw JSON endpoint that returns the latest version and download links for each platform. - \"https://updates.app.dev/{{target}}?version={{current_version}}&arch={{arch}}\": a dedicated API with positional and query string arguments.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "$ref": "#/definitions/UpdaterEndpoint"
           }
@@ -2597,32 +2353,24 @@
         {
           "description": "Specifies there's a basic UI during the installation process, including a final dialog box at the end.",
           "type": "string",
-          "enum": [
-            "basicUi"
-          ]
+          "enum": ["basicUi"]
         },
         {
           "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
           "type": "string",
-          "enum": [
-            "quiet"
-          ]
+          "enum": ["quiet"]
         },
         {
           "description": "Specifies unattended mode, which means the installation only shows a progress bar.",
           "type": "string",
-          "enum": [
-            "passive"
-          ]
+          "enum": ["passive"]
         }
       ]
     },
     "SystemTrayConfig": {
       "description": "Configuration for application system tray icon.",
       "type": "object",
-      "required": [
-        "iconPath"
-      ],
+      "required": ["iconPath"],
       "properties": {
         "iconPath": {
           "description": "Path to the default icon to use on the system tray.",
@@ -2640,10 +2388,7 @@
         },
         "title": {
           "description": "Title for MacOS tray",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         }
       },
       "additionalProperties": false
@@ -2654,10 +2399,7 @@
       "properties": {
         "runner": {
           "description": "The binary used to build and run the application.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "devPath": {
           "description": "The path to the application assets or URL to load in development.\n\nThis is usually an URL to a dev server, which serves your application assets with live reloading. Most modern JavaScript bundlers provides a way to start a dev server by default.\n\nSee [vite](https://vitejs.dev/guide/), [Webpack DevServer](https://webpack.js.org/configuration/dev-server/) and [sirv](https://github.com/lukeed/sirv) for examples on how to set up a dev server.",
@@ -2712,10 +2454,7 @@
         },
         "features": {
           "description": "Features passed to `cargo` commands.",
-          "type": [
-            "array",
-            "null"
-          ],
+          "type": ["array", "null"],
           "items": {
             "type": "string"
           }
@@ -2758,9 +2497,7 @@
         {
           "description": "Run the given script with custom options.",
           "type": "object",
-          "required": [
-            "script"
-          ],
+          "required": ["script"],
           "properties": {
             "script": {
               "description": "The script to execute.",
@@ -2768,10 +2505,7 @@
             },
             "cwd": {
               "description": "The current working directory.",
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": ["string", "null"]
             },
             "wait": {
               "description": "Whether `tauri dev` should wait for the command to finish or not. Defaults to `false`.",
@@ -2792,9 +2526,7 @@
         {
           "description": "Run the given script with custom options.",
           "type": "object",
-          "required": [
-            "script"
-          ],
+          "required": ["script"],
           "properties": {
             "script": {
               "description": "The script to execute.",
@@ -2802,10 +2534,7 @@
             },
             "cwd": {
               "description": "The current working directory.",
-              "type": [
-                "string",
-                "null"
-              ]
+              "type": ["string", "null"]
             }
           }
         }

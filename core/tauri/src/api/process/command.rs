@@ -436,7 +436,7 @@ mod test {
   #[test]
   fn test_cmd_output() {
     // create a command to run cat.
-    let cmd = Command::new("cat").args(&["test/api/test.txt"]);
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {
@@ -458,7 +458,7 @@ mod test {
   #[test]
   // test the failure case
   fn test_cmd_fail() {
-    let cmd = Command::new("cat").args(&["test/api/"]);
+    let cmd = Command::new("cat").args(["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {

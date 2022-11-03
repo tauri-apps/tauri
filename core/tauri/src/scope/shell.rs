@@ -306,8 +306,8 @@ impl Scope {
     // The prevention of argument escaping is handled by the usage of std::process::Command::arg by
     // the `open` dependency. This behavior should be re-confirmed during upgrades of `open`.
     match with.map(Program::name) {
-      Some(program) => ::open::with(&path, program),
-      None => ::open::that(&path),
+      Some(program) => ::open::with(path, program),
+      None => ::open::that(path),
     }
     .map_err(Into::into)
   }

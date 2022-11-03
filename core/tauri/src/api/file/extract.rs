@@ -15,7 +15,7 @@ pub enum ArchiveReader<R: Read + Seek> {
   /// A plain reader.
   Plain(R),
   /// A GZ- compressed reader (decoder).
-  GzCompressed(flate2::read::GzDecoder<R>),
+  GzCompressed(Box<flate2::read::GzDecoder<R>>),
 }
 
 impl<R: Read + Seek> Read for ArchiveReader<R> {
@@ -161,7 +161,9 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
     };
     Extract {
       reader: match compression {
-        Some(Compression::Gz) => ArchiveReader::GzCompressed(flate2::read::GzDecoder::new(reader)),
+        Some(Compression::Gz) => {
+          ArchiveReader::GzCompressed(Box::new(flate2::read::GzDecoder::new(reader)))
+        }
         _ => ArchiveReader::Plain(reader),
       },
       archive_format,
@@ -248,7 +250,7 @@ impl<'a, R: Read + Seek> Extract<'a, R> {
               fs::create_dir_all(&out_path)?;
             } else {
               if let Some(out_path_parent) = out_path.parent() {
-                fs::create_dir_all(&out_path_parent)?;
+                fs::create_dir_all(out_path_parent)?;
               }
               let mut out_file = fs::File::create(&out_path)?;
               io::copy(&mut file, &mut out_file)?;

@@ -177,7 +177,7 @@ async fn async_stateful_command_with_result(
   state: State<'_, MyState>,
 ) -> Result<String, MyError> {
   println!("{:?} {:?}", the_argument, state.inner());
-  Ok(the_argument.unwrap_or_else(|| "".to_string()))
+  Ok(the_argument.unwrap_or_default())
 }
 
 // Non-Ident command function arguments

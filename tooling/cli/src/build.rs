@@ -63,8 +63,7 @@ pub fn command(mut options: Options) -> Result<()> {
     } else {
       (
         Some(
-          std::fs::read_to_string(&config)
-            .with_context(|| "failed to read custom configuration")?,
+          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
         ),
         Some(config.clone()),
       )

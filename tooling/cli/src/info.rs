@@ -159,7 +159,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd
         .arg("info")
         .arg(name)
-        .args(&["version", "--json"])
+        .args(["version", "--json"])
         .output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -219,9 +219,9 @@ fn npm_package_version<P: AsRef<Path>>(
   let (output, regex) = match pm {
     PackageManager::Yarn => (
       cross_command("yarn")
-        .args(&["list", "--pattern"])
+        .args(["list", "--pattern"])
         .arg(name)
-        .args(&["--depth", "0"])
+        .args(["--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -238,7 +238,7 @@ fn npm_package_version<P: AsRef<Path>>(
       cross_command("npm")
         .arg("list")
         .arg(name)
-        .args(&["version", "--depth", "0"])
+        .args(["version", "--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -247,7 +247,7 @@ fn npm_package_version<P: AsRef<Path>>(
       cross_command("pnpm")
         .arg("list")
         .arg(name)
-        .args(&["--parseable", "--depth", "0"])
+        .args(["--parseable", "--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -273,11 +273,7 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
     .arg("--version")
     .output()?;
   let version = if output.status.success() {
-    Some(
-      String::from_utf8_lossy(&output.stdout)
-        .replace('\n', "")
-        .replace('\r', ""),
-    )
+    Some(String::from_utf8_lossy(&output.stdout).replace(['\n', '\r'], ""))
   } else {
     None
   };
@@ -380,8 +376,7 @@ fn active_rust_toolchain() -> crate::Result<Option<String>> {
   let toolchain = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace('\n', "")
-        .replace('\r', "")
+        .replace(['\n', '\r'], "")
         .split('(')
         .collect::<Vec<&str>>()[0]
         .into(),

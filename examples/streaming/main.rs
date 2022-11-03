@@ -46,7 +46,7 @@ fn main() {
       #[cfg(target_os = "windows")]
       let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       #[cfg(not(target_os = "windows"))]
-      let path = request.uri().strip_prefix("stream://").unwrap();
+      let path = request.uri().strip_prefix("stream://localhost/").unwrap();
       let path = percent_encoding::percent_decode(path.as_bytes())
         .decode_utf8_lossy()
         .to_string();

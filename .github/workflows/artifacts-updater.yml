@@ -4,10 +4,8 @@
 
 name: updater test artifacts
 on:
-  push:
-    branches:
-      - dev
-      - next
+  schedule:
+    - cron: '0 0 * * *'
   pull_request:
     paths:
       - '.github/workflows/artifacts-updater.yml'

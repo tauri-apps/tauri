@@ -12,7 +12,8 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, DeviceEventFilter, JsEventListenerKey,
+    PendingWindow, WindowEvent,
   },
   Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
   Runtime, RuntimeHandle, UserAttentionType, UserEvent,
@@ -47,7 +48,8 @@ use wry::{
     },
     event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{
-      ControlFlow, EventLoop, EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+      ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop,
+      EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
     },
     menu::{
       AboutMetadata as WryAboutMetadata, CustomMenuItem as WryCustomMenuItem, MenuBar,
@@ -64,7 +66,6 @@ use wry::{
   webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
 };
 
-pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 
 #[cfg(windows)]
@@ -360,6 +361,18 @@ impl From<MenuItem> for MenuItemWrapper {
       MenuItem::Zoom => Self(WryMenuItem::Zoom),
       MenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
+    }
+  }
+}
+
+pub struct DeviceEventFilterWrapper(pub WryDeviceEventFilter);
+
+impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
+  fn from(item: DeviceEventFilter) -> Self {
+    match item {
+      DeviceEventFilter::Always => Self(WryDeviceEventFilter::Always),
+      DeviceEventFilter::Never => Self(WryDeviceEventFilter::Never),
+      DeviceEventFilter::Unfocused => Self(WryDeviceEventFilter::Unfocused),
     }
   }
 }
@@ -1070,6 +1083,7 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
+  SetDeviceEventFilter(DeviceEventFilterWrapper),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1520,6 +1534,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
+    )
+  }
+
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetDeviceEventFilter(filter.into()),
+      ),
     )
   }
 
@@ -2440,6 +2464,9 @@ fn handle_user_message<T: UserEvent>(
             }
             WindowMessage::RequestRedraw => {
               window.request_redraw();
+            }
+            WindowMessage::SetDeviceEventFilter(filter) => {
+              event_loop.set_device_event_filter(filter.0)
             }
           }
         }

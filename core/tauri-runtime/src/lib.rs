@@ -24,6 +24,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  DeviceEventFilter,
   CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
 };
 
@@ -666,6 +667,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Ignores the window cursor events.
   fn set_ignore_cursor_events(&self, ignore: bool) -> Result<()>;
+
+  /// Modifies the window's device event filter.
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) -> Result<()>;
 
   /// Starts dragging the window.
   fn start_dragging(&self) -> Result<()>;

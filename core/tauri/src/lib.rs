@@ -374,7 +374,7 @@ pub enum Icon {
   Raw(Vec<u8>),
   /// Icon from raw RGBA bytes.
   Rgba {
-    /// RGBA byes of the icon image.
+    /// RGBA bytes of the icon image.
     rgba: Vec<u8>,
     /// Icon width.
     width: u32,

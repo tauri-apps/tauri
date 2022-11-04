@@ -54,7 +54,7 @@ jobs:
           override: true
           components: clippy
 
-      - name: install Linux dependencies
+      - name: install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev

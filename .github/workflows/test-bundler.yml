@@ -33,6 +33,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -68,6 +69,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: install minimal stable with clippy and rustfmt
         uses: actions-rs/toolchain@v1
         with:

@@ -31,7 +31,7 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Install gtk on Ubuntu
+    - name: Install Linux dependencies
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update

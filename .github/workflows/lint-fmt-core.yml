@@ -58,7 +58,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: install webkit2gtk
+
+      - name: install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf

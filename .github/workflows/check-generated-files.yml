@@ -44,6 +44,7 @@ jobs:
     if: needs.changes.outputs.bundle == 'true'
     steps:
       - uses: actions/checkout@v2
+
       - name: generate bundle
         working-directory: tooling/api
         run: yarn && yarn build
@@ -57,7 +58,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/checkout@v2
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:

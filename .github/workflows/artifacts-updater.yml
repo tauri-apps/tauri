@@ -59,6 +59,7 @@ jobs:
         run: |
           echo "Enable code signing: ${{ env.ENABLE_CODE_SIGNING != '' }}"
           echo "::set-output name=enabled::${{ env.ENABLE_CODE_SIGNING != '' }}"
+
       # run only on tauri-apps/tauri repo (require secrets)
       - name: build sample artifacts + code signing (updater)
         if: steps.enablecodesigning.outputs.enabled == 'true'

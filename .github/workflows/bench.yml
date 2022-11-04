@@ -82,7 +82,7 @@ jobs:
           git commit --message "Update Tauri benchmarks"
           git push origin gh-pages
 
-      - name: Worker info
+      - name: Print worker info
         run: |
           cat /proc/cpuinfo
           cat /proc/meminfo

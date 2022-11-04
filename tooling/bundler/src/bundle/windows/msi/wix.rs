@@ -287,7 +287,6 @@ fn clear_env_for_wix(cmd: &mut Command) {
     vec!["SYSTEMROOT".into(), "TMP".into(), "TEMP".into()];
   for (k, v) in std::env::vars_os() {
     let k = k.to_ascii_uppercase();
-    println!("{:?} = {:?}", k, v);
     if required_vars.contains(&k) || k.to_string_lossy().starts_with("TAURI") {
       cmd.env(k, v);
     }

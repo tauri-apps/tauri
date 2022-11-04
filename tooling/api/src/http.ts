@@ -155,8 +155,7 @@ class Body {
         } else {
           r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
         }
-        // eslint-disable-next-line security/detect-object-injection
-        form[key] = r
+        form[String(key)] = r
       }
     }
 
@@ -165,10 +164,8 @@ class Body {
         append(key, value)
       }
     } else {
-      for (const key in data) {
-        // eslint-disable-next-line security/detect-object-injection
-        const v = data[key]
-        append(key, v)
+      for (const [key, value] of Object.entries(data)) {
+        append(key, value)
       }
     }
     return new Body('Form', form)

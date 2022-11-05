@@ -543,7 +543,7 @@ impl<R: Runtime> AppHandle<R> {
   /// Sets the current executable as the default handler for a protocol (aka URI scheme).
   ///
   /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
-  ///  `tauri://` links, call this method with `electron` as the protocol.
+  /// `tauri://` links, call this method with `electron` as the protocol.
   ///
   /// ## Platform-specific:
   ///
@@ -618,10 +618,20 @@ impl<R: Runtime> AppHandle<R> {
         RegCloseKey(hkey).ok()?;
       }
     }
-
     #[cfg(target_os = "linux")]
     {
-      todo!()
+      if let Some(bin) = self.config().package.binary_name() {
+        std::process::Command::new("xdg-settings")
+          .args(&[
+            "set",
+            "default-url-scheme-handler",
+            protocol,
+            &format!("{}.desktop", bin),
+          ])
+          .output()?;
+      } else {
+        return Ok(());
+      }
     }
 
     Ok(())
@@ -629,6 +639,12 @@ impl<R: Runtime> AppHandle<R> {
 
   /// Checks if the current executable as the default handler for a protocol (aka URI scheme).
   ///
+  /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
+  /// `tauri://` links, call this method with `electron` as the protocol.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// -**macOS**: no-op, always returns `false`.
   pub fn is_default_protocol_client<S: AsRef<str>>(&self, protocol: S) -> crate::Result<bool> {
     let protocol = protocol.as_ref();
     if protocol.is_empty() {
@@ -685,7 +701,22 @@ impl<R: Runtime> AppHandle<R> {
 
     #[cfg(target_os = "linux")]
     {
-      todo!()
+      if let Some(bin) = self.config().package.binary_name() {
+        let stdout = std::process::Command::new("xdg-settings")
+          .args(&[
+            "check",
+            "default-url-scheme-handler",
+            protocol,
+            &format!("{}.desktop", bin),
+          ])
+          .output()?
+          .stdout;
+
+        let out_str = String::from_utf8_lossy(&stdout);
+        Ok(out_str == "yes")
+      } else {
+        Ok(false)
+      }
     }
 
     #[cfg(target_os = "macos")]
@@ -697,9 +728,12 @@ impl<R: Runtime> AppHandle<R> {
   /// This method checks if the current executable as the default handler for a protocol (aka URI scheme).
   /// If so, it will remove the app as the default handler.
   ///
+  /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
+  /// `tauri://` links, call this method with `electron` as the protocol.
+  ///
   /// ## Platform-specific:
   ///
-  /// -**macOS**: no-op
+  /// -**macOS / Linux**: no-op
   pub fn remove_as_default_protocol_client<S: AsRef<str>>(&self, protocol: S) -> crate::Result<()> {
     let protocol = protocol.as_ref();
     if protocol.is_empty() {
@@ -739,10 +773,6 @@ impl<R: Runtime> AppHandle<R> {
       }
     }
 
-    #[cfg(target_os = "linux")]
-    {
-      todo!()
-    }
     Ok(())
   }
 }

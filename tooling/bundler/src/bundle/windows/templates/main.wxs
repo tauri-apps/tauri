@@ -89,8 +89,6 @@
 
         <UIRef Id="WixUI_InstallDir" />
 
-
-
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
                 <Component Id="ApplicationShortcutDesktop" Guid="*">

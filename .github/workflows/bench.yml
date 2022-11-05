@@ -33,6 +33,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           override: true
+          default: true
           components: rust-src
           target: ${{ matrix.platform.target }}
 

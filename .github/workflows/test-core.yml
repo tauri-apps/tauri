@@ -56,6 +56,8 @@ jobs:
           toolchain: ${{ matrix.platform.toolchain }}
           target: ${{ matrix.platform.target }}
           override: true
+          default: true
+
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |

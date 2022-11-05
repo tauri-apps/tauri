@@ -40,6 +40,8 @@ jobs:
           toolchain: stable
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tooling/bundler
 
       - name: test
         run: |
@@ -76,6 +78,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+          default: true
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2

@@ -44,7 +44,6 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-on-failure: true
           workspaces: |
             .
             tooling/cli

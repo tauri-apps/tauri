@@ -142,7 +142,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            .
+            core -> ../target
             tooling/cli
             tooling/bundler
 

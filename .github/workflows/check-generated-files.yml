@@ -70,6 +70,8 @@ jobs:
           sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core -> ../target
 
       - name: generate schema.json
         uses: actions-rs/cargo@v1

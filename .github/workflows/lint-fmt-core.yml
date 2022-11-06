@@ -72,6 +72,8 @@ jobs:
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: core -> ../target
 
       - uses: actions-rs/clippy-check@v1
         with:

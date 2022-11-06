@@ -55,7 +55,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            .
+            core -> ../target
             tooling/bench/tests
 
       - name: run benchmarks

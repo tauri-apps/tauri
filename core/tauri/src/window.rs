@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use url::Url;
 
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
@@ -848,6 +849,11 @@ impl<R: Runtime> Window<R> {
       ids: self.window.menu_ids.clone(),
       dispatcher: self.dispatcher(),
     }
+  }
+
+  /// Returns the url of the WebView.
+  pub fn url(&self) -> crate::Result<Url> {
+    self.window.dispatcher.url().map_err(Into::into)
   }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.

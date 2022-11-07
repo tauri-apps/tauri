@@ -8,6 +8,7 @@
 
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
+use url::Url;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use uuid::Uuid;
@@ -499,6 +500,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn is_devtools_open(&self) -> Result<bool>;
 
   // GETTERS
+
+  fn url(&self) -> Result<Url>;
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   fn scale_factor(&self) -> Result<f64>;

@@ -61,7 +61,7 @@ use wry::{
     },
   },
   http::{Request as WryRequest, Response as WryResponse},
-  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
+  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder, Url},
 };
 
 pub use wry;
@@ -1017,6 +1017,7 @@ pub enum WindowMessage {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
   // Getters
+  Url(Sender<Url>),
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
   OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -1214,6 +1215,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   // Getters
+
+  fn url(&self) -> Result<Url> {
+    window_getter!(self, WindowMessage::Url)
+  }
 
   fn scale_factor(&self) -> Result<f64> {
     window_getter!(self, WindowMessage::ScaleFactor)
@@ -2315,6 +2320,11 @@ fn handle_user_message<T: UserEvent>(
               }
             }
             // Getters
+            WindowMessage::Url(tx) => {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
+                tx.send(w.url()).unwrap();
+              }
+            },
             WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
             WindowMessage::InnerPosition(tx) => tx
               .send(

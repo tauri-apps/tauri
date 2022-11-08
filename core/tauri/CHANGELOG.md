@@ -1,5 +1,51 @@
 # Changelog
 
+## \[1.2.0]
+
+- Add `accept_first_mouse` option for macOS windows.
+  - [95f467ad](https://www.github.com/tauri-apps/tauri/commit/95f467add51448319983c54e2f382c7c09fb72d6) feat(core): add window `accept_first_mouse` option, closes [#5347](https://www.github.com/tauri-apps/tauri/pull/5347) ([#5374](https://www.github.com/tauri-apps/tauri/pull/5374)) on 2022-10-17
+- Add new app-specific `BaseDirectory` enum variants `AppConfig`, `AppData`, `AppLocalData`, `AppCache` and `AppLog` along with equivalent functions in `path` module and deprecated ambiguous variants `Log` and `App` along with their equivalent functions in `path` module.
+  - [5d89905e](https://www.github.com/tauri-apps/tauri/commit/5d89905e39ce0e6eaaec50a693679335449edb32) feat(api): add app-specific directory APIs, closes [#5263](https://www.github.com/tauri-apps/tauri/pull/5263) ([#5272](https://www.github.com/tauri-apps/tauri/pull/5272)) on 2022-09-28
+- Set the correct mimetype when streaming files through `asset:` protocol
+  - [39443b43](https://www.github.com/tauri-apps/tauri/commit/39443b4350bd208c4d6eec5e1095f215199f8aa3) fix(core): set correct mimetype for asset protocol streams, closes [#5203](https://www.github.com/tauri-apps/tauri/pull/5203) ([#5210](https://www.github.com/tauri-apps/tauri/pull/5210)) on 2022-09-30
+  - [2d9c2b47](https://www.github.com/tauri-apps/tauri/commit/2d9c2b472416339829f9113f976f193bf8e0665f) Revert "fix(core): set correct mimetype for asset protocol streams, closes [#5203](https://www.github.com/tauri-apps/tauri/pull/5203) ([#5210](https://www.github.com/tauri-apps/tauri/pull/5210))" on 2022-09-30
+  - [9b1a6a1c](https://www.github.com/tauri-apps/tauri/commit/9b1a6a1c02b8d62dd47d9ce42aa05723d7c1b892) fix(core): set correct mimetype for asset protocol streams,  [#5203](https://www.github.com/tauri-apps/tauri/pull/5203) ([#5536](https://www.github.com/tauri-apps/tauri/pull/5536)) on 2022-11-04
+- Disable automatic window tabbing on macOS when the `tabbing_identifier` option is not defined, the window is transparent or does not have decorations.
+  - [4137ab44](https://www.github.com/tauri-apps/tauri/commit/4137ab44a81d739556cbc7583485887e78952bf1) feat(macos): add `tabbing_identifier` option, closes [#2804](https://www.github.com/tauri-apps/tauri/pull/2804), [#3912](https://www.github.com/tauri-apps/tauri/pull/3912) ([#5399](https://www.github.com/tauri-apps/tauri/pull/5399)) on 2022-10-19
+- The custom protocol now validates the request URI. This has implications when using the `asset` protocol without the `convertFileSrc` helper, the URL must now use the `asset://localhost/$filePath` format.
+  - [357480f4](https://www.github.com/tauri-apps/tauri/commit/357480f4ae43aa8da99f7ba61ae2ee51b4552c60) feat(core): custom protocol headers on Linux, closes [#4496](https://www.github.com/tauri-apps/tauri/pull/4496) ([#5421](https://www.github.com/tauri-apps/tauri/pull/5421)) on 2022-10-17
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [4cbdf0fb](https://www.github.com/tauri-apps/tauri/commit/4cbdf0fb1c0de5004eab51c36d5843a9816f18af) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-10-05
+- Properly emit events with object payload.
+  - [79dd6e16](https://www.github.com/tauri-apps/tauri/commit/79dd6e16a7306351e2acf21166506b2876b58a7e) fix(core): properly emit events with object payload, closes [#5482](https://www.github.com/tauri-apps/tauri/pull/5482) ([#5492](https://www.github.com/tauri-apps/tauri/pull/5492)) on 2022-10-27
+- Fixes access to the `WebviewWindow.getByLabel` function in a `tauri://window-created` event listener.
+  - [e00b1e5f](https://www.github.com/tauri-apps/tauri/commit/e00b1e5f94b3f841bf107cc17ee74be9203ea080) fix(core): update metadata before window-created listeners, closes [#5191](https://www.github.com/tauri-apps/tauri/pull/5191) ([#5458](https://www.github.com/tauri-apps/tauri/pull/5458)) on 2022-10-22
+- Fixes resource reading being always rejected by the scope.
+  - [a06dc699](https://www.github.com/tauri-apps/tauri/commit/a06dc6993148f10ff7623c9dcc81f313dd960ad0) fix(core): canonicalize resource dir to fix scope check, closes [#5196](https://www.github.com/tauri-apps/tauri/pull/5196) ([#5218](https://www.github.com/tauri-apps/tauri/pull/5218)) on 2022-09-29
+- Fixes `__TAURI_PATTERN__` object freeze.
+  - [49f06ca4](https://www.github.com/tauri-apps/tauri/commit/49f06ca4b9f1d02933e46bbc50330b84ac81be87) fix: deepfreeze check by prop ([#5407](https://www.github.com/tauri-apps/tauri/pull/5407)) on 2022-10-17
+- Readd the option to create an unfocused window via the `focused` method. The `focus` function has been deprecated.
+  - [4036e15f](https://www.github.com/tauri-apps/tauri/commit/4036e15f5af933bdc0d0913508b5103958afc143) feat(core): reimplement window initial focus flag, closes [#5120](https://www.github.com/tauri-apps/tauri/pull/5120) ([#5338](https://www.github.com/tauri-apps/tauri/pull/5338)) on 2022-10-08
+- Add `hidden_title` option for macOS windows.
+  - [321f3fed](https://www.github.com/tauri-apps/tauri/commit/321f3fed19df40c1223099bce953332b7f00f7a9) feat(macos): `title_bar_style` and `hidden_title` window options, closes [#2663](https://www.github.com/tauri-apps/tauri/pull/2663) ([#3965](https://www.github.com/tauri-apps/tauri/pull/3965)) on 2022-09-30
+- Custom protocol headers are now implemented on Linux when running on webkit2gtk 2.36 or above.
+  - [357480f4](https://www.github.com/tauri-apps/tauri/commit/357480f4ae43aa8da99f7ba61ae2ee51b4552c60) feat(core): custom protocol headers on Linux, closes [#4496](https://www.github.com/tauri-apps/tauri/pull/4496) ([#5421](https://www.github.com/tauri-apps/tauri/pull/5421)) on 2022-10-17
+- Add `App::show()`, `AppHandle::show()`, `App::hide()` and `AppHandle::hide()` for hiding/showing the entire application on macOS.
+  - [39bf895b](https://www.github.com/tauri-apps/tauri/commit/39bf895b73ec6b53f5758815396ba85dda6b9c67) feat(macOS): Add application `show` and `hide` methods ([#3689](https://www.github.com/tauri-apps/tauri/pull/3689)) on 2022-10-03
+- Fix a deadlock when modifying the menu in the `on_menu_event` closure.
+  - [ae65951b](https://www.github.com/tauri-apps/tauri/commit/ae65951bc477126b71816d77424f8167814bbe8d) fix(core): fix deadlock in `on_menu_event`, closes [#5254](https://www.github.com/tauri-apps/tauri/pull/5254) ([#5257](https://www.github.com/tauri-apps/tauri/pull/5257)) on 2022-09-28
+- - [7d9aa398](https://www.github.com/tauri-apps/tauri/commit/7d9aa3987efce2d697179ffc33646d086c68030c) feat: bump MSRV to 1.59 ([#5296](https://www.github.com/tauri-apps/tauri/pull/5296)) on 2022-09-28
+- Resolve base system directory in shell scope.
+  - [99fe1c56](https://www.github.com/tauri-apps/tauri/commit/99fe1c562ffcea4089f785c73f4e6706d4ebc16b) fix(core): resolve base dir in shell scope, closes [#5480](https://www.github.com/tauri-apps/tauri/pull/5480) ([#5508](https://www.github.com/tauri-apps/tauri/pull/5508)) on 2022-11-04
+- Added `tabbing_identifier` to the window builder on macOS.
+  - [4137ab44](https://www.github.com/tauri-apps/tauri/commit/4137ab44a81d739556cbc7583485887e78952bf1) feat(macos): add `tabbing_identifier` option, closes [#2804](https://www.github.com/tauri-apps/tauri/pull/2804), [#3912](https://www.github.com/tauri-apps/tauri/pull/3912) ([#5399](https://www.github.com/tauri-apps/tauri/pull/5399)) on 2022-10-19
+- Add `title_bar_style` option for macOS windows.
+  - [321f3fed](https://www.github.com/tauri-apps/tauri/commit/321f3fed19df40c1223099bce953332b7f00f7a9) feat(macos): `title_bar_style` and `hidden_title` window options, closes [#2663](https://www.github.com/tauri-apps/tauri/pull/2663) ([#3965](https://www.github.com/tauri-apps/tauri/pull/3965)) on 2022-09-30
+- Added methods to set the system tray title on macOS.
+  - [8f1ace77](https://www.github.com/tauri-apps/tauri/commit/8f1ace77956ac3477826ceb059a191e55b3fff93) feat: expose `set_title` for MacOS tray ([#5182](https://www.github.com/tauri-apps/tauri/pull/5182)) on 2022-09-30
+- Added the `user_agent` option when creating a window.
+  - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
+
 ## \[1.1.1]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.

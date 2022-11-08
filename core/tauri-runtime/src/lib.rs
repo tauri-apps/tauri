@@ -24,8 +24,7 @@ use monitor::Monitor;
 use webview::WindowBuilder;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  DeviceEventFilter,
-  CursorIcon, DetachedWindow, PendingWindow, WindowEvent,
+  CursorIcon, DetachedWindow, DeviceEventFilter, PendingWindow, WindowEvent,
 };
 
 use crate::http::{

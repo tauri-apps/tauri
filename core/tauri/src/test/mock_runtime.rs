@@ -10,10 +10,10 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent, DeviceEventFilter,
+    CursorIcon, DetachedWindow, DeviceEventFilter, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime,
-  RuntimeHandle, UserAttentionType, UserEvent,
+  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
+  UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{

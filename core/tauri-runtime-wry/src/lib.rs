@@ -12,7 +12,7 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, DeviceEventFilter, JsEventListenerKey,
+    CursorIcon, DetachedWindow, DeviceEventFilter, FileDropEvent, JsEventListenerKey,
     PendingWindow, WindowEvent,
   },
   Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,

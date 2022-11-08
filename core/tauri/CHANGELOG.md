@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.0.7]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [bcd9dc7f](https://www.github.com/tauri-apps/tauri/commit/bcd9dc7f859fa7e65fea5de835fa938ca1368eaf) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-11-08
+
 ## \[1.0.6]
 
 - Fix `fs.readDir` recursive option reading symlinked directories that are not allowed by the scope.

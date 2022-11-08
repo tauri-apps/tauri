@@ -260,7 +260,7 @@ mod tests {
 
   fn new_scope() -> Scope {
     Scope {
-      allowed_patterns: Default::default(),
+      alllowed_patterns: Default::default(),
       forbidden_patterns: Default::default(),
       event_listeners: Default::default(),
     }

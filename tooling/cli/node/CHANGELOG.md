@@ -1,6 +1,6 @@
 # Changelog
 
-## \[1.1.2]
+## \[1.2.0]
 
 - Detect JSON5 and TOML configuration files in the dev watcher.
   - [e7ccbd85](https://www.github.com/tauri-apps/tauri/commit/e7ccbd8573f6b9124e80c0b67fa2365729c3c196) feat(cli): detect JSON5 and TOML configuration files in the dev watcher ([#5439](https://www.github.com/tauri-apps/tauri/pull/5439)) on 2022-10-19

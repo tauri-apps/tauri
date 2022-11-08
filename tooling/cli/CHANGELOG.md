@@ -10,7 +10,7 @@
   - [e7ccbd85](https://www.github.com/tauri-apps/tauri/commit/e7ccbd8573f6b9124e80c0b67fa2365729c3c196) feat(cli): detect JSON5 and TOML configuration files in the dev watcher ([#5439](https://www.github.com/tauri-apps/tauri/pull/5439)) on 2022-10-19
 - Fix cli passing `--no-default-features` to the app instead of the runner (Cargo).
   - [a3a70218](https://www.github.com/tauri-apps/tauri/commit/a3a70218f3cc438b4875a046a182ca44dab357ae) fix(cli): pass `--no-default-features` to runner instead of app, closes [#5415](https://www.github.com/tauri-apps/tauri/pull/5415) ([#5474](https://www.github.com/tauri-apps/tauri/pull/5474)) on 2022-10-25
-- Validate `pacakge > productName` in the tauri config and produce errors if it contains one of the following characters `/\:*?\"<>|`
+- Validate `package > productName` in the tauri config and produce errors if it contains one of the following characters `/\:*?\"<>|`
   - [b9316a64](https://www.github.com/tauri-apps/tauri/commit/b9316a64eaa9348c79efafb8b94960d9b4d5b27a) fix(cli): validate `productName` in config, closes [#5233](https://www.github.com/tauri-apps/tauri/pull/5233) ([#5262](https://www.github.com/tauri-apps/tauri/pull/5262)) on 2022-09-28
 - Hot-reload the frontend when `tauri.conf.json > build > devPath` points to a directory.
   - [54c337e0](https://www.github.com/tauri-apps/tauri/commit/54c337e06f3bc624c4780cf002bc54790f446c90) feat(cli): hotreload support for frontend static files, closes [#2173](https://www.github.com/tauri-apps/tauri/pull/2173) ([#5256](https://www.github.com/tauri-apps/tauri/pull/5256)) on 2022-09-28

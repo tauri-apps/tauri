@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.1.2]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [e4dc5bed](https://www.github.com/tauri-apps/tauri/commit/e4dc5bedbb54fbe6e06ab833d7fb7e0cacebad10) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-10-05
+
 ## \[1.1.1]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.

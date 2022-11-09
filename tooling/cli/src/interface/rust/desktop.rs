@@ -383,7 +383,7 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(&product_name)
+      .join(product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
     rename(bin_path, &product_path).with_context(|| {

@@ -172,7 +172,7 @@ pub fn gen(
   // often necessary.
   println!("Generating Xcode project...");
   bossy::Command::impure("xcodegen")
-    .with_args(&["generate", "--spec"])
+    .with_args(["generate", "--spec"])
     .with_arg(dest.join("project.yml"))
     .run_and_wait()
     .with_context(|| "failed to run `xcodegen`")?;

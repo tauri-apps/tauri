@@ -134,7 +134,7 @@ fn run_build(
     options.targets.iter(),
     &detect_target_ok,
     env,
-    |target: &Target| {
+    |target: &Target| -> Result<()> {
       let mut app_version = config.bundle_version().clone();
       if let Some(build_number) = options.build_number {
         app_version.push_extra(build_number);
@@ -152,11 +152,10 @@ fn run_build(
         out_files.push(path);
       }
 
-      anyhow::Result::Ok(())
+      Ok(())
     },
   )
-  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))?
-  .map_err(|e: anyhow::Error| e)?;
+  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
 
   log_finished(out_files, "IPA");
 

@@ -581,6 +581,21 @@ impl<R: Runtime> SystemTrayHandle<R> {
     panic!("item id not found")
   }
 
+  /// Gets an Option handle to the menu item that has the specified `id`.
+  pub fn try_get_item(&self, id: MenuIdRef<'_>) -> Option<SystemTrayMenuItemHandle<R>> {
+    let ids = self.ids.lock().unwrap();
+    let iter = ids.iter();
+    for (raw, item_id) in iter {
+      if item_id == id {
+        Some(SystemTrayMenuItemHandle {
+          id: *raw,
+          tray_handler: self.inner.clone(),
+        })
+      }
+    }
+    None
+  }
+
   /// Updates the tray icon.
   pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
     self.inner.set_icon(icon.try_into()?).map_err(Into::into)

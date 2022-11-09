@@ -37,9 +37,7 @@
       "all": false,
       "fs": {
         "readFile": true,
-        "scope": [
-          "$HOME/.tauri_3mb.json"
-        ]
+        "scope": ["$HOME/.tauri_3mb.json"]
       }
     },
     "windows": [

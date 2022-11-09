@@ -1591,7 +1591,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
-      shell: ShellScope::new(shell_scope),
+      shell: ShellScope::new(&app.manager.config(), app.package_info(), &env, shell_scope),
     });
     app.manage(env);
 

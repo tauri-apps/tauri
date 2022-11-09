@@ -67,6 +67,7 @@ jobs:
         with:
           toolchain: stable
           override: true
+          default: true
           target: ${{ matrix.target.name }}
 
       - name: Setup node

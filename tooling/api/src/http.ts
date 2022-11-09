@@ -111,7 +111,7 @@ class Body {
    * @example
    * ```typescript
    * import { Body } from "@tauri-apps/api/http"
-   * Body.form({
+   * const body = Body.form({
    *   key: 'value',
    *   image: {
    *     file: '/path/to/file', // either a path or an array buffer of the file contents
@@ -119,29 +119,54 @@ class Body {
    *     fileName: 'image.jpg' // optional
    *   }
    * });
+   *
+   * // alternatively, use a FormData:
+   * const form = new FormData();
+   * form.append('key', 'value');
+   * form.append('image', {
+   *   file: '/path/to/file',
+   *   mime: 'image/jpeg',
+   *   fileName: 'image.jpg'
+   * });
+   * const formBody = Body.form(form);
    * ```
    *
    * @param data The body data.
    *
    * @returns The body object ready to be used on the POST and PUT requests.
    */
-  static form(data: Record<string, Part>): Body {
+  static form(data: Record<string, Part> | FormData): Body {
     const form: Record<string, string | number[] | FilePart<number[]>> = {}
-    for (const key in data) {
-      // eslint-disable-next-line security/detect-object-injection
-      const v = data[key]
-      let r
-      if (typeof v === 'string') {
-        r = v
-      } else if (v instanceof Uint8Array || Array.isArray(v)) {
-        r = Array.from(v)
-      } else if (typeof v.file === 'string') {
-        r = { file: v.file, mime: v.mime, fileName: v.fileName }
-      } else {
-        r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+
+    const append = (
+      key: string,
+      v: string | Uint8Array | FilePart<Uint8Array> | File
+    ): void => {
+      if (v !== null) {
+        let r
+        if (typeof v === 'string') {
+          r = v
+        } else if (v instanceof Uint8Array || Array.isArray(v)) {
+          r = Array.from(v)
+        } else if (v instanceof File) {
+          r = { file: v.name, mime: v.type, fileName: v.name }
+        } else if (typeof v.file === 'string') {
+          r = { file: v.file, mime: v.mime, fileName: v.fileName }
+        } else {
+          r = { file: Array.from(v.file), mime: v.mime, fileName: v.fileName }
+        }
+        form[String(key)] = r
       }
-      // eslint-disable-next-line security/detect-object-injection
-      form[key] = r
+    }
+
+    if (data instanceof FormData) {
+      for (const [key, value] of data) {
+        append(key, value)
+      }
+    } else {
+      for (const [key, value] of Object.entries(data)) {
+        append(key, value)
+      }
     }
     return new Body('Form', form)
   }

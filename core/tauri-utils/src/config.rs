@@ -2996,7 +2996,7 @@ mod build {
 
       tokens.append_all(match self {
         Self::App(path) => {
-          let path = path_buf_lit(&path);
+          let path = path_buf_lit(path);
           quote! { #prefix::App(#path) }
         }
         Self::External(url) => {
@@ -3226,7 +3226,7 @@ mod build {
           quote! { #prefix::OfflineInstaller { silent: #silent } }
         }
         Self::FixedRuntime { path } => {
-          let path = path_buf_lit(&path);
+          let path = path_buf_lit(path);
           quote! { #prefix::FixedRuntime { path: #path } }
         }
       })

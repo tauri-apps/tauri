@@ -46,7 +46,7 @@ pub fn render<P: AsRef<Path>, D: Serialize>(
     handlebars,
     data,
     dir,
-    &out_dir,
+    out_dir,
     &mut |file_path: &PathBuf| {
       let path = out_dir.join(file_path);
       let parent = path.parent().unwrap().to_path_buf();

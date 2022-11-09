@@ -229,8 +229,7 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     } else {
       (
         Some(
-          std::fs::read_to_string(&config)
-            .with_context(|| "failed to read custom configuration")?,
+          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
         ),
         Some(config.clone()),
       )

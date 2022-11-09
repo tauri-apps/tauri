@@ -9,7 +9,6 @@ on:
 
 env:
   RUST_BACKTRACE: 1
-  CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
 concurrency:
@@ -34,13 +33,14 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           override: true
+          default: true
           components: rust-src
           target: ${{ matrix.platform.target }}
 
       - name: setup python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: '3.10'
           architecture: x64
 
       - name: install dependencies
@@ -52,54 +52,11 @@ jobs:
           sudo dpkg -i hyperfine_1.11.0_amd64.deb
           pip install memory_profiler
 
-      - name: Get current date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Cache cargo state
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_state
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
-
-      - name: Cache core cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo-core
-        with:
-          path: target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
-            ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-
-            ${{ matrix.platform }}-${{ matrix.rust }}-
-            ${{ matrix.platform }}-
-
-      - name: cache cargo `tooling/bench/tests` target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_benches
-        with:
-          path: tooling/bench/tests/target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-${{ hashFiles('tooling/bench/tests/Cargo.lock') }}
-            ${{ matrix.platform }}-${{ matrix.rust }}-${{ env.cache-name }}-
-            ${{ matrix.platform }}-${{ matrix.rust }}-
-            ${{ matrix.platform }}-
+          workspaces: |
+            core -> ../target
+            tooling/bench/tests
 
       - name: run benchmarks
         run: |
@@ -126,7 +83,7 @@ jobs:
           git commit --message "Update Tauri benchmarks"
           git push origin gh-pages
 
-      - name: Worker info
+      - name: Print worker info
         run: |
           cat /proc/cpuinfo
           cat /proc/meminfo

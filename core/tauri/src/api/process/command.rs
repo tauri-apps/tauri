@@ -20,6 +20,7 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
+use crate::endpoints::shell::{Buffer, EncodingWrapper};
 pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
@@ -59,9 +60,9 @@ pub struct TerminatedPayload {
 #[non_exhaustive]
 pub enum CommandEvent {
   /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
-  Stderr(String),
+  Stderr(Buffer),
   /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
-  Stdout(String),
+  Stdout(Buffer),
   /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
   Error(String),
   /// Command process terminated.
@@ -76,7 +77,7 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
-  encoding: Option<&'static Encoding>,
+  encoding: EncodingWrapper,
 }
 
 /// Spawned child process.
@@ -173,7 +174,7 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
-      encoding: None,
+      encoding: EncodingWrapper::Text(None),
     }
   }
 
@@ -221,8 +222,8 @@ impl Command {
 
   /// Sets the character encoding for stdout/stderr.
   #[must_use]
-  pub fn encoding(mut self, encoding: &'static Encoding) -> Self {
-    self.encoding.replace(encoding);
+  pub fn encoding(mut self, encoding: EncodingWrapper) -> Self {
+    self.encoding = encoding;
     self
   }
 
@@ -364,14 +365,20 @@ impl Command {
           CommandEvent::Terminated(payload) => {
             code = payload.code;
           }
-          CommandEvent::Stdout(line) => {
-            stdout.push_str(line.as_str());
-            stdout.push('\n');
-          }
-          CommandEvent::Stderr(line) => {
-            stderr.push_str(line.as_str());
-            stderr.push('\n');
-          }
+          CommandEvent::Stdout(line) => match line {
+            Buffer::Text(line) => {
+              stdout.push_str(line.as_str());
+              stdout.push('\n');
+            }
+            Buffer::Raw(_) => {}
+          },
+          CommandEvent::Stderr(line) => match line {
+            Buffer::Text(line) => {
+              stderr.push_str(line.as_str());
+              stderr.push('\n');
+            }
+            Buffer::Raw(_) => {}
+          },
           CommandEvent::Error(_) => {}
         }
       }
@@ -386,12 +393,12 @@ impl Command {
   }
 }
 
-fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
+fn spawn_pipe_reader<F: Fn(Buffer) -> CommandEvent + Send + Copy + 'static>(
   tx: Sender<CommandEvent>,
   guard: Arc<RwLock<()>>,
   pipe_reader: PipeReader,
   wrapper: F,
-  character_encoding: Option<&'static Encoding>,
+  encoding: EncodingWrapper,
 ) {
   spawn(move || {
     let _lock = guard.read().unwrap();
@@ -406,9 +413,14 @@ fn spawn_pipe_reader<F: Fn(String) -> CommandEvent + Send + Copy + 'static>(
             break;
           }
           let tx_ = tx.clone();
-          let line = match character_encoding {
-            Some(encoding) => Ok(encoding.decode_with_bom_removal(&buf).0.into()),
-            None => String::from_utf8(buf.clone()),
+          let line = match encoding {
+            EncodingWrapper::Text(character_encoding) => match character_encoding {
+              Some(encoding) => Ok(Buffer::Text(
+                encoding.decode_with_bom_removal(&buf).0.into(),
+              )),
+              None => String::from_utf8(buf.clone()).map(|text| Buffer::Text(text)),
+            },
+            EncodingWrapper::Raw => Ok(Buffer::Raw(buf.clone())),
           };
           block_on_task(async move {
             let _ = match line {

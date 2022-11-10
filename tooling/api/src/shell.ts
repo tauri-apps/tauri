@@ -108,9 +108,9 @@ interface ChildProcess {
   /** If the process was terminated by a signal, represents that signal. */
   signal: number | null
   /** The data that the process wrote to `stdout`. */
-  stdout: string
+  stdout: string | Uint8Array
   /** The data that the process wrote to `stderr`. */
-  stderr: string
+  stderr: string | Uint8Array
 }
 
 /**
@@ -487,22 +487,40 @@ class Command extends EventEmitter<'close' | 'error'> {
   async execute(): Promise<ChildProcess> {
     return new Promise((resolve, reject) => {
       this.on('error', reject)
-      const stdout: string[] = []
-      const stderr: string[] = []
-      this.stdout.on('data', (line: string) => {
+
+      const stdout: EventPayload[] = []
+      const stderr: EventPayload[] = []
+      this.stdout.on('data', (line: EventPayload) => {
         stdout.push(line)
       })
-      this.stderr.on('data', (line: string) => {
+      this.stderr.on('data', (line: EventPayload) => {
         stderr.push(line)
       })
+
       this.on('close', (payload: TerminatedPayload) => {
-        resolve({
-          code: payload.code,
-          signal: payload.signal,
-          stdout: stdout.join('\n'),
-          stderr: stderr.join('\n')
-        })
+        if (this.options.encoding === 'raw') {
+          const separator = 10;
+          resolve({
+            code: payload.code,
+            signal: payload.signal,
+            stdout: new Uint8Array(stdout.reduce<Uint8Array>((p, c) => {
+              return (new Uint8Array([...p, ...c as Uint8Array, separator]))
+            }, new Uint8Array())),
+            stderr: new Uint8Array(stderr.reduce<Uint8Array>((p, c) => {
+              return (new Uint8Array([...p, ...c as Uint8Array, separator]))
+            }, new Uint8Array())),
+          })
+        } else {
+          const separator = '\n'
+          resolve({
+            code: payload.code,
+            signal: payload.signal,
+            stdout: stdout.join(separator),
+            stderr: stderr.join(separator),
+          })
+        }
       })
+
       this.spawn().catch(reject)
     })
   }
@@ -526,12 +544,15 @@ interface TerminatedPayload {
   signal: number | null
 }
 
+/** Event payload type */
+type EventPayload = string | Uint8Array;
+
 /** Events emitted by the child process. */
-type CommandEvent =
-  | Event<'Stdout', string>
-  | Event<'Stderr', string>
+type CommandEvent<P = EventPayload> =
+  | Event<'Stdout', P>
+  | Event<'Stderr', P>
   | Event<'Terminated', TerminatedPayload>
-  | Event<'Error', string>
+  | Event<'Error', P>
 
 /**
  * Opens a path or URL with the system's default app,

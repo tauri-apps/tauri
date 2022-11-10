@@ -8,7 +8,8 @@ use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
-use serde::Deserialize;
+use encoding_rs::Encoding;
+use serde::{Deserialize, Serialize};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(shell_scope)]
@@ -31,11 +32,17 @@ fn command_child_store() -> &'static ChildStore {
   &STORE
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Buffer {
   Text(String),
   Raw(Vec<u8>),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum EncodingWrapper {
+  Raw,
+  Text(Option<&'static Encoding>),
 }
 
 #[allow(clippy::unnecessary_wraps)]
@@ -151,10 +158,19 @@ impl Cmd {
         command = command.env_clear();
       }
       if let Some(encoding) = options.encoding {
-        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
-          command = command.encoding(encoding);
-        } else {
-          return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
+        match encoding.as_str() {
+          "raw" => {
+            command = command.encoding(EncodingWrapper::Raw);
+          }
+          _ => {
+            if let Some(text_encoding) =
+              crate::api::process::Encoding::for_label(encoding.as_bytes())
+            {
+              command = command.encoding(EncodingWrapper::Text(Some(text_encoding)));
+            } else {
+              return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
+            }
+          }
         }
       }
       let (mut rx, child) = command.spawn()?;

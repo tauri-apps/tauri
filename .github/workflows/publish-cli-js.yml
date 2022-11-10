@@ -259,7 +259,7 @@ jobs:
       - name: install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
       - name: Test bindings
         run: yarn test
   test-linux-x64-musl-binding:
@@ -298,7 +298,7 @@ jobs:
         shell: bash
       - name: Install system dependencies
         run: |
-          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev patchelf librsvg-dev gtk+3.0-dev
+          apk add openssl-dev musl-dev glib-dev cairo-dev pkgconfig gdk-pixbuf-dev webkit2gtk-dev curl libappindicator-dev gtk+3.0-dev
       - name: Setup and run tests
         run: |
           yarn tauri --help
@@ -355,7 +355,7 @@ jobs:
             set -e
             export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
             apt-get update
-            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip webkit2gtk-4.0 libayatana-appindicator3-dev
             bash
             curl https://sh.rustup.rs -sSf | bash -s -- -y
             curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell

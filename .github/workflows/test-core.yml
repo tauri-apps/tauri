@@ -68,7 +68,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
-          save-if: ${{ matrix.features == "--all-features" }}
+          save-if: ${{ matrix.features == '--all-features' }}
 
       - name: test
         run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features }}

@@ -74,6 +74,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
+          save-if: ${{ matrix.clippy.key == "all" }}
 
       - uses: actions-rs/clippy-check@v1
         with:

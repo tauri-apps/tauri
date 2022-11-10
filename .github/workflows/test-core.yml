@@ -46,6 +46,7 @@ jobs:
               os: macos-latest,
               toolchain: '1.59.0'
             }
+        features: [--no-default-features, --features api-all, --all-features]
 
     steps:
       - uses: actions/checkout@v2
@@ -67,9 +68,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
+          save-if: ${{ matrix.features == "--all-features" }}
 
       - name: test
-        run: |
-          cargo test --target ${{ matrix.platform.target }}
-          cargo test --target ${{ matrix.platform.target }} --features api-all
-          cargo test --target ${{ matrix.platform.target }} --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
+        run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features }}

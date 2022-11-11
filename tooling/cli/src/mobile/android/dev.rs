@@ -154,7 +154,10 @@ fn run_dev(
             log::error!("{}", e);
             open_and_wait(config, &env)
           }
-          Err(e) => Err(e.into()),
+          Err(e) => {
+            crate::dev::kill_before_dev_process();
+            Err(e.into())
+          }
         }
       }
     },

@@ -357,7 +357,7 @@ fn check_for_updates() -> Result<()> {
   Ok(())
 }
 
-fn kill_before_dev_process() {
+pub fn kill_before_dev_process() {
   if let Some(child) = BEFORE_DEV.get() {
     let child = child.lock().unwrap();
     KILL_BEFORE_DEV_FLAG

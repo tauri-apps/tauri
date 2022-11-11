@@ -138,6 +138,7 @@ fn env_vars() -> HashMap<String, OsString> {
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k == "TMPDIR"
+      || k == "PATH"
     {
       vars.insert(k.into_owned(), v);
     }

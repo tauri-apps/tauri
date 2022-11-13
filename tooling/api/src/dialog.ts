@@ -116,38 +116,22 @@ interface MessageDialogOptions {
  *     extensions: ['png', 'jpeg']
  *   }]
  * });
- * if (Array.isArray(selected)) {
- *   // user selected multiple files
- * } else if (selected === null) {
- *   // user cancelled the selection
- * } else {
- *   // user selected a single file
- * }
  * ```
- *
- * @example
- * ```typescript
- * import { open } from '@tauri-apps/api/dialog';
- * import { appDir } from '@tauri-apps/api/path';
- * // Open a selection dialog for directories
- * const selected = await open({
- *   directory: true,
- *   multiple: true,
- *   defaultPath: await appDir(),
- * });
- * if (Array.isArray(selected)) {
- *   // user selected multiple directories
- * } else if (selected === null) {
- *   // user cancelled the selection
- * } else {
- *   // user selected a single directory
- * }
- * ```
+ * Note that the `open` function returns a conditional type depending on the `multiple` option;
+ * - Not specified -> `Promise<string | null>`
+ * - false -> `Promise<string | null>`
+ * - true -> `Promise<string[] | null>`
  *
  * @returns A promise resolving to the selected path(s)
  *
  * @since 1.0.0
  */
+async function open(
+  options?: OpenDialogOptions & { multiple?: false }
+): Promise<null | string>
+async function open(
+  options?: OpenDialogOptions & { multiple?: true }
+): Promise<null | string[]>
 async function open(
   options: OpenDialogOptions = {}
 ): Promise<null | string | string[]> {

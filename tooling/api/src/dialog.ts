@@ -118,8 +118,7 @@ interface MessageDialogOptions {
  * });
  * ```
  * Note that the `open` function returns a conditional type depending on the `multiple` option;
- * - Not specified -> `Promise<string | null>`
- * - false -> `Promise<string | null>`
+ * - false (default) -> `Promise<string | null>`
  * - true -> `Promise<string[] | null>`
  *
  * @returns A promise resolving to the selected path(s)

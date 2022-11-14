@@ -1,5 +1,6 @@
 use super::{
   device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config, MobileTarget,
+  APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
   helpers::{config::get as get_tauri_config, flock},
@@ -10,11 +11,14 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use cargo_mobile::{
-  apple::config::Config as AppleConfig,
+  apple::{config::Config as AppleConfig, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use dialoguer::{theme::ColorfulTheme, Select};
+
+use std::env::{set_var, var_os};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "iOS dev")]
@@ -57,6 +61,36 @@ impl From<Options> for crate::dev::Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  if var_os(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME).is_none() {
+    if let Ok(teams) = find_development_teams() {
+      let index = match teams.len() {
+        0 => None,
+        1 => Some(0),
+        _ => {
+          let index = Select::with_theme(&ColorfulTheme::default())
+            .items(
+              &teams
+                .iter()
+                .map(|t| format!("{} (ID: {})", t.name, t.id))
+                .collect::<Vec<String>>(),
+            )
+            .default(0)
+            .interact()?;
+          Some(index)
+        }
+      };
+      if let Some(index) = index {
+        let team = teams.get(index).unwrap();
+        log::info!(
+            "Using development team `{}`. To make this permanent, set the `{}` environment variable to `{}`",
+            team.name,
+            APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+            team.id
+          );
+        set_var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME, &team.id);
+      }
+    }
+  }
   with_config(
     Some(Default::default()),
     |app, config, _metadata, _cli_options| {

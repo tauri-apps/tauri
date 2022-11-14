@@ -885,6 +885,29 @@ pub fn command(_options: Options) -> Result<()> {
     }
   }
 
+  #[cfg(target_os = "macos")]
+  if tauri_dir.is_some() {
+    let p = tauri_dir.as_ref().unwrap();
+    if p.join("gen/apple").exists() {
+      let teams = cargo_mobile::apple::teams::find_development_teams().unwrap_or_default();
+      Section("iOS").display();
+      InfoBlock::new(
+        "Teams",
+        if teams.is_empty() {
+          "None".red().to_string()
+        } else {
+          teams
+            .iter()
+            .map(|t| format!("{} (ID: {})", t.name, t.id))
+            .collect::<Vec<String>>()
+            .join(", ")
+            .to_string()
+        },
+      )
+      .display();
+    }
+  }
+
   Ok(())
 }
 

@@ -1241,7 +1241,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   fn is_minimized(&self) -> Result<bool> {
-      window_getter!(self, WindowMessage::IsMinimized)
+    window_getter!(self, WindowMessage::IsMinimized)
   }
 
   fn is_maximized(&self) -> Result<bool> {

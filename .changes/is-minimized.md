@@ -2,5 +2,7 @@
 "tauri": minor
 "tauri-runtime": minor
 "tauri-runtime-wry": minor
+"api": minor
 ---
-Implement `is_minimized()`.
+
+Add `is_minimized()`.

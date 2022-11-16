@@ -587,7 +587,7 @@ class WindowManager extends WebviewWindowHandle {
    * const minimized = await appWindow.isMinimized();
    * ```
    *
-   * @returns Whether the window is minimized or not.
+   * @since 1.3.0
    * */
   async isMinimized(): Promise<boolean> {
     return invokeTauriCommand({

@@ -579,7 +579,7 @@ class WindowManager extends WebviewWindowHandle {
     })
   }
 
-/**
+  /**
    * Gets the window's current minimized state.
    * @example
    * ```typescript
@@ -589,20 +589,20 @@ class WindowManager extends WebviewWindowHandle {
    *
    * @returns Whether the window is minimized or not.
    * */
- async isMinimized(): Promise<boolean> {
-  return invokeTauriCommand({
-    __tauriModule: 'Window',
-    message: {
-      cmd: 'manage',
-      data: {
-        label: this.label,
-        cmd: {
-          type: 'isMinimized'
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
         }
       }
-    }
-  })
-}
+    })
+  }
 
   /**
    * Gets the window's current maximized state.

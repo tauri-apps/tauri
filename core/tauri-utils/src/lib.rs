@@ -64,7 +64,7 @@ pub enum TitleBarStyle {
   ///
   /// Keep in mind:
   /// - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect.
-  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316).
+  /// - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus <https://github.com/tauri-apps/tauri/issues/4316>.
   /// - The color of the window title depends on the system theme.
   Overlay,
 }

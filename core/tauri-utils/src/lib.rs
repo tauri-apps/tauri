@@ -50,7 +50,7 @@ impl PackageInfo {
   }
 }
 
-/// How the window title bar should be displayed.
+/// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {

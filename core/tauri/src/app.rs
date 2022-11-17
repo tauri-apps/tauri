@@ -151,6 +151,8 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 }
 
 /// An application event, triggered from the event loop.
+///
+/// See [`App::run`](crate::App#method.run) for usage examples.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RunEvent {
@@ -249,6 +251,8 @@ pub struct PathResolver {
 
 impl PathResolver {
   /// Returns the path to the resource directory of this app.
+  ///
+  /// Helper function for [`crate::api::path::resource_dir`].
   pub fn resource_dir(&self) -> Option<PathBuf> {
     crate::api::path::resource_dir(&self.package_info, &self.env)
   }
@@ -289,26 +293,36 @@ impl PathResolver {
   }
 
   /// Returns the path to the suggested directory for your app's config files.
+  ///
+  /// Helper function for [`crate::api::path::app_config_dir`].
   pub fn app_config_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_config_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's data files.
+  ///
+  /// Helper function for [`crate::api::path::app_data_dir`].
   pub fn app_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
+  ///
+  /// Helper function for [`crate::api::path::app_local_data_dir`].
   pub fn app_local_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_local_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
+  ///
+  /// Helper function for [`crate::api::path::app_cache_dir`].
   pub fn app_cache_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_cache_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's log files.
+  ///
+  /// Helper function for [`crate::api::path::app_log_dir`].
   pub fn app_log_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_log_dir(&self.config)
   }
@@ -1251,7 +1265,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the given system tray to be built before the app runs.
   ///
-  /// Prefer the [`SystemTray#method.build`] method to create the tray at runtime instead.
+  /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
   ///
   /// # Examples
   /// ```
@@ -1362,7 +1376,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a system tray event handler.
   ///
-  /// Prefer the [`SystemTray#method.on_event`] method when creating a tray at runtime instead.
+  /// Prefer the [`SystemTray#method.on_event`](crate::SystemTray#method.on_event) method when creating a tray at runtime instead.
   ///
   /// # Examples
   /// ```

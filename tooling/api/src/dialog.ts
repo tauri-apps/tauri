@@ -132,8 +132,11 @@ async function open(
   options?: OpenDialogOptions & { multiple?: true }
 ): Promise<null | string[]>
 async function open(
+  options: OpenDialogOptions
+): Promise<null | string[] | string>
+async function open(
   options: OpenDialogOptions = {}
-): Promise<null | string | string[]> {
+): Promise<null | string[] | string> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }

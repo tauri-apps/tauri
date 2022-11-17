@@ -151,6 +151,8 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 }
 
 /// An application event, triggered from the event loop.
+///
+/// See [`App::run`](crate::App#method.run) for usage examples.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RunEvent {

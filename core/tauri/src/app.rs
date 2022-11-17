@@ -1639,13 +1639,13 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-unsafe impl HasRawDisplayHandle for AppHandle {
+unsafe impl<R: Runtime> HasRawDisplayHandle for AppHandle<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.runtime_handle.raw_display_handle()
   }
 }
 
-unsafe impl HasRawDisplayHandle for App {
+unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.handle.raw_display_handle()
   }

@@ -125,6 +125,11 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
   ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
   /// # Examples
   ///
   /// - Create a window in the setup hook:
@@ -163,11 +168,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     .unwrap();
   /// }
   /// ```
-  ///
-  /// # Known issues
-  ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {

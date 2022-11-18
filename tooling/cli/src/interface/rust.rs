@@ -148,11 +148,7 @@ impl Interface for Rust {
     &self.app_settings
   }
 
-  fn build(&mut self, mut options: Options) -> crate::Result<()> {
-    options
-      .features
-      .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+  fn build(&mut self, options: Options) -> crate::Result<()> {
     desktop::build(
       options,
       &self.app_settings,
@@ -172,10 +168,11 @@ impl Interface for Rust {
 
     let mut run_args = Vec::new();
     dev_options(
+      false,
       &mut options.args,
       &mut run_args,
       &mut options.features,
-      self.app_settings.manifest.features(),
+      &self.app_settings,
     );
 
     if options.no_watch {
@@ -206,10 +203,11 @@ impl Interface for Rust {
   ) -> crate::Result<()> {
     let mut run_args = Vec::new();
     dev_options(
+      true,
       &mut options.args,
       &mut run_args,
       &mut options.features,
-      self.app_settings.manifest.features(),
+      &self.app_settings,
     );
 
     if options.no_watch {
@@ -346,11 +344,37 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+fn shared_options(
+  mobile: bool,
+  features: &mut Option<Vec<String>>,
+  app_settings: &RustAppSettings,
+) {
+  if mobile {
+    let all_features = app_settings
+      .manifest
+      .all_enabled_features(if let Some(f) = features { f } else { &[] });
+    if !all_features.contains(&"tauri/native-tls-vendored".into())
+      && !all_features.contains(&"tauri/reqwest-native-tls-vendored".into())
+    {
+      if all_features.contains(&"tauri/reqwest-client".into()) {
+        features
+          .get_or_insert(Vec::new())
+          .push("tauri/reqwest-native-tls-vendored".into());
+      } else {
+        features
+          .get_or_insert(Vec::new())
+          .push("tauri/native-tls-vendored".into());
+      }
+    }
+  }
+}
+
 fn dev_options(
+  mobile: bool,
   args: &mut Vec<String>,
   run_args: &mut Vec<String>,
   features: &mut Option<Vec<String>>,
-  manifest_features: HashMap<String, Vec<String>>,
+  app_settings: &RustAppSettings,
 ) {
   let mut dev_args = Vec::new();
   let mut reached_run_args = false;
@@ -365,7 +389,10 @@ fn dev_options(
   }
   *args = dev_args;
 
+  shared_options(mobile, features, app_settings);
+
   if !args.contains(&"--no-default-features".into()) {
+    let manifest_features = app_settings.manifest.features();
     let enable_features: Vec<String> = manifest_features
       .get("default")
       .cloned()
@@ -387,6 +414,13 @@ fn dev_options(
 }
 
 impl Rust {
+  pub fn build_options(&self, features: &mut Option<Vec<String>>, mobile: bool) {
+    features
+      .get_or_insert(Vec::new())
+      .push("custom-protocol".into());
+    shared_options(mobile, features, &self.app_settings);
+  }
+
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,

@@ -30,7 +30,6 @@ features = [
   "macos-private-api",
   "windows7-compat",
   "reqwest-client",
-  "reqwest-native-tls-vendored",
   "system-tray",
   "updater"
 ]

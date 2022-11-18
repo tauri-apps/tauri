@@ -57,7 +57,7 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let mut interface = setup(&mut options)?;
+  let mut interface = setup(&mut options, false)?;
 
   let config = get_config(options.config.as_deref())?;
   let config_guard = config.lock().unwrap();
@@ -222,7 +222,7 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-pub fn setup(options: &mut Options) -> Result<AppInterface> {
+pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
@@ -309,11 +309,11 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     }
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-            "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
-            out_folders,
-            if out_folders.len() == 1 { "folder" }else { "folders" }
-          )
-        );
+          "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
+          out_folders,
+          if out_folders.len() == 1 { "folder" }else { "folders" }
+        )
+      );
     }
   }
 
@@ -321,9 +321,11 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     options.runner = config_.build.runner.clone();
   }
 
-  if let Some(list) = options.features.as_mut() {
-    list.extend(config_.build.features.clone().unwrap_or_default());
-  }
+  options
+    .features
+    .get_or_insert(Vec::new())
+    .extend(config_.build.features.clone().unwrap_or_default());
+  interface.build_options(&mut options.features, mobile);
 
   Ok(interface)
 }

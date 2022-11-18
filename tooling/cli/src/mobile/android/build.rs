@@ -119,7 +119,7 @@ fn run_build(
   };
 
   let mut build_options = options.clone().into();
-  let interface = crate::build::setup(&mut build_options)?;
+  let interface = crate::build::setup(&mut build_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

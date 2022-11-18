@@ -157,9 +157,10 @@ pub fn command(mut options: Options) -> Result<()> {
     options.runner = config_.build.runner.clone();
   }
 
-  if let Some(list) = options.features.as_mut() {
-    list.extend(config_.build.features.clone().unwrap_or_default());
-  }
+  options
+    .features
+    .get_or_insert(Vec::new())
+    .extend(config_.build.features.clone().unwrap_or_default());
 
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();

@@ -73,7 +73,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       init_dot_cargo(app, None)?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)?;
+      run_build(options, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);

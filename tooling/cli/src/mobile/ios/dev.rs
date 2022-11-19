@@ -3,7 +3,7 @@ use super::{
   APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,

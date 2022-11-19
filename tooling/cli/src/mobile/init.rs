@@ -135,8 +135,6 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      // the apple development team is not required on init
-      std::env::set_var(super::ios::APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME, "");
       let (app, config, metadata) =
         super::ios::get_config(Some(app), tauri_config_, &Default::default());
       map.insert("apple", &config);

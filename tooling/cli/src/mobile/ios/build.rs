@@ -3,7 +3,7 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -69,7 +69,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     |app, config, _metadata, _cli_options| {
       ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
-      let env = env()?;
+      let mut env = env()?;
       init_dot_cargo(app, None)?;
 
       let open = options.open;
@@ -88,20 +88,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AppleConfig,
-  env: &Env,
+  env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {
     Profile::Debug
   } else {
     Profile::Release
-  };
-
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
   };
 
   let mut build_options = options.clone().into();
@@ -121,7 +114,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
+  let _handle = write_options(cli_options, env)?;
 
   options
     .features

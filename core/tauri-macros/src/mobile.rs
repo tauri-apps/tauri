@@ -43,6 +43,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
     &mut error,
     &function,
   );
+  let app_name_str = var("CARGO_PKG_NAME").unwrap();
 
   if let Some(e) = error {
     quote!(#e).into()
@@ -61,6 +62,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       #function
 
       fn _start_app() {
+        ::tauri::init_logging(#app_name_str);
         #[cfg(target_os = "android")]
         {
           use ::tauri::paste;

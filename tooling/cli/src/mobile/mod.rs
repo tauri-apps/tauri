@@ -13,15 +13,19 @@ use cargo_mobile::{
   env::Error as EnvError,
   opts::NoiseLevel,
 };
-use interprocess::local_socket::{LocalSocketListener, LocalSocketStream};
+use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
+use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
+use jsonrpsee::rpc_params;
+use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use serde::{Deserialize, Serialize};
 use shared_child::SharedChild;
 use std::{
   collections::HashMap,
   env::set_var,
+  env::var,
   ffi::OsString,
   fmt::Write,
-  io::{BufRead, BufReader, Write as _},
+  net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
   sync::{
@@ -29,6 +33,7 @@ use std::{
     Arc,
   },
 };
+use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
 use cargo_mobile::env::Env;
@@ -122,15 +127,6 @@ pub struct CliOptions {
   pub vars: HashMap<String, OsString>,
 }
 
-fn options_local_socket_name(bundle_identifier: &str, target: Target) -> PathBuf {
-  let out_dir = std::env::temp_dir();
-  let out_dir = out_dir.join(".tauri").join(bundle_identifier);
-  let _ = std::fs::create_dir_all(&out_dir);
-  out_dir
-    .join("cli-options")
-    .with_extension(target.command_name())
-}
-
 fn env_vars() -> HashMap<String, OsString> {
   let mut vars = HashMap::new();
   for (k, v) in std::env::vars_os() {
@@ -154,58 +150,49 @@ fn env() -> Result<Env, EnvError> {
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(
   mut options: CliOptions,
-  bundle_identifier: &str,
-  target: Target,
-) -> crate::Result<()> {
+  env: &mut Env,
+) -> crate::Result<(Runtime, ServerHandle)> {
   options.vars.extend(env_vars());
-  let name = options_local_socket_name(bundle_identifier, target);
-  let _ = std::fs::remove_file(&name);
-  let mut value = serde_json::to_string(&options)?;
-  value.push('\n');
 
-  std::thread::spawn(move || {
-    let listener = LocalSocketListener::bind(name).expect("failed to start local socket");
-    for mut conn in listener.incoming().flatten() {
-      let _ = conn.write_all(value.as_bytes());
-    }
+  let runtime = Runtime::new().unwrap();
+  let r: anyhow::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
+    let server = ServerBuilder::default().build("127.0.0.1:0").await?;
+    let addr = server.local_addr()?;
+
+    let mut module = RpcModule::new(());
+    module.register_method("options", move |_, _| Ok(options.clone()))?;
+
+    let handle = server.start(module)?;
+
+    Ok((handle, addr))
   });
+  let (handle, addr) = r?;
 
-  Ok(())
+  env.insert_env_var("TAURI_OPTIONS_SERVER_ADDR".into(), addr.to_string().into());
+
+  Ok((runtime, handle))
 }
 
-fn read_options(config: &TauriConfig, target: Target) -> CliOptions {
-  let name = options_local_socket_name(&config.tauri.bundle.identifier, target);
-  let conn = LocalSocketStream::connect(name).unwrap_or_else(|_| {
-    log::error!(
-      "failed to connect to local socket. You must keep the Tauri CLI alive with the `{cmd} dev` or `{cmd} build --open` commands.",
-      cmd = target.command_name()
-    );
-    std::process::exit(1);
-  });
-  conn
-    .set_nonblocking(true)
-    .expect("failed to set local socket stream to nonblocking");
-  let mut conn = BufReader::new(conn);
+fn read_options() -> CliOptions {
+  let runtime = tokio::runtime::Runtime::new().unwrap();
+  let options = runtime
+    .block_on(async move {
+      let (tx, rx) = WsTransportClientBuilder::default()
+        .build(
+          format!(
+            "ws://{}",
+            var("TAURI_OPTIONS_SERVER_ADDR").expect("missing addr environment variable")
+          )
+          .parse()
+          .unwrap(),
+        )
+        .await?;
+      let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
+      let options: CliOptions = client.request("options", rpc_params![]).await?;
+      Ok::<CliOptions, anyhow::Error>(options)
+    })
+    .expect("failed to read CLI options");
 
-  let mut attempt = 0;
-  let max_tries = 5;
-  let buffer = loop {
-    let mut buffer = String::new();
-    if conn.read_line(&mut buffer).is_ok() {
-      break buffer;
-    }
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    attempt += 1;
-    if attempt == max_tries {
-      log::error!(
-      "failed to connect to local socket. You must keep the Tauri CLI alive with the `{cmd} dev` or `{cmd} build --open` commands.",
-      cmd = target.command_name()
-    );
-      std::process::exit(1);
-    }
-  };
-
-  let options: CliOptions = serde_json::from_str(&buffer).expect("invalid CLI options");
   for (k, v) in &options.vars {
     set_var(k, v);
   }

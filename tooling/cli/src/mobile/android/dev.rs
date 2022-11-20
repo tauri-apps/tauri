@@ -3,7 +3,7 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
@@ -94,13 +94,6 @@ fn run_dev(
   let mut dev_options = options.clone().into();
   let mut interface = crate::dev::setup(&mut dev_options)?;
 
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
-
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -125,13 +118,14 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
+      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
       };
-      write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
+      let _handle = write_options(cli_options, &mut env.base)?;
 
       if open {
         open_and_wait(config, &env)

@@ -133,8 +133,7 @@ fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options =
-      cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android));
+    let cli_options = cli_options.unwrap_or_else(read_options);
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };

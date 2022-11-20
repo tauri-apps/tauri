@@ -3,7 +3,7 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
@@ -77,11 +77,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
-      let env = env()?;
+      let mut env = env()?;
       init_dot_cargo(app, Some((&env, config)))?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)?;
+      run_build(options, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -96,7 +96,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AndroidConfig,
-  env: &Env,
+  env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {
@@ -110,13 +110,6 @@ fn run_build(
     options.apk = true;
     options.aab = true;
   }
-
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
 
   let mut build_options = options.clone().into();
   let interface = crate::build::setup(&mut build_options, true)?;
@@ -135,7 +128,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
+  let _handle = write_options(cli_options, &mut env.base)?;
 
   options
     .features

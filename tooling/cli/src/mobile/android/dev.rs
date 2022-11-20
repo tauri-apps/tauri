@@ -16,7 +16,7 @@ use cargo_mobile::{
     env::Env,
   },
   config::app::App,
-  opts::{NoiseLevel, Profile},
+  opts::{FilterLevel, NoiseLevel, Profile},
 };
 
 use std::env::set_var;
@@ -195,7 +195,11 @@ fn run(
       env,
       noise_level,
       profile,
-      None,
+      Some(match noise_level {
+        NoiseLevel::Polite => FilterLevel::Info,
+        NoiseLevel::LoudAndProud => FilterLevel::Debug,
+        NoiseLevel::FranklyQuitePedantic => FilterLevel::Verbose,
+      }),
       build_app_bundle,
       false,
       ".MainActivity".into(),

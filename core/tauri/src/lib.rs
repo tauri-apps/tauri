@@ -275,6 +275,22 @@ pub use self::runtime::ClipboardManager;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
 
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub fn init_logging(tag: &str) {
+  android_logger::init_once(
+    android_logger::Config::default()
+      .with_min_level(log::Level::Trace)
+      .with_tag(tag),
+  );
+}
+
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub fn init_logging(_tag: &str) {
+  env_logger::init();
+}
+
 /// Updater events.
 #[cfg(updater)]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "updater")))]

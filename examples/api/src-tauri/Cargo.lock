@@ -101,8 +101,6 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 name = "api"
 version = "0.1.0"
 dependencies = [
- "android_logger",
- "env_logger 0.9.3",
  "log",
  "serde",
  "serde_json",
@@ -145,9 +143,9 @@ dependencies = [
 
 [[package]]
 name = "attohttpc"
-version = "0.22.0"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fcf00bc6d5abb29b5f97e3c61a90b6d3caa12f3faf897d4a3e3607c050a35a7"
+checksum = "b85f766c20e6ae766956f7a2fcc4e0931e79a7e1f48b29132b5d647021114914"
 dependencies = [
  "flate2",
  "http",
@@ -3123,6 +3121,7 @@ dependencies = [
 name = "tauri"
 version = "1.2.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "attohttpc",
  "base64",
@@ -3132,6 +3131,7 @@ dependencies = [
  "dirs-next",
  "embed_plist",
  "encoding_rs",
+ "env_logger 0.9.3",
  "flate2",
  "futures-util",
  "glib",
@@ -3142,6 +3142,7 @@ dependencies = [
  "ico",
  "ignore",
  "infer 0.9.0",
+ "log",
  "minisign-verify",
  "notify-rust",
  "objc",

@@ -30,6 +30,7 @@ struct IcnsEntry {
   ostype: String,
 }
 
+#[derive(Debug)]
 struct PngEntry {
   name: String,
   size: u32,
@@ -244,6 +245,83 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     Ok(entries)
   }
 
+  fn ios_entries(out_dir: &Path) -> Result<Vec<PngEntry>> {
+    struct IosEntry {
+      size: f32,
+      multipliers: Vec<u8>,
+      has_extra: bool,
+    }
+
+    let mut entries = Vec::new();
+
+    let targets = vec![
+      IosEntry {
+        size: 20.,
+        multipliers: vec![1, 2, 3],
+        has_extra: true,
+      },
+      IosEntry {
+        size: 29.,
+        multipliers: vec![1, 2, 3],
+        has_extra: true,
+      },
+      IosEntry {
+        size: 40.,
+        multipliers: vec![1, 2, 3],
+        has_extra: true,
+      },
+      IosEntry {
+        size: 60.,
+        multipliers: vec![2, 3],
+        has_extra: false,
+      },
+      IosEntry {
+        size: 76.,
+        multipliers: vec![1, 2],
+        has_extra: false,
+      },
+      IosEntry {
+        size: 83.5,
+        multipliers: vec![2],
+        has_extra: false,
+      },
+      IosEntry {
+        size: 512.,
+        multipliers: vec![2],
+        has_extra: false,
+      },
+    ];
+
+    for target in targets {
+      let size_str = if target.size == 512. {
+        "512".to_string()
+      } else {
+        format!("{size}x{size}", size = target.size)
+      };
+      if target.has_extra {
+        let name = format!("AppIcon-{size_str}@2x-1.png");
+        entries.push(PngEntry {
+          out_path: out_dir.join(&name),
+          name,
+          size: (target.size * 2.) as u32,
+        });
+      }
+      for multiplier in target.multipliers {
+        let name = format!(
+          "AppIcon-{size_str}@{multiplier}x.png",
+          multiplier = multiplier
+        );
+        entries.push(PngEntry {
+          out_path: out_dir.join(&name),
+          name,
+          size: (target.size * multiplier as f32) as u32,
+        });
+      }
+    }
+
+    Ok(entries)
+  }
+
   let mut entries = desktop_entries(out_dir);
   let _ = crate::mobile::android::with_config(
     Some(Default::default()),
@@ -263,6 +341,19 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
       Ok(())
     },
   );
+
+  let ios_out = out_dir
+    .parent()
+    .unwrap()
+    .join("gen/apple/Assets.xcassets/AppIcon.appiconset");
+  let out = if ios_out.exists() {
+    ios_out
+  } else {
+    let out = out_dir.join("ios");
+    create_dir_all(&out).context("Can't create iOS output directory")?;
+    out
+  };
+  entries.extend(ios_entries(&out)?);
 
   for entry in entries {
     log::info!(action = "PNG"; "Creating {}", entry.name);

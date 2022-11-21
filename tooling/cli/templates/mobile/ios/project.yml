@@ -30,6 +30,7 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: Assets.xcassets
       - path: {{app.asset-dir}}
         buildPhase: resources
         type: folder

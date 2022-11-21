@@ -1,7 +1,11 @@
 name: test mobile
 
 on:
-  push:
+  pull_request:
+    paths:
+      - '.github/workflows/test-mobile.yml'
+      - 'tooling/cli/templates/mobile/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -640,7 +640,7 @@ impl<R: Runtime> AppHandle<R> {
   /// Checks if the current executable as the default handler for a protocol (aka URI scheme).
   ///
   /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
-  /// `tauri://` links, call this method with `electron` as the protocol.
+  /// `tauri://` links, call this method with `tauri` as the protocol.
   ///
   /// ## Platform-specific:
   ///

@@ -729,7 +729,7 @@ impl<R: Runtime> AppHandle<R> {
   /// If so, it will remove the app as the default handler.
   ///
   /// - `protocol`: The name of your protocol, without `://`. For example, if you want your app to handle
-  /// `tauri://` links, call this method with `electron` as the protocol.
+  /// `tauri://` links, call this method with `tauri` as the protocol.
   ///
   /// ## Platform-specific:
   ///

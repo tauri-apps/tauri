@@ -1,0 +1,71 @@
+name: test mobile
+
+on:
+  push:
+
+jobs:
+  test-android-on-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0
+
+      - name: setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r25b
+          local-cache: true
+
+      - run: ls ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tooling/cli
+
+      - name: build CLI
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ./tooling/cli/Cargo.toml
+
+      - name: build Tauri API
+        working-directory: ./tooling/api
+        run: yarn && yarn build
+
+      - name: install API example dependencies
+        working-directory: ./examples/api
+        run: yarn
+
+      - name: Init Android Studio Project
+        working-directory: ./examples/api
+        run: ../../tooling/cli/target/debug/cargo-tauri android init
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+
+      - name: Build apk
+        working-directory: ./examples/api
+        run: ../../tooling/cli/target/debug/cargo-tauri android build
+        env:
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

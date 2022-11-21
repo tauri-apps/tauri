@@ -39,6 +39,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
+          cache: yarn
+          cache-dependency-path: |
+            tooling/api/yarn.lock
+            examples/api/yarn.lock
 
       - uses: actions/setup-java@v3
         with:

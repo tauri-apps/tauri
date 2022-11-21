@@ -3,6 +3,10 @@ name: test mobile
 on:
   push:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-android:
     runs-on: ${{ matrix.platform }}

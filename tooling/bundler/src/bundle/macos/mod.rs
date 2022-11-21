@@ -7,4 +7,5 @@ pub mod app;
 pub mod dmg;
 pub mod icon;
 pub mod ios;
+/// Code signing and notarization utilities.
 pub mod sign;

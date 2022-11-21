@@ -39,6 +39,7 @@ use std::{
 };
 
 mod build;
+mod certificate;
 mod dev;
 mod open;
 pub(crate) mod project;
@@ -78,6 +79,14 @@ enum Commands {
   Build(build::Options),
   #[clap(hide(true))]
   XcodeScript(xcode_script::Options),
+  #[clap(subcommand)]
+  Certificate(CertificateCommands),
+}
+
+#[derive(Subcommand)]
+enum CertificateCommands {
+  Setup,
+  Delete,
 }
 
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
@@ -88,6 +97,8 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
+    Commands::Certificate(CertificateCommands::Setup) => certificate::setup()?,
+    Commands::Certificate(CertificateCommands::Delete) => certificate::delete(),
   }
 
   Ok(())

@@ -1,7 +1,7 @@
 name: test mobile
 
 on:
-  push:
+  workflow_dispatch:
 
 jobs:
   test-android-on-linux:
@@ -38,11 +38,11 @@ jobs:
           ndk-version: r25b
           local-cache: true
 
-      - run: ls ${{ steps.setup-ndk.outputs.ndk-path }}
-
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: tooling/cli
+          workspaces: |
+            tooling/cli
+            examples/api/src-tauri
 
       - name: build CLI
         uses: actions-rs/cargo@v1

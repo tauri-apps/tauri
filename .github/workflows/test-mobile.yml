@@ -1,7 +1,7 @@
 name: test mobile
 
 on:
-  workflow_dispatch:
+  push:
 
 jobs:
   test-android:

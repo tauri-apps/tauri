@@ -125,7 +125,7 @@ pub fn get_config(
   (app, config, metadata)
 }
 
-fn with_config<T>(
+pub fn with_config<T>(
   cli_options: Option<CliOptions>,
   f: impl FnOnce(&App, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T>,
 ) -> Result<T> {

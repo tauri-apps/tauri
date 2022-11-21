@@ -30,6 +30,12 @@ struct IcnsEntry {
   ostype: String,
 }
 
+struct PngEntry {
+  name: String,
+  size: u32,
+  out_path: PathBuf,
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Generates various icons for all major platforms")]
 pub struct Options {
@@ -153,17 +159,114 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 }
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
-// Main target: Linux
+// Main target: Linux & Android
 fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
-  for size in [32, 128, 256, 512] {
-    let file_name = match size {
-      256 => "128x128@2x.png".to_string(),
-      512 => "icon.png".to_string(),
-      _ => format!("{}x{}.png", size, size),
-    };
+  fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
+    let mut entries = Vec::new();
 
-    log::info!(action = "PNG"; "Creating {}", file_name);
-    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
+    for size in [32, 128, 256, 512] {
+      let file_name = match size {
+        256 => "128x128@2x.png".to_string(),
+        512 => "icon.png".to_string(),
+        _ => format!("{}x{}.png", size, size),
+      };
+
+      entries.push(PngEntry {
+        out_path: out_dir.join(&file_name),
+        name: file_name,
+        size,
+      });
+    }
+
+    entries
+  }
+
+  fn android_entries(out_dir: &Path) -> Result<Vec<PngEntry>> {
+    struct AndroidEntry {
+      name: &'static str,
+      size: u32,
+      foreground_size: u32,
+    }
+
+    let mut entries = Vec::new();
+
+    let targets = vec![
+      AndroidEntry {
+        name: "hdpi",
+        size: 49,
+        foreground_size: 162,
+      },
+      AndroidEntry {
+        name: "mdpi",
+        size: 48,
+        foreground_size: 108,
+      },
+      AndroidEntry {
+        name: "xhdpi",
+        size: 96,
+        foreground_size: 216,
+      },
+      AndroidEntry {
+        name: "xxhdpi",
+        size: 144,
+        foreground_size: 324,
+      },
+      AndroidEntry {
+        name: "xxxhdpi",
+        size: 192,
+        foreground_size: 432,
+      },
+    ];
+
+    for target in targets {
+      let folder_name = format!("mipmap-{}", target.name);
+      let out_folder = out_dir.join(&folder_name);
+
+      create_dir_all(&out_folder).context("Can't create Android mipmap output directory")?;
+
+      entries.push(PngEntry {
+        name: format!("{}/{}", folder_name, "ic_launcher_foreground.png"),
+        out_path: out_folder.join("ic_launcher_foreground.png"),
+        size: target.foreground_size,
+      });
+      entries.push(PngEntry {
+        name: format!("{}/{}", folder_name, "ic_launcher_round.png"),
+        out_path: out_folder.join("ic_launcher_round.png"),
+        size: target.size,
+      });
+      entries.push(PngEntry {
+        name: format!("{}/{}", folder_name, "ic_launcher.png"),
+        out_path: out_folder.join("ic_launcher.png"),
+        size: target.size,
+      });
+    }
+
+    Ok(entries)
+  }
+
+  let mut entries = desktop_entries(out_dir);
+  let _ = crate::mobile::android::with_config(
+    Some(Default::default()),
+    |_app, config, _metadata, _cli_options| {
+      let android_out = out_dir.parent().unwrap().join(format!(
+        "gen/android/{}/app/src/main/res/",
+        config.app().name()
+      ));
+      let out = if android_out.exists() {
+        android_out
+      } else {
+        let out = out_dir.join("android");
+        create_dir_all(&out).context("Can't create Android output directory")?;
+        out
+      };
+      entries.extend(android_entries(&out)?);
+      Ok(())
+    },
+  );
+
+  for entry in entries {
+    log::info!(action = "PNG"; "Creating {}", entry.name);
+    resize_and_save_png(source, entry.size, &entry.out_path)?;
   }
 
   Ok(())

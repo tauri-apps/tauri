@@ -125,6 +125,11 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
   ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
   /// # Examples
   ///
   /// - Create a window in the setup hook:
@@ -163,11 +168,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     .unwrap();
   /// }
   /// ```
-  ///
-  /// # Known issues
-  ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
@@ -404,7 +404,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     Ok(self)
   }
 
-  /// Sets whether or not the window icon should be added to the taskbar.
+  /// Sets whether or not the window icon should be hidden from the taskbar.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Unsupported.
   #[must_use]
   pub fn skip_taskbar(mut self, skip: bool) -> Self {
     self.window_builder = self.window_builder.skip_taskbar(skip);
@@ -1170,7 +1174,11 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Unsupported.
   pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
     self
       .window

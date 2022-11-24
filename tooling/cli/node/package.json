@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",

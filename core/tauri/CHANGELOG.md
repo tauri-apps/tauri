@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.2.1]
+
+- Fixes a double serialization on the IPC.
+  - [677838cc](https://www.github.com/tauri-apps/tauri/commit/677838ccfadfdf37039be53bfad666bbe1dab8c3) fix double serialize on invoke ([#5639](https://www.github.com/tauri-apps/tauri/pull/5639)) on 2022-11-20
+- Moved the custom protocol headers support on Linux behind the `linux-protocol-headers` Cargo feature to enhance compatibility with older Linux distributions.
+  - [d7109460](https://www.github.com/tauri-apps/tauri/commit/d710946064c47fa488eca01a62403e70b2b5ff87) refactor: move Linux custom protocol headers support behind feature flag ([#5683](https://www.github.com/tauri-apps/tauri/pull/5683)) on 2022-11-24
+- Fixes definition of `impl HasRawDisplayHandle` for `AppHandle` and `App`.
+  - [ed43ff32](https://www.github.com/tauri-apps/tauri/commit/ed43ff324330d1bd9c042a53a6636dfc7d97b410) fix(tauri): add missing generics on AppHandle and App ([#5642](https://www.github.com/tauri-apps/tauri/pull/5642)) on 2022-11-17
+
 ## \[1.2.0]
 
 - Add `accept_first_mouse` option for macOS windows.

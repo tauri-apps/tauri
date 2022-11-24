@@ -232,6 +232,9 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
 
   /// A HashMap mapping JS event names with associated listener ids.
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
+
+  /// A handler to decide if incoming url is allowed to navigate.
+  pub navigation_handler: Option<Box<dyn Fn(String) -> bool + Send>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {
@@ -271,6 +274,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
       })
     }
   }
@@ -300,6 +304,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
         url: "tauri://localhost".to_string(),
         menu_ids: Arc::new(Mutex::new(menu_ids)),
         js_event_listeners: Default::default(),
+        navigation_handler: Default::default(),
       })
     }
   }

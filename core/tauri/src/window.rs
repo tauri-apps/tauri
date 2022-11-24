@@ -48,6 +48,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
+pub(crate) type NavigationHandler = dyn Fn(String) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -108,6 +109,7 @@ pub struct WindowBuilder<'a, R: Runtime> {
   pub(crate) window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder,
   pub(crate) webview_attributes: WebviewAttributes,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
+  navigation_handler: Option<Box<NavigationHandler>>,
 }
 
 impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
@@ -181,6 +183,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
+      navigation_handler: None,
     }
   }
 
@@ -229,6 +232,12 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels navigation.
+  pub fn on_navigation<F: Fn(String) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
   /// Creates a new webview window.
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let web_resource_request_handler = self.web_resource_request_handler.take();
@@ -238,12 +247,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.label.clone(),
     )?;
     let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    let pending = self.manager.prepare_window(
+    let mut pending = self.manager.prepare_window(
       self.app_handle.clone(),
       pending,
       &labels,
       web_resource_request_handler,
     )?;
+    pending.navigation_handler = self.navigation_handler.take();
     let window = match &mut self.runtime {
       RuntimeOrDispatch::Runtime(runtime) => runtime.create_window(pending),
       RuntimeOrDispatch::RuntimeHandle(handle) => handle.create_window(pending),

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.2.1]
+
+- Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.
+  - Bumped due to a bump in tauri-utils.
+  - [bb251087](https://www.github.com/tauri-apps/tauri/commit/bb2510876d0bdff736d36bf3a465cdbe4ad2b90c) fix(core): extend allowlist with `app`'s allowlist, closes [#5650](https://www.github.com/tauri-apps/tauri/pull/5650) ([#5652](https://www.github.com/tauri-apps/tauri/pull/5652)) on 2022-11-18
+
 ## \[1.2.0]
 
 - Properly serialize HTML template tags.

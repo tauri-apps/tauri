@@ -129,6 +129,7 @@ default = [ "wry", "compression", "objc-exception" ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
 objc-exception = [ "tauri-runtime-wry/objc-exception" ]
+linux-protocol-headers = [ "tauri-runtime-wry/linux-headers" ]
 isolation = [ "tauri-utils/isolation", "tauri-macros/isolation" ]
 custom-protocol = [ "tauri-macros/custom-protocol" ]
 updater = [

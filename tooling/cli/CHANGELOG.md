@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.2.1]
+
+- Fixes injection of Cargo features defined in the configuration file.
+  - [1ecaeb29](https://www.github.com/tauri-apps/tauri/commit/1ecaeb29aa798f591f6488dc6c3a7a8d22f6073e) fix(cli): inject config feature flags when features arg is not provided on 2022-11-18
+
 ## \[1.2.0]
 
 - Keep `tauri dev` watcher alive when the configuration is invalid.

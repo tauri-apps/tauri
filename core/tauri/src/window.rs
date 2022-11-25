@@ -715,7 +715,7 @@ impl PlatformWebview {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes a closure, providing it with the a webview handle that is specific to the current platform.
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.
   ///

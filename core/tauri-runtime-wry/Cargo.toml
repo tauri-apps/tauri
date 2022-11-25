@@ -29,7 +29,7 @@ webview2-com = "0.19.1"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
-webkit2gtk = { version = "0.18.2", features = [ "v2_36" ] }
+webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
@@ -47,4 +47,4 @@ macos-private-api = [
 objc-exception = [ "wry/objc-exception" ]
 global-shortcut = [ "tauri-runtime/global-shortcut" ]
 clipboard = [ "tauri-runtime/clipboard" ]
-linux-headers = [ "wry/linux-headers" ]
+linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]

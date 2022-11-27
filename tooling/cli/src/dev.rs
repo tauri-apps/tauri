@@ -104,6 +104,15 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     options.target.clone(),
   )?;
 
+  let mut dev_path = config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_path
+    .clone();
+
   if let Some(before_dev) = config
     .lock()
     .unwrap()
@@ -121,7 +130,27 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       }
     };
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(before_dev) = script {
+    if let Some(mut before_dev) = script {
+      if before_dev.contains("$HOST") {
+        if mobile {
+          let local_ip_address = local_ip_address::local_ip()
+            .expect("failed to resolve local IP address")
+            .to_string();
+          before_dev = before_dev.replace("$HOST", &local_ip_address);
+          if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+            url.set_host(Some(&local_ip_address))?;
+          }
+        } else {
+          before_dev = before_dev.replace(
+            "$HOST",
+            if let AppUrl::Url(WindowUrl::External(url)) = &dev_path {
+              url.host_str().unwrap_or("0.0.0.0")
+            } else {
+              "0.0.0.0"
+            },
+          );
+        }
+      }
       info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
       env.extend(interface.env());
@@ -220,14 +249,6 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     cargo_features.extend(features.clone());
   }
 
-  let mut dev_path = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_path
-    .clone();
   if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
     use crate::helpers::web_dev_server::start_dev_server;
     if path.exists() {

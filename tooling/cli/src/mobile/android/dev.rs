@@ -92,7 +92,7 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let mut dev_options = options.clone().into();
-  let mut interface = crate::dev::setup(&mut dev_options)?;
+  let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

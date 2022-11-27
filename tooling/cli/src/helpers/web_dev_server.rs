@@ -12,7 +12,6 @@ use notify_debouncer_mini::new_debouncer;
 use std::{
   net::SocketAddr,
   path::{Path, PathBuf},
-  str::FromStr,
   sync::{mpsc::sync_channel, Arc},
   thread,
   time::Duration,
@@ -21,14 +20,13 @@ use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
 
 const AUTO_RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
-pub const SERVER_URL: &str = "http://127.0.0.1:1430";
 
 struct State {
   serve_dir: PathBuf,
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(path: P) {
+pub fn start_dev_server<P: AsRef<Path>>(address: SocketAddr, path: P) {
   let serve_dir = path.as_ref().to_path_buf();
 
   std::thread::spawn(move || {
@@ -80,7 +78,7 @@ pub fn start_dev_server<P: AsRef<Path>>(path: P) {
               ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
             }),
           );
-        Server::bind(&SocketAddr::from_str(SERVER_URL.split('/').nth(2).unwrap()).unwrap())
+        Server::bind(&address)
           .serve(router.into_make_service())
           .await
           .unwrap();

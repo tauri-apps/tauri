@@ -65,12 +65,15 @@ impl AppBuilder {
           (setup)(app)?;
         }
 
-        #[allow(unused_mut)]
-        let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
-          .user_agent("Tauri API")
-          .title("Tauri API Validation")
-          .inner_size(1000., 800.)
-          .min_inner_size(600., 400.);
+        let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default());
+        #[cfg(desktop)]
+        {
+          window_builder = window_builder
+            .user_agent("Tauri API")
+            .title("Tauri API Validation")
+            .inner_size(1000., 800.)
+            .min_inner_size(600., 400.);
+        }
 
         #[cfg(target_os = "windows")]
         {

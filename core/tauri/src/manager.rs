@@ -911,15 +911,13 @@ impl<R: Runtime> WindowManager<R> {
       let mut response = {
         let mut url = url.clone();
         url.set_path(&path);
-        match attohttpc::get(url.as_str())
-          .danger_accept_invalid_certs(true)
-          .send()
-        {
+        let mut proxy_builder = attohttpc::get(url.as_str()).danger_accept_invalid_certs(true);
+        for (name, value) in request.headers() {
+          proxy_builder = proxy_builder.header(name, value);
+        }
+        match proxy_builder.send() {
           Ok(r) => {
             for (name, value) in r.headers() {
-              if name == "Content-Type" {
-                builder = builder.mimetype(value.to_str().unwrap());
-              }
               builder = builder.header(name, value);
             }
             builder.status(r.status()).body(r.bytes()?)?

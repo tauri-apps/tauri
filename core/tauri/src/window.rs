@@ -715,9 +715,9 @@ impl PlatformWebview {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes the closure accessing the platform's webview handle.
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
-  /// The closure is executed in the main thread.
+  /// The closure is executed on the main thread.
   ///
   /// # Examples
   ///
@@ -734,15 +734,15 @@ impl Window<crate::Wry> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.17.0/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///

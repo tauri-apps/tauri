@@ -20,6 +20,7 @@ use shared_child::SharedChild;
 
 use std::{
   env::set_current_dir,
+  net::{Ipv4Addr, SocketAddr},
   process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -74,7 +75,7 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn command_internal(mut options: Options) -> Result<()> {
-  let mut interface = setup(&mut options)?;
+  let mut interface = setup(&mut options, false)?;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
   interface.dev(options.into(), move |status, reason| {
@@ -82,7 +83,7 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
-pub fn setup(options: &mut Options) -> Result<AppInterface> {
+pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
     Some(if config.starts_with('{') {
@@ -228,11 +229,19 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     .dev_path
     .clone();
   if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+    use crate::helpers::web_dev_server::start_dev_server;
     if path.exists() {
+      let ip = if mobile {
+        local_ip_address::local_ip().expect("failed to resolve local IP address")
+      } else {
+        Ipv4Addr::new(127, 0, 0, 1).into()
+      };
+      let port = 1430;
+      let server_address = SocketAddr::new(ip, port);
       let path = path.canonicalize()?;
-      start_dev_server(path);
-      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+      start_dev_server(server_address, path);
+      let server_url = format!("http://{}", server_address);
+      dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
       // TODO: in v2, use an env var to pass the url to the app context
       // or better separate the config passed from the cli internally and
@@ -245,7 +254,7 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
       } else {
         options.config = Some(format!(
           r#"{{ "build": {{ "devPath": "{}" }} }}"#,
-          SERVER_URL
+          server_url
         ))
       }
     }

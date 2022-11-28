@@ -85,6 +85,7 @@ html5ever = "0.25"
 kuchiki = "0.8"
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
+local-ip-address = "0.4"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }

@@ -2,7 +2,7 @@
   "16x16": {
     "name": "icon_16x16.png",
     "size": 16,
-    "ostype": "icp4"
+    "ostype": "is32"
   },
   "16x16@2x": {
     "name": "icon_16x16@2x.png",
@@ -12,7 +12,7 @@
   "32x32": {
     "name": "icon_32x32.png",
     "size": 32,
-    "ostype": "icp5"
+    "ostype": "il32"
   },
   "32x32@2x": {
     "name": "icon_32x32@2x.png",

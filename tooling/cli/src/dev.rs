@@ -61,6 +61,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -218,31 +221,33 @@ fn command_internal(mut options: Options) -> Result<()> {
     .build
     .dev_path
     .clone();
-  if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
-    use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
-    if path.exists() {
-      let path = path.canonicalize()?;
-      start_dev_server(path);
-      dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
+  if !options.no_dev_server {
+    if let AppUrl::Url(WindowUrl::App(path)) = &dev_path {
+      use crate::helpers::web_dev_server::{start_dev_server, SERVER_URL};
+      if path.exists() {
+        let path = path.canonicalize()?;
+        start_dev_server(path);
+        dev_path = AppUrl::Url(WindowUrl::External(SERVER_URL.parse().unwrap()));
 
-      // TODO: in v2, use an env var to pass the url to the app context
-      // or better separate the config passed from the cli internally and
-      // config passed by the user in `--config` into to separate env vars
-      // and the context merges, the user first, then the internal cli config
-      if let Some(c) = options.config {
-        let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
-        c.build.dev_path = dev_path.clone();
-        options.config = Some(serde_json::to_string(&c).unwrap());
-      } else {
-        options.config = Some(format!(
-          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
-          SERVER_URL
-        ))
+        // TODO: in v2, use an env var to pass the url to the app context
+        // or better separate the config passed from the cli internally and
+        // config passed by the user in `--config` into to separate env vars
+        // and the context merges, the user first, then the internal cli config
+        if let Some(c) = options.config {
+          let mut c: tauri_utils::config::Config = serde_json::from_str(&c)?;
+          c.build.dev_path = dev_path.clone();
+          options.config = Some(serde_json::to_string(&c).unwrap());
+        } else {
+          options.config = Some(format!(
+            r#"{{ "build": {{ "devPath": "{}" }} }}"#,
+            SERVER_URL
+          ))
+        }
       }
     }
-  }
 
-  reload_config(options.config.as_deref())?;
+    reload_config(options.config.as_deref())?;
+  }
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {

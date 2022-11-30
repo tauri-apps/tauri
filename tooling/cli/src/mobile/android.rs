@@ -95,7 +95,7 @@ pub fn get_config(
 
   let raw = RawAndroidConfig {
     features: android_options.features.clone(),
-    logcat_filter_specs: vec!["RustStdoutStderr".into()],
+    logcat_filter_specs: vec!["RustStdoutStderr".into(), "*:E".into()],
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();

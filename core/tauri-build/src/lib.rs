@@ -113,7 +113,7 @@ pub struct WindowsAttributes {
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
-  /// ```
+  /// ```ignore
   #[doc = include_str!("window-app-manifest.xml")]
   /// ```
   ///
@@ -148,7 +148,7 @@ impl WindowsAttributes {
   /// Sets the app manifest. Currently only used on Windows.
   ///
   /// Defaults to:
-  /// ```
+  /// ```ignore
   #[doc = include_str!("window-app-manifest.xml")]
   /// ```
   #[must_use]

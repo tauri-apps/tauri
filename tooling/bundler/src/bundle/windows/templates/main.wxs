@@ -152,7 +152,7 @@
         </DirectoryRef>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="*">
+            <Component Id="ApplicationShortcut" Guid="A4A7252A-EC17-4D83-8C22-B77B42EE311A">
                 <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"

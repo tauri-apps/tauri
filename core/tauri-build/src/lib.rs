@@ -110,6 +110,15 @@ pub struct WindowsAttributes {
   ///
   /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
   sdk_dir: Option<PathBuf>,
+  /// A string containing an [application manifest] to be included with the application on Windows.
+  ///
+  /// Defaults to:
+  /// ```
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+  app_manifest: Option<String>,
 }
 
 impl WindowsAttributes {
@@ -133,6 +142,18 @@ impl WindowsAttributes {
   #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
     self.sdk_dir = Some(sdk_dir.as_ref().into());
+    self
+  }
+
+  /// Sets the app manifest. Currently only used on Windows.
+  ///
+  /// Defaults to:
+  /// ```
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  #[must_use]
+  pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
+    self.app_manifest = Some(manifest.as_ref().to_string());
     self
   }
 }
@@ -337,22 +358,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       let mut res = WindowsResource::new();
 
       res.set_manifest(
-        r#"
-        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-          <dependency>
-              <dependentAssembly>
-                  <assemblyIdentity
-                      type="win32"
-                      name="Microsoft.Windows.Common-Controls"
-                      version="6.0.0.0"
-                      processorArchitecture="*"
-                      publicKeyToken="6595b64144ccf1df"
-                      language="*"
-                  />
-              </dependentAssembly>
-          </dependency>
-        </assembly>
-        "#,
+        &attributes
+          .windows_attributes
+          .app_manifest
+          .unwrap_or(include_str!("window-app-manifest.xml").to_string()),
       );
 
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {

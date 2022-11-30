@@ -262,73 +262,73 @@ impl Cmd {
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
       WindowManagerCmd::Theme => return Ok(window.theme()?.into()),
       // Setters
-      #[cfg(window_center)]
+      #[cfg(all(desktop, window_center))]
       WindowManagerCmd::Center => window.center()?,
-      #[cfg(window_request_user_attention)]
+      #[cfg(all(desktop, window_request_user_attention))]
       WindowManagerCmd::RequestUserAttention(request_type) => {
         window.request_user_attention(request_type)?
       }
-      #[cfg(window_set_resizable)]
+      #[cfg(all(desktop, window_set_resizable))]
       WindowManagerCmd::SetResizable(resizable) => window.set_resizable(resizable)?,
-      #[cfg(window_set_title)]
+      #[cfg(all(desktop, window_set_title))]
       WindowManagerCmd::SetTitle(title) => window.set_title(&title)?,
-      #[cfg(window_maximize)]
+      #[cfg(all(desktop, window_maximize))]
       WindowManagerCmd::Maximize => window.maximize()?,
-      #[cfg(window_unmaximize)]
+      #[cfg(all(desktop, window_unmaximize))]
       WindowManagerCmd::Unmaximize => window.unmaximize()?,
-      #[cfg(all(window_maximize, window_unmaximize))]
+      #[cfg(all(desktop, window_maximize, window_unmaximize))]
       WindowManagerCmd::ToggleMaximize => match window.is_maximized()? {
         true => window.unmaximize()?,
         false => window.maximize()?,
       },
-      #[cfg(window_minimize)]
+      #[cfg(all(desktop, window_minimize))]
       WindowManagerCmd::Minimize => window.minimize()?,
-      #[cfg(window_unminimize)]
+      #[cfg(all(desktop, window_unminimize))]
       WindowManagerCmd::Unminimize => window.unminimize()?,
-      #[cfg(window_show)]
+      #[cfg(all(desktop, window_show))]
       WindowManagerCmd::Show => window.show()?,
-      #[cfg(window_hide)]
+      #[cfg(all(desktop, window_hide))]
       WindowManagerCmd::Hide => window.hide()?,
-      #[cfg(window_close)]
+      #[cfg(all(desktop, window_close))]
       WindowManagerCmd::Close => window.close()?,
-      #[cfg(window_set_decorations)]
+      #[cfg(all(desktop, window_set_decorations))]
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
-      #[cfg(window_set_always_on_top)]
+      #[cfg(all(desktop, window_set_always_on_top))]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
-      #[cfg(window_set_size)]
+      #[cfg(all(desktop, window_set_size))]
       WindowManagerCmd::SetSize(size) => window.set_size(size)?,
-      #[cfg(window_set_min_size)]
+      #[cfg(all(desktop, window_set_min_size))]
       WindowManagerCmd::SetMinSize(size) => window.set_min_size(size)?,
-      #[cfg(window_set_max_size)]
+      #[cfg(all(desktop, window_set_max_size))]
       WindowManagerCmd::SetMaxSize(size) => window.set_max_size(size)?,
-      #[cfg(window_set_position)]
+      #[cfg(all(desktop, window_set_position))]
       WindowManagerCmd::SetPosition(position) => window.set_position(position)?,
-      #[cfg(window_set_fullscreen)]
+      #[cfg(all(desktop, window_set_fullscreen))]
       WindowManagerCmd::SetFullscreen(fullscreen) => window.set_fullscreen(fullscreen)?,
-      #[cfg(window_set_focus)]
+      #[cfg(all(desktop, window_set_focus))]
       WindowManagerCmd::SetFocus => window.set_focus()?,
-      #[cfg(window_set_icon)]
+      #[cfg(all(desktop, window_set_icon))]
       WindowManagerCmd::SetIcon { icon } => window.set_icon(icon.into())?,
-      #[cfg(window_set_skip_taskbar)]
+      #[cfg(all(desktop, window_set_skip_taskbar))]
       WindowManagerCmd::SetSkipTaskbar(skip) => window.set_skip_taskbar(skip)?,
-      #[cfg(window_set_cursor_grab)]
+      #[cfg(all(desktop, window_set_cursor_grab))]
       WindowManagerCmd::SetCursorGrab(grab) => window.set_cursor_grab(grab)?,
-      #[cfg(window_set_cursor_visible)]
+      #[cfg(all(desktop, window_set_cursor_visible))]
       WindowManagerCmd::SetCursorVisible(visible) => window.set_cursor_visible(visible)?,
-      #[cfg(window_set_cursor_icon)]
+      #[cfg(all(desktop, window_set_cursor_icon))]
       WindowManagerCmd::SetCursorIcon(icon) => window.set_cursor_icon(icon)?,
-      #[cfg(window_set_cursor_position)]
+      #[cfg(all(desktop, window_set_cursor_position))]
       WindowManagerCmd::SetCursorPosition(position) => window.set_cursor_position(position)?,
-      #[cfg(window_set_ignore_cursor_events)]
+      #[cfg(all(desktop, window_set_ignore_cursor_events))]
       WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => {
         window.set_ignore_cursor_events(ignore_cursor)?
       }
-      #[cfg(window_start_dragging)]
+      #[cfg(all(desktop, window_start_dragging))]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
-      #[cfg(window_print)]
+      #[cfg(all(desktop, window_print))]
       WindowManagerCmd::Print => window.print()?,
       // internals
-      #[cfg(all(window_maximize, window_unmaximize))]
+      #[cfg(all(desktop, window_maximize, window_unmaximize))]
       WindowManagerCmd::InternalToggleMaximize => {
         if window.is_resizable()? {
           match window.is_maximized()? {
@@ -337,7 +337,7 @@ impl Cmd {
           }
         }
       }
-      #[cfg(any(debug_assertions, feature = "devtools"))]
+      #[cfg(all(desktop, any(debug_assertions, feature = "devtools")))]
       WindowManagerCmd::InternalToggleDevtools => {
         if window.is_devtools_open() {
           window.close_devtools();
@@ -345,6 +345,7 @@ impl Cmd {
           window.open_devtools();
         }
       }
+      _ => (),
     }
     #[allow(unreachable_code)]
     Ok(().into())

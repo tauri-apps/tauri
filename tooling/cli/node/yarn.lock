@@ -698,10 +698,10 @@
     "@jridgewell/resolve-uri" "^3.0.3"
     "@jridgewell/sourcemap-codec" "^1.4.10"
 
-"@napi-rs/cli@2.12.0":
-  version "2.12.0"
-  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.12.0.tgz#c4071e1dce2e0a3c9562fb3c437e94816564ce13"
-  integrity sha512-DWx9jDpun9JqDBypiXKjcYMm7gEnh83bry7b6UkItpmVE3w3tNrj91fOEPKDbFQZ7EULfFt+aQBbqtUHq5oNzQ==
+"@napi-rs/cli@2.13.0":
+  version "2.13.0"
+  resolved "https://registry.yarnpkg.com/@napi-rs/cli/-/cli-2.13.0.tgz#227f1b63edc6fb9364317e4719884b4451d147b6"
+  integrity sha512-8U6TLh2PYXM2SX7HnpRBCqlPU48M9tRe0TLlb4qgUx61bt6PT6Qtdeho3e0ila70fnrbqCA6dnJWrbgbJIopcQ==
 
 "@sinclair/typebox@^0.24.1":
   version "0.24.19"
@@ -2045,10 +2045,10 @@ pkg-dir@^4.2.0:
   dependencies:
     find-up "^4.0.0"
 
-prettier@2.7.1:
-  version "2.7.1"
-  resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.7.1.tgz#e235806850d057f97bb08368a4f7d899f7760c64"
-  integrity sha512-ujppO+MkdPqoVINuDFDRLClm7D78qbDt0/NR+wp5FqEZOoTNAjPHWj17QRhu7geIHJfcNhRk1XVQmF8Bp3ye+g==
+prettier@2.8.0:
+  version "2.8.0"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.8.0.tgz#c7df58393c9ba77d6fba3921ae01faf994fb9dc9"
+  integrity sha512-9Lmg8hTFZKG0Asr/kW9Bp8tJjRVluO8EJQVfY2T7FMw9T5jy4I/Uvx0Rca/XWf50QQ1/SS48+6IJWnrb+2yemA==
 
 pretty-format@^29.3.1:
   version "29.3.1"

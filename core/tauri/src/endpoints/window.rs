@@ -345,6 +345,7 @@ impl Cmd {
           window.open_devtools();
         }
       }
+      #[allow(unreachable_patterns)]
       _ => (),
     }
     #[allow(unreachable_code)]

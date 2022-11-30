@@ -20,7 +20,7 @@ use shared_child::SharedChild;
 
 use std::{
   env::set_current_dir,
-  net::{Ipv4Addr, SocketAddr},
+  net::{IpAddr, Ipv4Addr, SocketAddr},
   process::{exit, Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -83,6 +83,11 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
+fn local_ip_address() -> &'static IpAddr {
+  static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
+  LOCAL_IP.get_or_init(|| local_ip_address::local_ip().expect("failed to resolve local IP address"))
+}
+
 pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let tauri_path = tauri_dir();
   options.config = if let Some(config) = &options.config {
@@ -113,6 +118,30 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     .dev_path
     .clone();
 
+  if mobile {
+    if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
+      let localhost = match url.host() {
+        Some(url::Host::Domain(d)) => d == "localhost",
+        Some(url::Host::Ipv4(i)) => {
+          i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
+        }
+        _ => false,
+      };
+      if localhost {
+        let ip = local_ip_address();
+        url.set_host(Some(&ip.to_string())).unwrap();
+        if let Some(c) = &options.config {
+          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
+          c.build.dev_path = dev_path.clone();
+          options.config = Some(serde_json::to_string(&c).unwrap());
+        } else {
+          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{}" }} }}"#, url))
+        }
+        reload_config(options.config.as_deref())?;
+      }
+    }
+  }
+
   if let Some(before_dev) = config
     .lock()
     .unwrap()
@@ -133,9 +162,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     if let Some(mut before_dev) = script {
       if before_dev.contains("$HOST") {
         if mobile {
-          let local_ip_address = local_ip_address::local_ip()
-            .expect("failed to resolve local IP address")
-            .to_string();
+          let local_ip_address = local_ip_address().to_string();
           before_dev = before_dev.replace("$HOST", &local_ip_address);
           if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
             url.set_host(Some(&local_ip_address))?;
@@ -253,7 +280,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     use crate::helpers::web_dev_server::start_dev_server;
     if path.exists() {
       let ip = if mobile {
-        local_ip_address::local_ip().expect("failed to resolve local IP address")
+        *local_ip_address()
       } else {
         Ipv4Addr::new(127, 0, 0, 1).into()
       };

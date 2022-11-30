@@ -31,9 +31,6 @@ png = "0.17"
 json-patch = "0.2"
 url = "2"
 
-[target."cfg(any(windows, target_os = \"linux\", target_os = \"macos\"))".dependencies]
-local-ip-address = "0.4"
-
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
 time = { version = "0.3", features = [ "parsing", "formatting" ] }

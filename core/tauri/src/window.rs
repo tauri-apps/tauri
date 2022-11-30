@@ -262,9 +262,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
     Ok(window)
   }
+}
 
-  // --------------------------------------------- Window builder ---------------------------------------------
-
+/// Desktop APIs.
+#[cfg(desktop)]
+impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Sets the menu for the window.
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
@@ -475,8 +477,16 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  // ------------------------------------------- Webview attributes -------------------------------------------
+  /// Sets whether clicking an inactive window also clicks through to the webview.
+  #[must_use]
+  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
+    self.webview_attributes.accept_first_mouse = accept;
+    self
+  }
+}
 
+/// Webview attributes.
+impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
@@ -546,13 +556,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn enable_clipboard_access(mut self) -> Self {
     self.webview_attributes.clipboard = true;
-    self
-  }
-
-  /// Sets whether clicking an inactive window also clicks through to the webview.
-  #[must_use]
-  pub fn accept_first_mouse(mut self, accept: bool) -> Self {
-    self.webview_attributes.accept_first_mouse = accept;
     self
   }
 }
@@ -1016,7 +1019,8 @@ impl<R: Runtime> Window<R> {
   }
 }
 
-/// Window setters and actions.
+/// Desktop window setters and actions.
+#[cfg(desktop)]
 impl<R: Runtime> Window<R> {
   /// Centers the window.
   pub fn center(&self) -> crate::Result<()> {

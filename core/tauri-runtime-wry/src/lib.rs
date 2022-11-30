@@ -696,17 +696,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut window = WindowBuilderWrapper::new()
-      .title(config.title.to_string())
-      .inner_size(config.width, config.height)
-      .visible(config.visible)
-      .resizable(config.resizable)
-      .fullscreen(config.fullscreen)
-      .decorations(config.decorations)
-      .maximized(config.maximized)
-      .always_on_top(config.always_on_top)
-      .skip_taskbar(config.skip_taskbar)
-      .theme(config.theme);
+    let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]
     {
@@ -734,18 +724,33 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      window = window.min_inner_size(min_width, min_height);
-    }
-    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      window = window.max_inner_size(max_width, max_height);
-    }
-    if let (Some(x), Some(y)) = (config.x, config.y) {
-      window = window.position(x, y);
-    }
+    #[cfg(desktop)]
+    {
+      window = window
+        .title(config.title.to_string())
+        .inner_size(config.width, config.height)
+        .visible(config.visible)
+        .resizable(config.resizable)
+        .fullscreen(config.fullscreen)
+        .decorations(config.decorations)
+        .maximized(config.maximized)
+        .always_on_top(config.always_on_top)
+        .skip_taskbar(config.skip_taskbar)
+        .theme(config.theme);
 
-    if config.center {
-      window = window.center();
+      if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+        window = window.min_inner_size(min_width, min_height);
+      }
+      if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+        window = window.max_inner_size(max_width, max_height);
+      }
+      if let (Some(x), Some(y)) = (config.x, config.y) {
+        window = window.position(x, y);
+      }
+
+      if config.center {
+        window = window.center();
+      }
     }
 
     window

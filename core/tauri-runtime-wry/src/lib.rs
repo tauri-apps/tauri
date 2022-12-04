@@ -66,9 +66,13 @@ use wry::{
 
 pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
-
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
+#[cfg(target_os = "android")]
+use wry::{
+  application::platform::android::ndk_glue::PACKAGE,
+  webview::{prelude::find_class, WebViewBuilderExtAndroid, WebviewExtAndroid},
+};
 
 #[cfg(target_os = "macos")]
 use tauri_runtime::{menu::NativeImage, ActivationPolicy};
@@ -2289,7 +2293,6 @@ fn handle_user_message<T: UserEvent>(
                 }
                 #[cfg(target_os = "android")]
                 {
-                  use wry::webview::WebviewExtAndroid;
                   f(w.handle())
                 }
               }
@@ -3063,6 +3066,26 @@ fn create_webview<T: UserEvent>(
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
     webview_builder = webview_builder.with_devtools(true);
+  }
+
+  #[cfg(target_os = "android")]
+  {
+    webview_builder = webview_builder.on_webview_created(Box::new(|ctx| {
+      // load plugin manager
+      let plugin_manager_class = find_class(
+        ctx.env,
+        ctx.activity,
+        format!("{}/PluginManager", PACKAGE.get().unwrap()),
+      )?;
+      let plugin_manager = ctx.env.new_object(plugin_manager_class, "()V", &[])?;
+      ctx.env.call_method(
+        plugin_manager,
+        "load",
+        "(Landroid/webkit/WebView;)V",
+        &[ctx.webview.into()],
+      )?;
+      Ok(())
+    }));
   }
 
   let webview = webview_builder

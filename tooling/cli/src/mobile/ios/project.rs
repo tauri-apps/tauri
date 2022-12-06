@@ -4,7 +4,14 @@
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use cargo_mobile::{
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
+use std::{
+  ffi::{OsStr, OsString},
+  fs::{create_dir_all, OpenOptions},
+  path::{Component, PathBuf},
+};
+use tauri_mobile::{
   apple::{
     config::{Config, Metadata},
     deps, rust_version_check,
@@ -14,13 +21,6 @@ use cargo_mobile::{
   config::app::DEFAULT_ASSET_DIR,
   target::TargetTrait as _,
   util::{self, cli::TextWrapper},
-};
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
-use std::{
-  ffi::{OsStr, OsString},
-  fs::{create_dir_all, OpenOptions},
-  path::{Component, PathBuf},
 };
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");

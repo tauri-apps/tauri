@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cargo_mobile::{
+use clap::{Parser, Subcommand};
+use std::{
+  env::set_var,
+  thread::{sleep, spawn},
+  time::Duration,
+};
+use sublime_fuzzy::best_match;
+use tauri_mobile::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
@@ -16,13 +23,6 @@ use cargo_mobile::{
   os,
   util::prompt,
 };
-use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  thread::{sleep, spawn},
-  time::Duration,
-};
-use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, get_app,
@@ -142,7 +142,7 @@ pub fn with_config<T>(
 
 fn env() -> Result<Env> {
   let env = super::env()?;
-  cargo_mobile::android::env::Env::from_env(env).map_err(Into::into)
+  tauri_mobile::android::env::Env::from_env(env).map_err(Into::into)
 }
 
 fn delete_codegen_vars() {

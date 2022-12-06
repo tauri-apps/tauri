@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     env::Env,

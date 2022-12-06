@@ -2,7 +2,7 @@ use super::{env, with_config};
 use crate::Result;
 use clap::Parser;
 
-use cargo_mobile::{apple::target::Target, opts::Profile, util};
+use tauri_mobile::{apple::target::Target, opts::Profile, util};
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
 

@@ -10,13 +10,13 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use dialoguer::{theme::ColorfulTheme, Select};
+use tauri_mobile::{
   apple::{config::Config as AppleConfig, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
-use dialoguer::{theme::ColorfulTheme, Select};
 
 use std::env::{set_var, var_os};
 

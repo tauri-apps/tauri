@@ -2,7 +2,7 @@ use super::{detect_target_ok, ensure_init, env, with_config, MobileTarget};
 use crate::Result;
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},

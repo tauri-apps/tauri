@@ -376,46 +376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cargo-mobile"
-version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#f117968d675537bc753b53d608a3743815de9689"
-dependencies = [
- "cocoa",
- "colored 1.9.3",
- "core-foundation 0.7.0",
- "deunicode",
- "dunce",
- "embed-resource",
- "english-numbers",
- "env_logger 0.7.1",
- "freedesktop_entry_parser",
- "handlebars 3.5.5",
- "heck 0.4.0",
- "home",
- "ignore",
- "indexmap",
- "java-properties",
- "lexical-core",
- "libc",
- "log",
- "objc",
- "objc_id",
- "once-cell-regex",
- "openssl",
- "os_pipe",
- "path_abs",
- "serde",
- "serde_json",
- "structopt",
- "textwrap",
- "thiserror",
- "toml",
- "ureq",
- "winapi",
- "windows",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3895,7 +3855,6 @@ dependencies = [
  "anyhow",
  "axum",
  "base64",
- "cargo-mobile",
  "clap 4.0.9",
  "colored 2.0.0",
  "common-path",
@@ -3929,6 +3888,7 @@ dependencies = [
  "sublime_fuzzy",
  "tauri-bundler",
  "tauri-icns",
+ "tauri-mobile",
  "tauri-utils",
  "textwrap",
  "thiserror",
@@ -3961,6 +3921,46 @@ checksum = "03b7eb4d0d43724ba9ba6a6717420ee68aee377816a3edbb45db8c18862b1431"
 dependencies = [
  "byteorder",
  "png",
+]
+
+[[package]]
+name = "tauri-mobile"
+version = "0.1.0"
+source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#5318e9bbe5c42c155ce8a0810d79e6e7c699a6bb"
+dependencies = [
+ "cocoa",
+ "colored 1.9.3",
+ "core-foundation 0.7.0",
+ "deunicode",
+ "dunce",
+ "embed-resource",
+ "english-numbers",
+ "env_logger 0.7.1",
+ "freedesktop_entry_parser",
+ "handlebars 3.5.5",
+ "heck 0.4.0",
+ "home",
+ "ignore",
+ "indexmap",
+ "java-properties",
+ "lexical-core",
+ "libc",
+ "log",
+ "objc",
+ "objc_id",
+ "once-cell-regex",
+ "openssl",
+ "os_pipe",
+ "path_abs",
+ "serde",
+ "serde_json",
+ "structopt",
+ "textwrap",
+ "thiserror",
+ "toml",
+ "ureq",
+ "winapi",
+ "windows",
 ]
 
 [[package]]

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cargo_mobile::{
+use clap::{Parser, Subcommand};
+use sublime_fuzzy::best_match;
+use tauri_mobile::{
   apple::{
     config::{
       Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,
@@ -19,8 +21,6 @@ use cargo_mobile::{
   os,
   util::prompt,
 };
-use clap::{Parser, Subcommand};
-use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, env, get_app,

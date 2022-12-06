@@ -889,7 +889,7 @@ pub fn command(_options: Options) -> Result<()> {
   if tauri_dir.is_some() {
     let p = tauri_dir.as_ref().unwrap();
     if p.join("gen/apple").exists() {
-      let teams = cargo_mobile::apple::teams::find_development_teams().unwrap_or_default();
+      let teams = tauri_mobile::apple::teams::find_development_teams().unwrap_or_default();
       Section("iOS").display();
       InfoBlock::new(
         "Teams",

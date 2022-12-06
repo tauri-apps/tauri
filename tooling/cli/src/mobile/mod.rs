@@ -7,12 +7,6 @@ use crate::{
   interface::DevProcess,
 };
 use anyhow::{bail, Result};
-use cargo_mobile::{
-  bossy,
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::NoiseLevel,
-};
 use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::rpc_params;
@@ -33,12 +27,18 @@ use std::{
     Arc,
   },
 };
+use tauri_mobile::{
+  bossy,
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::NoiseLevel,
+};
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use cargo_mobile::env::Env;
+use tauri_mobile::env::Env;
 #[cfg(windows)]
-use cargo_mobile::os::Env;
+use tauri_mobile::os::Env;
 
 pub mod android;
 mod init;

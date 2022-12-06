@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
   opts::{NoiseLevel, Profile},

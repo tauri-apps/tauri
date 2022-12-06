@@ -230,11 +230,6 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
       emulator_list.into_iter().next().unwrap()
     };
 
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
-
     Ok(emulator)
   } else {
     Err(anyhow::anyhow!("No available Android Emulator detected"))

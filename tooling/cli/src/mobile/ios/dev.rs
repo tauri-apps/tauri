@@ -145,7 +145,7 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else {
-        match run(device.as_deref(), options, config, &env, noise_level) {
+        match run(device.as_deref(), options, config, &env) {
           Ok(c) => {
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
@@ -178,7 +178,6 @@ fn run(
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
-  noise_level: NoiseLevel,
 ) -> Result<DevChild, RunError> {
   let profile = if options.debug {
     Profile::Debug
@@ -190,7 +189,13 @@ fn run(
 
   device_prompt(env, device)
     .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
-    .run(config, env, noise_level, non_interactive, profile)
+    .run(
+      config,
+      env,
+      NoiseLevel::FranklyQuitePedantic,
+      non_interactive,
+      profile,
+    )
     .map(DevChild::new)
     .map_err(|e| RunError::RunFailed(e.to_string()))
 }

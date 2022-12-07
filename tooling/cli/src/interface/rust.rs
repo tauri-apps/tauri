@@ -529,7 +529,7 @@ impl<'de, T: Deserialize<'de>> serde::de::Deserialize<'de> for MaybeWorkspace<T>
 }
 
 impl<T> MaybeWorkspace<T> {
-  fn resolve<'a>(
+  fn resolve(
     self,
     label: &str,
     get_ws_field: impl FnOnce() -> anyhow::Result<T>,
@@ -807,8 +807,9 @@ impl RustAppSettings {
           .version
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
-          .resolve("version", || get_workspace_version()?)
-          .expect("Can't resolve the Cargo project's version")
+          .resolve("version", || {
+            get_workspace_version()?.context("Workspace Cargo manifest must have the `workspace.package.version` field if a member tries to inherit the version")
+          }).expect("Cargo project does not have a version")
       }),
       description: cargo_package_settings
         .description

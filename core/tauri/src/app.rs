@@ -1310,6 +1310,21 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Enable or disable the default menu on macOS. Enabled by default.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// tauri::Builder::default()
+  ///   .enable_macos_default_menu(false);
+  /// ```
+  #[must_use]
+  pub fn enable_macos_default_menu(mut self, enable: bool) -> Self {
+    self.enable_macos_default_menu = enable;
+    self
+  }
+
   /// Registers a menu event handler for all windows.
   ///
   /// # Examples

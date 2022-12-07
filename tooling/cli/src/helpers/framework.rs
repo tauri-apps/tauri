@@ -96,8 +96,8 @@ impl fmt::Display for Bundler {
 
 pub fn infer_from_package_json(package_json: &str) -> (Option<Framework>, Option<Bundler>) {
   let framework_map = [
-    ("solid-js", Framework::SolidJS, Some(Bundler::Vite)),
     ("solid-start", Framework::SolidStart, Some(Bundler::Vite)),
+    ("solid-js", Framework::SolidJS, Some(Bundler::Vite)),
     ("svelte", Framework::Svelte, Some(Bundler::Rollup)),
     ("@sveltejs/kit", Framework::SvelteKit, Some(Bundler::Vite)),
     ("@angular", Framework::Angular, Some(Bundler::Webpack)),

@@ -628,8 +628,20 @@ pub fn build_wix_app_installer(
   let path_guid = generate_package_guid(settings).to_string();
   data.insert("path_component_guid", to_json(&path_guid.as_str()));
 
-  let shortcut_guid = generate_package_guid(settings).to_string();
-  data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
+  let desktop_shortcut_guid =
+    generate_guid(format!("{}_desktop_shortcut", settings.bundle_identifier()).as_bytes())
+      .to_string();
+  data.insert(
+    "desktop_shortcut_guid",
+    to_json(&desktop_shortcut_guid.as_str()),
+  );
+  let start_menu_shortcut_guid =
+    generate_guid(format!("{}_start_menu_shortcut", settings.bundle_identifier()).as_bytes())
+      .to_string();
+  data.insert(
+    "start_menu_shortcut_guid",
+    to_json(&start_menu_shortcut_guid.as_str()),
+  );
 
   let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));

@@ -91,7 +91,7 @@
 
         <Directory Id="TARGETDIR" Name="SourceDir">
             <Directory Id="DesktopFolder" Name="Desktop">
-                <Component Id="ApplicationShortcutDesktop" Guid="*">
+                <Component Id="ApplicationShortcutDesktop" Guid="{{{desktop_shortcut_guid}}}">
                     <Shortcut Id="ApplicationDesktopShortcut" Name="{{{product_name}}}" Description="Runs {{{product_name}}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
                     <RemoveFolder Id="DesktopFolder" On="uninstall" />
                     <RegistryValue Root="HKCU" Key="Software\\{{{manufacturer}}}\\{{{product_name}}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
@@ -152,7 +152,7 @@
         </DirectoryRef>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
-            <Component Id="ApplicationShortcut" Guid="A4A7252A-EC17-4D83-8C22-B77B42EE311A">
+            <Component Id="ApplicationShortcut" Guid="{{{start_menu_shortcut_guid}}}">
                 <Shortcut Id="ApplicationStartMenuShortcut"
                     Name="{{{product_name}}}"
                     Description="Runs {{{product_name}}}"

@@ -23,7 +23,7 @@ pub enum Framework {
 impl Framework {
   pub fn dev_path(&self) -> String {
     match self {
-      Self::SolidJS => "http://localhost:5173",
+      Self::SolidJS => "http://localhost:3000",
       Self::SolidStart => "http://localhost:3000",
       Self::Svelte => "http://localhost:8080",
       Self::SvelteKit => "http://localhost:5173",

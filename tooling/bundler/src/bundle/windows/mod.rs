@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "windows")]
 pub mod msi;
 pub mod nsis;
+#[cfg(target_os = "windows")]
 pub mod sign;
+
 mod util;

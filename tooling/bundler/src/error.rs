@@ -35,11 +35,9 @@ pub enum Error {
   #[error("`{0}`")]
   ConvertError(#[from] num::TryFromIntError),
   /// Zip error.
-  #[cfg(target_os = "windows")]
   #[error("`{0}`")]
   ZipError(#[from] zip::result::ZipError),
   /// Hex error.
-  #[cfg(target_os = "windows")]
   #[error("`{0}`")]
   HexError(#[from] hex::FromHexError),
   /// Handlebars template error.
@@ -53,7 +51,6 @@ pub enum Error {
   #[error("`{0}`")]
   RegexError(#[from] regex::Error),
   /// Failed to perform HTTP request.
-  #[cfg(windows)]
   #[error("`{0}`")]
   HttpError(#[from] attohttpc::Error),
   /// Invalid glob pattern.

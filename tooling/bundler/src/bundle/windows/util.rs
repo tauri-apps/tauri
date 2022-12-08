@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "windows")]
+use std::{fs::remove_file, process::Command};
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
@@ -10,17 +12,18 @@ use std::{
 
 use anyhow::{bail, Context};
 use log::info;
+#[cfg(target_os = "windows")]
 use sha2::Digest;
 use zip::ZipArchive;
+
+#[cfg(target_os = "windows")]
+use crate::bundle::windows::sign::{sign, SignParams};
+#[cfg(target_os = "windows")]
+use crate::Settings;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
 pub const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
-
-use crate::{
-  bundle::windows::sign::{sign, SignParams},
-  Settings,
-};
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
@@ -33,6 +36,7 @@ pub enum HashAlgorithm {
   Sha1,
 }
 
+#[cfg(target_os = "windows")]
 /// Function used to download a file and checks SHA256 to verify the download.
 pub fn download_and_verify(
   url: &str,
@@ -56,6 +60,7 @@ pub fn download_and_verify(
   Ok(data)
 }
 
+#[cfg(target_os = "windows")]
 fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
   hasher.update(data);
 
@@ -86,6 +91,7 @@ pub fn validate_version(version: &str) -> anyhow::Result<()> {
   Ok(())
 }
 
+#[cfg(target_os = "windows")]
 pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
     info!(action = "Signing"; "{}", file_path.display());

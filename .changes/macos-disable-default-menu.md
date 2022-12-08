@@ -1,5 +1,5 @@
 ---
-"tauri": "minor"
+"tauri": "patch"
 ---
 
 Add `tauri::Builder::enable_macos_default_menu` to enable or disable the default menu creation on macOS.

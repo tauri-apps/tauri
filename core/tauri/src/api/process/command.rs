@@ -20,7 +20,10 @@ use std::os::windows::process::CommandExt;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
-use crate::endpoints::shell::{Buffer, EncodingWrapper};
+
+pub use crate::endpoints::shell::Buffer;
+use crate::endpoints::shell::EncodingWrapper;
+
 pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;
@@ -232,7 +235,7 @@ impl Command {
   /// # Examples
   ///
   /// ```rust,no_run
-  /// use tauri::api::process::{Command, CommandEvent};
+  /// use tauri::api::process::{Buffer, Command, CommandEvent};
   /// tauri::async_runtime::spawn(async move {
   ///   let (mut rx, mut child) = Command::new("cargo")
   ///     .args(["tauri", "dev"])
@@ -242,11 +245,16 @@ impl Command {
   ///   let mut i = 0;
   ///   while let Some(event) = rx.recv().await {
   ///     if let CommandEvent::Stdout(line) = event {
-  ///       println!("got: {}", line);
-  ///       i += 1;
-  ///       if i == 4 {
-  ///         child.write("message from Rust\n".as_bytes()).unwrap();
-  ///         i = 0;
+  ///       match line {
+  ///         Buffer::Text(line) => {
+  ///           println!("got: {}", line);
+  ///           i += 1;
+  ///           if i == 4 {
+  ///             child.write("message from Rust\n".as_bytes()).unwrap();
+  ///             i = 0;
+  ///           }
+  ///         }
+  ///         _ => {}
   ///       }
   ///     }
   ///   }

@@ -34,6 +34,7 @@ fn command_child_store() -> &'static ChildStore {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
+#[allow(missing_docs)]
 pub enum Buffer {
   Text(String),
   Raw(Vec<u8>),

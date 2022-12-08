@@ -91,7 +91,7 @@ SetCompressor /SOLID lzma
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION "CreateDesktopShortcut"
 
 ; Show run app after installation.
-!define MUI_FINISHPAGE_RUN $INSTDIR\${MAINBINARYNAME}.exe
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
 
 ;--------------------------------
 ; Installer pages

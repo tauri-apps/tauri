@@ -36,7 +36,7 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings,reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
 
 mod cargo_config;

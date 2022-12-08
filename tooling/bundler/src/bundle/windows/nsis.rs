@@ -97,8 +97,8 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, "sha1")?;
     info!("extracting NSIS");
-    extract_zip(&data, tauri_tools_path)?;
-    rename(tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+    extract_zip(&data, _tauri_tools_path)?;
+    rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");

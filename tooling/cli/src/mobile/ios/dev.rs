@@ -38,6 +38,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -56,6 +59,7 @@ impl From<Options> for crate::dev::Options {
       release_mode: options.release_mode,
       args: Vec::new(),
       no_watch: options.no_watch,
+      no_dev_server: options.no_dev_server,
     }
   }
 }

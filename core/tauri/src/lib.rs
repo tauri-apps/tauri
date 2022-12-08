@@ -13,6 +13,7 @@
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.

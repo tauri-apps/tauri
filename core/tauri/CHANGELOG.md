@@ -1,5 +1,26 @@
 # Changelog
 
+## \[1.2.2]
+
+- Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls
+  - [c14b1df3](https://www.github.com/tauri-apps/tauri/commit/c14b1df37284020b3edb32400eb4b9e32c945472) fix(core): Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls ([#5563](https://www.github.com/tauri-apps/tauri/pull/5563)) on 2022-12-08
+- Cleanup sidecar and tray icons when calling `app.exit()` from JS.
+  - [0f269608](https://www.github.com/tauri-apps/tauri/commit/0f26960891228c5909e06d9f850c44ffaebf536c) fix(core/api): cleanup before exit ([#5765](https://www.github.com/tauri-apps/tauri/pull/5765)) on 2022-12-07
+- Fix compatibility with older Linux distributions.
+  - [b490308c](https://www.github.com/tauri-apps/tauri/commit/b490308c8897b893292951754607c2253abbc6e1) fix(core): compilation error on older Linux versions, fixes [#5684](https://www.github.com/tauri-apps/tauri/pull/5684) ([#5697](https://www.github.com/tauri-apps/tauri/pull/5697)) on 2022-11-28
+- Add `tauri::Builder::enable_macos_default_menu` to enable or disable the default menu creation on macOS.
+  - [8866ecac](https://www.github.com/tauri-apps/tauri/commit/8866ecac3cd1af8bf02e29569d605be5a1afe22c) feat(core): add `tauri::Builder::enable_macos_default_menu` ([#5756](https://www.github.com/tauri-apps/tauri/pull/5756)) on 2022-12-07
+  - [b293da35](https://www.github.com/tauri-apps/tauri/commit/b293da35dd5ae8c1569a3f3c994b4c1a4c227f4a) fix(changes): change `enable_macos_default_menu` bump to patch on 2022-12-08
+
+## \[1.2.1]
+
+- Fixes a double serialization on the IPC.
+  - [677838cc](https://www.github.com/tauri-apps/tauri/commit/677838ccfadfdf37039be53bfad666bbe1dab8c3) fix double serialize on invoke ([#5639](https://www.github.com/tauri-apps/tauri/pull/5639)) on 2022-11-20
+- Moved the custom protocol headers support on Linux behind the `linux-protocol-headers` Cargo feature to enhance compatibility with older Linux distributions.
+  - [d7109460](https://www.github.com/tauri-apps/tauri/commit/d710946064c47fa488eca01a62403e70b2b5ff87) refactor: move Linux custom protocol headers support behind feature flag ([#5683](https://www.github.com/tauri-apps/tauri/pull/5683)) on 2022-11-24
+- Fixes definition of `impl HasRawDisplayHandle` for `AppHandle` and `App`.
+  - [ed43ff32](https://www.github.com/tauri-apps/tauri/commit/ed43ff324330d1bd9c042a53a6636dfc7d97b410) fix(tauri): add missing generics on AppHandle and App ([#5642](https://www.github.com/tauri-apps/tauri/pull/5642)) on 2022-11-17
+
 ## \[1.2.0]
 
 - Add `accept_first_mouse` option for macOS windows.
@@ -46,6 +67,11 @@
 - Added the `user_agent` option when creating a window.
   - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
 
+## \[1.1.2]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [e4dc5bed](https://www.github.com/tauri-apps/tauri/commit/e4dc5bedbb54fbe6e06ab833d7fb7e0cacebad10) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-10-05
+
 ## \[1.1.1]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
@@ -90,6 +116,11 @@
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
 - Add `exists` function to the fs module.
   - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.7]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [bcd9dc7f](https://www.github.com/tauri-apps/tauri/commit/bcd9dc7f859fa7e65fea5de835fa938ca1368eaf) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-11-08
 
 ## \[1.0.6]
 

@@ -1463,7 +1463,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
+          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}"); }} }})()"#,
           label
         ))?;
       }

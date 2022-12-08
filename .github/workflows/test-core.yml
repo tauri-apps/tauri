@@ -68,15 +68,15 @@ jobs:
             }
         features:
           - {
-              args: --no-default-features --features native-tls-vendored,
+              args: --no-default-features,
               key: no-default
             }
           - {
-              args: --features native-tls-vendored,api-all,
+              args: --features api-all,
               key: api-all
             }
           - {
-              args: --features native-tls-vendored,compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,
+              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,
               key: all
             }
 

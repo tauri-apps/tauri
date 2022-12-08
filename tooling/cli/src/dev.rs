@@ -62,6 +62,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -306,9 +309,9 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
         ))
       }
     }
-  }
 
-  reload_config(options.config.as_deref())?;
+    reload_config(options.config.as_deref())?;
+  }
 
   if std::env::var_os("TAURI_SKIP_DEVSERVER_CHECK") != Some("true".into()) {
     if let AppUrl::Url(WindowUrl::External(dev_server_url)) = dev_path {

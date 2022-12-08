@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "1.2.0"
+version = "1.2.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -19,8 +19,8 @@ rustdoc-args = [ "--cfg", "doc_cfg" ]
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "1.2.0", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "1.2.0", path = "../tauri-utils", features = [ "build", "resources" ] }
+tauri-codegen = { version = "1.2.1", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "1.2.1", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.13"
 serde_json = "1"
 heck = "0.4"

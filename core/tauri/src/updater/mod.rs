@@ -6,127 +6,14 @@
 //!
 //! The updater is focused on making Tauri's application updates **as safe and transparent as updates to a website**.
 //!
-//! Instead of publishing a feed of versions from which your app must select, Tauri updates to the version your server tells it to. This allows you to intelligently update your clients based on the request you give to Tauri.
+//! For a full guide on setting up the updater, see <https://tauri.app/v1/guides/distribution/updater>.
 //!
-//! The server can remotely drive behaviors like rolling back or phased rollouts.
-//!
-//! The update JSON Tauri requests should be dynamically generated based on criteria in the request, and whether an update is required.
-//!
-//! Tauri's installer is also designed to be fault-tolerant, and ensure that any updates installed are valid and safe.
-//!
-//! # Configuration
-//!
-//! Once you have your Tauri project ready, you need to configure the updater.
-//!
-//! Add this in tauri.conf.json
-//! ```json
-//! "updater": {
-//!     "active": true,
-//!     "endpoints": [
-//!         "https://releases.myapp.com/{target}}/{current_version}}"
-//!     ],
-//!     "dialog": true,
-//!     "pubkey": "YOUR_UPDATER_PUBLIC_KEY_HERE"
-//! }
-//! ```
-//!
-//! The required keys are "active", "endpoints" and "pubkey"; others are optional.
-//!
-//! "active" must be a boolean. By default, it's set to false.
-//!
-//! "endpoints" must be an array. The string `{{target}}` and `{{current_version}}` are automatically replaced in the URL allowing you determine [server-side](#update-server-json-format) if an update is available. If multiple endpoints are specified, the updater will fallback if a server is not responding within the optional timeout.
-//!
-//! "dialog" if present must be a boolean. By default, it's set to true. If enabled, [events](#events) are turned-off as the updater will handle everything. If you need the custom events, you MUST turn off the built-in dialog.
-//!
-//! "pubkey" must be a valid public-key generated with Tauri cli. See [Signing updates](#signing-updates).
-//!
-//! ## Update Requests
-//!
-//! Tauri is indifferent to the request the client application provides for update checking.
-//!
-//! `Accept: application/json` is added to the request headers because Tauri is responsible for parsing the response.
-//!
-//! For the requirements imposed on the responses and the body format of an update, response see [Server Support](#server-support).
-//!
-//! Your update request must *at least* include a version identifier so that the server can determine whether an update for this specific version is required.
-//!
-//! It may also include other identifying criteria such as operating system version, to allow the server to deliver as fine-grained an update as you would like.
-//!
-//! How you include the version identifier or other criteria is specific to the server that you are requesting updates from. A common approach is to use query parameters, [Configuration](#configuration) shows an example of this.
-//!
-//! ## Built-in dialog
-//!
-//! By default, updater uses a built-in dialog API from Tauri.
-//!
-//! ![New Update](https://i.imgur.com/UMilB5A.png)
-//!
-//! The dialog release notes is represented by the update `note` provided by the [server](#server-support).
-//!
-//! If the user accepts, the download and install are initialized. The user will be then prompted to restart the application.
-//!
-//! ## JavaScript API
-//!
-//! **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted and the javascript API will NOT work.**
-//!
-//!
-//! ```javascript
-//! import { checkUpdate, installUpdate } from "@tauri-apps/api/updater";
-//!
-//! try {
-//!     const { shouldUpdate, manifest } = await checkUpdate();
-//!
-//!     if (shouldUpdate) {
-//!         // display dialog
-//!         await installUpdate();
-//!         // install complete, ask to restart
-//!     }
-//! } catch(error) {
-//!     console.log(error);
-//! }
-//! ```
+//! Check [`UpdateBuilder`] to see how to manually trigger and customize the updater at runtime.
 //!
 //! ## Events
 //!
-//! **Attention, you need to _disable built-in dialog_ in your [tauri configuration](#configuration), otherwise, events aren't emitted.**
+//! To listen to the updater events, for example to check for error messages, you need to use [`RunEvent::Updater`](crate::RunEvent) in [`App::run`](crate::App#method.run).
 //!
-//! To know when an update is ready to be installed, you can subscribe to these events:
-//!
-//! ### Initialize updater and check if a new version is available
-//!
-//! Event : `tauri://update`
-//!
-//! #### Rust
-//! ```no_run
-//! tauri::Builder::default()
-//!   .setup(|app| {
-//!     let handle = app.handle();
-//!     tauri::async_runtime::spawn(async move {
-//!       let response = handle.updater().check().await;
-//!     });
-//!     Ok(())
-//!   });
-//! ```
-//!
-//! #### JavaScript
-//! ```js
-//! import { emit } from "@tauri-apps/api/event";
-//! emit("tauri://update");
-//! ```
-//!
-//! **If a new version is available, the event `tauri://update-available` is emitted.**
-//!
-//! ### Listen New Update Available
-//!
-//! Event : `tauri://update-available`
-//!
-//! Emitted data:
-//! ```text
-//! version    Version announced by the server
-//! date       Date announced by the server
-//! body       Note announced by the server
-//! ```
-//!
-//! #### Rust
 //! ```no_run
 //! let app = tauri::Builder::default()
 //!   // on an actual app, remove the string argument
@@ -138,128 +25,26 @@
 //!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
 //!         println!("update available {} {:?} {}", body, date, version);
 //!       }
-//!       _ => (),
-//!     }
-//!   }
-//!   _ => {}
-//! });
-//! ```
-//!
-//! #### JavaScript
-//! ```js
-//! import { listen } from "@tauri-apps/api/event";
-//! listen("tauri://update-available", function (res) {
-//!     console.log("New version available: ", res);
-//! });
-//! ```
-//!
-//! ### Emit Install and Download
-//!
-//! You need to emit this event to initialize the download and listen to the [install progress](#listen-install-progress).
-//!
-//! Event : `tauri://update-install`
-//!
-//! #### Rust
-//! ```no_run
-//! tauri::Builder::default()
-//!   .setup(|app| {
-//!     let handle = app.handle();
-//!     tauri::async_runtime::spawn(async move {
-//!       match handle.updater().check().await {
-//!         Ok(update) => {
-//!           if update.is_update_available() {
-//!             update.download_and_install().await.unwrap();
-//!           }
-//!         }
-//!         Err(e) => {
-//!           println!("failed to update: {}", e);
-//!         }
-//!       }
-//!     });
-//!     Ok(())
-//!   });
-//! ```
-//!
-//! #### JavaScript
-//! ```js
-//! import { emit } from "@tauri-apps/api/event";
-//! emit("tauri://update-install");
-//! ```
-//!
-//! ### Listen Download Progress
-//!
-//! The event payload informs the length of the chunk that was just downloaded, and the total download size if known.
-//!
-//! #### Rust
-//! ```no_run
-//! let app = tauri::Builder::default()
-//!   // on an actual app, remove the string argument
-//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-//!   .expect("error while building tauri application");
-//! app.run(|_app_handle, event| match event {
-//!   tauri::RunEvent::Updater(updater_event) => {
-//!     match updater_event {
-//!       tauri::UpdaterEvent::DownloadProgress { chunk_length, content_length } => {
-//!         println!("downloaded {} of {:?}", chunk_length, content_length);
-//!       }
-//!       _ => (),
-//!     }
-//!   }
-//!   _ => {}
-//! });
-//! ```
-//!
-//! #### JavaScript
-//!
-//! Event : `tauri://update-download-progress`
-//!
-//! Emitted data:
-//! ```text
-//! chunkLength       number
-//! contentLength     number/null
-//! ```
-//!
-//! ```js
-//! import { listen } from "@tauri-apps/api/event";
-//! listen<{ chunkLength: number, contentLength?: number }>("tauri://update-download-progress", function (event) {
-//!     console.log(`downloaded ${event.payload.chunkLength} of ${event.payload.contentLength}`);
-//! });
-//! ```
-//!
-//! ### Listen Install Progress
-//!
-//! **Pending** is emitted when the download is started and **Done** when the install is complete. You can then ask to restart the application.
-//!
-//! **Downloaded** is emitted when the download has finished.
-//!
-//! **UpToDate** is emitted when the app already has the latest version installed and an update is not needed.
-//!
-//! **Error** is emitted when there is an error with the updater. We suggest to listen to this event even if the dialog is enabled.
-//!
-//! #### Rust
-//! ```no_run
-//! let app = tauri::Builder::default()
-//!   // on an actual app, remove the string argument
-//!   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-//!   .expect("error while building tauri application");
-//! app.run(|_app_handle, event| match event {
-//!   tauri::RunEvent::Updater(updater_event) => {
-//!     match updater_event {
-//!       tauri::UpdaterEvent::UpdateAvailable { body, date, version } => {
-//!         println!("update available {} {:?} {}", body, date, version);
-//!       }
+//!       // Emitted when the download is about to be started.
 //!       tauri::UpdaterEvent::Pending => {
 //!         println!("update is pending!");
 //!       }
+//!       tauri::UpdaterEvent::DownloadProgress { chunk_length, content_length } => {
+//!         println!("downloaded {} of {:?}", chunk_length, content_length);
+//!       }
+//!       // Emitted when the download has finished and the update is about to be installed.
 //!       tauri::UpdaterEvent::Downloaded => {
 //!         println!("update has been downloaded!");
 //!       }
+//!       // Emitted when the update was installed. You can then ask to restart the app.
 //!       tauri::UpdaterEvent::Updated => {
 //!         println!("app has been updated");
 //!       }
+//!       // Emitted when the app already has the latest version installed and an update is not needed.
 //!       tauri::UpdaterEvent::AlreadyUpToDate => {
 //!         println!("app is already up to date");
 //!       }
+//!       // Emitted when there is an error with the updater. We suggest to listen to this event even if the default dialog is enabled.
 //!       tauri::UpdaterEvent::Error(error) => {
 //!         println!("failed to update: {}", error);
 //!       }
@@ -269,179 +54,6 @@
 //!   _ => {}
 //! });
 //! ```
-//!
-//! #### JavaScript
-//! Event : `tauri://update-status`
-//!
-//! Emitted data:
-//! ```text
-//! status    ERROR | PENDING | UPTODATE | DONE
-//! error     string/null
-//! ```
-//!
-//! ```js
-//! import { listen } from "@tauri-apps/api/event";
-//! listen<{ status: string, error?: string }>("tauri://update-status", function (res) {
-//!     console.log("New status: ", res);
-//! });
-//! ```
-//!
-//! # Server Support
-//!
-//! Your server should determine whether an update is required based on the [Update Request](#update-requests) your client issues.
-//!
-//! If an update is required your server should respond with a status code of [200 OK](http://tools.ietf.org/html/rfc2616#section-10.2.1) and include the [update JSON](#update-server-json-format) in the body. To save redundantly downloading the same version multiple times your server must not inform the client to update.
-//!
-//! If no update is required your server must respond with a status code of [204 No Content](http://tools.ietf.org/html/rfc2616#section-10.2.5).
-//!
-//! ## Update Server JSON Format
-//!
-//! When an update is available, Tauri expects the following schema in response to the update request provided:
-//!
-//! ```json
-//! {
-//!     "url": "https://mycompany.example.com/myapp/releases/myrelease.tar.gz",
-//!     "version": "0.0.1",
-//!     "notes": "Theses are some release notes",
-//!     "pub_date": "2020-09-18T12:29:53+01:00",
-//!     "signature": ""
-//! }
-//! ```
-//!
-//! The required keys are "url", "version" and "signature"; the others are optional.
-//!
-//! "pub_date" if present must be formatted according to ISO 8601.
-//!
-//! "signature" if present must be a valid signature generated with Tauri cli. See [Signing updates](#signing-updates).
-//!
-//! ## Update File JSON Format
-//!
-//! The alternate update technique uses a plain JSON file meaning you can store your update metadata on S3, gist, or another static file store. Tauri will check against the name/version field and if the version is smaller than the current one and the platform is available, the update will be triggered. The format of this file is detailed below:
-//!
-//! ```json
-//! {
-//!   "name":"v1.0.0",
-//!   "notes":"Test version",
-//!   "pub_date":"2020-06-22T19:25:57Z",
-//!   "platforms": {
-//!     "darwin-aarch64": {
-//!       "signature":"",
-//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app-aarch64.app.tar.gz"
-//!     },
-//!     "darwin-intel": {
-//!       "signature":"",
-//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app-x86_64.app.tar.gz"
-//!     },
-//!     "linux-x86_64": {
-//!       "signature":"",
-//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.AppImage.tar.gz"
-//!     },
-//!     "windows-x86_64": {
-//!       "signature":"",
-//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.x64.msi.zip"
-//!     },
-//!     "windows-i686": {
-//!       "signature":"",
-//!       "url":"https://github.com/tauri-apps/tauri-test/releases/download/v1.0.0/app.x86.msi.zip"
-//!     }
-//!   }
-//! }
-//! ```
-//!
-//!
-//! # Bundler (Artifacts)
-//!
-//! The Tauri bundler will automatically generate update artifacts if the updater is enabled in `tauri.conf.json`
-//!
-//! If the bundler can locate your private and pubkey, your update artifacts will be automatically signed.
-//!
-//! The signature can be found in the `sig` file. The signature can be uploaded to GitHub safely or made public as long as your private key is secure.
-//!
-//! You can see how it's [bundled with the CI](https://github.com/tauri-apps/tauri/blob/feature/new_updater/.github/workflows/artifacts-updater.yml#L44) and a [sample tauri.conf.json](https://github.com/tauri-apps/tauri/blob/feature/new_updater/examples/updater/src-tauri/tauri.conf.json#L52)
-//!
-//! ## macOS
-//!
-//! On MACOS we create a .tar.gz from the whole application. (.app)
-//!
-//! ```text
-//! target/release/bundle
-//! └── osx
-//!     └── app.app
-//!     └── app.app.tar.gz (update bundle)
-//!     └── app.app.tar.gz.sig (if signature enabled)
-//! ```
-//!
-//! ## Windows
-//!
-//! On Windows we create a .zip from the MSI, when downloaded and validated, we run the MSI install.
-//!
-//! ```text
-//! target/release
-//! └── app.x64.msi
-//! └── app.x64.msi.zip (update bundle)
-//! └── app.x64.msi.zip.sig (if signature enabled)
-//! ```
-//!
-//! ## Linux
-//!
-//! On Linux, we create a .tar.gz from the AppImage.
-//!
-//! ```text
-//! target/release/bundle
-//! └── appimage
-//!     └── app.AppImage
-//!     └── app.AppImage.tar.gz (update bundle)
-//!     └── app.AppImage.tar.gz.sig (if signature enabled)
-//! ```
-//!
-//! # Signing updates
-//!
-//! We offer a built-in signature to ensure your update is safe to be installed.
-//!
-//! To sign your updates, you need two things.
-//!
-//! The *Public-key* (pubkey) should be added inside your `tauri.conf.json` to validate the update archive before installing.
-//!
-//! The *Private key* (privkey) is used to sign your update and should NEVER be shared with anyone. Also, if you lost this key, you'll NOT be able to publish a new update to the current user base (if pubkey is set in tauri.conf.json). It's important to save it at a safe place and you can always access it.
-//!
-//! To generate your keys you need to use the Tauri cli.
-//!
-//! ```bash
-//! # Generate the keys, follow the instructions
-//! tauri signer generate
-//! tauri signer sign -g -w ~/.tauri/myapp.key
-//! ```
-//!
-//! You have multiple options available
-//! ```bash
-//! Tauri updates signer.
-//!
-//! USAGE:
-//!     tauri signer sign [FLAGS] [OPTIONS]
-//!
-//! FLAGS:
-//!         --force          Overwrite private key even if it exists on the specified path
-//!     -g, --generate       Generate keypair to sign files
-//!     -h, --help           Prints help information
-//!         --no-password    Set empty password for your private key
-//!     -V, --version        Prints version information
-//!
-//! OPTIONS:
-//!     -p, --password <password>                    Set private key password when signing
-//!     -k, --private-key <private-key>              Load the private key from a string
-//!     -f, --private-key-path <private-key-path>    Load the private key from a file
-//!         --sign-file <sign-file>                  Sign the specified file
-//!     -w, --write-keys <write-keys>                Write private key to a file
-//! ```
-//!
-//! ***
-//!
-//! Environment variables used to sign with `tauri-bundler`:
-//! If they are set, and `tauri.conf.json` expose the public key, the bundler will automatically generate and sign the updater artifacts.
-//!
-//! `TAURI_PRIVATE_KEY`  Path or String of your private key
-//!
-//! `TAURI_KEY_PASSWORD`  Your private key password (optional)
 
 mod core;
 mod error;
@@ -673,8 +285,14 @@ impl<R: Runtime> UpdateBuilder<R> {
   ///     let handle = app.handle();
   ///     tauri::async_runtime::spawn(async move {
   ///       match tauri::updater::builder(handle).check().await {
-  ///         Ok(update) => {}
-  ///         Err(error) => {}
+  ///         Ok(update) => {
+  ///           if update.is_update_available() {
+  ///             update.download_and_install().await.unwrap();
+  ///           }
+  ///         }
+  ///         Err(e) => {
+  ///           println!("failed to get update: {}", e);
+  ///         }
   ///       }
   ///     });
   ///     Ok(())

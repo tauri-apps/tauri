@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "1.2.0"
+version = "1.2.1"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"

@@ -1456,7 +1456,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
+      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,

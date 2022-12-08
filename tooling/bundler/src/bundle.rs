@@ -48,7 +48,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     .nth(2)
     .unwrap_or(std::env::consts::OS);
 
-  for package_type in dbg!(&package_types) {
+  for package_type in &package_types {
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,

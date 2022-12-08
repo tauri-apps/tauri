@@ -476,7 +476,7 @@ impl Rust {
               info!(
                 "File {} changed. Rebuilding application...",
                 event_path
-                  .strip_prefix(&app_path)
+                  .strip_prefix(app_path)
                   .unwrap_or(&event_path)
                   .display()
               );
@@ -626,7 +626,7 @@ impl AppSettings for RustAppSettings {
         .package_settings
         .default_run
         .clone()
-        .unwrap_or_else(|| "".to_string());
+        .unwrap_or_default();
       for binary in bin {
         binaries.push(
           if Some(&binary.name) == self.cargo_package_settings.name.as_ref()
@@ -759,7 +759,7 @@ impl RustAppSettings {
         .target()
         .map(|t| t.to_string())
         .unwrap_or_else(|| {
-          let output = Command::new("rustc").args(&["-vV"]).output().unwrap();
+          let output = Command::new("rustc").args(["-vV"]).output().unwrap();
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
             .split('\n')

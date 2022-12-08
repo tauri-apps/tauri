@@ -17,7 +17,6 @@ on:
 
 env:
   RUST_BACKTRACE: 1
-  CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
 concurrency:
@@ -47,62 +46,41 @@ jobs:
               os: macos-latest,
               toolchain: '1.59.0'
             }
+        features:
+          - {
+              args: --no-default-features,
+              key: no-default
+            }
+          - {
+              args: --features api-all,
+              key: api-all
+            }
+          - {
+              args: --features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,
+              key: all
+            }
 
     steps:
       - uses: actions/checkout@v2
+
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.platform.toolchain }}
           target: ${{ matrix.platform.target }}
           override: true
+          default: true
+
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
-      - name: Get current date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-        if: matrix.platform.os == 'macos-latest' || matrix.platform.os == 'ubuntu-latest'
-
-      - name: Get current date
-        if: matrix.platform.os == 'windows-latest'
-        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Cache cargo state
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_state
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          restore-keys: |
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
-            ${{ matrix.platform.os }}-
-
-      - name: Cache core cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo-core
-        with:
-          path: target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-${{ env.cache-name }}-
-            ${{ matrix.platform.os }}-${{ matrix.platform.toolchain }}-
-            ${{ matrix.platform.os }}-
+          workspaces: core -> ../target
+          save-if: ${{ matrix.features.key == 'all' }}
 
       - name: test
-        run: |
-          cargo test --target ${{ matrix.platform.target }}
-          cargo test --target ${{ matrix.platform.target }} --features api-all
-          cargo test --target ${{ matrix.platform.target }} --features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart
+        run: cargo test --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

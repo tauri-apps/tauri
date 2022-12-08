@@ -96,13 +96,13 @@ pub fn build(
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+    std::fs::create_dir_all(out_dir).with_context(|| "failed to create project out directory")?;
 
     let mut lipo_cmd = Command::new("lipo");
     lipo_cmd
       .arg("-create")
       .arg("-output")
-      .arg(out_dir.join(&bin_name));
+      .arg(out_dir.join(bin_name));
     for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
       let mut options = options.clone();
       options.target.replace(triple.into());
@@ -114,7 +114,7 @@ pub fn build(
       build_production_app(options, available_targets, config_features.clone())
         .with_context(|| format!("failed to build {} binary", triple))?;
 
-      lipo_cmd.arg(triple_out_dir.join(&bin_name));
+      lipo_cmd.arg(triple_out_dir.join(bin_name));
     }
 
     let lipo_status = lipo_cmd.output_ok()?.status;
@@ -344,9 +344,7 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
       .join(&product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
-    std::fs::create_dir_all(product_path.parent().unwrap())?;
-
-    rename(&bin_path, &product_path).with_context(|| {
+    rename(bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
         bin_path.display(),

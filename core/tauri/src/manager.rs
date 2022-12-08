@@ -507,9 +507,7 @@ impl<R: Runtime> WindowManager<R> {
       use crate::api::file::SafePathBuf;
       use tokio::io::{AsyncReadExt, AsyncSeekExt};
       use url::Position;
-      let state = self.state();
-      let asset_scope = state.get::<crate::Scopes>().asset_protocol.clone();
-      let mime_type_cache = MimeTypeCache::default();
+      let asset_scope = self.state().get::<crate::Scopes>().asset_protocol.clone();
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
@@ -543,23 +541,39 @@ impl<R: Runtime> WindowManager<R> {
           .get("range")
           .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
         {
-          let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
-            let mut headers = HashMap::new();
-            let mut buf = Vec::new();
+          #[derive(Default)]
+          struct RangeMetadata {
+            file: Option<tokio::fs::File>,
+            range: Option<crate::runtime::http::HttpRange>,
+            metadata: Option<std::fs::Metadata>,
+            headers: HashMap<&'static str, String>,
+            status_code: u16,
+            body: Vec<u8>,
+          }
+
+          let mut range_metadata = crate::async_runtime::safe_block_on(async move {
+            let mut data = RangeMetadata::default();
             // open the file
             let mut file = match tokio::fs::File::open(path_.clone()).await {
               Ok(file) => file,
               Err(e) => {
                 debug_eprintln!("Failed to open asset: {}", e);
-                return (headers, 404, buf);
+                data.status_code = 404;
+                return data;
               }
             };
             // Get the file size
             let file_size = match file.metadata().await {
-              Ok(metadata) => metadata.len(),
+              Ok(metadata) => {
+                let len = metadata.len();
+                data.metadata.replace(metadata);
+                len
+              }
               Err(e) => {
                 debug_eprintln!("Failed to read asset metadata: {}", e);
-                return (headers, 404, buf);
+                data.file.replace(file);
+                data.status_code = 404;
+                return data;
               }
             };
             // parse the range
@@ -574,13 +588,16 @@ impl<R: Runtime> WindowManager<R> {
               Ok(r) => r,
               Err(e) => {
                 debug_eprintln!("Failed to parse range {}: {:?}", range, e);
-                return (headers, 400, buf);
+                data.file.replace(file);
+                data.status_code = 400;
+                return data;
               }
             };
 
             // FIXME: Support multiple ranges
             // let support only 1 range for now
-            let status_code = if let Some(range) = range.first() {
+            if let Some(range) = range.first() {
+              data.range.replace(*range);
               let mut real_length = range.length;
               // prevent max_length;
               // specially on webview2
@@ -594,38 +611,84 @@ impl<R: Runtime> WindowManager<R> {
               // who should be skipped on the header
               let last_byte = range.start + real_length - 1;
 
-              headers.insert("Connection", "Keep-Alive".into());
-              headers.insert("Accept-Ranges", "bytes".into());
-              headers.insert("Content-Length", real_length.to_string());
-              headers.insert(
+              data.headers.insert("Connection", "Keep-Alive".into());
+              data.headers.insert("Accept-Ranges", "bytes".into());
+              data
+                .headers
+                .insert("Content-Length", real_length.to_string());
+              data.headers.insert(
                 "Content-Range",
                 format!("bytes {}-{}/{}", range.start, last_byte, file_size),
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
                 debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
-                return (headers, 422, buf);
+                data.file.replace(file);
+                data.status_code = 422;
+                return data;
               }
 
-              if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
+              let mut f = file.take(real_length);
+              let r = f.read_to_end(&mut data.body).await;
+              file = f.into_inner();
+              data.file.replace(file);
+
+              if let Err(e) = r {
                 debug_eprintln!("Failed read file: {}", e);
-                return (headers, 422, buf);
+                data.status_code = 422;
+                return data;
               }
               // partial content
-              206
+              data.status_code = 206;
             } else {
-              200
-            };
+              data.status_code = 200;
+            }
 
-            (headers, status_code, buf)
+            data
           });
 
-          for (k, v) in headers {
+          for (k, v) in range_metadata.headers {
             response = response.header(k, v);
           }
 
-          let mime_type = mime_type_cache.get_or_insert(&data, &path);
-          response.mimetype(&mime_type).status(status_code).body(data)
+          let mime_type = if let (Some(mut file), Some(metadata), Some(range)) = (
+            range_metadata.file,
+            range_metadata.metadata,
+            range_metadata.range,
+          ) {
+            // if we're already reading the beginning of the file, we do not need to re-read it
+            if range.start == 0 {
+              MimeType::parse(&range_metadata.body, &path)
+            } else {
+              let (status, bytes) = crate::async_runtime::safe_block_on(async move {
+                let mut status = None;
+                if let Err(e) = file.rewind().await {
+                  debug_eprintln!("Failed to rewind file: {}", e);
+                  status.replace(422);
+                  (status, Vec::with_capacity(0))
+                } else {
+                  // taken from https://docs.rs/infer/0.9.0/src/infer/lib.rs.html#240-251
+                  let limit = std::cmp::min(metadata.len(), 8192) as usize + 1;
+                  let mut bytes = Vec::with_capacity(limit);
+                  if let Err(e) = file.take(8192).read_to_end(&mut bytes).await {
+                    debug_eprintln!("Failed read file: {}", e);
+                    status.replace(422);
+                  }
+                  (status, bytes)
+                }
+              });
+              if let Some(s) = status {
+                range_metadata.status_code = s;
+              }
+              MimeType::parse(&bytes, &path)
+            }
+          } else {
+            MimeType::parse(&range_metadata.body, &path)
+          };
+          response
+            .mimetype(&mime_type)
+            .status(range_metadata.status_code)
+            .body(range_metadata.body)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
             Ok(data) => {
@@ -1068,7 +1131,7 @@ impl<R: Runtime> WindowManager<R> {
           // ignore "index.html" just to simplify the url
           if path.to_str() != Some("index.html") {
             url
-              .join(&*path.to_string_lossy())
+              .join(&path.to_string_lossy())
               .map_err(crate::Error::InvalidUrl)
               // this will never fail
               .unwrap()
@@ -1426,26 +1489,6 @@ fn request_to_path(request: &tauri_runtime::http::Request, base_url: &str) -> St
   } else {
     // skip leading `/`
     path.chars().skip(1).collect()
-  }
-}
-
-// key is uri/path, value is the store mime type
-#[cfg(protocol_asset)]
-#[derive(Debug, Clone, Default)]
-struct MimeTypeCache(Arc<Mutex<HashMap<String, String>>>);
-
-#[cfg(protocol_asset)]
-impl MimeTypeCache {
-  pub fn get_or_insert(&self, content: &[u8], uri: &str) -> String {
-    let mut cache = self.0.lock().unwrap();
-    let uri = uri.to_string();
-    if let Some(mime_type) = cache.get(&uri) {
-      mime_type.clone()
-    } else {
-      let mime_type = MimeType::parse(content, &uri);
-      cache.insert(uri, mime_type.clone());
-      mime_type
-    }
   }
 }
 

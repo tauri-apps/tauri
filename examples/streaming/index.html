@@ -16,13 +16,15 @@
       <source type="video/mp4" />
     </video>
     <script>
-      const { convertFileSrc } = window.__TAURI__.tauri
+      const { invoke, convertFileSrc } = window.__TAURI__.tauri
       const video = document.getElementById('video_source')
       const source = document.createElement('source')
-      source.type = 'video/mp4'
-      source.src = convertFileSrc('example/test_video.mp4', 'stream')
-      video.appendChild(source)
-      video.load()
+      invoke('video_uri').then(([scheme, path]) => {
+        source.type = 'video/mp4'
+        source.src = convertFileSrc(path, scheme)
+        video.appendChild(source)
+        video.load()
+      })
     </script>
   </body>
 </html>

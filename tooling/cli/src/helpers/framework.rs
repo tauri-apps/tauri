@@ -7,10 +7,10 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub enum Framework {
   Svelte,
+  SvelteKit,
   Angular,
   React,
   Nextjs,
-
   Gatsby,
   Nuxt,
   Quasar,
@@ -22,6 +22,7 @@ impl Framework {
   pub fn dev_path(&self) -> String {
     match self {
       Self::Svelte => "http://localhost:8080",
+      Self::SvelteKit => "http://localhost:5173",
       Self::Angular => "http://localhost:4200",
       Self::React => "http://localhost:3000",
       Self::Nextjs => "http://localhost:3000",
@@ -37,6 +38,7 @@ impl Framework {
   pub fn dist_dir(&self) -> String {
     match self {
       Self::Svelte => "../public",
+      Self::SvelteKit => "../build",
       Self::Angular => "../dist",
       Self::React => "../build",
       Self::Nextjs => "../out",
@@ -54,6 +56,7 @@ impl fmt::Display for Framework {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
       Self::Svelte => write!(f, "Svelte"),
+      Self::SvelteKit => write!(f, "SvelteKit"),
       Self::Angular => write!(f, "Angular"),
       Self::React => write!(f, "React"),
       Self::Nextjs => write!(f, "React (Next.js)"),
@@ -70,6 +73,7 @@ impl fmt::Display for Framework {
 pub enum Bundler {
   Webpack,
   Rollup,
+  Vite,
 }
 
 impl fmt::Display for Bundler {
@@ -77,13 +81,15 @@ impl fmt::Display for Bundler {
     match self {
       Self::Webpack => write!(f, "Webpack"),
       Self::Rollup => write!(f, "Rollup"),
+      Self::Vite => write!(f, "Vite"),
     }
   }
 }
 
 pub fn infer_from_package_json(package_json: &str) -> (Option<Framework>, Option<Bundler>) {
   let framework_map = [
-    ("svelte", Framework::Svelte, None),
+    ("svelte", Framework::Svelte, Some(Bundler::Rollup)),
+    ("@sveltejs/kit", Framework::SvelteKit, Some(Bundler::Vite)),
     ("@angular", Framework::Angular, Some(Bundler::Webpack)),
     (r#""next""#, Framework::Nextjs, Some(Bundler::Webpack)),
     ("gatsby", Framework::Gatsby, Some(Bundler::Webpack)),
@@ -91,9 +97,13 @@ pub fn infer_from_package_json(package_json: &str) -> (Option<Framework>, Option
     ("nuxt", Framework::Nuxt, Some(Bundler::Webpack)),
     ("quasar", Framework::Quasar, Some(Bundler::Webpack)),
     ("@vue/cli", Framework::VueCli, Some(Bundler::Webpack)),
-    ("vue", Framework::Vue, None),
+    ("vue", Framework::Vue, Some(Bundler::Vite)),
   ];
-  let bundler_map = [("webpack", Bundler::Webpack), ("rollup", Bundler::Rollup)];
+  let bundler_map = [
+    ("webpack", Bundler::Webpack),
+    ("rollup", Bundler::Rollup),
+    ("vite", Bundler::Vite),
+  ];
 
   let (framework, framework_bundler) = framework_map
     .iter()

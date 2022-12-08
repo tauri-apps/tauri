@@ -457,9 +457,12 @@ mod test {
           CommandEvent::Terminated(payload) => {
             assert_eq!(payload.code, Some(0));
           }
-          CommandEvent::Stdout(line) => {
-            assert_eq!(line, "This is a test doc!".to_string());
-          }
+          CommandEvent::Stdout(line) => match line {
+            Buffer::Text(line) => {
+              assert_eq!(line, "This is a test doc!");
+            }
+            _ => {}
+          },
           _ => {}
         }
       }
@@ -479,9 +482,12 @@ mod test {
           CommandEvent::Terminated(payload) => {
             assert_eq!(payload.code, Some(1));
           }
-          CommandEvent::Stderr(line) => {
-            assert_eq!(line, "cat: test/api/: Is a directory".to_string());
-          }
+          CommandEvent::Stderr(line) => match line {
+            Buffer::Text(line) => {
+              assert_eq!(line, "cat: test/api/: Is a directory");
+            }
+            _ => {}
+          },
           _ => {}
         }
       }

@@ -1519,6 +1519,7 @@ mod tests {
 
   use super::{Window, WindowBuilder};
   use crate::{api::ipc::CallbackFn, test, InvokePayload, State};
+  use serde_json::Value as JsonValue;
 
   #[test]
   fn window_is_send_sync() {
@@ -1526,60 +1527,172 @@ mod tests {
     crate::test_utils::assert_sync::<Window>();
   }
 
-  #[test]
-  fn regular_commands() {
-    #[derive(Debug, Eq, PartialEq)]
-    enum Response {
-      Cmd,
-    }
+  macro_rules! commands {
+    (fn) => {
+      #[crate::command(root = "crate")]
+      fn cmd_state(channel: State<'_, Channel>) {
+        println!("cmd state");
+        channel.tx.send(Response::Cmd).unwrap();
+      }
 
-    #[crate::command(root = "crate")]
-    fn cmd() {
-      println!("cmd");
-    }
+      #[crate::command(root = "crate")]
+      fn cmd_state_return_val(channel: State<'_, Channel>) -> &'static str {
+        println!("cmd state return val");
+        channel.tx.send(Response::CmdReturnVal).unwrap();
+        STATE_RETURN_VAL_RESPONSE
+      }
 
-    #[crate::command(root = "crate")]
-    fn cmd_state(channel: State<'_, Channel>) {
-      println!("cmd state");
-      channel.tx.send(Response::Cmd).unwrap();
-    }
+      #[crate::command(root = "crate")]
+      fn cmd_state_arg(channel: State<'_, Channel>, arg: usize) {
+        println!("cmd state arg");
+        channel.tx.send(Response::CmdArg(arg)).unwrap();
+      }
 
-    struct Channel {
-      tx: SyncSender<Response>,
-    }
+      #[crate::command(root = "crate")]
+      fn cmd_state_arg_return_val(channel: State<'_, Channel>, arg: usize) -> &'static str {
+        println!("cmd state arg return val");
+        channel.tx.send(Response::CmdArgReturnVal(arg)).unwrap();
+        STATE_ARG_RETURN_VAL_RESPONSE
+      }
+    };
 
-    let (tx, rx) = sync_channel(1);
-    let channel = Channel { tx };
+    (async fn) => {
+      #[crate::command(root = "crate")]
+      async fn cmd_state(channel: State<'_, Channel>) -> crate::Result<()> {
+        println!("cmd state");
+        channel.tx.send(Response::Cmd).unwrap();
+        Ok(())
+      }
 
-    let app = test::mock_builder()
-      .manage(channel)
-      .invoke_handler(crate::generate_handler![cmd, cmd_state])
-      .build(test::mock_context(test::noop_assets()))
-      .unwrap();
-    let window = WindowBuilder::new(&app, "test", Default::default())
-      .build()
-      .unwrap();
-    window
-      .clone()
-      .on_message(InvokePayload {
-        cmd: "cmd".into(),
-        tauri_module: None,
-        callback: CallbackFn(0),
-        error: CallbackFn(0),
-        inner: Default::default(),
-      })
-      .unwrap();
+      #[crate::command(root = "crate")]
+      async fn cmd_state_return_val(channel: State<'_, Channel>) -> crate::Result<&'static str> {
+        println!("cmd state return val");
+        channel.tx.send(Response::CmdReturnVal).unwrap();
+        Ok(STATE_RETURN_VAL_RESPONSE)
+      }
 
-    window
-      .clone()
-      .on_message(InvokePayload {
-        cmd: "cmd_state".into(),
-        tauri_module: None,
-        callback: CallbackFn(0),
-        error: CallbackFn(0),
-        inner: Default::default(),
-      })
-      .unwrap();
-    assert_eq!(rx.try_recv().unwrap(), Response::Cmd);
+      #[crate::command(root = "crate")]
+      async fn cmd_state_arg(channel: State<'_, Channel>, arg: usize) -> crate::Result<()> {
+        println!("cmd state arg");
+        channel.tx.send(Response::CmdArg(arg)).unwrap();
+        Ok(())
+      }
+
+      #[crate::command(root = "crate")]
+      async fn cmd_state_arg_return_val(
+        channel: State<'_, Channel>,
+        arg: usize,
+      ) -> crate::Result<&'static str> {
+        println!("cmd state arg return val");
+        channel.tx.send(Response::CmdArgReturnVal(arg)).unwrap();
+        Ok(STATE_ARG_RETURN_VAL_RESPONSE)
+      }
+    };
   }
+
+  macro_rules! command_test {
+    ($test_name: ident, $($fn_kind: ident) +) => {
+      #[test]
+      fn $test_name() {
+        const STATE_RETURN_VAL_RESPONSE: &str = "return-val";
+        const STATE_ARG_RETURN_VAL_RESPONSE: &str = "arg-return-val";
+
+        #[derive(Debug, Eq, PartialEq)]
+        enum Response {
+          Cmd,
+          CmdReturnVal,
+          CmdArg(usize),
+          CmdArgReturnVal(usize),
+        }
+
+        struct Channel {
+          tx: SyncSender<Response>,
+        }
+
+        #[crate::command(root = "crate")]
+        $($fn_kind)* cmd() {
+          println!("cmd");
+        }
+
+        commands!($($fn_kind)*);
+
+        let (tx, rx) = sync_channel(1);
+        let channel = Channel { tx };
+
+        let app = test::mock_builder()
+          .manage(channel)
+          .invoke_handler(crate::generate_handler![
+            cmd,
+            cmd_state,
+            cmd_state_return_val,
+            cmd_state_arg,
+            cmd_state_arg_return_val
+          ])
+          .build(test::mock_context(test::noop_assets()))
+          .unwrap();
+        let window = WindowBuilder::new(&app, "test", Default::default())
+          .build()
+          .unwrap();
+
+        fn json_obj(key: &str, value: impl Into<JsonValue>) -> JsonValue {
+          let mut map = serde_json::Map::new();
+          map.insert(key.into(), value.into());
+          map.into()
+        }
+
+        struct UnitTest {
+          cmd: &'static str,
+          response: Option<Response>,
+          arg: Option<JsonValue>,
+        }
+
+        let tests = vec![
+          UnitTest {
+            cmd: "cmd",
+            response: None,
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_state",
+            response: Some(Response::Cmd),
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_state_return_val",
+            response: Some(Response::CmdReturnVal),
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_state_arg",
+            response: Some(Response::CmdArg(1)),
+            arg: Some(json_obj("arg", 1)),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_val",
+            response: Some(Response::CmdArgReturnVal(2)),
+            arg: Some(json_obj("arg", 2)),
+          },
+        ];
+
+        for test in tests {
+          window
+            .clone()
+            .on_message(InvokePayload {
+              cmd: test.cmd.into(),
+              tauri_module: None,
+              callback: CallbackFn(0),
+              error: CallbackFn(0),
+              inner: test.arg.unwrap_or_default(),
+            })
+            .unwrap();
+          if let Some(response) = test.response {
+            assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(3)).unwrap(), response);
+          }
+        }
+      }
+    };
+  }
+
+  command_test!(regular_commands, fn);
+  command_test!(async_commands, async fn);
 }

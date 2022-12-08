@@ -440,14 +440,13 @@ fn spawn_pipe_reader<F: Fn(Buffer) -> CommandEvent + Send + Copy + 'static>(
 
 // tests for the commands functions.
 #[cfg(test)]
-mod test {
+mod tests {
   #[cfg(not(windows))]
   use super::*;
 
   #[cfg(not(windows))]
   #[test]
-  fn test_cmd_output() {
-    // create a command to run cat.
+  fn test_cmd_spawn_output() {
     let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
@@ -471,8 +470,34 @@ mod test {
 
   #[cfg(not(windows))]
   #[test]
+  fn test_cmd_spawn_raw_output() {
+    let cmd = Command::new("cat")
+      .args(["test/api/test.txt"])
+      .encoding(EncodingWrapper::Raw);
+    let (mut rx, _) = cmd.spawn().unwrap();
+
+    crate::async_runtime::block_on(async move {
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(0));
+          }
+          CommandEvent::Stdout(line) => match line {
+            Buffer::Raw(line) => {
+              assert_eq!(line, "This is a test doc!".as_bytes());
+            }
+            _ => {}
+          },
+          _ => {}
+        }
+      }
+    });
+  }
+
+  #[cfg(not(windows))]
+  #[test]
   // test the failure case
-  fn test_cmd_fail() {
+  fn test_cmd_spawn_fail() {
     let cmd = Command::new("cat").args(["test/api/"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
@@ -485,6 +510,31 @@ mod test {
           CommandEvent::Stderr(line) => match line {
             Buffer::Text(line) => {
               assert_eq!(line, "cat: test/api/: Is a directory");
+            }
+            _ => {}
+          },
+          _ => {}
+        }
+      }
+    });
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  // test the failure case (raw encoding)
+  fn test_cmd_spawn_raw_fail() {
+    let cmd = Command::new("cat").args(["test/api/"]);
+    let (mut rx, _) = cmd.spawn().unwrap();
+
+    crate::async_runtime::block_on(async move {
+      while let Some(event) = rx.recv().await {
+        match event {
+          CommandEvent::Terminated(payload) => {
+            assert_eq!(payload.code, Some(1));
+          }
+          CommandEvent::Stderr(line) => match line {
+            Buffer::Raw(line) => {
+              assert_eq!(line, "cat: test/api/: Is a directory".as_bytes());
             }
             _ => {}
           },

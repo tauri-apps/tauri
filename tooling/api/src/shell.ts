@@ -498,31 +498,27 @@ class Command extends EventEmitter<'close' | 'error'> {
       })
 
       this.on('close', (payload: TerminatedPayload) => {
-        if (this.options.encoding === 'raw') {
-          const separator = 10;
-          resolve({
-            code: payload.code,
-            signal: payload.signal,
-            stdout: new Uint8Array(stdout.reduce<Uint8Array>((p, c) => {
-              return (new Uint8Array([...p, ...c as Uint8Array, separator]))
-            }, new Uint8Array())),
-            stderr: new Uint8Array(stderr.reduce<Uint8Array>((p, c) => {
-              return (new Uint8Array([...p, ...c as Uint8Array, separator]))
-            }, new Uint8Array())),
-          })
-        } else {
-          const separator = '\n'
-          resolve({
-            code: payload.code,
-            signal: payload.signal,
-            stdout: stdout.join(separator),
-            stderr: stderr.join(separator),
-          })
-        }
+        return resolve({
+          code: payload.code,
+          signal: payload.signal,
+          stdout: this.collectEvents(stdout),
+          stderr: this.collectEvents(stderr),
+        })
       })
 
       this.spawn().catch(reject)
     })
+  }
+
+
+  private collectEvents(events: EventPayload[]): string | Uint8Array {
+    if (this.options.encoding === 'raw') {
+      return new Uint8Array(events.reduce<Uint8Array>((p, c) => {
+        return (new Uint8Array([...p, ...c as Uint8Array, 10]))
+      }, new Uint8Array()))
+    } else {
+      return events.join('\n')
+    }
   }
 }
 
@@ -552,7 +548,7 @@ type CommandEvent<P = EventPayload> =
   | Event<'Stdout', P>
   | Event<'Stderr', P>
   | Event<'Terminated', TerminatedPayload>
-  | Event<'Error', P>
+  | Event<'Error', string>
 
 /**
  * Opens a path or URL with the system's default app,

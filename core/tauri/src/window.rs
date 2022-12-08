@@ -1515,9 +1515,71 @@ impl<R: Runtime> Window<R> {
 
 #[cfg(test)]
 mod tests {
+  use std::sync::mpsc::{sync_channel, SyncSender};
+
+  use super::{Window, WindowBuilder};
+  use crate::{api::ipc::CallbackFn, test, InvokePayload, State};
+
   #[test]
   fn window_is_send_sync() {
-    crate::test_utils::assert_send::<super::Window>();
-    crate::test_utils::assert_sync::<super::Window>();
+    crate::test_utils::assert_send::<Window>();
+    crate::test_utils::assert_sync::<Window>();
+  }
+
+  #[test]
+  fn regular_commands() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Response {
+      Cmd,
+    }
+
+    #[crate::command(root = "crate")]
+    fn cmd() {
+      println!("cmd");
+    }
+
+    #[crate::command(root = "crate")]
+    fn cmd_state(channel: State<'_, Channel>) {
+      println!("cmd state");
+      channel.tx.send(Response::Cmd).unwrap();
+    }
+
+    struct Channel {
+      tx: SyncSender<Response>,
+    }
+
+    let (tx, rx) = sync_channel(1);
+    let channel = Channel { tx };
+
+    let app = test::mock_builder()
+      .manage(channel)
+      .invoke_handler(crate::generate_handler![cmd, cmd_state])
+      .build(test::mock_context(test::noop_assets()))
+      .unwrap();
+    let window = WindowBuilder::new(&app, "test", Default::default())
+      .build()
+      .unwrap();
+    window
+      .clone()
+      .on_message(InvokePayload {
+        cmd: "cmd".into(),
+        tauri_module: None,
+        callback: CallbackFn(0),
+        error: CallbackFn(0),
+        inner: Default::default(),
+      })
+      .unwrap();
+
+    window
+      .clone()
+      .on_message(InvokePayload {
+        cmd: "cmd_state".into(),
+        tauri_module: None,
+        callback: CallbackFn(0),
+        error: CallbackFn(0),
+        inner: Default::default(),
+      })
+      .unwrap();
+    assert_eq!(rx.try_recv().unwrap(), Response::Cmd);
   }
 }

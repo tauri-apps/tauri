@@ -543,4 +543,24 @@ mod tests {
       }
     });
   }
+
+  #[cfg(not(windows))]
+  #[test]
+  fn test_cmd_output_output() {
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
+    let output = cmd.output().unwrap();
+
+    assert_eq!(output.stderr, "");
+    assert_eq!(output.stdout, "This is a test doc!\n");
+  }
+
+  #[cfg(not(windows))]
+  #[test]
+  fn test_cmd_output_output_fail() {
+    let cmd = Command::new("cat").args(["test/api/"]);
+    let output = cmd.output().unwrap();
+
+    assert_eq!(output.stdout, "");
+    assert_eq!(output.stderr, "cat: test/api/: Is a directory\n");
+  }
 }

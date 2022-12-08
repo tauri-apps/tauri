@@ -6,9 +6,8 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, extract_with_7z, extract_zip, remove_unc_lossy, try_sign,
-      validate_version, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+      download, download_and_verify, extract_zip, remove_unc_lossy, try_sign, validate_version,
+      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -30,9 +29,10 @@ const NSIS_URL: &str =
   "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_NSCURL_URL: &str =
-  "https://github.com/negrutiu/nsis-nscurl/releases/download/v1.2022.6.7/NScurl-1.2022.6.7.7z";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/connectiblutz/NSIS-ApplicationID/releases/download/1.1/NSIS-ApplicationID.zip";
-const NSIS_NSPROCESS_URL: &str = "https://nsis.sourceforge.io/mediawiki/images/1/18/NsProcess.zip";
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NScurl-1.2022.6.7.zip";
+const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
+const NSIS_NSPROCESS_URL: &str =
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NsProcess.zip";
 
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
@@ -80,7 +80,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
 
   let data = download(NSIS_NSCURL_URL)?;
   info!("extracting NSIS NScurl plugin");
-  extract_with_7z(&data, &nsis_plugins)?;
+  extract_zip(&data, &nsis_plugins)?;
 
   let data = download(NSIS_APPLICATIONID_URL)?;
   info!("extracting NSIS ApplicationID plugin");
@@ -94,7 +94,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
 
   let data = download(NSIS_NSPROCESS_URL)?;
   info!("extracting NSIS NsProcess plugin");
-  extract_with_7z(&data, &nsis_plugins)?;
+  extract_zip(&data, &nsis_plugins)?;
   copy(
     nsis_plugins.join("Plugin").join("nsProcessW.dll"),
     nsis_plugins.join("x86-unicode").join("nsProcess.dll"),

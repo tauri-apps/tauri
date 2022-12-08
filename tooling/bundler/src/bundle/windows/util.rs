@@ -1,12 +1,11 @@
 use std::{
-  fs::{create_dir_all, remove_file, File},
+  fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
-  process::Command,
 };
 
 use anyhow::{bail, Context};
-use log::{debug, info};
+use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
 
@@ -131,51 +130,6 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   }
 
   Ok(())
-}
-
-const URL_7ZR: &str = "https://www.7-zip.org/a/7zr.exe";
-
-pub fn extract_with_7z(data: &[u8], path: &Path) -> crate::Result<()> {
-  let bin_7z = {
-    debug!("checking for 7z.exe or 7zr.exe is in $PATH");
-    if let Ok(_) = Command::new("7z.exe").output() {
-      "7z.exe".to_string()
-    } else if let Ok(_) = Command::new("7zr.exe").output() {
-      "7zr.exe".to_string()
-    } else {
-      get_or_download_7zr_bin()?.to_string_lossy().to_string()
-    }
-  };
-
-  let temp = path.join("temp.7z");
-  {
-    let mut file = File::create(&temp)?;
-    file.write_all(&data)?;
-  }
-
-  Command::new(bin_7z)
-    .args(&["x", &temp.to_string_lossy()])
-    .current_dir(path)
-    .output()?;
-
-  remove_file(temp)?;
-
-  Ok(())
-}
-
-fn get_or_download_7zr_bin() -> crate::Result<PathBuf> {
-  let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
-  let bin_7zr_path = tauri_tools_path.join("7zr.exe");
-
-  debug!("checking for 7zr.exe in {}", tauri_tools_path.display());
-  if !bin_7zr_path.exists() {
-    info!("downloading 7zr.exe in {}", tauri_tools_path.display());
-    let data = download(URL_7ZR)?;
-    let mut file = File::create(&bin_7zr_path)?;
-    file.write_all(&data)?;
-  };
-
-  Ok(bin_7zr_path)
 }
 
 pub fn remove_unc_lossy<P: AsRef<Path>>(p: P) -> PathBuf {

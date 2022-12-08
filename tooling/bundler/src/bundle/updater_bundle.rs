@@ -149,14 +149,15 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
   } else {
     let paths = bundles
       .iter()
-      .find(|bundle| {
+      .filter(|bundle| {
         matches!(
           bundle.package_type,
           PackageType::WindowsMsi | PackageType::Nsis
         )
       })
       .map(|bundle| bundle.bundle_paths.clone())
-      .unwrap_or_default();
+      .flatten()
+      .collect::<Vec<_>>();
 
     // we expect our installer files to be on `bundle_paths`
     if paths.is_empty() {

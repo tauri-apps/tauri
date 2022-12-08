@@ -373,7 +373,10 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   let msg = format!("{} {} at:", output_paths.len(), pluralised);
   info!("{}", msg);
   for path in output_paths {
-    info!("        {}", path.display());
+    info!(
+      "        {}",
+      path.display().to_string().replacen(r"\\?\", "", 1)
+    );
   }
   Ok(())
 }

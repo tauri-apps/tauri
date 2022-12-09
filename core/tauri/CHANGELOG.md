@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-alpha.0]
+
+- Added the `default-tls` and `reqwest-default-tls` Cargo features for enabling TLS suppport to connect over HTTPS.
+  - [f6f9192a](https://www.github.com/tauri-apps/tauri/commit/f6f9192aa51bd842df8aa1d1aa538b12aa6c2d29) fix(core): Android compilation on Windows ([#5658](https://www.github.com/tauri-apps/tauri/pull/5658)) on 2022-11-20
+- **Breaking change:** Use the custom protocol as a proxy to the development server on all platforms except Linux.
+  - [6f061504](https://www.github.com/tauri-apps/tauri/commit/6f0615044d09ec58393a7ebca5e45bb175e20db3) feat(cli): add `android dev` and `ios dev` commands ([#4982](https://www.github.com/tauri-apps/tauri/pull/4982)) on 2022-08-20
+- Support `with_webview` for Android platform alowing execution of JNI code in context.
+  - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+- **Breaking change:** The window creation and setup hook are now called when the event loop is ready.
+  - [b4622ea4](https://www.github.com/tauri-apps/tauri/commit/b4622ea4d32720bc3bb2a8c740bb70cfe32fed93) refactor(app): run setup and window creation when event loop is ready ([#4914](https://www.github.com/tauri-apps/tauri/pull/4914)) on 2022-08-11
+- Export types required by the `mobile_entry_point` macro.
+  - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+
 ## \[1.2.2]
 
 - Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls

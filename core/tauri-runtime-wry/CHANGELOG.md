@@ -1,5 +1,10 @@
 # Changelog
 
+## \[0.13.0-alpha.0]
+
+- Support `with_webview` for Android platform alowing execution of JNI code in context.
+  - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+
 ## \[0.12.2]
 
 - Fix compatibility with older Linux distributions.

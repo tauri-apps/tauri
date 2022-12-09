@@ -13,7 +13,7 @@
   "scripts": {
     "build": "yarn tsup && node ./scripts/after-build.cjs",
     "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly",
+    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
     "lint": "eslint --ext ts \"./src/**/*.ts\"",
     "lint-fix": "eslint --fix --ext ts \"./src/**/*.ts\"",
     "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path ../../.prettierignore",

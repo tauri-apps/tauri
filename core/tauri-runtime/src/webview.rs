@@ -91,7 +91,7 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets additional browser arguments on **Windows**.
+  /// Sets additional browser arguments. **Windows Only**
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.additional_browser_args = Some(additional_args.to_string());

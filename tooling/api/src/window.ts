@@ -2061,7 +2061,7 @@ interface WindowOptions {
    */
   userAgent?: string
   /**
-   * Additional arguments for the webview on Windows.
+   * Additional arguments for the webview. **Windows Only**
    */
   additionalBrowserArguments?: string
 }

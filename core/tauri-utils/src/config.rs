@@ -881,7 +881,7 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments on Windows.
+  /// Defines additional browser arguments. **Windows Only**
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
 }

@@ -42,7 +42,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
   let mut bundles = Vec::new();
   let package_types = settings.package_types()?;
 
-  for package_type in dbg!(&package_types) {
+  for package_type in &package_types {
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
@@ -64,7 +64,6 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
 
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
-      // TODO:
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
       _ => {
         warn!("ignoring {:?}", package_type);

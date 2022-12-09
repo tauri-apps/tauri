@@ -40,6 +40,16 @@ pub enum Buffer {
   Raw(Vec<u8>),
 }
 
+impl Buffer {
+  /// Get buffer bytes
+  pub fn to_bytes(self) -> Vec<u8> {
+    match self {
+      Buffer::Text(line) => line.as_bytes().to_vec(),
+      Buffer::Raw(line) => line,
+    }
+  }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum EncodingWrapper {
   Raw,

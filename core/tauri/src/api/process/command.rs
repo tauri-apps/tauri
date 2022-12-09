@@ -133,9 +133,9 @@ pub struct Output {
   /// The status (exit code) of the process.
   pub status: ExitStatus,
   /// The data that the process wrote to stdout.
-  pub stdout: String,
+  pub stdout: Vec<u8>,
   /// The data that the process wrote to stderr.
-  pub stderr: String,
+  pub stderr: Vec<u8>,
 }
 
 fn relative_command_path(command: String) -> crate::Result<String> {
@@ -359,33 +359,29 @@ impl Command {
   /// use tauri::api::process::Command;
   /// let output = Command::new("echo").args(["TAURI"]).output().unwrap();
   /// assert!(output.status.success());
-  /// assert_eq!(output.stdout, "TAURI");
+  /// assert_eq!(String::from_utf8(output.stdout).unwrap(), "TAURI");
   /// ```
   pub fn output(self) -> crate::api::Result<Output> {
     let (mut rx, _child) = self.spawn()?;
 
     let output = crate::async_runtime::safe_block_on(async move {
       let mut code = None;
-      let mut stdout = String::new();
-      let mut stderr = String::new();
+      let mut stdout = Vec::<u8>::new();
+      let mut stderr = Vec::<u8>::new();
+      
+      const NEWLINE_BYTE: u8 = 10;
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {
             code = payload.code;
           }
-          CommandEvent::Stdout(line) => match line {
-            Buffer::Text(line) => {
-              stdout.push_str(line.as_str());
-              stdout.push('\n');
-            }
-            Buffer::Raw(_) => {}
+          CommandEvent::Stdout(line) => {
+            stdout.extend(line.to_bytes());
+            stdout.push(NEWLINE_BYTE);
           },
-          CommandEvent::Stderr(line) => match line {
-            Buffer::Text(line) => {
-              stderr.push_str(line.as_str());
-              stderr.push('\n');
-            }
-            Buffer::Raw(_) => {}
+          CommandEvent::Stderr(line) => {
+            stderr.extend(line.to_bytes());
+            stderr.push(NEWLINE_BYTE);
           },
           CommandEvent::Error(_) => {}
         }
@@ -558,8 +554,8 @@ mod tests {
     let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let output = cmd.output().unwrap();
 
-    assert_eq!(output.stderr, "");
-    assert_eq!(output.stdout, "This is a test doc!\n");
+    assert_eq!(String::from_utf8(output.stderr).unwrap(), "");
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "This is a test doc!\n");
   }
 
   #[cfg(not(windows))]
@@ -568,7 +564,7 @@ mod tests {
     let cmd = Command::new("cat").args(["test/api/"]);
     let output = cmd.output().unwrap();
 
-    assert_eq!(output.stdout, "");
-    assert_eq!(output.stderr, "cat: test/api/: Is a directory\n");
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "");
+    assert_eq!(String::from_utf8(output.stderr).unwrap(), "cat: test/api/: Is a directory\n");
   }
 }

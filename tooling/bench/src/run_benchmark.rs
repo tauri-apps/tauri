@@ -64,7 +64,10 @@ fn run_strace_benchmarks(new_data: &mut utils::BenchResult) -> Result<()> {
     file.as_file_mut().read_to_string(&mut output)?;
 
     let strace_result = utils::parse_strace_output(&output);
-    let clone = strace_result.get("clone").map(|d| d.calls).unwrap_or(0) + 1;
+    // Note, we always have 1 thread. Use cloneX calls as counter for additional threads created.
+    let clone = 1
+      + strace_result.get("clone").map(|d| d.calls).unwrap_or(0)
+      + strace_result.get("clone3").map(|d| d.calls).unwrap_or(0);
     let total = strace_result.get("total").unwrap().calls;
     thread_count.insert(name.to_string(), clone);
     syscall_count.insert(name.to_string(), total);

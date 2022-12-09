@@ -5,7 +5,13 @@
 #![allow(unused_imports)]
 
 use super::InvokeContext;
-use crate::{api::ipc::CallbackFn, Runtime};
+use crate::{
+  api::{
+    ipc::CallbackFn,
+    process::{CommandEvent, TerminatedPayload},
+  },
+  Runtime,
+};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
 use encoding_rs::Encoding;
@@ -19,7 +25,7 @@ type ExecuteArgs = ();
 
 #[cfg(any(shell_execute, shell_sidecar))]
 use std::sync::{Arc, Mutex};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, string::FromUtf8Error};
 
 type ChildId = u32;
 #[cfg(any(shell_execute, shell_sidecar))]
@@ -30,6 +36,47 @@ fn command_child_store() -> &'static ChildStore {
   use once_cell::sync::Lazy;
   static STORE: Lazy<ChildStore> = Lazy::new(Default::default);
   &STORE
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "event", content = "payload")]
+#[non_exhaustive]
+enum JSCommandEvent {
+  /// Stderr bytes until a newline (\n) or carriage return (\r) is found.
+  Stderr(Buffer),
+  /// Stdout bytes until a newline (\n) or carriage return (\r) is found.
+  Stdout(Buffer),
+  /// An error happened waiting for the command to finish or converting the stdout/stderr bytes to an UTF-8 string.
+  Error(String),
+  /// Command process terminated.
+  Terminated(TerminatedPayload),
+}
+
+fn get_event_buffer(line: Vec<u8>, encoding: EncodingWrapper) -> Result<Buffer, FromUtf8Error> {
+  match encoding {
+    EncodingWrapper::Text(character_encoding) => match character_encoding {
+      Some(encoding) => Ok(Buffer::Text(
+        encoding.decode_with_bom_removal(&line).0.into(),
+      )),
+      None => String::from_utf8(line).map(|line| Buffer::Text(line)),
+    },
+    EncodingWrapper::Raw => Ok(Buffer::Raw(line.clone())),
+  }
+}
+
+impl JSCommandEvent {
+  pub fn new(event: CommandEvent, encoding: EncodingWrapper) -> Self {
+    match event {
+      crate::api::process::CommandEvent::Terminated(payload) => JSCommandEvent::Terminated(payload),
+      crate::api::process::CommandEvent::Error(error) => JSCommandEvent::Error(error),
+      crate::api::process::CommandEvent::Stderr(line) => get_event_buffer(line, encoding)
+        .map(JSCommandEvent::Stderr)
+        .unwrap_or_else(|e| JSCommandEvent::Error(e.to_string())),
+      crate::api::process::CommandEvent::Stdout(line) => get_event_buffer(line, encoding)
+        .map(JSCommandEvent::Stdout)
+        .unwrap_or_else(|e| JSCommandEvent::Error(e.to_string())),
+    }
+  }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -184,6 +231,7 @@ impl Cmd {
           }
         }
       }
+      let encoding = command.encoding;
       let (mut rx, child) = command.spawn()?;
 
       let pid = child.pid();
@@ -193,8 +241,9 @@ impl Cmd {
         while let Some(event) = rx.recv().await {
           if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
             command_child_store().lock().unwrap().remove(&pid);
-          }
-          let js = crate::api::ipc::format_callback(on_event_fn, &event)
+          };
+          let js_event = JSCommandEvent::new(event, encoding);
+          let js = crate::api::ipc::format_callback(on_event_fn, &js_event)
             .expect("unable to serialize CommandEvent");
 
           let _ = context.window.eval(js.as_str());

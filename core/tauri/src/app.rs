@@ -1519,6 +1519,9 @@ impl<R: Runtime> Builder<R> {
       if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
       }
+      if let Some(args) = &config.additional_browser_args {
+        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
+      }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();
       }

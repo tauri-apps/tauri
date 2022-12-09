@@ -28,6 +28,7 @@ pub struct WebviewAttributes {
   pub file_drop_handler_enabled: bool,
   pub clipboard: bool,
   pub accept_first_mouse: bool,
+  pub additional_browser_args: Option<String>,
 }
 
 impl WebviewAttributes {
@@ -41,6 +42,7 @@ impl WebviewAttributes {
       file_drop_handler_enabled: true,
       clipboard: false,
       accept_first_mouse: false,
+      additional_browser_args: None,
     }
   }
 
@@ -86,6 +88,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn accept_first_mouse(mut self, accept: bool) -> Self {
     self.accept_first_mouse = accept;
+    self
+  }
+
+  /// Sets additional browser arguments on **Windows**.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.additional_browser_args = Some(additional_args.to_string());
     self
   }
 }

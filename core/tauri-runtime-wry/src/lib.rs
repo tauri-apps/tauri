@@ -33,6 +33,8 @@ use wry::application::platform::macos::WindowBuilderExtMacOS;
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(windows)]
+use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -3001,6 +3003,12 @@ fn create_webview<T: UserEvent>(
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
+
+  #[cfg(windows)]
+  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,

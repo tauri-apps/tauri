@@ -682,6 +682,13 @@
             "string",
             "null"
           ]
+        },
+        "additionalBrowserArgs": {
+          "description": "Defines additional browser arguments on Windows.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

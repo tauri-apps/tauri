@@ -1528,70 +1528,70 @@ mod tests {
   }
 
   macro_rules! commands {
-    (fn) => {
-      #[crate::command(root = "crate")]
+    (fn, $(#[$cmd_meta:meta])*) => {
+      $(#[$cmd_meta])*
       fn cmd_state(channel: State<'_, Channel>) {
         println!("cmd state");
         channel.tx.send(Response::Cmd).unwrap();
       }
 
-      #[crate::command(root = "crate")]
+      $(#[$cmd_meta])*
       fn cmd_state_return_val(channel: State<'_, Channel>) -> &'static str {
         println!("cmd state return val");
         channel.tx.send(Response::CmdReturnVal).unwrap();
         STATE_RETURN_VAL_RESPONSE
       }
 
-      #[crate::command(root = "crate")]
-      fn cmd_state_arg(channel: State<'_, Channel>, arg: usize) {
+      $(#[$cmd_meta])*
+      fn cmd_state_arg(channel: State<'_, Channel>, int_arg: usize) {
         println!("cmd state arg");
-        channel.tx.send(Response::CmdArg(arg)).unwrap();
+        channel.tx.send(Response::CmdArg(int_arg)).unwrap();
       }
 
-      #[crate::command(root = "crate")]
-      fn cmd_state_arg_return_val(channel: State<'_, Channel>, arg: usize) -> &'static str {
+      $(#[$cmd_meta])*
+      fn cmd_state_arg_return_val(channel: State<'_, Channel>, int_arg: usize) -> &'static str {
         println!("cmd state arg return val");
-        channel.tx.send(Response::CmdArgReturnVal(arg)).unwrap();
+        channel.tx.send(Response::CmdArgReturnVal(int_arg)).unwrap();
         STATE_ARG_RETURN_VAL_RESPONSE
       }
     };
 
-    (async fn) => {
-      #[crate::command(root = "crate")]
+    (async fn, $(#[$cmd_meta:meta])*) => {
+      $(#[$cmd_meta])*
       async fn cmd_state(channel: State<'_, Channel>) -> crate::Result<()> {
         println!("cmd state");
         channel.tx.send(Response::Cmd).unwrap();
         Ok(())
       }
 
-      #[crate::command(root = "crate")]
+      $(#[$cmd_meta])*
       async fn cmd_state_return_val(channel: State<'_, Channel>) -> crate::Result<&'static str> {
         println!("cmd state return val");
         channel.tx.send(Response::CmdReturnVal).unwrap();
         Ok(STATE_RETURN_VAL_RESPONSE)
       }
 
-      #[crate::command(root = "crate")]
-      async fn cmd_state_arg(channel: State<'_, Channel>, arg: usize) -> crate::Result<()> {
+      $(#[$cmd_meta])*
+      async fn cmd_state_arg(channel: State<'_, Channel>, int_arg: usize) -> crate::Result<()> {
         println!("cmd state arg");
-        channel.tx.send(Response::CmdArg(arg)).unwrap();
+        channel.tx.send(Response::CmdArg(int_arg)).unwrap();
         Ok(())
       }
 
-      #[crate::command(root = "crate")]
+      $(#[$cmd_meta])*
       async fn cmd_state_arg_return_val(
         channel: State<'_, Channel>,
-        arg: usize,
+        int_arg: usize,
       ) -> crate::Result<&'static str> {
         println!("cmd state arg return val");
-        channel.tx.send(Response::CmdArgReturnVal(arg)).unwrap();
+        channel.tx.send(Response::CmdArgReturnVal(int_arg)).unwrap();
         Ok(STATE_ARG_RETURN_VAL_RESPONSE)
       }
     };
   }
 
   macro_rules! command_test {
-    ($test_name: ident, $($fn_kind: ident) +) => {
+    ($test_name: ident, $($fn_kind: ident) +, $(#[$cmd_meta:meta])*, $case: path) => {
       #[test]
       fn $test_name() {
         const STATE_RETURN_VAL_RESPONSE: &str = "return-val";
@@ -1609,12 +1609,12 @@ mod tests {
           tx: SyncSender<Response>,
         }
 
-        #[crate::command(root = "crate")]
+        $(#[$cmd_meta])*
         $($fn_kind)* cmd() {
           println!("cmd");
         }
 
-        commands!($($fn_kind)*);
+        commands!($($fn_kind)*, $(#[$cmd_meta])*);
 
         let (tx, rx) = sync_channel(1);
         let channel = Channel { tx };
@@ -1634,7 +1634,7 @@ mod tests {
           .build()
           .unwrap();
 
-        fn json_obj(key: &str, value: impl Into<JsonValue>) -> JsonValue {
+        fn json_obj(key: impl Into<String>, value: impl Into<JsonValue>) -> JsonValue {
           let mut map = serde_json::Map::new();
           map.insert(key.into(), value.into());
           map.into()
@@ -1665,12 +1665,12 @@ mod tests {
           UnitTest {
             cmd: "cmd_state_arg",
             response: Some(Response::CmdArg(1)),
-            arg: Some(json_obj("arg", 1)),
+            arg: Some(json_obj($case("int_arg").to_string(), 1)),
           },
           UnitTest {
             cmd: "cmd_state_arg_return_val",
             response: Some(Response::CmdArgReturnVal(2)),
-            arg: Some(json_obj("arg", 2)),
+            arg: Some(json_obj($case("int_arg").to_string(), 2)),
           },
         ];
 
@@ -1693,6 +1693,24 @@ mod tests {
     };
   }
 
-  command_test!(regular_commands, fn);
-  command_test!(async_commands, async fn);
+  command_test!(regular_commands, fn, #[crate::command(root = "crate")], heck::AsLowerCamelCase);
+  command_test!(async_commands, async fn, #[crate::command(root = "crate")], heck::AsLowerCamelCase);
+  command_test!(
+    async_attr_commands,
+    fn,
+    #[crate::command(root = "crate", async)],
+    heck::AsLowerCamelCase
+  );
+  command_test!(
+    regular_rename_all_snake_case_commands,
+    fn,
+    #[crate::command(root = "crate", rename_all = "snake_case")],
+    heck::AsSnakeCase
+  );
+  command_test!(
+    regular_rename_all_camel_case_commands,
+    fn,
+    #[crate::command(root = "crate", rename_all = "camelCase")],
+    heck::AsLowerCamelCase
+  );
 }

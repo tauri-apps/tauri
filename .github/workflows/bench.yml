@@ -5,7 +5,6 @@ on:
     branches:
       - dev
       - next
-      - fix/bench-*
   workflow_dispatch:
 
 env:

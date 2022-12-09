@@ -42,13 +42,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
   let mut bundles = Vec::new();
   let package_types = settings.package_types()?;
 
-  let target = settings
-    .target()
-    .split('-')
-    .nth(2)
-    .unwrap_or(std::env::consts::OS);
-
-  for package_type in &package_types {
+  for package_type in dbg!(&package_types) {
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
@@ -59,17 +53,15 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
 
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi if target == "windows" => {
-        windows::msi::bundle_project(&settings, false)?
-      }
-      PackageType::Nsis if target == "windows" => windows::nsis::bundle_project(&settings, false)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
+      PackageType::Nsis => windows::nsis::bundle_project(&settings, false)?,
 
       #[cfg(target_os = "linux")]
-      PackageType::Deb if target == "linux" => linux::debian::bundle_project(&settings)?,
+      PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::Rpm if target == "linux" => linux::rpm::bundle_project(&settings)?,
+      PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::AppImage if target == "linux" => linux::appimage::bundle_project(&settings)?,
+      PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
 
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       // TODO:

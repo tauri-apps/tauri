@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.12.2-alpha.0]
+## \[0.13.0-alpha.0]
 
 - Parse `android` and `ios` Tauri configuration files.
   - Bumped due to a bump in tauri-utils.

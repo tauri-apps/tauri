@@ -73,6 +73,7 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
+  /// Open project in Xcode
   Open,
   Dev(dev::Options),
   Build(build::Options),

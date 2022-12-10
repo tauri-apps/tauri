@@ -7,7 +7,7 @@ use crate::{helpers::app_paths::tauri_dir, Result};
 use std::{
   collections::HashMap,
   fs::{create_dir_all, File},
-  io::{BufReader, BufWriter, Write},
+  io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
 
@@ -47,6 +47,10 @@ pub struct Options {
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
   output: Option<PathBuf>,
+
+  /// Extra icon sizes.
+  #[clap(short, long, use_delimiter = true)]
+  extra: Option<Vec<u32>>,
   // /// Generates icons as configured.
   // #[clap(short, long)]
   // config: Option<PathBuf>,
@@ -55,6 +59,9 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
+  let extra_icon_sizes = options
+    .extra
+    .unwrap_or_else(|| vec![32, 16, 24, 48, 64, 256]);
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   // //load config json if possible.
@@ -87,7 +94,7 @@ pub fn command(options: Options) -> Result<()> {
 
   ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  png(&source, &out_dir).context("Failed to generate png icons")?;
+  png(&source, &out_dir, extra_icon_sizes).context("Failed to generate png icons")?;
 
   Ok(())
 }
@@ -183,14 +190,14 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
+fn png(source: &DynamicImage, out_dir: &Path, sizes: Vec<u32>) -> Result<()> {
   //if no config provided, use default
   // let (sizes, _icon_name) = match config {
   //   //TODO: implements icon_name
   //   Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
   //   None => (vec![32, 16, 24, 48, 64, 256], "any".to_string()),
   // };
-  let sizes = vec![32, 16, 24, 48, 64, 256];
+  // let sizes = vec![32, 16, 24, 48, 64, 256];
 
   for size in sizes {
     let file_name = match size {

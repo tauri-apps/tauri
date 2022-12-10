@@ -92,5 +92,9 @@ winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "
 [target."cfg(unix)".dependencies]
 libc = "0.2"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# temporary fix, tauri-mobile should provide the openssl-vendored feature
+openssl = { version = "0.10", features = ["vendored"] }
+
 [profile.release]
 lto = true

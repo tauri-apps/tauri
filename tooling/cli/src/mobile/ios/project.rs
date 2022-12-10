@@ -158,6 +158,16 @@ pub fn gen(
     })?;
   }
 
+  let externals_dir = dest.join("Externals");
+  if !externals_dir.is_dir() {
+    create_dir_all(&externals_dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create Externals dir {path}: {cause}",
+        path = externals_dir.display()
+      )
+    })?;
+  }
+
   // Create all asset catalog directories if they don't already exist
   for dir in asset_catalogs {
     std::fs::create_dir_all(dir).map_err(|cause| {

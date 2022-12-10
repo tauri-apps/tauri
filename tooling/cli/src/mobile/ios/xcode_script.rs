@@ -1,7 +1,8 @@
 use super::{env, with_config};
 use crate::Result;
-use clap::Parser;
 
+use clap::Parser;
+use heck::AsSnakeCase;
 use tauri_mobile::{apple::target::Target, opts::Profile, util};
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
@@ -126,10 +127,10 @@ pub fn command(options: Options) -> Result<()> {
 
     for arch in options.arches {
       // Set target-specific flags
-      let triple = match arch.as_str() {
-        "arm64" => "aarch64_apple_ios",
-        "arm64-sim" => "aarch64_apple_ios_sim",
-        "x86_64" => "x86_64_apple_ios",
+      let (env_triple, rust_triple) = match arch.as_str() {
+        "arm64" => ("aarch64_apple_ios", "aarch64-apple-ios"),
+        "arm64-sim" => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
+        "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
         "Simulator" => continue,
         _ => {
           return Err(anyhow::anyhow!(
@@ -138,9 +139,9 @@ pub fn command(options: Options) -> Result<()> {
           ))
         }
       };
-      let cflags = format!("CFLAGS_{}", triple);
-      let cxxflags = format!("CFLAGS_{}", triple);
-      let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", triple);
+      let cflags = format!("CFLAGS_{}", env_triple);
+      let cxxflags = format!("CFLAGS_{}", env_triple);
+      let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", env_triple);
       let mut target_env = host_env.clone();
       target_env.insert(cflags.as_ref(), isysroot.as_ref());
       target_env.insert(cxxflags.as_ref(), isysroot.as_ref());
@@ -164,6 +165,20 @@ pub fn command(options: Options) -> Result<()> {
         profile,
         &env,
         target_env,
+      )?;
+
+      std::fs::create_dir_all(format!(
+        "gen/apple/Externals/{rust_triple}/{}",
+        profile.as_str()
+      ))?;
+      let lib_location = format!(
+        "{rust_triple}/{}/lib{}.a",
+        profile.as_str(),
+        AsSnakeCase(config.app().name())
+      );
+      std::fs::copy(
+        format!("target/{lib_location}",),
+        format!("gen/apple/Externals/{lib_location}"),
       )?;
     }
     Ok(())

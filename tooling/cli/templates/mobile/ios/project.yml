@@ -31,6 +31,7 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      - path: Externals
       - path: {{app.asset-dir}}
         buildPhase: resources
         type: folder
@@ -71,9 +72,9 @@ targets:
         ENABLE_BITCODE: false
         ARCHS: [{{join ios-valid-archs}}]
         VALID_ARCHS: {{~#each ios-valid-archs}} {{this}} {{/each}}
-        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) "{{prefix-path "target/x86_64-apple-ios/$(CONFIGURATION)"}}"
-        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) "{{prefix-path "target/aarch64-apple-ios/$(CONFIGURATION)"}}"
-        LIBRARY_SEARCH_PATHS[arch=arm64-sim]: $(inherited) "{{prefix-path "target/aarch64-apple-ios-sim/$(CONFIGURATION)"}}"
+        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64-apple-ios/$(CONFIGURATION)
+        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/aarch64-apple-ios/$(CONFIGURATION)
+        LIBRARY_SEARCH_PATHS[arch=arm64-sim]: $(inherited) $(PROJECT_DIR)/Externals/aarch64-apple-ios-sim/$(CONFIGURATION)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
       groups: [app]
     dependencies:

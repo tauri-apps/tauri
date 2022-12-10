@@ -30,11 +30,11 @@ struct IcnsEntry {
   ostype: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct IconFormatEntry {
-  sizes: Vec<u32>,
-  name: String,
-}
+// #[derive(Debug, Deserialize)]
+// struct IconFormatEntry {
+//   sizes: Vec<u32>,
+//   name: String,
+// }
 
 #[derive(Debug, Parser)]
 #[clap(about = "Generates various icons for all major platforms")]
@@ -47,10 +47,9 @@ pub struct Options {
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
   output: Option<PathBuf>,
-
-  /// Generates icons as configured.
-  #[clap(short, long)]
-  config: Option<PathBuf>,
+  // /// Generates icons as configured.
+  // #[clap(short, long)]
+  // config: Option<PathBuf>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -58,17 +57,17 @@ pub fn command(options: Options) -> Result<()> {
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  //load config json if possible.
-  let icons_config: Option<HashMap<String, IconFormatEntry>> = match options.config {
-    Some(config_file) => {
-      let f = File::open(config_file).context("Cannot read config")?;
-      serde_json::from_reader(BufReader::new(f)).context("Cannot parse config")?
-    }
-    _ => None,
-  };
-  //take png,ico from icons_config
-  let png_config = icons_config.as_ref().and_then(|config| config.get("png"));
-  let ico_config = icons_config.as_ref().and_then(|config| config.get("ico"));
+  // //load config json if possible.
+  // let icons_config: Option<HashMap<String, IconFormatEntry>> = match options.config {
+  //   Some(config_file) => {
+  //     let f = File::open(config_file).context("Cannot read config")?;
+  //     serde_json::from_reader(BufReader::new(f)).context("Cannot parse config")?
+  //   }
+  //   _ => None,
+  // };
+  // //take png,ico from icons_config
+  // let png_config = icons_config.as_ref().and_then(|config| config.get("png"));
+  // let ico_config = icons_config.as_ref().and_then(|config| config.get("ico"));
 
   // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
   // Both things should be catched by the explicit conversions to rgba8 anyway.
@@ -86,9 +85,9 @@ pub fn command(options: Options) -> Result<()> {
 
   icns(&source, &out_dir).context("Failed to generate .icns file")?;
 
-  ico(&source, &out_dir, ico_config).context("Failed to generate .ico file")?;
+  ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  png(&source, &out_dir, png_config).context("Failed to generate png icons")?;
+  png(&source, &out_dir).context("Failed to generate png icons")?;
 
   Ok(())
 }
@@ -142,15 +141,17 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .ico file with layers for the most common sizes.
 // Main target: Windows
-fn ico(source: &DynamicImage, out_dir: &Path, config: Option<&IconFormatEntry>) -> Result<()> {
+fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
   //if no ico config provided, use default
-  let (sizes, icon_name) = match config {
-    Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
-    None => (vec![32, 16, 24, 48, 64, 256], "icon.ico".to_string()),
-  };
+  // let (sizes, icon_name) = match config {
+  //   Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
+  //   None => (vec![32, 16, 24, 48, 64, 256], "icon.ico".to_string()),
+  // };
+  let sizes = vec![32, 16, 24, 48, 64, 256];
+  let icon_name = "icon.ico".to_string();
 
   for size in sizes {
     let image = source.resize_exact(size, size, FilterType::Lanczos3);
@@ -182,13 +183,14 @@ fn ico(source: &DynamicImage, out_dir: &Path, config: Option<&IconFormatEntry>) 
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, config: Option<&IconFormatEntry>) -> Result<()> {
+fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   //if no config provided, use default
-  let (sizes, _icon_name) = match config {
-    //TODO: implements icon_name
-    Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
-    None => (vec![32, 16, 24, 48, 64, 256], "any".to_string()),
-  };
+  // let (sizes, _icon_name) = match config {
+  //   //TODO: implements icon_name
+  //   Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
+  //   None => (vec![32, 16, 24, 48, 64, 256], "any".to_string()),
+  // };
+  let sizes = vec![32, 16, 24, 48, 64, 256];
 
   for size in sizes {
     let file_name = match size {

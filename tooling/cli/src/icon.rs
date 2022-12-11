@@ -190,14 +190,15 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, sizes: Vec<u32>) -> Result<()> {
+fn png(source: &DynamicImage, out_dir: &Path, mut extra_icon_sizes: Vec<u32>) -> Result<()> {
   //if no config provided, use default
   // let (sizes, _icon_name) = match config {
   //   //TODO: implements icon_name
   //   Some(ico_format) => (ico_format.sizes.clone(), ico_format.name.clone()),
   //   None => (vec![32, 16, 24, 48, 64, 256], "any".to_string()),
   // };
-  // let sizes = vec![32, 16, 24, 48, 64, 256];
+  let mut sizes = vec![32, 16, 24, 48, 64, 256];
+  sizes.append(extra_icon_sizes.as_mut());
 
   for size in sizes {
     let file_name = match size {

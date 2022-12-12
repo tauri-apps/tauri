@@ -5,4 +5,4 @@
 "api": minor
 ---
 
-Add `is_minimized()`.
+Add `is_minimized()` window method.

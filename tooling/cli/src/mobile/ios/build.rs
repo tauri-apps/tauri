@@ -20,7 +20,7 @@ use tauri_mobile::{
 use std::fs;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(about = "iOS build")]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]

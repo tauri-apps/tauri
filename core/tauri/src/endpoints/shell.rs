@@ -67,12 +67,12 @@ fn get_event_buffer(line: Vec<u8>, encoding: EncodingWrapper) -> Result<Buffer, 
 impl JSCommandEvent {
   pub fn new(event: CommandEvent, encoding: EncodingWrapper) -> Self {
     match event {
-      crate::api::process::CommandEvent::Terminated(payload) => JSCommandEvent::Terminated(payload),
-      crate::api::process::CommandEvent::Error(error) => JSCommandEvent::Error(error),
-      crate::api::process::CommandEvent::Stderr(line) => get_event_buffer(line, encoding)
+      CommandEvent::Terminated(payload) => JSCommandEvent::Terminated(payload),
+      CommandEvent::Error(error) => JSCommandEvent::Error(error),
+      CommandEvent::Stderr(line) => get_event_buffer(line, encoding)
         .map(JSCommandEvent::Stderr)
         .unwrap_or_else(|e| JSCommandEvent::Error(e.to_string())),
-      crate::api::process::CommandEvent::Stdout(line) => get_event_buffer(line, encoding)
+      CommandEvent::Stdout(line) => get_event_buffer(line, encoding)
         .map(JSCommandEvent::Stdout)
         .unwrap_or_else(|e| JSCommandEvent::Error(e.to_string())),
     }

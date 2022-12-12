@@ -224,7 +224,7 @@ impl Command {
   /// # Examples
   ///
   /// ```rust,no_run
-  /// use tauri::api::process::{Buffer, Command, CommandEvent};
+  /// use tauri::api::process::{Command, CommandEvent};
   /// tauri::async_runtime::spawn(async move {
   ///   let (mut rx, mut child) = Command::new("cargo")
   ///     .args(["tauri", "dev"])
@@ -350,7 +350,7 @@ impl Command {
       let mut stdout = Vec::<u8>::new();
       let mut stderr = Vec::<u8>::new();
 
-      const NEWLINE_BYTE: u8 = 10;
+      const NEWLINE_BYTE: u8 = b'\n';
       while let Some(event) = rx.recv().await {
         match event {
           CommandEvent::Terminated(payload) => {

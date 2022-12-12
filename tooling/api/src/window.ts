@@ -580,6 +580,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current minimized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimized = await appWindow.isMinimized();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current maximized state.
    * @example
    * ```typescript

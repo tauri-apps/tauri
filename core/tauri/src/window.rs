@@ -18,20 +18,28 @@ use crate::{
   manager::WindowManager,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
-    menu::Menu,
     monitor::Monitor as RuntimeMonitor,
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
-      dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+      dpi::{PhysicalPosition, PhysicalSize},
       DetachedWindow, JsEventListenerKey, PendingWindow,
     },
-    Dispatch, RuntimeHandle, UserAttentionType,
+    Dispatch, RuntimeHandle,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::WindowUrl,
-  CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, Theme, WindowEvent,
+  EventLoopMessage, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager, PageLoadPayload,
+  Runtime, Theme, WindowEvent,
+};
+#[cfg(desktop)]
+use crate::{
+  runtime::{
+    menu::Menu,
+    window::dpi::{Position, Size},
+    UserAttentionType,
+  },
+  CursorIcon, Icon,
 };
 
 use serde::Serialize;

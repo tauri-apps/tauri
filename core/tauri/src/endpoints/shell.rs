@@ -58,9 +58,9 @@ fn get_event_buffer(line: Vec<u8>, encoding: EncodingWrapper) -> Result<Buffer, 
       Some(encoding) => Ok(Buffer::Text(
         encoding.decode_with_bom_removal(&line).0.into(),
       )),
-      None => String::from_utf8(line).map(|line| Buffer::Text(line)),
+      None => String::from_utf8(line).map(Buffer::Text),
     },
-    EncodingWrapper::Raw => Ok(Buffer::Raw(line.clone())),
+    EncodingWrapper::Raw => Ok(Buffer::Raw(line)),
   }
 }
 

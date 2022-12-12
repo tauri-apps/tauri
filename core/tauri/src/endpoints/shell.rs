@@ -215,23 +215,22 @@ impl Cmd {
       } else {
         command = command.env_clear();
       }
-      if let Some(encoding) = options.encoding {
-        match encoding.as_str() {
-          "raw" => {
-            command = command.encoding(EncodingWrapper::Raw);
-          }
+      let encoding = match options.encoding {
+        Option::None => EncodingWrapper::Text(None),
+        Some(encoding) => match encoding.as_str() {
+          "raw" => EncodingWrapper::Raw,
           _ => {
             if let Some(text_encoding) =
               crate::api::process::Encoding::for_label(encoding.as_bytes())
             {
-              command = command.encoding(EncodingWrapper::Text(Some(text_encoding)));
+              EncodingWrapper::Text(Some(text_encoding))
             } else {
               return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
             }
           }
-        }
-      }
-      let encoding = command.encoding;
+        },
+      };
+
       let (mut rx, child) = command.spawn()?;
 
       let pid = child.pid();

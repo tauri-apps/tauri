@@ -22,7 +22,6 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
 
 pub use crate::endpoints::shell::Buffer;
-use crate::endpoints::shell::EncodingWrapper;
 
 pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
@@ -79,7 +78,6 @@ pub struct Command {
   env_clear: bool,
   env: HashMap<String, String>,
   current_dir: Option<PathBuf>,
-  pub encoding: EncodingWrapper,
 }
 
 /// Spawned child process.
@@ -176,7 +174,6 @@ impl Command {
       env_clear: false,
       env: Default::default(),
       current_dir: None,
-      encoding: EncodingWrapper::Text(None),
     }
   }
 
@@ -219,13 +216,6 @@ impl Command {
   #[must_use]
   pub fn current_dir(mut self, current_dir: PathBuf) -> Self {
     self.current_dir.replace(current_dir);
-    self
-  }
-
-  /// Sets the character encoding for stdout/stderr.
-  #[must_use]
-  pub fn encoding(mut self, encoding: EncodingWrapper) -> Self {
-    self.encoding = encoding;
     self
   }
 
@@ -448,8 +438,7 @@ mod tests {
   #[test]
   fn test_cmd_spawn_raw_output() {
     let cmd = Command::new("cat")
-      .args(["test/api/test.txt"])
-      .encoding(EncodingWrapper::Raw);
+      .args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {

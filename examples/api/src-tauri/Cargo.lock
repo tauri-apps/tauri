@@ -2935,7 +2935,7 @@ dependencies = [
 
 [[package]]
 name = "tauri"
-version = "1.2.2"
+version = "2.0.0-alpha.0"
 dependencies = [
  "android_logger",
  "anyhow",
@@ -3001,7 +3001,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.2.1"
+version = "2.0.0-alpha.0"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3017,7 +3017,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.2.1"
+version = "2.0.0-alpha.0"
 dependencies = [
  "base64",
  "brotli",
@@ -3042,7 +3042,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.2.1"
+version = "2.0.0-alpha.0"
 dependencies = [
  "heck 0.4.0",
  "proc-macro2",
@@ -3054,7 +3054,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.12.1"
+version = "0.13.0-alpha.0"
 dependencies = [
  "gtk",
  "http",
@@ -3072,7 +3072,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.12.2"
+version = "0.13.0-alpha.0"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3090,7 +3090,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.2.1"
+version = "2.0.0-alpha.0"
 dependencies = [
  "aes-gcm",
  "brotli",

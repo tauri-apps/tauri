@@ -34,9 +34,7 @@ mod rust {
         Ok(())
       })
       .invoke_handler(tauri::generate_handler![close_splashscreen])
-      .run(tauri::generate_context!(
-        "../../examples/splashscreen/tauri.conf.json"
-      ))
+      .run(super::context())
       .expect("failed to run app");
   }
 }
@@ -64,7 +62,7 @@ mod ui {
   }
 
   pub fn main() {
-    let context = tauri::generate_context!("../../examples/splashscreen/tauri.conf.json");
+    let context = super::context();
     tauri::Builder::default()
       .menu(if cfg!(target_os = "macos") {
         tauri::Menu::os_default(&context.package_info().name)
@@ -85,6 +83,10 @@ mod ui {
       .run(context)
       .expect("error while running tauri application");
   }
+}
+
+fn context() -> tauri::Context<tauri::utils::assets::EmbeddedAssets> {
+  tauri::generate_context!("../../examples/splashscreen/tauri.conf.json")
 }
 
 fn main() {

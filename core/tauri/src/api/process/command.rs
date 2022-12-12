@@ -437,8 +437,7 @@ mod tests {
   #[cfg(not(windows))]
   #[test]
   fn test_cmd_spawn_raw_output() {
-    let cmd = Command::new("cat")
-      .args(["test/api/test.txt"]);
+    let cmd = Command::new("cat").args(["test/api/test.txt"]);
     let (mut rx, _) = cmd.spawn().unwrap();
 
     crate::async_runtime::block_on(async move {

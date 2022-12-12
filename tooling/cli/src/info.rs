@@ -901,7 +901,6 @@ pub fn command(_options: Options) -> Result<()> {
             .map(|t| format!("{} (ID: {})", t.name, t.id))
             .collect::<Vec<String>>()
             .join(", ")
-            .to_string()
         },
       )
       .display();

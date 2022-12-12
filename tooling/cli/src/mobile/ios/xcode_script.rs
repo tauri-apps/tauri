@@ -1,5 +1,9 @@
 use super::{env, with_config};
-use crate::Result;
+use crate::{
+  helpers::config::get as get_config,
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  Result,
+};
 
 use clap::Parser;
 use heck::AsSnakeCase;
@@ -125,6 +129,8 @@ pub fn command(options: Options) -> Result<()> {
 
     let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
+    let tauri_config = get_config(None)?;
+
     for arch in options.arches {
       // Set target-specific flags
       let (env_triple, rust_triple) = match arch.as_str() {
@@ -139,6 +145,12 @@ pub fn command(options: Options) -> Result<()> {
           ))
         }
       };
+
+      let interface = AppInterface::new(
+        tauri_config.lock().unwrap().as_ref().unwrap(),
+        Some(rust_triple.into()),
+      )?;
+
       let cflags = format!("CFLAGS_{}", env_triple);
       let cxxflags = format!("CFLAGS_{}", env_triple);
       let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", env_triple);
@@ -167,18 +179,26 @@ pub fn command(options: Options) -> Result<()> {
         target_env,
       )?;
 
+      let bin_path = interface
+        .app_settings()
+        .app_binary_path(&InterfaceOptions {
+          debug: matches!(profile, Profile::Debug),
+          target: Some(rust_triple.into()),
+          ..Default::default()
+        })?;
+      let out_dir = bin_path.parent().unwrap();
+
       std::fs::create_dir_all(format!(
         "gen/apple/Externals/{rust_triple}/{}",
         profile.as_str()
       ))?;
-      let lib_location = format!(
-        "{rust_triple}/{}/lib{}.a",
-        profile.as_str(),
-        AsSnakeCase(config.app().name())
-      );
       std::fs::copy(
-        format!("target/{lib_location}",),
-        format!("gen/apple/Externals/{lib_location}"),
+        out_dir.join(format!("lib{}.a", AsSnakeCase(config.app().name()))),
+        format!(
+          "gen/apple/Externals/{rust_triple}/{}/lib{}.a",
+          profile.as_str(),
+          AsSnakeCase(config.app().name())
+        ),
       )?;
     }
     Ok(())

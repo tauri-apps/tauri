@@ -163,7 +163,12 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, mut extra_icon_sizes: Vec<u32>) -> Result<()> {
+  //remove duplicate extra icons
   let mut sizes = vec![32, 16, 24, 48, 64, 256];
+  extra_icon_sizes = extra_icon_sizes
+    .into_iter()
+    .filter(|x| !sizes.contains(x))
+    .collect::<Vec<u32>>();
   sizes.append(extra_icon_sizes.as_mut());
 
   for size in sizes {

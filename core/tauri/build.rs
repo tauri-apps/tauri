@@ -95,7 +95,6 @@ fn main() {
       "set-cursor-icon",
       "set-cursor-position",
       "set-ignore-cursor-events",
-      "set-device-event-filter",
       "start-dragging",
       "print",
     ],

@@ -12,11 +12,10 @@ use tauri_runtime::{
   webview::{WebviewIpcHandler, WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, DeviceEventFilter, FileDropEvent, JsEventListenerKey,
-    PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -1092,7 +1091,6 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
-  SetDeviceEventFilter(DeviceEventFilterWrapper),
   DragWindow,
   UpdateMenuItem(u16, MenuUpdate),
   RequestRedraw,
@@ -1561,16 +1559,6 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetIgnoreCursorEvents(ignore)),
-    )
-  }
-
-  fn set_device_event_filter(&self, filter: DeviceEventFilter) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(
-        self.window_id,
-        WindowMessage::SetDeviceEventFilter(filter.into()),
-      ),
     )
   }
 
@@ -2079,6 +2067,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self.event_loop.hide_application();
   }
 
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .event_loop
+      .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+  }
+
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
     use wry::application::platform::run_return::EventLoopExtRunReturn;
@@ -2496,9 +2490,6 @@ fn handle_user_message<T: UserEvent>(
             }
             WindowMessage::RequestRedraw => {
               window.request_redraw();
-            }
-            WindowMessage::SetDeviceEventFilter(filter) => {
-              event_loop.set_device_event_filter(filter.0)
             }
           }
         }

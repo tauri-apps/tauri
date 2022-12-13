@@ -148,7 +148,6 @@
 //! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
 //! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
 //! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
-//! - **window-set-device-event-filter**: Enables the [`setDeviceEventFilter` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdeviceeventfilter).
 //! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
 //! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
 //!
@@ -243,9 +242,9 @@ pub use {
     webview::WebviewAttributes,
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, DeviceEventFilter, FileDropEvent,
+      CursorIcon, FileDropEvent,
     },
-    RunIteration, UserAttentionType,
+    DeviceEventFilter, RunIteration, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

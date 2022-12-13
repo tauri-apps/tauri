@@ -10,10 +10,10 @@ use tauri_runtime::{
   webview::{WindowBuilder, WindowBuilderBase},
   window::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, DeviceEventFilter, MenuEvent, PendingWindow, WindowEvent,
+    CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
-  UserEvent,
+  DeviceEventFilter, Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle,
+  UserAttentionType, UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
@@ -560,10 +560,6 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   fn update_menu_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     Ok(())
   }
-
-  fn set_device_event_filter(&self, filter: DeviceEventFilter) -> Result<()> {
-    Ok(())
-  }
 }
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -714,6 +710,8 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
+
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
 
   #[cfg(any(
     target_os = "macos",

@@ -378,14 +378,3 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
     self.label.eq(&other.label)
   }
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(tag = "type")]
-pub enum DeviceEventFilter {
-  /// Always filter out device events.
-  Always,
-  /// Filter out device events while the window is not focused.
-  Unfocused,
-  /// Report all device events regardless of window focus.
-  Never,
-}

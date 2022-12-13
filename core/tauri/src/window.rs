@@ -23,7 +23,7 @@ use crate::{
     webview::{WebviewAttributes, WindowBuilder as _},
     window::{
       dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-      DetachedWindow, DeviceEventFilter, JsEventListenerKey, PendingWindow,
+      DetachedWindow, JsEventListenerKey, PendingWindow,
     },
     Dispatch, RuntimeHandle, UserAttentionType,
   },
@@ -1271,15 +1271,6 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_ignore_cursor_events(ignore)
-      .map_err(Into::into)
-  }
-
-  /// Modifies the window's device event filter.
-  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .set_device_event_filter(filter)
       .map_err(Into::into)
   }
 

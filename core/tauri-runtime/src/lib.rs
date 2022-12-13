@@ -536,6 +536,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+  /// Gets the window's current title.
+  fn title(&self) -> Result<String>;
 
   /// Gets the window menu current visibility state.
   fn is_menu_visible(&self) -> Result<bool>;

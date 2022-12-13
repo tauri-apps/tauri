@@ -705,6 +705,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current title.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const title = await appWindow.title();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async title(): Promise<string> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'title'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current theme.
    *
    * #### Platform-specific

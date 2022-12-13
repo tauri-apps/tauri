@@ -2078,6 +2078,8 @@ interface WindowOptions {
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
   /** Prevents the window contents from being captured by other apps. */
+  contentProtected?: boolean
+  /** Prevents the window contents from being captured by other apps. */
   contentPortected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean

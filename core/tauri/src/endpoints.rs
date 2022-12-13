@@ -34,7 +34,7 @@ mod path;
 #[cfg(process_any)]
 mod process;
 #[cfg(shell_any)]
-pub(crate) mod shell;
+mod shell;
 mod window;
 
 /// The context passed to the invoke handler.

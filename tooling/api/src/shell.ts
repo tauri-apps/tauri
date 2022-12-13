@@ -498,7 +498,7 @@ class Command extends EventEmitter<'close' | 'error'> {
       })
 
       this.on('close', (payload: TerminatedPayload) => {
-        return resolve({
+        resolve({
           code: payload.code,
           signal: payload.signal,
           stdout: this.collectEvents(stdout),
@@ -513,9 +513,9 @@ class Command extends EventEmitter<'close' | 'error'> {
 
   private collectEvents(events: EventPayload[]): string | Uint8Array {
     if (this.options.encoding === 'raw') {
-      return new Uint8Array(events.reduce<Uint8Array>((p, c) => {
+      return events.reduce<Uint8Array>((p, c) => {
         return (new Uint8Array([...p, ...c as Uint8Array, 10]))
-      }, new Uint8Array()))
+      }, new Uint8Array())
     } else {
       return events.join('\n')
     }

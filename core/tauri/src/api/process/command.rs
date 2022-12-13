@@ -21,8 +21,6 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 use crate::async_runtime::{block_on as block_on_task, channel, Receiver, Sender};
 
-pub use crate::endpoints::shell::Buffer;
-
 pub use encoding_rs::Encoding;
 use os_pipe::{pipe, PipeReader, PipeWriter};
 use serde::Serialize;

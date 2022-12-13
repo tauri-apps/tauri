@@ -920,6 +920,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_visible().map_err(Into::into)
   }
 
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
+  }
+
   /// Returns the monitor on which the window currently resides.
   ///
   /// Returns None if current monitor can't be detected.

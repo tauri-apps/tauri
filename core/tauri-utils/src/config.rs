@@ -1613,7 +1613,7 @@ pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
 pub enum ShellAllowlistOpen {
   /// If the shell open API should be enabled.
   ///
-  /// If enabled, the default validation regex (`^https?://`) is used.
+  /// If enabled, the default validation regex (`^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`) is used.
   Flag(bool),
 
   /// Enable the shell open API, with a custom regex that the opened path must match against.

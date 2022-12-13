@@ -1034,6 +1034,7 @@ pub enum WindowMessage {
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
+  Title(Sender<String>),
   IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -1267,6 +1268,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_visible(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsVisible)
+  }
+
+  fn title(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::Title)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -2366,6 +2371,7 @@ fn handle_user_message<T: UserEvent>(
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),

@@ -4,4 +4,4 @@
 "tauri": minor
 ---
 
-Added `Builder::set_device_event_filter` method.
+Added `Builder::device_event_filter` and `App::set_device_event_filter` methods.

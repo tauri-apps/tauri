@@ -14,8 +14,8 @@ use tauri_runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, FileDropEvent, JsEventListenerKey, PendingWindow, WindowEvent,
   },
-  Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent, RunIteration,
-  Runtime, RuntimeHandle, UserAttentionType, UserEvent,
+  DeviceEventFilter, Dispatch, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result,
+  RunEvent, RunIteration, Runtime, RuntimeHandle, UserAttentionType, UserEvent,
 };
 
 use tauri_runtime::window::MenuEvent;
@@ -47,7 +47,8 @@ use wry::{
     },
     event::{Event, StartCause, WindowEvent as WryWindowEvent},
     event_loop::{
-      ControlFlow, EventLoop, EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
+      ControlFlow, DeviceEventFilter as WryDeviceEventFilter, EventLoop,
+      EventLoopProxy as WryEventLoopProxy, EventLoopWindowTarget,
     },
     menu::{
       AboutMetadata as WryAboutMetadata, CustomMenuItem as WryCustomMenuItem, MenuBar,
@@ -64,7 +65,6 @@ use wry::{
   webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
 };
 
-pub use wry;
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
 
 #[cfg(windows)]
@@ -360,6 +360,18 @@ impl From<MenuItem> for MenuItemWrapper {
       MenuItem::Zoom => Self(WryMenuItem::Zoom),
       MenuItem::Separator => Self(WryMenuItem::Separator),
       _ => unimplemented!(),
+    }
+  }
+}
+
+pub struct DeviceEventFilterWrapper(pub WryDeviceEventFilter);
+
+impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
+  fn from(item: DeviceEventFilter) -> Self {
+    match item {
+      DeviceEventFilter::Always => Self(WryDeviceEventFilter::Always),
+      DeviceEventFilter::Never => Self(WryDeviceEventFilter::Never),
+      DeviceEventFilter::Unfocused => Self(WryDeviceEventFilter::Unfocused),
     }
   }
 }
@@ -2053,6 +2065,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   #[cfg(target_os = "macos")]
   fn hide(&self) {
     self.event_loop.hide_application();
+  }
+
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+    self
+      .event_loop
+      .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
   }
 
   #[cfg(desktop)]

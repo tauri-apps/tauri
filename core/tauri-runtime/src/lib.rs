@@ -184,6 +184,23 @@ pub enum UserAttentionType {
   Informational,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(tag = "type")]
+pub enum DeviceEventFilter {
+  /// Always filter out device events.
+  Always,
+  /// Filter out device events while the window is not focused.
+  Unfocused,
+  /// Report all device events regardless of window focus.
+  Never,
+}
+
+impl Default for DeviceEventFilter {
+  fn default() -> Self {
+    Self::Unfocused
+  }
+}
+
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -460,6 +477,19 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self);
+
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
 
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]

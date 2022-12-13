@@ -1,12 +1,8 @@
 {
   "$schema": "../../../core/config-schema/schema.json",
   "build": {
-    "distDir": [
-      "../index.html"
-    ],
-    "devPath": [
-      "../index.html"
-    ],
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
     "withGlobalTauri": true
@@ -27,9 +23,7 @@
         "../../.icons/icon.icns",
         "../../.icons/icon.ico"
       ],
-      "resources": [
-        "assets/*"
-      ],
+      "resources": ["assets/*"],
       "externalBin": [],
       "copyright": "",
       "category": "DeveloperTool",

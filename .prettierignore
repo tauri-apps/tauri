@@ -9,3 +9,4 @@ dist
 /tooling/cli/templates
 /tooling/cli/node
 /tooling/cli/schema.json
+/core/config-schema/schema.json

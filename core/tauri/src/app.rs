@@ -151,6 +151,8 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 }
 
 /// An application event, triggered from the event loop.
+///
+/// See [`App::run`](crate::App#method.run) for usage examples.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum RunEvent {
@@ -249,6 +251,8 @@ pub struct PathResolver {
 
 impl PathResolver {
   /// Returns the path to the resource directory of this app.
+  ///
+  /// Helper function for [`crate::api::path::resource_dir`].
   pub fn resource_dir(&self) -> Option<PathBuf> {
     crate::api::path::resource_dir(&self.package_info, &self.env)
   }
@@ -289,26 +293,36 @@ impl PathResolver {
   }
 
   /// Returns the path to the suggested directory for your app's config files.
+  ///
+  /// Helper function for [`crate::api::path::app_config_dir`].
   pub fn app_config_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_config_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's data files.
+  ///
+  /// Helper function for [`crate::api::path::app_data_dir`].
   pub fn app_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
+  ///
+  /// Helper function for [`crate::api::path::app_local_data_dir`].
   pub fn app_local_data_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_local_data_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
+  ///
+  /// Helper function for [`crate::api::path::app_cache_dir`].
   pub fn app_cache_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_cache_dir(&self.config)
   }
 
   /// Returns the path to the suggested directory for your app's log files.
+  ///
+  /// Helper function for [`crate::api::path::app_log_dir`].
   pub fn app_log_dir(&self) -> Option<PathBuf> {
     crate::api::path::app_log_dir(&self.config)
   }
@@ -1251,7 +1265,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Sets the given system tray to be built before the app runs.
   ///
-  /// Prefer the [`SystemTray#method.build`] method to create the tray at runtime instead.
+  /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
   ///
   /// # Examples
   /// ```
@@ -1293,6 +1307,21 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
+    self
+  }
+
+  /// Enable or disable the default menu on macOS. Enabled by default.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// tauri::Builder::default()
+  ///   .enable_macos_default_menu(false);
+  /// ```
+  #[must_use]
+  pub fn enable_macos_default_menu(mut self, enable: bool) -> Self {
+    self.enable_macos_default_menu = enable;
     self
   }
 
@@ -1362,7 +1391,7 @@ impl<R: Runtime> Builder<R> {
 
   /// Registers a system tray event handler.
   ///
-  /// Prefer the [`SystemTray#method.on_event`] method when creating a tray at runtime instead.
+  /// Prefer the [`SystemTray#method.on_event`](crate::SystemTray#method.on_event) method when creating a tray at runtime instead.
   ///
   /// # Examples
   /// ```
@@ -1555,7 +1584,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(http_request)]
       http: crate::scope::HttpScope::for_http_api(&app.config().tauri.allowlist.http.scope),
       #[cfg(shell_scope)]
-      shell: ShellScope::new(shell_scope),
+      shell: ShellScope::new(&app.manager.config(), app.package_info(), &env, shell_scope),
     });
     app.manage(env);
 
@@ -1639,13 +1668,13 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-unsafe impl HasRawDisplayHandle for AppHandle {
+unsafe impl<R: Runtime> HasRawDisplayHandle for AppHandle<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.runtime_handle.raw_display_handle()
   }
 }
 
-unsafe impl HasRawDisplayHandle for App {
+unsafe impl<R: Runtime> HasRawDisplayHandle for App<R> {
   fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
     self.handle.raw_display_handle()
   }

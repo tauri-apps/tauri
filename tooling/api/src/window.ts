@@ -581,6 +581,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current minimized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimized = await appWindow.isMinimized();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current maximized state.
    * @example
    * ```typescript
@@ -685,7 +710,6 @@ class WindowManager extends WebviewWindowHandle {
    *
    * #### Platform-specific
    *
-   * - **Linux:** Not implemented, always returns `light`.
    * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
    *
    * @example
@@ -1377,7 +1401,11 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
-   * Whether to show the window icon in the task bar or not.
+   * Whether the window icon should be hidden from the taskbar or not.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Unsupported.
    * @example
    * ```typescript
    * import { appWindow } from '@tauri-apps/api/window';
@@ -2074,7 +2102,7 @@ interface WindowOptions {
    */
   hiddenTitle?: boolean
   /**
-   * Whether clicking an inactive window also clicks through to the webview.
+   * Whether clicking an inactive window also clicks through to the webview on macOS.
    */
   acceptFirstMouse?: boolean
   /**

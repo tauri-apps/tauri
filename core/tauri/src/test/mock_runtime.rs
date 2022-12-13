@@ -363,6 +363,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     Ok(false)
   }

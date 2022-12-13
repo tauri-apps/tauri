@@ -3,7 +3,6 @@
   "timeout": 3600000,
   "pkgManagers": {
     "rust": {
-      "errorOnVersionRange": "^2.0.0-0",
       "version": true,
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
@@ -68,7 +67,6 @@
       ]
     },
     "javascript": {
-      "errorOnVersionRange": "^2.0.0-0",
       "version": true,
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
@@ -105,7 +103,7 @@
           "pipe": true
         },
         {
-          "command": "yarn publish --access public --loglevel silly",
+          "command": "yarn publish --access public --loglevel silly --tag next",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },

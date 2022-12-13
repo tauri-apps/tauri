@@ -599,6 +599,9 @@ pub struct BundleConfig {
   /// Configuration for the Windows bundle.
   #[serde(default)]
   pub windows: WindowsConfig,
+  /// iOS configuration.
+  #[serde(rename = "iOS", default)]
+  pub ios: IosConfig,
 }
 
 /// A CLI argument definition.
@@ -2476,6 +2479,18 @@ fn default_dialog() -> bool {
   true
 }
 
+/// General configuration for the iOS target.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IosConfig {
+  /// The development team. This value is required for iOS development because code signing is enforced.
+  /// The `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
+  #[serde(alias = "development-team")]
+  pub development_team: Option<String>,
+}
+
 /// Defines the URL or assets to embed in the application.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2724,8 +2739,8 @@ impl PackageConfig {
 ///
 /// In addition to the default configuration file, Tauri can
 /// read a platform-specific configuration from `tauri.linux.conf.json`,
-/// `tauri.windows.conf.json`, and `tauri.macos.conf.json`
-/// (or `Tauri.linux.toml`, `Tauri.windows.toml` and `Tauri.macos.toml` if the `Tauri.toml` format is used),
+/// `tauri.windows.conf.json`, `tauri.macos.conf.json`, `tauri.android.conf.json` and `tauri.ios.conf.json`
+/// (or `Tauri.linux.toml`, `Tauri.windows.toml`, `Tauri.macos.toml`, `Tauri.android.toml` and `Tauri.ios.toml` if the `Tauri.toml` format is used),
 /// which gets merged with the main configuration object.
 ///
 /// ## Configuration Structure
@@ -3253,6 +3268,7 @@ mod build {
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
+      let ios = quote!(Default::default());
 
       literal_struct!(
         tokens,
@@ -3271,7 +3287,8 @@ mod build {
         deb,
         macos,
         external_bin,
-        windows
+        windows,
+        ios
       );
     }
   }
@@ -3687,6 +3704,7 @@ mod test {
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),
+        ios: Default::default(),
       },
       cli: None,
       updater: UpdaterConfig {

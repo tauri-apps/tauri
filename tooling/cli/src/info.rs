@@ -636,7 +636,7 @@ pub fn command(_options: Options) -> Result<()> {
       InfoBlock::new("MSVC", "").display();
       for i in build_tools {
         indent(6);
-        println!("{}", format!("{} {}", "-".cyan(), i));
+        println!("{} {}", "-".cyan(), i);
       }
     }
   }
@@ -882,6 +882,28 @@ pub fn command(_options: Options) -> Result<()> {
         prefix,
         entry.path().file_name().unwrap().to_string_lossy()
       );
+    }
+  }
+
+  #[cfg(target_os = "macos")]
+  if tauri_dir.is_some() {
+    let p = tauri_dir.as_ref().unwrap();
+    if p.join("gen/apple").exists() {
+      let teams = tauri_mobile::apple::teams::find_development_teams().unwrap_or_default();
+      Section("iOS").display();
+      InfoBlock::new(
+        "Teams",
+        if teams.is_empty() {
+          "None".red().to_string()
+        } else {
+          teams
+            .iter()
+            .map(|t| format!("{} (ID: {})", t.name, t.id))
+            .collect::<Vec<String>>()
+            .join(", ")
+        },
+      )
+      .display();
     }
   }
 

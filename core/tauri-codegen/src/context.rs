@@ -129,33 +129,34 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
   } = data;
 
-  let target = if let Ok(target) = std::env::var("TARGET") {
-    if target.contains("unknown-linux") {
+  let target =
+    if let Ok(target) = std::env::var("TARGET").or_else(|_| std::env::var("TAURI_TARGET_TRIPLE")) {
+      if target.contains("unknown-linux") {
+        Target::Linux
+      } else if target.contains("pc-windows") {
+        Target::Windows
+      } else if target.contains("apple-darwin") {
+        Target::Darwin
+      } else if target.contains("android") {
+        Target::Android
+      } else if target.contains("apple-ios") {
+        Target::Ios
+      } else {
+        panic!("unknown codegen target {}", target);
+      }
+    } else if cfg!(target_os = "linux") {
       Target::Linux
-    } else if target.contains("pc-windows") {
+    } else if cfg!(windows) {
       Target::Windows
-    } else if target.contains("apple-darwin") {
+    } else if cfg!(target_os = "macos") {
       Target::Darwin
-    } else if target.contains("android") {
+    } else if cfg!(target_os = "android") {
       Target::Android
-    } else if target.contains("apple-ios") {
+    } else if cfg!(target_os = "ios") {
       Target::Ios
     } else {
-      panic!("unknown codegen target {}", target);
-    }
-  } else if cfg!(target_os = "linux") {
-    Target::Linux
-  } else if cfg!(windows) {
-    Target::Windows
-  } else if cfg!(target_os = "macos") {
-    Target::Darwin
-  } else if cfg!(target_os = "android") {
-    Target::Android
-  } else if cfg!(target_os = "ios") {
-    Target::Ios
-  } else {
-    panic!("unknown codegen target");
-  };
+      panic!("unknown codegen target")
+    };
 
   let mut options = AssetOptions::new(config.tauri.pattern.clone())
     .freeze_prototype(config.tauri.security.freeze_prototype)

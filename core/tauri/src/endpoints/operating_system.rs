@@ -78,6 +78,8 @@ fn os_type() -> &'static str {
   return "Darwin";
   #[cfg(target_os = "ios")]
   return "iOS";
+  #[cfg(target_os = "android")]
+  return "Android";
 }
 
 #[cfg(os_all)]

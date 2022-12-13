@@ -100,9 +100,9 @@ type FileDropHandler = dyn Fn(&Window, WryFileDropEvent) -> bool + 'static;
 #[cfg(all(desktop, feature = "system-tray"))]
 pub use tauri_runtime::TrayId;
 
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 mod webview;
-#[cfg(desktop)]
+#[cfg(any(desktop, target_os = "android"))]
 pub use webview::Webview;
 
 #[cfg(all(desktop, feature = "system-tray"))]
@@ -696,17 +696,7 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   fn with_config(config: WindowConfig) -> Self {
-    let mut window = WindowBuilderWrapper::new()
-      .title(config.title.to_string())
-      .inner_size(config.width, config.height)
-      .visible(config.visible)
-      .resizable(config.resizable)
-      .fullscreen(config.fullscreen)
-      .decorations(config.decorations)
-      .maximized(config.maximized)
-      .always_on_top(config.always_on_top)
-      .skip_taskbar(config.skip_taskbar)
-      .theme(config.theme);
+    let mut window = WindowBuilderWrapper::new();
 
     #[cfg(target_os = "macos")]
     {
@@ -734,18 +724,33 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      window = window.min_inner_size(min_width, min_height);
-    }
-    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      window = window.max_inner_size(max_width, max_height);
-    }
-    if let (Some(x), Some(y)) = (config.x, config.y) {
-      window = window.position(x, y);
-    }
+    #[cfg(desktop)]
+    {
+      window = window
+        .title(config.title.to_string())
+        .inner_size(config.width, config.height)
+        .visible(config.visible)
+        .resizable(config.resizable)
+        .fullscreen(config.fullscreen)
+        .decorations(config.decorations)
+        .maximized(config.maximized)
+        .always_on_top(config.always_on_top)
+        .skip_taskbar(config.skip_taskbar)
+        .theme(config.theme);
 
-    if config.center {
-      window = window.center();
+      if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+        window = window.min_inner_size(min_width, min_height);
+      }
+      if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+        window = window.max_inner_size(max_width, max_height);
+      }
+      if let (Some(x), Some(y)) = (config.x, config.y) {
+        window = window.position(x, y);
+      }
+
+      if config.center {
+        window = window.center();
+      }
     }
 
     window
@@ -1005,7 +1010,7 @@ pub enum ApplicationMessage {
 }
 
 pub enum WindowMessage {
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   AddEventListener(Uuid, Box<dyn Fn(&WindowEvent) + Send>),
   AddMenuEventListener(Uuid, Box<dyn Fn(&MenuEvent) + Send>),
@@ -1157,7 +1162,7 @@ pub struct WryDispatcher<T: UserEvent> {
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
 impl<T: UserEvent> WryDispatcher<T> {
-  #[cfg(desktop)]
+  #[cfg(any(desktop, target_os = "android"))]
   pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2258,7 +2263,7 @@ fn handle_user_message<T: UserEvent>(
         });
         if let Some((Some(window), window_event_listeners, menu_event_listeners)) = w {
           match window_message {
-            #[cfg(desktop)]
+            #[cfg(any(target_os = "android", desktop))]
             WindowMessage::WithWebview(f) => {
               if let WindowHandle::Webview { inner: w, .. } = &window {
                 #[cfg(any(
@@ -2281,12 +2286,16 @@ fn handle_user_message<T: UserEvent>(
                     ns_window: w.ns_window(),
                   });
                 }
-
                 #[cfg(windows)]
                 {
                   f(Webview {
                     controller: w.controller(),
                   });
+                }
+                #[cfg(target_os = "android")]
+                {
+                  use wry::webview::WebviewExtAndroid;
+                  f(w.handle())
                 }
               }
             }

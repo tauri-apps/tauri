@@ -1,4 +1,4 @@
-use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 
 use anyhow::Context;
@@ -16,6 +16,52 @@ use std::{
   },
 };
 
+pub struct DevChild {
+  manually_killed_app: Arc<AtomicBool>,
+  build_child: Option<Arc<SharedChild>>,
+  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
+}
+
+impl DevProcess for DevChild {
+  fn kill(&self) -> std::io::Result<()> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.kill()?;
+    } else if let Some(child) = &self.build_child {
+      child.kill()?;
+    }
+    self.manually_killed_app.store(true, Ordering::Relaxed);
+    Ok(())
+  }
+
+  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.try_wait()
+    } else if let Some(child) = &self.build_child {
+      child.try_wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn wait(&self) -> std::io::Result<ExitStatus> {
+    if let Some(child) = &*self.app_child.lock().unwrap() {
+      child.wait()
+    } else if let Some(child) = &self.build_child {
+      child.wait()
+    } else {
+      unreachable!()
+    }
+  }
+
+  fn manually_killed_process(&self) -> bool {
+    self.manually_killed_app.load(Ordering::Relaxed)
+  }
+
+  fn is_building_app(&self) -> bool {
+    self.app_child.lock().unwrap().is_none()
+  }
+}
+
 pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   options: Options,
   run_args: Vec<String>,
@@ -24,7 +70,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
   app_settings: &RustAppSettings,
   product_name: Option<String>,
   on_exit: F,
-) -> crate::Result<DevChild> {
+) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
 
   let manually_killed_app = Arc::new(AtomicBool::default());
@@ -45,18 +91,14 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
         app.stderr(os_pipe::dup_stderr().unwrap());
         app.args(run_args);
         let app_child = Arc::new(SharedChild::spawn(&mut app).unwrap());
-        let app_child_t = app_child.clone();
-        std::thread::spawn(move || {
-          let status = app_child_t.wait().expect("failed to wait on app");
-          on_exit(
-            status,
-            if manually_killed_app_.load(Ordering::Relaxed) {
-              ExitReason::TriggeredKill
-            } else {
-              ExitReason::NormalExit
-            },
-          );
-        });
+        crate::dev::wait_dev_process(
+          DevChild {
+            manually_killed_app: manually_killed_app_,
+            build_child: None,
+            app_child: Arc::new(Mutex::new(Some(app_child.clone()))),
+          },
+          on_exit,
+        );
 
         app_child_.lock().unwrap().replace(app_child);
       } else {
@@ -74,7 +116,7 @@ pub fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
 
   Ok(DevChild {
     manually_killed_app,
-    build_child,
+    build_child: Some(build_child),
     app_child,
   })
 }
@@ -341,7 +383,7 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(&product_name)
+      .join(product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
     rename(bin_path, &product_path).with_context(|| {

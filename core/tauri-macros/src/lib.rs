@@ -8,6 +8,7 @@ use syn::{parse_macro_input, DeriveInput, ItemFn};
 
 mod command;
 mod command_module;
+mod mobile;
 mod runtime;
 
 #[macro_use]
@@ -22,6 +23,11 @@ mod context;
 #[proc_macro_attribute]
 pub fn command(attributes: TokenStream, item: TokenStream) -> TokenStream {
   command::wrapper(attributes, item)
+}
+
+#[proc_macro_attribute]
+pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenStream {
+  mobile::entry_point(attributes, item)
 }
 
 /// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().

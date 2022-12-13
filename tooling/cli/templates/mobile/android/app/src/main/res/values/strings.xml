@@ -1,0 +1,3 @@
+<resources>
+    <string name="app_name">{{app.stylized-name}}</string>
+</resources>

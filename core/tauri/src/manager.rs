@@ -145,11 +145,6 @@ fn set_csp<R: Runtime>(
   Csp::DirectiveMap(csp).to_string()
 }
 
-#[cfg(target_os = "linux")]
-fn set_html_csp(html: &str, csp: &str) -> String {
-  html.replacen(tauri_utils::html::CSP_TOKEN, csp, 1)
-}
-
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
 fn replace_with_callback<F: FnMut() -> String>(
   original: &str,
@@ -377,7 +372,13 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the origin as it will be seen in the webview.
   fn get_browser_origin(&self) -> String {
     match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => url.origin().ascii_serialization(),
+      AppUrl::Url(WindowUrl::External(url)) => {
+        if cfg!(dev) && !cfg!(target_os = "linux") {
+          format_real_schema("tauri")
+        } else {
+          url.origin().ascii_serialization()
+        }
+      }
       _ => format_real_schema("tauri"),
     }
   }
@@ -448,8 +449,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -884,46 +884,112 @@ impl<R: Runtime> WindowManager<R> {
     >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
+    #[cfg(dev)]
+    let url = {
+      let mut url = self.get_url().as_str().to_string();
+      if url.ends_with('/') {
+        url.pop();
+      }
+      url
+    };
+    #[cfg(not(dev))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
+
+    #[cfg(dev)]
+    #[derive(Clone)]
+    struct CachedResponse {
+      status: http::StatusCode,
+      headers: http::HeaderMap,
+      body: Vec<u8>,
+    }
+
+    #[cfg(dev)]
+    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+
     Box::new(move |request| {
-      let path = request
-        .uri()
-        .split(&['?', '#'][..])
-        // ignore query string and fragment
-        .next()
-        .unwrap()
+      // use the entire URI as we are going to proxy the request
+      #[cfg(dev)]
+      let path = request.uri();
+      // ignore query string and fragment
+      #[cfg(not(dev))]
+      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+
+      let path = path
         .strip_prefix("tauri://localhost")
         .map(|p| p.to_string())
         // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
         // where `$P` is not `localhost/*`
         .unwrap_or_else(|| "".to_string());
-      let asset = manager.get_asset(path)?;
-      let mut builder = HttpResponseBuilder::new()
-        .header("Access-Control-Allow-Origin", &window_origin)
-        .mimetype(&asset.mime_type);
-      if let Some(csp) = &asset.csp_header {
-        builder = builder.header("Content-Security-Policy", csp);
-      }
-      let mut response = builder.body(asset.bytes)?;
-      if let Some(handler) = &web_resource_request_handler {
-        handler(request, &mut response);
 
-        // if it's an HTML file, we need to set the CSP meta tag on Linux
-        #[cfg(target_os = "linux")]
-        if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-          let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-          let body = set_html_csp(&String::from_utf8_lossy(response.body()), &response_csp);
-          *response.body_mut() = body.as_bytes().to_vec();
+      let mut builder =
+        HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
+
+      #[cfg(dev)]
+      let mut response = {
+        use attohttpc::StatusCode;
+        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let url = format!("{url}{decoded_path}");
+        println!("request url {url}, original path {path}, decoded {decoded_path}");
+        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
+        for (name, value) in request.headers() {
+          proxy_builder = proxy_builder.header(name, value);
         }
-      } else {
-        #[cfg(target_os = "linux")]
-        {
-          if let Some(csp) = &asset.csp_header {
-            let body = set_html_csp(&String::from_utf8_lossy(response.body()), csp);
-            *response.body_mut() = body.as_bytes().to_vec();
+        match proxy_builder.send() {
+          Ok(r) => {
+            let mut response_cache_ = response_cache.lock().unwrap();
+            let mut response = None;
+            if r.status() == StatusCode::NOT_MODIFIED {
+              response = response_cache_.get(&url);
+            }
+            let response = if let Some(r) = response {
+              r
+            } else {
+              let (status, headers, reader) = r.split();
+              let body = reader.bytes()?;
+              let response = CachedResponse {
+                status,
+                headers,
+                body,
+              };
+              response_cache_.insert(url.clone(), response);
+              response_cache_.get(&url).unwrap()
+            };
+            for (name, value) in &response.headers {
+              builder = builder.header(name, value);
+            }
+            builder
+              .status(response.status)
+              .body(response.body.clone())?
+          }
+          Err(e) => {
+            debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
+            return Err(Box::new(e));
           }
         }
+      };
+
+      #[cfg(not(dev))]
+      let mut response = {
+        let asset = manager.get_asset(path)?;
+        builder = builder.mimetype(&asset.mime_type);
+        if let Some(csp) = &asset.csp_header {
+          builder = builder.header("Content-Security-Policy", csp);
+        }
+        builder.body(asset.bytes)?
+      };
+      if let Some(handler) = &web_resource_request_handler {
+        handler(request, &mut response);
+      }
+      // if it's an HTML file, we need to set the CSP meta tag on Linux
+      #[cfg(all(not(dev), target_os = "linux"))]
+      if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
+        let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
+        let html = String::from_utf8_lossy(response.body());
+        let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
+        *response.body_mut() = body.as_bytes().to_vec();
       }
       Ok(response)
     })
@@ -951,6 +1017,10 @@ impl<R: Runtime> WindowManager<R> {
       listen_function: &'a str,
       #[raw]
       core_script: &'a str,
+      #[raw]
+      window_dialogs_script: &'a str,
+      #[raw]
+      window_print_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
       #[raw]
@@ -1017,6 +1087,19 @@ impl<R: Runtime> WindowManager<R> {
         )
       ),
       core_script: include_str!("../scripts/core.js"),
+
+      // window.print works on Linux/Windows; need to use the API on macOS
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      window_print_script: include_str!("../scripts/window_print.js"),
+      #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+      window_print_script: "",
+
+      // dialogs are implemented natively on Android
+      #[cfg(not(target_os = "android"))]
+      window_dialogs_script: include_str!("../scripts/window_dialogs.js"),
+      #[cfg(target_os = "android")]
+      window_dialogs_script: "",
+
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
@@ -1125,7 +1208,10 @@ impl<R: Runtime> WindowManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let (is_local, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
+        #[cfg(target_os = "linux")]
         let url = self.get_url();
+        #[cfg(not(target_os = "linux"))]
+        let url: Cow<'_, Url> = Cow::Owned(Url::parse("tauri://localhost").unwrap());
         (
           true,
           // ignore "index.html" just to simplify the url
@@ -1142,7 +1228,13 @@ impl<R: Runtime> WindowManager<R> {
       }
       WindowUrl::External(url) => {
         let config_url = self.get_url();
-        (config_url.make_relative(url).is_some(), url.clone())
+        let is_local = config_url.make_relative(url).is_some();
+        let mut url = url.clone();
+        if is_local && !cfg!(target_os = "linux") {
+          url.set_scheme("tauri").unwrap();
+          url.set_host(Some("localhost")).unwrap();
+        }
+        (is_local, url)
       }
       _ => unimplemented!(),
     };

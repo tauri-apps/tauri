@@ -1,0 +1,3 @@
+include ':app'
+{{~#each asset-packs}}
+include ':{{this}}'{{/each}}

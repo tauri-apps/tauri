@@ -10,11 +10,7 @@ use std::{
   path::{Path, PathBuf},
   process::{Command, ExitStatus},
   str::FromStr,
-  sync::{
-    atomic::{AtomicBool, Ordering},
-    mpsc::sync_channel,
-    Arc, Mutex,
-  },
+  sync::{mpsc::sync_channel, Arc, Mutex},
   time::{Duration, Instant},
 };
 
@@ -26,14 +22,13 @@ use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
-use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
   UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
-use super::{AppSettings, ExitReason, Interface};
+use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{reload as reload_config, wix_settings, Config},
@@ -41,11 +36,11 @@ use crate::helpers::{
 
 mod cargo_config;
 mod desktop;
-mod manifest;
+pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,
@@ -84,30 +79,13 @@ impl From<crate::dev::Options> for Options {
   }
 }
 
-pub struct DevChild {
-  manually_killed_app: Arc<AtomicBool>,
-  build_child: Arc<SharedChild>,
-  app_child: Arc<Mutex<Option<Arc<SharedChild>>>>,
-}
-
-impl DevChild {
-  fn kill(&self) -> std::io::Result<()> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.kill()?;
-    } else {
-      self.build_child.kill()?;
-    }
-    self.manually_killed_app.store(true, Ordering::Relaxed);
-    Ok(())
-  }
-
-  fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
-    if let Some(child) = &*self.app_child.lock().unwrap() {
-      child.try_wait()
-    } else {
-      self.build_child.try_wait()
-    }
-  }
+#[derive(Debug, Clone)]
+pub struct MobileOptions {
+  pub debug: bool,
+  pub features: Option<Vec<String>>,
+  pub args: Vec<String>,
+  pub config: Option<String>,
+  pub no_watch: bool,
 }
 
 #[derive(Debug)]
@@ -156,8 +134,10 @@ impl Interface for Rust {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
+    let app_settings = RustAppSettings::new(config, manifest, target)?;
+
     Ok(Self {
-      app_settings: RustAppSettings::new(config, manifest, target)?,
+      app_settings,
       config_features: config.build.features.clone().unwrap_or_default(),
       product_name: config.package.product_name.clone(),
       available_targets: None,
@@ -168,11 +148,7 @@ impl Interface for Rust {
     &self.app_settings
   }
 
-  fn build(&mut self, mut options: Options) -> crate::Result<()> {
-    options
-      .features
-      .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+  fn build(&mut self, options: Options) -> crate::Result<()> {
     desktop::build(
       options,
       &self.app_settings,
@@ -185,28 +161,62 @@ impl Interface for Rust {
 
   fn dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    options: Options,
+    mut options: Options,
     on_exit: F,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
 
-    let on_exit_ = on_exit.clone();
+    let mut run_args = Vec::new();
+    dev_options(
+      false,
+      &mut options.args,
+      &mut run_args,
+      &mut options.features,
+      &self.app_settings,
+    );
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, move |status, reason| {
+      self.run_dev(options, run_args, move |status, reason| {
         tx.send(()).unwrap();
-        on_exit_(status, reason)
+        on_exit(status, reason)
       })?;
 
       rx.recv().unwrap();
       Ok(())
     } else {
-      let child = self.run_dev(options.clone(), move |status, reason| {
-        on_exit_(status, reason)
-      })?;
+      let config = options.config.clone();
+      let run = Arc::new(|rust: &mut Rust| {
+        let on_exit = on_exit.clone();
+        rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
+          on_exit(status, reason)
+        })
+      });
+      self.run_dev_watcher(config, run)
+    }
+  }
 
-      self.run_dev_watcher(child, options, on_exit)
+  fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess>>>(
+    &mut self,
+    mut options: MobileOptions,
+    runner: R,
+  ) -> crate::Result<()> {
+    let mut run_args = Vec::new();
+    dev_options(
+      true,
+      &mut options.args,
+      &mut run_args,
+      &mut options.features,
+      &self.app_settings,
+    );
+
+    if options.no_watch {
+      runner(options)?;
+      Ok(())
+    } else {
+      let config = options.config.clone();
+      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
+      self.run_dev_watcher(config, run)
     }
   }
 
@@ -334,51 +344,89 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
+fn shared_options(
+  mobile: bool,
+  features: &mut Option<Vec<String>>,
+  app_settings: &RustAppSettings,
+) {
+  if mobile {
+    let all_features = app_settings
+      .manifest
+      .all_enabled_features(if let Some(f) = features { f } else { &[] });
+    if all_features.contains(&"tauri/default-tls".into())
+      || all_features.contains(&"tauri/reqwest-default-tls".into())
+    {
+      if all_features.contains(&"tauri/reqwest-client".into()) {
+        features
+          .get_or_insert(Vec::new())
+          .push("tauri/reqwest-native-tls-vendored".into());
+      } else {
+        features
+          .get_or_insert(Vec::new())
+          .push("tauri/native-tls-vendored".into());
+      }
+    }
+  }
+}
+
+fn dev_options(
+  mobile: bool,
+  args: &mut Vec<String>,
+  run_args: &mut Vec<String>,
+  features: &mut Option<Vec<String>>,
+  app_settings: &RustAppSettings,
+) {
+  let mut dev_args = Vec::new();
+  let mut reached_run_args = false;
+  for arg in args.clone() {
+    if reached_run_args {
+      run_args.push(arg);
+    } else if arg == "--" {
+      reached_run_args = true;
+    } else {
+      dev_args.push(arg);
+    }
+  }
+  *args = dev_args;
+
+  shared_options(mobile, features, app_settings);
+
+  if !args.contains(&"--no-default-features".into()) {
+    let manifest_features = app_settings.manifest.features();
+    let enable_features: Vec<String> = manifest_features
+      .get("default")
+      .cloned()
+      .unwrap_or_default()
+      .into_iter()
+      .filter(|feature| {
+        if let Some(manifest_feature) = manifest_features.get(feature) {
+          !manifest_feature.contains(&"tauri/custom-protocol".into())
+        } else {
+          feature != "tauri/custom-protocol"
+        }
+      })
+      .collect();
+    args.push("--no-default-features".into());
+    if !enable_features.is_empty() {
+      features.get_or_insert(Vec::new()).extend(enable_features);
+    }
+  }
+}
+
 impl Rust {
+  pub fn build_options(&self, features: &mut Option<Vec<String>>, mobile: bool) {
+    features
+      .get_or_insert(Vec::new())
+      .push("custom-protocol".into());
+    shared_options(mobile, features, &self.app_settings);
+  }
+
   fn run_dev<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    mut options: Options,
+    options: Options,
+    run_args: Vec<String>,
     on_exit: F,
-  ) -> crate::Result<DevChild> {
-    let mut args = Vec::new();
-    let mut run_args = Vec::new();
-    let mut reached_run_args = false;
-    for arg in options.args.clone() {
-      if reached_run_args {
-        run_args.push(arg);
-      } else if arg == "--" {
-        reached_run_args = true;
-      } else {
-        args.push(arg);
-      }
-    }
-
-    if !args.contains(&"--no-default-features".into()) {
-      let manifest_features = self.app_settings.manifest.features();
-      let enable_features: Vec<String> = manifest_features
-        .get("default")
-        .cloned()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|feature| {
-          if let Some(manifest_feature) = manifest_features.get(feature) {
-            !manifest_feature.contains(&"tauri/custom-protocol".into())
-          } else {
-            feature != "tauri/custom-protocol"
-          }
-        })
-        .collect();
-      args.push("--no-default-features".into());
-      if !enable_features.is_empty() {
-        options
-          .features
-          .get_or_insert(Vec::new())
-          .extend(enable_features);
-      }
-    }
-
-    options.args = args;
-
+  ) -> crate::Result<Box<dyn DevProcess>> {
     desktop::run_dev(
       options,
       run_args,
@@ -388,14 +436,16 @@ impl Rust {
       self.product_name.clone(),
       on_exit,
     )
+    .map(|c| Box::new(c) as Box<dyn DevProcess>)
   }
 
-  fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
+  fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess>>>(
     &mut self,
-    child: DevChild,
-    options: Options,
-    on_exit: Arc<F>,
+    config: Option<String>,
+    run: Arc<F>,
   ) -> crate::Result<()> {
+    let child = run(self)?;
+
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
@@ -452,12 +502,11 @@ impl Rust {
     loop {
       if let Ok(events) = rx.recv() {
         for event in events {
-          let on_exit = on_exit.clone();
           let event_path = event.path;
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(&event_path) {
-              match reload_config(options.config.as_deref()) {
+              match reload_config(config.as_deref()) {
                 Ok(config) => {
                   info!("Tauri configuration changed. Rewriting manifest...");
                   self.app_settings.manifest =
@@ -465,8 +514,7 @@ impl Rust {
                 }
                 Err(err) => {
                   let p = process.lock().unwrap();
-                  let is_building_app = p.app_child.lock().unwrap().is_none();
-                  if is_building_app {
+                  if p.is_building_app() {
                     p.kill().with_context(|| "failed to kill app process")?;
                   }
                   error!("{}", err);
@@ -491,9 +539,7 @@ impl Rust {
                   break;
                 }
               }
-              *p = self.run_dev(options.clone(), move |status, reason| {
-                on_exit(status, reason)
-              })?;
+              *p = run(self)?;
             }
           }
         }

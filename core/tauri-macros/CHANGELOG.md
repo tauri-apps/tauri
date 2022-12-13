@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.0]
+
+- Added the `mobile_entry_point` macro.
+  - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
 ## \[1.2.1]
 
 - Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.

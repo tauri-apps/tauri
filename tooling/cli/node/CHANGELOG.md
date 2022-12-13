@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-alpha.0]
+
+- Added `android build` command.
+  - [4c9ea450](https://www.github.com/tauri-apps/tauri/commit/4c9ea450c3b47c6b8c825ba32e9837909945ccd7) feat(cli): add `android build` command ([#4999](https://www.github.com/tauri-apps/tauri/pull/4999)) on 2022-08-22
+- Added `ios build` command.
+  - [403859d4](https://www.github.com/tauri-apps/tauri/commit/403859d47e1a9bf978b353fa58e4b971e66337a3) feat(cli): add `ios build` command ([#5002](https://www.github.com/tauri-apps/tauri/pull/5002)) on 2022-08-22
+- Added `android dev` and `ios dev` commands.
+  - [6f061504](https://www.github.com/tauri-apps/tauri/commit/6f0615044d09ec58393a7ebca5e45bb175e20db3) feat(cli): add `android dev` and `ios dev` commands ([#4982](https://www.github.com/tauri-apps/tauri/pull/4982)) on 2022-08-20
+- Added `android init` and `ios init` commands.
+  - [d44f67f7](https://www.github.com/tauri-apps/tauri/commit/d44f67f7afd30a81d53a973ec603b2a253150bde) feat: add `android init` and `ios init` commands ([#4942](https://www.github.com/tauri-apps/tauri/pull/4942)) on 2022-08-15
+- Added `android open` and `ios open` commands.
+  - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
 ## \[1.2.2]
 
 - Detect SvelteKit and Vite for the init and info commands.

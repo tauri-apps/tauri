@@ -718,6 +718,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .decorations(config.decorations)
       .maximized(config.maximized)
       .always_on_top(config.always_on_top)
+      .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
@@ -849,6 +850,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  fn content_protected(mut self, protected: bool) -> Self {
+    self.inner = self.inner.with_content_protection(protected);
     self
   }
 
@@ -1036,10 +1042,12 @@ pub enum WindowMessage {
   InnerSize(Sender<PhysicalSize<u32>>),
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
+  IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
   IsVisible(Sender<bool>),
+  Title(Sender<String>),
   IsMenuVisible(Sender<bool>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
@@ -1070,6 +1078,7 @@ pub enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetAlwaysOnTop(bool),
+  SetContentProtected(bool),
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
@@ -1253,6 +1262,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     window_getter!(self, WindowMessage::IsFullscreen)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMinimized)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsMaximized)
   }
@@ -1269,6 +1282,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_visible(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsVisible)
+  }
+
+  fn title(&self) -> Result<String> {
+    window_getter!(self, WindowMessage::Title)
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -1437,6 +1454,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
+    )
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetContentProtected(protected),
+      ),
     )
   }
 
@@ -2363,10 +2390,12 @@ fn handle_user_message<T: UserEvent>(
               .send(PhysicalSizeWrapper(window.outer_size()).into())
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),
             WindowMessage::IsVisible(tx) => tx.send(window.is_visible()).unwrap(),
+            WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
             WindowMessage::IsMenuVisible(tx) => tx.send(window.is_menu_visible()).unwrap(),
             WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
             WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
@@ -2411,6 +2440,9 @@ fn handle_user_message<T: UserEvent>(
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetContentProtected(protected) => {
+              window.set_content_protection(protected)
+            }
             WindowMessage::SetSize(size) => {
               window.set_inner_size(SizeWrapper::from(size).0);
             }

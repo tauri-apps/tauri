@@ -522,6 +522,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window's current fullscreen state.
   fn is_fullscreen(&self) -> Result<bool>;
 
+  /// Gets the window's current minimized state.
+  fn is_minimized(&self) -> Result<bool>;
+
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> Result<bool>;
 
@@ -533,6 +536,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+  /// Gets the window's current title.
+  fn title(&self) -> Result<String>;
 
   /// Gets the window menu current visibility state.
   fn is_menu_visible(&self) -> Result<bool>;
@@ -623,6 +628,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
 
+  /// Prevents the window contents from being captured by other apps.
+  fn set_content_protected(&self, protected: bool) -> Result<()>;
+
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 
@@ -644,7 +652,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> Result<()>;
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
   fn set_skip_taskbar(&self, skip: bool) -> Result<()>;
 
   /// Grabs the cursor, preventing it from leaving the window.

@@ -859,7 +859,10 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
-  /// Whether or not the window icon should be added to the taskbar.
+  /// Prevents the window contents from being captured by other apps.
+  #[serde(default, alias = "content-protected")]
+  pub content_protected: bool,
+  /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
@@ -870,7 +873,7 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
-  /// Whether clicking an inactive window also clicks through to the webview.
+  /// Whether clicking an inactive window also clicks through to the webview on macOS.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
   /// Defines the window [tabbing identifier] for macOS.
@@ -908,6 +911,7 @@ impl Default for WindowConfig {
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+      content_protected: false,
       skip_taskbar: false,
       theme: None,
       title_bar_style: Default::default(),
@@ -1329,6 +1333,9 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the always_on_top flag of the window.
   #[serde(default, alias = "set-always-on-top")]
   pub set_always_on_top: bool,
+  /// Allows preventing the window contents from being captured by other apps.
+  #[serde(default, alias = "set-content-protected")]
+  pub set_content_protected: bool,
   /// Allows setting the window size.
   #[serde(default, alias = "set-size")]
   pub set_size: bool,
@@ -1394,6 +1401,7 @@ impl Allowlist for WindowAllowlistConfig {
       close: true,
       set_decorations: true,
       set_always_on_top: true,
+      set_content_protected: false,
       set_size: true,
       set_min_size: true,
       set_max_size: true,
@@ -1443,6 +1451,12 @@ impl Allowlist for WindowAllowlistConfig {
         features,
         set_always_on_top,
         "window-set-always-on-top"
+      );
+      check_feature!(
+        self,
+        features,
+        set_content_protected,
+        "window-set-content-protected"
       );
       check_feature!(self, features, set_size, "window-set-size");
       check_feature!(self, features, set_min_size, "window-set-min-size");
@@ -1599,7 +1613,7 @@ pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
 pub enum ShellAllowlistOpen {
   /// If the shell open API should be enabled.
   ///
-  /// If enabled, the default validation regex (`^https?://`) is used.
+  /// If enabled, the default validation regex (`^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`) is used.
   Flag(bool),
 
   /// Enable the shell open API, with a custom regex that the opened path must match against.
@@ -2147,6 +2161,7 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.protocol.to_features());
       features.extend(self.process.to_features());
       features.extend(self.clipboard.to_features());
+      features.extend(self.app.to_features());
       features
     }
   }
@@ -3039,6 +3054,7 @@ mod build {
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
@@ -3071,6 +3087,7 @@ mod build {
         visible,
         decorations,
         always_on_top,
+        content_protected,
         skip_taskbar,
         theme,
         title_bar_style,

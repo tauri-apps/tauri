@@ -1,5 +1,28 @@
 # Changelog
 
+## \[1.1.2]
+
+- Fixes blank taskbar icon on WiX updates.
+  - [9093ef33](https://www.github.com/tauri-apps/tauri/commit/9093ef3314c27d2295b4266893fd2290c1bdfb6a) fix(bundler): blank taskbar icon on WiX update, closes [#5631](https://www.github.com/tauri-apps/tauri/pull/5631) ([#5779](https://www.github.com/tauri-apps/tauri/pull/5779)) on 2022-12-08
+
+## \[1.1.1]
+
+- Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.
+  - Bumped due to a bump in tauri-utils.
+  - [bb251087](https://www.github.com/tauri-apps/tauri/commit/bb2510876d0bdff736d36bf3a465cdbe4ad2b90c) fix(core): extend allowlist with `app`'s allowlist, closes [#5650](https://www.github.com/tauri-apps/tauri/pull/5650) ([#5652](https://www.github.com/tauri-apps/tauri/pull/5652)) on 2022-11-18
+
+## \[1.1.0]
+
+- Use correct code `ja-JP` for japanese instead of `jp-JP`.
+  - [d4cac202](https://www.github.com/tauri-apps/tauri/commit/d4cac202923fc34962721413f7051bca50002809) fix(bundler): fix japanese lang code, closes [#5342](https://www.github.com/tauri-apps/tauri/pull/5342) ([#5346](https://www.github.com/tauri-apps/tauri/pull/5346)) on 2022-10-04
+- Fix WiX DLL load on Windows Server.
+  - [7aaf27ce](https://www.github.com/tauri-apps/tauri/commit/7aaf27ce5f026547ed490731e37cfc917458bbd6) fix(bundler): load WiX DLLs on Github Actions ([#5552](https://www.github.com/tauri-apps/tauri/pull/5552)) on 2022-11-04
+- - [7d9aa398](https://www.github.com/tauri-apps/tauri/commit/7d9aa3987efce2d697179ffc33646d086c68030c) feat: bump MSRV to 1.59 ([#5296](https://www.github.com/tauri-apps/tauri/pull/5296)) on 2022-09-28
+- Add `tauri.conf.json > bundle > publisher` field to specify the app publisher.
+  - [628285c1](https://www.github.com/tauri-apps/tauri/commit/628285c1cf43f03ed62378f3b6cc0c991317526f) feat(bundler): add `publisher` field, closes [#5273](https://www.github.com/tauri-apps/tauri/pull/5273) ([#5283](https://www.github.com/tauri-apps/tauri/pull/5283)) on 2022-09-28
+- Clear environment variables on the WiX light.exe and candle.exe commands to avoid "Windows Installer Service could not be accessed" error. Variables prefixed with `TAURI` are propagated.
+  - [7c0fa1f3](https://www.github.com/tauri-apps/tauri/commit/7c0fa1f3f93943b87a0042b5ba3bd6bb4099304a) fix(bundler): clear env before calling wix, closes [#4791](https://www.github.com/tauri-apps/tauri/pull/4791) ([#4819](https://www.github.com/tauri-apps/tauri/pull/4819)) on 2022-10-03
+
 ## \[1.0.7]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.

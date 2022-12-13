@@ -50,7 +50,7 @@ jobs:
         clippy:
           - { args: '', key: 'empty' }
           - {
-              args: '--features compression,wry,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
+              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart',
               key: 'all'
             }
           - { args: '--features custom-protocol', key: 'custom-protocol' }
@@ -62,7 +62,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -74,6 +74,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: core -> ../target
+          save-if: ${{ matrix.clippy.key == 'all' }}
 
       - uses: actions-rs/clippy-check@v1
         with:

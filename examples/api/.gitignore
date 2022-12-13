@@ -1,3 +1,5 @@
 /node_modules/
 /.vscode/
 .DS_Store
+gen/
+.cargo

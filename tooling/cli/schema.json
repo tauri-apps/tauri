@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -378,6 +379,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
               "setCursorPosition": false,
@@ -641,8 +643,13 @@
           "default": false,
           "type": "boolean"
         },
+        "contentProtected": {
+          "description": "Prevents the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "skipTaskbar": {
-          "description": "Whether or not the window icon should be added to the taskbar.",
+          "description": "If `true`, hides the window icon from the taskbar on Windows and Linux.",
           "default": false,
           "type": "boolean"
         },
@@ -672,7 +679,7 @@
           "type": "boolean"
         },
         "acceptFirstMouse": {
-          "description": "Whether clicking an inactive window also clicks through to the webview.",
+          "description": "Whether clicking an inactive window also clicks through to the webview on macOS.",
           "default": false,
           "type": "boolean"
         },
@@ -720,7 +727,7 @@
       ]
     },
     "TitleBarStyle": {
-      "description": "How the window title bar should be displayed.",
+      "description": "How the window title bar should be displayed on macOS.",
       "oneOf": [
         {
           "description": "A normal title bar.",
@@ -737,7 +744,7 @@
           ]
         },
         {
-          "description": "Shows the title bar as a transparent overlay over the window's content.\n\nKeep in mind: - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect. - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus (https://github.com/tauri-apps/tauri/issues/4316). - The color of the window title depends on the system theme.",
+          "description": "Shows the title bar as a transparent overlay over the window's content.\n\nKeep in mind: - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect. - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus <https://github.com/tauri-apps/tauri/issues/4316>. - The color of the window title depends on the system theme.",
           "type": "string",
           "enum": [
             "Overlay"
@@ -1661,6 +1668,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -2011,6 +2019,11 @@
           "default": false,
           "type": "boolean"
         },
+        "setContentProtected": {
+          "description": "Allows preventing the window contents from being captured by other apps.",
+          "default": false,
+          "type": "boolean"
+        },
         "setSize": {
           "description": "Allows setting the window size.",
           "default": false,
@@ -2211,7 +2224,7 @@
       "description": "Defines the `shell > open` api scope.",
       "anyOf": [
         {
-          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^https?://`) is used.",
+          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+`) is used.",
           "type": "boolean"
         },
         {

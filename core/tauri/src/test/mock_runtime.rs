@@ -250,6 +250,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn content_protected(self, protected: bool) -> Self {
+    self
+  }
+
   fn icon(self, icon: Icon) -> Result<Self> {
     Ok(self)
   }
@@ -359,6 +363,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     Ok(false)
   }
@@ -373,6 +381,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
 
   fn is_visible(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn title(&self) -> Result<String> {
+    Ok(String::new())
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -478,6 +490,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
     Ok(())
   }
 

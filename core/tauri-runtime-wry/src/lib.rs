@@ -705,6 +705,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .decorations(config.decorations)
       .maximized(config.maximized)
       .always_on_top(config.always_on_top)
+      .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
       .theme(config.theme);
 
@@ -836,6 +837,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn always_on_top(mut self, always_on_top: bool) -> Self {
     self.inner = self.inner.with_always_on_top(always_on_top);
+    self
+  }
+
+  fn content_protected(mut self, protected: bool) -> Self {
+    self.inner = self.inner.with_content_protection(protected);
     self
   }
 
@@ -1059,6 +1065,7 @@ pub enum WindowMessage {
   Close,
   SetDecorations(bool),
   SetAlwaysOnTop(bool),
+  SetContentProtected(bool),
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
@@ -1433,6 +1440,16 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetAlwaysOnTop(always_on_top)),
+    )
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetContentProtected(protected),
+      ),
     )
   }
 
@@ -2399,6 +2416,9 @@ fn handle_user_message<T: UserEvent>(
             }
             WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
             WindowMessage::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top),
+            WindowMessage::SetContentProtected(protected) => {
+              window.set_content_protection(protected)
+            }
             WindowMessage::SetSize(size) => {
               window.set_inner_size(SizeWrapper::from(size).0);
             }

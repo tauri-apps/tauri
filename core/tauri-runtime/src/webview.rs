@@ -172,6 +172,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn always_on_top(self, always_on_top: bool) -> Self;
 
+  /// Prevents the window contents from being captured by other apps.
+  #[must_use]
+  fn content_protected(self, protected: bool) -> Self;
+
   /// Sets the window icon.
   fn icon(self, icon: Icon) -> crate::Result<Self>;
 

@@ -103,6 +103,8 @@ pub enum WindowManagerCmd {
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
+  #[cfg(window_set_content_protected)]
+  SetContentProtected(bool),
   #[cfg(window_set_size)]
   SetSize(Size),
   #[cfg(window_set_min_size)]
@@ -164,6 +166,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setContentProtected" => {
+      crate::Error::ApiNotAllowlisted("window > setContentProtected".to_string())
+    }
     "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
     "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
     "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
@@ -299,6 +304,10 @@ impl Cmd {
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
       #[cfg(window_set_always_on_top)]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+      #[cfg(window_set_content_protected)]
+      WindowManagerCmd::SetContentProtected(protected) => {
+        window.set_content_protected(protected)?
+      }
       #[cfg(window_set_size)]
       WindowManagerCmd::SetSize(size) => window.set_size(size)?,
       #[cfg(window_set_min_size)]

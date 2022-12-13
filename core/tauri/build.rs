@@ -81,6 +81,7 @@ fn main() {
       "close",
       "set-decorations",
       "set-always-on-top",
+      "set-content-protected",
       "set-size",
       "set-min-size",
       "set-max-size",

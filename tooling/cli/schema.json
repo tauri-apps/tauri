@@ -105,6 +105,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -378,6 +379,7 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setContentProtected": false,
               "setCursorGrab": false,
               "setCursorIcon": false,
               "setCursorPosition": false,
@@ -638,6 +640,11 @@
         },
         "alwaysOnTop": {
           "description": "Whether the window should always be on top of other windows.",
+          "default": false,
+          "type": "boolean"
+        },
+        "contentProtected": {
+          "description": "Prevents the window contents from being captured by other apps.",
           "default": false,
           "type": "boolean"
         },
@@ -1661,6 +1668,7 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setContentProtected": false,
             "setCursorGrab": false,
             "setCursorIcon": false,
             "setCursorPosition": false,
@@ -2008,6 +2016,11 @@
         },
         "setAlwaysOnTop": {
           "description": "Allows setting the always_on_top flag of the window.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setContentProtected": {
+          "description": "Allows preventing the window contents from being captured by other apps.",
           "default": false,
           "type": "boolean"
         },

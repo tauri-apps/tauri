@@ -628,6 +628,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
 
+  /// Prevents the window contents from being captured by other apps.
+  fn set_content_protected(&self, protected: bool) -> Result<()>;
+
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 

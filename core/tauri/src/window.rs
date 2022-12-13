@@ -398,6 +398,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+
   /// Sets the window icon.
   pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon.try_into()?)?;
@@ -1122,6 +1129,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_always_on_top(always_on_top)
+      .map_err(Into::into)
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
       .map_err(Into::into)
   }
 

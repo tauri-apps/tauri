@@ -159,7 +159,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  addListener<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  addListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     return this.on(eventName, listener)
   }
 
@@ -168,7 +171,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  removeListener<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  removeListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     return this.off(eventName, listener)
   }
 
@@ -182,7 +188,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.0.0
    */
-  on<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  on<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName].push(listener)
@@ -201,7 +210,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  once<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  once<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     const wrapper = (arg: E[typeof eventName]): void => {
       this.removeListener(eventName, wrapper)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -216,7 +228,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  off<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  off<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName] = this.eventListeners[eventName].filter(
@@ -284,7 +299,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  prependListener<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  prependListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     if (eventName in this.eventListeners) {
       // eslint-disable-next-line security/detect-object-injection
       this.eventListeners[eventName].unshift(listener)
@@ -303,7 +321,10 @@ class EventEmitter<E extends { [key: string]: any }> {
    *
    * @since 1.1.0
    */
-  prependOnceListener<N extends keyof E>(eventName: N, listener: (arg: E[typeof eventName]) => void): this {
+  prependOnceListener<N extends keyof E>(
+    eventName: N,
+    listener: (arg: E[typeof eventName]) => void
+  ): this {
     const wrapper = (arg: any): void => {
       this.removeListener(eventName, wrapper)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
@@ -429,10 +450,7 @@ class Command<O extends IOPayload> extends EventEmitter<CommandEvents> {
     this.options = options ?? {}
   }
 
-  static create(
-    program: string,
-    args?: string | string[]
-  ): Command<string>
+  static create(program: string, args?: string | string[]): Command<string>
   static create(
     program: string,
     args?: string | string[],
@@ -464,10 +482,7 @@ class Command<O extends IOPayload> extends EventEmitter<CommandEvents> {
     return new Command(program, args, options)
   }
 
-  static sidecar(
-    program: string,
-    args?: string | string[]
-  ): Command<string>
+  static sidecar(program: string, args?: string | string[]): Command<string>
   static sidecar(
     program: string,
     args?: string | string[],
@@ -562,7 +577,7 @@ class Command<O extends IOPayload> extends EventEmitter<CommandEvents> {
           code: payload.code,
           signal: payload.signal,
           stdout: this.collectOutput(stdout) as O,
-          stderr: this.collectOutput(stderr) as O,
+          stderr: this.collectOutput(stderr) as O
         })
       })
 
@@ -570,12 +585,11 @@ class Command<O extends IOPayload> extends EventEmitter<CommandEvents> {
     })
   }
 
-
   /** @ignore */
   private collectOutput(events: O[]): string | Uint8Array {
     if (this.options.encoding === 'raw') {
       return events.reduce<Uint8Array>((p, c) => {
-        return (new Uint8Array([...p, ...c as Uint8Array, 10]))
+        return new Uint8Array([...p, ...(c as Uint8Array), 10])
       }, new Uint8Array())
     } else {
       return events.join('\n')
@@ -602,7 +616,7 @@ interface TerminatedPayload {
 }
 
 /** Event payload type */
-type IOPayload = string | Uint8Array;
+type IOPayload = string | Uint8Array
 
 /** Events emitted by the child process. */
 type CommandEvent<O extends IOPayload> =
@@ -649,4 +663,11 @@ async function open(path: string, openWith?: string): Promise<void> {
 }
 
 export { Command, Child, EventEmitter, open }
-export type { IOPayload, CommandEvents, TerminatedPayload, OutputEvents, ChildProcess, SpawnOptions }
+export type {
+  IOPayload,
+  CommandEvents,
+  TerminatedPayload,
+  OutputEvents,
+  ChildProcess,
+  SpawnOptions
+}

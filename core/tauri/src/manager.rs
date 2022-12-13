@@ -449,8 +449,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -897,6 +896,17 @@ impl<R: Runtime> WindowManager<R> {
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
+    #[cfg(dev)]
+    #[derive(Clone)]
+    struct CachedResponse {
+      status: http::StatusCode,
+      headers: http::HeaderMap,
+      body: Vec<u8>,
+    }
+
+    #[cfg(dev)]
+    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+
     Box::new(move |request| {
       // use the entire URI as we are going to proxy the request
       #[cfg(dev)]
@@ -929,14 +939,30 @@ impl<R: Runtime> WindowManager<R> {
         }
         match proxy_builder.send() {
           Ok(r) => {
-            for (name, value) in r.headers() {
+            let mut response_cache_ = response_cache.lock().unwrap();
+            let mut response = None;
+            if r.status() == StatusCode::NOT_MODIFIED {
+              response = response_cache_.get(&url);
+            }
+            let response = if let Some(r) = response {
+              r
+            } else {
+              let (status, headers, reader) = r.split();
+              let body = reader.bytes()?;
+              let response = CachedResponse {
+                status,
+                headers,
+                body,
+              };
+              response_cache_.insert(url.clone(), response);
+              response_cache_.get(&url).unwrap()
+            };
+            for (name, value) in &response.headers {
               builder = builder.header(name, value);
             }
-            let mut status = r.status();
-            if status == StatusCode::NOT_MODIFIED {
-              status = StatusCode::OK;
-            }
-            builder.status(status).body(r.bytes()?)?
+            builder
+              .status(response.status)
+              .body(response.body.clone())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);

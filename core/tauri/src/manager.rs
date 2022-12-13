@@ -886,18 +886,26 @@ impl<R: Runtime> WindowManager<R> {
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     #[cfg(dev)]
-    let url = self.get_url().into_owned();
+    let url = {
+      let mut url = self.get_url().as_str().to_string();
+      if url.ends_with('/') {
+        url.pop();
+      }
+      url
+    };
     #[cfg(not(dev))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
     Box::new(move |request| {
-      let path = request
-        .uri()
-        .split(&['?', '#'][..])
-        // ignore query string and fragment
-        .next()
-        .unwrap()
+      // use the entire URI as we are going to proxy the request
+      #[cfg(dev)]
+      let path = request.uri();
+      // ignore query string and fragment
+      #[cfg(not(dev))]
+      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+
+      let path = path
         .strip_prefix("tauri://localhost")
         .map(|p| p.to_string())
         // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
@@ -910,9 +918,12 @@ impl<R: Runtime> WindowManager<R> {
       #[cfg(dev)]
       let mut response = {
         use attohttpc::StatusCode;
-        let mut url = url.clone();
-        url.set_path(&path);
-        let mut proxy_builder = attohttpc::get(url.as_str()).danger_accept_invalid_certs(true);
+        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let url = format!("{url}{decoded_path}");
+        println!("request url {url}, original path {path}, decoded {decoded_path}");
+        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }

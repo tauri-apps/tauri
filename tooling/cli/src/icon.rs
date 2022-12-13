@@ -50,9 +50,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
-  let extra_icon_sizes = options
-    .extra
-    .unwrap_or_else(|| vec![32, 16, 24, 48, 64, 256]);
+  let extra_icon_sizes = options.extra.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   let source = open(input)
@@ -129,10 +127,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   log::info!(action = "ICO"; "Creating icon.ico");
   let mut frames = Vec::new();
 
-  let sizes = vec![32, 16, 24, 48, 64, 256];
-  let icon_name = "icon.ico".to_string();
-
-  for size in sizes {
+  for size in [32, 16, 24, 48, 64, 256] {
     let image = source.resize_exact(size, size, FilterType::Lanczos3);
 
     // Only the 256px layer can be compressed according to the ico specs.
@@ -152,7 +147,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     }
   }
 
-  let mut out_file = BufWriter::new(File::create(out_dir.join(icon_name))?);
+  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.ico"))?);
   let encoder = IcoEncoder::new(&mut out_file);
   encoder.encode_images(&frames)?;
   out_file.flush()?;
@@ -164,7 +159,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 // Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, mut extra_icon_sizes: Vec<u32>) -> Result<()> {
   //remove duplicate extra icons
-  let mut sizes = vec![32, 16, 24, 48, 64, 256];
+  let mut sizes = vec![32, 128, 256, 512];
   extra_icon_sizes = extra_icon_sizes
     .into_iter()
     .filter(|x| !sizes.contains(x))

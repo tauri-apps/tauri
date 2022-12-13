@@ -22,7 +22,7 @@ pub struct KeyPair {
 
 fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
+    fs::create_dir_all(parent)?;
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))
@@ -72,12 +72,12 @@ where
         sk_path.display()
       ));
     } else {
-      std::fs::remove_file(&sk_path)?;
+      std::fs::remove_file(sk_path)?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(&pk_path)?;
+    std::fs::remove_file(pk_path)?;
   }
 
   let mut sk_writer = create_file(sk_path)?;
@@ -88,7 +88,7 @@ where
   write!(pk_writer, "{:}", pubkey)?;
   pk_writer.flush()?;
 
-  Ok((fs::canonicalize(&sk_path)?, fs::canonicalize(&pk_path)?))
+  Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))
 }
 
 /// Read key from file

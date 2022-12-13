@@ -17,7 +17,6 @@ on:
 
 env:
   RUST_BACKTRACE: 1
-  CARGO_INCREMENTAL: 0 # This is set to 0 by the https://github.com/Swatinem/rust-cache
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
 
 concurrency:
@@ -35,6 +34,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: install Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -51,61 +51,13 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
-      - name: Get current date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-        if: matrix.platform == 'macos-latest' || matrix.platform == 'ubuntu-latest'
-
-      - name: Get current date
-        if: matrix.platform == 'windows-latest'
-        run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Cache cargo state
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_state
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
-
-      - name: Cache CLI cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_cli
-        with:
-          path: tooling/cli/target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/Cargo.lock') }}
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
-
-      - name: Cache template cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_template
-        with:
-          path: tooling/cli/node/test/jest/fixtures/empty/src-tauri/target
-          # Add date to the cache to keep it up to date
-          key: ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/templates/app/**') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-${{ hashFiles('tooling/cli/templates/app/**') }}
-            ${{ matrix.platform }}-stable-${{ env.cache-name }}-
-            ${{ matrix.platform }}-stable-
-            ${{ matrix.platform }}-
+          workspaces: |
+            tooling/cli
+            tooling/cli/node/test/jest/fixtures/empty/src-tauri
 
       - name: test
         timeout-minutes: 30

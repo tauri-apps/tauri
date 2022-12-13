@@ -164,10 +164,7 @@ fn write_features(
       }
       Value::String(version) => {
         let mut def = InlineTable::default();
-        def.get_or_insert(
-          "version",
-          version.to_string().replace('\"', "").replace(' ', ""),
-        );
+        def.get_or_insert("version", version.to_string().replace(['\"', ' '], ""));
         def.get_or_insert("features", Value::Array(toml_array(features)));
         *dep = Value::InlineTable(def);
       }

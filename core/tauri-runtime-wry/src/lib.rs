@@ -1023,6 +1023,7 @@ pub enum WindowMessage {
   InnerSize(Sender<PhysicalSize<u32>>),
   OuterSize(Sender<PhysicalSize<u32>>),
   IsFullscreen(Sender<bool>),
+  IsMinimized(Sender<bool>),
   IsMaximized(Sender<bool>),
   IsDecorated(Sender<bool>),
   IsResizable(Sender<bool>),
@@ -1238,6 +1239,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
 
   fn is_fullscreen(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsFullscreen)
+  }
+
+  fn is_minimized(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsMinimized)
   }
 
   fn is_maximized(&self) -> Result<bool> {
@@ -2344,6 +2349,7 @@ fn handle_user_message<T: UserEvent>(
               .send(PhysicalSizeWrapper(window.outer_size()).into())
               .unwrap(),
             WindowMessage::IsFullscreen(tx) => tx.send(window.fullscreen().is_some()).unwrap(),
+            WindowMessage::IsMinimized(tx) => tx.send(window.is_minimized()).unwrap(),
             WindowMessage::IsMaximized(tx) => tx.send(window.is_maximized()).unwrap(),
             WindowMessage::IsDecorated(tx) => tx.send(window.is_decorated()).unwrap(),
             WindowMessage::IsResizable(tx) => tx.send(window.is_resizable()).unwrap(),

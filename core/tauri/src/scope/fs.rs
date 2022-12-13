@@ -148,9 +148,9 @@ impl Scope {
       let mut list = self.allowed_patterns.lock().unwrap();
 
       // allow the directory to be read
-      push_pattern(&mut list, &path, escaped_pattern)?;
+      push_pattern(&mut list, path, escaped_pattern)?;
       // allow its files and subdirectories to be read
-      push_pattern(&mut list, &path, |p| {
+      push_pattern(&mut list, path, |p| {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
@@ -165,7 +165,7 @@ impl Scope {
     let path = path.as_ref();
     push_pattern(
       &mut self.allowed_patterns.lock().unwrap(),
-      &path,
+      path,
       escaped_pattern,
     )?;
     self.trigger(Event::PathAllowed(path.to_path_buf()));
@@ -181,9 +181,9 @@ impl Scope {
       let mut list = self.forbidden_patterns.lock().unwrap();
 
       // allow the directory to be read
-      push_pattern(&mut list, &path, escaped_pattern)?;
+      push_pattern(&mut list, path, escaped_pattern)?;
       // allow its files and subdirectories to be read
-      push_pattern(&mut list, &path, |p| {
+      push_pattern(&mut list, path, |p| {
         escaped_pattern_with(p, if recursive { "**" } else { "*" })
       })?;
     }
@@ -198,7 +198,7 @@ impl Scope {
     let path = path.as_ref();
     push_pattern(
       &mut self.forbidden_patterns.lock().unwrap(),
-      &path,
+      path,
       escaped_pattern,
     )?;
     self.trigger(Event::PathForbidden(path.to_path_buf()));

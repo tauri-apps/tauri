@@ -1536,8 +1536,9 @@ impl<R: Runtime> Builder<R> {
   /// ```
   ///
   /// [`tao`]: https://crates.io/crates/tao
-  pub fn device_event_filter(&mut self, filter: DeviceEventFilter) {
+  pub fn device_event_filter(mut self, filter: DeviceEventFilter) -> Self {
     self.device_event_filter = filter;
+    self
   }
 
   /// Builds the application.

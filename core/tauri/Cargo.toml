@@ -254,6 +254,7 @@ window-all = [
   "window-set-cursor-icon",
   "window-set-cursor-position",
   "window-set-ignore-cursor-events",
+  "window-set-device-event-filter",
   "window-start-dragging",
   "window-print"
 ]
@@ -285,6 +286,7 @@ window-set-cursor-visible = [ ]
 window-set-cursor-icon = [ ]
 window-set-cursor-position = [ ]
 window-set-ignore-cursor-events = [ ]
+window-set-device-event-filter = [ ]
 window-start-dragging = [ ]
 window-print = [ ]
 app-all = [ "app-show", "app-hide" ]

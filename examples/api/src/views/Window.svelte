@@ -4,6 +4,7 @@
     WebviewWindow,
     LogicalSize,
     UserAttentionType,
+    DeviceEventFilter,
     PhysicalSize,
     PhysicalPosition
   } from '@tauri-apps/api/window'
@@ -57,6 +58,21 @@
     'rowResize'
   ]
 
+  const deviceEventFilterOptions = [
+    {
+      value: DeviceEventFilter.Always,
+      label: 'Always'
+    },
+    {
+      value: DeviceEventFilter.Never,
+      label: 'Never'
+    },
+    {
+      value: DeviceEventFilter.Unfocused,
+      label: 'Unfocused'
+    }
+  ]
+
   export let onMessage
 
   let newWindowLabel
@@ -89,6 +105,7 @@
   let cursorY = null
   let cursorIcon = 'default'
   let cursorIgnoreEvents = false
+  let deviceEventFilter = DeviceEventFilter.Always
   let windowTitle = 'Awesome Tauri Example!'
 
   function openUrl() {
@@ -216,6 +233,7 @@
       new PhysicalPosition(cursorX, cursorY)
     )
   $: windowMap[selectedWindow]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  $: windowMap[selectedWindow]?.setDeviceEventFilter(deviceEventFilter)
 </script>
 
 <div class="flex flex-col children:grow gap-2">
@@ -445,6 +463,16 @@
       </label>
     </div>
     <br />
+    <div class="flex flex-col">
+      <label>
+        Device filter
+        <select class="input" bind:value={deviceEventFilter}>
+          {#each deviceEventFilterOptions as filter}
+            <option value={filter.value}>{filter.label}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
     <div class="flex flex-col gap-1">
       <form class="flex gap-1" on:submit|preventDefault={setTitle_}>
         <input class="input grow" id="title" bind:value={windowTitle} />

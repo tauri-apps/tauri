@@ -9,7 +9,10 @@ use super::{InvokeContext, InvokeResponse};
 use crate::runtime::{webview::WindowBuilder, Dispatch};
 use crate::{
   runtime::{
-    window::dpi::{Position, Size},
+    window::{
+      dpi::{Position, Size},
+      DeviceEventFilter,
+    },
     UserAttentionType,
   },
   utils::config::WindowConfig,
@@ -133,6 +136,8 @@ pub enum WindowManagerCmd {
   SetCursorPosition(Position),
   #[cfg(window_set_ignore_cursor_events)]
   SetIgnoreCursorEvents(bool),
+  #[cfg(window_set_device_event_filter)]
+  SetDeviceEventFilter(DeviceEventFilter),
   #[cfg(window_start_dragging)]
   StartDragging,
   #[cfg(window_print)]
@@ -184,6 +189,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     }
     "setIgnoreCursorEvents" => {
       crate::Error::ApiNotAllowlisted("window > setIgnoreCursorEvents".to_string())
+    }
+    "setDeviceEventFilter" => {
+      crate::Error::ApiNotAllowlisted("window > setDeviceEventFilter".to_string())
     }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
@@ -336,6 +344,8 @@ impl Cmd {
       WindowManagerCmd::SetIgnoreCursorEvents(ignore_cursor) => {
         window.set_ignore_cursor_events(ignore_cursor)?
       }
+      #[cfg(window_set_device_event_filter)]
+      WindowManagerCmd::SetDeviceEventFilter(filter) => window.set_device_event_filter(filter)?,
       #[cfg(window_start_dragging)]
       WindowManagerCmd::StartDragging => window.start_dragging()?,
       #[cfg(window_print)]

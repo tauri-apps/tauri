@@ -4,4 +4,4 @@
 "tauri": minor
 ---
 
-Expose `set_device_event_filter` method in tauri API.
+Added `Window::set_device_event_filter` method.

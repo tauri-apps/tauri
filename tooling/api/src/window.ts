@@ -42,6 +42,7 @@
  *         "setCursorIcon": true,
  *         "setCursorPosition": true,
  *         "setIgnoreCursorEvents": true,
+ *          "setDeviceEventFilter": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -271,6 +272,12 @@ export type CursorIcon =
   | 'nwseResize'
   | 'colResize'
   | 'rowResize'
+
+enum DeviceEventFilter {
+  Always = 1,
+  Never,
+  Unfocused
+}
 
 /**
  * Get an instance of `WebviewWindow` for the current webview window.
@@ -1623,6 +1630,47 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Modifies the window's device event filter.
+   * @example
+   * ```typescript
+   * import { appWindow, DeviceEventFilter } from '@tauri-apps/api/window';
+   * await appWindow.setDeviceEventFilter(DeviceEventFilter.Unfocused);
+   * ```
+   *
+   * @param filter The new device event filter.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setDeviceEventFilter(filter: DeviceEventFilter): Promise<void> {
+    let filter_ = null
+    switch (filter) {
+      case DeviceEventFilter.Always:
+        filter_ = { type: 'Always' }
+        break
+      case DeviceEventFilter.Never:
+        filter_ = { type: 'Never' }
+        break
+      case DeviceEventFilter.Unfocused:
+        filter_ = { type: 'Unfocused' }
+        break
+      default:
+        throw new Error('Unexpected DeviceEventFilter kind')
+    }
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setDeviceEventFilter',
+            payload: filter_
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    * @example
    * ```typescript
@@ -2243,6 +2291,7 @@ export {
   LogicalPosition,
   PhysicalPosition,
   UserAttentionType,
+  DeviceEventFilter,
   currentMonitor,
   primaryMonitor,
   availableMonitors

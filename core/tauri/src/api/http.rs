@@ -594,25 +594,25 @@ impl Response {
     reader
   }
 
-  /// Convert the response into a Stream of [`bytes::Bytes`] from the body.
-  ///
-  /// # Examples
-  ///
-  /// ```no_run
-  /// use futures_util::StreamExt;
-  ///
-  /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-  /// let client = tauri::api::http::ClientBuilder::new().build()?;
-  /// let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
-  ///   .await?
-  ///   .bytes_stream();
-  ///
-  /// while let Some(item) = stream.next().await {
-  ///     println!("Chunk: {:?}", item?);
-  /// }
-  /// # Ok(())
-  /// # }
-  /// ```
+  // Convert the response into a Stream of [`bytes::Bytes`] from the body.
+  //
+  // # Examples
+  //
+  // ```no_run
+  // use futures_util::StreamExt;
+  //
+  // # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+  // let client = tauri::api::http::ClientBuilder::new().build()?;
+  // let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
+  //   .await?
+  //   .bytes_stream();
+  //
+  // while let Some(item) = stream.next().await {
+  //     println!("Chunk: {:?}", item?);
+  // }
+  // # Ok(())
+  // # }
+  // ```
   #[cfg(feature = "reqwest-client")]
   #[allow(dead_code)]
   pub(crate) fn bytes_stream(

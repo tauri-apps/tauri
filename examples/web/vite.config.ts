@@ -25,6 +25,12 @@ if (TARGET === 'web') {
 }
 
 const config: UserConfig = {
+  server: {
+    fs: {
+      // Allow serving the wasm file from this folder.
+      allow: ['.']
+    }
+  },
   plugins,
   resolve: {
     alias: {

@@ -859,7 +859,7 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
-  /// Whether or not the window icon should be added to the taskbar.
+  /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
@@ -870,7 +870,7 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
-  /// Whether clicking an inactive window also clicks through to the webview.
+  /// Whether clicking an inactive window also clicks through to the webview on macOS.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
   /// Defines the window [tabbing identifier] for macOS.
@@ -2147,6 +2147,7 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.protocol.to_features());
       features.extend(self.process.to_features());
       features.extend(self.clipboard.to_features());
+      features.extend(self.app.to_features());
       features
     }
   }

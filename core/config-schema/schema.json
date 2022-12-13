@@ -2211,7 +2211,7 @@
       "description": "Defines the `shell > open` api scope.",
       "anyOf": [
         {
-          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^((?:tel|https?|mailto):.*?)`) is used.",
+          "description": "If the shell open API should be enabled.\n\nIf enabled, the default validation regex (`^((mailto:\\w+)|(tel:\\w+)|(https?://\\w+)).+`) is used.",
           "type": "boolean"
         },
         {

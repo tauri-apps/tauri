@@ -414,7 +414,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let shell_scope_open = match &config.tauri.allowlist.shell.open {
       ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
       ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new("^((?:tel|https?|mailto):.*?)").unwrap()))
+        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
       }
       ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
         Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),

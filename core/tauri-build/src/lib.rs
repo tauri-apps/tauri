@@ -145,11 +145,38 @@ impl WindowsAttributes {
     self
   }
 
-  /// Sets the app manifest. Currently only used on Windows.
+  /// Sets the Windows app [manifest].
+  ///
+  /// # Example
+  ///
+  /// The following manifest will brand the exe as requesting administrator privileges.
+  /// Thus, everytime it is executed, a Windows UAC dialog will appear.
+  ///
+  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
+  /// instead of the inline string.
+  ///
+  /// ```rust,no_run
+  /// let mut windows = tauri_build::WindowsAttributes::new();
+  /// windows = windows.app_manifest(r#"
+  /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  /// <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+  ///     <security>
+  ///         <requestedPrivileges>
+  ///             <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+  ///         </requestedPrivileges>
+  ///     </security>
+  /// </trustInfo>
+  /// </assembly>
+  /// "#);
+  /// tauri_build::try_build(
+  ///   tauri_build::Attributes::new().windows_attributes(windows)
+  /// ).expect("failed to run build script");
+  /// ```
   ///
   /// Defaults to:
   /// ```ignore
   #[doc = include_str!("window-app-manifest.xml")]
+  /// [manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   /// ```
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
@@ -357,12 +384,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if window_icon_path.exists() {
       let mut res = WindowsResource::new();
 
-      res.set_manifest(
-        &attributes
-          .windows_attributes
-          .app_manifest
-          .unwrap_or(include_str!("window-app-manifest.xml").to_string()),
-      );
+      if let Some(manifest) = attributes.windows_attributes.app_manifest {
+        res.set_manifest(&manifest);
+      } else {
+        res.set_manifest(include_str!("window-app-manifest.xml"));
+      }
 
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {

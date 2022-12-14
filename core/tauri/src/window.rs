@@ -237,8 +237,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       self.webview_attributes.clone(),
       self.label.clone(),
     )?;
-    let mut labels = self.manager.labels().into_iter().collect::<Vec<_>>();
-    labels.push(self.label.clone());
+    let labels = self.manager.labels().into_iter().collect::<Vec<_>>();
     let pending = self.manager.prepare_window(
       self.app_handle.clone(),
       pending,
@@ -254,7 +253,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
 
     self.manager.eval_script_all(format!(
       "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&labels)?,
+      window_labels_array = serde_json::to_string(&self.manager.labels())?,
     ))?;
 
     self.manager.emit_filter(

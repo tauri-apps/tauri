@@ -429,6 +429,11 @@ impl<R: Runtime> WindowManager<R> {
 
     let mut webview_attributes = pending.webview_attributes;
 
+    let mut window_labels = window_labels.to_vec();
+    let l = label.to_string();
+    if !window_labels.contains(&l) {
+      window_labels.push(l);
+    }
     webview_attributes = webview_attributes
       .initialization_script(&self.inner.invoke_initialization_script)
       .initialization_script(&format!(

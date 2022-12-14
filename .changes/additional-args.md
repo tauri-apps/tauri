@@ -1,5 +1,4 @@
 ---
-"api": minor
 "tauri": minor
 "tauri-runtime-wry": minor
 "tauri-runtime": minor

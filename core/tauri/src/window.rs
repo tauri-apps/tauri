@@ -398,6 +398,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+
   /// Sets the window icon.
   pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon.try_into()?)?;
@@ -888,6 +895,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
+  /// Gets the window's current minimized state.
+  pub fn is_minimized(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimized().map_err(Into::into)
+  }
+
   /// Gets the window's current maximized state.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
@@ -906,6 +918,11 @@ impl<R: Runtime> Window<R> {
   /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -1112,6 +1129,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_always_on_top(always_on_top)
+      .map_err(Into::into)
+  }
+
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
       .map_err(Into::into)
   }
 
@@ -1456,7 +1482,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
+      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,

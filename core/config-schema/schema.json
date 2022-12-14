@@ -1651,14 +1651,14 @@
           ]
         },
         "headerImage": {
-          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150pxx57px.",
+          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"
           ]
         },
         "sidebarImage": {
-          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164pxx314px.",
+          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164px x 314px.",
           "type": [
             "string",
             "null"

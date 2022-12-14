@@ -256,11 +256,11 @@ pub struct NsisSettings {
   pub license: Option<PathBuf>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
-  /// The recommended dimensions are 150pxx57px.
+  /// The recommended dimensions are 150px x 57px.
   pub header_image: Option<PathBuf>,
   /// The path to a bitmap file for the Welcome page and the Finish page.
   ///
-  /// The recommended dimensions are 164pxx314px.
+  /// The recommended dimensions are 164px x 314px.
   pub sidebar_image: Option<PathBuf>,
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,

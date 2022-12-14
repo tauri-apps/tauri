@@ -526,7 +526,16 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Set additional arguments for the webview. **Windows Only**
+  /// Set additional arguments for the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
   #[must_use]
   pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
     self.webview_attributes.additional_browser_args = Some(additional_args.to_string());

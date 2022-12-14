@@ -881,7 +881,8 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
-  /// Defines additional browser arguments. **Windows Only**
+  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
   #[serde(default, alias = "additional-browser-args")]
   pub additional_browser_args: Option<String>,
 }

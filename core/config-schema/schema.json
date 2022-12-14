@@ -684,7 +684,7 @@
           ]
         },
         "additionalBrowserArgs": {
-          "description": "Defines additional browser arguments on Windows.",
+          "description": "Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection` so if you use this method, you also need to disable these components by yourself if you want.",
           "type": [
             "string",
             "null"

@@ -7,7 +7,8 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download, download_and_verify, extract_zip, remove_unc_lossy, try_sign, validate_version,
-      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+      HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
+      WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -74,7 +75,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
 fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> crate::Result<()> {
   info!("Verifying NSIS package");
 
-  let data = download_and_verify(NSIS_URL, NSIS_SHA1, "sha1")?;
+  let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
   info!("extracting NSIS");
   extract_zip(&data, tauri_tools_path)?;
   rename(tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;

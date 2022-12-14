@@ -24,22 +24,29 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   response.bytes().map_err(Into::into)
 }
 
+pub enum HashAlgorithm {
+  Sha256,
+  Sha1,
+}
+
 /// Function used to download a file and checks SHA256 to verify the download.
-pub fn download_and_verify(url: &str, hash: &str, hash_algorithim: &str) -> crate::Result<Vec<u8>> {
+pub fn download_and_verify(
+  url: &str,
+  hash: &str,
+  hash_algorithim: HashAlgorithm,
+) -> crate::Result<Vec<u8>> {
   let data = download(url)?;
   info!("validating hash");
 
   match hash_algorithim {
-    "sha256" => {
+    HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
       verify(&data, hash, hasher)?;
     }
-    "sha1" => {
+    HashAlgorithm::Sha1 => {
       let hasher = sha1::Sha1::new();
       verify(&data, hash, hasher)?;
     }
-    // "sha256" => sha1::Sha1::new(),
-    _ => unimplemented!(),
   }
 
   Ok(data)

@@ -8,7 +8,7 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
   windows::util::{
-    download, download_and_verify, extract_zip, try_sign, validate_version,
+    download, download_and_verify, extract_zip, try_sign, validate_version, HashAlgorithm,
     WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
   },
 };
@@ -224,7 +224,7 @@ fn generate_guid(key: &[u8]) -> Uuid {
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
   info!("Verifying wix package");
 
-  let data = download_and_verify(WIX_URL, WIX_SHA256, "sha256")?;
+  let data = download_and_verify(WIX_URL, WIX_SHA256, HashAlgorithm::Sha256)?;
 
   info!("extracting WIX");
 

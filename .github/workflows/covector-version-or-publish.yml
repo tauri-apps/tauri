@@ -30,7 +30,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libfuse2
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -124,7 +124,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
-          inputs: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
 
       - name: Trigger cli.rs publishing workflow
         if: |

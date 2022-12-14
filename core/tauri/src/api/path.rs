@@ -535,7 +535,7 @@ pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// Resolves to [`local_data_dir`]`/${bundle_identifier}`.
 ///
-/// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
+/// See [`PathResolver::app_local_data_dir`](crate::PathResolver#method.app_local_data_dir) for a more convenient helper function.
 pub fn app_local_data_dir(config: &Config) -> Option<PathBuf> {
   dirs_next::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }

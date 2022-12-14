@@ -125,6 +125,11 @@ impl<'a, R: Runtime> fmt::Debug for WindowBuilder<'a, R> {
 impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// Initializes a webview window builder with the given window label and URL to load on the webview.
   ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
   /// # Examples
   ///
   /// - Create a window in the setup hook:
@@ -163,11 +168,6 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   ///     .unwrap();
   /// }
   /// ```
-  ///
-  /// # Known issues
-  ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn new<M: Manager<R>, L: Into<String>>(manager: &'a M, label: L, url: WindowUrl) -> Self {
@@ -403,13 +403,24 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
+  /// Whether the window should always be on top of other windows.
+  #[must_use]
+  pub fn content_protected(mut self, protected: bool) -> Self {
+    self.window_builder = self.window_builder.content_protected(protected);
+    self
+  }
+
   /// Sets the window icon.
   pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon.try_into()?)?;
     Ok(self)
   }
 
-  /// Sets whether or not the window icon should be added to the taskbar.
+  /// Sets whether or not the window icon should be hidden from the taskbar.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Unsupported.
   #[must_use]
   pub fn skip_taskbar(mut self, skip: bool) -> Self {
     self.window_builder = self.window_builder.skip_taskbar(skip);
@@ -524,6 +535,22 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   #[must_use]
   pub fn user_agent(mut self, user_agent: &str) -> Self {
     self.webview_attributes.user_agent = Some(user_agent.to_string());
+    self
+  }
+
+  /// Set additional arguments for the webview.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS / Linux / Android / iOS**: Unsupported.
+  ///
+  /// ## Warning
+  ///
+  /// By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
+  #[must_use]
+  pub fn additional_browser_args(mut self, additional_args: &str) -> Self {
+    self.webview_attributes.additional_browser_args = Some(additional_args.to_string());
     self
   }
 
@@ -716,9 +743,9 @@ impl PlatformWebview {
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
 impl Window<crate::Wry> {
-  /// Executes the closure accessing the platform's webview handle.
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
-  /// The closure is executed in the main thread.
+  /// The closure is executed on the main thread.
   ///
   /// # Examples
   ///
@@ -735,15 +762,15 @@ impl Window<crate::Wry> {
   ///       main_window.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/latest/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/latest/webkit2gtk/trait.WebViewExt.html
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
   ///           use webkit2gtk::traits::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.17.0/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -889,6 +916,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_fullscreen().map_err(Into::into)
   }
 
+  /// Gets the window's current minimized state.
+  pub fn is_minimized(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_minimized().map_err(Into::into)
+  }
+
   /// Gets the window's current maximized state.
   pub fn is_maximized(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_maximized().map_err(Into::into)
@@ -907,6 +939,11 @@ impl<R: Runtime> Window<R> {
   /// Gets the window's current visibility state.
   pub fn is_visible(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_visible().map_err(Into::into)
+  }
+
+  /// Gets the window's current title.
+  pub fn title(&self) -> crate::Result<String> {
+    self.window.dispatcher.title().map_err(Into::into)
   }
 
   /// Returns the monitor on which the window currently resides.
@@ -1116,6 +1153,15 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Prevents the window contents from being captured by other apps.
+  pub fn set_content_protected(&self, protected: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_content_protected(protected)
+      .map_err(Into::into)
+  }
+
   /// Resizes this window.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
@@ -1175,7 +1221,11 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Whether to show the window icon in the task bar or not.
+  /// Whether to hide the window icon from the taskbar or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS:** Unsupported.
   pub fn set_skip_taskbar(&self, skip: bool) -> crate::Result<()> {
     self
       .window
@@ -1453,7 +1503,7 @@ impl<R: Runtime> Window<R> {
     payload: S,
   ) -> crate::Result<()> {
     self.eval(&format!(
-      "window['{}']({{event: {}, windowLabel: {}, payload: {}}})",
+      "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
       self.manager.event_emit_function_name(),
       serde_json::to_string(event)?,
       serde_json::to_string(&source_window_label)?,

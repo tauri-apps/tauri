@@ -24,6 +24,9 @@ use std::{
   process::Command,
 };
 
+pub const OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis";
+
 // URLS for the NSIS toolchain.
 const NSIS_URL: &str =
   "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
@@ -327,7 +330,11 @@ fn build_nsis_app_installer(
   let nsis_output_path = output_path.join(out_file);
   let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.exe",
-    if updater { "nsis-updater" } else { "nsis" },
+    if updater {
+      UPDATER_OUTPUT_FOLDER_NAME
+    } else {
+      OUTPUT_FOLDER_NAME
+    },
     package_base_name
   ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;

@@ -10,6 +10,8 @@ use log::warn;
 
 use std::{self, path::PathBuf};
 
+pub use wix::{OUTPUT_FOLDER_NAME, UPDATER_OUTPUT_FOLDER_NAME};
+
 const WIX_REQUIRED_FILES: &[&str] = &[
   "candle.exe",
   "candle.exe.config",

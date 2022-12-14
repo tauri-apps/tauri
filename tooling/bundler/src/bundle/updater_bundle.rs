@@ -177,13 +177,14 @@ fn bundle_update(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<P
           if let std::path::Component::Normal(name) = c {
             if let Some(name) = name.to_str() {
               // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
-              if matches!(name, "msi-updater" | "nsis-updater") {
+              if name == msi::UPDATER_OUTPUT_FOLDER_NAME || name == nsis::UPDATER_OUTPUT_FOLDER_NAME
+              {
                 b = name.strip_suffix("-updater").unwrap().to_string();
                 p.push(&b);
                 return (p, b);
               }
 
-              if matches!(name, "msi" | "nsis") {
+              if name == msi::OUTPUT_FOLDER_NAME || name == nsis::OUTPUT_FOLDER_NAME {
                 b = name.to_string();
               }
             }

@@ -27,6 +27,9 @@ use std::{
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 
+pub const OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis";
+
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
@@ -197,7 +200,11 @@ fn app_installer_output_path(
 
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.msi",
-    if updater { "msi-updater" } else { "msi" },
+    if updater {
+      UPDATER_OUTPUT_FOLDER_NAME
+    } else {
+      OUTPUT_FOLDER_NAME
+    },
     package_base_name
   )))
 }

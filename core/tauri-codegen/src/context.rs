@@ -142,7 +142,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       } else if target.contains("apple-ios") {
         Target::Ios
       } else {
-        panic!("unknown codegen target {}", target);
+        panic!("unknown codegen target {target}");
       }
     } else if cfg!(target_os = "linux") {
       Target::Linux
@@ -371,10 +371,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
-        panic!(
-          "The isolation application path is set to `{:?}` but it does not exist",
-          dir
-        )
+        panic!("The isolation application path is set to `{dir:?}` but it does not exist")
       }
 
       let mut sets_isolation_hook = false;

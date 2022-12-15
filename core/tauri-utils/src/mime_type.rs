@@ -39,7 +39,7 @@ impl std::fmt::Display for MimeType {
       MimeType::Svg => "image/svg+xml",
       MimeType::Mp4 => "video/mp4",
     };
-    write!(f, "{}", mime)
+    write!(f, "{mime}")
   }
 }
 

@@ -35,8 +35,8 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
   let pk_box_str = pk.to_box().unwrap().to_string();
   let sk_box_str = sk.to_box(None).unwrap().to_string();
 
-  let encoded_pk = encode(&pk_box_str);
-  let encoded_sk = encode(&sk_box_str);
+  let encoded_pk = encode(pk_box_str);
+  let encoded_sk = encode(sk_box_str);
 
   Ok(KeyPair {
     pk: encoded_pk,
@@ -46,7 +46,7 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 
 /// Transform a base64 String to readable string for the main signer
 pub fn decode_key(base64_key: String) -> crate::Result<String> {
-  let decoded_str = &decode(&base64_key)?[..];
+  let decoded_str = &decode(base64_key)?[..];
   Ok(String::from(str::from_utf8(decoded_str)?))
 }
 
@@ -128,7 +128,7 @@ where
     Some("signature from tauri secret key"),
   )?;
 
-  let encoded_signature = encode(&signature_box.to_string());
+  let encoded_signature = encode(signature_box.to_string());
   signature_box_writer.write_all(encoded_signature.as_bytes())?;
   signature_box_writer.flush()?;
   Ok((fs::canonicalize(&signature_path)?, signature_box))

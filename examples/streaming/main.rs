@@ -23,7 +23,7 @@ fn main() {
   if !video_file.exists() {
     // Downloading with curl this saves us from adding
     // a Rust HTTP client dependency.
-    println!("Downloading {}", video_url);
+    println!("Downloading {video_url}");
     let status = Command::new("curl")
       .arg("-L")
       .arg("-o")

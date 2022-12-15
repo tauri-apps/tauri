@@ -655,7 +655,7 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, &dest)?;
+      common::copy_file(&src, dest)?;
     }
     Ok(())
   }
@@ -665,7 +665,7 @@ impl Settings {
     for src in self.resource_files() {
       let src = src?;
       let dest = path.join(tauri_utils::resources::resource_relpath(&src));
-      common::copy_file(&src, &dest)?;
+      common::copy_file(&src, dest)?;
     }
     Ok(())
   }

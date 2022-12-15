@@ -28,7 +28,7 @@ fn main() {
     .on_page_load(|window, _payload| {
       let label = window.label().to_string();
       window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{}'", label);
+        println!("got 'clicked' event on window '{label}'");
       });
     })
     .invoke_handler(tauri::generate_handler![create_child_window])

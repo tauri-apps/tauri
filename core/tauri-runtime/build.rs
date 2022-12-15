@@ -6,7 +6,7 @@
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 

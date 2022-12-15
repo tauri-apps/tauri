@@ -104,7 +104,7 @@ fn run_dev(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;

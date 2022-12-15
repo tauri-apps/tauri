@@ -37,7 +37,7 @@ jobs:
           git config --global user.email "${{ github.event.pusher.email }}"
 
       - name: covector version or publish (publish when no change files present)
-        uses: jbolda/covector/packages/action@covector-v0
+        uses: lucasfernog/covector/packages/action@feat/target-commitish
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}

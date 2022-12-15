@@ -7,7 +7,8 @@ use super::error::{Error, Result};
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
-  AppHandle, Manager, Runtime,
+  utils::config::WindowsUpdateInstallMode,
+  AppHandle, Config, Manager, Runtime,
 };
 use base64::decode;
 use http::{
@@ -612,15 +613,7 @@ impl<R: Runtime> Update<R> {
         archive_buffer,
         &self.extract_path,
         self.with_elevated_task,
-        self
-          .app
-          .config()
-          .tauri
-          .updater
-          .windows
-          .install_mode
-          .clone()
-          .msiexec_args(),
+        &self.app.config(),
       )?;
       #[cfg(not(target_os = "windows"))]
       copy_files_and_run(archive_buffer, &self.extract_path)?;
@@ -719,7 +712,7 @@ fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
   _extract_path: &Path,
   with_elevated_task: bool,
-  msiexec_args: &[&str],
+  config: &Config,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -745,9 +738,11 @@ fn copy_files_and_run<R: Read + Seek>(
     // If it's an `exe` we expect an installer not a runtime.
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
-      Command::new(found_path)
-        .spawn()
-        .expect("installer failed to start");
+      let mut installer = Command::new(found_path);
+      if WindowsUpdateInstallMode::Quiet == config.tauri.updater.windows.install_mode {
+        installer.arg("/S");
+      }
+      installer.spawn().expect("installer failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -800,6 +795,14 @@ fn copy_files_and_run<R: Read + Seek>(
       msi_path_arg.push("\"\"\"");
       msi_path_arg.push(&found_path);
       msi_path_arg.push("\"\"\"");
+
+      let msiexec_args = config
+        .tauri
+        .updater
+        .windows
+        .install_mode
+        .clone()
+        .msiexec_args();
 
       // run the installer and relaunch the application
       let system_root = std::env::var("SYSTEMROOT");

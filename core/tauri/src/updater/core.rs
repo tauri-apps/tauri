@@ -7,8 +7,7 @@ use super::error::{Error, Result};
 use crate::api::file::{ArchiveFormat, Extract, Move};
 use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
-  utils::config::WindowsUpdateInstallMode,
-  AppHandle, Config, Manager, Runtime,
+  AppHandle, Manager, Runtime,
 };
 use base64::decode;
 use http::{
@@ -712,7 +711,7 @@ fn copy_files_and_run<R: Read + Seek>(
   archive_buffer: R,
   _extract_path: &Path,
   with_elevated_task: bool,
-  config: &Config,
+  config: &crate::Config,
 ) -> Result {
   // FIXME: We need to create a memory buffer with the MSI and then run it.
   //        (instead of extracting the MSI to a temp path)
@@ -739,9 +738,13 @@ fn copy_files_and_run<R: Read + Seek>(
     if found_path.extension() == Some(OsStr::new("exe")) {
       // Run the EXE
       let mut installer = Command::new(found_path);
-      if WindowsUpdateInstallMode::Quiet == config.tauri.updater.windows.install_mode {
+      if crate::utils::config::WindowsUpdateInstallMode::Quiet
+        == config.tauri.updater.windows.install_mode
+      {
         installer.arg("/S");
       }
+      installer.args(&config.tauri.updater.windows.installer_args);
+
       installer.spawn().expect("installer failed to start");
 
       exit(0);
@@ -796,13 +799,17 @@ fn copy_files_and_run<R: Read + Seek>(
       msi_path_arg.push(&found_path);
       msi_path_arg.push("\"\"\"");
 
-      let msiexec_args = config
+      let mut msiexec_args = config
         .tauri
         .updater
         .windows
         .install_mode
         .clone()
-        .msiexec_args();
+        .msiexec_args()
+        .iter()
+        .map(|p| p.to_string())
+        .collect::<Vec<String>>();
+      msiexec_args.extend(config.tauri.updater.windows.installer_args.clone());
 
       // run the installer and relaunch the application
       let system_root = std::env::var("SYSTEMROOT");

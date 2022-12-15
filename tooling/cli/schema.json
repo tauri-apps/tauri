@@ -169,7 +169,8 @@
           "dialog": true,
           "pubkey": "",
           "windows": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           }
         },
         "windows": []
@@ -427,7 +428,8 @@
             "dialog": true,
             "pubkey": "",
             "windows": {
-              "installMode": "passive"
+              "installMode": "passive",
+              "installerArgs": []
             }
           },
           "allOf": [
@@ -2620,7 +2622,8 @@
         "windows": {
           "description": "The Windows configuration for the updater.",
           "default": {
-            "installMode": "passive"
+            "installMode": "passive",
+            "installerArgs": []
           },
           "allOf": [
             {
@@ -2640,6 +2643,14 @@
       "description": "The updater configuration for Windows.",
       "type": "object",
       "properties": {
+        "installerArgs": {
+          "description": "Additional arguments given to the NSIS or WiX installer.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "installMode": {
           "description": "The installation mode for the update on Windows. Defaults to `passive`.",
           "default": "passive",
@@ -2663,7 +2674,7 @@
           ]
         },
         {
-          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does (WiX).",
           "type": "string",
           "enum": [
             "quiet"

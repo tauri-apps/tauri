@@ -2316,7 +2316,7 @@ pub enum WindowsUpdateInstallMode {
   /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
   BasicUi,
   /// The quiet mode means there's no user interaction required.
-  /// Requires admin privileges if the installer does.
+  /// Requires admin privileges if the installer does (WiX).
   Quiet,
   /// Specifies unattended mode, which means the installation only shows a progress bar.
   Passive,
@@ -2388,6 +2388,9 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct UpdaterWindowsConfig {
+  /// Additional arguments given to the NSIS or WiX installer.
+  #[serde(default, alias = "installer-args")]
+  pub installer_args: Vec<String>,
   /// The installation mode for the update on Windows. Defaults to `passive`.
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,
@@ -3362,7 +3365,8 @@ mod build {
   impl ToTokens for UpdaterWindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let install_mode = &self.install_mode;
-      literal_struct!(tokens, UpdaterWindowsConfig, install_mode);
+      let installer_args = vec_lit(&self.installer_args, str_lit);
+      literal_struct!(tokens, UpdaterWindowsConfig, install_mode, installer_args);
     }
   }
 

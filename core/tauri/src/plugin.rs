@@ -586,9 +586,7 @@ impl<R: Runtime> PluginStore<R> {
         .unwrap_or_else(String::new);
       plugin.extend_api(invoke);
     } else {
-      invoke
-        .resolver
-        .reject(format!("plugin {target} not found"));
+      invoke.resolver.reject(format!("plugin {target} not found"));
     }
   }
 }

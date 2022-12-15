@@ -238,9 +238,7 @@ fn command_internal(mut options: Options) -> Result<()> {
           c.build.dev_path = dev_path.clone();
           options.config = Some(serde_json::to_string(&c).unwrap());
         } else {
-          options.config = Some(format!(
-            r#"{{ "build": {{ "devPath": "{SERVER_URL}" }} }}"#
-          ))
+          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{SERVER_URL}" }} }}"#))
         }
       }
     }

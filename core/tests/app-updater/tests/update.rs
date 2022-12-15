@@ -95,6 +95,7 @@ fn build_app(
   }
 }
 
+#[derive(Copy, Clone)]
 enum BundleTarget {
   AppImage,
 
@@ -157,16 +158,16 @@ fn bundle_paths(root_dir: &Path, _version: &str) -> Vec<(BundleTarget, PathBuf)>
 fn bundle_paths(root_dir: &Path, version: &str) -> Vec<(BundleTarget, PathBuf)> {
   vec![
     (
-      BundleTarget::Msi,
+      BundleTarget::Nsis,
       root_dir.join(format!(
-        "target/debug/bundle/msi/app-updater_{}_x64_en-US.msi",
+        "target/debug/bundle/nsis/app-updater_{}_x64-setup.exe",
         version
       )),
     ),
     (
-      BundleTarget::Nsis,
+      BundleTarget::Msi,
       root_dir.join(format!(
-        "target/debug/bundle/nsis/app-updater_{}_x64-setup.exe",
+        "target/debug/bundle/msi/app-updater_{}_x64_en-US.msi",
         version
       )),
     ),
@@ -307,6 +308,8 @@ fn update_app() {
     } else {
       Command::new(&bundle_paths(&root_dir, "0.1.0").first().unwrap().1)
     };
+
+    binary_cmd.env("TARGET", bundle_target.name());
 
     let status = binary_cmd.status().expect("failed to run app");
 

@@ -99,7 +99,7 @@ impl InvokeError {
   /// Create an [`InvokeError`] as a string of the [`anyhow::Error`] message.
   #[inline(always)]
   pub fn from_anyhow(error: anyhow::Error) -> Self {
-    Self(JsonValue::String(format!("{:#}", error)))
+    Self(JsonValue::String(format!("{error:#}")))
   }
 }
 

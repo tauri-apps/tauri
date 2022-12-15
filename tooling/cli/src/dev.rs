@@ -162,7 +162,7 @@ fn command_internal(mut options: Options) -> Result<()> {
         command.stderr(os_pipe::dup_stderr()?);
 
         let child = SharedChild::spawn(&mut command)
-          .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+          .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
         let child = Arc::new(child);
         let child_ = child.clone();
 
@@ -239,8 +239,7 @@ fn command_internal(mut options: Options) -> Result<()> {
           options.config = Some(serde_json::to_string(&c).unwrap());
         } else {
           options.config = Some(format!(
-            r#"{{ "build": {{ "devPath": "{}" }} }}"#,
-            SERVER_URL
+            r#"{{ "build": {{ "devPath": "{SERVER_URL}" }} }}"#
           ))
         }
       }

@@ -15,13 +15,13 @@ fn main() {
         match handle.updater().check().await {
           Ok(update) => {
             if let Err(e) = update.download_and_install().await {
-              println!("{}", e);
+              println!("{e}");
               std::process::exit(1);
             }
             std::process::exit(0);
           }
           Err(e) => {
-            println!("{}", e);
+            println!("{e}");
             std::process::exit(1);
           }
         }

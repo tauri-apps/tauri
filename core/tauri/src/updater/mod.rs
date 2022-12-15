@@ -109,7 +109,7 @@ pub const EVENT_STATUS_UPTODATE: &str = "UPTODATE";
 /// Gets the target string used on the updater.
 pub fn target() -> Option<String> {
   if let (Some(target), Some(arch)) = (core::get_updater_target(), core::get_updater_arch()) {
-    Some(format!("{}-{}", target, arch))
+    Some(format!("{target}-{arch}"))
   } else {
     None
   }
@@ -565,7 +565,7 @@ async fn prompt_for_install<R: Runtime>(
   // something more conventional.
   let should_install = ask(
     parent_window,
-    format!(r#"A new version of {} is available! "#, app_name),
+    format!(r#"A new version of {app_name} is available! "#),
     format!(
       r#"{} {} is now available -- you have {}.
 

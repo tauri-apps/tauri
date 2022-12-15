@@ -538,8 +538,7 @@ impl<T> MaybeWorkspace<T> {
       MaybeWorkspace::Defined(value) => Ok(value),
       MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
         get_ws_field().context(format!(
-          "error inheriting `{}` from workspace root manifest's `workspace.package.{}`",
-          label, label
+          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
         ))
       }
       MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
@@ -674,7 +673,7 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    Ok(out_dir.join(bin_name).with_extension(&binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
   fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {

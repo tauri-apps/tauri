@@ -35,8 +35,8 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(
-  binaries: ResourcePaths<'a>,
+fn copy_binaries(
+  binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
   package_name: Option<&String>,
@@ -48,7 +48,7 @@ fn copy_binaries<'a>(
       .file_name()
       .expect("failed to extract external binary filename")
       .to_string_lossy()
-      .replace(&format!("-{}", target_triple), "");
+      .replace(&format!("-{target_triple}"), "");
 
     if package_name.map_or(false, |n| n == &file_name) {
       return Err(anyhow::anyhow!(
@@ -90,7 +90,7 @@ fn has_feature(feature: &str) -> bool {
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 
@@ -227,8 +227,8 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    let error = format!("{:#}", error);
-    println!("{}", error);
+    let error = format!("{error:#}");
+    println!("{error}");
     if error.starts_with("unknown field") {
       print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
       println!(

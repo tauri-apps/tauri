@@ -74,7 +74,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.config = merge_config;
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
 

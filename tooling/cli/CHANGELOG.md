@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Fixes running on device using Xcode 14.
+  - [1e4a6758](https://www.github.com/tauri-apps/tauri/commit/1e4a675843c486bddc11292d09fb766e98758514) fix(cli): run on iOS device on Xcode 14 ([#5807](https://www.github.com/tauri-apps/tauri/pull/5807)) on 2022-12-12
+- Improve local IP address detection with user selection.
+  - [76204b89](https://www.github.com/tauri-apps/tauri/commit/76204b893846a04552f8f8b87ad2c9b55e1b417f) feat(cli): improve local IP detection ([#5817](https://www.github.com/tauri-apps/tauri/pull/5817)) on 2022-12-12
+
 ## \[2.0.0-alpha.0]
 
 - Added `android build` command.

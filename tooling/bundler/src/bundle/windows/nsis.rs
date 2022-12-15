@@ -184,6 +184,13 @@ fn build_nsis_app_installer(
   let bundle_id = settings.bundle_identifier();
   let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
 
+  #[cfg(not(target_os = "windows"))]
+  {
+    let mut dir = dirs_next::cache_dir().unwrap();
+    dir.extend(&["tauri", "NSIS", "Plugins", "x86-unicode"]);
+    data.insert("additional_plugins_path", to_json(dbg!(dir)));
+  }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));

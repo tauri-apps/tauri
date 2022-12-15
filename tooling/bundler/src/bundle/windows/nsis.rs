@@ -26,7 +26,7 @@ use std::{
 };
 
 pub const OUTPUT_FOLDER_NAME: &str = "nsis";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 
 // URLS for the NSIS toolchain.
 const NSIS_URL: &str =

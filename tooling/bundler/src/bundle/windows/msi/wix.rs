@@ -27,8 +27,8 @@ use std::{
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 
-pub const OUTPUT_FOLDER_NAME: &str = "nsis";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const OUTPUT_FOLDER_NAME: &str = "msi";
+pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =

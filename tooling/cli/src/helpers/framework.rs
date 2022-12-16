@@ -6,6 +6,8 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum Framework {
+  SolidJS,
+  SolidStart,
   Svelte,
   SvelteKit,
   Angular,
@@ -21,6 +23,8 @@ pub enum Framework {
 impl Framework {
   pub fn dev_path(&self) -> String {
     match self {
+      Self::SolidJS => "http://localhost:3000",
+      Self::SolidStart => "http://localhost:3000",
       Self::Svelte => "http://localhost:8080",
       Self::SvelteKit => "http://localhost:5173",
       Self::Angular => "http://localhost:4200",
@@ -37,6 +41,8 @@ impl Framework {
 
   pub fn dist_dir(&self) -> String {
     match self {
+      Self::SolidJS => "../dist",
+      Self::SolidStart => "../dist/public",
       Self::Svelte => "../public",
       Self::SvelteKit => "../build",
       Self::Angular => "../dist",
@@ -55,6 +61,8 @@ impl Framework {
 impl fmt::Display for Framework {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
+      Self::SolidJS => write!(f, "SolidJS"),
+      Self::SolidStart => write!(f, "SolidStart"),
       Self::Svelte => write!(f, "Svelte"),
       Self::SvelteKit => write!(f, "SvelteKit"),
       Self::Angular => write!(f, "Angular"),
@@ -88,6 +96,8 @@ impl fmt::Display for Bundler {
 
 pub fn infer_from_package_json(package_json: &str) -> (Option<Framework>, Option<Bundler>) {
   let framework_map = [
+    ("solid-start", Framework::SolidStart, Some(Bundler::Vite)),
+    ("solid-js", Framework::SolidJS, Some(Bundler::Vite)),
     ("svelte", Framework::Svelte, Some(Bundler::Rollup)),
     ("@sveltejs/kit", Framework::SvelteKit, Some(Bundler::Vite)),
     ("@angular", Framework::Angular, Some(Bundler::Webpack)),

@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.2.2]
+
+- Detect SvelteKit and Vite for the init and info commands.
+  - [9d872ab8](https://www.github.com/tauri-apps/tauri/commit/9d872ab8728b1b121909af434adcd5936e5afb7d) feat(cli): detect SvelteKit and Vite ([#5742](https://www.github.com/tauri-apps/tauri/pull/5742)) on 2022-12-02
+- Detect SolidJS and SolidStart for the init and info commands.
+  - [9e7ce0a8](https://www.github.com/tauri-apps/tauri/commit/9e7ce0a8eef4bf3536645976e3e09162fbf772ab) feat(cli): detect SolidJS and SolidStart ([#5758](https://www.github.com/tauri-apps/tauri/pull/5758)) on 2022-12-08
+- Use older icon types to work around a macOS bug resulting in corrupted 16x16px and 32x32px icons in bundled apps.
+  - [2d545eff](https://www.github.com/tauri-apps/tauri/commit/2d545eff58734ec70f23f11a429d35435cdf090e) fix(cli): corrupted icons in bundled macOS icons ([#5698](https://www.github.com/tauri-apps/tauri/pull/5698)) on 2022-11-28
+
 ## \[1.2.1]
 
 - Fixes injection of Cargo features defined in the configuration file.

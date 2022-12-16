@@ -1,0 +1,8 @@
+[workspace]
+members = [
+  "core",
+  "src-tauri"
+]
+
+[workspace.package]
+version = "1.0.0"

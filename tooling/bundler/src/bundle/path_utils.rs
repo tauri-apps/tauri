@@ -206,7 +206,10 @@ where
     let mut work = true;
 
     while work {
-      result_copy = copy_file(&file, &path, &file_options);
+      #[allow(clippy::needless_borrow)]
+      {
+        result_copy = copy_file(&file, &path, &file_options);
+      }
       match result_copy {
         Ok(val) => {
           result += val;

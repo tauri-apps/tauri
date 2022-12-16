@@ -66,7 +66,7 @@ fn build_app(
     .args(["build", "--debug", "--verbose"])
     .arg("--config")
     .arg(serde_json::to_string(config).unwrap())
-    .current_dir(&cwd);
+    .current_dir(cwd);
 
   #[cfg(target_os = "linux")]
   command.args(["--bundles", target.name()]);

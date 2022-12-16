@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.12.1"
+version = "0.12.2"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -13,7 +13,7 @@ exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.22.6", default-features = false, features = [ "file-drop", "protocol" ] }
+wry = { version = "0.23", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.12.1", path = "../tauri-runtime" }
 tauri-utils = { version = "1.2.1", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }

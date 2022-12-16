@@ -141,7 +141,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     } else if target.contains("apple-ios") {
       Target::Ios
     } else {
-      panic!("unknown codegen target {}", target);
+      panic!("unknown codegen target {target}");
     }
   } else if cfg!(target_os = "linux") {
     Target::Linux
@@ -370,10 +370,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     PatternKind::Isolation { dir } => {
       let dir = config_parent.join(dir);
       if !dir.exists() {
-        panic!(
-          "The isolation application path is set to `{:?}` but it does not exist",
-          dir
-        )
+        panic!("The isolation application path is set to `{dir:?}` but it does not exist")
       }
 
       let mut sets_isolation_hook = false;
@@ -414,7 +411,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     let shell_scope_open = match &config.tauri.allowlist.shell.open {
       ShellAllowlistOpen::Flag(false) => quote!(::std::option::Option::None),
       ShellAllowlistOpen::Flag(true) => {
-        quote!(::std::option::Option::Some(#root::regex::Regex::new("^https?://").unwrap()))
+        quote!(::std::option::Option::Some(#root::regex::Regex::new(r#"^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+"#).unwrap()))
       }
       ShellAllowlistOpen::Validate(regex) => match Regex::new(regex) {
         Ok(_) => quote!(::std::option::Option::Some(#root::regex::Regex::new(#regex).unwrap())),

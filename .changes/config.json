@@ -5,7 +5,7 @@
     "rust": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE \"s/^[^\\\"]*\\\"//; s/\\\".*//1p\"",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
         "sudo apt-get update",
         "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev",
@@ -70,7 +70,7 @@
     "javascript": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
         {
           "command": "yarn",
@@ -234,6 +234,7 @@
     "cli.js": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
+      "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "dependencies": ["cli.rs"],
       "postversion": [
         "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",

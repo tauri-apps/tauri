@@ -124,7 +124,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
-          inputs: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
 
       - name: Trigger cli.rs publishing workflow
         if: |

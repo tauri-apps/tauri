@@ -54,7 +54,7 @@ impl Manifest {
     let mut all_enabled_features: Vec<String> = self
       .tauri_features
       .iter()
-      .map(|f| format!("tauri/{}", f))
+      .map(|f| format!("tauri/{f}"))
       .collect();
 
     let manifest_features = self.features();
@@ -86,7 +86,7 @@ fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
-    .with_context(|| format!("failed to open `{:?}` file", manifest_path))?;
+    .with_context(|| format!("failed to open `{manifest_path:?}` file"))?;
   manifest_file.read_to_string(&mut manifest_str)?;
 
   let manifest: Document = manifest_str

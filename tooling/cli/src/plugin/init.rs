@@ -56,7 +56,7 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let template_target_path = PathBuf::from(options.directory).join(&format!(
+  let template_target_path = PathBuf::from(options.directory).join(format!(
     "tauri-plugin-{}",
     AsKebabCase(&options.plugin_name)
   ));

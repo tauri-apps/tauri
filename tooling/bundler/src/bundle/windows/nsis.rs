@@ -6,9 +6,8 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, extract_zip, remove_unc_lossy, try_sign, validate_version,
-      HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID,
-      WEBVIEW2_X86_INSTALLER_GUID,
+      download, download_and_verify, extract_zip, remove_unc_lossy, try_sign, HashAlgorithm,
+      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -49,6 +48,8 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
+  "Include/semverCompare.nsh",
+  "Include/strExplode.nsh",
 ];
 
 /// Runs all of the commands to build the NSIS installer.
@@ -103,6 +104,16 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
     nsis_plugins.join("Plugin").join("nsProcessW.dll"),
     nsis_plugins.join("x86-unicode").join("nsProcess.dll"),
   )?;
+
+  write(
+    nsis_toolset_path.join("Include").join("semverCompare.nsh"),
+    include_str!("./templates/semverCompare.nsh"),
+  )?;
+  write(
+    nsis_toolset_path.join("Include").join("strExplode.nsh"),
+    include_str!("./templates/strExplode.nsh"),
+  )?;
+
   Ok(())
 }
 
@@ -122,8 +133,6 @@ fn build_nsis_app_installer(
       )))
     }
   };
-
-  validate_version(settings.version_string())?;
 
   info!("Target: {}", arch);
 
@@ -154,11 +163,6 @@ fn build_nsis_app_installer(
 
   let version = settings.version_string();
   data.insert("version", to_json(&version));
-
-  let mut s = version.split(".");
-  data.insert("version_major", to_json(s.next().unwrap()));
-  data.insert("version_minor", to_json(s.next().unwrap()));
-  data.insert("version_build", to_json(s.next().unwrap()));
 
   data.insert(
     "allow_downgrades",

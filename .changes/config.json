@@ -5,10 +5,10 @@
     "rust": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "cargo search ${ pkgFile.pkg.package.name } --limit 1 | sed -nE \"s/^[^\\\"]*\\\"//; s/\\\".*//1p\"",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libayatana-appindicator3-dev librsvg2-dev patchelf",
+        "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -70,7 +70,7 @@
     "javascript": {
       "errorOnVersionRange": "^2.0.0-0",
       "version": true,
-      "getPublishedVersion": "npm view ${ pkgFile.pkg.name } version",
+      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
         {
           "command": "yarn",
@@ -209,7 +209,10 @@
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "postversion": [
+        "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../config-schema/Cargo.toml"
+      ],
       "assets": [
         {
           "path": "./tooling/cli/schema.json",
@@ -231,8 +234,12 @@
     "cli.js": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
+      "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "dependencies": ["cli.rs"],
-      "postversion": "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+      "postversion": [
+        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../../core/config-schema/Cargo.toml"
+      ],
       "prepublish": [],
       "publish": [],
       "postpublish": []
@@ -241,7 +248,10 @@
       "path": "./tooling/cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils"],
-      "postversion": "cargo check",
+      "postversion": [
+        "cargo check",
+        "cargo build --manifest-path ../../core/config-schema/Cargo.toml"
+      ],
       "assets": [
         {
           "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",

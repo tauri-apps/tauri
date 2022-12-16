@@ -182,7 +182,7 @@ where
   let dir_content = get_dir_info(from, &read_options)?;
   for directory in dir_content.directories {
     let tmp_to = Path::new(&directory).strip_prefix(from)?;
-    let dir = to.join(&tmp_to);
+    let dir = to.join(tmp_to);
     if !dir.exists() {
       if options.copy_files {
         create_all(dir, false)?;
@@ -195,7 +195,7 @@ where
   for file in dir_content.files {
     let to = to.to_path_buf();
     let tp = Path::new(&file).strip_prefix(from)?;
-    let path = to.join(&tp);
+    let path = to.join(tp);
 
     let file_options = FileOpts {
       overwrite: options.overwrite,
@@ -206,7 +206,10 @@ where
     let mut work = true;
 
     while work {
-      result_copy = copy_file(&file, &path, &file_options);
+      #[allow(clippy::needless_borrow)]
+      {
+        result_copy = copy_file(&file, &path, &file_options);
+      }
       match result_copy {
         Ok(val) => {
           result += val;

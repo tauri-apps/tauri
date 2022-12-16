@@ -368,7 +368,7 @@ impl TryFrom<FilePart> for Vec<u8> {
   type Error = crate::api::Error;
   fn try_from(file: FilePart) -> crate::api::Result<Self> {
     let bytes = match file {
-      FilePart::Path(path) => std::fs::read(&path)?,
+      FilePart::Path(path) => std::fs::read(path)?,
       FilePart::Contents(bytes) => bytes,
     };
     Ok(bytes)
@@ -441,8 +441,7 @@ impl<'de> Deserialize<'de> for HeaderMap {
         headers.insert(key, value);
       } else {
         return Err(serde::de::Error::custom(format!(
-          "invalid header `{}` `{}`",
-          key, value
+          "invalid header `{key}` `{value}`"
         )));
       }
     }
@@ -594,25 +593,25 @@ impl Response {
     reader
   }
 
-  /// Convert the response into a Stream of [`bytes::Bytes`] from the body.
-  ///
-  /// # Examples
-  ///
-  /// ```no_run
-  /// use futures_util::StreamExt;
-  ///
-  /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-  /// let client = tauri::api::http::ClientBuilder::new().build()?;
-  /// let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
-  ///   .await?
-  ///   .bytes_stream();
-  ///
-  /// while let Some(item) = stream.next().await {
-  ///     println!("Chunk: {:?}", item?);
-  /// }
-  /// # Ok(())
-  /// # }
-  /// ```
+  // Convert the response into a Stream of [`bytes::Bytes`] from the body.
+  //
+  // # Examples
+  //
+  // ```no_run
+  // use futures_util::StreamExt;
+  //
+  // # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+  // let client = tauri::api::http::ClientBuilder::new().build()?;
+  // let mut stream = client.send(tauri::api::http::HttpRequestBuilder::new("GET", "http://httpbin.org/ip")?)
+  //   .await?
+  //   .bytes_stream();
+  //
+  // while let Some(item) = stream.next().await {
+  //     println!("Chunk: {:?}", item?);
+  // }
+  // # Ok(())
+  // # }
+  // ```
   #[cfg(feature = "reqwest-client")]
   #[allow(dead_code)]
   pub(crate) fn bytes_stream(
@@ -662,7 +661,7 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
+      ResponseType::Binary => serde_json::to_value(self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

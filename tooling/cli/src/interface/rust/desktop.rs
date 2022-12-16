@@ -2,6 +2,7 @@ use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target}
 use crate::CommandExt;
 
 use anyhow::Context;
+#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{
@@ -95,32 +96,31 @@ pub fn build(
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+    std::fs::create_dir_all(out_dir).with_context(|| "failed to create project out directory")?;
 
     let mut lipo_cmd = Command::new("lipo");
     lipo_cmd
       .arg("-create")
       .arg("-output")
-      .arg(out_dir.join(&bin_name));
+      .arg(out_dir.join(bin_name));
     for triple in ["aarch64-apple-darwin", "x86_64-apple-darwin"] {
       let mut options = options.clone();
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
         .out_dir(Some(triple.into()), options.debug)
-        .with_context(|| format!("failed to get {} out dir", triple))?;
+        .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
-        .with_context(|| format!("failed to build {} binary", triple))?;
+        .with_context(|| format!("failed to build {triple} binary"))?;
 
-      lipo_cmd.arg(triple_out_dir.join(&bin_name));
+      lipo_cmd.arg(triple_out_dir.join(bin_name));
     }
 
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
       return Err(anyhow::anyhow!(format!(
-        "Result of `lipo` command was unsuccessful: {}. (Is `lipo` installed?)",
-        lipo_status
+        "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
       )));
     }
   } else {
@@ -287,7 +287,7 @@ fn build_command(
     args.push(target);
   }
 
-  let mut build_cmd = Command::new(&runner);
+  let mut build_cmd = Command::new(runner);
   build_cmd.arg("build");
   build_cmd.args(args);
 
@@ -340,10 +340,10 @@ fn rename_app(bin_path: &Path, product_name: Option<&str>) -> crate::Result<Path
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(&product_name)
+      .join(product_name)
       .with_extension(bin_path.extension().unwrap_or_default());
 
-    rename(&bin_path, &product_path).with_context(|| {
+    rename(bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
         bin_path.display(),

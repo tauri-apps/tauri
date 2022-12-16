@@ -11,7 +11,7 @@
     "url": "https://github.com/tauri-apps/tauri.git"
   },
   "scripts": {
-    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .gitignore",
+    "format": "prettier --write --end-of-line=auto \"./**/*.{cjs,js,jsx,ts,tsx,html,css,json}\" --ignore-path .prettierignore",
     "postinstall": "husky install"
   },
   "devDependencies": {

@@ -110,10 +110,10 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
  * @example
  * ```typescript
- * import { appDir, join } from '@tauri-apps/api/path';
+ * import { appDataDir, join } from '@tauri-apps/api/path';
  * import { convertFileSrc } from '@tauri-apps/api/tauri';
- * const appDirPath = await appDir();
- * const filePath = await join(appDir, 'assets/video.mp4');
+ * const appDataDirPath = await appDataDir();
+ * const filePath = await join(appDataDirPath, 'assets/video.mp4');
  * const assetUrl = convertFileSrc(filePath);
  *
  * const video = document.getElementById('my-video');
@@ -132,7 +132,7 @@ function convertFileSrc(filePath: string, protocol = 'asset'): string {
   const path = encodeURIComponent(filePath)
   return navigator.userAgent.includes('Windows')
     ? `https://${protocol}.localhost/${path}`
-    : `${protocol}://${path}`
+    : `${protocol}://localhost/${path}`
 }
 
 export type { InvokeArgs }

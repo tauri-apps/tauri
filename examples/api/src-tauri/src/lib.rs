@@ -62,9 +62,11 @@ impl AppBuilder {
 
         #[allow(unused_mut)]
         let mut window_builder = WindowBuilder::new(app, "main", WindowUrl::default())
+          .user_agent("Tauri API")
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
-          .min_inner_size(600., 400.);
+          .min_inner_size(600., 400.)
+          .content_protected(true);
 
         #[cfg(target_os = "windows")]
         {

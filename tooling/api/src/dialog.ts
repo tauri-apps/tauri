@@ -14,6 +14,9 @@
  *     "allowlist": {
  *       "dialog": {
  *         "all": true, // enable all dialog APIs
+ *         "ask": true, // enable dialog ask API
+ *         "confirm": true, // enable dialog confirm API
+ *         "message": true, // enable dialog message API
  *         "open": true, // enable file open API
  *         "save": true // enable file save API
  *       }

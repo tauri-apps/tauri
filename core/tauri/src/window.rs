@@ -367,6 +367,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   #[must_use]
   pub fn theme(mut self, theme: Option<Theme>) -> Self {
+    self.webview_attributes.theme = theme;
     self.window_builder = self.window_builder.theme(theme);
     self
   }

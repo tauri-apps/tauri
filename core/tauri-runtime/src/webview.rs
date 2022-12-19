@@ -29,6 +29,7 @@ pub struct WebviewAttributes {
   pub clipboard: bool,
   pub accept_first_mouse: bool,
   pub additional_browser_args: Option<String>,
+  pub theme: Option<Theme>,
 }
 
 impl WebviewAttributes {
@@ -43,6 +44,7 @@ impl WebviewAttributes {
       clipboard: false,
       accept_first_mouse: false,
       additional_browser_args: None,
+      theme: None,
     }
   }
 

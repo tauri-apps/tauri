@@ -81,6 +81,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -286,7 +287,7 @@ impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
 }
 
 // response
-struct HttpResponseWrapper(WryResponse<Vec<u8>>);
+struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
@@ -300,7 +301,7 @@ impl From<HttpResponse> for HttpResponseWrapper {
       res_builder = res_builder.header(name, val);
     }
 
-    let res = res_builder.body(body).unwrap();
+    let res = res_builder.body(body.into()).unwrap();
     Self(res)
   }
 }
@@ -2840,6 +2841,18 @@ fn handle_event_loop<T: UserEvent>(
         }
 
         match event {
+          #[cfg(windows)]
+          WryWindowEvent::ThemeChanged(theme) => {
+            if let Some(window) = windows.borrow().get(&window_id) {
+              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+                let theme = match theme {
+                  WryTheme::Dark => wry::webview::Theme::Dark,
+                  _ => wry::webview::Theme::Light,
+                };
+                inner.set_theme(theme);
+              }
+            }
+          }
           WryWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
@@ -3057,6 +3070,14 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
     webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
+  #[cfg(windows)]
+  if let Some(theme) = webview_attributes.theme {
+    webview_builder = webview_builder.with_theme(match theme {
+      Theme::Dark => wry::webview::Theme::Dark,
+      _ => wry::webview::Theme::Light,
+    });
   }
 
   if let Some(handler) = ipc_handler {

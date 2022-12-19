@@ -64,7 +64,7 @@ semver = "1.0"
 regex = "1.6.0"
 unicode-width = "0.1"
 zeroize = "1.5"
-heck = "0.4"
+heck = { version = "0.4", features = [ "unicode" ] }
 dialoguer = "0.10"
 url = { version = "2.3", features = [ "serde" ] }
 os_pipe = "1"

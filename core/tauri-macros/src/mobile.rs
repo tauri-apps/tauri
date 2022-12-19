@@ -19,10 +19,7 @@ fn get_env_var<R: FnOnce(String) -> String>(
       error.replace(
         syn::Error::new(
           function.span(),
-          format!(
-            "`{}` env var not set, do you have a build script with tauri-build?",
-            name,
-          ),
+          format!("`{name}` env var not set, do you have a build script with tauri-build?",),
         )
         .into_compile_error(),
       );

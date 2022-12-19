@@ -450,7 +450,7 @@ fn crate_version(
                 v
               } else if let Some(p) = p.path {
                 let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(&manifest_path)
+                let v = match read_to_string(manifest_path)
                   .map_err(|_| ())
                   .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
                 {

@@ -190,7 +190,7 @@ impl Cmd {
         Ok(cmd) => cmd,
         Err(e) => {
           #[cfg(debug_assertions)]
-          eprintln!("{}", e);
+          eprintln!("{e}");
           return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
         }
       }
@@ -215,7 +215,7 @@ impl Cmd {
             {
               EncodingWrapper::Text(Some(text_encoding))
             } else {
-              return Err(anyhow::anyhow!(format!("unknown encoding {}", encoding)));
+              return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));
             }
           }
         },

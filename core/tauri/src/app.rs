@@ -868,7 +868,7 @@ impl<R: Runtime> App<R> {
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
-          panic!("Failed to setup app: {}", e);
+          panic!("Failed to setup app: {e}");
         }
         on_event_loop_event(
           &app_handle,
@@ -1290,8 +1290,7 @@ impl<R: Runtime> Builder<R> {
     let type_name = std::any::type_name::<T>();
     assert!(
       self.state.set(state),
-      "state for type '{}' is already being managed",
-      type_name
+      "state for type '{type_name}' is already being managed",
     );
     self
   }

@@ -18,7 +18,7 @@ pub fn resolver(_argument: String) {}
 
 #[command]
 pub fn simple_command(the_argument: String) {
-  println!("{}", the_argument);
+  println!("{the_argument}");
 }
 
 #[command]

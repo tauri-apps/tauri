@@ -37,7 +37,7 @@ jobs:
           git config --global user.email "${{ github.event.pusher.email }}"
 
       - name: covector version or publish (publish when no change files present)
-        uses: jbolda/covector/packages/action@covector-v0
+        uses: lucasfernog/covector/packages/action@feat/target-commitish
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
@@ -77,7 +77,7 @@ jobs:
           token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           repository: tauri-apps/tauri
           event-type: publish-clijs
-          inputs: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
+          client-payload: '{"releaseId": "${{ steps.covector.outputs.cli.js-releaseId }}" }'
 
       - name: Trigger cli.rs publishing workflow
         if: |

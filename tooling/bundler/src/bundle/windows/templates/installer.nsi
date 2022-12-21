@@ -4,7 +4,6 @@
 !include FileFunc.nsh
 !include x64.nsh
 !include WordFunc.nsh
-!include SemverCompare.nsh
 
 ;--------------------------------
 ; definitions
@@ -312,7 +311,8 @@ Function PageReinstall
   ReadRegStr $R0 SHCTX "${APR}" "DisplayVersion"
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "unknown" ${|}
 
-  !insertmacro SemverCompare "${VERSION}" $R0 $R0
+  SemverCompare::SemverCompare "${VERSION}" $R0
+  Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
     StrCpy $R1 "${PRODUCTNAME} ${VERSION} is already installed. Select the operation you want to perform and click Next to continue."

@@ -128,7 +128,7 @@ pub(crate) fn cli_upstream_version() -> Result<String> {
 }
 
 fn crate_latest_version(name: &str) -> Option<String> {
-  let url = format!("https://docs.rs/crate/{}/", name);
+  let url = format!("https://docs.rs/crate/{name}/");
   match ureq::get(&url).call() {
     Ok(response) => match (response.status(), response.header("location")) {
       (302, Some(location)) => Some(location.replace(&url, "")),
@@ -159,7 +159,7 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let output = cmd
         .arg("info")
         .arg(name)
-        .args(&["version", "--json"])
+        .args(["version", "--json"])
         .output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -219,9 +219,9 @@ fn npm_package_version<P: AsRef<Path>>(
   let (output, regex) = match pm {
     PackageManager::Yarn => (
       cross_command("yarn")
-        .args(&["list", "--pattern"])
+        .args(["list", "--pattern"])
         .arg(name)
-        .args(&["--depth", "0"])
+        .args(["--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -238,7 +238,7 @@ fn npm_package_version<P: AsRef<Path>>(
       cross_command("npm")
         .arg("list")
         .arg(name)
-        .args(&["version", "--depth", "0"])
+        .args(["version", "--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -247,7 +247,7 @@ fn npm_package_version<P: AsRef<Path>>(
       cross_command("pnpm")
         .arg("list")
         .arg(name)
-        .args(&["--parseable", "--depth", "0"])
+        .args(["--parseable", "--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -273,11 +273,7 @@ fn get_version(command: &str, args: &[&str]) -> crate::Result<Option<String>> {
     .arg("--version")
     .output()?;
   let version = if output.status.success() {
-    Some(
-      String::from_utf8_lossy(&output.stdout)
-        .replace('\n', "")
-        .replace('\r', ""),
-    )
+    Some(String::from_utf8_lossy(&output.stdout).replace(['\n', '\r'], ""))
   } else {
     None
   };
@@ -380,8 +376,7 @@ fn active_rust_toolchain() -> crate::Result<Option<String>> {
   let toolchain = if output.status.success() {
     Some(
       String::from_utf8_lossy(&output.stdout)
-        .replace('\n', "")
-        .replace('\r', "")
+        .replace(['\n', '\r'], "")
         .split('(')
         .collect::<Vec<&str>>()[0]
         .into(),
@@ -436,7 +431,7 @@ fn crate_version(
           crate_lock_package.version.clone()
         };
         (
-          format!("{} (no manifest)", version_string),
+          format!("{version_string} (no manifest)"),
           vec![crate_lock_package.version.clone()],
         )
       }
@@ -455,21 +450,21 @@ fn crate_version(
                 v
               } else if let Some(p) = p.path {
                 let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(&manifest_path)
+                let v = match read_to_string(manifest_path)
                   .map_err(|_| ())
                   .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
                 {
                   Ok(manifest) => manifest.package.version,
                   Err(_) => "unknown version".to_string(),
                 };
-                format!("path:{:?} [{}]", p, v)
+                format!("path:{p:?} [{v}]")
               } else if let Some(g) = p.git {
                 is_git = true;
-                let mut v = format!("git:{}", g);
+                let mut v = format!("git:{g}");
                 if let Some(branch) = p.branch {
-                  let _ = write!(v, "&branch={}", branch);
+                  let _ = write!(v, "&branch={branch}");
                 } else if let Some(rev) = p.rev {
-                  let _ = write!(v, "#{}", rev);
+                  let _ = write!(v, "#{rev}");
                 }
                 v
               } else {
@@ -510,7 +505,7 @@ fn crate_version(
     (Some(version), Some(target_version)) => {
       let target_version = semver::Version::parse(&target_version).unwrap();
       if version < target_version {
-        Some(format!(" (outdated, latest: {})", target_version))
+        Some(format!(" (outdated, latest: {target_version})"))
       } else {
         None
       }

@@ -96,7 +96,7 @@
           if (target.matches('a')) {
             if (
               target.href &&
-              target.href.startsWith('http') &&
+              (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE__('tauri', {

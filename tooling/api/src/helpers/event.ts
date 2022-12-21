@@ -60,7 +60,7 @@ async function emit(
       cmd: 'emit',
       event,
       windowLabel,
-      payload: typeof payload === 'string' ? payload : JSON.stringify(payload)
+      payload
     }
   })
 }

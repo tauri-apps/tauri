@@ -177,10 +177,9 @@ async function open(
  * ```typescript
  * import { save } from '@tauri-apps/api/dialog';
  * const filePath = await save({
- *   multiple: true,
  *   filters: [{
  *     name: 'Image',
- *     extensions: ['stronghold']
+ *     extensions: ['png', 'jpeg']
  *   }]
  * });
  * ```
@@ -189,7 +188,7 @@ async function open(
  *
  * @since 1.0.0
  */
-async function save(options: SaveDialogOptions = {}): Promise<string> {
+async function save(options: SaveDialogOptions = {}): Promise<string | null> {
   if (typeof options === 'object') {
     Object.freeze(options)
   }

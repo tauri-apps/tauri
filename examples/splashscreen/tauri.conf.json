@@ -1,5 +1,5 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/config-schema/schema.json",
   "build": {
     "distDir": "dist",
     "devPath": "dist",

@@ -96,7 +96,7 @@ pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
     info!(action = "Signing"; "{}", file_path.display());
     sign(
-      &file_path,
+      file_path,
       &SignParams {
         product_name: settings.product_name().into(),
         digest_algorithm: settings

@@ -167,7 +167,7 @@ fn build_nsis_app_installer(
       .find(|bin| bin.main())
       .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
     let app_exe_source = settings.binary_path(main_binary);
-    try_sign(&app_exe_source, &settings)?;
+    try_sign(&app_exe_source, settings)?;
   }
 
   #[cfg(not(target_os = "windows"))]

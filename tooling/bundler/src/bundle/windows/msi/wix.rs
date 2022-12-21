@@ -159,7 +159,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
-  let icon_path = std::env::current_dir()?.join(&path);
+  let icon_path = std::env::current_dir()?.join(path);
 
   copy_file(
     icon_path,
@@ -375,7 +375,7 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  try_sign(&app_exe_source, &settings)?;
+  try_sign(&app_exe_source, settings)?;
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -488,7 +488,7 @@ pub fn build_wix_app_installer(
       if license.ends_with(".rtf") {
         data.insert("license", to_json(license));
       } else {
-        let license_contents = read_to_string(&license)?;
+        let license_contents = read_to_string(license)?;
         let license_rtf = format!(
           r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
 {{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
@@ -528,17 +528,17 @@ pub fn build_wix_app_installer(
   )
   .to_string();
 
-  data.insert("upgrade_code", to_json(&upgrade_code.as_str()));
+  data.insert("upgrade_code", to_json(upgrade_code.as_str()));
   data.insert(
     "allow_downgrades",
     to_json(settings.windows().allow_downgrades),
   );
 
   let path_guid = generate_package_guid(settings).to_string();
-  data.insert("path_component_guid", to_json(&path_guid.as_str()));
+  data.insert("path_component_guid", to_json(path_guid.as_str()));
 
   let shortcut_guid = generate_package_guid(settings).to_string();
-  data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
+  data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
   let app_exe_name = settings.main_binary_name().to_string();
   data.insert("app_exe_name", to_json(&app_exe_name));
@@ -633,7 +633,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args.clone())
+          .and_then(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),
@@ -777,7 +777,7 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, &settings)?;
+    try_sign(&msi_path, settings)?;
     output_paths.push(msi_path);
   }
 
@@ -963,7 +963,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().into_owned();
     let relative_path = path
-      .strip_prefix(&out_dir)
+      .strip_prefix(out_dir)
       .unwrap()
       .to_string_lossy()
       .into_owned();

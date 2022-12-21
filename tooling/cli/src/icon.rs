@@ -158,13 +158,7 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, extra_icon_sizes: Vec<u32>) -> Result<()> {
-  //create default icons
-  log::info!(action = "PNG"; "Creating {}", "128x128@2x.png");
-  resize_and_save_png(source, 256, &out_dir.join("128x128@2x.png".to_string()))?;
-  log::info!(action = "PNG"; "Creating {}", "icon.png");
-  resize_and_save_png(source, 512, &out_dir.join("icon.png".to_string()))?;
-
-  for size in extra_icon_sizes {
+  for size in [32, 128].into_iter().chain(extra_icon_sizes) {
     let file_name = format!("{}x{}.png", size, size);
     log::info!(action = "PNG"; "Creating {}", file_name);
     resize_and_save_png(source, size, &out_dir.join(&file_name))?;

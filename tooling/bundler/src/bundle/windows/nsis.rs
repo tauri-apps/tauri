@@ -15,7 +15,10 @@ use crate::{
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
-use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
+use tauri_utils::{
+  config::{NSISInstallerMode, WebviewInstallMode},
+  resources::resource_relpath,
+};
 
 use std::{
   collections::BTreeMap,
@@ -175,10 +178,10 @@ fn build_nsis_app_installer(
   if let Some(nsis) = &settings.windows().nsis {
     data.insert(
       "install_mode",
-      to_json(if nsis.per_machine {
-        "perMachine"
-      } else {
-        "perUser"
+      to_json(match nsis.install_mode {
+        NSISInstallerMode::CurrentUser => "currentUser",
+        NSISInstallerMode::PerMachine => "perMachine",
+        NSISInstallerMode::Both => "both",
       }),
     );
 

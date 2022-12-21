@@ -439,7 +439,36 @@ pub struct NsisConfig {
   pub installer_icon: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   #[serde(default)]
-  pub per_machine: bool,
+  pub install_mode: NSISInstallerMode,
+}
+
+/// Install Modes for the NSIS installer.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NSISInstallerMode {
+  /// Default mode for the installer and install the app
+  /// by default in a directory that doesn't require Adminstrator access.
+  ///
+  /// Installer metadata will also ve saved under `HKCU` registry path.
+  CurrentUser,
+  /// Install the app by default in a `Prgoram Files` which require Adminstrator access
+  /// and so the install will also require Adminstrator access.
+  ///
+  /// Installer metadata will also ve saved under `HKLM` registry path.
+  PerMachine,
+  /// Combines both modes and allows the user to choose at install time
+  /// whether to install for current user or per machine. Note that this mode
+  /// will also require Adminstrator access even if the user wants to install it for current user only.
+  ///
+  /// Installer metadata will also ve saved under `HKLM` or `HKCU` registry path based on the user choice.
+  Both,
+}
+
+impl Default for NSISInstallerMode {
+  fn default() -> Self {
+    Self::CurrentUser
+  }
 }
 
 /// Install modes for the Webview2 runtime.

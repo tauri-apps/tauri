@@ -1,17 +1,15 @@
-;--------------------------------
-; Header files
+Var AppStartMenuFolder
+Var ReinstallPageCheck
+
 !include MUI2.nsh
 !include FileFunc.nsh
 !include x64.nsh
 !include WordFunc.nsh
 
-;--------------------------------
-; definitions
-
 !define MANUFACTURER "{{{manufacturer}}}"
 !define PRODUCTNAME "{{{product_name}}}"
 !define VERSION "{{{version}}}"
-!define INSTALLMODE "{{{installer_mode}}}"
+!define INSTALLMODE "{{{install_mode}}}"
 !define LICENSE "{{{license}}}"
 !define INSTALLERICON "{{{installer_icon}}}"
 !define SIDEBARIMAGE "{{{sidebar_image}}}"
@@ -26,16 +24,7 @@
 !define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
 !define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
 !define WEBVIEW2INSTALLERPATH "{{{webview2_installer_path}}}"
-!define APR "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
-
-;--------------------------------
-; Variables
-
-Var AppStartMenuFolder
-Var ReinstallPageCheck
-
-;--------------------------------
-; General onfiguration
+!define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
 OutFile "${OUTFILE}"
@@ -43,27 +32,28 @@ Unicode true
 SetCompressor /SOLID lzma
 
 !if "${INSTALLMODE}" == "perMachine"
-  RequestExecutionLevel heighest
-  ; Set default install location
-   !if ${RunningX64}
-    !if  "${ARCH}" == "x64"
-      InstallDir "$PROGRAMFILES64\${PRODUCTNAME}"
-    !else
-      InstallDir "$PROGRAMFILES\${PRODUCTNAME}"
-    !endif
-  !else
-    InstallDir "$PROGRAMFILES\${PRODUCTNAME}"
-  !endif
-  ; Override with the previous install location if it exists
-  InstallDirRegKey HKLM "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
-!else
-  RequestExecutionLevel user
-  InstallDir "$LOCALAPPDATA\${PRODUCTNAME}"
-  InstallDirRegKey HKCU "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
+  RequestExecutionLevel highest
 !endif
 
-;--------------------------------
-;Interface Settings
+!if "${INSTALLMODE}" == "both"
+  !define MULTIUSER_MUI
+  !define MULTIUSER_EXECUTIONLEVEL Highest
+  !define MULTIUSER_INSTALLMODE_INSTDIR "${PRODUCTNAME}"
+  !define MULTIUSER_INSTALLMODE_COMMANDLINE
+  !if "${ARCH}" == "x64"
+    !define MULTIUSER_USE_PROGRAMFILES64
+  !endif
+  !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_KEY "${UNINSTKEY}"
+  !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
+  !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
+  !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
+  Function RestorePreviousInstallLocation
+    ReadRegStr $4 SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
+    StrCmp $4 "" +2 0
+      StrCpy $INSTDIR $4
+  FunctionEnd
+  !include MultiUser.nsh
+!endif
 
 !if "${INSTALLERICON}" != ""
   !define MUI_ICON "${INSTALLERICON}"
@@ -81,75 +71,187 @@ SetCompressor /SOLID lzma
 ; Don't auto jump to finish page after installation page,
 ; because the installation page has useful info that can be used debug any issues with the installer.
 !define MUI_FINISHPAGE_NOAUTOCLOSE
-
 ; Use show readme button in the finish page to create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Create desktop shortcut"
-!define MUI_FINISHPAGE_SHOWREADME_FUNCTION "CreateDesktopShortcut"
-
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
+Function CreateDesktopShortcut
+  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+FunctionEnd
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
 
-;--------------------------------
-; Installer pages
+Function .onInit
+  !if "${INSTALLMODE}" == "currentUser"
+    SetShellVarContext current
+  !else if "${INSTALLMODE}" == "perMachine"
+    SetShellVarContext all
+  !endif
+
+  !if "${INSTALLMODE}" == "perMachine"
+    ; Set default install location
+    ${If} ${RunningX64}
+      !if "${ARCH}" == "x64"
+        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+      !else
+        StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+      !endif
+    ${Else}
+      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+    ${EndIf}
+  !else if "${INSTALLMODE}" == "currentUser"
+    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
+  !endif
+
+  !if "${INSTALLMODE}" == "both"
+    !insertmacro MULTIUSER_INIT
+  !endif
+FunctionEnd
 
 ; Installer pages, must be ordered as they appear
 !insertmacro MUI_PAGE_WELCOME
-Page custom PageReinstall PageLeaveReinstall
 !if "${LICENSE}" != ""
   !insertmacro MUI_PAGE_LICENSE "${LICENSE}"
 !endif
+!if "${INSTALLMODE}" == "both"
+  !insertmacro MULTIUSER_PAGE_INSTALLMODE
+!endif
+Page custom PageReinstall PageLeaveReinstall
+Function PageReinstall
+  ; Check if there is an existing installation, if not, abort the reinstall page
+  ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
+  ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
+  ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
+
+  ; Compare this installar version with the existing installation and modify the messages presented to the user accordingly
+  StrCpy $R4 "older"
+  ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
+  ${IfThen} $R0 == "" ${|} StrCpy $R4 "unknown" ${|}
+
+  SemverCompare::SemverCompare "${VERSION}" $R0
+  Pop $R0
+  ; Reinstalling the same version
+  ${If} $R0 == 0
+    StrCpy $R1 "${PRODUCTNAME} ${VERSION} is already installed. Select the operation you want to perform and click Next to continue."
+    StrCpy $R2 "Add/Reinstall components"
+    StrCpy $R3 "Uninstall ${PRODUCTNAME}"
+    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose the maintenance option to perform."
+    StrCpy $R0 "2"
+  ; Upgrading
+  ${ElseIf} $R0 == 1
+    StrCpy $R1 "An $R4 version of ${PRODUCTNAME} is installed on your system. It's recommended that you uninstall the current version before installing. Select the operation you want to perform and click Next to continue."
+    StrCpy $R2 "Uninstall before installing"
+    StrCpy $R3 "Do not uninstall"
+    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
+    StrCpy $R0 "1"
+  ; Downgrading
+  ${ElseIf} $R0 == -1
+    StrCpy $R1 "A newer version of ${PRODUCTNAME} is already installed! It is not recommended that you install an older version. If you really want to install this older version, it's better to uninstall the current version first. Select the operation you want to perform and click Next to continue."
+    StrCpy $R2 "Uninstall before installing"
+    !if "${ALLOWDOWNGRADES}" == "true"
+      StrCpy $R3 "Do not uninstall"
+    !else
+      StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
+    !endif
+    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
+    StrCpy $R0 "1"
+  ${Else}
+    Abort
+  ${EndIf}
+
+  nsDialogs::Create 1018
+  Pop $R4
+
+  ${NSD_CreateLabel} 0 0 100% 24u $R1
+  Pop $R1
+
+  ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
+  Pop $R2
+  ${NSD_OnClick} $R2 PageReinstallUpdateSelection
+
+  ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
+  Pop $R3
+  ; disable this radio button if downgrades are not allowed
+  !if "${ALLOWDOWNGRADES}" == "false"
+    EnableWindow $R3 0
+  !endif
+  ${NSD_OnClick} $R3 PageReinstallUpdateSelection
+
+  ${If} $ReinstallPageCheck != 2
+    SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
+  ${Else}
+    SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
+  ${EndIf}
+
+  ${NSD_SetFocus} $R2
+
+  nsDialogs::Show
+FunctionEnd
+Function PageReinstallUpdateSelection
+  Pop $R1
+
+  ${NSD_GetState} $R2 $R1
+
+  ${If} $R1 == ${BST_CHECKED}
+    StrCpy $ReinstallPageCheck 1
+  ${Else}
+    StrCpy $ReinstallPageCheck 2
+  ${EndIf}
+
+FunctionEnd
+Function PageLeaveReinstall
+  ${NSD_GetState} $R2 $R1
+
+  ; $R0 holds whether we are reinstalling the same version or not
+  ; $R0 == "1" -> different versions
+  ; $R0 == "2" -> same version
+  ;
+  ; $R1 holds the radio buttons state. its meaning is dependant on the context
+  StrCmp $R0 "1" 0 +2 ; Existing install is not the same version?
+    StrCmp $R1 "1" reinst_uninstall reinst_done
+  StrCmp $R1 "1" reinst_done ; Same version, skip to add/reinstall components?
+
+  reinst_uninstall:
+    ReadRegStr $4 SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
+    ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
+
+    HideWindow
+
+    ClearErrors
+    ExecWait '$R1 _?=$4' $0
+
+    BringToFront
+
+    ${IfThen} ${Errors} ${|} StrCpy $0 2 ${|} ; ExecWait failed, set fake exit code
+
+    ${If} $0 <> 0
+    ${OrIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
+      ${If} $0 = 1 ; User aborted uninstaller?
+        StrCmp $R0 "2" 0 +2 ; Is the existing install the same version?
+          Quit ; ...yes, already installed, we are done
+        Abort
+      ${EndIf}
+      MessageBox MB_ICONEXCLAMATION "Unable to uninstall!"
+      Abort
+    ${Else}
+      StrCpy $0 $R1 1
+      ${IfThen} $0 == '"' ${|} StrCpy $R1 $R1 -1 1 ${|} ; Strip quotes from UninstallString
+      Delete $R1
+      RMDir $INSTDIR
+    ${EndIf}
+
+  reinst_done:
+FunctionEnd
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
-
-;--------------------------------
 ; Uninstaller pages
-
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-
-;--------------------------------
 ;Languages
 !insertmacro MUI_LANGUAGE English
-
-
-;--------------------------------
-; Macros
-
-!macro CheckIfAppIsRunning
-  nsProcess::_FindProcess "${MAINBINARYNAME}.exe"
-  Pop $R0
-  ${If} $R0 = 0
-    IfSilent silent ui
-    silent:
-      System::Call 'kernel32::AttachConsole(i -1)i.r0'
-      ${If} $0 != 0
-        System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-        System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-        FileWrite $0 "${PRODUCTNAME} is running. Please close it first then try again.$\n"
-      ${EndIf}
-      Abort
-    ui:
-      MessageBox MB_OKCANCEL "${PRODUCTNAME} is running$\nClick OK to kill it" IDOK ok IDCANCEL cancel
-      ok:
-        nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
-        Pop $R0
-        Sleep 500
-        ${If} $R0 = 0
-          Goto done
-        ${Else}
-          Abort "Failed to kill ${PRODUCTNAME}. Please close it first then try again"
-        ${EndIf}
-      cancel:
-        Abort "${PRODUCTNAME} is running. Please close it first then try again"
-  ${EndIf}
-  done:
-!macroend
-
-;--------------------------------
-;Installer Sections
 
 Section EarlyChecks
   ; Abort silent installer if downgrades is disabled
@@ -228,6 +330,36 @@ Section Webview2
   done:
 SectionEnd
 
+!macro CheckIfAppIsRunning
+  nsProcess::_FindProcess "${MAINBINARYNAME}.exe"
+  Pop $R0
+  ${If} $R0 = 0
+    IfSilent silent ui
+    silent:
+      System::Call 'kernel32::AttachConsole(i -1)i.r0'
+      ${If} $0 != 0
+        System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+        System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+        FileWrite $0 "${PRODUCTNAME} is running. Please close it first then try again.$\n"
+      ${EndIf}
+      Abort
+    ui:
+      MessageBox MB_OKCANCEL "${PRODUCTNAME} is running$\nClick OK to kill it" IDOK ok IDCANCEL cancel
+      ok:
+        nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
+        Pop $R0
+        Sleep 500
+        ${If} $R0 = 0
+          Goto done
+        ${Else}
+          Abort "Failed to kill ${PRODUCTNAME}. Please close it first then try again"
+        ${EndIf}
+      cancel:
+        Abort "${PRODUCTNAME} is running. Please close it first then try again"
+  ${EndIf}
+  done:
+!macroend
+
 Section Install
   SetOutPath $INSTDIR
 
@@ -254,18 +386,29 @@ Section Install
   ; Save $INSTDIR in registry for future installations
   WriteRegStr SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" "" $INSTDIR
 
+  !if "${INSTALLMODE}" == "both"
+    ; Save install mode to be selected by default for the next installation such as updating
+    WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
+
+    ; Save install mode to be read by the uninstaller in order to remove the correct
+    ; registry key
+    FileOpen $4 "$INSTDIR\installmode" w
+    FileWrite $4 $MultiUser.InstallMode
+    FileClose $4
+  !endif
+
   ; Registry information for add/remove programs
-  WriteRegStr SHCTX "${APR}" "DisplayName" "${PRODUCTNAME}"
-  WriteRegStr SHCTX "${APR}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
-  WriteRegStr SHCTX "${APR}" "DisplayVersion" "${VERSION}"
-  WriteRegStr SHCTX "${APR}" "Publisher" "${MANUFACTURER}"
-  WriteRegStr SHCTX "${APR}" "InstallLocation" "$\"$INSTDIR$\""
-  WriteRegStr SHCTX "${APR}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
-  WriteRegDWORD SHCTX "${APR}" "NoModify" "1"
-  WriteRegDWORD SHCTX "${APR}" "NoRepair" "1"
+  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayName" "${PRODUCTNAME}"
+  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""
+  WriteRegStr SHCTX "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
+  WriteRegStr SHCTX "${UNINSTKEY}" "Publisher" "${MANUFACTURER}"
+  WriteRegStr SHCTX "${UNINSTKEY}" "InstallLocation" "$\"$INSTDIR$\""
+  WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   IntFmt $0 "0x%08X" $0
-  WriteRegDWORD SHCTX "${APR}" "EstimatedSize" "$0"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$0"
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -277,8 +420,32 @@ Section Install
 
 SectionEnd
 
+Function un.onInit
+  !if "${INSTALLMODE}" == "both"
+    !insertmacro MULTIUSER_UNINIT
+  !endif
+FunctionEnd
+
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
+
+  ; Remove registry information for add/remove programs
+  !if "${INSTALLMODE}" == "both"
+    ; Get the saved install mode
+    FileOpen $4 "$INSTDIR\installmode" r
+    FileRead $4 $1
+    FileClose $4
+
+    ${If} $1 == "AllUsers"
+      DeleteRegKey HKLM "${UNINSTKEY}"
+    ${ElseIf} $1 == "CurrentUser"
+      DeleteRegKey HKCU "${UNINSTKEY}"
+    ${EndIf}
+  !else if "${INSTALLMODE}" == "perMachine"
+    DeleteRegKey HKLM "${UNINSTKEY}"
+  !else
+    DeleteRegKey HKCU "${UNINSTKEY}"
+  !endif
 
   ; Delete the app directory and its content from disk
   RMDir /r "$INSTDIR"
@@ -287,142 +454,5 @@ Section Uninstall
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
   RMDir /r "$SMPROGRAMS\$AppStartMenuFolder"
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
-
-  ; Remove registry information for add/remove programs
-  DeleteRegKey SHCTX "${APR}"
 SectionEnd
 
-;--------------------------------
-; Functions
-
-Function CreateDesktopShortcut
-  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
-FunctionEnd
-
-Function PageReinstall
-  ; Check if there is an existing installation, if not, abort the reinstall page
-  ReadRegStr $R0 SHCTX "${APR}" ""
-  ReadRegStr $R1 SHCTX "${APR}" "UninstallString"
-  ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
-
-  ; Compare this installar version with the existing installation and modify the messages presented to the user accordingly
-  StrCpy $R4 "older"
-  ReadRegStr $R0 SHCTX "${APR}" "DisplayVersion"
-  ${IfThen} $R0 == "" ${|} StrCpy $R4 "unknown" ${|}
-
-  SemverCompare::SemverCompare "${VERSION}" $R0
-  Pop $R0
-  ; Reinstalling the same version
-  ${If} $R0 == 0
-    StrCpy $R1 "${PRODUCTNAME} ${VERSION} is already installed. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Add/Reinstall components"
-    StrCpy $R3 "Uninstall ${PRODUCTNAME}"
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose the maintenance option to perform."
-    StrCpy $R0 "2"
-  ; Upgrading
-  ${ElseIf} $R0 == 1
-    StrCpy $R1 "An $R4 version of ${PRODUCTNAME} is installed on your system. It's recommended that you uninstall the current version before installing. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Uninstall before installing"
-    StrCpy $R3 "Do not uninstall"
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
-    StrCpy $R0 "1"
-  ; Downgrading
-  ${ElseIf} $R0 == -1
-    StrCpy $R1 "A newer version of ${PRODUCTNAME} is already installed! It is not recommended that you install an older version. If you really want to install this older version, it's better to uninstall the current version first. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Uninstall before installing"
-    !if "${ALLOWDOWNGRADES}" == "true"
-      StrCpy $R3 "Do not uninstall"
-    !else
-      StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
-    !endif
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
-    StrCpy $R0 "1"
-  ${Else}
-    Abort
-  ${EndIf}
-
-  nsDialogs::Create 1018
-  Pop $R4
-
-  ${NSD_CreateLabel} 0 0 100% 24u $R1
-  Pop $R1
-
-  ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
-  Pop $R2
-  ${NSD_OnClick} $R2 PageReinstallUpdateSelection
-
-  ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
-  Pop $R3
-  ; disable this radio button if downgrades are not allowed
-  !if "${ALLOWDOWNGRADES}" == "false"
-  EnableWindow $R3 0
-  !endif
-  ${NSD_OnClick} $R3 PageReinstallUpdateSelection
-
-  ${If} $ReinstallPageCheck != 2
-    SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
-  ${Else}
-    SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
-  ${EndIf}
-
-  ${NSD_SetFocus} $R2
-
-  nsDialogs::Show
-FunctionEnd
-
-Function PageReinstallUpdateSelection
-  Pop $R1
-
-  ${NSD_GetState} $R2 $R1
-
-  ${If} $R1 == ${BST_CHECKED}
-    StrCpy $ReinstallPageCheck 1
-  ${Else}
-    StrCpy $ReinstallPageCheck 2
-  ${EndIf}
-
-FunctionEnd
-
-Function PageLeaveReinstall
-  ${NSD_GetState} $R2 $R1
-
-  ; $R0 holds whether we are reinstalling the same version or not
-  ; $R0 == "1" -> different versions
-  ; $R0 == "2" -> same version
-  ;
-  ; $R1 holds the radio buttons state. its meaning is dependant on the context
-  StrCmp $R0 "1" 0 +2 ; Existing install is not the same version?
-    StrCmp $R1 "1" reinst_uninstall reinst_done
-  StrCmp $R1 "1" reinst_done ; Same version, skip to add/reinstall components?
-
-  reinst_uninstall:
-    ReadRegStr $R1 SHCTX "${APR}" "UninstallString"
-
-    HideWindow
-
-    ClearErrors
-    ExecWait '$R1 _?=$INSTDIR' $0
-
-    BringToFront
-
-    ${IfThen} ${Errors} ${|} StrCpy $0 2 ${|} ; ExecWait failed, set fake exit code
-
-    ${If} $0 <> 0
-    ${OrIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
-      ${If} $0 = 1 ; User aborted uninstaller?
-        StrCmp $R0 "2" 0 +2 ; Is the existing install the same version?
-          Quit ; ...yes, already installed, we are done
-        Abort
-      ${EndIf}
-      MessageBox MB_ICONEXCLAMATION "Unable to uninstall!"
-      Abort
-    ${Else}
-      StrCpy $0 $R1 1
-      ${IfThen} $0 == '"' ${|} StrCpy $R1 $R1 -1 1 ${|} ; Strip quotes from UninstallString
-      Delete $R1
-      RMDir $INSTDIR
-    ${EndIf}
-
-  reinst_done:
-FunctionEnd

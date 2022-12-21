@@ -103,7 +103,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     header_image: config.header_image,
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
-    per_machine: config.per_machine,
+    install_mode: config.install_mode,
   }
 }
 

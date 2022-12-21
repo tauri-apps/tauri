@@ -7,7 +7,7 @@ use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::BundleType,
+  config::{BundleType, NSISInstallerMode},
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -265,7 +265,7 @@ pub struct NsisSettings {
   /// The path to an icon file used as the installer icon.
   pub installer_icon: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
-  pub per_machine: bool,
+  pub install_mode: NSISInstallerMode,
 }
 
 /// The Windows bundle settings.

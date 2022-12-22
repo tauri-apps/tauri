@@ -395,6 +395,7 @@ Section Install
     FileOpen $4 "$INSTDIR\installmode" w
     FileWrite $4 $MultiUser.InstallMode
     FileClose $4
+    SetFileAttributes "$INSTDIR\installmode" HIDDEN|READONLY
   !endif
 
   ; Registry information for add/remove programs

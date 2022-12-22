@@ -447,21 +447,22 @@ pub struct NsisConfig {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum NSISInstallerMode {
-  /// Default mode for the installer and install the app
-  /// by default in a directory that doesn't require Adminstrator access.
+  /// Default mode for the installer.
   ///
-  /// Installer metadata will also ve saved under `HKCU` registry path.
+  /// Install the app by default in a directory that doesn't require Administrator access.
+  ///
+  /// Installer metadata will be saved under the `HKCU` registry path.
   CurrentUser,
-  /// Install the app by default in a `Prgoram Files` which require Adminstrator access
-  /// and so the install will also require Adminstrator access.
+  /// Install the app by default in the `Program Files` folder directory requires Administrator
+  /// access for the installation.
   ///
-  /// Installer metadata will also ve saved under `HKLM` registry path.
+  /// Installer metadata will be saved under the `HKLM` registry path.
   PerMachine,
   /// Combines both modes and allows the user to choose at install time
-  /// whether to install for current user or per machine. Note that this mode
-  /// will also require Adminstrator access even if the user wants to install it for current user only.
+  /// whether to install for the current user or per machine. Note that this mode
+  /// will require Administrator access even if the user wants to install it for the current user only.
   ///
-  /// Installer metadata will also ve saved under `HKLM` or `HKCU` registry path based on the user choice.
+  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
   Both,
 }
 

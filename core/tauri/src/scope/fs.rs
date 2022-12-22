@@ -141,7 +141,7 @@ impl Scope {
   /// Extend the allowed patterns with the given directory.
   ///
   /// After this function has been called, the frontend will be able to use the Tauri API to read
-  /// the directory and all of its files and subdirectories.
+  /// the directory and all of its files. If `recursive` is `true`, subdirectories will be accessible too.
   pub fn allow_directory<P: AsRef<Path>>(&self, path: P, recursive: bool) -> crate::Result<()> {
     let path = path.as_ref();
     {
@@ -216,13 +216,22 @@ impl Scope {
 
     if let Ok(path) = path {
       let path: PathBuf = path.components().collect();
+      let options = glob::MatchOptions {
+        // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
+        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
+        require_literal_separator: true,
+        // dotfiles are not supposed to be exposed by default
+        #[cfg(unix)]
+        require_literal_leading_dot: true,
+        ..Default::default()
+      };
 
       let forbidden = self
         .forbidden_patterns
         .lock()
         .unwrap()
         .iter()
-        .any(|p| p.matches_path(&path));
+        .any(|p| p.matches_path_with(&path, options));
 
       if forbidden {
         false
@@ -232,7 +241,7 @@ impl Scope {
           .lock()
           .unwrap()
           .iter()
-          .any(|p| p.matches_path(&path));
+          .any(|p| p.matches_path_with(&path, options));
         allowed
       }
     } else {
@@ -269,32 +278,97 @@ mod tests {
   #[test]
   fn path_is_escaped() {
     let scope = new_scope();
-    scope.allow_directory("/home/tauri/**", false).unwrap();
-    assert!(scope.is_allowed("/home/tauri/**"));
-    assert!(scope.is_allowed("/home/tauri/**/file"));
-    assert!(!scope.is_allowed("/home/tauri/anyfile"));
+    #[cfg(unix)]
+    {
+      scope.allow_directory("/home/tauri/**", false).unwrap();
+      assert!(scope.is_allowed("/home/tauri/**"));
+      assert!(scope.is_allowed("/home/tauri/**/file"));
+      assert!(!scope.is_allowed("/home/tauri/anyfile"));
+    }
+    #[cfg(windows)]
+    {
+      scope.allow_directory("C:\\home\\tauri\\**", false).unwrap();
+      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
 
     let scope = new_scope();
-    scope.allow_file("/home/tauri/**").unwrap();
-    assert!(scope.is_allowed("/home/tauri/**"));
-    assert!(!scope.is_allowed("/home/tauri/**/file"));
-    assert!(!scope.is_allowed("/home/tauri/anyfile"));
+    #[cfg(unix)]
+    {
+      scope.allow_file("/home/tauri/**").unwrap();
+      assert!(scope.is_allowed("/home/tauri/**"));
+      assert!(!scope.is_allowed("/home/tauri/**/file"));
+      assert!(!scope.is_allowed("/home/tauri/anyfile"));
+    }
+    #[cfg(windows)]
+    {
+      scope.allow_file("C:\\home\\tauri\\**").unwrap();
+      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
 
     let scope = new_scope();
-    scope.allow_directory("/home/tauri", true).unwrap();
-    scope.forbid_directory("/home/tauri/**", false).unwrap();
-    assert!(!scope.is_allowed("/home/tauri/**"));
-    assert!(!scope.is_allowed("/home/tauri/**/file"));
-    assert!(!scope.is_allowed("/home/tauri/**/inner/file"));
-    assert!(scope.is_allowed("/home/tauri/inner/folder/anyfile"));
-    assert!(scope.is_allowed("/home/tauri/anyfile"));
+    #[cfg(unix)]
+    {
+      scope.allow_directory("/home/tauri", true).unwrap();
+      scope.forbid_directory("/home/tauri/**", false).unwrap();
+      assert!(!scope.is_allowed("/home/tauri/**"));
+      assert!(!scope.is_allowed("/home/tauri/**/file"));
+      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
+      assert!(scope.is_allowed("/home/tauri/inner/folder/anyfile"));
+      assert!(scope.is_allowed("/home/tauri/anyfile"));
+    }
+    #[cfg(windows)]
+    {
+      scope.allow_directory("C:\\home\\tauri", true).unwrap();
+      scope
+        .forbid_directory("C:\\home\\tauri\\**", false)
+        .unwrap();
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\inner\\folder\\anyfile"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
 
     let scope = new_scope();
-    scope.allow_directory("/home/tauri", true).unwrap();
-    scope.forbid_file("/home/tauri/**").unwrap();
-    assert!(!scope.is_allowed("/home/tauri/**"));
-    assert!(scope.is_allowed("/home/tauri/**/file"));
-    assert!(scope.is_allowed("/home/tauri/**/inner/file"));
-    assert!(scope.is_allowed("/home/tauri/anyfile"));
+    #[cfg(unix)]
+    {
+      scope.allow_directory("/home/tauri", true).unwrap();
+      scope.forbid_file("/home/tauri/**").unwrap();
+      assert!(!scope.is_allowed("/home/tauri/**"));
+      assert!(scope.is_allowed("/home/tauri/**/file"));
+      assert!(scope.is_allowed("/home/tauri/**/inner/file"));
+      assert!(scope.is_allowed("/home/tauri/anyfile"));
+    }
+    #[cfg(windows)]
+    {
+      scope.allow_directory("C:\\home\\tauri", true).unwrap();
+      scope.forbid_file("C:\\home\\tauri\\**").unwrap();
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\**\\file"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
+
+    let scope = new_scope();
+    #[cfg(unix)]
+    {
+      scope.allow_directory("/home/tauri", false).unwrap();
+      assert!(scope.is_allowed("/home/tauri/**"));
+      assert!(!scope.is_allowed("/home/tauri/**/file"));
+      assert!(!scope.is_allowed("/home/tauri/**/inner/file"));
+      assert!(scope.is_allowed("/home/tauri/anyfile"));
+    }
+    #[cfg(windows)]
+    {
+      scope.allow_directory("C:\\home\\tauri", false).unwrap();
+      assert!(scope.is_allowed("C:\\home\\tauri\\**"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
+      assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
+      assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
   }
 }

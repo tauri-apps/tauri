@@ -11,6 +11,7 @@
     ".changes/dev-proxy.md",
     ".changes/fix-dev-server-proxy-path.md",
     ".changes/fix-ios-run-xcode14.md",
+    ".changes/glob-match-require_literal_separator.md",
     ".changes/improve-local-ip-detection.md",
     ".changes/mobile-config.md",
     ".changes/mobile-entry-point-macro.md",

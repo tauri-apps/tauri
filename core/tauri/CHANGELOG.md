@@ -1,5 +1,10 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [9ad0a9a0](https://www.github.com/tauri-apps/tauri/commit/9ad0a9a0aa88a67c3d81ef84df4aad23556affde) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
 ## \[2.0.0-alpha.1]
 
 - Implement response cache on the dev server proxy, used when the server responds with status 304.

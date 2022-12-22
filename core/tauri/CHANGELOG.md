@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.2.3]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [f1b0ad6e](https://www.github.com/tauri-apps/tauri/commit/f1b0ad6e8b721cf1420a9a4b9be5b05c39941d16) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
 ## \[1.2.2]
 
 - Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls

@@ -1703,21 +1703,21 @@
       "description": "Install Modes for the NSIS installer.",
       "oneOf": [
         {
-          "description": "Default mode for the installer and install the app by default in a directory that doesn't require Adminstrator access.\n\nInstaller metadata will also ve saved under `HKCU` registry path.",
+          "description": "Default mode for the installer.\n\nInstall the app by default in a directory that doesn't require Administrator access.\n\nInstaller metadata will be saved under the `HKCU` registry path.",
           "type": "string",
           "enum": [
             "currentUser"
           ]
         },
         {
-          "description": "Install the app by default in a `Prgoram Files` which require Adminstrator access and so the install will also require Adminstrator access.\n\nInstaller metadata will also ve saved under `HKLM` registry path.",
+          "description": "Install the app by default in the `Program Files` folder directory requires Administrator access for the installation.\n\nInstaller metadata will be saved under the `HKLM` registry path.",
           "type": "string",
           "enum": [
             "perMachine"
           ]
         },
         {
-          "description": "Combines both modes and allows the user to choose at install time whether to install for current user or per machine. Note that this mode will also require Adminstrator access even if the user wants to install it for current user only.\n\nInstaller metadata will also ve saved under `HKLM` or `HKCU` registry path based on the user choice.",
+          "description": "Combines both modes and allows the user to choose at install time whether to install for the current user or per machine. Note that this mode will require Administrator access even if the user wants to install it for the current user only.\n\nInstaller metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.",
           "type": "string",
           "enum": [
             "both"

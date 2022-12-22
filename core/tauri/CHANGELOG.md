@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.1.3]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [2654c0f4](https://www.github.com/tauri-apps/tauri/commit/2654c0f49da23434d36447d0908fa24e61ff5e4e) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
 ## \[1.1.2]
 
 - Escape glob special characters in files/directories when dropping files or using the open/save dialogs.

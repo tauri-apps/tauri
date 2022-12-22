@@ -43,7 +43,7 @@ pub struct Options {
   output: Option<PathBuf>,
 
   /// Extra icon sizes.
-  #[clap(short, long, use_delimiter = true)]
+  #[clap(short, long, use_value_delimiter = true)]
   extra: Option<Vec<u32>>,
 }
 

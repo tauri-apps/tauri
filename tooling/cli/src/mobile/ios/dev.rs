@@ -189,15 +189,13 @@ fn run(
     Profile::Release
   };
 
-  let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
-
   device_prompt(env, device)
     .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
     .run(
       config,
       env,
       NoiseLevel::FranklyQuitePedantic,
-      non_interactive,
+      false, // do not quit on app exit
       profile,
     )
     .map(DevChild::new)

@@ -41,7 +41,7 @@ infer = "0.7"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.39.0"
+version = "0.43.0"
 features = [
   "implement",
   "Win32_Foundation",

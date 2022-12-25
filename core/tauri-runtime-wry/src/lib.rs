@@ -3071,7 +3071,7 @@ fn create_webview<T: UserEvent>(
   for (scheme, protocol) in uri_scheme_protocols {
     webview_builder = webview_builder.with_custom_protocol(scheme, move |wry_request| {
       protocol(&HttpRequestWrapper::from(wry_request).0)
-        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0)
+        .map(|tauri_response| HttpResponseWrapper::from(tauri_response).0.map(Into::into))
         .map_err(|_| wry::Error::InitScriptError)
     });
   }

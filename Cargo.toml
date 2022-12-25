@@ -32,3 +32,12 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+[patch.crates-io]
+generator = { git = "https://github.com/silvanshade/generator-rs", branch = "update-windows" }
+rfd = { git = "https://github.com/PolyMeilex/rfd", rev = "4644229" }
+schannel = { git = "https://github.com/lazka/schannel-rs", branch = "update-windows-sys" }
+tao = { git = "https://github.com/silvanshade/tao", branch = "update-windows" }
+tauri-winrt-notification = { git = "https://github.com/silvanshade/winrt-notification", branch = "update-windows" }
+win7-notifications = { git = "https://github.com/tauri-apps/win7-notifications", rev = "213f5bb" }
+wry = { git = "https://github.com/silvanshade/wry", branch = "update-windows" }

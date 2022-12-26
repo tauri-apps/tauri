@@ -7,6 +7,7 @@
 pub(crate) mod menu;
 
 pub use menu::{MenuEvent, MenuHandle};
+use url::Url;
 
 #[cfg(target_os = "macos")]
 use crate::TitleBarStyle;
@@ -1298,6 +1299,11 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  pub fn url(&self) -> crate::Result<Url> {
+    self.window.dispatcher.url().map_err(Into::into)
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();

@@ -333,6 +333,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn url(&self) -> Result<url::Url> {
+    todo!()
+  }
+
   fn scale_factor(&self) -> Result<f64> {
     Ok(1.0)
   }

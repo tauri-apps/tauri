@@ -878,11 +878,6 @@ impl<R: Runtime> Window<R> {
     }
   }
 
-  /// Returns the url of the WebView.
-  pub fn url(&self) -> crate::Result<Url> {
-    self.window.dispatcher.url().map_err(Into::into)
-  }
-
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub fn scale_factor(&self) -> crate::Result<f64> {
     self.window.dispatcher.scale_factor().map_err(Into::into)
@@ -1304,6 +1299,11 @@ impl<R: Runtime> Window<R> {
 
 /// Webview APIs.
 impl<R: Runtime> Window<R> {
+  /// Returns the current url of the webview.
+  pub fn url(&self) -> crate::Result<Url> {
+    self.window.dispatcher.url().map_err(Into::into)
+  }
+
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();

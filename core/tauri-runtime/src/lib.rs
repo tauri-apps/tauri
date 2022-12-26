@@ -8,9 +8,9 @@
 
 use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
-use url::Url;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
+use url::Url;
 use uuid::Uuid;
 
 pub mod http;
@@ -531,6 +531,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   // GETTERS
 
+  /// Returns the webview's current URL.
   fn url(&self) -> Result<Url>;
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.

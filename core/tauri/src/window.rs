@@ -16,7 +16,7 @@ use crate::{
   command::{CommandArg, CommandItem},
   event::{Event, EventHandler},
   hooks::{InvokePayload, InvokeResponder},
-  manager::WindowManager,
+  manager::{ExternalCommandAccessScope, WindowManager},
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
     menu::Menu,
@@ -1307,6 +1307,23 @@ impl<R: Runtime> Window<R> {
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+    let current_url = self.url()?;
+    let config_url = manager.get_url();
+    let is_local = config_url.make_relative(&current_url).is_some();
+
+    let default_scope = ExternalCommandAccessScope {
+      url: Default::default(),
+      windows: Vec::with_capacity(0),
+      plugins: Vec::with_capacity(0),
+    };
+
+    let scope = if is_local {
+      Some(&default_scope)
+    } else {
+      manager.inner.external_command_access.iter().find(|scope| {
+        scope.windows.contains(&self.window.label) && scope.url.matches(current_url.as_str())
+      })
+    };
     match payload.cmd.as_str() {
       "__initialized" => {
         let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
@@ -1320,8 +1337,13 @@ impl<R: Runtime> Window<R> {
           payload.inner,
         );
         let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-
         let invoke = Invoke { message, resolver };
+
+        if !is_local && scope.is_none() {
+          invoke.resolver.reject("Scope not defined");
+          return Ok(());
+        }
+
         if let Some(module) = &payload.tauri_module {
           crate::endpoints::handle(
             module.to_string(),
@@ -1330,6 +1352,17 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
+          if !is_local {
+            let command = invoke.message.command.replace("plugin:", "");
+            let plugin_name = command.split('|').next().unwrap().to_string();
+            if !scope
+              .map(|s| s.plugins.contains(&plugin_name))
+              .unwrap_or(true)
+            {
+              invoke.resolver.reject("Plugin not allowed");
+              return Ok(());
+            }
+          }
           manager.extend_api(invoke);
         } else {
           manager.run_invoke_handler(invoke);

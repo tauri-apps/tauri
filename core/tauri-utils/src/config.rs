@@ -1106,6 +1106,20 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
+/// External command access definition.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExternalCommandAccessScope {
+  /// The url to allow, matched against the webview URL using a glob pattern.
+  pub url: Url,
+  /// The list of window labels this scope applies to.
+  pub windows: Vec<String>,
+  /// The list of plugins that are allowed in this scope.
+  #[serde(default)]
+  pub plugins: Vec<String>,
+}
+
 /// Security configuration.
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
@@ -1141,6 +1155,21 @@ pub struct SecurityConfig {
   /// Your application might be vulnerable to XSS attacks without this Tauri protection.
   #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
   pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
+  /// Allow external urls to send command to Tauri.
+  ///
+  /// By default, external urls do not have access to `window.__TAURI__`, which means they cannot
+  /// communicate with the commands defined in Rust. This prevents attacks where an externally
+  /// loaded malicious or compromised sites could start executing commands on the user's device.
+  ///
+  /// This configuration allows a set of external urls to have access to the Tauri commands.
+  /// Wildcards patterns are accepted and can be used to allow either all paths or
+  /// a subset of paths for a domain.
+  ///
+  /// **WARNING:** Only use this option if you either have internal checks against malicious
+  /// external sites or you can trust the allowed external sites. You application might be
+  /// vulnerable to dangerous Tauri command related attacks otherwise.
+  #[serde(default, alias = "dangerous-external-command-access")]
+  pub dangerous_external_command_access: Vec<ExternalCommandAccessScope>,
 }
 
 /// Defines an allowlist type.
@@ -3445,12 +3474,24 @@ mod build {
     }
   }
 
+  impl ToTokens for ExternalCommandAccessScope {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let url = url_lit(&self.url);
+      let windows = vec_lit(&self.windows, str_lit);
+      let plugins = vec_lit(&self.plugins, str_lit);
+
+      literal_struct!(tokens, ExternalCommandAccessScope, url, windows, plugins);
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_external_command_access =
+        vec_lit(&self.dangerous_external_command_access, identity);
 
       literal_struct!(
         tokens,
@@ -3458,7 +3499,8 @@ mod build {
         csp,
         dev_csp,
         freeze_prototype,
-        dangerous_disable_asset_csp_modification
+        dangerous_disable_asset_csp_modification,
+        dangerous_external_command_access
       );
     }
   }
@@ -3723,6 +3765,7 @@ mod test {
         dev_csp: None,
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
+        dangerous_external_command_access: Vec::new(),
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

@@ -28,7 +28,7 @@ use tauri_utils::{
 use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
-use crate::pattern::{format_real_schema, PatternJavascript};
+use crate::pattern::PatternJavascript;
 use crate::{
   app::{AppHandle, GlobalWindowEvent, GlobalWindowEventListener},
   event::{assert_event_name_is_valid, Event, EventHandler, Listeners},
@@ -139,7 +139,7 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(schema));
   }
 
   Csp::DirectiveMap(csp).to_string()
@@ -196,6 +196,13 @@ fn replace_csp_nonce(
   }
 }
 
+/// External command access definition.
+pub struct ExternalCommandAccessScope {
+  pub url: glob::Pattern,
+  pub windows: Vec<String>,
+  pub plugins: Vec<String>,
+}
+
 #[default_runtime(crate::Wry, wry)]
 pub struct InnerWindowManager<R: Runtime> {
   windows: Mutex<HashMap<String, Window<R>>>,
@@ -216,6 +223,7 @@ pub struct InnerWindowManager<R: Runtime> {
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
   pub(crate) tray_icon: Option<Icon>,
+  pub(crate) external_command_access: Vec<ExternalCommandAccessScope>,
 
   package_info: PackageInfo,
   /// The webview protocols available to all windows.
@@ -304,6 +312,20 @@ impl<R: Runtime> WindowManager<R> {
       *key = uuid::Uuid::new_v4().to_string();
     }
 
+    let external_command_access = context
+      .config
+      .tauri
+      .security
+      .dangerous_external_command_access
+      .clone()
+      .into_iter()
+      .map(|s| ExternalCommandAccessScope {
+        url: glob::Pattern::new(s.url.as_str()).expect("invalid external command access scope"),
+        windows: s.windows,
+        plugins: s.plugins,
+      })
+      .collect();
+
     Self {
       inner: Arc::new(InnerWindowManager {
         windows: Mutex::default(),
@@ -319,6 +341,7 @@ impl<R: Runtime> WindowManager<R> {
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
         tray_icon: context.system_tray_icon,
+        external_command_access,
         package_info: context.package_info,
         pattern: context.pattern,
         uri_scheme_protocols,
@@ -367,18 +390,10 @@ impl<R: Runtime> WindowManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devPath` configuration value.
-  fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
-    }
-  }
-
-  /// Get the origin as it will be seen in the webview.
-  fn get_browser_origin(&self) -> String {
-    match self.base_path() {
-      AppUrl::Url(WindowUrl::External(url)) => url.origin().ascii_serialization(),
-      _ => format_real_schema("tauri"),
     }
   }
 
@@ -455,7 +470,6 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          origin: self.get_browser_origin(),
           isolation_src: &crate::pattern::format_real_schema(schema),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
@@ -939,7 +953,6 @@ impl<R: Runtime> WindowManager<R> {
     #[derive(Template)]
     #[default_template("../scripts/init.js")]
     struct InitJavascript<'a> {
-      origin: String,
       #[raw]
       pattern_script: &'a str,
       #[raw]
@@ -1002,7 +1015,6 @@ impl<R: Runtime> WindowManager<R> {
     let hotkeys = "";
 
     InitJavascript {
-      origin: self.get_browser_origin(),
       pattern_script,
       ipc_script,
       bundle_script,
@@ -1123,27 +1135,21 @@ impl<R: Runtime> WindowManager<R> {
       return Err(crate::Error::WindowLabelAlreadyExists(pending.label));
     }
     #[allow(unused_mut)] // mut url only for the data-url parsing
-    let (is_local, mut url) = match &pending.webview_attributes.url {
+    let mut url = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
         let url = self.get_url();
-        (
-          true,
-          // ignore "index.html" just to simplify the url
-          if path.to_str() != Some("index.html") {
-            url
-              .join(&path.to_string_lossy())
-              .map_err(crate::Error::InvalidUrl)
-              // this will never fail
-              .unwrap()
-          } else {
-            url.into_owned()
-          },
-        )
+        // ignore "index.html" just to simplify the url
+        if path.to_str() != Some("index.html") {
+          url
+            .join(&path.to_string_lossy())
+            .map_err(crate::Error::InvalidUrl)
+            // this will never fail
+            .unwrap()
+        } else {
+          url.into_owned()
+        }
       }
-      WindowUrl::External(url) => {
-        let config_url = self.get_url();
-        (config_url.make_relative(url).is_some(), url.clone())
-      }
+      WindowUrl::External(url) => url.clone(),
       _ => unimplemented!(),
     };
 
@@ -1186,17 +1192,15 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
-    if is_local {
-      let label = pending.label.clone();
-      pending = self.prepare_pending_window(
-        pending,
-        &label,
-        window_labels,
-        app_handle.clone(),
-        web_resource_request_handler,
-      )?;
-      pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
-    }
+    let label = pending.label.clone();
+    pending = self.prepare_pending_window(
+      pending,
+      &label,
+      window_labels,
+      app_handle.clone(),
+      web_resource_request_handler,
+    )?;
+    pending.ipc_handler = Some(self.prepare_ipc_handler(app_handle));
 
     // in `Windows`, we need to force a data_directory
     // but we do respect user-specification

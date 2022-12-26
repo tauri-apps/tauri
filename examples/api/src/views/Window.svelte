@@ -66,6 +66,7 @@
   let maximized = false
   let decorations = true
   let alwaysOnTop = false
+  let contentProtected = true
   let fullscreen = false
   let width = null
   let height = null
@@ -182,6 +183,7 @@
     : windowMap[selectedWindow]?.unmaximize()
   $: windowMap[selectedWindow]?.setDecorations(decorations)
   $: windowMap[selectedWindow]?.setAlwaysOnTop(alwaysOnTop)
+  $: windowMap[selectedWindow]?.setContentProtected(contentProtected)
   $: windowMap[selectedWindow]?.setFullscreen(fullscreen)
 
   $: width &&
@@ -285,6 +287,10 @@
       <label>
         Always on top
         <input type="checkbox" bind:checked={alwaysOnTop} />
+      </label>
+      <label>
+        Content protected
+        <input type="checkbox" bind:checked={contentProtected} />
       </label>
       <label>
         Fullscreen

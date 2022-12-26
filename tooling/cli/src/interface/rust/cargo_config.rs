@@ -103,7 +103,7 @@ fn get_file_path(
   warn: bool,
 ) -> Result<Option<PathBuf>> {
   let possible = dir.join(filename_without_extension);
-  let possible_with_extension = dir.join(format!("{}.toml", filename_without_extension));
+  let possible_with_extension = dir.join(format!("{filename_without_extension}.toml"));
 
   if possible.exists() {
     if warn && possible_with_extension.exists() {

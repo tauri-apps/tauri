@@ -167,7 +167,7 @@ pub fn command(mut options: Options) -> Result<()> {
     let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = options.tauri_path {
       (
         format!(
-          r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
+          r#"{{  path = {:?} }}"#,
           resolve_tauri_path(&tauri_path, "core/tauri")
         ),
         format!(
@@ -177,10 +177,7 @@ pub fn command(mut options: Options) -> Result<()> {
       )
     } else {
       (
-        format!(
-          r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-          metadata.tauri
-        ),
+        format!(r#"{{ version = "{}" }}"#, metadata.tauri),
         format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
       )
     };

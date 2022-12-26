@@ -5,6 +5,14 @@
 name: Check generated files
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/check-generated-files.yml'
+      - 'tooling/api/src/**'
+      - 'core/tauri/scripts/bundle.global.js'
+      - 'core/tauri-utils/src/config.rs'
+      - 'tooling/cli/schema.json'
+      - 'core/config-schema/schema.json'
   push:
     paths:
       - '.github/workflows/check-generated-files.yml'
@@ -44,6 +52,7 @@ jobs:
     if: needs.changes.outputs.bundle == 'true'
     steps:
       - uses: actions/checkout@v2
+
       - name: generate bundle
         working-directory: tooling/api
         run: yarn && yarn build
@@ -57,7 +66,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions/checkout@v2
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:
@@ -69,39 +77,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
 
-      - name: Get current date
-        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
-
-      - name: Cache cargo state
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo_state
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          restore-keys: |
-            ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-            ubuntu-latest-stable-${{ env.cache-name }}-
-            ubuntu-latest-stable-
-            ubuntu-latest-
-
-      - name: Cache core cargo target
-        uses: actions/cache@v2
-        env:
-          cache-name: cargo-core
-        with:
-          path: target
-          # Add date to the cache to keep it up to date
-          key: ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-          # Restore from outdated cache for speed
-          restore-keys: |
-            ubuntu-latest-stable-${{ env.cache-name }}-${{ hashFiles('core/**/Cargo.toml') }}
-            ubuntu-latest-stable-${{ env.cache-name }}-
-            ubuntu-latest-stable-
-            ubuntu-latest-
+          workspaces: core -> ../target
 
       - name: generate schema.json
         uses: actions-rs/cargo@v1

@@ -1,12 +1,8 @@
 {
   "$schema": "../../../core/config-schema/schema.json",
   "build": {
-    "distDir": [
-      "../index.html"
-    ],
-    "devPath": [
-      "../index.html"
-    ],
+    "distDir": ["../index.html"],
+    "devPath": ["../index.html"],
     "beforeDevCommand": "yarn package",
     "beforeBuildCommand": "yarn package",
     "withGlobalTauri": true
@@ -28,9 +24,7 @@
         "../../.icons/icon.ico"
       ],
       "resources": [],
-      "externalBin": [
-        "binaries/app"
-      ],
+      "externalBin": ["binaries/app"],
       "copyright": "",
       "category": "DeveloperTool",
       "shortDescription": "",

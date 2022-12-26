@@ -1,12 +1,8 @@
 {
   "$schema": "../../../core/config-schema/schema.json",
   "build": {
-    "distDir": [
-      "src/index.html"
-    ],
-    "devPath": [
-      "src/index.html"
-    ],
+    "distDir": ["src/index.html"],
+    "devPath": ["src/index.html"],
     "beforeDevCommand": "",
     "beforeBuildCommand": ""
   },

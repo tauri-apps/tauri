@@ -87,7 +87,7 @@ async function getTauriVersion(): Promise<string> {
 }
 
 /**
- * Shows the application on macOS. This function does not automatically focuses any app window.
+ * Shows the application on macOS. This function does not automatically focus any specific app window.
  *
  * @example
  * ```typescript

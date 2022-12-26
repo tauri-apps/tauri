@@ -343,6 +343,8 @@ mod tests {
       allowed_patterns: Default::default(),
       forbidden_patterns: Default::default(),
       event_listeners: Default::default(),
+      allowed_paths_metadata: Default::default(),
+      forbidden_paths_metadata: Default::default(),
     }
   }
 

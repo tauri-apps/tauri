@@ -60,9 +60,7 @@ function transformCallback(
  *
  * @since 1.0.0
  */
-interface InvokeArgs {
-  [key: string]: unknown
-}
+type InvokeArgs = Record<string, unknown>
 
 /**
  * Sends a message to the backend.

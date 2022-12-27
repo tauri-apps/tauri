@@ -252,6 +252,11 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
 
+    self.manager.eval_script_all(format!(
+      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&self.manager.labels())?,
+    ))?;
+
     self.manager.emit_filter(
       "tauri://window-created",
       None,

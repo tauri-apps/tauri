@@ -187,9 +187,10 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
-    "internalToggleMaximize" => {
+    "__toggleMaximize" => {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
+    "__toggleDevtools" => crate::Error::ApiNotAllowlisted("devtools".to_string()),
     _ => crate::Error::ApiNotAllowlisted("window".to_string()),
   }
 }

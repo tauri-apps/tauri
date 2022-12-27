@@ -128,7 +128,7 @@ pub(crate) fn cli_upstream_version() -> Result<String> {
 }
 
 fn crate_latest_version(name: &str) -> Option<String> {
-  let url = format!("https://docs.rs/crate/{}/", name);
+  let url = format!("https://docs.rs/crate/{name}/");
   match ureq::get(&url).call() {
     Ok(response) => match (response.status(), response.header("location")) {
       (302, Some(location)) => Some(location.replace(&url, "")),
@@ -431,7 +431,7 @@ fn crate_version(
           crate_lock_package.version.clone()
         };
         (
-          format!("{} (no manifest)", version_string),
+          format!("{version_string} (no manifest)"),
           vec![crate_lock_package.version.clone()],
         )
       }
@@ -450,21 +450,21 @@ fn crate_version(
                 v
               } else if let Some(p) = p.path {
                 let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(&manifest_path)
+                let v = match read_to_string(manifest_path)
                   .map_err(|_| ())
                   .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
                 {
                   Ok(manifest) => manifest.package.version,
                   Err(_) => "unknown version".to_string(),
                 };
-                format!("path:{:?} [{}]", p, v)
+                format!("path:{p:?} [{v}]")
               } else if let Some(g) = p.git {
                 is_git = true;
-                let mut v = format!("git:{}", g);
+                let mut v = format!("git:{g}");
                 if let Some(branch) = p.branch {
-                  let _ = write!(v, "&branch={}", branch);
+                  let _ = write!(v, "&branch={branch}");
                 } else if let Some(rev) = p.rev {
-                  let _ = write!(v, "#{}", rev);
+                  let _ = write!(v, "#{rev}");
                 }
                 v
               } else {
@@ -499,13 +499,13 @@ fn crate_version(
 
   let crate_version = found_crate_versions
     .into_iter()
-    .map(|v| semver::Version::parse(&v).unwrap())
+    .map(|v| semver::Version::parse(&v).ok())
     .max();
   let suffix = match (crate_version, crate_latest_version(name)) {
-    (Some(version), Some(target_version)) => {
+    (Some(Some(version)), Some(target_version)) => {
       let target_version = semver::Version::parse(&target_version).unwrap();
       if version < target_version {
-        Some(format!(" (outdated, latest: {})", target_version))
+        Some(format!(" (outdated, latest: {target_version})"))
       } else {
         None
       }

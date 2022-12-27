@@ -238,8 +238,7 @@ pub(crate) fn handle<R: Runtime>(
         if let Some(unknown_variant_name) = s.next() {
           if unknown_variant_name == module {
             return resolver.reject(format!(
-              "The `{}` module is not enabled. You must enable one of its APIs in the allowlist.",
-              module
+              "The `{module}` module is not enabled. You must enable one of its APIs in the allowlist."
             ));
           } else if module == "Window" {
             return resolver.reject(window::into_allowlist_error(unknown_variant_name).to_string());

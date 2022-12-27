@@ -56,7 +56,7 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let template_target_path = PathBuf::from(options.directory).join(&format!(
+  let template_target_path = PathBuf::from(options.directory).join(format!(
     "tauri-plugin-{}",
     AsKebabCase(&options.plugin_name)
   ));
@@ -72,7 +72,7 @@ pub fn command(mut options: Options) -> Result<()> {
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
-            r#"{{  path = {:?}, features = [ "api-all" ] }}"#,
+            r#"{{  path = {:?} }}"#,
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
@@ -83,10 +83,7 @@ pub fn command(mut options: Options) -> Result<()> {
       } else {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(
-            r#"{{ version = "{}", features = [ "api-all" ] }}"#,
-            metadata.tauri
-          ),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
         )
       };

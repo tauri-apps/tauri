@@ -96,7 +96,7 @@ impl<'de> Deserialize<'de> for RemoteRelease {
     let pub_date = if let Some(date) = release.pub_date {
       Some(
         OffsetDateTime::parse(&date, &time::format_description::well_known::Rfc3339)
-          .map_err(|e| DeError::custom(format!("invalid value for `pub_date`: {}", e)))?,
+          .map_err(|e| DeError::custom(format!("invalid value for `pub_date`: {e}")))?,
       )
     } else {
       None
@@ -336,7 +336,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       (target.clone(), target)
     } else {
       let target = get_updater_target().ok_or(Error::UnsupportedOs)?;
-      (target.to_string(), format!("{}-{}", target, arch))
+      (target.to_string(), format!("{target}-{arch}"))
     };
 
     // Get the extract_path from the provided executable_path
@@ -895,7 +895,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   })?;
 
   let _ = std::process::Command::new("touch")
-    .arg(&extract_path)
+    .arg(extract_path)
     .status();
 
   Ok(())
@@ -1049,14 +1049,13 @@ mod test {
     format!(
       r#"
         {{
-          "name": "v{}",
+          "name": "v{version}",
           "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
           "pub_date": "2020-06-25T14:14:19Z",
-          "signature": "{}",
-          "url": "{}"
+          "signature": "{public_signature}",
+          "url": "{download_url}"
         }}
-      "#,
-      version, public_signature, download_url
+      "#
     )
   }
 
@@ -1069,15 +1068,14 @@ mod test {
     format!(
       r#"
         {{
-          "name": "v{}",
+          "name": "v{version}",
           "notes": "This is the latest version! Once updated you shouldn't see this prompt.",
           "pub_date": "2020-06-25T14:14:19Z",
-          "signature": "{}",
-          "url": "{}",
-          "with_elevated_task": {}
+          "signature": "{public_signature}",
+          "url": "{download_url}",
+          "with_elevated_task": {with_elevated_task}
         }}
-      "#,
-      version, public_signature, download_url, with_elevated_task
+      "#
     )
   }
 
@@ -1515,7 +1513,7 @@ mod test {
     }"#;
 
     fn missing_field_error(field: &str) -> String {
-      format!("the `{}` field was not set on the updater response", field)
+      format!("the `{field}` field was not set on the updater response")
     }
 
     let test_cases = [
@@ -1547,7 +1545,7 @@ mod test {
         .target("test-target")
         .build());
       if let Err(e) = check_update {
-        println!("ERROR: {}, expected: {}", e, error);
+        println!("ERROR: {e}, expected: {error}");
         assert!(e.to_string().contains(&error));
       } else {
         panic!("unexpected Ok response");

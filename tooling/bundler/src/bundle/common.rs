@@ -32,7 +32,7 @@ pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
 /// needed.
 pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(&parent)?;
+    fs::create_dir_all(parent)?;
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))

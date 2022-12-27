@@ -31,49 +31,12 @@ jobs:
         toolchain: stable
         override: true
 
-    - name: Install gtk on Ubuntu
-      if: matrix.os == 'ubuntu-latest'
+    - name: Install Linux dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y webkit2gtk-4.0
-    - name: Get current date
-      if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-      run: echo "CURRENT_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
-    - name: Get current date
-      if: matrix.os == 'windows-latest'
-      run: echo "CURRENT_DATE=$(Get-Date -Format "yyyy-MM-dd")" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-    - name: Cache cargo state
-      uses: actions/cache@v2
-      env:
-        cache-name: cargo_state
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          ~/.cargo/bin
-        key: ${{ matrix.os }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-        restore-keys: |
-          ${{ matrix.os }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-
-          ${{ matrix.os }}-stable-${{ env.cache-name }}-
-          ${{ matrix.os }}-stable-
-          ${{ matrix.os }}-
-
-    - name: Cache cargo target
-      uses: actions/cache@v2
-      env:
-          cache-name: cargo_build
-      with:
-        path: ${{ matrix.project}}/target
-        # Add date to the cache to keep it up to date
-        key: ${{ matrix.os }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}-${{ env.CURRENT_DATE }}
-        # Restore from outdated cache for speed
-        restore-keys: |
-          ${{ matrix.os }}-stable-${{ env.cache-name }}-${{ hashFiles('**/Cargo.toml') }}
-          ${{ matrix.os }}-stable-${{ env.cache-name }}-
-          ${{ matrix.os }}-stable-
-          ${{ matrix.os }}-
+    - uses: Swatinem/rust-cache@v2
 
     - name: Run tests
       uses: actions-rs/cargo@v1

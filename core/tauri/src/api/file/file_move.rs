@@ -98,7 +98,7 @@ fn walkdir_and_copy(source: &path::Path, dest: &path::Path) -> crate::api::Resul
 
     let element = entry?;
     let metadata = element.metadata()?;
-    let destination = dest.join(element.path().strip_prefix(&source)?);
+    let destination = dest.join(element.path().strip_prefix(source)?);
 
     // we make sure it's a directory and destination doesnt exist
     if metadata.is_dir() && !&destination.exists() {

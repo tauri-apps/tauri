@@ -24,7 +24,7 @@ fn main() {
       env.args.clear();
       tauri::api::process::restart(&env)
     }
-    Some(invalid) => panic!("only argument `restart` is allowed, {} is invalid", invalid),
+    Some(invalid) => panic!("only argument `restart` is allowed, {invalid} is invalid"),
     None => {}
   };
 }

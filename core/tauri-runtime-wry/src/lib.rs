@@ -2851,6 +2851,19 @@ fn handle_event_loop<T: UserEvent>(
         }
 
         match event {
+          #[cfg(windows)]
+          WryWindowEvent::ThemeChanged(theme) => {
+            if let Some(window) = windows.borrow().get(&window_id) {
+              if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
+                let theme = match theme {
+                  WryTheme::Dark => wry::webview::Theme::Dark,
+                  WryTheme::Light => wry::webview::Theme::Light,
+                  _ => wry::webview::Theme::Light,
+                };
+                inner.set_theme(theme);
+              }
+            }
+          }
           WryWindowEvent::CloseRequested => {
             on_close_requested(callback, window_id, windows.clone());
           }
@@ -3025,6 +3038,9 @@ fn create_webview<T: UserEvent>(
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
+  #[cfg(windows)]
+  let window_theme = window_builder.inner.window.preferred_theme;
+
   #[cfg(target_os = "macos")]
   {
     if window_builder.tabbing_identifier.is_none()
@@ -3073,6 +3089,15 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
     webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
+  #[cfg(windows)]
+  if let Some(theme) = window_theme {
+    webview_builder = webview_builder.with_theme(match theme {
+      WryTheme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Light => wry::webview::Theme::Light,
+      _ => wry::webview::Theme::Light,
+    });
   }
 
   if let Some(handler) = ipc_handler {

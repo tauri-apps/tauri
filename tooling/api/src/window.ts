@@ -313,7 +313,7 @@ class WebviewWindowHandle {
   /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
-  listeners: { [key: string]: Array<EventCallback<any>> }
+  listeners: Record<string, Array<EventCallback<any>>>
 
   constructor(label: WindowLabel) {
     this.label = label

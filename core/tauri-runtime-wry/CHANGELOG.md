@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.12.2]
+
+- Fix compatibility with older Linux distributions.
+  - [b490308c](https://www.github.com/tauri-apps/tauri/commit/b490308c8897b893292951754607c2253abbc6e1) fix(core): compilation error on older Linux versions, fixes [#5684](https://www.github.com/tauri-apps/tauri/pull/5684) ([#5697](https://www.github.com/tauri-apps/tauri/pull/5697)) on 2022-11-28
+- Update wry to 0.23.
+  - [fdcd7733](https://www.github.com/tauri-apps/tauri/commit/fdcd77338c1a3a7ef8a8ea1907351c5c350ea7ba) chore(deps): update wry to 0.23 on 2022-12-08
+
 ## \[0.12.1]
 
 - Fix `allowlist > app > show/hide` always disabled when `allowlist > app > all: false`.

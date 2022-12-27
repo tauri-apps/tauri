@@ -184,7 +184,7 @@ fn replace_csp_nonce(
   if !(nonces.is_empty() && hashes.is_empty()) {
     let nonce_sources = nonces
       .into_iter()
-      .map(|n| format!("'nonce-{}'", n))
+      .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
     let sources = csp.entry(directive.into()).or_insert_with(Default::default);
     let self_source = "'self'".to_string();
@@ -487,7 +487,7 @@ impl<R: Runtime> WindowManager<R> {
           window_url.scheme(),
           window_url.host().unwrap(),
           if let Some(port) = window_url.port() {
-            format!(":{}", port)
+            format!(":{port}")
           } else {
             "".into()
           }
@@ -714,7 +714,7 @@ impl<R: Runtime> WindowManager<R> {
     {
       let assets = assets.clone();
       let schema_ = schema.clone();
-      let url_base = format!("{}://localhost", schema_);
+      let url_base = format!("{schema_}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
       pending.register_uri_scheme_protocol(schema, move |request| {
@@ -813,7 +813,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{}` not found; fallback to {}.html", path, path);
+        eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -1302,6 +1302,14 @@ impl<R: Runtime> WindowManager<R> {
       .try_for_each(|window| window.emit_internal(event, source_window_label, payload.clone()))
   }
 
+  pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
+    let script = script.into();
+    self
+      .windows_lock()
+      .values()
+      .try_for_each(|window| window.eval(&script))
+  }
+
   pub fn labels(&self) -> HashSet<String> {
     self.windows_lock().keys().cloned().collect()
   }
@@ -1408,8 +1416,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
-          label
+          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#
         ))?;
       }
     }

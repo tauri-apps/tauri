@@ -55,7 +55,7 @@ pub enum WindowUrl {
 impl fmt::Display for WindowUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url) => write!(f, "{}", url),
+      Self::External(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
@@ -125,7 +125,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "app" => Ok(Self::App),
       "dmg" => Ok(Self::Dmg),
       "updater" => Ok(Self::Updater),
-      _ => Err(DeError::custom(format!("unknown bundle target '{}'", s))),
+      _ => Err(DeError::custom(format!("unknown bundle target '{s}'"))),
     }
   }
 }
@@ -223,7 +223,7 @@ impl<'de> Deserialize<'de> for BundleTarget {
 
     match BundleTargetInner::deserialize(deserializer)? {
       BundleTargetInner::All(s) if s.to_lowercase() == "all" => Ok(Self::All),
-      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {}", t))),
+      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {t}"))),
       BundleTargetInner::List(l) => Ok(Self::List(l)),
       BundleTargetInner::One(t) => Ok(Self::One(t)),
     }
@@ -859,6 +859,9 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
+  /// Prevents the window contents from being captured by other apps.
+  #[serde(default, alias = "content-protected")]
+  pub content_protected: bool,
   /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
@@ -881,6 +884,10 @@ pub struct WindowConfig {
   /// [tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>
   #[serde(default, alias = "tabbing-identifier")]
   pub tabbing_identifier: Option<String>,
+  /// Defines additional browser arguments on Windows. By default wry passes `--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection`
+  /// so if you use this method, you also need to disable these components by yourself if you want.
+  #[serde(default, alias = "additional-browser-args")]
+  pub additional_browser_args: Option<String>,
 }
 
 impl Default for WindowConfig {
@@ -908,12 +915,14 @@ impl Default for WindowConfig {
       visible: default_visible(),
       decorations: default_decorations(),
       always_on_top: false,
+      content_protected: false,
       skip_taskbar: false,
       theme: None,
       title_bar_style: Default::default(),
       hidden_title: false,
       accept_first_mouse: false,
       tabbing_identifier: None,
+      additional_browser_args: None,
     }
   }
 }
@@ -985,7 +994,7 @@ impl CspDirectiveSources {
   /// Whether the given source is configured on this directive or not.
   pub fn contains(&self, source: &str) -> bool {
     match self {
-      Self::Inline(s) => s.contains(&format!("{} ", source)) || s.contains(&format!(" {}", source)),
+      Self::Inline(s) => s.contains(&format!("{source} ")) || s.contains(&format!(" {source}")),
       Self::List(l) => l.contains(&source.into()),
     }
   }
@@ -1051,7 +1060,7 @@ impl From<Csp> for HashMap<String, CspDirectiveSources> {
 impl Display for Csp {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Policy(s) => write!(f, "{}", s),
+      Self::Policy(s) => write!(f, "{s}"),
       Self::DirectiveMap(m) => {
         let len = m.len();
         let mut i = 0;
@@ -1329,6 +1338,9 @@ pub struct WindowAllowlistConfig {
   /// Allows setting the always_on_top flag of the window.
   #[serde(default, alias = "set-always-on-top")]
   pub set_always_on_top: bool,
+  /// Allows preventing the window contents from being captured by other apps.
+  #[serde(default, alias = "set-content-protected")]
+  pub set_content_protected: bool,
   /// Allows setting the window size.
   #[serde(default, alias = "set-size")]
   pub set_size: bool,
@@ -1394,6 +1406,7 @@ impl Allowlist for WindowAllowlistConfig {
       close: true,
       set_decorations: true,
       set_always_on_top: true,
+      set_content_protected: false,
       set_size: true,
       set_min_size: true,
       set_max_size: true,
@@ -1443,6 +1456,12 @@ impl Allowlist for WindowAllowlistConfig {
         features,
         set_always_on_top,
         "window-set-always-on-top"
+      );
+      check_feature!(
+        self,
+        features,
+        set_content_protected,
+        "window-set-content-protected"
       );
       check_feature!(self, features, set_size, "window-set-size");
       check_feature!(self, features, set_min_size, "window-set-min-size");
@@ -1599,7 +1618,7 @@ pub struct ShellAllowlistScope(pub Vec<ShellAllowedCommand>);
 pub enum ShellAllowlistOpen {
   /// If the shell open API should be enabled.
   ///
-  /// If enabled, the default validation regex (`^https?://`) is used.
+  /// If enabled, the default validation regex (`^((mailto:\w+)|(tel:\w+)|(https?://\w+)).+`) is used.
   Flag(bool),
 
   /// Enable the shell open API, with a custom regex that the opened path must match against.
@@ -2346,8 +2365,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
       "quiet" => Ok(Self::Quiet),
       "passive" => Ok(Self::Passive),
       _ => Err(DeError::custom(format!(
-        "unknown update install mode '{}'",
-        s
+        "unknown update install mode '{s}'"
       ))),
     }
   }
@@ -2491,7 +2509,7 @@ pub enum AppUrl {
 impl std::fmt::Display for AppUrl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Url(url) => write!(f, "{}", url),
+      Self::Url(url) => write!(f, "{url}"),
       Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
     }
   }
@@ -2630,9 +2648,9 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
         let path = PathBuf::from(value);
         if path.exists() {
           let json_str = read_to_string(&path)
-            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {e}")))?;
           let package_json: serde_json::Value = serde_json::from_str(&json_str)
-            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {e}")))?;
           if let Some(obj) = package_json.as_object() {
             let version = obj
               .get("version")
@@ -3040,12 +3058,14 @@ mod build {
       let visible = self.visible;
       let decorations = self.decorations;
       let always_on_top = self.always_on_top;
+      let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
+      let additional_browser_args = opt_str_lit(self.additional_browser_args.as_ref());
 
       literal_struct!(
         tokens,
@@ -3072,12 +3092,14 @@ mod build {
         visible,
         decorations,
         always_on_top,
+        content_protected,
         skip_taskbar,
         theme,
         title_bar_style,
         hidden_title,
         accept_first_mouse,
-        tabbing_identifier
+        tabbing_identifier,
+        additional_browser_args
       );
     }
   }

@@ -63,10 +63,12 @@ pub enum WindowManagerCmd {
   InnerSize,
   OuterSize,
   IsFullscreen,
+  IsMinimized,
   IsMaximized,
   IsDecorated,
   IsResizable,
   IsVisible,
+  Title,
   CurrentMonitor,
   PrimaryMonitor,
   AvailableMonitors,
@@ -101,6 +103,8 @@ pub enum WindowManagerCmd {
   #[cfg(window_set_always_on_top)]
   #[serde(rename_all = "camelCase")]
   SetAlwaysOnTop(bool),
+  #[cfg(window_set_content_protected)]
+  SetContentProtected(bool),
   #[cfg(window_set_size)]
   SetSize(Size),
   #[cfg(window_set_min_size)]
@@ -162,6 +166,9 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     "close" => crate::Error::ApiNotAllowlisted("window > close".to_string()),
     "setDecorations" => crate::Error::ApiNotAllowlisted("window > setDecorations".to_string()),
     "setAlwaysOnTop" => crate::Error::ApiNotAllowlisted("window > setAlwaysOnTop".to_string()),
+    "setContentProtected" => {
+      crate::Error::ApiNotAllowlisted("window > setContentProtected".to_string())
+    }
     "setSize" => crate::Error::ApiNotAllowlisted("window > setSize".to_string()),
     "setMinSize" => crate::Error::ApiNotAllowlisted("window > setMinSize".to_string()),
     "setMaxSize" => crate::Error::ApiNotAllowlisted("window > setMaxSize".to_string()),
@@ -180,9 +187,10 @@ pub fn into_allowlist_error(variant: &str) -> crate::Error {
     }
     "startDragging" => crate::Error::ApiNotAllowlisted("window > startDragging".to_string()),
     "print" => crate::Error::ApiNotAllowlisted("window > print".to_string()),
-    "internalToggleMaximize" => {
+    "__toggleMaximize" => {
       crate::Error::ApiNotAllowlisted("window > maximize and window > unmaximize".to_string())
     }
+    "__toggleDevtools" => crate::Error::ApiNotAllowlisted("devtools".to_string()),
     _ => crate::Error::ApiNotAllowlisted("window".to_string()),
   }
 }
@@ -253,10 +261,12 @@ impl Cmd {
       WindowManagerCmd::InnerSize => return Ok(window.inner_size()?.into()),
       WindowManagerCmd::OuterSize => return Ok(window.outer_size()?.into()),
       WindowManagerCmd::IsFullscreen => return Ok(window.is_fullscreen()?.into()),
+      WindowManagerCmd::IsMinimized => return Ok(window.is_minimized()?.into()),
       WindowManagerCmd::IsMaximized => return Ok(window.is_maximized()?.into()),
       WindowManagerCmd::IsDecorated => return Ok(window.is_decorated()?.into()),
       WindowManagerCmd::IsResizable => return Ok(window.is_resizable()?.into()),
       WindowManagerCmd::IsVisible => return Ok(window.is_visible()?.into()),
+      WindowManagerCmd::Title => return Ok(window.title()?.into()),
       WindowManagerCmd::CurrentMonitor => return Ok(window.current_monitor()?.into()),
       WindowManagerCmd::PrimaryMonitor => return Ok(window.primary_monitor()?.into()),
       WindowManagerCmd::AvailableMonitors => return Ok(window.available_monitors()?.into()),
@@ -295,6 +305,10 @@ impl Cmd {
       WindowManagerCmd::SetDecorations(decorations) => window.set_decorations(decorations)?,
       #[cfg(window_set_always_on_top)]
       WindowManagerCmd::SetAlwaysOnTop(always_on_top) => window.set_always_on_top(always_on_top)?,
+      #[cfg(window_set_content_protected)]
+      WindowManagerCmd::SetContentProtected(protected) => {
+        window.set_content_protected(protected)?
+      }
       #[cfg(window_set_size)]
       WindowManagerCmd::SetSize(size) => window.set_size(size)?,
       #[cfg(window_set_min_size)]

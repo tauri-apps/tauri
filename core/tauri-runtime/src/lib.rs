@@ -10,6 +10,7 @@ use raw_window_handle::RawDisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
+use url::Url;
 use uuid::Uuid;
 
 pub mod http;
@@ -182,6 +183,23 @@ pub enum UserAttentionType {
   /// - **macOS:** Bounces the dock icon once.
   /// - **Windows:** Flashes the taskbar button until the application is in focus.
   Informational,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(tag = "type")]
+pub enum DeviceEventFilter {
+  /// Always filter out device events.
+  Always,
+  /// Filter out device events while the window is not focused.
+  Unfocused,
+  /// Report all device events regardless of window focus.
+  Never,
+}
+
+impl Default for DeviceEventFilter {
+  fn default() -> Self {
+    Self::Unfocused
+  }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -461,6 +479,19 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self);
 
+  /// Change the device event filter mode.
+  ///
+  /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
+  /// will ignore them by default for unfocused windows on Windows. This method allows changing
+  /// the filter to explicitly capture them again.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
+
   /// Runs the one step of the webview runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
   fn run_iteration<F: Fn(RunEvent<T>) + 'static>(&mut self, callback: F) -> RunIteration;
@@ -500,6 +531,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   // GETTERS
 
+  /// Returns the webview's current URL.
+  fn url(&self) -> Result<Url>;
+
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   fn scale_factor(&self) -> Result<f64>;
 
@@ -522,6 +556,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   /// Gets the window's current fullscreen state.
   fn is_fullscreen(&self) -> Result<bool>;
 
+  /// Gets the window's current minimized state.
+  fn is_minimized(&self) -> Result<bool>;
+
   /// Gets the window's current maximized state.
   fn is_maximized(&self) -> Result<bool>;
 
@@ -533,6 +570,8 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+  /// Gets the window's current title.
+  fn title(&self) -> Result<String>;
 
   /// Gets the window menu current visibility state.
   fn is_menu_visible(&self) -> Result<bool>;
@@ -622,6 +661,9 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
 
   /// Updates the window alwaysOnTop flag.
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()>;
+
+  /// Prevents the window contents from being captured by other apps.
+  fn set_content_protected(&self, protected: bool) -> Result<()>;
 
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;

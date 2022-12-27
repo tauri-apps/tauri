@@ -12,8 +12,8 @@ use tauri_runtime::{
     dpi::{PhysicalPosition, PhysicalSize, Position, Size},
     CursorIcon, DetachedWindow, MenuEvent, PendingWindow, WindowEvent,
   },
-  Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle, UserAttentionType,
-  UserEvent,
+  DeviceEventFilter, Dispatch, EventLoopProxy, Icon, Result, RunEvent, Runtime, RuntimeHandle,
+  UserAttentionType, UserEvent,
 };
 #[cfg(all(desktop, feature = "system-tray"))]
 use tauri_runtime::{
@@ -250,6 +250,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn content_protected(self, protected: bool) -> Self {
+    self
+  }
+
   fn icon(self, icon: Icon) -> Result<Self> {
     Ok(self)
   }
@@ -329,6 +333,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn url(&self) -> Result<url::Url> {
+    todo!()
+  }
+
   fn scale_factor(&self) -> Result<f64> {
     Ok(1.0)
   }
@@ -359,6 +367,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Ok(false)
   }
 
+  fn is_minimized(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn is_maximized(&self) -> Result<bool> {
     Ok(false)
   }
@@ -373,6 +385,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
 
   fn is_visible(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn title(&self) -> Result<String> {
+    Ok(String::new())
   }
 
   fn is_menu_visible(&self) -> Result<bool> {
@@ -478,6 +494,10 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn set_always_on_top(&self, always_on_top: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_content_protected(&self, protected: bool) -> Result<()> {
     Ok(())
   }
 
@@ -694,6 +714,8 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
+
+  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
 
   #[cfg(any(
     target_os = "macos",

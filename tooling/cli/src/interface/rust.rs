@@ -502,11 +502,76 @@ impl Rust {
   }
 }
 
+// Taken from https://github.com/rust-lang/cargo/blob/70898e522116f6c23971e2a554b2dc85fd4c84cd/src/cargo/util/toml/mod.rs#L1008-L1065
+/// Enum that allows for the parsing of `field.workspace = true` in a Cargo.toml
+///
+/// It allows for things to be inherited from a workspace or defined as needed
+#[derive(Clone, Debug)]
+pub enum MaybeWorkspace<T> {
+  Workspace(TomlWorkspaceField),
+  Defined(T),
+}
+
+impl<'de, T: Deserialize<'de>> serde::de::Deserialize<'de> for MaybeWorkspace<T> {
+  fn deserialize<D>(deserializer: D) -> Result<MaybeWorkspace<T>, D::Error>
+  where
+    D: serde::de::Deserializer<'de>,
+  {
+    let value = serde_value::Value::deserialize(deserializer)?;
+    if let Ok(workspace) = TomlWorkspaceField::deserialize(
+      serde_value::ValueDeserializer::<D::Error>::new(value.clone()),
+    ) {
+      return Ok(MaybeWorkspace::Workspace(workspace));
+    }
+    T::deserialize(serde_value::ValueDeserializer::<D::Error>::new(value))
+      .map(MaybeWorkspace::Defined)
+  }
+}
+
+impl<T> MaybeWorkspace<T> {
+  fn resolve(
+    self,
+    label: &str,
+    get_ws_field: impl FnOnce() -> anyhow::Result<T>,
+  ) -> anyhow::Result<T> {
+    match self {
+      MaybeWorkspace::Defined(value) => Ok(value),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
+        get_ws_field().context(format!(
+          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
+        ))
+      }
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
+        "`workspace=false` is unsupported for `package.{}`",
+        label,
+      )),
+    }
+  }
+  fn _as_defined(&self) -> Option<&T> {
+    match self {
+      MaybeWorkspace::Workspace(_) => None,
+      MaybeWorkspace::Defined(defined) => Some(defined),
+    }
+  }
+}
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct TomlWorkspaceField {
+  workspace: bool,
+}
+
 /// The `workspace` section of the app configuration (read from Cargo.toml).
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceSettings {
   /// the workspace members.
   members: Option<Vec<String>>,
+  package: Option<WorkspacePackageSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct WorkspacePackageSettings {
+  /// the workspace members.
+  version: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -521,7 +586,7 @@ pub struct CargoPackageSettings {
   /// the package's name.
   pub name: Option<String>,
   /// the package's version.
-  pub version: Option<String>,
+  pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
   pub description: Option<String>,
   /// the package's homepage.
@@ -608,7 +673,7 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    Ok(out_dir.join(bin_name).with_extension(&binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
   fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
@@ -741,6 +806,9 @@ impl RustAppSettings {
           .version
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
+          .resolve("version", || {
+            get_workspace_version()?.context("Workspace Cargo manifest must have the `workspace.package.version` field if a member tries to inherit the version")
+          }).expect("Cargo project does not have a version")
       }),
       description: cargo_package_settings
         .description
@@ -839,6 +907,27 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
     get_cargo_metadata()
       .with_context(|| "failed to get cargo metadata")?
       .workspace_root,
+  )
+}
+
+pub fn get_workspace_version() -> crate::Result<Option<String>> {
+  // This will already fail because `cargo metadata` fails if there is no version in the workspace root when a package tries to inherit it.
+  let toml_path = get_workspace_dir()
+    .map(|p| p.join("Cargo.toml"))
+    .with_context(|| "failed to get workspace Cargo.toml file")?;
+
+  let mut toml_str = String::new();
+  let mut toml_file = File::open(toml_path).with_context(|| "failed to open Cargo.toml")?;
+  toml_file
+    .read_to_string(&mut toml_str)
+    .with_context(|| "failed to read Cargo.toml")?;
+
+  Ok(
+    toml::from_str::<CargoSettings>(&toml_str)
+      .with_context(|| "failed to parse Cargo.toml")?
+      .workspace
+      .and_then(|ws| ws.package)
+      .and_then(|p| p.version),
   )
 }
 

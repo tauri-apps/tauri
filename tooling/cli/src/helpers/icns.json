@@ -1,0 +1,52 @@
+{
+  "16x16": {
+    "name": "icon_16x16.png",
+    "size": 16,
+    "ostype": "is32"
+  },
+  "16x16@2x": {
+    "name": "icon_16x16@2x.png",
+    "size": 32,
+    "ostype": "ic11"
+  },
+  "32x32": {
+    "name": "icon_32x32.png",
+    "size": 32,
+    "ostype": "il32"
+  },
+  "32x32@2x": {
+    "name": "icon_32x32@2x.png",
+    "size": 64,
+    "ostype": "ic12"
+  },
+  "128x128": {
+    "name": "icon_128x128.png",
+    "size": 128,
+    "ostype": "ic07"
+  },
+  "128x128@2x": {
+    "name": "icon_128x128@2x.png",
+    "size": 256,
+    "ostype": "ic13"
+  },
+  "256x256": {
+    "name": "icon_256x256.png",
+    "size": 256,
+    "ostype": "ic08"
+  },
+  "256x256@2x": {
+    "name": "icon_256x256@2x.png",
+    "size": 512,
+    "ostype": "ic14"
+  },
+  "512x512": {
+    "name": "icon_512x512.png",
+    "size": 512,
+    "ostype": "ic09"
+  },
+  "512x512@2x": {
+    "name": "icon_512x512@2x.png",
+    "size": 1024,
+    "ostype": "ic10"
+  }
+}

@@ -1,5 +1,41 @@
 # Changelog
 
+## \[1.2.0]
+
+- Added the `acceptFirstMouse` window option.
+  - [95f467ad](https://www.github.com/tauri-apps/tauri/commit/95f467add51448319983c54e2f382c7c09fb72d6) feat(core): add window `accept_first_mouse` option, closes [#5347](https://www.github.com/tauri-apps/tauri/pull/5347) ([#5374](https://www.github.com/tauri-apps/tauri/pull/5374)) on 2022-10-17
+- Fix incorrect return type on `fs/exists`
+  - [ca3cd8b3](https://www.github.com/tauri-apps/tauri/commit/ca3cd8b3d11beb9b6102da40b7d27f6dbe6cd2d0) fix(api): fs/exists return type previously set to void when it should be boolean ([#5252](https://www.github.com/tauri-apps/tauri/pull/5252)) on 2022-09-29
+- Initialize `Monitor` instances with the correct classes for `position` and `size` fields instead of plain object.
+  - [6f41a271](https://www.github.com/tauri-apps/tauri/commit/6f41a2712445ac41a5ed84bbcd40af3b76c8b1d8) fix(api.js): fix `Monitor` initialization, closes [#4672](https://www.github.com/tauri-apps/tauri/pull/4672) ([#5314](https://www.github.com/tauri-apps/tauri/pull/5314)) on 2022-09-30
+- **Breaking change:** Node.js v12 is no longer supported.
+  - [1129f4f5](https://www.github.com/tauri-apps/tauri/commit/1129f4f575dd02f746abe8e66472c88c8f9fe63d) refactor: simplify api.js bundling ([#4277](https://www.github.com/tauri-apps/tauri/pull/4277)) on 2022-10-04
+- Add new app-specific `BaseDirectory` enum variants `AppConfig`, `AppData`, `AppLocalData`, `AppCache` and `AppLog` along with equivalent functions in `path` module and deprecated ambiguous variants `Log` and `App` along with their equivalent functions in `path` module.
+  - [5d89905e](https://www.github.com/tauri-apps/tauri/commit/5d89905e39ce0e6eaaec50a693679335449edb32) feat(api): add app-specific directory APIs, closes [#5263](https://www.github.com/tauri-apps/tauri/pull/5263) ([#5272](https://www.github.com/tauri-apps/tauri/pull/5272)) on 2022-09-28
+- Fix `dialog.save` return type
+  - [8357ce5b](https://www.github.com/tauri-apps/tauri/commit/8357ce5b2efdd6f92c7944822542e48ba0e303ce) Fix dialog.save return type ([#5373](https://www.github.com/tauri-apps/tauri/pull/5373)) on 2022-10-08
+- Added support to `FormData` on the `Body.form` function.
+  - [aa119f28](https://www.github.com/tauri-apps/tauri/commit/aa119f28364f8ffbc64c6bcdfc77483613076a20) feat(api): add FormData support on Body.form, closes [#5545](https://www.github.com/tauri-apps/tauri/pull/5545) ([#5546](https://www.github.com/tauri-apps/tauri/pull/5546)) on 2022-11-04
+- Added `show` and `hide` methods on the `app` module.
+  - [39bf895b](https://www.github.com/tauri-apps/tauri/commit/39bf895b73ec6b53f5758815396ba85dda6b9c67) feat(macOS): Add application `show` and `hide` methods ([#3689](https://www.github.com/tauri-apps/tauri/pull/3689)) on 2022-10-03
+- Added `tabbingIdentifier` window option for macOS.
+  - [4137ab44](https://www.github.com/tauri-apps/tauri/commit/4137ab44a81d739556cbc7583485887e78952bf1) feat(macos): add `tabbing_identifier` option, closes [#2804](https://www.github.com/tauri-apps/tauri/pull/2804), [#3912](https://www.github.com/tauri-apps/tauri/pull/3912) ([#5399](https://www.github.com/tauri-apps/tauri/pull/5399)) on 2022-10-19
+- Added `tabbing_identifier` to the window builder on macOS.
+  - [4137ab44](https://www.github.com/tauri-apps/tauri/commit/4137ab44a81d739556cbc7583485887e78952bf1) feat(macos): add `tabbing_identifier` option, closes [#2804](https://www.github.com/tauri-apps/tauri/pull/2804), [#3912](https://www.github.com/tauri-apps/tauri/pull/3912) ([#5399](https://www.github.com/tauri-apps/tauri/pull/5399)) on 2022-10-19
+- Added the `user_agent` option when creating a window.
+  - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
+
+## \[1.1.0]
+
+- Update `mockIPC()` handler signature to allow async handler functions.
+  - [4fa968dc](https://www.github.com/tauri-apps/tauri/commit/4fa968dc0e74b5206bfcd54e704d180c16b67b08) fix(api): add async `mockIPC()` handler signature ([#5056](https://www.github.com/tauri-apps/tauri/pull/5056)) on 2022-08-26
+- Improve shell's `Command`, `Command.stdout` and `Command.stderr` events with new `once`, `off`, `listenerCount`, `prependListener`, `prependOnceListener` and `removeAllListeners` functions.
+  - [aa9f1243](https://www.github.com/tauri-apps/tauri/commit/aa9f1243e6c1629972a82e469f20c8399741740e) Improved EventEmitter for tauri api shell ([#4697](https://www.github.com/tauri-apps/tauri/pull/4697)) on 2022-07-26
+- Added the `encoding` option to the `Command` options.
+  - [d8cf9f9f](https://www.github.com/tauri-apps/tauri/commit/d8cf9f9fcd617ac24fa418952fd4a32c08804f5c) Command support for specified character encoding, closes [#4644](https://www.github.com/tauri-apps/tauri/pull/4644) ([#4772](https://www.github.com/tauri-apps/tauri/pull/4772)) on 2022-07-28
+- Add `exists` function to the fs module.
+  - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
 ## \[1.0.2]
 
 - Added helper functions to listen to updater and window events.

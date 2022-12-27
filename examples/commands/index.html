@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tauri</title>
   </head>
@@ -33,9 +32,19 @@
         { name: 'simple_command' },
         { name: 'stateful_command' },
         { name: 'async_simple_command' },
+        { name: 'async_simple_command_snake' },
         { name: 'future_simple_command' },
         { name: 'async_stateful_command' },
         { name: 'simple_command_with_result' },
+        // snake
+        { name: 'future_simple_command_snake' },
+        { name: 'future_simple_command_with_return_snake' },
+        { name: 'future_simple_command_with_result_snake' },
+        { name: 'force_async_snake' },
+        { name: 'force_async_with_result_snake' },
+        { name: 'simple_command_with_result_snake' },
+        { name: 'stateful_command_with_result_snake' },
+        // state
         { name: 'stateful_command_with_result' },
         { name: 'async_simple_command_with_result' },
         { name: 'future_simple_command_with_return' },
@@ -44,17 +53,19 @@
         { name: 'command_arguments_wild' },
         {
           name: 'command_arguments_struct',
-          args: { Person: { name: 'ferris', age: 6 } }
+          args: { person: { name: 'ferris', age: 6 } }
         },
         {
           name: 'command_arguments_tuple_struct',
-          args: { InlinePerson: ['ferris', 6] }
+          args: { inlinePerson: ['ferris', 6] }
         }
       ]
 
       for (const command of commands) {
         const { name } = command
-        const args = command.args ?? { argument: 'value' }
+        const args = command.args ?? {
+          [name.endsWith('snake') ? 'the_argument' : 'theArgument']: 'value'
+        }
         const button = document.createElement('button')
         button.innerHTML = `Run ${name}`
         button.addEventListener('click', function () {

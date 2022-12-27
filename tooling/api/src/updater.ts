@@ -9,22 +9,34 @@
  * @module
  */
 
-import { once, listen, emit, UnlistenFn } from './event'
-import { TauriEvent } from './helpers/event'
+import { once, listen, emit, TauriEvent } from './event'
+import { UnlistenFn } from './helpers/event'
 
+/**
+ * @since 1.0.0
+ */
 type UpdateStatus = 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE'
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateStatusResult {
   error?: string
   status: UpdateStatus
 }
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateManifest {
   version: string
   date: string
   body: string
 }
 
+/**
+ * @since 1.0.0
+ */
 interface UpdateResult {
   manifest?: UpdateManifest
   shouldUpdate: boolean
@@ -43,9 +55,10 @@ interface UpdateResult {
  * unlisten();
  * ```
  *
- * @param handler
  * @returns A promise resolving to a function to unlisten to the event.
  * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+ *
+ * @since 1.0.2
  */
 async function onUpdaterEvent(
   handler: (status: UpdateStatusResult) => void
@@ -68,6 +81,8 @@ async function onUpdaterEvent(
  * ```
  *
  * @return A promise indicating the success or failure of the operation.
+ *
+ * @since 1.0.0
  */
 async function installUpdate(): Promise<void> {
   let unlistenerFn: UnlistenFn | undefined
@@ -124,6 +139,8 @@ async function installUpdate(): Promise<void> {
  * ```
  *
  * @return Promise resolving to the update status.
+ *
+ * @since 1.0.0
  */
 async function checkUpdate(): Promise<UpdateResult> {
   let unlistenerFn: UnlistenFn | undefined

@@ -152,6 +152,8 @@ pub trait TrayHandle: fmt::Debug + Clone + Send + Sync {
   fn update_item(&self, id: u16, update: MenuUpdate) -> crate::Result<()>;
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> crate::Result<()>;
+  #[cfg(target_os = "macos")]
+  fn set_title(&self, title: &str) -> crate::Result<()>;
   fn destroy(&self) -> crate::Result<()>;
 }
 
@@ -582,13 +584,13 @@ impl AboutMetadata {
     self
   }
 
-  /// Defines the application version.
+  /// Defines the application's website link.
   pub fn website(mut self, website: impl Into<String>) -> Self {
     self.website.replace(website.into());
     self
   }
 
-  /// Defines the application version.
+  /// Defines the application's website link name.
   pub fn website_label(mut self, website_label: impl Into<String>) -> Self {
     self.website_label.replace(website_label.into());
     self

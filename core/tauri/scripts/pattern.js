@@ -7,8 +7,8 @@
     const props = Object.getOwnPropertyNames(object)
 
     for (const prop of props) {
-      if (typeof object[name] === 'object') {
-        __tauriDeepFreeze(object[name])
+      if (typeof object[prop] === 'object') {
+        __tauriDeepFreeze(object[prop])
       }
     }
 

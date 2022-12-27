@@ -247,7 +247,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_file();
     ///   // do something with the optional file path here
     ///   // the file path is `None` if the user closed the dialog
@@ -270,7 +270,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().pick_files();
     ///   // do something with the optional file paths here
     ///   // the file paths value is `None` if the user closed the dialog
@@ -294,7 +294,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let folder_path = FileDialogBuilder::new().pick_folder();
     ///   // do something with the optional folder path here
     ///   // the folder path is `None` if the user closed the dialog
@@ -317,7 +317,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let folder_paths = FileDialogBuilder::new().pick_folders();
     ///   // do something with the optional folder paths here
     ///   // the folder paths value is `None` if the user closed the dialog
@@ -341,7 +341,7 @@ pub mod blocking {
     /// ```rust,no_run
     /// use tauri::api::dialog::blocking::FileDialogBuilder;
     /// #[tauri::command]
-    /// fn my_command() {
+    /// async fn my_command() {
     ///   let file_path = FileDialogBuilder::new().save_file();
     ///   // do something with the optional file path here
     ///   // the file path is `None` if the user closed the dialog

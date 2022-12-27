@@ -159,9 +159,9 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 // Main target: Linux
 fn png(source: &DynamicImage, out_dir: &Path, extra_png_icon_sizes: Vec<u32>) -> Result<()> {
   log::info!(action = "PNG"; "Creating {}", "128x128@2x.png");
-  resize_and_save_png(source, 256, &out_dir.join("128x128@2x.png".to_string()))?;
+  resize_and_save_png(source, 256, &out_dir.join("128x128@2x.png"))?;
   log::info!(action = "PNG"; "Creating {}", "icon.png");
-  resize_and_save_png(source, 512, &out_dir.join("icon.png".to_string()))?;
+  resize_and_save_png(source, 512, &out_dir.join("icon.png"))?;
 
   for size in [32, 128].into_iter().chain(extra_png_icon_sizes) {
     let file_name = format!("{}x{}.png", size, size);

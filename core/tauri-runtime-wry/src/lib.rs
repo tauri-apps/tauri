@@ -3062,7 +3062,9 @@ fn create_webview<T: UserEvent>(
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
   if let Some(navigation_handler) = pending.navigation_handler {
-    webview_builder = webview_builder.with_navigation_handler(navigation_handler);
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
   }
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);

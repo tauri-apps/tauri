@@ -49,7 +49,7 @@ use std::{
 };
 
 pub(crate) type WebResourceRequestHandler = dyn Fn(&HttpRequest, &mut HttpResponse) + Send + Sync;
-pub(crate) type NavigationHandler = dyn Fn(String) -> bool + Send;
+pub(crate) type NavigationHandler = dyn Fn(Url) -> bool + Send;
 
 #[derive(Clone, Serialize)]
 struct WindowCreatedEvent {
@@ -233,8 +233,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     self
   }
 
-  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels navigation.
-  pub fn on_navigation<F: Fn(String) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self
   }

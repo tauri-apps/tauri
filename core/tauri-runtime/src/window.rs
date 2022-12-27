@@ -12,6 +12,7 @@ use crate::{
 };
 use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{config::WindowConfig, Theme};
+use url::Url;
 
 use std::{
   collections::{HashMap, HashSet},
@@ -234,7 +235,7 @@ pub struct PendingWindow<T: UserEvent, R: Runtime<T>> {
   pub js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u64>>>>,
 
   /// A handler to decide if incoming url is allowed to navigate.
-  pub navigation_handler: Option<Box<dyn Fn(String) -> bool + Send>>,
+  pub navigation_handler: Option<Box<dyn Fn(Url) -> bool + Send>>,
 }
 
 pub fn is_label_valid(label: &str) -> bool {

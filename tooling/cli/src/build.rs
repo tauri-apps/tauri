@@ -13,9 +13,8 @@ use crate::{
   CommandExt, Result,
 };
 use anyhow::{bail, Context};
-use clap::Parser;
-use log::warn;
-use log::{error, info};
+use clap::{ArgAction, Parser};
+use log::{debug, error, info, warn};
 use std::{
   env::{set_current_dir, var_os},
   path::{Path, PathBuf},
@@ -40,7 +39,7 @@ pub struct Options {
   #[clap(short, long)]
   pub target: Option<String>,
   /// Space or comma separated list of features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
@@ -48,7 +47,7 @@ pub struct Options {
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -58,7 +57,7 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let mut interface = setup(&mut options)?;
+  let mut interface = setup(&mut options, false)?;
 
   let config = get_config(options.config.as_deref())?;
   let config_guard = config.lock().unwrap();
@@ -115,7 +114,12 @@ pub fn command(mut options: Options) -> Result<()> {
     // if we have a package to bundle, let's run the `before_bundle_command`.
     if package_types.as_ref().map_or(true, |p| !p.is_empty()) {
       if let Some(before_bundle) = config_.build.before_bundle_command.clone() {
-        run_hook("beforeBundleCommand", before_bundle, options.debug)?;
+        run_hook(
+          "beforeBundleCommand",
+          before_bundle,
+          &interface,
+          options.debug,
+        )?;
       }
     }
 
@@ -218,15 +222,14 @@ pub fn command(mut options: Options) -> Result<()> {
   Ok(())
 }
 
-pub fn setup(options: &mut Options) -> Result<AppInterface> {
+pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
     } else {
       (
         Some(
-          std::fs::read_to_string(&config)
-            .with_context(|| "failed to read custom configuration")?,
+          std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?,
         ),
         Some(config.clone()),
       )
@@ -237,14 +240,14 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
   options.config = merge_config;
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
-  let interface = AppInterface::new(config_)?;
+  let interface = AppInterface::new(config_, options.target.clone())?;
 
   let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
     Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
@@ -276,7 +279,12 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook("beforeBuildCommand", before_build, options.debug)?;
+    run_hook(
+      "beforeBuildCommand",
+      before_build,
+      &interface,
+      options.debug,
+    )?;
   }
 
   if let AppUrl::Url(WindowUrl::App(web_asset_path)) = &config_.build.dist_dir {
@@ -301,11 +309,11 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     }
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-            "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
-            out_folders,
-            if out_folders.len() == 1 { "folder" }else { "folders" }
-          )
-        );
+          "The configured distDir includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > distDir`.",
+          out_folders,
+          if out_folders.len() == 1 { "folder" }else { "folders" }
+        )
+      );
     }
   }
 
@@ -313,14 +321,16 @@ pub fn setup(options: &mut Options) -> Result<AppInterface> {
     options.runner = config_.build.runner.clone();
   }
 
-  if let Some(list) = options.features.as_mut() {
-    list.extend(config_.build.features.clone().unwrap_or_default());
-  }
+  options
+    .features
+    .get_or_insert(Vec::new())
+    .extend(config_.build.features.clone().unwrap_or_default());
+  interface.build_options(&mut options.features, mobile);
 
   Ok(interface)
 }
 
-fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
+fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {
   let (script, script_cwd) = match hook {
     HookCommand::Script(s) if s.is_empty() => (None, None),
     HookCommand::Script(s) => (Some(s), None),
@@ -329,13 +339,19 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
   let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
   if let Some(script) = script {
     info!(action = "Running"; "{} `{}`", name, script);
+
+    let mut env = command_env(debug);
+    env.extend(interface.env());
+
+    debug!("Setting environment for hook {:?}", env);
+
     #[cfg(target_os = "windows")]
     let status = Command::new("cmd")
       .arg("/S")
       .arg("/C")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
       .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
     #[cfg(not(target_os = "windows"))]
@@ -343,7 +359,7 @@ fn run_hook(name: &str, hook: HookCommand, debug: bool) -> Result<()> {
       .arg("-c")
       .arg(&script)
       .current_dir(cwd)
-      .envs(command_env(debug))
+      .envs(env)
       .piped()
       .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
 

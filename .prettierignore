@@ -1,0 +1,12 @@
+/.github
+/.husky
+/.vscode
+/audits
+node_modules
+target
+dist
+/core/tauri/scripts
+/tooling/cli/templates
+/tooling/cli/node
+/tooling/cli/schema.json
+/core/config-schema/schema.json

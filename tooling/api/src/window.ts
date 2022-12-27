@@ -40,6 +40,7 @@
  *         "setCursorVisible": true,
  *         "setCursorIcon": true,
  *         "setCursorPosition": true,
+ *         "setIgnoreCursorEvents": true,
  *         "startDragging": true,
  *         "print": true
  *       }
@@ -62,11 +63,17 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once, TauriEvent } from './helpers/event'
+import { emit, Event, listen, once } from './helpers/event'
+import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
+type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
 
-/** Allows you to retrieve information about a given monitor. */
+/**
+ * Allows you to retrieve information about a given monitor.
+ *
+ * @since 1.0.0
+ */
 interface Monitor {
   /** Human-readable name of the monitor */
   name: string | null
@@ -78,7 +85,11 @@ interface Monitor {
   scaleFactor: number
 }
 
-/** The payload for the `scaleChange` event. */
+/**
+ * The payload for the `scaleChange` event.
+ *
+ * @since 1.0.2
+ */
 interface ScaleFactorChanged {
   /** The new window scale factor. */
   scaleFactor: number
@@ -92,7 +103,11 @@ type FileDropEvent =
   | { type: 'drop'; paths: string[] }
   | { type: 'cancel' }
 
-/** A size represented in logical pixels. */
+/**
+ * A size represented in logical pixels.
+ *
+ * @since 1.0.0
+ */
 class LogicalSize {
   type = 'Logical'
   width: number
@@ -104,7 +119,11 @@ class LogicalSize {
   }
 }
 
-/** A size represented in physical pixels. */
+/**
+ * A size represented in physical pixels.
+ *
+ * @since 1.0.0
+ */
 class PhysicalSize {
   type = 'Physical'
   width: number
@@ -131,7 +150,11 @@ class PhysicalSize {
   }
 }
 
-/** A position represented in logical pixels. */
+/**
+ *  A position represented in logical pixels.
+ *
+ * @since 1.0.0
+ */
 class LogicalPosition {
   type = 'Logical'
   x: number
@@ -143,7 +166,11 @@ class LogicalPosition {
   }
 }
 
-/** A position represented in physical pixels. */
+/**
+ *  A position represented in physical pixels.
+ *
+ * @since 1.0.0
+ */
 class PhysicalPosition {
   type = 'Physical'
   x: number
@@ -185,7 +212,11 @@ declare global {
   }
 }
 
-/** Attention type to request on a window. */
+/**
+ * Attention type to request on a window.
+ *
+ * @since 1.0.0
+ */
 enum UserAttentionType {
   /**
    * #### Platform-specific
@@ -246,6 +277,8 @@ export type CursorIcon =
  * Get an instance of {@link Window | `Window`} for the current webview window.
  *
  * @return The current {@link Window | `Window`}.
+ *
+ * @since 1.0.0
  */
 function getCurrent(): Window {
   return new Window(window.__TAURI_METADATA__.__currentWindow.label, {
@@ -258,6 +291,9 @@ function getCurrent(): Window {
  * Gets an instance of {@link Window | `Window`} for all available webview windows.
  *
  * @return The list of {@link Window | `Window`}.
+ * Gets a list of instances of `WebviewWindow` for all available webview windows.
+ *
+ * @since 1.0.0
  */
 function getAll(): Window[] {
   return window.__TAURI_METADATA__.__windows.map(
@@ -731,7 +767,6 @@ class Window {
    *
    * #### Platform-specific
    *
-   * - **Linux:** Not implemented, always returns `light`.
    * - **macOS:** Theme was introduced on macOS 10.14. Returns `light` on macOS 10.13 and below.
    *
    * @example
@@ -1395,7 +1430,11 @@ class Window {
   }
 
   /**
-   * Whether to show the window icon in the task bar or not.
+   * Whether the window icon should be hidden from the taskbar or not.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS:** Unsupported.
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
@@ -1560,6 +1599,34 @@ class Window {
   }
 
   /**
+   * Changes the cursor events behavior.
+   *
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setIgnoreCursorEvents(true);
+   * ```
+   *
+   * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setIgnoreCursorEvents(ignore: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setIgnoreCursorEvents',
+            payload: ignore
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Starts dragging the window.
    * @example
    * ```typescript
@@ -1600,9 +1667,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, handler)
@@ -1622,9 +1690,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, handler)
@@ -1649,9 +1718,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void
@@ -1680,9 +1750,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onFocusChanged(handler: EventCallback<boolean>): Promise<UnlistenFn> {
     const unlistenFocus = await this.listen<PhysicalPosition>(
@@ -1721,9 +1792,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onScaleChanged(
     handler: EventCallback<ScaleFactorChanged>
@@ -1748,9 +1820,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onMenuClicked(handler: EventCallback<string>): Promise<UnlistenFn> {
     return this.listen<string>(TauriEvent.MENU, handler)
@@ -1778,9 +1851,10 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onFileDropEvent(
     handler: EventCallback<FileDropEvent>
@@ -1827,15 +1901,19 @@ class Window {
    * unlisten();
    * ```
    *
-   * @param handler
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   *
+   * @since 1.0.2
    */
   async onThemeChanged(handler: EventCallback<Theme>): Promise<UnlistenFn> {
     return this.listen<Theme>(TauriEvent.WINDOW_THEME_CHANGED, handler)
   }
 }
 
+/**
+ * @since 1.0.2
+ */
 class CloseRequestedEvent {
   /** Event name */
   event: EventName
@@ -1894,7 +1972,7 @@ interface WindowOptions {
   title?: string
   /** Whether the window is in fullscreen mode or not. */
   fullscreen?: boolean
-  /** Whether the window will be initially hidden or focused. */
+  /** Whether the window will be initially focused or not. */
   focus?: boolean
   /**
    * Whether the window is transparent or not.
@@ -1924,6 +2002,40 @@ interface WindowOptions {
    * Only implemented on Windows and macOS 10.14+.
    */
   theme?: Theme
+  /**
+   * The style of the macOS title bar.
+   */
+  titleBarStyle?: TitleBarStyle
+  /**
+   * If `true`, sets the window title to be hidden on macOS.
+   */
+  hiddenTitle?: boolean
+  /**
+   * Whether clicking an inactive window also clicks through to the webview on macOS.
+   */
+  acceptFirstMouse?: boolean
+  /**
+   * Defines the window [tabbing identifier](https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier) on macOS.
+   *
+   * Windows with the same tabbing identifier will be grouped together.
+   * If the tabbing identifier is not set, automatic tabbing will be disabled.
+   */
+  tabbingIdentifier?: string
+  /**
+   * The user agent for the webview.
+   */
+  userAgent?: string
+}
+
+function mapMonitor(m: Monitor | null): Monitor | null {
+  return m === null
+    ? null
+    : {
+        name: m.name,
+        scaleFactor: m.scaleFactor,
+        position: new PhysicalPosition(m.position.x, m.position.y),
+        size: new PhysicalSize(m.size.width, m.size.height)
+      }
 }
 
 /**
@@ -1934,9 +2046,11 @@ interface WindowOptions {
  * import { currentMonitor } from '@tauri-apps/api/window';
  * const monitor = currentMonitor();
  * ```
+ *
+ * @since 1.0.0
  */
 async function currentMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -1946,7 +2060,7 @@ async function currentMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -1957,9 +2071,11 @@ async function currentMonitor(): Promise<Monitor | null> {
  * import { primaryMonitor } from '@tauri-apps/api/window';
  * const monitor = primaryMonitor();
  * ```
+ *
+ * @since 1.0.0
  */
 async function primaryMonitor(): Promise<Monitor | null> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor | null>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -1969,7 +2085,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
         }
       }
     }
-  })
+  }).then(mapMonitor)
 }
 
 /**
@@ -1979,9 +2095,11 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * import { availableMonitors } from '@tauri-apps/api/window';
  * const monitors = availableMonitors();
  * ```
- * */
+ *
+ * @since 1.0.0
+ */
 async function availableMonitors(): Promise<Monitor[]> {
-  return invokeTauriCommand({
+  return invokeTauriCommand<Monitor[]>({
     __tauriModule: 'Window',
     message: {
       cmd: 'manage',
@@ -1991,7 +2109,7 @@ async function availableMonitors(): Promise<Monitor[]> {
         }
       }
     }
-  })
+  }).then((ms) => ms.map(mapMonitor) as Monitor[])
 }
 
 export {
@@ -2009,4 +2127,11 @@ export {
   availableMonitors
 }
 
-export type { Theme, Monitor, ScaleFactorChanged, FileDropEvent, WindowOptions }
+export type {
+  Theme,
+  TitleBarStyle,
+  Monitor,
+  ScaleFactorChanged,
+  FileDropEvent,
+  WindowOptions
+}

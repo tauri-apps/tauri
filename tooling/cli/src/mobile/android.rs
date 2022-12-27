@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cargo_mobile::{
+use clap::{Parser, Subcommand};
+use std::{
+  env::set_var,
+  thread::{sleep, spawn},
+  time::Duration,
+};
+use sublime_fuzzy::best_match;
+use tauri_mobile::{
   android::{
     adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata, Raw as RawAndroidConfig},
@@ -16,13 +23,6 @@ use cargo_mobile::{
   os,
   util::prompt,
 };
-use clap::{Parser, Subcommand};
-use std::{
-  env::set_var,
-  thread::{sleep, spawn},
-  time::Duration,
-};
-use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, get_app,
@@ -72,7 +72,7 @@ enum Commands {
   AndroidStudioScript(android_studio_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(MobileTarget::Android, options.ci, false)?,
@@ -95,6 +95,7 @@ pub fn get_config(
 
   let raw = RawAndroidConfig {
     features: android_options.features.clone(),
+    logcat_filter_specs: vec!["RustStdoutStderr".into(), "*:E".into()],
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();
@@ -124,7 +125,7 @@ pub fn get_config(
   (app, config, metadata)
 }
 
-fn with_config<T>(
+pub fn with_config<T>(
   cli_options: Option<CliOptions>,
   f: impl FnOnce(&App, &AndroidConfig, &AndroidMetadata, CliOptions) -> Result<T>,
 ) -> Result<T> {
@@ -132,8 +133,7 @@ fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options =
-      cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Android));
+    let cli_options = cli_options.unwrap_or_else(read_options);
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };
@@ -142,7 +142,7 @@ fn with_config<T>(
 
 fn env() -> Result<Env> {
   let env = super::env()?;
-  cargo_mobile::android::env::Env::from_env(env).map_err(Into::into)
+  tauri_mobile::android::env::Env::from_env(env).map_err(Into::into)
 }
 
 fn delete_codegen_vars() {
@@ -229,11 +229,6 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
     } else {
       emulator_list.into_iter().next().unwrap()
     };
-
-    let handle = emulator.start(env)?;
-    spawn(move || {
-      let _ = handle.wait();
-    });
 
     Ok(emulator)
   } else {

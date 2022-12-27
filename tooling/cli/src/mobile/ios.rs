@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use cargo_mobile::{
+use clap::{Parser, Subcommand};
+use sublime_fuzzy::best_match;
+use tauri_mobile::{
   apple::{
     config::{
       Config as AppleConfig, Metadata as AppleMetadata, Platform as ApplePlatform,
@@ -11,6 +13,7 @@ use cargo_mobile::{
     device::Device,
     ios_deploy, simctl,
     target::Target,
+    teams::find_development_teams,
   },
   config::app::App,
   env::Env,
@@ -18,8 +21,6 @@ use cargo_mobile::{
   os,
   util::prompt,
 };
-use clap::{Parser, Subcommand};
-use sublime_fuzzy::best_match;
 
 use super::{
   ensure_init, env, get_app,
@@ -32,6 +33,7 @@ use crate::{
 };
 
 use std::{
+  process::exit,
   thread::{sleep, spawn},
   time::Duration,
 };
@@ -41,6 +43,8 @@ mod dev;
 mod open;
 pub(crate) mod project;
 mod xcode_script;
+
+pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "TAURI_APPLE_DEVELOPMENT_TEAM";
 
 #[derive(Parser)]
 #[clap(
@@ -69,6 +73,7 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
+  /// Open project in Xcode
   Open,
   Dev(dev::Options),
   Build(build::Options),
@@ -76,7 +81,7 @@ enum Commands {
   XcodeScript(xcode_script::Options),
 }
 
-pub fn command(cli: Cli, verbosity: usize) -> Result<()> {
+pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
     Commands::Init(options) => init_command(MobileTarget::Ios, options.ci, options.reinstall_deps)?,
@@ -98,10 +103,23 @@ pub fn get_config(
   let ios_options = cli_options.clone();
 
   let raw = RawAppleConfig {
-    development_team: std::env::var("TAURI_APPLE_DEVELOPMENT_TEAM")
+    development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
         .or_else(|| config.tauri.bundle.ios.development_team.clone())
-        .expect("you must set `tauri > iOS > developmentTeam` config value or the `TAURI_APPLE_DEVELOPMENT_TEAM` environment variable"),
+        .unwrap_or_else(|| {
+          let teams = find_development_teams().unwrap_or_default();
+          match teams.len() {
+            0 => {
+              log::error!("No code signing certificates found. You must add one and set the certificate development team ID on the `tauri > bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
+              exit(1);
+            }
+            1 => teams.first().unwrap().id.clone(),
+            _ => {
+              log::error!("You must set the code signing certificate development team ID on  the `tauri > bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
+              exit(1);
+            }
+          }
+        }),
     ios_features: ios_options.features.clone(),
     bundle_version: config.package.version.clone(),
     bundle_version_short: config.package.version.clone(),
@@ -130,7 +148,7 @@ fn with_config<T>(
     let tauri_config = get_tauri_config(None)?;
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = cli_options.unwrap_or_else(|| read_options(tauri_config_, MobileTarget::Ios));
+    let cli_options = cli_options.unwrap_or_else(read_options);
     let (app, config, metadata) = get_config(None, tauri_config_, &cli_options);
     (app, config, metadata, cli_options)
   };

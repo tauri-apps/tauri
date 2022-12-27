@@ -1,6 +1,6 @@
 use super::{ensure_init, env, with_config, MobileTarget};
 use crate::Result;
-use cargo_mobile::os;
+use tauri_mobile::os;
 
 pub fn command() -> Result<()> {
   with_config(

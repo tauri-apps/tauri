@@ -28,6 +28,11 @@
       "default": {
         "allowlist": {
           "all": false,
+          "app": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
           "clipboard": {
             "all": false,
             "readText": false,
@@ -44,7 +49,12 @@
           "fs": {
             "all": false,
             "copyFile": false,
+<<<<<<< HEAD
             "mkdir": false,
+=======
+            "createDir": false,
+            "exists": false,
+>>>>>>> next
             "readDir": false,
             "readFile": false,
             "remove": false,
@@ -98,10 +108,15 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -202,7 +217,8 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[^/\\:*?\"<>|]+$"
         },
         "version": {
           "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.",
@@ -290,6 +306,11 @@
           "description": "The allowlist configuration.",
           "default": {
             "all": false,
+            "app": {
+              "all": false,
+              "hide": false,
+              "show": false
+            },
             "clipboard": {
               "all": false,
               "readText": false,
@@ -306,7 +327,12 @@
             "fs": {
               "all": false,
               "copyFile": false,
+<<<<<<< HEAD
               "mkdir": false,
+=======
+              "createDir": false,
+              "exists": false,
+>>>>>>> next
               "readDir": false,
               "readFile": false,
               "remove": false,
@@ -360,10 +386,15 @@
               "print": false,
               "requestUserAttention": false,
               "setAlwaysOnTop": false,
+              "setCursorGrab": false,
+              "setCursorIcon": false,
+              "setCursorPosition": false,
+              "setCursorVisible": false,
               "setDecorations": false,
               "setFocus": false,
               "setFullscreen": false,
               "setIcon": false,
+              "setIgnoreCursorEvents": false,
               "setMaxSize": false,
               "setMinSize": false,
               "setPosition": false,
@@ -496,6 +527,13 @@
             }
           ]
         },
+        "userAgent": {
+          "description": "The user agent for the webview",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "fileDropEnabled": {
           "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
           "default": true,
@@ -582,7 +620,7 @@
           "type": "boolean"
         },
         "focus": {
-          "description": "Whether the window will be initially hidden or focused.",
+          "description": "Whether the window will be initially focused or not.",
           "default": true,
           "type": "boolean"
         },
@@ -612,7 +650,7 @@
           "type": "boolean"
         },
         "skipTaskbar": {
-          "description": "Whether or not the window icon should be added to the taskbar.",
+          "description": "If `true`, hides the window icon from the taskbar on Windows and Linux.",
           "default": false,
           "type": "boolean"
         },
@@ -625,6 +663,32 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "titleBarStyle": {
+          "description": "The style of the macOS title bar.",
+          "default": "Visible",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TitleBarStyle"
+            }
+          ]
+        },
+        "hiddenTitle": {
+          "description": "If `true`, sets the window title to be hidden on macOS.",
+          "default": false,
+          "type": "boolean"
+        },
+        "acceptFirstMouse": {
+          "description": "Whether clicking an inactive window also clicks through to the webview on macOS.",
+          "default": false,
+          "type": "boolean"
+        },
+        "tabbingIdentifier": {
+          "description": "Defines the window [tabbing identifier] for macOS.\n\nWindows with matching tabbing identifiers will be grouped together. If the tabbing identifier is not set, automatic tabbing will be disabled.\n\n[tabbing identifier]: <https://developer.apple.com/documentation/appkit/nswindow/1644704-tabbingidentifier>",
+          "type": [
+            "string",
+            "null"
           ]
         }
       },
@@ -646,10 +710,47 @@
     },
     "Theme": {
       "description": "System theme.",
-      "type": "string",
-      "enum": [
-        "Light",
-        "Dark"
+      "oneOf": [
+        {
+          "description": "Light theme.",
+          "type": "string",
+          "enum": [
+            "Light"
+          ]
+        },
+        {
+          "description": "Dark theme.",
+          "type": "string",
+          "enum": [
+            "Dark"
+          ]
+        }
+      ]
+    },
+    "TitleBarStyle": {
+      "description": "How the window title bar should be displayed on macOS.",
+      "oneOf": [
+        {
+          "description": "A normal title bar.",
+          "type": "string",
+          "enum": [
+            "Visible"
+          ]
+        },
+        {
+          "description": "Makes the title bar transparent, so the window background color is shown instead.\n\nUseful if you don't need to have actual HTML under the title bar. This lets you avoid the caveats of using `TitleBarStyle::Overlay`. Will be more useful when Tauri lets you set a custom window background color.",
+          "type": "string",
+          "enum": [
+            "Transparent"
+          ]
+        },
+        {
+          "description": "Shows the title bar as a transparent overlay over the window's content.\n\nKeep in mind: - The height of the title bar is different on different OS versions, which can lead to window the controls and title not being where you don't expect. - You need to define a custom drag region to make your window draggable, however due to a limitation you can't drag the window when it's not in focus <https://github.com/tauri-apps/tauri/issues/4316>. - The color of the window title depends on the system theme.",
+          "type": "string",
+          "enum": [
+            "Overlay"
+          ]
+        }
       ]
     },
     "CliConfig": {
@@ -923,6 +1024,13 @@
           "description": "The application identifier in reverse domain name notation (e.g. `com.tauri.example`). This string must be unique across applications since it is used in system configurations like the bundle ID and path to the webview data directory. This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-), and periods (.).",
           "type": "string"
         },
+        "publisher": {
+          "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "description": "The app's icons",
           "default": [],
@@ -1073,14 +1181,49 @@
     },
     "BundleType": {
       "description": "A bundle referenced by tauri-bundler.",
-      "type": "string",
-      "enum": [
-        "deb",
-        "appimage",
-        "msi",
-        "app",
-        "dmg",
-        "updater"
+      "oneOf": [
+        {
+          "description": "The debian bundle (.deb).",
+          "type": "string",
+          "enum": [
+            "deb"
+          ]
+        },
+        {
+          "description": "The AppImage bundle (.appimage).",
+          "type": "string",
+          "enum": [
+            "appimage"
+          ]
+        },
+        {
+          "description": "The Microsoft Installer bundle (.msi).",
+          "type": "string",
+          "enum": [
+            "msi"
+          ]
+        },
+        {
+          "description": "The macOS application bundle (.app).",
+          "type": "string",
+          "enum": [
+            "app"
+          ]
+        },
+        {
+          "description": "The Apple Disk Image bundle (.dmg).",
+          "type": "string",
+          "enum": [
+            "dmg"
+          ]
+        },
+        {
+          "description": "The Tauri updater bundle.",
+          "type": "string",
+          "enum": [
+            "updater"
+          ]
+        }
       ]
     },
     "AppImageConfig": {
@@ -1520,7 +1663,12 @@
           "default": {
             "all": false,
             "copyFile": false,
+<<<<<<< HEAD
             "mkdir": false,
+=======
+            "createDir": false,
+            "exists": false,
+>>>>>>> next
             "readDir": false,
             "readFile": false,
             "remove": false,
@@ -1547,10 +1695,15 @@
             "print": false,
             "requestUserAttention": false,
             "setAlwaysOnTop": false,
+            "setCursorGrab": false,
+            "setCursorIcon": false,
+            "setCursorPosition": false,
+            "setCursorVisible": false,
             "setDecorations": false,
             "setFocus": false,
             "setFullscreen": false,
             "setIcon": false,
+            "setIgnoreCursorEvents": false,
             "setMaxSize": false,
             "setMinSize": false,
             "setPosition": false,
@@ -1696,6 +1849,19 @@
               "$ref": "#/definitions/ClipboardAllowlistConfig"
             }
           ]
+        },
+        "app": {
+          "description": "App APIs allowlist.",
+          "default": {
+            "all": false,
+            "hide": false,
+            "show": false
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/AppAllowlistConfig"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1752,12 +1918,17 @@
           "description": "Rename file from local filesystem.",
           "default": false,
           "type": "boolean"
+        },
+        "exists": {
+          "description": "Check if path exists on the local filesystem.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
     },
     "FsAllowlistScope": {
-      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+      "description": "Filesystem scope definition. It is a list of glob patterns that restrict the API access from the webview.\n\nEach pattern can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
       "anyOf": [
         {
           "description": "A list of paths that are allowed by this scope.",
@@ -1909,6 +2080,31 @@
           "default": false,
           "type": "boolean"
         },
+        "setCursorGrab": {
+          "description": "Allows grabbing the cursor.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorVisible": {
+          "description": "Allows setting the cursor visibility.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorIcon": {
+          "description": "Allows changing the cursor icon.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setCursorPosition": {
+          "description": "Allows setting the cursor position.",
+          "default": false,
+          "type": "boolean"
+        },
+        "setIgnoreCursorEvents": {
+          "description": "Allows ignoring cursor events.",
+          "default": false,
+          "type": "boolean"
+        },
         "startDragging": {
           "description": "Allows start dragging on the window.",
           "default": false,
@@ -1981,7 +2177,7 @@
           "type": "string"
         },
         "cmd": {
-          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`.",
+          "description": "The command name. It can start with a variable that resolves to a system base directory. The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`, `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`, `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`, `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.",
           "default": "",
           "type": "string"
         },
@@ -2247,6 +2443,28 @@
       },
       "additionalProperties": false
     },
+    "AppAllowlistConfig": {
+      "description": "Allowlist for the app APIs.",
+      "type": "object",
+      "properties": {
+        "all": {
+          "description": "Use this flag to enable all app APIs.",
+          "default": false,
+          "type": "boolean"
+        },
+        "show": {
+          "description": "Enables the app's `show` API.",
+          "default": false,
+          "type": "boolean"
+        },
+        "hide": {
+          "description": "Enables the app's `hide` API.",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "SecurityConfig": {
       "description": "Security configuration.",
       "type": "object",
@@ -2404,11 +2622,28 @@
     },
     "WindowsUpdateInstallMode": {
       "description": "Install modes for the Windows update.",
-      "type": "string",
-      "enum": [
-        "basicUi",
-        "quiet",
-        "passive"
+      "oneOf": [
+        {
+          "description": "Specifies there's a basic UI during the installation process, including a final dialog box at the end.",
+          "type": "string",
+          "enum": [
+            "basicUi"
+          ]
+        },
+        {
+          "description": "The quiet mode means there's no user interaction required. Requires admin privileges if the installer does.",
+          "type": "string",
+          "enum": [
+            "quiet"
+          ]
+        },
+        {
+          "description": "Specifies unattended mode, which means the installation only shows a progress bar.",
+          "type": "string",
+          "enum": [
+            "passive"
+          ]
+        }
       ]
     },
     "SystemTrayConfig": {
@@ -2431,6 +2666,13 @@
           "description": "A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.",
           "default": true,
           "type": "boolean"
+        },
+        "title": {
+          "description": "Title for MacOS tray",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

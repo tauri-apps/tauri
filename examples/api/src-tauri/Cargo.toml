@@ -3,11 +3,8 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.59"
 license = "Apache-2.0 OR MIT"
-
-[patch.crates-io]
-tao = { git = "https://github.com/tauri-apps/tao", branch = "dev" }
 
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -33,7 +30,6 @@ features = [
   "macos-private-api",
   "windows7-compat",
   "reqwest-client",
-  "reqwest-native-tls-vendored",
   "system-tray",
   "updater"
 ]
@@ -41,15 +37,6 @@ features = [
 [target."cfg(target_os = \"windows\")".dependencies]
 window-vibrancy = "0.2"
 window-shadows= "0.2"
-
-[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
-log = "0.4"
-
-[target.'cfg(target_os = "android")'.dependencies]
-android_logger = "0.9.0"
-
-[target.'cfg(target_os = "ios")'.dependencies]
-env_logger = "0.9.0"
 
 [features]
 default = [ "custom-protocol" ]

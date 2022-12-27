@@ -5,6 +5,7 @@
 import { WindowLabel } from '../window'
 import { invokeTauriCommand } from './tauri'
 import { transformCallback } from '../tauri'
+import type { EventName } from '../event'
 
 export interface Event<T> {
   /** Event name */
@@ -17,32 +18,9 @@ export interface Event<T> {
   payload: T
 }
 
-export type EventName = TauriEvent | string
-
 export type EventCallback<T> = (event: Event<T>) => void
 
 export type UnlistenFn = () => void
-
-export enum TauriEvent {
-  WINDOW_RESIZED = 'tauri://resize',
-  WINDOW_MOVED = 'tauri://move',
-  WINDOW_CLOSE_REQUESTED = 'tauri://close-requested',
-  WINDOW_CREATED = 'tauri://window-created',
-  WINDOW_DESTROYED = 'tauri://destroyed',
-  WINDOW_FOCUS = 'tauri://focus',
-  WINDOW_BLUR = 'tauri://blur',
-  WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
-  WINDOW_THEME_CHANGED = 'tauri://theme-changed',
-  WINDOW_FILE_DROP = 'tauri://file-drop',
-  WINDOW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WINDOW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled',
-  MENU = 'tauri://menu',
-  CHECK_UPDATE = 'tauri://update',
-  UPDATE_AVAILABLE = 'tauri://update-available',
-  INSTALL_UPDATE = 'tauri://update-install',
-  STATUS_UPDATE = 'tauri://update-status',
-  DOWNLOAD_PROGRESS = 'tauri://update-download-progress'
-}
 
 /**
  * Unregister the event listener associated with the given name and id.
@@ -82,7 +60,7 @@ async function emit(
       cmd: 'emit',
       event,
       windowLabel,
-      payload: typeof payload === 'string' ? payload : JSON.stringify(payload)
+      payload
     }
   })
 }

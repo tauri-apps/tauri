@@ -13,6 +13,7 @@
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **linux-protocol-headers**: Enables headers support for custom protocol requests on Linux. Requires webkit2gtk v2.36 or above.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `tauri > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
@@ -22,6 +23,8 @@
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
 //! - **reqwest-client**: Uses `reqwest` as HTTP client on the `http` APIs. Improves performance, but increases the bundle size.
+//! - **default-tls**: Provides TLS support to connect over HTTPS (applies to the default HTTP client).
+//! - **reqwest-default-tls**: Provides TLS support to connect over HTTPS (applies to the `reqwest` HTTP client).
 //! - **native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the default HTTP client).
 //! - **reqwest-native-tls-vendored**: Compile and statically link to a vendored copy of OpenSSL (applies to the `reqwest` HTTP client).
 //! - **process-command-api**: Enables the [`api::process::Command`] APIs.
@@ -69,6 +72,7 @@
 //! - **fs-all**: Enables all [Filesystem APIs](https://tauri.app/en/docs/api/js/modules/fs).
 //! - **fs-copy-file**: Enables the [`copyFile` API](https://tauri.app/en/docs/api/js/modules/fs#copyfile).
 //! - **fs-mkdir**: Enables the [`mkdir` API](https://tauri.app/en/docs/api/js/modules/fs#mkdir).
+//! - **fs-exists**: Enables the [`exists` API](https://tauri.app/en/docs/api/js/modules/fs#exists).
 //! - **fs-read-dir**: Enables the [`readDir` API](https://tauri.app/en/docs/api/js/modules/fs#readdir).
 //! - **fs-read-file**: Enables the [`readTextFile` API](https://tauri.app/en/docs/api/js/modules/fs#readtextfile) and the [`readFile` API](https://tauri.app/en/docs/api/js/modules/fs#readfile).
 //! - **fs-remove**: Enables the [`remove` API](https://tauri.app/en/docs/api/js/modules/fs#remove).
@@ -120,34 +124,41 @@
 //! ### Window allowlist
 //!
 //! - **window-all**: Enables all [Window APIs](https://tauri.app/en/docs/api/js/modules/window).
-//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.Window/).
-//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.Window#center).
-//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.Window#requestuserattention).
-//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.Window#setresizable).
-//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.Window#settitle).
-//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.Window#maximize).
-//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.Window#unmaximize).
-//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.Window#minimize).
-//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.Window#unminimize).
-//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.Window#show).
-//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.Window#hide).
-//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.Window#close).
-//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.Window#setdecorations).
-//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.Window#setalwaysontop).
-//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.Window#setsize).
-//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.Window#setminsize).
-//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.Window#setmaxsize).
-//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.Window#setposition).
-//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.Window#setfullscreen).
-//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.Window#setfocus).
-//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.Window#seticon).
-//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.Window#setskiptaskbar).
-//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.Window#setcursorgrab).
-//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.Window#setcursorvisible).
-//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.Window#setcursoricon).
-//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.Window#setcursorposition).
-//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.Window#startdragging).
-//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.Window#print).
+//! - **window-create**: Enables the API used to [create new windows](https://tauri.app/en/docs/api/js/classes/window.webviewwindow/).
+//! - **window-center**: Enables the [`center` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#center).
+//! - **window-request-user-attention**: Enables the [`requestUserAttention` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#requestuserattention).
+//! - **window-set-resizable**: Enables the [`setResizable` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setresizable).
+//! - **window-set-title**: Enables the [`setTitle` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#settitle).
+//! - **window-maximize**: Enables the [`maximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#maximize).
+//! - **window-unmaximize**: Enables the [`unmaximize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unmaximize).
+//! - **window-minimize**: Enables the [`minimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#minimize).
+//! - **window-unminimize**: Enables the [`unminimize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#unminimize).
+//! - **window-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#show).
+//! - **window-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#hide).
+//! - **window-close**: Enables the [`close` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#close).
+//! - **window-set-decorations**: Enables the [`setDecorations` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setdecorations).
+//! - **window-set-always-on-top**: Enables the [`setAlwaysOnTop` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setalwaysontop).
+//! - **window-set-size**: Enables the [`setSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setsize).
+//! - **window-set-min-size**: Enables the [`setMinSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setminsize).
+//! - **window-set-max-size**: Enables the [`setMaxSize` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setmaxsize).
+//! - **window-set-position**: Enables the [`setPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setposition).
+//! - **window-set-fullscreen**: Enables the [`setFullscreen` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfullscreen).
+//! - **window-set-focus**: Enables the [`setFocus` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setfocus).
+//! - **window-set-icon**: Enables the [`setIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#seticon).
+//! - **window-set-skip-taskbar**: Enables the [`setSkipTaskbar` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setskiptaskbar).
+//! - **window-set-cursor-grab**: Enables the [`setCursorGrab` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorgrab).
+//! - **window-set-cursor-visible**: Enables the [`setCursorVisible` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorvisible).
+//! - **window-set-cursor-icon**: Enables the [`setCursorIcon` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursoricon).
+//! - **window-set-cursor-position**: Enables the [`setCursorPosition` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setcursorposition).
+//! - **window-set-ignore-cursor-events**: Enables the [`setIgnoreCursorEvents` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#setignorecursorevents).
+//! - **window-start-dragging**: Enables the [`startDragging` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#startdragging).
+//! - **window-print**: Enables the [`print` API](https://tauri.app/en/docs/api/js/classes/window.WebviewWindow#print).
+//!
+//! ### App allowlist
+//!
+//! - **app-all**: Enables all [App APIs](https://tauri.app/en/docs/api/js/modules/app).
+//! - **app-show**: Enables the [`show` API](https://tauri.app/en/docs/api/js/modules/app#show).
+//! - **app-hide**: Enables the [`hide` API](https://tauri.app/en/docs/api/js/modules/app#hide).
 
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(doc_cfg, feature(doc_cfg))]
@@ -219,6 +230,8 @@ pub use runtime::http;
 #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
 pub use runtime::{menu::NativeImage, ActivationPolicy};
 
+#[cfg(target_os = "macos")]
+pub use self::utils::TitleBarStyle;
 #[cfg(all(desktop, feature = "system-tray"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
 pub use {
@@ -266,6 +279,58 @@ pub use self::runtime::ClipboardManager;
 #[cfg(all(desktop, feature = "global-shortcut"))]
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
+
+#[cfg(target_os = "android")]
+#[doc(hidden)]
+pub fn init_logging(tag: &str) {
+  android_logger::init_once(
+    android_logger::Config::default()
+      .with_min_level(log::Level::Trace)
+      .with_tag(tag),
+  );
+}
+
+#[cfg(target_os = "ios")]
+#[doc(hidden)]
+pub fn init_logging(subsystem: &str) {
+  use std::{
+    ffi::CString,
+    fs::File,
+    io::{BufRead, BufReader},
+    os::unix::prelude::*,
+    thread,
+  };
+
+  let mut logpipe: [RawFd; 2] = Default::default();
+  unsafe {
+    libc::pipe(logpipe.as_mut_ptr());
+    libc::dup2(logpipe[1], libc::STDOUT_FILENO);
+    libc::dup2(logpipe[1], libc::STDERR_FILENO);
+  }
+  thread::spawn(move || unsafe {
+    let file = File::from_raw_fd(logpipe[0]);
+    let mut reader = BufReader::new(file);
+    let mut buffer = String::new();
+    loop {
+      buffer.clear();
+      if let Ok(len) = reader.read_line(&mut buffer) {
+        if len == 0 {
+          break;
+        } else if let Ok(msg) = CString::new(buffer.clone())
+          .map_err(|_| ())
+          .and_then(|c| c.into_string().map_err(|_| ()))
+        {
+          log::info!("{}", msg);
+        }
+      }
+    }
+  });
+
+  oslog::OsLogger::new(subsystem)
+    .level_filter(log::LevelFilter::Trace)
+    .init()
+    .unwrap();
+}
 
 /// Updater events.
 #[cfg(updater)]
@@ -379,7 +444,7 @@ pub enum Icon {
   Raw(Vec<u8>),
   /// Icon from raw RGBA bytes.
   Rgba {
-    /// RGBA byes of the icon image.
+    /// RGBA bytes of the icon image.
     rgba: Vec<u8>,
     /// Icon width.
     width: u32,
@@ -443,8 +508,7 @@ impl TryFrom<Icon> for runtime::Icon {
           })
         }
         _ => panic!(
-          "image `{}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags",
-          extension
+          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
         ),
       }
       }
@@ -848,8 +912,8 @@ mod tests {
     let lib_code = read_to_string(manifest_dir.join("src/lib.rs")).expect("failed to read lib.rs");
 
     for f in get_manifest().features.keys() {
-      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{}**", f))) {
-        panic!("Feature {} is not documented", f);
+      if !(f.starts_with("__") || f == "default" || lib_code.contains(&format!("*{f}**"))) {
+        panic!("Feature {f} is not documented");
       }
     }
   }
@@ -861,8 +925,7 @@ mod tests {
     for checked_feature in checked_features {
       if !manifest.features.iter().any(|(f, _)| f == checked_feature) {
         panic!(
-          "Feature {} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml",
-          checked_feature
+          "Feature {checked_feature} was checked in the alias build step but it does not exist in core/tauri/Cargo.toml"
         );
       }
     }
@@ -898,24 +961,21 @@ mod tests {
       let module = module_all_feature.replace("-all", "");
       assert!(
         checked_features.contains(&module_all_feature.as_str()),
-        "`{}` is not aliased",
-        module
+        "`{module}` is not aliased"
       );
 
-      let module_prefix = format!("{}-", module);
+      let module_prefix = format!("{module}-");
       // we assume that module features are the ones that start with `<module>-`
       // though it's not 100% accurate, we have an allowed list to fix it
       let module_features = manifest
         .features
-        .iter()
-        .map(|(f, _)| f)
+        .keys()
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(
           allowed.contains(&module_feature.as_str())
             || checked_features.contains(&module_feature.as_str()),
-          "`{}` is not aliased",
-          module_feature
+          "`{module_feature}` is not aliased"
         );
       }
     }
@@ -943,7 +1003,7 @@ mod test_utils {
     fn check_spawn_task(task in "[a-z]+") {
       // create dummy task function
       let dummy_task = async move {
-        format!("{}-run-dummy-task", task);
+        format!("{task}-run-dummy-task");
       };
       // call spawn
       crate::async_runtime::spawn(dummy_task);

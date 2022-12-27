@@ -3,20 +3,20 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     env::Env,
   },
   config::app::App,
-  opts::{NoiseLevel, Profile},
+  opts::{FilterLevel, NoiseLevel, Profile},
 };
 
 use std::env::set_var;
@@ -34,7 +34,7 @@ const WEBVIEW_CLASS_INIT: &str =
 #[clap(about = "Android dev")]
 pub struct Options {
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Exit on panic
   #[clap(short, long)]
@@ -45,6 +45,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -63,6 +66,7 @@ impl From<Options> for crate::dev::Options {
       release_mode: false,
       args: Vec::new(),
       no_watch: options.no_watch,
+      no_dev_server: options.no_dev_server,
     }
   }
 }
@@ -92,14 +96,7 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let mut dev_options = options.clone().into();
-  let mut interface = crate::dev::setup(&mut dev_options)?;
-
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
+  let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -107,7 +104,7 @@ fn run_dev(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;
@@ -125,13 +122,14 @@ fn run_dev(
       no_watch: options.no_watch,
     },
     |options| {
+      let mut env = env.clone();
       let cli_options = CliOptions {
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
       };
-      write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
+      let _handle = write_options(cli_options, &mut env.base)?;
 
       if open {
         open_and_wait(config, &env)
@@ -154,7 +152,10 @@ fn run_dev(
             log::error!("{}", e);
             open_and_wait(config, &env)
           }
-          Err(e) => Err(e.into()),
+          Err(e) => {
+            crate::dev::kill_before_dev_process();
+            Err(e.into())
+          }
         }
       }
     },
@@ -192,7 +193,11 @@ fn run(
       env,
       noise_level,
       profile,
-      None,
+      Some(match noise_level {
+        NoiseLevel::Polite => FilterLevel::Info,
+        NoiseLevel::LoudAndProud => FilterLevel::Debug,
+        NoiseLevel::FranklyQuitePedantic => FilterLevel::Verbose,
+      }),
       build_app_bundle,
       false,
       ".MainActivity".into(),

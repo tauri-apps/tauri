@@ -3,14 +3,14 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
@@ -28,13 +28,13 @@ pub struct Options {
   #[clap(
     short,
     long = "target",
-    multiple_occurrences(true),
-    multiple_values(true),
+    action = ArgAction::Append,
+    num_args(0..),
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -77,11 +77,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
       ensure_init(config.project_dir(), MobileTarget::Android)?;
 
-      let env = env()?;
+      let mut env = env()?;
       init_dot_cargo(app, Some((&env, config)))?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)?;
+      run_build(options, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -96,7 +96,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AndroidConfig,
-  env: &Env,
+  env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {
@@ -111,15 +111,8 @@ fn run_build(
     options.aab = true;
   }
 
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
-
   let mut build_options = options.clone().into();
-  let interface = crate::build::setup(&mut build_options)?;
+  let interface = crate::build::setup(&mut build_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -127,7 +120,7 @@ fn run_build(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {
     features: build_options.features.clone(),
@@ -135,7 +128,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  write_options(cli_options, &bundle_identifier, MobileTarget::Android)?;
+  let _handle = write_options(cli_options, &mut env.base)?;
 
   options
     .features

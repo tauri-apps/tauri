@@ -130,11 +130,11 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
   // likely because an intermediate directory didn't exist, so try to
   // create the directory and then continue.
   let f = opts
-    .open(&path)
+    .open(path)
     .or_else(|e| {
       if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
         create_dir_all(path.parent().unwrap())?;
-        Ok(opts.open(&path)?)
+        Ok(opts.open(path)?)
       } else {
         Err(anyhow::Error::from(e))
       }

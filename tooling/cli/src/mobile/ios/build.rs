@@ -3,14 +3,14 @@ use super::{
   MobileTarget,
 };
 use crate::{
-  helpers::{config::get as get_tauri_config, flock},
+  helpers::flock,
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   Result,
 };
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -20,7 +20,7 @@ use cargo_mobile::{
 use std::fs;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(about = "iOS build")]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -29,14 +29,14 @@ pub struct Options {
   #[clap(
     short,
     long = "target",
-    multiple_occurrences(true),
-    multiple_values(true),
+    action = ArgAction::Append,
+    num_args(0..),
     default_value = Target::DEFAULT_KEY,
     value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
   )]
   pub targets: Vec<String>,
   /// List of cargo features to activate
-  #[clap(short, long, multiple_occurrences(true), multiple_values(true))]
+  #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
@@ -69,11 +69,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     |app, config, _metadata, _cli_options| {
       ensure_init(config.project_dir(), MobileTarget::Ios)?;
 
-      let env = env()?;
+      let mut env = env()?;
       init_dot_cargo(app, None)?;
 
       let open = options.open;
-      run_build(options, config, &env, noise_level)?;
+      run_build(options, config, &mut env, noise_level)?;
 
       if open {
         open_and_wait(config, &env);
@@ -88,7 +88,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   mut options: Options,
   config: &AppleConfig,
-  env: &Env,
+  env: &mut Env,
   noise_level: NoiseLevel,
 ) -> Result<()> {
   let profile = if options.debug {
@@ -97,15 +97,8 @@ fn run_build(
     Profile::Release
   };
 
-  let bundle_identifier = {
-    let tauri_config = get_tauri_config(None)?;
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    tauri_config_.tauri.bundle.identifier.clone()
-  };
-
   let mut build_options = options.clone().into();
-  let interface = crate::build::setup(&mut build_options)?;
+  let interface = crate::build::setup(&mut build_options, true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -121,7 +114,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  write_options(cli_options, &bundle_identifier, MobileTarget::Ios)?;
+  let _handle = write_options(cli_options, env)?;
 
   options
     .features
@@ -134,7 +127,7 @@ fn run_build(
     options.targets.iter(),
     &detect_target_ok,
     env,
-    |target: &Target| {
+    |target: &Target| -> Result<()> {
       let mut app_version = config.bundle_version().clone();
       if let Some(build_number) = options.build_number {
         app_version.push_extra(build_number);
@@ -152,11 +145,10 @@ fn run_build(
         out_files.push(path);
       }
 
-      anyhow::Result::Ok(())
+      Ok(())
     },
   )
-  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))?
-  .map_err(|e: anyhow::Error| e)?;
+  .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
 
   log_finished(out_files, "IPA");
 

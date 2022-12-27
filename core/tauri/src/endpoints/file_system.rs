@@ -227,6 +227,12 @@ pub(crate) enum Cmd {
     data: String,
     options: Option<WriteFileOptions>,
   },
+  /// The exists API.
+  #[cmd(fs_exists, "fs > exists")]
+  Exists {
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  },
 }
 
 impl Cmd {
@@ -672,6 +678,22 @@ impl Cmd {
   ) -> super::Result<()> {
     write_file(context, path, data.as_bytes(), options)
   }
+
+  #[module_command_handler(fs_exists)]
+  fn exists<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<FileOperationOptions>,
+  ) -> super::Result<bool> {
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.and_then(|o| o.dir),
+    )?;
+    Ok(resolved_path.as_ref().exists())
+  }
 }
 
 fn write_file<R: Runtime>(
@@ -847,7 +869,7 @@ mod tests {
   impl Arbitrary for BaseDirectory {
     fn arbitrary(g: &mut Gen) -> Self {
       if bool::arbitrary(g) {
-        BaseDirectory::App
+        BaseDirectory::AppData
       } else {
         BaseDirectory::Resource
       }
@@ -1025,6 +1047,13 @@ mod tests {
       new_path,
       options,
     );
+    crate::test_utils::assert_not_allowlist_error(res);
+  }
+
+  #[tauri_macros::module_command_test(fs_exists, "fs > exists")]
+  #[quickcheck_macros::quickcheck]
+  fn exists(path: SafePathBuf, options: Option<FileOperationOptions>) {
+    let res = super::Cmd::exists(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }
 }

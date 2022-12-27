@@ -5,7 +5,10 @@
 //! Types and functions related to file system directory management.
 
 use serde::Serialize;
-use std::{fs, path::Path};
+use std::{
+  fs::{self, metadata, symlink_metadata},
+  path::{Path, PathBuf},
+};
 use tempfile::{self, tempdir};
 
 /// A disk entry which is either a file, a directory or a symlink.
@@ -33,12 +36,12 @@ pub fn is_dir<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
 fn is_symlink<P: AsRef<Path>>(path: P) -> crate::api::Result<bool> {
   // TODO: remove the different implementation once we raise tauri's MSRV to at least 1.58
   #[cfg(windows)]
-  let ret = fs::symlink_metadata(path)
+  let ret = symlink_metadata(path)
     .map(|md| md.is_symlink())
     .map_err(Into::into);
 
   #[cfg(not(windows))]
-  let ret = fs::symlink_metadata(path)
+  let ret = symlink_metadata(path)
     .map(|md| md.file_type().is_symlink())
     .map_err(Into::into);
 
@@ -139,7 +142,7 @@ mod test {
   fn check_test_dir() {
     // create a callback closure that takes in a TempDir type and prints it.
     let callback = |td: &tempfile::TempDir| {
-      println!("{:?}", td);
+      println!("{td:?}");
     };
 
     // execute the with_temp_dir function on the callback

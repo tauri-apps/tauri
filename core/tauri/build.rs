@@ -31,7 +31,7 @@ fn has_feature(feature: &str) -> bool {
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 
@@ -61,6 +61,7 @@ fn main() {
       "create",
       "open",
       "close",
+      "exists",
     ],
     api_all,
   );
@@ -98,6 +99,7 @@ fn main() {
       "set-cursor-visible",
       "set-cursor-icon",
       "set-cursor-position",
+      "set-ignore-cursor-events",
       "start-dragging",
       "print",
     ],
@@ -135,11 +137,13 @@ fn main() {
 
   alias_module("clipboard", &["write-text", "read-text"], api_all);
 
+  alias_module("app", &["show", "hide"], api_all);
+
   let checked_features_out_path =
     Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
-    &checked_features_out_path,
-    &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
+    checked_features_out_path,
+    CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
 }
@@ -154,14 +158,14 @@ fn main() {
 //
 // Note that both `module` and `apis` strings must be written in kebab case.
 fn alias_module(module: &str, apis: &[&str], api_all: bool) {
-  let all_feature_name = format!("{}-all", module);
+  let all_feature_name = format!("{module}-all");
   let all = has_feature(&all_feature_name) || api_all;
   alias(&all_feature_name.to_snake_case(), all);
 
   let mut any = all;
 
   for api in apis {
-    let has = has_feature(&format!("{}-{}", module, api)) || all;
+    let has = has_feature(&format!("{module}-{api}")) || all;
     alias(
       &format!("{}_{}", AsSnakeCase(module), AsSnakeCase(api)),
       has,

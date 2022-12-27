@@ -21,6 +21,7 @@
  *         "mkdir": true,
  *         "remove": true,
  *         "rename": true
+ *         "exists": true
  *       }
  *     }
  *   }
@@ -39,21 +40,23 @@
  *
  * The scope configuration is an array of glob patterns describing folder paths that are allowed.
  * For instance, this scope configuration only allows accessing files on the
- * *databases* folder of the {@link path.appDir | $APP directory}:
+ * *databases* folder of the {@link path.appDataDir | $APPDATA directory}:
  * ```json
  * {
  *   "tauri": {
  *     "allowlist": {
  *       "fs": {
- *         "scope": ["$APP/databases/*"]
+ *         "scope": ["$APPDATA/databases/*"]
  *       }
  *     }
  *   }
  * }
  * ```
  *
- * Notice the use of the `$APP` variable. The value is injected at runtime, resolving to the {@link path.appDir | app directory}.
+ * Notice the use of the `$APPDATA` variable. The value is injected at runtime, resolving to the {@link path.appDataDir | app data directory}.
  * The available variables are:
+ * {@link path.appConfigDir | `$APPCONFIG`}, {@link path.appDataDir | `$APPDATA`}, {@link path.appLocalDataDir | `$APPLOCALDATA`},
+ * {@link path.appCacheDir | `$APPCACHE`}, {@link path.appLogDir | `$APPLOG`},
  * {@link path.audioDir | `$AUDIO`}, {@link path.cacheDir | `$CACHE`}, {@link path.configDir | `$CONFIG`}, {@link path.dataDir | `$DATA`},
  * {@link path.localDataDir | `$LOCALDATA`}, {@link path.desktopDir | `$DESKTOP`}, {@link path.documentDir | `$DOCUMENT`},
  * {@link path.downloadDir | `$DOWNLOAD`}, {@link path.executableDir | `$EXE`}, {@link path.fontDir | `$FONT`}, {@link path.homeDir | `$HOME`},
@@ -91,7 +94,12 @@ enum BaseDirectory {
   Resource,
   App,
   Log,
-  Temp
+  Temp,
+  AppConfig,
+  AppData,
+  AppLocalData,
+  AppCache,
+  AppLog
 }
 
 enum SeekMode {
@@ -872,7 +880,7 @@ async function stat(
     }
   })
 
-  return parseFileInfo(res)
+  return parseFileInfo(res as any)
 }
 
 /**
@@ -900,7 +908,7 @@ async function lstat(
     }
   })
 
-  return parseFileInfo(res)
+  return parseFileInfo(res as any)
 }
 
 /**
@@ -923,7 +931,7 @@ async function fstat(rid: number): Promise<FileInfo> {
     }
   })
 
-  return parseFileInfo(res)
+  return parseFileInfo(res as any)
 }
 
 interface TruncateOptions {
@@ -1106,6 +1114,33 @@ async function writeTextFile(
   })
 }
 
+interface ExistsOptions {
+  /** Base directory for `path`. */
+  baseDir: BaseDirectory
+}
+
+/**
+ * Check if a path exists.
+ * @example
+ * ```typescript
+ * import { exists, BaseDirectory } from '@tauri-apps/api/fs';
+ * // Check if the `$APPDATA/avatar.png` file exists
+ * await exists('avatar.png', { dir: BaseDirectory.AppData });
+ * ```
+ *
+ * @since 1.1.0
+ */
+async function exists(path: string, options?: ExistsOptions): Promise<boolean> {
+  return invokeTauriCommand({
+    __tauriModule: 'Fs',
+    message: {
+      cmd: 'exists',
+      path,
+      options
+    }
+  })
+}
+
 export type {
   CreateOptions,
   OpenOptions,
@@ -1119,6 +1154,7 @@ export type {
   StatOptions,
   TruncateOptions,
   WriteFileOptions,
+  ExistsOptions,
   FileInfo
 }
 
@@ -1145,5 +1181,6 @@ export {
   ftruncate,
   write,
   writeFile,
-  writeTextFile
+  writeTextFile,
+  exists
 }

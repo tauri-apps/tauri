@@ -8,6 +8,7 @@ use crate::api::process::Command;
 use crate::api::shell::Program;
 
 use regex::Regex;
+use tauri_utils::{config::Config, Env, PackageInfo};
 
 use std::collections::HashMap;
 
@@ -193,7 +194,17 @@ pub enum ScopeError {
 
 impl Scope {
   /// Creates a new shell scope.
-  pub(crate) fn new(scope: ScopeConfig) -> Self {
+  pub(crate) fn new(
+    config: &Config,
+    package_info: &PackageInfo,
+    env: &Env,
+    mut scope: ScopeConfig,
+  ) -> Self {
+    for cmd in scope.scopes.values_mut() {
+      if let Ok(path) = crate::api::path::parse(config, package_info, env, &cmd.command) {
+        cmd.command = path;
+      }
+    }
     Self(scope)
   }
 
@@ -306,8 +317,8 @@ impl Scope {
     // The prevention of argument escaping is handled by the usage of std::process::Command::arg by
     // the `open` dependency. This behavior should be re-confirmed during upgrades of `open`.
     match with.map(Program::name) {
-      Some(program) => ::open::with(&path, program),
-      None => ::open::that(&path),
+      Some(program) => ::open::with(path, program),
+      None => ::open::that(path),
     }
     .map_err(Into::into)
   }

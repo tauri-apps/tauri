@@ -1,5 +1,5 @@
 {
-  "$schema": "../../tooling/cli/schema.json",
+  "$schema": "../../core/config-schema/schema.json",
   "build": {
     "distDir": ["index.html"],
     "devPath": ["index.html"],
@@ -38,7 +38,10 @@
       }
     },
     "allowlist": {
-      "all": false
+      "all": false,
+      "protocol": {
+        "assetScope": ["**/test_video.mp4"]
+      }
     },
     "windows": [
       {
@@ -50,7 +53,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; media-src stream: https://stream.localhost"
+      "csp": "default-src 'self'; media-src stream: https://stream.localhost asset: https://asset.localhost"
     },
     "updater": {
       "active": false

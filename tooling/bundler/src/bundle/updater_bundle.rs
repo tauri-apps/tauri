@@ -230,7 +230,7 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 
     tar_builder.append_file(file_name, &mut src_file)?;
   } else {
-    for entry in walkdir::WalkDir::new(&src_dir) {
+    for entry in walkdir::WalkDir::new(src_dir) {
       let entry = entry?;
       let src_path = entry.path();
       if src_path == src_dir {
@@ -241,7 +241,7 @@ fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       // /dev/src-tauri/target/debug/bundle/osx/app.app
       // We need a tar with app.app/<...> (source root folder should be included)
       // safe to unwrap: the path has a parent
-      let dest_path = src_path.strip_prefix(&src_dir.parent().unwrap())?;
+      let dest_path = src_path.strip_prefix(src_dir.parent().unwrap())?;
       if entry.file_type().is_dir() {
         tar_builder.append_dir(dest_path, src_path)?;
       } else {

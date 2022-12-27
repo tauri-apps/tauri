@@ -53,6 +53,9 @@ type Platform =
  * import { platform } from '@tauri-apps/api/os';
  * const platformName = await platform();
  * ```
+ *
+ * @since 1.0.0
+ *
  */
 async function platform(): Promise<Platform> {
   return invokeTauriCommand<Platform>({
@@ -70,6 +73,8 @@ async function platform(): Promise<Platform> {
  * import { version } from '@tauri-apps/api/os';
  * const osVersion = await version();
  * ```
+ *
+ * @since 1.0.0
  */
 async function version(): Promise<string> {
   return invokeTauriCommand<string>({
@@ -101,6 +106,8 @@ type Arch =
  * import { arch } from '@tauri-apps/api/os';
  * const archName = await arch();
  * ```
+ *
+ * @since 1.0.0
  */
 async function arch(): Promise<Arch> {
   return invokeTauriCommand<Arch>({
@@ -118,6 +125,8 @@ async function arch(): Promise<Arch> {
  * import { tempdir } from '@tauri-apps/api/os';
  * const tempdirPath = await tempdir();
  * ```
+ *
+ * @since 1.0.0
  */
 async function tempDir(): Promise<string> {
   return invokeTauriCommand<string>({

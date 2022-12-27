@@ -8,6 +8,7 @@ members = [
   "core/tauri-utils",
   "core/tauri-build",
   "core/tauri-codegen",
+  "core/config-schema",
 
   # integration tests
   "core/tests/restart",
@@ -19,7 +20,8 @@ exclude = [
   "examples/api/src-tauri",
   "examples/updater/src-tauri",
   "examples/resources/src-tauri",
-  "examples/sidecar/src-tauri"
+  "examples/sidecar/src-tauri",
+  "examples/web/core"
 ]
 
 # default to small, optimized workspace release binaries
@@ -29,6 +31,3 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
-
-[patch.crates-io]
-tao = { git = "https://github.com/tauri-apps/tao", branch = "dev" }

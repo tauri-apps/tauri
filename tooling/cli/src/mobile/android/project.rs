@@ -4,7 +4,9 @@
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use cargo_mobile::{
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
+use tauri_mobile::{
   android::{
     config::{Config, Metadata},
     target::Target,
@@ -18,8 +20,6 @@ use cargo_mobile::{
     prefix_path,
   },
 };
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
 
 use std::{ffi::OsStr, fs, path::Path};
 
@@ -122,6 +122,7 @@ pub fn gen(
       }
 
       let mut options = fs::OpenOptions::new();
+      options.write(true);
 
       #[cfg(unix)]
       if path.file_name().unwrap() == OsStr::new("gradlew") {
@@ -129,7 +130,11 @@ pub fn gen(
         options.mode(0o755);
       }
 
-      options.create_new(true).write(true).open(path)
+      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+        options.create(true).open(path).map(Some)
+      } else {
+        Ok(None)
+      }
     },
   )
   .with_context(|| "failed to process template")?;
@@ -143,7 +148,7 @@ pub fn gen(
 
   let source_dest = dest.join("app");
   for source in metadata.app_sources() {
-    let source_src = config.app().root_dir().join(&source);
+    let source_src = config.app().root_dir().join(source);
     let source_file = source_src
       .file_name()
       .ok_or_else(|| anyhow::anyhow!("asset source {} is invalid", source_src.display()))?;

@@ -179,7 +179,7 @@ fn replace_csp_nonce(
   if !(nonces.is_empty() && hashes.is_empty()) {
     let nonce_sources = nonces
       .into_iter()
-      .map(|n| format!("'nonce-{}'", n))
+      .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
     let sources = csp.entry(directive.into()).or_insert_with(Default::default);
     let self_source = "'self'".to_string();
@@ -449,8 +449,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -488,7 +487,7 @@ impl<R: Runtime> WindowManager<R> {
           window_url.scheme(),
           window_url.host().unwrap(),
           if let Some(port) = window_url.port() {
-            format!(":{}", port)
+            format!(":{port}")
           } else {
             "".into()
           }
@@ -512,15 +511,11 @@ impl<R: Runtime> WindowManager<R> {
       pending.register_uri_scheme_protocol("asset", move |request| {
         let parsed_path = Url::parse(request.uri())?;
         let filtered_path = &parsed_path[..Position::AfterPath];
-        #[cfg(target_os = "windows")]
         let path = filtered_path
           .strip_prefix("asset://localhost/")
           // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
           // where `$P` is not `localhost/*`
           .unwrap_or("");
-        // safe to unwrap: request.uri() always starts with this prefix
-        #[cfg(not(target_os = "windows"))]
-        let path = filtered_path.strip_prefix("asset://").unwrap();
         let path = percent_encoding::percent_decode(path.as_bytes())
           .decode_utf8_lossy()
           .to_string();
@@ -546,23 +541,39 @@ impl<R: Runtime> WindowManager<R> {
           .get("range")
           .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
         {
-          let (headers, status_code, data) = crate::async_runtime::safe_block_on(async move {
-            let mut headers = HashMap::new();
-            let mut buf = Vec::new();
+          #[derive(Default)]
+          struct RangeMetadata {
+            file: Option<tokio::fs::File>,
+            range: Option<crate::runtime::http::HttpRange>,
+            metadata: Option<std::fs::Metadata>,
+            headers: HashMap<&'static str, String>,
+            status_code: u16,
+            body: Vec<u8>,
+          }
+
+          let mut range_metadata = crate::async_runtime::safe_block_on(async move {
+            let mut data = RangeMetadata::default();
             // open the file
             let mut file = match tokio::fs::File::open(path_.clone()).await {
               Ok(file) => file,
               Err(e) => {
                 debug_eprintln!("Failed to open asset: {}", e);
-                return (headers, 404, buf);
+                data.status_code = 404;
+                return data;
               }
             };
             // Get the file size
             let file_size = match file.metadata().await {
-              Ok(metadata) => metadata.len(),
+              Ok(metadata) => {
+                let len = metadata.len();
+                data.metadata.replace(metadata);
+                len
+              }
               Err(e) => {
                 debug_eprintln!("Failed to read asset metadata: {}", e);
-                return (headers, 404, buf);
+                data.file.replace(file);
+                data.status_code = 404;
+                return data;
               }
             };
             // parse the range
@@ -577,13 +588,16 @@ impl<R: Runtime> WindowManager<R> {
               Ok(r) => r,
               Err(e) => {
                 debug_eprintln!("Failed to parse range {}: {:?}", range, e);
-                return (headers, 400, buf);
+                data.file.replace(file);
+                data.status_code = 400;
+                return data;
               }
             };
 
             // FIXME: Support multiple ranges
             // let support only 1 range for now
-            let status_code = if let Some(range) = range.first() {
+            if let Some(range) = range.first() {
+              data.range.replace(*range);
               let mut real_length = range.length;
               // prevent max_length;
               // specially on webview2
@@ -597,38 +611,84 @@ impl<R: Runtime> WindowManager<R> {
               // who should be skipped on the header
               let last_byte = range.start + real_length - 1;
 
-              headers.insert("Connection", "Keep-Alive".into());
-              headers.insert("Accept-Ranges", "bytes".into());
-              headers.insert("Content-Length", real_length.to_string());
-              headers.insert(
+              data.headers.insert("Connection", "Keep-Alive".into());
+              data.headers.insert("Accept-Ranges", "bytes".into());
+              data
+                .headers
+                .insert("Content-Length", real_length.to_string());
+              data.headers.insert(
                 "Content-Range",
                 format!("bytes {}-{}/{}", range.start, last_byte, file_size),
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {
                 debug_eprintln!("Failed to seek file to {}: {}", range.start, e);
-                return (headers, 422, buf);
+                data.file.replace(file);
+                data.status_code = 422;
+                return data;
               }
 
-              if let Err(e) = file.take(real_length).read_to_end(&mut buf).await {
+              let mut f = file.take(real_length);
+              let r = f.read_to_end(&mut data.body).await;
+              file = f.into_inner();
+              data.file.replace(file);
+
+              if let Err(e) = r {
                 debug_eprintln!("Failed read file: {}", e);
-                return (headers, 422, buf);
+                data.status_code = 422;
+                return data;
               }
               // partial content
-              206
+              data.status_code = 206;
             } else {
-              200
-            };
+              data.status_code = 200;
+            }
 
-            (headers, status_code, buf)
+            data
           });
 
-          for (k, v) in headers {
+          for (k, v) in range_metadata.headers {
             response = response.header(k, v);
           }
 
-          let mime_type = MimeType::parse(&data, &path);
-          response.mimetype(&mime_type).status(status_code).body(data)
+          let mime_type = if let (Some(mut file), Some(metadata), Some(range)) = (
+            range_metadata.file,
+            range_metadata.metadata,
+            range_metadata.range,
+          ) {
+            // if we're already reading the beginning of the file, we do not need to re-read it
+            if range.start == 0 {
+              MimeType::parse(&range_metadata.body, &path)
+            } else {
+              let (status, bytes) = crate::async_runtime::safe_block_on(async move {
+                let mut status = None;
+                if let Err(e) = file.rewind().await {
+                  debug_eprintln!("Failed to rewind file: {}", e);
+                  status.replace(422);
+                  (status, Vec::with_capacity(0))
+                } else {
+                  // taken from https://docs.rs/infer/0.9.0/src/infer/lib.rs.html#240-251
+                  let limit = std::cmp::min(metadata.len(), 8192) as usize + 1;
+                  let mut bytes = Vec::with_capacity(limit);
+                  if let Err(e) = file.take(8192).read_to_end(&mut bytes).await {
+                    debug_eprintln!("Failed read file: {}", e);
+                    status.replace(422);
+                  }
+                  (status, bytes)
+                }
+              });
+              if let Some(s) = status {
+                range_metadata.status_code = s;
+              }
+              MimeType::parse(&bytes, &path)
+            }
+          } else {
+            MimeType::parse(&range_metadata.body, &path)
+          };
+          response
+            .mimetype(&mime_type)
+            .status(range_metadata.status_code)
+            .body(range_metadata.body)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
             Ok(data) => {
@@ -653,8 +713,8 @@ impl<R: Runtime> WindowManager<R> {
     } = &self.inner.pattern
     {
       let assets = assets.clone();
-      let schema_ = schema.clone();
-      let url_base = format!("{}://localhost", schema_);
+      let _schema_ = schema.clone();
+      let url_base = format!("{schema}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
       pending.register_uri_scheme_protocol(schema, move |request| {
@@ -753,7 +813,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{}` not found; fallback to {}.html", path, path);
+        eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -825,18 +885,37 @@ impl<R: Runtime> WindowManager<R> {
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     #[cfg(dev)]
-    let url = self.get_url().into_owned();
+    let url = {
+      let mut url = self.get_url().as_str().to_string();
+      if url.ends_with('/') {
+        url.pop();
+      }
+      url
+    };
     #[cfg(not(dev))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
+    #[cfg(dev)]
+    #[derive(Clone)]
+    struct CachedResponse {
+      status: http::StatusCode,
+      headers: http::HeaderMap,
+      body: Vec<u8>,
+    }
+
+    #[cfg(dev)]
+    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+
     Box::new(move |request| {
-      let path = request
-        .uri()
-        .split(&['?', '#'][..])
-        // ignore query string and fragment
-        .next()
-        .unwrap()
+      // use the entire URI as we are going to proxy the request
+      #[cfg(dev)]
+      let path = request.uri();
+      // ignore query string and fragment
+      #[cfg(not(dev))]
+      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+
+      let path = path
         .strip_prefix("tauri://localhost")
         .map(|p| p.to_string())
         // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
@@ -848,20 +927,41 @@ impl<R: Runtime> WindowManager<R> {
 
       #[cfg(dev)]
       let mut response = {
-        let mut url = url.clone();
-        url.set_path(&path);
-        match attohttpc::get(url.as_str())
-          .danger_accept_invalid_certs(true)
-          .send()
-        {
+        use attohttpc::StatusCode;
+        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let url = format!("{url}{decoded_path}");
+        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
+        for (name, value) in request.headers() {
+          proxy_builder = proxy_builder.header(name, value);
+        }
+        match proxy_builder.send() {
           Ok(r) => {
-            for (name, value) in r.headers() {
-              if name == "Content-Type" {
-                builder = builder.mimetype(value.to_str().unwrap());
-              }
+            let mut response_cache_ = response_cache.lock().unwrap();
+            let mut response = None;
+            if r.status() == StatusCode::NOT_MODIFIED {
+              response = response_cache_.get(&url);
+            }
+            let response = if let Some(r) = response {
+              r
+            } else {
+              let (status, headers, reader) = r.split();
+              let body = reader.bytes()?;
+              let response = CachedResponse {
+                status,
+                headers,
+                body,
+              };
+              response_cache_.insert(url.clone(), response);
+              response_cache_.get(&url).unwrap()
+            };
+            for (name, value) in &response.headers {
               builder = builder.header(name, value);
             }
-            builder.status(r.status()).body(r.bytes()?)?
+            builder
+              .status(response.status)
+              .body(response.body.clone())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
@@ -931,7 +1031,7 @@ impl<R: Runtime> WindowManager<R> {
     }
 
     let bundle_script = if with_global_tauri {
-      include_str!("../scripts/bundle.js")
+      include_str!("../scripts/bundle.global.js")
     } else {
       ""
     };
@@ -1116,7 +1216,7 @@ impl<R: Runtime> WindowManager<R> {
           // ignore "index.html" just to simplify the url
           if path.to_str() != Some("index.html") {
             url
-              .join(&*path.to_string_lossy())
+              .join(&path.to_string_lossy())
               .map_err(crate::Error::InvalidUrl)
               // this will never fail
               .unwrap()
@@ -1399,8 +1499,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
-          label
+          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }

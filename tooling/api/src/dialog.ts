@@ -97,6 +97,19 @@ interface MessageDialogOptions {
   title?: string
   /** The type of the dialog. Defaults to `info`. */
   type?: 'info' | 'warning' | 'error'
+  /** The label of the confirm button. */
+  okLabel?: string
+}
+
+interface ConfirmDialogOptions {
+  /** The title of the dialog. Defaults to the app name. */
+  title?: string
+  /** The type of the dialog. Defaults to `info`. */
+  type?: 'info' | 'warning' | 'error'
+  /** The label of the confirm button. */
+  okLabel?: string
+  /** The label of the cancel button. */
+  cancelLabel?: string
 }
 
 /**
@@ -233,7 +246,8 @@ async function message(
       cmd: 'messageDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabel: opts?.okLabel?.toString()
     }
   })
 }
@@ -256,7 +270,7 @@ async function message(
  */
 async function ask(
   message: string,
-  options?: string | MessageDialogOptions
+  options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
@@ -265,7 +279,11 @@ async function ask(
       cmd: 'askDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabels: [
+        opts?.okLabel?.toString() ?? 'Yes',
+        opts?.cancelLabel?.toString() ?? 'No'
+      ]
     }
   })
 }
@@ -288,7 +306,7 @@ async function ask(
  */
 async function confirm(
   message: string,
-  options?: string | MessageDialogOptions
+  options?: string | ConfirmDialogOptions
 ): Promise<boolean> {
   const opts = typeof options === 'string' ? { title: options } : options
   return invokeTauriCommand({
@@ -297,7 +315,11 @@ async function confirm(
       cmd: 'confirmDialog',
       message: message.toString(),
       title: opts?.title?.toString(),
-      type: opts?.type
+      type: opts?.type,
+      buttonLabels: [
+        opts?.okLabel?.toString() ?? 'Ok',
+        opts?.cancelLabel?.toString() ?? 'Cancel'
+      ]
     }
   })
 }
@@ -306,7 +328,8 @@ export type {
   DialogFilter,
   OpenDialogOptions,
   SaveDialogOptions,
-  MessageDialogOptions
+  MessageDialogOptions,
+  ConfirmDialogOptions
 }
 
 export { open, save, message, ask, confirm }

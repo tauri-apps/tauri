@@ -75,6 +75,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
 
   tray_menu1 = tray_menu1
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
 

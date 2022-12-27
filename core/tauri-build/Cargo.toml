@@ -24,7 +24,7 @@ tauri-utils = { version = "1.2.1", path = "../tauri-utils", features = [ "build"
 cargo_toml = "0.13"
 serde_json = "1"
 heck = "0.4"
-json-patch = "0.2"
+json-patch = "0.3"
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"

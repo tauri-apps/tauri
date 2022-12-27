@@ -232,7 +232,7 @@ mod test {
 
   // dummy event handler function
   fn event_fn(s: Event) {
-    println!("{:?}", s);
+    println!("{s:?}");
   }
 
   proptest! {
@@ -304,18 +304,15 @@ pub fn unlisten_js(listeners_object_name: String, event_name: String, event_id: 
   format!(
     "
       (function () {{
-        const listeners = (window['{listeners}'] || {{}})['{event_name}']
+        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
         if (listeners) {{
-          const index = window['{listeners}']['{event_name}'].findIndex(e => e.id === {event_id})
+          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
           if (index > -1) {{
-            window['{listeners}']['{event_name}'].splice(index, 1)
+            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
           }}
         }}
       }})()
     ",
-    listeners = listeners_object_name,
-    event_name = event_name,
-    event_id = event_id,
   )
 }
 
@@ -341,11 +338,7 @@ pub fn listen_js(
         windowLabel: {window_label},
         handler: {handler}
       }};
-      if ({event} == 'tauri://window-created') {{
-        eventListeners.splice(eventListeners.length - 1, 0, listener)
-      }} else {{
-        eventListeners.push(listener);
-      }}
+      eventListeners.push(listener);
     }})()
   ",
     listeners = listeners_object_name,
@@ -353,7 +346,7 @@ pub fn listen_js(
     event_id = event_id,
     window_label = if let Some(l) = window_label {
       crate::runtime::window::assert_label_is_valid(&l);
-      format!("'{}'", l)
+      format!("'{l}'")
     } else {
       "null".to_owned()
     },

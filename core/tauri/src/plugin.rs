@@ -545,7 +545,7 @@ impl<R: Runtime> PluginStore<R> {
       .values()
       .filter_map(|p| p.initialization_script())
       .fold(String::new(), |acc, script| {
-        format!("{}\n(function () {{ {} }})();", acc, script)
+        format!("{acc}\n(function () {{ {script} }})();")
       })
   }
 
@@ -586,9 +586,7 @@ impl<R: Runtime> PluginStore<R> {
         .unwrap_or_else(String::new);
       plugin.extend_api(invoke);
     } else {
-      invoke
-        .resolver
-        .reject(format!("plugin {} not found", target));
+      invoke.resolver.reject(format!("plugin {target} not found"));
     }
   }
 }

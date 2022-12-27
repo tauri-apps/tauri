@@ -74,7 +74,7 @@ pub fn command(mut options: Options) -> Result<()> {
   options.config = merge_config;
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config = get_config(options.config.as_deref())?;
 
@@ -185,8 +185,7 @@ pub fn command(mut options: Options) -> Result<()> {
           }
           None => {
             return Err(anyhow::anyhow!(format!(
-              "Unsupported bundle format: {}",
-              name
+              "Unsupported bundle format: {name}"
             )));
           }
         }
@@ -349,7 +348,7 @@ fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{}` with `sh -c`", script))?;
+      .with_context(|| format!("failed to run `{script}` with `sh -c`"))?;
 
     if !status.success() {
       bail!(
@@ -384,9 +383,9 @@ mod pkgconfig_utils {
 
   pub fn get_appindicator_library_path() -> PathBuf {
     match get_library_path("ayatana-appindicator3-0.1") {
-      Some(p) => format!("{}/libayatana-appindicator3.so.1", p).into(),
+      Some(p) => format!("{p}/libayatana-appindicator3.so.1").into(),
       None => match get_library_path("appindicator3-0.1") {
-        Some(p) => format!("{}/libappindicator3.so.1", p).into(),
+        Some(p) => format!("{p}/libappindicator3.so.1").into(),
         None => panic!("Can't detect any appindicator library"),
       },
     }

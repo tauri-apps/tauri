@@ -156,7 +156,7 @@ where
     .try_init();
 
   if let Err(err) = init_res {
-    eprintln!("Failed to attach logger: {}", err);
+    eprintln!("Failed to attach logger: {err}");
   }
 
   match cli.command {
@@ -204,14 +204,14 @@ impl CommandExt for Command {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.status().map_err(Into::into)
   }
 
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{} {}", acc, arg)));
+    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());

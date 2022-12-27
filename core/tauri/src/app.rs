@@ -1290,8 +1290,7 @@ impl<R: Runtime> Builder<R> {
     let type_name = std::any::type_name::<T>();
     assert!(
       self.state.set(state),
-      "state for type '{}' is already being managed",
-      type_name
+      "state for type '{type_name}' is already being managed"
     );
     self
   }
@@ -1573,6 +1572,9 @@ impl<R: Runtime> Builder<R> {
         WebviewAttributes::new(url).accept_first_mouse(config.accept_first_mouse);
       if let Some(ua) = &config.user_agent {
         webview_attributes = webview_attributes.user_agent(&ua.to_string());
+      }
+      if let Some(args) = &config.additional_browser_args {
+        webview_attributes = webview_attributes.additional_browser_args(&args.to_string());
       }
       if !config.file_drop_enabled {
         webview_attributes = webview_attributes.disable_file_drop_handler();

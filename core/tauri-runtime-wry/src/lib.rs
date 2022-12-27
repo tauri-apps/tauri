@@ -33,6 +33,8 @@ use wry::application::platform::macos::WindowBuilderExtMacOS;
 use wry::application::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use wry::application::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
+#[cfg(windows)]
+use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
@@ -62,7 +64,7 @@ use wry::{
     },
   },
   http::{Request as WryRequest, Response as WryResponse},
-  webview::{FileDropEvent as WryFileDropEvent, WebContext, WebView, WebViewBuilder},
+  webview::{FileDropEvent as WryFileDropEvent, Url, WebContext, WebView, WebViewBuilder},
 };
 
 pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, WindowId};
@@ -79,6 +81,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -284,7 +287,7 @@ impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
 }
 
 // response
-struct HttpResponseWrapper(WryResponse<Vec<u8>>);
+struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
@@ -298,7 +301,7 @@ impl From<HttpResponse> for HttpResponseWrapper {
       res_builder = res_builder.header(name, val);
     }
 
-    let res = res_builder.body(body).unwrap();
+    let res = res_builder.body(Cow::Owned(body)).unwrap();
     Self(res)
   }
 }
@@ -1035,6 +1038,7 @@ pub enum WindowMessage {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   IsDevToolsOpen(Sender<bool>),
   // Getters
+  Url(Sender<Url>),
   ScaleFactor(Sender<f64>),
   InnerPosition(Sender<Result<PhysicalPosition<i32>>>),
   OuterPosition(Sender<Result<PhysicalPosition<i32>>>),
@@ -1235,6 +1239,10 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   // Getters
+
+  fn url(&self) -> Result<Url> {
+    window_getter!(self, WindowMessage::Url)
+  }
 
   fn scale_factor(&self) -> Result<f64> {
     window_getter!(self, WindowMessage::ScaleFactor)
@@ -2360,6 +2368,11 @@ fn handle_user_message<T: UserEvent>(
               }
             }
             // Getters
+            WindowMessage::Url(tx) => {
+              if let WindowHandle::Webview { inner: w, .. } = &window {
+                tx.send(w.url()).unwrap();
+              }
+            }
             WindowMessage::ScaleFactor(tx) => tx.send(window.scale_factor()).unwrap(),
             WindowMessage::InnerPosition(tx) => tx
               .send(
@@ -3048,9 +3061,20 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder
       .with_file_drop_handler(create_file_drop_handler(window_event_listeners.clone()));
   }
+  if let Some(navigation_handler) = pending.navigation_handler {
+    webview_builder = webview_builder.with_navigation_handler(move |url| {
+      Url::parse(&url).map(&navigation_handler).unwrap_or(true)
+    });
+  }
   if let Some(user_agent) = webview_attributes.user_agent {
     webview_builder = webview_builder.with_user_agent(&user_agent);
   }
+
+  #[cfg(windows)]
+  if let Some(additional_browser_args) = webview_attributes.additional_browser_args {
+    webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
+  }
+
   if let Some(handler) = ipc_handler {
     webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
       context,

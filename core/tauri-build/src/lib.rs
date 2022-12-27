@@ -35,8 +35,8 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(
-  binaries: ResourcePaths<'a>,
+fn copy_binaries(
+  binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
   package_name: Option<&String>,
@@ -48,7 +48,7 @@ fn copy_binaries<'a>(
       .file_name()
       .expect("failed to extract external binary filename")
       .to_string_lossy()
-      .replace(&format!("-{}", target_triple), "");
+      .replace(&format!("-{target_triple}"), "");
 
     if package_name.map_or(false, |n| n == &file_name) {
       return Err(anyhow::anyhow!(
@@ -72,7 +72,7 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(resource_relpath(&src));
-    copy_file(&src, &dest)?;
+    copy_file(&src, dest)?;
   }
   Ok(())
 }
@@ -90,7 +90,7 @@ fn has_feature(feature: &str) -> bool {
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 
@@ -110,6 +110,15 @@ pub struct WindowsAttributes {
   ///
   /// If it is left unset, it will look up a path in the registry, i.e. HKLM\SOFTWARE\Microsoft\Windows Kits\Installed Roots
   sdk_dir: Option<PathBuf>,
+  /// A string containing an [application manifest] to be included with the application on Windows.
+  ///
+  /// Defaults to:
+  /// ```ignore
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// ```
+  ///
+  /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+  app_manifest: Option<String>,
 }
 
 impl WindowsAttributes {
@@ -133,6 +142,45 @@ impl WindowsAttributes {
   #[must_use]
   pub fn sdk_dir<P: AsRef<Path>>(mut self, sdk_dir: P) -> Self {
     self.sdk_dir = Some(sdk_dir.as_ref().into());
+    self
+  }
+
+  /// Sets the Windows app [manifest].
+  ///
+  /// # Example
+  ///
+  /// The following manifest will brand the exe as requesting administrator privileges.
+  /// Thus, everytime it is executed, a Windows UAC dialog will appear.
+  ///
+  /// Note that you can move the manifest contents to a separate file and use `include_str!("manifest.xml")`
+  /// instead of the inline string.
+  ///
+  /// ```rust,no_run
+  /// let mut windows = tauri_build::WindowsAttributes::new();
+  /// windows = windows.app_manifest(r#"
+  /// <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  /// <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+  ///     <security>
+  ///         <requestedPrivileges>
+  ///             <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+  ///         </requestedPrivileges>
+  ///     </security>
+  /// </trustInfo>
+  /// </assembly>
+  /// "#);
+  /// tauri_build::try_build(
+  ///   tauri_build::Attributes::new().windows_attributes(windows)
+  /// ).expect("failed to run build script");
+  /// ```
+  ///
+  /// Defaults to:
+  /// ```ignore
+  #[doc = include_str!("window-app-manifest.xml")]
+  /// [manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+  /// ```
+  #[must_use]
+  pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
+    self.app_manifest = Some(manifest.as_ref().to_string());
     self
   }
 }
@@ -179,8 +227,8 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    let error = format!("{:#}", error);
-    println!("{}", error);
+    let error = format!("{error:#}");
+    println!("{error}");
     if error.starts_with("unknown field") {
       print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
       println!(
@@ -336,24 +384,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if window_icon_path.exists() {
       let mut res = WindowsResource::new();
 
-      res.set_manifest(
-        r#"
-        <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-          <dependency>
-              <dependentAssembly>
-                  <assemblyIdentity
-                      type="win32"
-                      name="Microsoft.Windows.Common-Controls"
-                      version="6.0.0.0"
-                      processorArchitecture="*"
-                      publicKeyToken="6595b64144ccf1df"
-                      language="*"
-                  />
-              </dependentAssembly>
-          </dependency>
-        </assembly>
-        "#,
-      );
+      if let Some(manifest) = attributes.windows_attributes.app_manifest {
+        res.set_manifest(&manifest);
+      } else {
+        res.set_manifest(include_str!("window-app-manifest.xml"));
+      }
 
       if let Some(sdk_dir) = &attributes.windows_attributes.sdk_dir {
         if let Some(sdk_dir_str) = sdk_dir.to_str() {

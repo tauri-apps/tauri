@@ -397,4 +397,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
-          RELEASE_ID: ${{ github.event.inputs.releaseId }}
+          RELEASE_ID: ${{ github.event.client_payload.releaseId || github.event.inputs.releaseId }}

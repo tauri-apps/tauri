@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function () {
+; (function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -147,15 +147,6 @@
             }
           }
         }
-      })
-    }
-  })
-
-  listen('tauri://window-created', function (event) {
-    if (event.payload) {
-      var windowLabel = event.payload.label
-      window.__TAURI_METADATA__.__windows.push({
-        label: windowLabel
       })
     }
   })

@@ -114,7 +114,9 @@ android_logger = "0.9"
 log = "0.4"
 
 [target."cfg(target_os = \"ios\")".dependencies]
-env_logger = "0.9.0"
+oslog = "0.2"
+log = "0.4"
+libc = "0.2"
 
 [build-dependencies]
 heck = "0.4"

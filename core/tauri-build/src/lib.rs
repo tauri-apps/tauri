@@ -233,6 +233,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
   domain.pop();
+  android_package_prefix.pop();
   println!("cargo:rustc-env=TAURI_MOBILE_DOMAIN={domain}");
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
 

@@ -23,11 +23,12 @@ macro_rules! message_dialog {
       level: Option<MessageDialogType>,
       button_labels: $button_labels_type,
     ) -> super::Result<bool> {
+      let determine_button = $buttons;
       let mut builder = crate::api::dialog::blocking::MessageDialogBuilder::new(
         title.unwrap_or_else(|| context.window.app_handle.package_info().name.clone()),
         message,
       )
-      .buttons(($buttons)(button_labels));
+      .buttons(determine_button(button_labels));
       #[cfg(any(windows, target_os = "macos"))]
       {
         builder = builder.parent(&context.window);
@@ -265,7 +266,7 @@ impl Cmd {
     Option<String>,
     |label: Option<String>| {
       label
-        .map(|l| crate::api::dialog::MessageDialogButtons::OkWithLabel(l))
+        .map(crate::api::dialog::MessageDialogButtons::OkWithLabel)
         .unwrap_or(crate::api::dialog::MessageDialogButtons::Ok)
     }
   );

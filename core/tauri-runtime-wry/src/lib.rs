@@ -3037,6 +3037,9 @@ fn create_webview<T: UserEvent>(
       .with_drag_and_drop(webview_attributes.file_drop_handler_enabled);
   }
 
+  #[cfg(windows)]
+  let window_theme = window_builder.inner.window.preferred_theme;
+
   #[cfg(target_os = "macos")]
   {
     if window_builder.tabbing_identifier.is_none()
@@ -3088,7 +3091,7 @@ fn create_webview<T: UserEvent>(
   }
 
   #[cfg(windows)]
-  if let Some(theme) = webview_attributes.theme {
+  if let Some(theme) = window_theme {
     webview_builder = webview_builder.with_theme(match theme {
       Theme::Dark => wry::webview::Theme::Dark,
       _ => wry::webview::Theme::Light,

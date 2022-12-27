@@ -234,6 +234,27 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WindowUrl},
+  ///   http::header::HeaderValue,
+  ///   window::WindowBuilder,
+  /// };
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     WindowBuilder::new(app, "core", WindowUrl::App("index.html".into()))
+  ///       .on_navigation(|url| {
+  ///         // allow the production URL or localhost on dev
+  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn on_navigation<F: Fn(Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
     self

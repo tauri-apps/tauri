@@ -81,6 +81,7 @@ pub use wry::application::platform::macos::{
 };
 
 use std::{
+  borrow::Cow,
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
@@ -286,7 +287,7 @@ impl From<&WryRequest<Vec<u8>>> for HttpRequestWrapper {
 }
 
 // response
-struct HttpResponseWrapper(WryResponse<Vec<u8>>);
+struct HttpResponseWrapper(WryResponse<Cow<'static, [u8]>>);
 impl From<HttpResponse> for HttpResponseWrapper {
   fn from(response: HttpResponse) -> Self {
     let (parts, body) = response.into_parts();
@@ -300,7 +301,7 @@ impl From<HttpResponse> for HttpResponseWrapper {
       res_builder = res_builder.header(name, val);
     }
 
-    let res = res_builder.body(body).unwrap();
+    let res = res_builder.body(Cow::Owned(body)).unwrap();
     Self(res)
   }
 }

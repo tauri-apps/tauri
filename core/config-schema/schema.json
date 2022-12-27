@@ -48,14 +48,16 @@
           },
           "fs": {
             "all": false,
+            "close": false,
             "copyFile": false,
-            "createDir": false,
+            "create": false,
             "exists": false,
+            "mkdir": false,
+            "open": false,
             "readDir": false,
             "readFile": false,
-            "removeDir": false,
-            "removeFile": false,
-            "renameFile": false,
+            "remove": false,
+            "rename": false,
             "scope": [],
             "writeFile": false
           },
@@ -323,14 +325,16 @@
             },
             "fs": {
               "all": false,
+              "close": false,
               "copyFile": false,
-              "createDir": false,
+              "create": false,
               "exists": false,
+              "mkdir": false,
+              "open": false,
               "readDir": false,
               "readFile": false,
-              "removeDir": false,
-              "removeFile": false,
-              "renameFile": false,
+              "remove": false,
+              "rename": false,
               "scope": [],
               "writeFile": false
             },
@@ -1656,14 +1660,16 @@
           "description": "File system API allowlist.",
           "default": {
             "all": false,
+            "close": false,
             "copyFile": false,
-            "createDir": false,
+            "create": false,
             "exists": false,
+            "mkdir": false,
+            "open": false,
             "readDir": false,
             "readFile": false,
-            "removeDir": false,
-            "removeFile": false,
-            "renameFile": false,
+            "remove": false,
+            "rename": false,
             "scope": [],
             "writeFile": false
           },
@@ -1895,28 +1901,38 @@
           "default": false,
           "type": "boolean"
         },
-        "createDir": {
-          "description": "Create directory from local filesystem.",
+        "mkdir": {
+          "description": "Create directory in local filesystem.",
           "default": false,
           "type": "boolean"
         },
-        "removeDir": {
-          "description": "Remove directory from local filesystem.",
+        "remove": {
+          "description": "Remove a directory or file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
-        "removeFile": {
-          "description": "Remove file from local filesystem.",
-          "default": false,
-          "type": "boolean"
-        },
-        "renameFile": {
+        "rename": {
           "description": "Rename file from local filesystem.",
           "default": false,
           "type": "boolean"
         },
+        "create": {
+          "description": "Create file on local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
+        "open": {
+          "description": "Open file from local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
+        "close": {
+          "description": "Close file from local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
         "exists": {
-          "description": "Check if path exists on the local filesystem.",
+          "description": "Check if path exists.",
           "default": false,
           "type": "boolean"
         }

@@ -3,4 +3,4 @@
 "tauri": "major"
 ---
 
-**Breaking change** Removed `DiskEtry` struct from `tauri::api::dir`. Use `DirEntry` instead.
+**Breaking change** Removed `DiskEtnry` struct from `tauri::api::dir`. Use `DirEntry` instead.

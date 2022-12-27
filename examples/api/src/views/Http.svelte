@@ -1,5 +1,5 @@
 <script>
-  import { getClient, Body, ResponseType } from '@tauri-apps/api/http'
+  import { fetch as tauriFetch } from '@tauri-apps/api/http'
   import { JsonView } from '@zerodevx/svelte-json-view'
 
   let httpMethod = 'GET'
@@ -8,10 +8,6 @@
   export let onMessage
 
   async function makeHttpRequest() {
-    const client = await getClient().catch((e) => {
-      onMessage(e)
-      throw e
-    })
     let method = httpMethod || 'GET'
 
     const options = {
@@ -28,7 +24,7 @@
       options.body = Body.text(httpBody)
     }
 
-    client.request(options).then(onMessage).catch(onMessage)
+    tauriFetch(options).then(onMessage).catch(onMessage)
   }
 
   /// http form
@@ -38,12 +34,7 @@
   let multipart = true
 
   async function doPost() {
-    const client = await getClient().catch((e) => {
-      onMessage(e)
-      throw e
-    })
-
-    result = await client.request({
+    result = await tauriFetch({
       url: 'http://localhost:3003',
       method: 'POST',
       body: Body.form({

@@ -14,21 +14,13 @@
     <div id="response"></div>
 
     <script>
-      var WebviewWindow = window.__TAURI__.window.WebviewWindow
+      var Window = window.__TAURI__.window.Window
       var thisTauriWindow = window.__TAURI__.window.getCurrent()
       var windowLabel = thisTauriWindow.label
       var windowLabelContainer = document.getElementById('window-label')
       windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
 
-<<<<<<< HEAD
-  <script>
-    var thisTauriWindow = window.__TAURI__.window.getCurrent()
-    var windowLabel = thisTauriWindow.label
-    var windowLabelContainer = document.getElementById('window-label')
-    windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
-=======
       var container = document.getElementById('container')
->>>>>>> next
 
       var responseContainer = document.getElementById('response')
       function runCommand(commandName, args, optional) {
@@ -49,13 +41,6 @@
       var windowId = Math.random().toString().replace('.', '')
       var windowNumber = 1
       createWindowButton.innerHTML = 'Create child window ' + windowNumber
-<<<<<<< HEAD
-    })
-    container.appendChild(createWindowButton)
-  </script>
-</body>
-
-=======
       createWindowButton.addEventListener('click', function () {
         runCommand('create_child_window', {
           id: `child-${windowId}-${windowNumber}`
@@ -66,5 +51,4 @@
       container.appendChild(createWindowButton)
     </script>
   </body>
->>>>>>> next
 </html>

@@ -48,13 +48,12 @@
           },
           "fs": {
             "all": false,
+            "close": false,
             "copyFile": false,
-<<<<<<< HEAD
-            "mkdir": false,
-=======
-            "createDir": false,
+            "create": false,
             "exists": false,
->>>>>>> next
+            "mkdir": false,
+            "open": false,
             "readDir": false,
             "readFile": false,
             "remove": false,
@@ -326,13 +325,12 @@
             },
             "fs": {
               "all": false,
+              "close": false,
               "copyFile": false,
-<<<<<<< HEAD
-              "mkdir": false,
-=======
-              "createDir": false,
+              "create": false,
               "exists": false,
->>>>>>> next
+              "mkdir": false,
+              "open": false,
               "readDir": false,
               "readFile": false,
               "remove": false,
@@ -1662,13 +1660,12 @@
           "description": "File system API allowlist.",
           "default": {
             "all": false,
+            "close": false,
             "copyFile": false,
-<<<<<<< HEAD
-            "mkdir": false,
-=======
-            "createDir": false,
+            "create": false,
             "exists": false,
->>>>>>> next
+            "mkdir": false,
+            "open": false,
             "readDir": false,
             "readFile": false,
             "remove": false,
@@ -1919,8 +1916,23 @@
           "default": false,
           "type": "boolean"
         },
+        "create": {
+          "description": "Create file on local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
+        "open": {
+          "description": "Open file from local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
+        "close": {
+          "description": "Close file from local filesystem.",
+          "default": false,
+          "type": "boolean"
+        },
         "exists": {
-          "description": "Check if path exists on the local filesystem.",
+          "description": "Check if path exists.",
           "default": false,
           "type": "boolean"
         }

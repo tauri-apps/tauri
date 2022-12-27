@@ -231,7 +231,7 @@ pub(crate) enum Cmd {
   #[cmd(fs_exists, "fs > exists")]
   Exists {
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<GenericOptions>,
   },
 }
 
@@ -580,7 +580,7 @@ impl Cmd {
       true,
     )?;
 
-    let metadata = fs::metadata(&resolved_path)?;
+    let metadata = fs::metadata(resolved_path)?;
     Ok(get_stat(metadata))
   }
 
@@ -598,7 +598,7 @@ impl Cmd {
       options.as_ref().and_then(|o| o.base_dir),
       false,
     )?;
-    let metadata = fs::symlink_metadata(&resolved_path)?;
+    let metadata = fs::symlink_metadata(resolved_path)?;
     Ok(get_stat(metadata))
   }
 
@@ -630,7 +630,7 @@ impl Cmd {
 
     let f = std::fs::OpenOptions::new()
       .write(true)
-      .open(&resolved_path)?;
+      .open(resolved_path)?;
     f.set_len(len.unwrap_or(0)).map_err(into_anyhow)
   }
   #[module_command_handler(fs_write_file)]
@@ -683,14 +683,15 @@ impl Cmd {
   fn exists<R: Runtime>(
     context: InvokeContext<R>,
     path: SafePathBuf,
-    options: Option<FileOperationOptions>,
+    options: Option<GenericOptions>,
   ) -> super::Result<bool> {
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
       &context.window,
       path,
-      options.and_then(|o| o.dir),
+      options.as_ref().and_then(|o| o.base_dir),
+      true,
     )?;
     Ok(resolved_path.as_ref().exists())
   }
@@ -1052,7 +1053,7 @@ mod tests {
 
   #[tauri_macros::module_command_test(fs_exists, "fs > exists")]
   #[quickcheck_macros::quickcheck]
-  fn exists(path: SafePathBuf, options: Option<FileOperationOptions>) {
+  fn exists(path: SafePathBuf, options: Option<GenericOptions>) {
     let res = super::Cmd::exists(crate::test::mock_invoke_context(), path, options);
     crate::test_utils::assert_not_allowlist_error(res);
   }

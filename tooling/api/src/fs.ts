@@ -224,7 +224,7 @@ interface FileInfo {
   blocks: number | null
 }
 
-function parseFileInfo(response: {
+interface UnparsedFileInfo {
   isFile: boolean
   isDirectory: boolean
   isSymlink: boolean
@@ -241,7 +241,8 @@ function parseFileInfo(response: {
   rdev: number
   blksize: number
   blocks: number
-}): FileInfo {
+}
+function parseFileInfo(response: UnparsedFileInfo): FileInfo {
   const unix = !isWindows()
   return {
     isFile: response.isFile,
@@ -871,7 +872,7 @@ async function stat(
   path: string | URL,
   options?: StatOptions
 ): Promise<FileInfo> {
-  const res = await invokeTauriCommand({
+  const res = await invokeTauriCommand<UnparsedFileInfo>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'stat',
@@ -880,7 +881,7 @@ async function stat(
     }
   })
 
-  return parseFileInfo(res as any)
+  return parseFileInfo(res)
 }
 
 /**
@@ -899,7 +900,7 @@ async function lstat(
   path: string | URL,
   options?: StatOptions
 ): Promise<FileInfo> {
-  const res = await invokeTauriCommand({
+  const res = await invokeTauriCommand<UnparsedFileInfo>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'lstat',
@@ -908,7 +909,7 @@ async function lstat(
     }
   })
 
-  return parseFileInfo(res as any)
+  return parseFileInfo(res)
 }
 
 /**
@@ -923,7 +924,7 @@ async function lstat(
  * ```
  */
 async function fstat(rid: number): Promise<FileInfo> {
-  const res = await invokeTauriCommand({
+  const res = await invokeTauriCommand<UnparsedFileInfo>({
     __tauriModule: 'Fs',
     message: {
       cmd: 'fstat',
@@ -931,7 +932,7 @@ async function fstat(rid: number): Promise<FileInfo> {
     }
   })
 
-  return parseFileInfo(res as any)
+  return parseFileInfo(res)
 }
 
 interface TruncateOptions {

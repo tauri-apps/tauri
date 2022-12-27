@@ -17,7 +17,7 @@ use crate::{
   endpoints::file_system::resolve_path,
   Error, Runtime,
 };
-use futures::Future;
+use futures_util::Future;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};

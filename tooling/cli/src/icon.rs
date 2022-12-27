@@ -30,6 +30,20 @@ struct IcnsEntry {
   ostype: String,
 }
 
+struct PngTarget {
+  size: u32,
+  file_name: String,
+}
+
+impl PngTarget {
+  fn new(size: u32, file_name: impl Into<String>) -> Self {
+    Self {
+      size,
+      file_name: file_name.into(),
+    }
+  }
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Generates various icons for all major platforms")]
 pub struct Options {
@@ -42,15 +56,15 @@ pub struct Options {
   #[clap(short, long)]
   output: Option<PathBuf>,
 
-  /// Extra PNG icon sizes.
+  /// Custom PNG icon sizes to generate. When set, the default icons are not generated.
   #[clap(short, long, use_value_delimiter = true)]
-  extra_png: Option<Vec<u32>>,
+  png: Option<Vec<u32>>,
 }
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
-  let extra_png_icon_sizes = options.extra_png.unwrap_or_default();
+  let png_icon_sizes = options.png.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   let source = open(input)
@@ -63,13 +77,32 @@ pub fn command(options: Options) -> Result<()> {
     panic!("Source image must be square");
   }
 
-  appx(&source, &out_dir).context("Failed to generate appx icons")?;
+  if png_icon_sizes.is_empty() {
+    appx(&source, &out_dir).context("Failed to generate appx icons")?;
+    icns(&source, &out_dir).context("Failed to generate .icns file")?;
+    ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  icns(&source, &out_dir).context("Failed to generate .icns file")?;
-
-  ico(&source, &out_dir).context("Failed to generate .ico file")?;
-
-  png(&source, &out_dir, extra_png_icon_sizes).context("Failed to generate png icons")?;
+    let mut png_targets = vec![
+      PngTarget::new(256, "128x128@2x.png"),
+      PngTarget::new(512, "icon.png"),
+    ];
+    png_targets.extend(
+      [32, 128]
+        .into_iter()
+        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .collect::<Vec<PngTarget>>(),
+    );
+    png(&source, &out_dir, png_targets).context("Failed to generate png icons")?;
+  } else {
+    png(
+      &source,
+      &out_dir,
+      png_icon_sizes
+        .into_iter()
+        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .collect(),
+    )?;
+  }
 
   Ok(())
 }
@@ -157,16 +190,10 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, extra_png_icon_sizes: Vec<u32>) -> Result<()> {
-  log::info!(action = "PNG"; "Creating {}", "128x128@2x.png");
-  resize_and_save_png(source, 256, &out_dir.join("128x128@2x.png"))?;
-  log::info!(action = "PNG"; "Creating {}", "icon.png");
-  resize_and_save_png(source, 512, &out_dir.join("icon.png"))?;
-
-  for size in [32, 128].into_iter().chain(extra_png_icon_sizes) {
-    let file_name = format!("{}x{}.png", size, size);
-    log::info!(action = "PNG"; "Creating {}", file_name);
-    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
+fn png(source: &DynamicImage, out_dir: &Path, targets: Vec<PngTarget>) -> Result<()> {
+  for target in targets {
+    log::info!(action = "PNG"; "Creating {}", target.file_name);
+    resize_and_save_png(source, target.size, &out_dir.join(&target.file_name))?;
   }
 
   Ok(())

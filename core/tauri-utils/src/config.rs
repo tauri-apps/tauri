@@ -1118,6 +1118,9 @@ pub struct ExternalCommandAccessScope {
   /// The list of plugins that are allowed in this scope.
   #[serde(default)]
   pub plugins: Vec<String>,
+  /// Disable access to the Tauri API.
+  #[serde(default, rename = "disableTauriAPI", alias = "disable-tauri-api")]
+  pub disable_tauri_api: bool,
 }
 
 /// Security configuration.
@@ -3479,8 +3482,16 @@ mod build {
       let url = url_lit(&self.url);
       let windows = vec_lit(&self.windows, str_lit);
       let plugins = vec_lit(&self.plugins, str_lit);
+      let disable_tauri_api = self.disable_tauri_api;
 
-      literal_struct!(tokens, ExternalCommandAccessScope, url, windows, plugins);
+      literal_struct!(
+        tokens,
+        ExternalCommandAccessScope,
+        url,
+        windows,
+        plugins,
+        disable_tauri_api
+      );
     }
   }
 

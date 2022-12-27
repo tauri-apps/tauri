@@ -201,6 +201,7 @@ pub struct ExternalCommandAccessScope {
   pub url: glob::Pattern,
   pub windows: Vec<String>,
   pub plugins: Vec<String>,
+  pub disable_tauri_api: bool,
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -323,6 +324,7 @@ impl<R: Runtime> WindowManager<R> {
         url: glob::Pattern::new(s.url.as_str()).expect("invalid external command access scope"),
         windows: s.windows,
         plugins: s.plugins,
+        disable_tauri_api: s.disable_tauri_api,
       })
       .collect();
 

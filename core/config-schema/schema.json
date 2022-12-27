@@ -2584,6 +2584,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "disableTauriAPI": {
+          "description": "Disable access to the Tauri API.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

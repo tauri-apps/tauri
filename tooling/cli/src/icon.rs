@@ -42,15 +42,15 @@ pub struct Options {
   #[clap(short, long)]
   output: Option<PathBuf>,
 
-  /// Extra icon sizes.
+  /// Extra PNG icon sizes.
   #[clap(short, long, use_value_delimiter = true)]
-  extra: Option<Vec<u32>>,
+  extra_png: Option<Vec<u32>>,
 }
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
-  let extra_icon_sizes = options.extra.unwrap_or_default();
+  let extra_png_icon_sizes = options.extra_png.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
   let source = open(input)
@@ -69,7 +69,7 @@ pub fn command(options: Options) -> Result<()> {
 
   ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  png(&source, &out_dir, extra_icon_sizes).context("Failed to generate png icons")?;
+  png(&source, &out_dir, extra_png_icon_sizes).context("Failed to generate png icons")?;
 
   Ok(())
 }
@@ -157,13 +157,13 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path, extra_icon_sizes: Vec<u32>) -> Result<()> {
+fn png(source: &DynamicImage, out_dir: &Path, extra_png_icon_sizes: Vec<u32>) -> Result<()> {
   log::info!(action = "PNG"; "Creating {}", "128x128@2x.png");
   resize_and_save_png(source, 256, &out_dir.join("128x128@2x.png".to_string()))?;
   log::info!(action = "PNG"; "Creating {}", "icon.png");
   resize_and_save_png(source, 512, &out_dir.join("icon.png".to_string()))?;
 
-  for size in [32, 128].into_iter().chain(extra_icon_sizes) {
+  for size in [32, 128].into_iter().chain(extra_png_icon_sizes) {
     let file_name = format!("{}x{}.png", size, size);
     log::info!(action = "PNG"; "Creating {}", file_name);
     resize_and_save_png(source, size, &out_dir.join(&file_name))?;

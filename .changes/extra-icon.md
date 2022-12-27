@@ -3,4 +3,4 @@
 "cli.js": minor
 ---
 
-Add --extra option for tauri icon cli to generate additional custom icon sizes.
+Add `--extra-png` option for tauri icon cli to generate additional custom icon sizes.

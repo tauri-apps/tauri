@@ -2857,6 +2857,7 @@ fn handle_event_loop<T: UserEvent>(
               if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
                 let theme = match theme {
                   WryTheme::Dark => wry::webview::Theme::Dark,
+                  WryTheme::Light => wry::webview::Theme::Light,
                   _ => wry::webview::Theme::Light,
                 };
                 inner.set_theme(theme);
@@ -3093,7 +3094,8 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   if let Some(theme) = window_theme {
     webview_builder = webview_builder.with_theme(match theme {
-      Theme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Dark => wry::webview::Theme::Dark,
+      WryTheme::Light => wry::webview::Theme::Light,
       _ => wry::webview::Theme::Light,
     });
   }

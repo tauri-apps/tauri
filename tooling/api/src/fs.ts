@@ -590,7 +590,6 @@ interface DirEntry {
  * const dir = "users"
  * const entries = await readDir('users', { baseDir: BaseDirectory.App });
  * processEntriesRecursive(dir, entries);
- *
  * async function processEntriesRecursive(parent, entries) {
  *   for (const entry of entries) {
  *     console.log(`Entry: ${entry.name}`);
@@ -668,7 +667,8 @@ interface ReadFileOptions {
 }
 
 /**
- * Reads and resolves to the entire contents of a file as an array of bytes. TextDecoder can be used to transform the bytes to string if required.
+ * Reads and resolves to the entire contents of a file as an array of bytes.
+ * TextDecoder can be used to transform the bytes to string if required.
  * @example
  * ```typescript
  * import { readFile, BaseDirectory } from '@tauri-apps/api/fs';
@@ -717,6 +717,66 @@ async function readTextFile(
       cmd: 'readTextFile',
       path: path instanceof URL ? path.toString() : path,
       options
+    }
+  })
+}
+
+/**
+ * Returns an async {@link AsyncIterableIterator } over the lines of a file as UTF-8 string.
+ * @example
+ * ```typescript
+ * import { readTextFileLines, BaseDirectory } from '@tauri-apps/api/fs';
+ * const lines = await readTextFileLines('app.conf', { baseDir: BaseDirectory.App });
+ * for await (const line of lines) {
+ *   console.log(line);
+ * }
+ * ```
+ * You could also call {@link AsyncIterableIterator.next | `AsyncIterableIterator.next()` } to advance the
+ * iterator so you can lazily read the next line whenever you want.
+ */
+async function readTextFileLines(
+  path: string | URL,
+  options?: ReadFileOptions
+): Promise<AsyncIterableIterator<string>> {
+  if (path instanceof URL && path.protocol !== 'file:') {
+    throw new TypeError('Must be a file URL.')
+  }
+
+  const pathStr = path instanceof URL ? path.toString() : path
+
+  return Promise.resolve({
+    path: pathStr,
+    rid: null as number | null,
+    async next(): Promise<IteratorResult<string>> {
+      if (!this.rid) {
+        this.rid = await invokeTauriCommand<number>({
+          __tauriModule: 'Fs',
+          message: {
+            cmd: 'readTextFileLines',
+            path: pathStr,
+            options
+          }
+        })
+      }
+
+      const [line, done] = await invokeTauriCommand<[string | null, boolean]>({
+        __tauriModule: 'Fs',
+        message: {
+          cmd: 'readTextFileLinesNext',
+          rid: this.rid
+        }
+      })
+
+      // an iteration is over, reset rid for next iteration
+      if (done) this.rid = null
+
+      return {
+        value: done ? '' : (line as string),
+        done
+      }
+    },
+    [Symbol.asyncIterator](): AsyncIterableIterator<string> {
+      return this
     }
   })
 }
@@ -1171,6 +1231,7 @@ export {
   readDir,
   readFile,
   readTextFile,
+  readTextFileLines,
   remove,
   rename,
   SeekMode,

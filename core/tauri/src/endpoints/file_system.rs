@@ -44,9 +44,11 @@ use std::{
 /// Resource id
 type Rid = u32;
 type FsFileStore = Arc<Mutex<HashMap<Rid, File>>>;
+type FsFileLinesStore = Arc<Mutex<HashMap<Rid, io::Lines<io::BufReader<File>>>>>;
 
 static RID_COUNTER: AtomicCounter = AtomicCounter::new();
 static FILES_STORE: Lazy<FsFileStore> = Lazy::new(Default::default);
+static FILES_LINES_STORE: Lazy<FsFileLinesStore> = Lazy::new(Default::default);
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -169,6 +171,13 @@ pub(crate) enum Cmd {
     path: SafePathBuf,
     options: Option<GenericOptions>,
   },
+  #[cmd(fs_read_file, "fs > readFile")]
+  ReadTextFileLines {
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  },
+  #[cmd(fs_read_file, "fs > readFile")]
+  ReadTextFileLinesNext { rid: Rid },
   /// The remove API.
   #[cmd(fs_remove, "fs > remove")]
   Remove {
@@ -459,6 +468,52 @@ impl Cmd {
     file::read_string(&resolved_path)
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(Into::into)
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn read_text_file_lines<R: Runtime>(
+    context: InvokeContext<R>,
+    path: SafePathBuf,
+    options: Option<GenericOptions>,
+  ) -> super::Result<Rid> {
+    use io::{BufRead, BufReader};
+
+    let resolved_path = resolve_path(
+      &context.config,
+      &context.package_info,
+      &context.window,
+      path,
+      options.as_ref().and_then(|o| o.base_dir),
+      true,
+    )?;
+
+    let file = File::open(resolved_path)?;
+    let rid = RID_COUNTER.next();
+    let lines = BufReader::new(file).lines();
+    FILES_LINES_STORE.lock().unwrap().insert(rid, lines);
+
+    Ok(rid)
+  }
+
+  #[module_command_handler(fs_read_file)]
+  fn read_text_file_lines_next<R: Runtime>(
+    _context: InvokeContext<R>,
+    rid: Rid,
+  ) -> super::Result<(Option<String>, bool)> {
+    let mut store = FILES_LINES_STORE.lock().unwrap();
+    let lines = store.get_mut(&rid).with_context(|| {
+      format!(
+        "Iterator has already been consumed or incorrect file rid: {}",
+        rid
+      )
+    })?;
+
+    let ret = lines.next().map(|a| (a.ok(), false)).unwrap_or_else(|| {
+      store.remove(&rid);
+      (None, true)
+    });
+
+    Ok(ret)
   }
 
   #[module_command_handler(fs_remove)]

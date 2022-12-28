@@ -1029,9 +1029,9 @@ checksum = "21dec9db110f5f872ed9699c3ecf50cf16f423502706ba5c72462e28d3157573"
 
 [[package]]
 name = "ico"
-version = "0.3.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3804960be0bb5e4edb1e1ad67afd321a9ecfd875c3e65c099468fd2717d7cae"
+checksum = "031530fe562d8c8d71c0635013d6d155bbfe8ba0aa4b4d2d24ce8af6b71047bd"
 dependencies = [
  "byteorder",
  "png",
@@ -1175,8 +1175,19 @@ checksum = "e712e62827c382a77b87f590532febb1f8b2fdbc3eefa1ee37fe7281687075ef"
 dependencies = [
  "serde",
  "serde_json",
+ "treediff 3.0.2",
+]
+
+[[package]]
+name = "json-patch"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e712e62827c382a77b87f590532febb1f8b2fdbc3eefa1ee37fe7281687075ef"
+dependencies = [
+ "serde",
+ "serde_json",
  "thiserror",
- "treediff",
+ "treediff 4.0.2",
 ]
 
 [[package]]
@@ -2281,9 +2292,8 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704522803dda895767f69198af8351b0a3f4fe2e293c3ca54cce0ecba05a97f2"
+version = "0.15.8"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#b3aa3982d18a1ca2c8f08a135d7256b1aca46369"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -2327,9 +2337,8 @@ dependencies = [
 
 [[package]]
 name = "tao-macros"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b6fcd8245d45a39ffc8715183d92ae242750eb57b285eb3bcd63dfd512afd09"
+version = "0.0.0"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#b3aa3982d18a1ca2c8f08a135d7256b1aca46369"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2400,7 +2409,7 @@ dependencies = [
  "anyhow",
  "cargo_toml",
  "heck 0.4.0",
- "json-patch",
+ "json-patch 0.3.0",
  "quote",
  "semver 1.0.16",
  "serde_json",
@@ -2416,7 +2425,7 @@ dependencies = [
  "base64 0.20.0",
  "brotli",
  "ico",
- "json-patch",
+ "json-patch 0.3.0",
  "plist",
  "png",
  "proc-macro2",
@@ -2459,7 +2468,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "url",
- "uuid",
+ "uuid 1.2.1",
  "webview2-com",
  "windows",
 ]
@@ -2492,7 +2501,7 @@ dependencies = [
  "heck 0.4.0",
  "html5ever",
  "infer",
- "json-patch",
+ "json-patch 0.2.6",
  "kuchiki",
  "memchr",
  "phf 0.10.1",
@@ -2693,6 +2702,15 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "treediff"
+version = "4.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52984d277bdf2a751072b5df30ec0377febdb02f7696d64c2d7d54630bac4303"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -3077,9 +3095,8 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.24.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c846dc4dda988e959869dd0802cd27417c9696e584593e49178aeee28890d25"
+version = "0.23.4"
+source = "git+https://github.com/tauri-apps/wry#29c3c88add3f8e74b45faefde10bbfce257150bd"
 dependencies = [
  "base64 0.13.1",
  "block",

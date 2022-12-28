@@ -1053,13 +1053,14 @@
         },
         "resources": {
           "description": "App resources to bundle. Each resource is a path to a file or directory. Glob patterns are supported.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BundleResources"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "copyright": {
           "description": "A copyright string associated with your application.",
@@ -1234,6 +1235,25 @@
           "enum": [
             "updater"
           ]
+        }
+      ]
+    },
+    "BundleResources": {
+      "description": "Definition for bundle resources. Can be either a list of paths to include or a map of target to source paths.",
+      "anyOf": [
+        {
+          "description": "A list of paths to include.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "A map of target to source paths.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       ]
     },

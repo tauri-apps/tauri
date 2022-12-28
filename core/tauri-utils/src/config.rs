@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::TitleBarStyle;
+use crate::{resources::resource_relpath, TitleBarStyle};
 
 pub use self::parse::parse;
 
@@ -620,6 +620,36 @@ impl Default for WindowsConfig {
   }
 }
 
+/// Definition for bundle resources.
+/// Can be either a list of paths to include or a map of target to source paths.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum BundleResources {
+  /// A list of paths to include.
+  List(Vec<String>),
+  /// A map of target to source paths.
+  Map(HashMap<String, String>),
+}
+
+impl BundleResources {
+  /// Adds a path to the resource collection.
+  pub fn push(&mut self, path: impl Into<String>) {
+    match self {
+      Self::List(l) => l.push(path.into()),
+      Self::Map(l) => {
+        let path = path.into();
+        l.insert(
+          resource_relpath(&PathBuf::from(&path))
+            .to_string_lossy()
+            .to_string(),
+          path,
+        );
+      }
+    }
+  }
+}
+
 /// Configuration for tauri-bundler.
 ///
 /// See more: https://tauri.app/v1/api/config#bundleconfig
@@ -649,7 +679,7 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
-  pub resources: Option<Vec<String>>,
+  pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
   /// The application kind.

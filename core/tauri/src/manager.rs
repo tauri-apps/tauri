@@ -932,7 +932,6 @@ impl<R: Runtime> WindowManager<R> {
           .decode_utf8_lossy()
           .to_string();
         let url = format!("{url}{decoded_path}");
-        println!("request url {url}, original path {path}, decoded {decoded_path}");
         let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);

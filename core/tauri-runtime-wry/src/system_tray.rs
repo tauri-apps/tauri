@@ -114,6 +114,10 @@ pub fn create_tray<T>(
     }
   }
 
+  if let Some(tooltip) = system_tray.tooltip {
+    builder = builder.with_tooltip(&tooltip);
+  }
+
   let tray = builder
     .build(event_loop)
     .map_err(|e| Error::SystemTray(Box::new(e)))?;

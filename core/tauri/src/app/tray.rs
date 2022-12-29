@@ -64,6 +64,8 @@ pub struct SystemTray {
   icon_as_template_set: bool,
   #[cfg(target_os = "macos")]
   title: Option<String>,
+  #[cfg(any(windows, target_os = "macos"))]
+  tooltip: Option<String>,
 }
 
 impl fmt::Debug for SystemTray {
@@ -98,6 +100,8 @@ impl Default for SystemTray {
       menu_on_left_click_set: false,
       #[cfg(target_os = "macos")]
       title: None,
+      #[cfg(any(windows, target_os = "macos"))]
+      tooltip: None,
     }
   }
 }
@@ -257,6 +261,31 @@ impl SystemTray {
     self
   }
 
+  /// Sets the tray icon tooltip.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::SystemTray;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let mut tray_builder = SystemTray::new();
+  ///     #[cfg(any(windows, target_os = "macos"))]
+  ///     {
+  ///       tray_builder = tray_builder.with_tooltip("My App");
+  ///     }
+  ///     let tray_handle = tray_builder.build(app)?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(any(windows, target_os = "macos"))]
+  #[must_use]
+  pub fn with_tooltip(mut self, tooltip: &str) -> Self {
+    self.tooltip = Some(tooltip.to_owned());
+    self
+  }
+
   /// Sets the event listener for this system tray.
   ///
   /// # Examples
@@ -412,6 +441,11 @@ impl SystemTray {
       if let Some(title) = self.title {
         runtime_tray = runtime_tray.with_title(&title);
       }
+    }
+
+    #[cfg(any(windows, target_os = "macos"))]
+    if let Some(tooltip) = self.tooltip {
+      runtime_tray = runtime_tray.with_tooltip(&tooltip);
     }
 
     let id = runtime_tray.id;

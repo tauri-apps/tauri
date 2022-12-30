@@ -176,7 +176,6 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
-  #[cfg(any(windows, target_os = "macos"))]
   fn set_tooltip(&self, tooltip: &str) -> Result<()> {
     self
       .proxy

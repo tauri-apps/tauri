@@ -1124,7 +1124,6 @@ pub enum TrayMessage {
   UpdateIconAsTemplate(bool),
   #[cfg(target_os = "macos")]
   UpdateTitle(String),
-  #[cfg(any(windows, target_os = "macos"))]
   UpdateTooltip(String),
   Create(SystemTray, Sender<Result<()>>),
   Destroy(Sender<Result<()>>),
@@ -2638,7 +2637,6 @@ fn handle_user_message<T: UserEvent>(
               tray.set_title(&title);
             }
           }
-          #[cfg(any(windows, target_os = "macos"))]
           TrayMessage::UpdateTooltip(tooltip) => {
             if let Some(tray) = &mut *tray_context.tray.lock().unwrap() {
               tray.set_tooltip(&tooltip);

@@ -184,12 +184,14 @@ fn alias_module(module: &str, apis: &[&str], api_all: bool) {
 }
 
 fn add_manifest() {
-  static WINDOWS_MANIFEST_FILE: &str = "Windows Manifest.xml";
+  static WINDOWS_MANIFEST_FILE: &str = "window-app-manifest.xml";
 
-  let mut manifest = std::env::current_dir().unwrap();
-  manifest.push(WINDOWS_MANIFEST_FILE);
+  let manifest = std::env::current_dir()
+    .unwrap()
+    .join("../tauri-build/src")
+    .join(WINDOWS_MANIFEST_FILE);
 
-  println!("cargo:rerun-if-changed={}", WINDOWS_MANIFEST_FILE);
+  println!("cargo:rerun-if-changed={}", manifest.display());
   // Embed the Windows application manifest file.
   println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
   println!(

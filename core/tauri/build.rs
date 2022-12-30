@@ -191,7 +191,7 @@ fn add_manifest() {
     .join("../tauri-build/src")
     .join(WINDOWS_MANIFEST_FILE);
 
-  println!("cargo:rerun-if-changed={}", WINDOWS_MANIFEST_FILE);
+  println!("cargo:rerun-if-changed={}", manifest.display());
   // Embed the Windows application manifest file.
   println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
   println!(

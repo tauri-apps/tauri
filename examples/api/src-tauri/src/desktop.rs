@@ -171,7 +171,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
               let window = handle.get_window("main").unwrap();
               MessageDialogBuilder::new("About app", "Tauri demo app")
                 .parent(&window)
-                .buttons(MessageDialogButtons::OkCancelCustom(
+                .buttons(MessageDialogButtons::OkCancelWithLabels(
                   "Homepage".into(),
                   "know it".into(),
                 ))

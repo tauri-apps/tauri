@@ -176,6 +176,17 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
       .map_err(|_| Error::FailedToSendMessage)
   }
 
+  #[cfg(any(windows, target_os = "macos"))]
+  fn set_tooltip(&self, tooltip: &str) -> Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTooltip(tooltip.to_owned()),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
   fn destroy(&self) -> Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
     send_user_message(

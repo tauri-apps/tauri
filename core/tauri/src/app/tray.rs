@@ -644,6 +644,12 @@ impl<R: Runtime> SystemTrayHandle<R> {
     self.inner.set_title(title).map_err(Into::into)
   }
 
+  /// Adds a tooltip for this tray icon.
+  #[cfg(any(windows, target_os = "macos"))]
+  pub fn set_tooltip(&self, tooltip: &str) -> crate::Result<()> {
+    self.inner.set_tooltip(tooltip).map_err(Into::into)
+  }
+
   /// Destroys this system tray.
   pub fn destroy(&self) -> crate::Result<()> {
     self.inner.destroy().map_err(Into::into)

@@ -93,6 +93,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
   SystemTray::new()
     .with_id(&tray_id)
     .with_menu(tray_menu1.clone())
+    .with_tooltip("Tauri")
     .on_event(move |event| {
       let tray_handle = handle.tray_handle_by_id(&tray_id).unwrap();
       match event {
@@ -158,13 +159,13 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             "switch_menu" => {
               let flag = is_menu1.load(Ordering::Relaxed);
-              tray_handle
-                .set_menu(if flag {
-                  tray_menu2.clone()
-                } else {
-                  tray_menu1.clone()
-                })
-                .unwrap();
+              let (menu, tooltip) = if flag {
+                (tray_menu2.clone(), "Menu 2")
+              } else {
+                (tray_menu1.clone(), "Tauri")
+              };
+              tray_handle.set_menu(menu).unwrap();
+              tray_handle.set_tooltip(tooltip).unwrap();
               is_menu1.store(!flag, Ordering::Relaxed);
             }
             "about" => {

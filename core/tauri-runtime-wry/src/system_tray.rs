@@ -114,6 +114,10 @@ pub fn create_tray<T>(
     }
   }
 
+  if let Some(tooltip) = system_tray.tooltip {
+    builder = builder.with_tooltip(&tooltip);
+  }
+
   let tray = builder
     .build(event_loop)
     .map_err(|e| Error::SystemTray(Box::new(e)))?;
@@ -168,6 +172,16 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
       .send_event(Message::Tray(
         self.id,
         TrayMessage::UpdateTitle(title.to_owned()),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
+  }
+
+  fn set_tooltip(&self, tooltip: &str) -> Result<()> {
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTooltip(tooltip.to_owned()),
       ))
       .map_err(|_| Error::FailedToSendMessage)
   }

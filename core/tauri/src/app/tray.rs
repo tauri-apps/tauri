@@ -261,6 +261,10 @@ impl SystemTray {
 
   /// Sets the tray icon tooltip.
   ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
+  ///
   /// # Examples
   ///
   /// ```

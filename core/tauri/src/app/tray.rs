@@ -639,7 +639,11 @@ impl<R: Runtime> SystemTrayHandle<R> {
     self.inner.set_title(title).map_err(Into::into)
   }
 
-  /// Adds a tooltip for this tray icon.
+  /// Set the tooltip for this tray icon.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported
   pub fn set_tooltip(&self, tooltip: &str) -> crate::Result<()> {
     self.inner.set_tooltip(tooltip).map_err(Into::into)
   }

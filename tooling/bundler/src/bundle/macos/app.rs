@@ -232,8 +232,10 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
       if !src_path.exists() {
-        warn!("Dylib {} couldn't be found", &src_path);
-        continue;
+        return Err(crate::Error::GenericError(format!(
+          "Library not found: {}",
+          framework
+        )));
       }
       let src_name = src_path
         .file_name()

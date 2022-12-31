@@ -1239,7 +1239,7 @@
       ]
     },
     "BundleResources": {
-      "description": "Definition for bundle resources. Can be either a list of paths to include or a map of target to source paths.",
+      "description": "Definition for bundle resources. Can be either a list of paths to include or a map of source to target paths.",
       "anyOf": [
         {
           "description": "A list of paths to include.",
@@ -1249,7 +1249,7 @@
           }
         },
         {
-          "description": "A map of target to source paths.",
+          "description": "A map of source to target paths.",
           "type": "object",
           "additionalProperties": {
             "type": "string"

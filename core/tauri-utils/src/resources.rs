@@ -85,7 +85,7 @@ impl<'a> ResourcePaths<'a> {
 
   /// Returns the resource iterator that yields the source and target paths.
   /// Needed when using [`Self::from_map`].
-  pub fn into_iter(self) -> ResourcePathsIter<'a> {
+  pub fn iter(self) -> ResourcePathsIter<'a> {
     self.iter
   }
 }
@@ -165,8 +165,10 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
           }
           self.current_pattern_is_valid = true;
           return Some(Ok(Resource {
-            target: if let (Some(current_dest), Some(current_pattern)) = (&self.current_dest, &self.current_pattern) {
-              if current_pattern.0.contains("*") {
+            target: if let (Some(current_dest), Some(current_pattern)) =
+              (&self.current_dest, &self.current_pattern)
+            {
+              if current_pattern.0.contains('*') {
                 current_dest.join(path.file_name().unwrap())
               } else {
                 current_dest.join(path.strip_prefix(&current_pattern.1).unwrap())
@@ -215,7 +217,7 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
       match &mut self.pattern_iter {
         PatternIter::Slice(iter) => {
           if let Some(pattern) = iter.next() {
-            self.current_pattern = Some((pattern.to_string(), normalize(&Path::new(pattern))));
+            self.current_pattern = Some((pattern.to_string(), normalize(Path::new(pattern))));
             self.current_pattern_is_valid = false;
             let glob = match glob::glob(pattern) {
               Ok(glob) => glob,
@@ -226,14 +228,16 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
           }
         }
         PatternIter::Map(iter) => {
-          if let Some((dest, pattern)) = iter.next() {
-            self.current_pattern = Some((pattern.to_string(), normalize(&Path::new(pattern))));
+          if let Some((pattern, dest)) = iter.next() {
+            self.current_pattern = Some((pattern.to_string(), normalize(Path::new(pattern))));
             self.current_pattern_is_valid = false;
             let glob = match glob::glob(pattern) {
               Ok(glob) => glob,
               Err(error) => return Some(Err(error.into())),
             };
-            self.current_dest.replace(resource_relpath(&PathBuf::from(dest)));
+            self
+              .current_dest
+              .replace(resource_relpath(&PathBuf::from(dest)));
             self.glob_iter = Some(glob);
             continue;
           }

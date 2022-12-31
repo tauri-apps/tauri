@@ -909,7 +909,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut added_resources = Vec::new();
 
-  for resource in settings.resource_files().into_iter() {
+  for resource in settings.resource_files().iter() {
     let resource = resource?;
 
     let resource_path = cwd

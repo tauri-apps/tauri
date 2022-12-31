@@ -71,7 +71,7 @@ fn copy_binaries(
 
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
-  for resource in resources.into_iter() {
+  for resource in resources.iter() {
     let resource = resource?;
     println!("cargo:rerun-if-changed={}", resource.path().display());
     copy_file(resource.path(), path.join(resource.target()))?;

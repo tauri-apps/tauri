@@ -621,14 +621,14 @@ impl Default for WindowsConfig {
 }
 
 /// Definition for bundle resources.
-/// Can be either a list of paths to include or a map of target to source paths.
+/// Can be either a list of paths to include or a map of source to target paths.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
 pub enum BundleResources {
   /// A list of paths to include.
   List(Vec<String>),
-  /// A map of target to source paths.
+  /// A map of source to target paths.
   Map(HashMap<String, String>),
 }
 

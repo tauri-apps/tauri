@@ -747,7 +747,7 @@ impl Settings {
 
   /// Copies resources to a path.
   pub fn copy_resources(&self, path: &Path) -> crate::Result<()> {
-    for resource in self.resource_files().into_iter() {
+    for resource in self.resource_files().iter() {
       let resource = resource?;
       let dest = path.join(resource.target());
       common::copy_file(resource.path(), dest)?;

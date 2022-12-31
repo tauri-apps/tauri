@@ -237,9 +237,7 @@ fn copy_frameworks_to_bundle(bundle_directory: &Path, settings: &Settings) -> cr
           framework
         )));
       }
-      let src_name = src_path
-        .file_name()
-        .expect("Couldn't get framework filename");
+      let src_name = src_path.file_name().expect("Couldn't get library filename");
       common::copy_file(&src_path, &dest_dir.join(&src_name))?;
       continue;
     } else if framework.contains('/') {

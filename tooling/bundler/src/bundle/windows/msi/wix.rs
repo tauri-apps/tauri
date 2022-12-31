@@ -25,8 +25,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-use tauri_utils::display_path;
-use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
+use tauri_utils::config::WebviewInstallMode;
 use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
@@ -910,11 +909,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut added_resources = Vec::new();
 
-  for src in settings.resource_files() {
-    let src = src?;
+  for resource in settings.resource_files().into_iter() {
+    let resource = resource?;
 
     let resource_path = cwd
-      .join(src.clone())
+      .join(resource.path())
       .into_os_string()
       .into_string()
       .expect("failed to read resource path");
@@ -935,7 +934,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     };
 
     // split the resource path directories
-    let target_path = resource_relpath(&src);
+    let target_path = resource.target();
     let components_count = target_path.components().count();
     let directories = target_path
       .components()

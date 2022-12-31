@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{resources::resource_relpath, TitleBarStyle};
+use crate::TitleBarStyle;
 
 pub use self::parse::parse;
 
@@ -639,12 +639,7 @@ impl BundleResources {
       Self::List(l) => l.push(path.into()),
       Self::Map(l) => {
         let path = path.into();
-        l.insert(
-          resource_relpath(&PathBuf::from(&path))
-            .to_string_lossy()
-            .to_string(),
-          path,
-        );
+        l.insert(path.clone(), path);
       }
     }
   }

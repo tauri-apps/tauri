@@ -101,7 +101,7 @@ pub struct ResourcePathsIter<'a> {
   /// whether the resource paths allows directories or not.
   allow_walk: bool,
   /// the pattern of the current iteration.
-  current_pattern: Option<String>,
+  current_pattern: Option<(String, PathBuf)>,
   /// whether the current pattern is valid or not.
   current_pattern_is_valid: bool,
   /// Current destination path. Only set when the iterator comes from a Map.
@@ -134,6 +134,20 @@ impl<'a> Iterator for ResourcePaths<'a> {
   }
 }
 
+fn normalize(path: &Path) -> PathBuf {
+  let mut dest = PathBuf::new();
+  for component in path.components() {
+    match component {
+      Component::Prefix(_) => {}
+      Component::RootDir => dest.push("/"),
+      Component::CurDir => {}
+      Component::ParentDir => dest.push(".."),
+      Component::Normal(string) => dest.push(string),
+    }
+  }
+  dest
+}
+
 impl<'a> Iterator for ResourcePathsIter<'a> {
   type Item = crate::Result<Resource>;
 
@@ -151,8 +165,12 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
           }
           self.current_pattern_is_valid = true;
           return Some(Ok(Resource {
-            target: if let Some(current_dest) = &self.current_dest {
-              current_dest.join(path.file_name().unwrap())
+            target: if let (Some(current_dest), Some(current_pattern)) = (&self.current_dest, &self.current_pattern) {
+              if current_pattern.0.contains("*") {
+                current_dest.join(path.file_name().unwrap())
+              } else {
+                current_dest.join(path.strip_prefix(&current_pattern.1).unwrap())
+              }
             } else {
               resource_relpath(path)
             },
@@ -188,7 +206,7 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
         } else if let Some(current_path) = &self.current_pattern {
           if !self.current_pattern_is_valid {
             self.glob_iter = None;
-            return Some(Err(crate::Error::GlobPathNotFound(current_path.clone())));
+            return Some(Err(crate::Error::GlobPathNotFound(current_path.0.clone())));
           }
         }
       }
@@ -197,7 +215,7 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
       match &mut self.pattern_iter {
         PatternIter::Slice(iter) => {
           if let Some(pattern) = iter.next() {
-            self.current_pattern = Some(pattern.to_string());
+            self.current_pattern = Some((pattern.to_string(), normalize(&Path::new(pattern))));
             self.current_pattern_is_valid = false;
             let glob = match glob::glob(pattern) {
               Ok(glob) => glob,
@@ -209,13 +227,13 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
         }
         PatternIter::Map(iter) => {
           if let Some((dest, pattern)) = iter.next() {
-            self.current_pattern = Some(pattern.to_string());
+            self.current_pattern = Some((pattern.to_string(), normalize(&Path::new(pattern))));
             self.current_pattern_is_valid = false;
             let glob = match glob::glob(pattern) {
               Ok(glob) => glob,
               Err(error) => return Some(Err(error.into())),
             };
-            self.current_dest.replace(PathBuf::from(dest));
+            self.current_dest.replace(resource_relpath(&PathBuf::from(dest)));
             self.glob_iter = Some(glob);
             continue;
           }

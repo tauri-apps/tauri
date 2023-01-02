@@ -538,6 +538,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    println!("eval {}", script.into());
     Ok(())
   }
 

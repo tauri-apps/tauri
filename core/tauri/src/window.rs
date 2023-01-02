@@ -1605,15 +1605,55 @@ mod tests {
           CmdArg(usize),
           CmdArgReturnVal(usize),
           CmdFutureReturnVal(usize),
+          Person(Person),
         }
 
         struct Channel {
           tx: SyncSender<Response>,
         }
 
+        #[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+        struct Person {
+          name: String,
+          age: u8,
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct InlinePerson(String, u8);
+
         $(#[$cmd_meta])*
         $($fn_kind)* cmd() {
           println!("cmd");
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_args_struct(Person { name, age }: Person) {
+          println!("received person struct with name: {} | age: {}", name, age);
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_args_tuple_struct(InlinePerson(name, age): InlinePerson) {
+          println!("received person tuple with name: {} | age: {}", name, age);
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_state_args_struct_return_val(
+          channel: State<'_, Channel>,
+          person: Person,
+        ) -> crate::Result<()> {
+          println!("received person struct with name: {} | age: {}", person.name, person.age);
+          channel.tx.send(Response::Person(person)).unwrap();
+          Ok(())
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_state_args_tuple_struct_return_val(
+          channel: State<'_, Channel>,
+          InlinePerson(name, age): InlinePerson
+        ) -> crate::Result<()> {
+          println!("received person tuple with name: {} | age: {}", name, age);
+          channel.tx.send(Response::Person(Person { name, age })).unwrap();
+          Ok(())
         }
 
         #[crate::command(root = "crate", async)]
@@ -1645,6 +1685,10 @@ mod tests {
           .manage(channel)
           .invoke_handler(crate::generate_handler![
             cmd,
+            cmd_args_struct,
+            cmd_args_tuple_struct,
+            cmd_state_args_struct_return_val,
+            cmd_state_args_tuple_struct_return_val,
             cmd_state,
             cmd_state_return_val,
             cmd_state_arg,
@@ -1658,10 +1702,20 @@ mod tests {
           .build()
           .unwrap();
 
-        fn json_obj(key: impl Into<String>, value: impl Into<JsonValue>) -> JsonValue {
-          let mut map = serde_json::Map::new();
-          map.insert(key.into(), value.into());
-          map.into()
+        #[derive(Default)]
+        struct JsonMap(serde_json::Map<String, JsonValue>);
+
+        impl From<JsonMap> for JsonValue {
+          fn from(map: JsonMap) -> Self {
+            map.0.into()
+          }
+        }
+
+        impl JsonMap {
+          fn insert(mut self, key: impl Into<String>, value: impl serde::Serialize) -> Self {
+            self.0.insert(key.into(), serde_json::to_value(value).unwrap());
+            self
+          }
         }
 
         struct UnitTest {
@@ -1677,6 +1731,26 @@ mod tests {
             arg: None,
           },
           UnitTest {
+            cmd: "cmd_args_struct",
+            response: None,
+            arg: Some(JsonMap::default().insert("person", Person { name: "Tauri".into(), age: 1 }).into()),
+          },
+          UnitTest {
+            cmd: "cmd_args_tuple_struct",
+            response: None,
+            arg: Some(JsonMap::default().insert($case("inline_person").to_string(), InlinePerson("Tauri".into(), 3)).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_args_struct_return_val",
+            response: Some(Response::Person(Person { name: "Tauri".into(), age: 1 })),
+            arg: Some(JsonMap::default().insert("person", Person { name: "Tauri".into(), age: 1 }).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_args_tuple_struct_return_val",
+            response: Some(Response::Person(Person { name: "Tauri".into(), age: 3 })),
+            arg: Some(JsonMap::default().insert($case("inline_person").to_string(), InlinePerson("Tauri".into(), 3)).into()),
+          },
+          UnitTest {
             cmd: "cmd_state",
             response: Some(Response::Cmd),
             arg: None,
@@ -1689,22 +1763,22 @@ mod tests {
           UnitTest {
             cmd: "cmd_state_arg",
             response: Some(Response::CmdArg(1)),
-            arg: Some(json_obj($case("int_arg").to_string(), 1)),
+            arg: Some(JsonMap::default().insert($case("int_arg").to_string(), 1).into()),
           },
           UnitTest {
             cmd: "cmd_state_arg_return_val",
             response: Some(Response::CmdArgReturnVal(2)),
-            arg: Some(json_obj($case("int_arg").to_string(), 2)),
+            arg: Some(JsonMap::default().insert($case("int_arg").to_string(), 2).into()),
           },
           UnitTest {
             cmd: "cmd_state_arg_return_future",
             response: Some(Response::CmdFutureReturnVal(2)),
-            arg: Some(json_obj("intArg".to_string(), 2)),
+            arg: Some(JsonMap::default().insert("intArg", 2).into()),
           },
           UnitTest {
             cmd: "cmd_state_arg_return_future_result",
             response: Some(Response::CmdFutureReturnVal(2)),
-            arg: Some(json_obj("intArg".to_string(), 2)),
+            arg: Some(JsonMap::default().insert("intArg", 2).into()),
           },
         ];
 

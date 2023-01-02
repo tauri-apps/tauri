@@ -1596,6 +1596,7 @@ mod tests {
       fn $test_name() {
         const STATE_RETURN_VAL_RESPONSE: &str = "return-val";
         const STATE_ARG_RETURN_VAL_RESPONSE: &str = "arg-return-val";
+        const FUTURE_RETURN_VAL_RESPONSE: &str = "future-return-val";
 
         #[derive(Debug, Eq, PartialEq)]
         enum Response {
@@ -1603,6 +1604,7 @@ mod tests {
           CmdReturnVal,
           CmdArg(usize),
           CmdArgReturnVal(usize),
+          CmdFutureReturnVal(usize),
         }
 
         struct Channel {
@@ -1612,6 +1614,26 @@ mod tests {
         $(#[$cmd_meta])*
         $($fn_kind)* cmd() {
           println!("cmd");
+        }
+
+        #[crate::command(root = "crate", async)]
+        fn cmd_state_arg_return_future(
+          channel: State<'_, Channel>,
+          int_arg: usize,
+        ) -> impl std::future::Future<Output = String> {
+          println!("cmd state arg return future");
+          channel.tx.send(Response::CmdFutureReturnVal(int_arg)).unwrap();
+          std::future::ready(FUTURE_RETURN_VAL_RESPONSE.into())
+        }
+
+        #[crate::command(root = "crate", async)]
+        fn cmd_state_arg_return_future_result(
+          channel: State<'_, Channel>,
+          int_arg: usize,
+        ) -> impl std::future::Future<Output = crate::Result<String>> {
+          println!("cmd state arg return future result");
+          channel.tx.send(Response::CmdFutureReturnVal(int_arg)).unwrap();
+          std::future::ready(Ok(FUTURE_RETURN_VAL_RESPONSE.into()))
         }
 
         commands!($($fn_kind)*, $(#[$cmd_meta])*);
@@ -1626,7 +1648,9 @@ mod tests {
             cmd_state,
             cmd_state_return_val,
             cmd_state_arg,
-            cmd_state_arg_return_val
+            cmd_state_arg_return_val,
+            cmd_state_arg_return_future,
+            cmd_state_arg_return_future_result
           ])
           .build(test::mock_context(test::noop_assets()))
           .unwrap();
@@ -1671,6 +1695,16 @@ mod tests {
             cmd: "cmd_state_arg_return_val",
             response: Some(Response::CmdArgReturnVal(2)),
             arg: Some(json_obj($case("int_arg").to_string(), 2)),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_future",
+            response: Some(Response::CmdFutureReturnVal(2)),
+            arg: Some(json_obj("intArg".to_string(), 2)),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_future_result",
+            response: Some(Response::CmdFutureReturnVal(2)),
+            arg: Some(json_obj("intArg".to_string(), 2)),
           },
         ];
 

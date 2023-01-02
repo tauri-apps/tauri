@@ -177,16 +177,9 @@ fn build_nsis_app_installer(
     to_json(settings.windows().allow_downgrades),
   );
 
+  let mut install_mode = NSISInstallerMode::CurrentUser;
   if let Some(nsis) = &settings.windows().nsis {
-    data.insert(
-      "install_mode",
-      to_json(match nsis.install_mode {
-        NSISInstallerMode::CurrentUser => "currentUser",
-        NSISInstallerMode::PerMachine => "perMachine",
-        NSISInstallerMode::Both => "both",
-      }),
-    );
-
+    install_mode = nsis.install_mode;
     if let Some(license) = &nsis.license {
       data.insert(
         "license",
@@ -212,6 +205,14 @@ fn build_nsis_app_installer(
       );
     }
   }
+  data.insert(
+    "install_mode",
+    to_json(match install_mode {
+      NSISInstallerMode::CurrentUser => "currentUser",
+      NSISInstallerMode::PerMachine => "perMachine",
+      NSISInstallerMode::Both => "both",
+    }),
+  );
 
   let main_binary = settings
     .binaries()

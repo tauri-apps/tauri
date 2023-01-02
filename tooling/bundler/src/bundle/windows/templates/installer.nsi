@@ -370,14 +370,13 @@ Section Install
 
   ; Copy resources
   {{#each resources}}
-    ${GetParent} "{{this}}" $R1
-    CreateDirectory "$INSTDIR\$R1"
-    File /a /oname={{this}} {{@key}}
+    CreateDirectory "$INSTDIR\\{{this.[0]}}"
+    File /a "/oname={{this.[1]}}" "{{@key}}"
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
-    File /a /oname={{this}} {{@key}}
+    File /a "/oname={{this}}" "{{@key}}"
   {{/each}}
 
   ; Create uninstaller
@@ -416,7 +415,6 @@ Section Install
     CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
     CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
-
   !insertmacro MUI_STARTMENU_WRITE_END
 
 SectionEnd
@@ -436,6 +434,7 @@ Section Uninstall
     FileOpen $4 "$INSTDIR\installmode" r
     FileRead $4 $1
     FileClose $4
+    Delete "$INSTDIR\installmode"
 
     ${If} $1 == "AllUsers"
       DeleteRegKey HKLM "${UNINSTKEY}"
@@ -449,11 +448,31 @@ Section Uninstall
   !endif
 
   ; Delete the app directory and its content from disk
-  RMDir /r "$INSTDIR"
+  ; Copy main executable
+  Delete "$INSTDIR\${MAINBINARYNAME}.exe"
 
-  ; Remove start menu and desktop shortcuts
+  ; Delete resources
+  {{#each resources}}
+    Delete "$INSTDIR\\{{this.[1]}}"
+    RMDir "$INSTDIR\\{{this.[0]}}"
+  {{/each}}
+
+  ; Delete external binaries
+  {{#each binaries}}
+    Delete "$INSTDIR\\{{this}}"
+  {{/each}}
+
+  ; Delete uninstaller
+  Delete "$INSTDIR\uninstall.exe"
+
+  RMDir "$INSTDIR"
+
+  ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
-  RMDir /r "$SMPROGRAMS\$AppStartMenuFolder"
+  Delete "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
+  RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+
+  ; Remove desktop shortcuts
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
 SectionEnd
 

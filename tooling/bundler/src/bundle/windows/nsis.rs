@@ -368,7 +368,7 @@ fn build_nsis_app_installer(
 }
 
 /// BTreeMap<OriginalPath, TargetPath>
-type ResourcesMap = BTreeMap<PathBuf, PathBuf>;
+type ResourcesMap = BTreeMap<PathBuf, (String, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
   let cwd = std::env::current_dir()?;
@@ -388,7 +388,16 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     added_resources.push(resource_path.clone());
 
     let target_path = resource_relpath(&src);
-    resources.insert(resource_path, target_path);
+    resources.insert(
+      resource_path,
+      (
+        target_path
+          .parent()
+          .map(|p| p.to_string_lossy().to_string())
+          .unwrap_or_default(),
+        target_path,
+      ),
+    );
   }
 
   Ok(resources)

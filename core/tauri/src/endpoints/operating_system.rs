@@ -20,6 +20,7 @@ pub enum Cmd {
   OsType,
   Arch,
   Tempdir,
+  Locale,
 }
 
 #[cfg(os_all)]
@@ -43,6 +44,10 @@ impl Cmd {
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
     Ok(std::env::temp_dir())
   }
+
+  fn locale<R: Runtime>(_context: InvokeContext<R>) -> super::Result<Option<String>> {
+    Ok(crate::api::os::locale())
+  }
 }
 
 #[cfg(not(os_all))]
@@ -64,6 +69,10 @@ impl Cmd {
   }
 
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
+    Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
+  }
+
+  fn locale<R: Runtime>(_context: InvokeContext<R>) -> super::Result<Option<String>> {
     Err(crate::Error::ApiNotAllowlisted("os > all".into()).into_anyhow())
   }
 }
@@ -110,4 +119,8 @@ mod tests {
   #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
   #[quickcheck_macros::quickcheck]
   fn tempdir() {}
+
+  #[tauri_macros::module_command_test(os_all, "os > all", runtime)]
+  #[quickcheck_macros::quickcheck]
+  fn locale() {}
 }

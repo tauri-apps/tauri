@@ -129,7 +129,7 @@ Function PageReinstall
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "unknown" ${|}
 
-  SemverCompare::SemverCompare "${VERSION}" $R0
+  nsis_semvercompare::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0

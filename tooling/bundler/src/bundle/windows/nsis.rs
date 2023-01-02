@@ -40,8 +40,8 @@ const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-relea
 const NSIS_NSPROCESS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NsProcess.zip";
 const NSIS_SEMVER_COMPARE: &str =
-  "https://github.com/tauri-apps/NSIS-SemverCompare/releases/download/v0.1.1/SemverCompare.dll";
-const NSIS_SEMVER_COMPARE_SHA1: &str = "B5619EAA0279DE40BCCC61D7EB9A0869D0EAE006";
+  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.2.0/nsis_semvercompare.dll";
+const NSIS_SEMVER_COMPARE_SHA1: &str = "5A1A233F427C993B7E6A5821761BF5819507B29C";
 
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
@@ -51,7 +51,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Plugins/x86-unicode/NScurl.dll",
   "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsProcess.dll",
-  "Plugins/x86-unicode/SemverCompare.dll",
+  "Plugins/x86-unicode/nsis_semvercompare.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
@@ -116,7 +116,9 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
     HashAlgorithm::Sha1,
   )?;
   write(
-    nsis_plugins.join("x86-unicode").join("SemverCompare.dll"),
+    nsis_plugins
+      .join("x86-unicode")
+      .join("nsis_semvercompare.dll"),
     data,
   )?;
 
@@ -352,7 +354,8 @@ fn build_nsis_app_installer(
 
   info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());
   Command::new(nsis_toolset_path.join("makensis.exe"))
-    .args(&[installer_nsi_path])
+    .arg("/V4")
+    .arg(installer_nsi_path)
     .current_dir(output_path)
     .output_ok()
     .context("error running makensis.exe")?;

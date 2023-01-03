@@ -291,7 +291,7 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  let mut cmd = Command::new(&candle_exe);
+  let mut cmd = Command::new(candle_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -327,7 +327,7 @@ fn run_light(
 
   args.extend(arguments);
 
-  let mut cmd = Command::new(&light_exe);
+  let mut cmd = Command::new(light_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -541,11 +541,11 @@ pub fn build_wix_app_installer(
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
   let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(&app_exe_name));
+  data.insert("app_exe_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
 
-  let binaries_json = to_json(&binaries);
+  let binaries_json = to_json(binaries);
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
@@ -648,7 +648,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task handlebars");
     let temp_xml_path = output_path.join("update.xml");
     let update_content = skip_uac_task.render("update.xml", &data)?;
-    write(&temp_xml_path, update_content)?;
+    write(temp_xml_path, update_content)?;
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
@@ -659,7 +659,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Installer handlebars");
     let temp_ps1_path = output_path.join("install-task.ps1");
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
@@ -670,13 +670,13 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Uninstaller handlebars");
     let temp_ps1_path = output_path.join("uninstall-task.ps1");
     let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 

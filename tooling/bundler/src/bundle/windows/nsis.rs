@@ -8,8 +8,8 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, extract_zip, remove_unc_lossy, validate_version, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+      download, extract_zip, remove_unc_lossy, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, HashAlgorithm
     },
   },
   Settings,
@@ -95,7 +95,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
 
   #[cfg(target_os = "windows")]
   {
-    let data = download_and_verify(NSIS_URL, NSIS_SHA1, "sha1")?;
+    let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     info!("extracting NSIS");
     extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;

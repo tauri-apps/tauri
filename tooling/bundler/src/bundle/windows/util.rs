@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_os = "windows")]
-use std::{fs::remove_file, process::Command};
+
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},

@@ -1318,12 +1318,32 @@ impl<R: Runtime> Window<R> {
       disable_tauri_api: false,
     };
 
+    let mut scope_not_found_error_message = format!(
+      "Scope not defined for window `{}` and URL `{current_url}`",
+      self.window.label
+    );
     let scope = if is_local {
       Some(&default_scope)
     } else {
-      manager.inner.external_command_access.iter().find(|scope| {
-        scope.windows.contains(&self.window.label) && scope.url.matches(current_url.as_str())
-      })
+      let mut scope = None;
+      let mut found_scope_for_window = false;
+      let mut found_scope_for_url = false;
+      for s in &manager.inner.external_command_access {
+        let matches_window = s.windows.contains(&self.window.label);
+        let matches_url = s.url.matches(current_url.as_str());
+        found_scope_for_window = found_scope_for_window || matches_window;
+        found_scope_for_url = found_scope_for_url || matches_url;
+        if matches_window && matches_url && scope.is_none() {
+          scope.replace(s);
+        }
+      }
+      if found_scope_for_window {
+        scope_not_found_error_message = format!("Scope not defined for URL `{current_url}`");
+      } else if found_scope_for_url {
+        scope_not_found_error_message =
+          format!("Scope not defined for window `{}`", self.window.label);
+      }
+      scope
     };
     match payload.cmd.as_str() {
       "__initialized" => {
@@ -1341,7 +1361,7 @@ impl<R: Runtime> Window<R> {
         let invoke = Invoke { message, resolver };
 
         if !is_local && scope.is_none() {
-          invoke.resolver.reject("Scope not defined");
+          invoke.resolver.reject(scope_not_found_error_message);
           return Ok(());
         }
 

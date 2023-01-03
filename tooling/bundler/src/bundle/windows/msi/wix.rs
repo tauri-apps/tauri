@@ -10,6 +10,7 @@ use crate::bundle::{
   windows::util::{
     download, download_and_verify, extract_zip, try_sign, validate_version, HashAlgorithm,
     WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+    WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
   },
 };
 use anyhow::Context;
@@ -26,9 +27,6 @@ use std::{
 };
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
-
-pub const OUTPUT_FOLDER_NAME: &str = "msi";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
@@ -201,9 +199,9 @@ fn app_installer_output_path(
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.msi",
     if updater {
-      UPDATER_OUTPUT_FOLDER_NAME
+      WIX_UPDATER_OUTPUT_FOLDER_NAME
     } else {
-      OUTPUT_FOLDER_NAME
+      WIX_OUTPUT_FOLDER_NAME
     },
     package_base_name
   )))

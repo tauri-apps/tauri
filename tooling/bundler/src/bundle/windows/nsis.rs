@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 #[cfg(target_os = "windows")]
-use crate::bundle::windows::util::{download_and_verify, try_sign};
+use crate::bundle::windows::util::try_sign;
 use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, extract_zip, remove_unc_lossy, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, HashAlgorithm
+      download, download_and_verify, extract_zip, remove_unc_lossy, HashAlgorithm,
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
@@ -29,9 +30,6 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
-
-pub const OUTPUT_FOLDER_NAME: &str = "nsis";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
 
 // URLS for the NSIS toolchain.
 #[cfg(target_os = "windows")]
@@ -372,9 +370,9 @@ fn build_nsis_app_installer(
   let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.exe",
     if updater {
-      UPDATER_OUTPUT_FOLDER_NAME
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME
     } else {
-      OUTPUT_FOLDER_NAME
+      NSIS_OUTPUT_FOLDER_NAME
     },
     package_base_name
   ));

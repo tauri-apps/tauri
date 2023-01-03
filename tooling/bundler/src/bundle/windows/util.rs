@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-
 use std::{
   fs::{create_dir_all, File},
   io::{Cursor, Read, Write},
   path::{Path, PathBuf},
 };
 
+#[cfg(target_os = "windows")]
 use anyhow::{bail, Context};
 use log::info;
-#[cfg(target_os = "windows")]
 use sha2::Digest;
 use zip::ZipArchive;
 
@@ -23,6 +22,10 @@ use crate::Settings;
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
 pub const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
+pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
+pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
+pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
@@ -31,11 +34,11 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
 }
 
 pub enum HashAlgorithm {
+  #[cfg(target_os = "windows")]
   Sha256,
   Sha1,
 }
 
-#[cfg(target_os = "windows")]
 /// Function used to download a file and checks SHA256 to verify the download.
 pub fn download_and_verify(
   url: &str,
@@ -46,6 +49,7 @@ pub fn download_and_verify(
   info!("validating hash");
 
   match hash_algorithim {
+    #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
       verify(&data, hash, hasher)?;
@@ -59,7 +63,6 @@ pub fn download_and_verify(
   Ok(data)
 }
 
-#[cfg(target_os = "windows")]
 fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
   hasher.update(data);
 
@@ -72,6 +75,7 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   }
 }
 
+#[cfg(target_os = "windows")]
 pub fn validate_version(version: &str) -> anyhow::Result<()> {
   let version = semver::Version::parse(version).context("invalid app version")?;
   if version.major > 255 {

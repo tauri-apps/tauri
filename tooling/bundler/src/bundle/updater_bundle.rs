@@ -11,7 +11,16 @@ use super::macos::app;
 #[cfg(target_os = "linux")]
 use super::linux::appimage;
 
-use crate::{bundle::Bundle, Settings};
+use crate::{
+  bundle::{
+    windows::{
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WIX_OUTPUT_FOLDER_NAME,
+      WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
+    Bundle,
+  },
+  Settings,
+};
 
 use std::{
   fs::{self, File},
@@ -190,14 +199,13 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
           if let std::path::Component::Normal(name) = c {
             if let Some(name) = name.to_str() {
               // installers bundled for updater should be put in a directory named `${bundle_name}-updater`
-              if name == msi::UPDATER_OUTPUT_FOLDER_NAME || name == nsis::UPDATER_OUTPUT_FOLDER_NAME
-              {
+              if name == WIX_UPDATER_OUTPUT_FOLDER_NAME || name == NSIS_UPDATER_OUTPUT_FOLDER_NAME {
                 b = name.strip_suffix("-updater").unwrap().to_string();
                 p.push(&b);
                 return (p, b);
               }
 
-              if name == msi::OUTPUT_FOLDER_NAME || name == nsis::OUTPUT_FOLDER_NAME {
+              if name == WIX_OUTPUT_FOLDER_NAME || name == NSIS_OUTPUT_FOLDER_NAME {
                 b = name.to_string();
               }
             }

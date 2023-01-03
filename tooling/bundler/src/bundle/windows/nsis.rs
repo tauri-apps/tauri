@@ -65,6 +65,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Plugins/x86-unicode/NScurl.dll",
   "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsProcess.dll",
+  "Plugins/x86-unicode/nsis_semvercompare.dll",
 ];
 
 /// Runs all of the commands to build the NSIS installer.
@@ -386,7 +387,7 @@ fn build_nsis_app_installer(
   let mut nsis_cmd = Command::new("makensis");
 
   nsis_cmd
-    .arg("/V4")
+    .arg("-V4")
     .arg(installer_nsi_path)
     .current_dir(output_path)
     .output_ok()

@@ -5,12 +5,12 @@
 
 mod wix;
 
-pub use wix::{MSI_FOLDER_NAME, MSI_UPDATER_FOLDER_NAME};
-
 use crate::Settings;
 use log::warn;
 
 use std::{self, path::PathBuf};
+
+pub use wix::{OUTPUT_FOLDER_NAME, UPDATER_OUTPUT_FOLDER_NAME};
 
 const WIX_REQUIRED_FILES: &[&str] = &[
   "candle.exe",

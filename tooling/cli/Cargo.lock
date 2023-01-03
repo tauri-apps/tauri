@@ -3126,6 +3126,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "sha1",
  "sha2",
  "strsim 0.10.0",
  "tar",

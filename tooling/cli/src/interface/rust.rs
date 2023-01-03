@@ -36,7 +36,7 @@ use tauri_utils::config::parse::is_configuration_file;
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
-  config::{reload as reload_config, wix_settings, Config},
+  config::{nsis_settings, reload as reload_config, wix_settings, Config},
 };
 
 mod cargo_config;
@@ -1060,6 +1060,7 @@ fn tauri_config_to_bundle_settings(
         wix.license = wix.license.map(|l| tauri_dir().join(l));
         wix
       }),
+      nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,

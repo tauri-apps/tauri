@@ -251,7 +251,7 @@ fn build_nsis_app_installer(
   );
   data.insert(
     "main_binary_path",
-    to_json(settings.binary_path(main_binary)),
+    to_json(settings.binary_path(main_binary).with_extension("exe")),
   );
 
   let out_file = "nsis-output.exe";

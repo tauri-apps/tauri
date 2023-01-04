@@ -42,14 +42,14 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
   let mut bundles = Vec::new();
   let package_types = settings.package_types()?;
 
-  let target = settings
+  let target_os = settings
     .target()
     .split('-')
     .nth(2)
     .unwrap_or(std::env::consts::OS)
     .replace("darwin", "macos");
 
-  if target != std::env::consts::OS {
+  if target_os != std::env::consts::OS {
     warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 

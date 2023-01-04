@@ -2140,7 +2140,13 @@ impl Allowlist for AppAllowlistConfig {
   }
 }
 
-/// Allowlist configuration.
+/// Allowlist configuration. The allowlist is a translation of the [Cargo allowlist features](https://docs.rs/tauri/latest/tauri/#cargo-allowlist-features).
+///
+/// **Note:**
+/// - Endpoints that don't have their own allowlist option are enabled by default.
+/// - There is only "opt-in", no "opt-out". Setting an option to `false` has no effect.
+/// *Example:* [`"app-all": true`](https://tauri.app/v1/api/config/#appallowlistconfig.all) will make the [hide](https://tauri.app/v1/api/js/app#hide) endpoint be available regardless of whether `hide` is set to `false` or `true` in the allowlist.
+///
 #[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

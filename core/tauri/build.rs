@@ -136,8 +136,8 @@ fn main() {
   let checked_features_out_path =
     Path::new(&std::env::var("OUT_DIR").unwrap()).join("checked_features");
   std::fs::write(
-    &checked_features_out_path,
-    &CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
+    checked_features_out_path,
+    CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
 }

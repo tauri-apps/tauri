@@ -902,9 +902,7 @@ mod tests {
       // we assume that module features are the ones that start with `<module>-`
       // though it's not 100% accurate, we have an allowed list to fix it
       let module_features = manifest
-        .features
-        .iter()
-        .map(|(f, _)| f)
+        .features.keys()
         .filter(|f| f.starts_with(&module_prefix));
       for module_feature in module_features {
         assert!(

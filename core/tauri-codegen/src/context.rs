@@ -447,13 +447,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         return false;
       }
     }
-    return true;
+    true
   }
 
   fn compare_token_tree(a: TokenTree, b: TokenTree) -> bool {
     match (a, b) {
       (TokenTree::Group(a), TokenTree::Group(b)) => compare_token_stream(a.stream(), b.stream()),
-      (TokenTree::Ident(a), TokenTree::Ident(b)) => a.to_string() == b.to_string(),
+      (TokenTree::Ident(a), TokenTree::Ident(b)) => b == a,
       (TokenTree::Punct(a), TokenTree::Punct(b)) => a.to_string() == b.to_string(),
       (TokenTree::Literal(a), TokenTree::Literal(b)) => a.to_string() == b.to_string(),
       _ => false,
@@ -513,7 +513,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #shell_scope_config
   ));
 
-  if compare_token_stream(root.clone(), quote!(crate)) {
+  if compare_token_stream(root, quote!(crate)) {
     let mut stream = TokenStream::new();
     let mut ignore = false;
     let mut previous_token = None;

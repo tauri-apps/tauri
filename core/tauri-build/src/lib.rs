@@ -72,7 +72,7 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(resource_relpath(&src));
-    copy_file(&src, &dest)?;
+    copy_file(&src, dest)?;
   }
   Ok(())
 }

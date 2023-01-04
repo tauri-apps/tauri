@@ -55,12 +55,12 @@ fn get_cli_bin_path(cli_dir: &Path, debug: bool) -> Option<PathBuf> {
 }
 
 fn build_app(cli_bin_path: &Path, cwd: &Path, config: &Config, bundle_updater: bool) {
-  let mut command = Command::new(&cli_bin_path);
+  let mut command = Command::new(cli_bin_path);
   command
     .args(["build", "--debug", "--verbose"])
     .arg("--config")
     .arg(serde_json::to_string(config).unwrap())
-    .current_dir(&cwd);
+    .current_dir(cwd);
 
   #[cfg(windows)]
   command.args(["--bundles", "msi"]);

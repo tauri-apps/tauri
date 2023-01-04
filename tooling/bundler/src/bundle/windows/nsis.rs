@@ -187,7 +187,7 @@ fn build_nsis_app_installer(
   {
     let mut dir = dirs_next::cache_dir().unwrap();
     dir.extend(["tauri", "NSIS", "Plugins", "x86-unicode"]);
-    data.insert("additional_plugins_path", to_json(dbg!(dir)));
+    data.insert("additional_plugins_path", to_json(dir));
   }
 
   data.insert("arch", to_json(arch));

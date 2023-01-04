@@ -30,6 +30,20 @@ struct IcnsEntry {
   ostype: String,
 }
 
+struct PngTarget {
+  size: u32,
+  file_name: String,
+}
+
+impl PngTarget {
+  fn new(size: u32, file_name: impl Into<String>) -> Self {
+    Self {
+      size,
+      file_name: file_name.into(),
+    }
+  }
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Generates various icons for all major platforms")]
 pub struct Options {
@@ -41,15 +55,18 @@ pub struct Options {
   /// Default: 'icons' directory next to the tauri.conf.json file.
   #[clap(short, long)]
   output: Option<PathBuf>,
+
+  /// Custom PNG icon sizes to generate. When set, the default icons are not generated.
+  #[clap(short, long, use_value_delimiter = true)]
+  png: Option<Vec<u32>>,
 }
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
   let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
+  let png_icon_sizes = options.png.unwrap_or_default();
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  // Try to read the image as a DynamicImage, convert it to rgba8 and turn it into a DynamicImage again.
-  // Both things should be catched by the explicit conversions to rgba8 anyway.
   let source = open(input)
     .context("Can't read and decode source image")?
     .into_rgba8();
@@ -60,13 +77,32 @@ pub fn command(options: Options) -> Result<()> {
     panic!("Source image must be square");
   }
 
-  appx(&source, &out_dir).context("Failed to generate appx icons")?;
+  if png_icon_sizes.is_empty() {
+    appx(&source, &out_dir).context("Failed to generate appx icons")?;
+    icns(&source, &out_dir).context("Failed to generate .icns file")?;
+    ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-  icns(&source, &out_dir).context("Failed to generate .icns file")?;
-
-  ico(&source, &out_dir).context("Failed to generate .ico file")?;
-
-  png(&source, &out_dir).context("Failed to generate png icons")?;
+    let mut png_targets = vec![
+      PngTarget::new(256, "128x128@2x.png"),
+      PngTarget::new(512, "icon.png"),
+    ];
+    png_targets.extend(
+      [32, 128]
+        .into_iter()
+        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .collect::<Vec<PngTarget>>(),
+    );
+    png(&source, &out_dir, png_targets).context("Failed to generate png icons")?;
+  } else {
+    png(
+      &source,
+      &out_dir,
+      png_icon_sizes
+        .into_iter()
+        .map(|size| PngTarget::new(size, format!("{}x{}.png", size, size)))
+        .collect(),
+    )?;
+  }
 
   Ok(())
 }
@@ -76,7 +112,7 @@ fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
-    let file_name = format!("Square{}x{}Logo.png", size, size);
+    let file_name = format!("Square{size}x{size}Logo.png");
     log::info!(action = "Appx"; "Creating {}", file_name);
 
     resize_and_save_png(source, size, &out_dir.join(&file_name))?;
@@ -108,7 +144,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
         &image,
         IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
       )
-      .with_context(|| format!("Can't add {} to Icns Family", name))?;
+      .with_context(|| format!("Can't add {name} to Icns Family"))?;
   }
 
   let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns"))?);
@@ -154,16 +190,10 @@ fn ico(source: &DynamicImage, out_dir: &Path) -> Result<()> {
 
 // Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
-fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
-  for size in [32, 128, 256, 512] {
-    let file_name = match size {
-      256 => "128x128@2x.png".to_string(),
-      512 => "icon.png".to_string(),
-      _ => format!("{}x{}.png", size, size),
-    };
-
-    log::info!(action = "PNG"; "Creating {}", file_name);
-    resize_and_save_png(source, size, &out_dir.join(&file_name))?;
+fn png(source: &DynamicImage, out_dir: &Path, targets: Vec<PngTarget>) -> Result<()> {
+  for target in targets {
+    log::info!(action = "PNG"; "Creating {}", target.file_name);
+    resize_and_save_png(source, target.size, &out_dir.join(&target.file_name))?;
   }
 
   Ok(())

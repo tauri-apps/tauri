@@ -150,7 +150,7 @@ impl<'a, R: std::fmt::Debug + Read + Seek> std::fmt::Debug for Extract<'a, R> {
 impl<'a, R: Read + Seek> Extract<'a, R> {
   /// Create archive from reader.
   pub fn from_cursor(mut reader: R, archive_format: ArchiveFormat) -> Extract<'a, R> {
-    if reader.seek(io::SeekFrom::Start(0)).is_err() {
+    if reader.rewind().is_err() {
       #[cfg(debug_assertions)]
       eprintln!("Could not seek to start of the file");
     }

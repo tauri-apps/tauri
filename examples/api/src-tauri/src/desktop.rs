@@ -1,7 +1,11 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  api::dialog::ask, CustomMenuItem, GlobalShortcutManager, Manager, RunEvent, SystemTray,
-  SystemTrayEvent, SystemTrayMenu, WindowBuilder, WindowEvent, WindowUrl,
+  api::{
+    dialog::{ask, MessageDialogBuilder, MessageDialogButtons},
+    shell,
+  },
+  CustomMenuItem, GlobalShortcutManager, Manager, RunEvent, SystemTray, SystemTrayEvent,
+  SystemTrayMenu, WindowBuilder, WindowEvent, WindowUrl,
 };
 
 pub fn main() {
@@ -71,6 +75,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
 
   tray_menu1 = tray_menu1
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
 
@@ -78,6 +83,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
     .add_item(CustomMenuItem::new("toggle", "Toggle"))
     .add_item(CustomMenuItem::new("new", "New window"))
     .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
+    .add_item(CustomMenuItem::new("about", "About"))
     .add_item(CustomMenuItem::new("exit_app", "Quit"))
     .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let is_menu1 = AtomicBool::new(true);
@@ -87,6 +93,7 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
   SystemTray::new()
     .with_id(&tray_id)
     .with_menu(tray_menu1.clone())
+    .with_tooltip("Tauri")
     .on_event(move |event| {
       let tray_handle = handle.tray_handle_by_id(&tray_id).unwrap();
       match event {
@@ -152,14 +159,28 @@ fn create_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             "switch_menu" => {
               let flag = is_menu1.load(Ordering::Relaxed);
-              tray_handle
-                .set_menu(if flag {
-                  tray_menu2.clone()
-                } else {
-                  tray_menu1.clone()
-                })
-                .unwrap();
+              let (menu, tooltip) = if flag {
+                (tray_menu2.clone(), "Menu 2")
+              } else {
+                (tray_menu1.clone(), "Tauri")
+              };
+              tray_handle.set_menu(menu).unwrap();
+              tray_handle.set_tooltip(tooltip).unwrap();
               is_menu1.store(!flag, Ordering::Relaxed);
+            }
+            "about" => {
+              let window = handle.get_window("main").unwrap();
+              MessageDialogBuilder::new("About app", "Tauri demo app")
+                .parent(&window)
+                .buttons(MessageDialogButtons::OkCancelWithLabels(
+                  "Homepage".into(),
+                  "know it".into(),
+                ))
+                .show(move |ok| {
+                  if ok {
+                    shell::open(&window.shell_scope(), "https://tauri.app/", None).unwrap();
+                  }
+                });
             }
             _ => {}
           }

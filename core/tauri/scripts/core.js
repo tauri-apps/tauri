@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function () {
+; (function () {
   function uid() {
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
@@ -96,7 +96,7 @@
           if (target.matches('a')) {
             if (
               target.href &&
-              target.href.startsWith('http') &&
+              (['http://', 'https://', 'mailto:', 'tel:'].some(v => target.href.startsWith(v))) &&
               target.target === '_blank'
             ) {
               window.__TAURI_INVOKE__('tauri', {
@@ -136,6 +136,10 @@
     if (e.target.hasAttribute('data-tauri-drag-region') && e.buttons === 1) {
       // prevents text cursor
       e.preventDefault()
+      // fix #2549: double click on drag region edge causes content to maximize without window sizing change
+      // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
+      e.stopImmediatePropagation()
+
       // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {
         __tauriModule: 'Window',
@@ -147,15 +151,6 @@
             }
           }
         }
-      })
-    }
-  })
-
-  listen('tauri://window-created', function (event) {
-    if (event.payload) {
-      var windowLabel = event.payload.label
-      window.__TAURI_METADATA__.__windows.push({
-        label: windowLabel
       })
     }
   })

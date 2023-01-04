@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 sha2 = "0.10"
-base64 = "0.13"
+base64 = "0.20"
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }
@@ -26,9 +26,9 @@ brotli = { version = "3", optional = true, default-features = false, features = 
 regex = { version = "1.7.0", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
-ico = "0.2"
+ico = "0.3"
 png = "0.17"
-json-patch = "0.2"
+json-patch = "0.3"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"

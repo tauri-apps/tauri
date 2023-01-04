@@ -28,6 +28,7 @@
  *         "close": true,
  *         "setDecorations": true,
  *         "setAlwaysOnTop": true,
+ *         "setContentProtected": true,
  *         "setSize": true,
  *         "setMinSize": true,
  *         "setMaxSize": true,
@@ -312,7 +313,7 @@ class WebviewWindowHandle {
   /** The window label. It is a unique identifier for the window, can be used to reference it later. */
   label: WindowLabel
   /** Local event listeners. */
-  listeners: { [key: string]: Array<EventCallback<any>> }
+  listeners: Record<string, Array<EventCallback<any>>>
 
   constructor(label: WindowLabel) {
     this.label = label
@@ -580,6 +581,31 @@ class WindowManager extends WebviewWindowHandle {
   }
 
   /**
+   * Gets the window's current minimized state.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const minimized = await appWindow.isMinimized();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async isMinimized(): Promise<boolean> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'isMinimized'
+          }
+        }
+      }
+    })
+  }
+
+  /**
    * Gets the window's current maximized state.
    * @example
    * ```typescript
@@ -673,6 +699,31 @@ class WindowManager extends WebviewWindowHandle {
           label: this.label,
           cmd: {
             type: 'isVisible'
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Gets the window's current title.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * const title = await appWindow.title();
+   * ```
+   *
+   * @since 1.3.0
+   * */
+  async title(): Promise<string> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'title'
           }
         }
       }
@@ -1086,6 +1137,34 @@ class WindowManager extends WebviewWindowHandle {
           cmd: {
             type: 'setAlwaysOnTop',
             payload: alwaysOnTop
+          }
+        }
+      }
+    })
+  }
+
+  /**
+   * Prevents the window contents from being captured by other apps.
+   * @example
+   * ```typescript
+   * import { appWindow } from '@tauri-apps/api/window';
+   * await appWindow.setContentProtected(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 1.2.0
+   */
+  async setContentProtected(protected_: boolean): Promise<void> {
+    return invokeTauriCommand({
+      __tauriModule: 'Window',
+      message: {
+        cmd: 'manage',
+        data: {
+          label: this.label,
+          cmd: {
+            type: 'setContentProtected',
+            payload: protected_
           }
         }
       }
@@ -1641,7 +1720,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onCloseRequested(
-    handler: (event: CloseRequestedEvent) => void
+    handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
     return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)
@@ -2023,6 +2102,8 @@ interface WindowOptions {
   decorations?: boolean
   /** Whether the window should always be on top of other windows or not. */
   alwaysOnTop?: boolean
+  /** Prevents the window contents from being captured by other apps. */
+  contentProtected?: boolean
   /** Whether or not the window icon should be added to the taskbar. */
   skipTaskbar?: boolean
   /**
@@ -2060,6 +2141,10 @@ interface WindowOptions {
    * The user agent for the webview.
    */
   userAgent?: string
+  /**
+   * Additional arguments for the webview. **Windows Only**
+   */
+  additionalBrowserArguments?: string
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

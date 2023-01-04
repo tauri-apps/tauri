@@ -10,6 +10,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   CARGO_PROFILE_DEV_DEBUG: 0 # This would add unnecessary bloat to the target folder, decreasing cache efficiency.
+  LC_ALL: en_US.UTF-8 # This prevents strace from changing it's number format to use commas.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

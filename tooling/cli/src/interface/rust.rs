@@ -19,7 +19,6 @@ use std::{
 };
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};

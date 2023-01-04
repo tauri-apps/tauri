@@ -34,13 +34,13 @@ use zip::write::FileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  let target = settings
+  let target_os = settings
     .target()
     .split('-')
     .nth(2)
     .unwrap_or(std::env::consts::OS);
 
-  if target == "windows" {
+  if target_os == "windows" {
     return bundle_update_windows(settings, bundles);
   }
 

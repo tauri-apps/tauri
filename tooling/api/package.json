@@ -41,10 +41,10 @@
     "yarn": ">= 1.19.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "5.47.1",
-    "@typescript-eslint/parser": "5.47.1",
-    "eslint": "8.30.0",
-    "eslint-config-prettier": "8.5.0",
+    "@typescript-eslint/eslint-plugin": "5.48.0",
+    "@typescript-eslint/parser": "5.48.0",
+    "eslint": "8.31.0",
+    "eslint-config-prettier": "8.6.0",
     "eslint-config-standard-with-typescript": "24.0.0",
     "eslint-plugin-import": "2.26.0",
     "eslint-plugin-n": "15.6.0",

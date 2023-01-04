@@ -1720,7 +1720,7 @@ class WindowManager extends WebviewWindowHandle {
    * @since 1.0.2
    */
   async onCloseRequested(
-    handler: (event: CloseRequestedEvent) => void
+    handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
     return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
       const evt = new CloseRequestedEvent(event)

@@ -48,7 +48,7 @@ fn override_msvcrt_lib() {
   let f = fs::OpenOptions::new()
     .write(true)
     .create_new(true)
-    .open(&path);
+    .open(path);
   if let Ok(mut f) = f {
     f.write_all(machine).unwrap();
     f.write_all(bytes).unwrap();

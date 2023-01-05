@@ -353,7 +353,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
   if target_triple.contains("darwin") {
-    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+    if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
     }
   }

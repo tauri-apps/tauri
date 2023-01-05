@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
-#[cfg(windows)]
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -358,11 +357,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
-  #[cfg(windows)]
-  {
+  if target_triple.contains("windows") {
     use anyhow::Context;
     use semver::Version;
-    use winres::{VersionInfo, WindowsResource};
+    use tauri_winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config

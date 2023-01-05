@@ -901,7 +901,7 @@ impl<R: Runtime> WindowManager<R> {
     struct CachedResponse {
       status: http::StatusCode,
       headers: http::HeaderMap,
-      body: Vec<u8>,
+      body: Cow<'static, [u8]>,
     }
 
     #[cfg(dev)]
@@ -951,7 +951,7 @@ impl<R: Runtime> WindowManager<R> {
               let response = CachedResponse {
                 status,
                 headers,
-                body,
+                body: body.into(),
               };
               response_cache_.insert(url.clone(), response);
               response_cache_.get(&url).unwrap()

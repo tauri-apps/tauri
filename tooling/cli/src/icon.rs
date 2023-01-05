@@ -328,7 +328,7 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
     |_app, config, _metadata, _cli_options| {
       let android_out = out_dir.parent().unwrap().join(format!(
         "gen/android/{}/app/src/main/res/",
-        config.app().name()
+        config.app().name_snake()
       ));
       let out = if android_out.exists() {
         android_out

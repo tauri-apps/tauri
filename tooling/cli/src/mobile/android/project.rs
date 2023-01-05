@@ -42,7 +42,7 @@ pub fn gen(
     Path::new(&os::replace_path_separator(
       util::relativize_path(
         config.app().root_dir(),
-        config.project_dir().join(config.app().name()),
+        config.project_dir().join(config.app().name_snake()),
       )
       .into_os_string(),
     )),
@@ -83,7 +83,7 @@ pub fn gen(
   map.insert("windows", cfg!(windows));
 
   let domain = config.app().reverse_domain().replace('.', "/");
-  let package_path = format!("java/{}/{}", domain, config.app().name());
+  let package_path = format!("java/{}/{}", domain, config.app().name_snake());
 
   map.insert("package-path", &package_path);
 

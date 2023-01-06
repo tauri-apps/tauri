@@ -51,10 +51,7 @@ fn main() {
 
       if path != "example/test_video.mp4" {
         // return error 404 if it's not out video
-        return response
-          .mimetype("text/plain")
-          .status(404)
-          .body(Vec::new().into());
+        return response.mimetype("text/plain").status(404).body(Vec::new());
       }
 
       // read our file
@@ -111,10 +108,7 @@ fn main() {
         }
       }
 
-      response
-        .mimetype("video/mp4")
-        .status(status_code)
-        .body(buf.into())
+      response.mimetype("video/mp4").status(status_code).body(buf)
     })
     .run(tauri::generate_context!(
       "../../examples/streaming/tauri.conf.json"

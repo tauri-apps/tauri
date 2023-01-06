@@ -522,16 +522,12 @@ impl<R: Runtime> WindowManager<R> {
 
         if let Err(e) = SafePathBuf::new(path.clone().into()) {
           debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
-          return HttpResponseBuilder::new()
-            .status(403)
-            .body(Vec::new().into());
+          return HttpResponseBuilder::new().status(403).body(Vec::new());
         }
 
         if !asset_scope.is_allowed(&path) {
           debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-          return HttpResponseBuilder::new()
-            .status(403)
-            .body(Vec::new().into());
+          return HttpResponseBuilder::new().status(403).body(Vec::new());
         }
 
         let path_ = path.clone();
@@ -701,7 +697,7 @@ impl<R: Runtime> WindowManager<R> {
             }
             Err(e) => {
               debug_eprintln!("Failed to read file: {}", e);
-              response.status(404).body(Vec::new().into())
+              response.status(404).body(Vec::new())
             }
           }
         }
@@ -748,7 +744,8 @@ impl<R: Runtime> WindowManager<R> {
           _ => HttpResponseBuilder::new()
             .status(404)
             .mimetype("text/plain")
-            .body(Vec::new()),
+            .body(Vec::new())
+            .into(),
         }
       });
     }
@@ -981,7 +978,7 @@ impl<R: Runtime> WindowManager<R> {
         if let Some(csp) = &asset.csp_header {
           builder = builder.header("Content-Security-Policy", csp);
         }
-        builder.body(asset.bytes.into())?
+        builder.body(asset.bytes)?
       };
       if let Some(handler) = &web_resource_request_handler {
         handler(request, &mut response);

@@ -27,7 +27,7 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 /// let response = ResponseBuilder::new()
 ///     .status(202)
 ///     .mimetype("text/html")
-///     .body("hello!".as_bytes().to_vec().into())
+///     .body("hello!".as_bytes().to_vec())
 ///     .unwrap();
 /// ```
 ///
@@ -192,7 +192,7 @@ impl Builder {
   /// let response = ResponseBuilder::new()
   ///     .status(200)
   ///     .mimetype("text/html")
-  ///     .body(Vec::new().into())
+  ///     .body(Vec::new())
   ///     .unwrap();
   /// ```
   #[inline]
@@ -277,11 +277,14 @@ impl Builder {
   ///
   /// let response = ResponseBuilder::new()
   ///     .mimetype("text/html")
-  ///     .body(Vec::new().into())
+  ///     .body(Vec::new())
   ///     .unwrap();
   /// ```
-  pub fn body(self, body: Cow<'static, [u8]>) -> Result<Response> {
-    self.inner.map(move |head| Response { head, body })
+  pub fn body(self, body: impl Into<Cow<'static, [u8]>>) -> Result<Response> {
+    self.inner.map(move |head| Response {
+      head,
+      body: body.into(),
+    })
   }
 
   // private

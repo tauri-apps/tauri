@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-tauri-mobile = { version = "0.1.4", default-features = false }
+tauri-mobile = { git = "https://github.com/tauri-apps/tauri-mobile", branch = "dev", default-features = false }
 textwrap = { version = "0.11.0", features = [ "term_size" ] }
 jsonrpsee = { version = "0.16", features = [ "client", "server" ] }
 thiserror = "1"
@@ -73,7 +73,7 @@ heck = "0.4"
 dialoguer = "0.10"
 url = { version = "2.3", features = [ "serde" ] }
 os_pipe = "1"
-ignore = "0.4"
+ignore = "=0.4.18"
 ctrlc = "3.2"
 log = { version = "0.4.17", features = [ "kv_unstable", "kv_unstable_std" ] }
 env_logger = "0.9.1"

@@ -107,8 +107,11 @@ pub fn get_config(
     ..Default::default()
   };
 
-  set_var("WRY_ANDROID_REVERSED_DOMAIN", app.reverse_domain());
-  set_var("WRY_ANDROID_APP_NAME_SNAKE_CASE", app.name());
+  set_var(
+    "WRY_ANDROID_PACKAGE",
+    format!("{}.{}", app.reverse_domain(), app.name_snake()),
+  );
+  set_var("WRY_ANDROID_LIBRARY", app.lib_name());
   set_var(
     "WRY_ANDROID_KOTLIN_FILES_OUT_DIR",
     config
@@ -117,7 +120,7 @@ pub fn get_config(
       .join(format!(
         "java/{}/{}",
         app.reverse_domain().replace('.', "/"),
-        app.name()
+        app.name_snake()
       ))
       .join("generated"),
   );

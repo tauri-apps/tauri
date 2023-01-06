@@ -229,9 +229,11 @@ fn get_app(config: &TauriConfig) -> App {
   .expect("failed to load interface");
 
   let app_name = interface.app_settings().app_name().unwrap_or(app_name);
+  let lib_name = interface.app_settings().lib_name();
 
   let raw = RawAppConfig {
     name: app_name,
+    lib_name,
     stylized_name: config.package.product_name.clone(),
     domain,
     asset_dir: None,

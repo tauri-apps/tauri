@@ -3071,7 +3071,7 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(target_os = "android")]
   {
-    webview_builder = webview_builder.on_webview_created(Box::new(|ctx| {
+    webview_builder = webview_builder.on_webview_created(|ctx| {
       // load plugin manager
       let plugin_manager_class = find_class(
         ctx.env,
@@ -3086,7 +3086,7 @@ fn create_webview<T: UserEvent>(
         &[ctx.webview.into()],
       )?;
       Ok(())
-    }));
+    });
   }
 
   let webview = webview_builder

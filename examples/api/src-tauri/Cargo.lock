@@ -2881,9 +2881,8 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2845fd58915455c5faf2c9ac5d8a5ed43bd23ab57f0a67d63612936209eae74"
+version = "0.15.8"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#131b5ca8cbd9e4d22d6773aa51767f49a2b93177"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -2915,16 +2914,26 @@ dependencies = [
  "objc",
  "once_cell",
  "parking_lot",
- "paste",
  "png",
  "raw-window-handle",
  "scopeguard",
  "serde",
+ "tao-macros",
  "unicode-segmentation",
  "uuid 1.2.1",
  "windows 0.39.0",
  "windows-implement",
  "x11-dl",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.0.0"
+source = "git+https://github.com/tauri-apps/tao?branch=dev#131b5ca8cbd9e4d22d6773aa51767f49a2b93177"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -4044,8 +4053,6 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.23.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c1ad8e2424f554cc5bdebe8aa374ef5b433feff817aebabca0389961fc7ef98"
 dependencies = [
  "base64",
  "block",

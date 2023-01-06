@@ -38,7 +38,7 @@ use wry::webview::WebViewBuilderExtWindows;
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use tauri_utils::{config::WindowConfig, debug_eprintln, PixelUnit, Theme};
 use uuid::Uuid;
 use wry::{
   application::{
@@ -713,7 +713,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn with_config(config: WindowConfig) -> Self {
     let mut window = WindowBuilderWrapper::new()
       .title(config.title.to_string())
-      .inner_size(config.width, config.height)
       .visible(config.visible)
       .resizable(config.resizable)
       .fullscreen(config.fullscreen)
@@ -749,17 +748,32 @@ impl WindowBuilder for WindowBuilderWrapper {
         This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
     }
-
-    if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-      window = window.min_inner_size(min_width, min_height);
+    match config.pixel_unit {
+      PixelUnit::Physical => {
+        window = window.inner_physical_size(config.width, config.height);
+        if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+          window = window.min_inner_physical_size(min_width, min_height);
+        }
+        if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+          window = window.max_inner_physical_size(max_width, max_height);
+        }
+        if let (Some(x), Some(y)) = (config.x, config.y) {
+          window = window.position_physical(x, y);
+        }
+      }
+      _ => {
+        window = window.inner_size(config.width, config.height);
+        if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
+          window = window.min_inner_size(min_width, min_height);
+        }
+        if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
+          window = window.max_inner_size(max_width, max_height);
+        }
+        if let (Some(x), Some(y)) = (config.x, config.y) {
+          window = window.position(x, y);
+        }
+      }
     }
-    if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-      window = window.max_inner_size(max_width, max_height);
-    }
-    if let (Some(x), Some(y)) = (config.x, config.y) {
-      window = window.position(x, y);
-    }
-
     if config.center {
       window = window.center();
     }
@@ -782,10 +796,22 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn position_physical(mut self, x: f64, y: f64) -> Self {
+    self.inner = self.inner.with_position(WryPhysicalPosition::new(x, y));
+    self
+  }
+
   fn inner_size(mut self, width: f64, height: f64) -> Self {
     self.inner = self
       .inner
       .with_inner_size(WryLogicalSize::new(width, height));
+    self
+  }
+
+  fn inner_physical_size(mut self, width: f64, height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_inner_size(WryPhysicalSize::new(width, height));
     self
   }
 
@@ -796,10 +822,24 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
+  fn min_inner_physical_size(mut self, min_width: f64, min_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_min_inner_size(WryPhysicalSize::new(min_width, min_height));
+    self
+  }
+
   fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.inner = self
       .inner
       .with_max_inner_size(WryLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn max_inner_physical_size(mut self, max_width: f64, max_height: f64) -> Self {
+    self.inner = self
+      .inner
+      .with_max_inner_size(WryPhysicalSize::new(max_width, max_height));
     self
   }
 

@@ -211,6 +211,36 @@ impl Default for Env {
   }
 }
 
+/// Window pixel unit
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum PixelUnit {
+  /// Use logical pixel size
+  Logical,
+  /// Use physical pixel size
+  Physical,
+}
+
+impl Default for PixelUnit {
+  fn default() -> Self {
+    PixelUnit::Logical
+  }
+}
+
+impl Display for PixelUnit {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::Logical => "Logical",
+        Self::Physical => "Physical",
+      }
+    )
+  }
+}
+
 /// The result type of `tauri-utils`.
 pub type Result<T> = std::result::Result<T, Error>;
 

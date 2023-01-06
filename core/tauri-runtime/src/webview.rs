@@ -127,17 +127,33 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn position(self, x: f64, y: f64) -> Self;
 
+  /// The initial physical position of the window's.
+  #[must_use]
+  fn position_physical(self, x: f64, y: f64) -> Self;
+
   /// Window size.
   #[must_use]
   fn inner_size(self, width: f64, height: f64) -> Self;
+
+  /// Window physical size.
+  #[must_use]
+  fn inner_physical_size(self, width: f64, height: f64) -> Self;
 
   /// Window min inner size.
   #[must_use]
   fn min_inner_size(self, min_width: f64, min_height: f64) -> Self;
 
+  /// Window min inner physical size.
+  #[must_use]
+  fn min_inner_physical_size(self, min_width: f64, min_height: f64) -> Self;
+
   /// Window max inner size.
   #[must_use]
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
+
+  /// Window max inner physical size.
+  #[must_use]
+  fn max_inner_physical_size(self, max_width: f64, max_height: f64) -> Self;
 
   /// Whether the window is resizable or not.
   #[must_use]

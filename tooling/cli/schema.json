@@ -570,6 +570,15 @@
           "type": "number",
           "format": "double"
         },
+        "pixelUnit": {
+          "description": "Pixel unit type. Effective to size and position related settings",
+          "default": "logical",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PixelUnit"
+            }
+          ]
+        },
         "minWidth": {
           "description": "The min window width.",
           "type": [
@@ -761,6 +770,14 @@
             "Overlay"
           ]
         }
+      ]
+    },
+    "PixelUnit": {
+      "description": "Pixel unit type. Effective to size and position related settings",
+      "type": "string",
+      "enum": [
+        "logical",
+        "physical"
       ]
     },
     "CliConfig": {

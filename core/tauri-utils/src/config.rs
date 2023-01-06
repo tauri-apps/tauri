@@ -34,6 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
+use crate::PixelUnit;
 use crate::TitleBarStyle;
 
 pub use self::parse::parse;
@@ -929,6 +930,9 @@ pub struct WindowConfig {
   /// The style of the macOS title bar.
   #[serde(default, alias = "title-bar-style")]
   pub title_bar_style: TitleBarStyle,
+  /// Pixel unit type. Effective to size and position related settings
+  #[serde(default, alias = "size-unit")]
+  pub pixel_unit: PixelUnit,
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
@@ -978,6 +982,7 @@ impl Default for WindowConfig {
       skip_taskbar: false,
       theme: None,
       title_bar_style: Default::default(),
+      pixel_unit: Default::default(),
       hidden_title: false,
       accept_first_mouse: false,
       tabbing_identifier: None,
@@ -3105,6 +3110,17 @@ mod build {
     }
   }
 
+  impl ToTokens for crate::PixelUnit {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::PixelUnit };
+
+      tokens.append_all(match self {
+        Self::Logical => quote! { #prefix::Logical },
+        Self::Physical => quote! { #prefix::Physical },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3133,6 +3149,7 @@ mod build {
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
+      let pixel_unit = &self.pixel_unit;
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
       let tabbing_identifier = opt_str_lit(self.tabbing_identifier.as_ref());
@@ -3167,6 +3184,7 @@ mod build {
         skip_taskbar,
         theme,
         title_bar_style,
+        pixel_unit,
         hidden_title,
         accept_first_mouse,
         tabbing_identifier,

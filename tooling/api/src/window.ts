@@ -69,7 +69,7 @@ import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'
 type TitleBarStyle = 'visible' | 'transparent' | 'overlay'
-
+type PixelUnit = 'physical' | 'logical'
 /**
  * Allows you to retrieve information about a given monitor.
  *
@@ -2072,6 +2072,8 @@ interface WindowOptions {
   width?: number
   /** The initial height. */
   height?: number
+  /** Pixel unit type. Effective to size and position related settings */
+  pixelUnit?: PixelUnit
   /** The minimum width. Only applies if `minHeight` is also set. */
   minWidth?: number
   /** The minimum height. Only applies if `minWidth` is also set. */

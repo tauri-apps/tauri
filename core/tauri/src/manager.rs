@@ -688,12 +688,12 @@ impl<R: Runtime> WindowManager<R> {
           response
             .mimetype(&mime_type)
             .status(range_metadata.status_code)
-            .body(range_metadata.body.into())
+            .body(range_metadata.body)
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
             Ok(data) => {
               let mime_type = MimeType::parse(&data, &path);
-              response.mimetype(&mime_type).body(data.into())
+              response.mimetype(&mime_type).body(data)
             }
             Err(e) => {
               debug_eprintln!("Failed to read file: {}", e);
@@ -744,8 +744,7 @@ impl<R: Runtime> WindowManager<R> {
           _ => HttpResponseBuilder::new()
             .status(404)
             .mimetype("text/plain")
-            .body(Vec::new())
-            .into(),
+            .body(Vec::new()),
         }
       });
     }

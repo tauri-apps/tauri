@@ -56,7 +56,7 @@ pub struct Options {
   pub args: Vec<String>,
 }
 
-pub fn command(mut options: Options) -> Result<()> {
+pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
@@ -218,9 +218,15 @@ pub fn command(mut options: Options) -> Result<()> {
       }
     }
 
-    let settings = app_settings
+    let mut settings = app_settings
       .get_bundler_settings(&options.into(), config_, out_dir, package_types)
       .with_context(|| "failed to build bundler settings")?;
+
+    settings.set_log_level(match verbosity {
+      0 => log::Level::Error,
+      1 => log::Level::Info,
+      _ => log::Level::Trace,
+    });
 
     // set env vars used by the bundler
     #[cfg(target_os = "linux")]

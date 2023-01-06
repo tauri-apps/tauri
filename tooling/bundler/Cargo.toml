@@ -32,6 +32,7 @@ handlebars = "4.3"
 tempfile = "3.3.0"
 log = { version = "0.4.17", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
+os_pipe = "1"
 
 # dependencies for Windows targets
 attohttpc = "0.24"

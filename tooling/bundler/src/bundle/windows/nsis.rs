@@ -387,10 +387,15 @@ fn build_nsis_app_installer(
   let mut nsis_cmd = Command::new("makensis");
 
   nsis_cmd
-    .arg("-V4")
+    .arg(match settings.log_level() {
+      log::Level::Error => "-V1",
+      log::Level::Warn => "-V2",
+      log::Level::Info => "-V3",
+      _ => "-V4",
+    })
     .arg(installer_nsi_path)
     .current_dir(output_path)
-    .output_ok()
+    .piped()
     .context("error running makensis.exe")?;
 
   rename(nsis_output_path, &nsis_installer_path)?;

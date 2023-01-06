@@ -522,12 +522,16 @@ impl<R: Runtime> WindowManager<R> {
 
         if let Err(e) = SafePathBuf::new(path.clone().into()) {
           debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
+          return HttpResponseBuilder::new()
+            .status(403)
+            .body(Vec::new().into());
         }
 
         if !asset_scope.is_allowed(&path) {
           debug_eprintln!("asset protocol not configured to allow the path: {}", path);
-          return HttpResponseBuilder::new().status(403).body(Vec::new());
+          return HttpResponseBuilder::new()
+            .status(403)
+            .body(Vec::new().into());
         }
 
         let path_ = path.clone();
@@ -688,16 +692,16 @@ impl<R: Runtime> WindowManager<R> {
           response
             .mimetype(&mime_type)
             .status(range_metadata.status_code)
-            .body(range_metadata.body)
+            .body(range_metadata.body.into())
         } else {
           match crate::async_runtime::safe_block_on(async move { tokio::fs::read(path_).await }) {
             Ok(data) => {
               let mime_type = MimeType::parse(&data, &path);
-              response.mimetype(&mime_type).body(data)
+              response.mimetype(&mime_type).body(data.into())
             }
             Err(e) => {
               debug_eprintln!("Failed to read file: {}", e);
-              response.status(404).body(Vec::new())
+              response.status(404).body(Vec::new().into())
             }
           }
         }
@@ -977,7 +981,7 @@ impl<R: Runtime> WindowManager<R> {
         if let Some(csp) = &asset.csp_header {
           builder = builder.header("Content-Security-Policy", csp);
         }
-        builder.body(asset.bytes)?
+        builder.body(asset.bytes.into())?
       };
       if let Some(handler) = &web_resource_request_handler {
         handler(request, &mut response);
@@ -988,7 +992,7 @@ impl<R: Runtime> WindowManager<R> {
         let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
         let html = String::from_utf8_lossy(response.body());
         let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-        *response.body_mut() = body.as_bytes().to_vec();
+        *response.body_mut() = body.as_bytes().to_vec().into();
       }
       Ok(response)
     })

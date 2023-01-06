@@ -46,7 +46,7 @@
     "prettier": "2.8.1"
   },
   "resolutions": {
-    "json5": ">2.2.2"
+    "json5": "2.2.3"
   },
   "engines": {
     "node": ">= 10"

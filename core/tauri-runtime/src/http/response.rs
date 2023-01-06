@@ -7,7 +7,7 @@ use super::{
   status::StatusCode,
   version::Version,
 };
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -33,7 +33,7 @@ type Result<T> = core::result::Result<T, Box<dyn std::error::Error>>;
 ///
 pub struct Response {
   head: ResponseParts,
-  body: Vec<u8>,
+  body: Cow<'static, [u8]>,
 }
 
 /// Component parts of an HTTP `Response`
@@ -67,7 +67,7 @@ pub struct Builder {
 impl Response {
   /// Creates a new blank `Response` with the body
   #[inline]
-  pub fn new(body: Vec<u8>) -> Response {
+  pub fn new(body: Cow<'static, [u8]>) -> Response {
     Response {
       head: ResponseParts::new(),
       body,
@@ -81,7 +81,7 @@ impl Response {
   /// This API is used internally. It may have breaking changes in the future.
   #[inline]
   #[doc(hidden)]
-  pub fn into_parts(self) -> (ResponseParts, Vec<u8>) {
+  pub fn into_parts(self) -> (ResponseParts, Cow<'static, [u8]>) {
     (self.head, self.body)
   }
 
@@ -129,13 +129,13 @@ impl Response {
 
   /// Returns a mutable reference to the associated HTTP body.
   #[inline]
-  pub fn body_mut(&mut self) -> &mut Vec<u8> {
+  pub fn body_mut(&mut self) -> &mut Cow<'static, [u8]> {
     &mut self.body
   }
 
   /// Returns a reference to the associated HTTP body.
   #[inline]
-  pub fn body(&self) -> &Vec<u8> {
+  pub fn body(&self) -> &Cow<'static, [u8]> {
     &self.body
   }
 }
@@ -143,7 +143,7 @@ impl Response {
 impl Default for Response {
   #[inline]
   fn default() -> Response {
-    Response::new(Vec::new())
+    Response::new(Default::default())
   }
 }
 
@@ -280,8 +280,11 @@ impl Builder {
   ///     .body(Vec::new())
   ///     .unwrap();
   /// ```
-  pub fn body(self, body: Vec<u8>) -> Result<Response> {
-    self.inner.map(move |head| Response { head, body })
+  pub fn body(self, body: impl Into<Cow<'static, [u8]>>) -> Result<Response> {
+    self.inner.map(move |head| Response {
+      head,
+      body: body.into(),
+    })
   }
 
   // private

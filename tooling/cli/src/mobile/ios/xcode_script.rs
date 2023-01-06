@@ -6,7 +6,6 @@ use crate::{
 };
 
 use clap::Parser;
-use heck::AsSnakeCase;
 use tauri_mobile::{apple::target::Target, opts::Profile, util};
 
 use std::{collections::HashMap, ffi::OsStr, path::PathBuf};
@@ -188,7 +187,7 @@ pub fn command(options: Options) -> Result<()> {
         })?;
       let out_dir = bin_path.parent().unwrap();
 
-      let lib_path = out_dir.join(format!("lib{}.a", AsSnakeCase(config.app().name())));
+      let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
       if !lib_path.exists() {
         return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
       }
@@ -201,7 +200,7 @@ pub fn command(options: Options) -> Result<()> {
         format!(
           "gen/apple/Externals/{rust_triple}/{}/lib{}.a",
           profile.as_str(),
-          AsSnakeCase(config.app().name())
+          config.app().lib_name()
         ),
       )?;
     }

@@ -450,7 +450,7 @@ fn crate_version(
                 v
               } else if let Some(p) = p.path {
                 let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(&manifest_path)
+                let v = match read_to_string(manifest_path)
                   .map_err(|_| ())
                   .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
                 {
@@ -889,7 +889,7 @@ pub fn command(_options: Options) -> Result<()> {
   if tauri_dir.is_some() {
     let p = tauri_dir.as_ref().unwrap();
     if p.join("gen/apple").exists() {
-      let teams = cargo_mobile::apple::teams::find_development_teams().unwrap_or_default();
+      let teams = tauri_mobile::apple::teams::find_development_teams().unwrap_or_default();
       Section("iOS").display();
       InfoBlock::new(
         "Teams",
@@ -901,7 +901,6 @@ pub fn command(_options: Options) -> Result<()> {
             .map(|t| format!("{} (ID: {})", t.name, t.id))
             .collect::<Vec<String>>()
             .join(", ")
-            .to_string()
         },
       )
       .display();

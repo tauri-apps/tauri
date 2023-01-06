@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     env::Env,
@@ -45,6 +45,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -63,6 +66,7 @@ impl From<Options> for crate::dev::Options {
       release_mode: false,
       args: Vec::new(),
       no_watch: options.no_watch,
+      no_dev_server: options.no_dev_server,
     }
   }
 }
@@ -100,7 +104,7 @@ fn run_dev(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;

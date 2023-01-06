@@ -126,9 +126,9 @@ dependencies = [
 
 [[package]]
 name = "attohttpc"
-version = "0.23.1"
+version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12489f6c5525b06c7e5d689f0efeeae5b9efc38824478e854da9f4f33f040cf5"
+checksum = "b85f766c20e6ae766956f7a2fcc4e0931e79a7e1f48b29132b5d647021114914"
 dependencies = [
  "flate2",
  "http",
@@ -373,46 +373,6 @@ dependencies = [
  "cc",
  "libc",
  "pkg-config",
-]
-
-[[package]]
-name = "cargo-mobile"
-version = "0.1.0"
-source = "git+https://github.com/tauri-apps/cargo-mobile?branch=dev#f117968d675537bc753b53d608a3743815de9689"
-dependencies = [
- "cocoa",
- "colored 1.9.3",
- "core-foundation 0.7.0",
- "deunicode",
- "dunce",
- "embed-resource",
- "english-numbers",
- "env_logger 0.7.1",
- "freedesktop_entry_parser",
- "handlebars 3.5.5",
- "heck 0.4.0",
- "home",
- "ignore",
- "indexmap",
- "java-properties",
- "lexical-core",
- "libc",
- "log",
- "objc",
- "objc_id",
- "once-cell-regex",
- "openssl",
- "os_pipe",
- "path_abs",
- "serde",
- "serde_json",
- "structopt",
- "textwrap",
- "thiserror",
- "toml",
- "ureq",
- "winapi",
- "windows",
 ]
 
 [[package]]
@@ -808,15 +768,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deflate"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c86f7e25f518f4b81808a2cf1c50996a61f5c2eb394b2393bd87f2a4780a432f"
-dependencies = [
- "adler32",
-]
-
-[[package]]
 name = "derive_more"
 version = "0.99.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1029,25 +980,12 @@ checksum = "4e4f5d6e192964d498b45abee72ca445e91909094bc8e8791259e82c2a0d1aa6"
 
 [[package]]
 name = "env_logger"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
-dependencies = [
- "atty",
- "humantime 1.3.0",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c90bf5f19754d10198ccb95b70664fc925bd1fc090a0fd9a6ebc54acc8cd6272"
 dependencies = [
  "atty",
- "humantime 2.1.0",
+ "humantime",
  "log",
  "regex",
  "termcolor",
@@ -1069,7 +1007,7 @@ dependencies = [
  "flume",
  "half",
  "lebe",
- "miniz_oxide",
+ "miniz_oxide 0.5.4",
  "smallvec",
  "threadpool",
 ]
@@ -1118,7 +1056,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f82b0f4c27ad9f8bfd1f3208d882da2b09c301bc1c828fd3a00d0216d2fbbff6"
 dependencies = [
  "crc32fast",
- "miniz_oxide",
+ "miniz_oxide 0.5.4",
 ]
 
 [[package]]
@@ -1476,7 +1414,7 @@ dependencies = [
  "log",
  "pest",
  "pest_derive",
- "quick-error 2.0.1",
+ "quick-error",
  "serde",
  "serde_json",
 ]
@@ -1605,15 +1543,6 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 
 [[package]]
 name = "humantime"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
-dependencies = [
- "quick-error 1.2.3",
-]
-
-[[package]]
-name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
@@ -1695,9 +1624,9 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.24.4"
+version = "0.24.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd8e4fb07cf672b1642304e731ef8a6a4c7891d67bb4fd4f5ce58cd6ed86803c"
+checksum = "69b7ea949b537b0fd0af141fff8c77690f2ce96f4f41f042ccb6c69c6c965945"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -1837,9 +1766,9 @@ dependencies = [
 
 [[package]]
 name = "jpeg-decoder"
-version = "0.2.6"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9478aa10f73e7528198d75109c8be5cd7d15fb530238040148d5f9a22d4c5b3b"
+checksum = "bc0000e42512c92e31c2252315bda326620a4e034105e900c98ec492fa077b3e"
 dependencies = [
  "rayon",
 ]
@@ -2286,6 +2215,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "miniz_oxide"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b275950c28b37e794e8c55d88aeb5e139d0ce23fdbbeda68f8d7174abdf9e8fa"
+dependencies = [
+ "adler",
+]
+
+[[package]]
 name = "mio"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2642,6 +2580,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
+name = "openssl-src"
+version = "111.24.0+1.1.1s"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3498f259dab01178c6228c6b00dcef0ed2a2d5e20d648c017861227773ea4abd"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2650,6 +2597,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -2946,14 +2894,14 @@ dependencies = [
 
 [[package]]
 name = "png"
-version = "0.17.5"
+version = "0.17.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc38c0ad57efb786dd57b9864e5b18bae478c00c824dc55a38bbc9da95dde3ba"
+checksum = "5d708eaf860a19b19ce538740d2b4bdeeb8337fa53f7738455e706623ad5c638"
 dependencies = [
  "bitflags",
  "crc32fast",
- "deflate",
- "miniz_oxide",
+ "flate2",
+ "miniz_oxide 0.6.2",
 ]
 
 [[package]]
@@ -3018,12 +2966,6 @@ checksum = "94e2ef8dbfc347b10c094890f778ee2e36ca9bb4262e86dc99cd217e35f3470b"
 dependencies = [
  "unicode-ident",
 ]
-
-[[package]]
-name = "quick-error"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick-error"
@@ -3853,7 +3795,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "1.1.0"
+version = "2.0.0-alpha.0"
 dependencies = [
  "anyhow",
  "ar",
@@ -3890,18 +3832,17 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.2.0"
+version = "2.0.0-alpha.1"
 dependencies = [
  "anyhow",
  "axum",
  "base64",
- "cargo-mobile",
  "clap 4.0.9",
  "colored 2.0.0",
  "common-path",
  "ctrlc",
  "dialoguer",
- "env_logger 0.9.1",
+ "env_logger",
  "handlebars 4.3.1",
  "heck 0.4.0",
  "html5ever",
@@ -3919,6 +3860,7 @@ dependencies = [
  "notify",
  "notify-debouncer-mini",
  "once_cell",
+ "openssl",
  "os_info",
  "os_pipe",
  "regex",
@@ -3929,6 +3871,7 @@ dependencies = [
  "sublime_fuzzy",
  "tauri-bundler",
  "tauri-icns",
+ "tauri-mobile",
  "tauri-utils",
  "textwrap",
  "thiserror",
@@ -3964,8 +3907,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-mobile"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dff04e700514e294069c697559b74f2cc168e8d6c984e2e4ba99a40d63468061"
+dependencies = [
+ "cocoa",
+ "colored 1.9.3",
+ "core-foundation 0.7.0",
+ "deunicode",
+ "dunce",
+ "embed-resource",
+ "english-numbers",
+ "freedesktop_entry_parser",
+ "handlebars 3.5.5",
+ "heck 0.4.0",
+ "home",
+ "ignore",
+ "indexmap",
+ "java-properties",
+ "lexical-core",
+ "libc",
+ "log",
+ "objc",
+ "objc_id",
+ "once-cell-regex",
+ "openssl",
+ "os_pipe",
+ "path_abs",
+ "serde",
+ "serde_json",
+ "textwrap",
+ "thiserror",
+ "toml",
+ "ureq",
+ "winapi",
+ "windows",
+]
+
+[[package]]
 name = "tauri-utils"
-version = "1.2.0"
+version = "2.0.0-alpha.0"
 dependencies = [
  "aes-gcm",
  "ctor",
@@ -4102,9 +4084,9 @@ dependencies = [
 
 [[package]]
 name = "tiff"
-version = "0.7.2"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cfada0986f446a770eca461e8c6566cb879682f7d687c8348aa0c857bd52286"
+checksum = "f17def29300a156c19ae30814710d9c63cd50288a49c6fd3a10ccfbe4cf886fd"
 dependencies = [
  "flate2",
  "jpeg-decoder",

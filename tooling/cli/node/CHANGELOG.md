@@ -1,5 +1,41 @@
 # Changelog
 
+## \[2.0.0-alpha.1]
+
+- Fixes running on device using Xcode 14.
+  - [1e4a6758](https://www.github.com/tauri-apps/tauri/commit/1e4a675843c486bddc11292d09fb766e98758514) fix(cli): run on iOS device on Xcode 14 ([#5807](https://www.github.com/tauri-apps/tauri/pull/5807)) on 2022-12-12
+- Improve local IP address detection with user selection.
+  - [76204b89](https://www.github.com/tauri-apps/tauri/commit/76204b893846a04552f8f8b87ad2c9b55e1b417f) feat(cli): improve local IP detection ([#5817](https://www.github.com/tauri-apps/tauri/pull/5817)) on 2022-12-12
+
+## \[2.0.0-alpha.0]
+
+- Added `android build` command.
+  - [4c9ea450](https://www.github.com/tauri-apps/tauri/commit/4c9ea450c3b47c6b8c825ba32e9837909945ccd7) feat(cli): add `android build` command ([#4999](https://www.github.com/tauri-apps/tauri/pull/4999)) on 2022-08-22
+- Added `ios build` command.
+  - [403859d4](https://www.github.com/tauri-apps/tauri/commit/403859d47e1a9bf978b353fa58e4b971e66337a3) feat(cli): add `ios build` command ([#5002](https://www.github.com/tauri-apps/tauri/pull/5002)) on 2022-08-22
+- Added `android dev` and `ios dev` commands.
+  - [6f061504](https://www.github.com/tauri-apps/tauri/commit/6f0615044d09ec58393a7ebca5e45bb175e20db3) feat(cli): add `android dev` and `ios dev` commands ([#4982](https://www.github.com/tauri-apps/tauri/pull/4982)) on 2022-08-20
+- Added `android init` and `ios init` commands.
+  - [d44f67f7](https://www.github.com/tauri-apps/tauri/commit/d44f67f7afd30a81d53a973ec603b2a253150bde) feat: add `android init` and `ios init` commands ([#4942](https://www.github.com/tauri-apps/tauri/pull/4942)) on 2022-08-15
+- Added `android open` and `ios open` commands.
+  - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.2.2]
+
+- Detect SvelteKit and Vite for the init and info commands.
+  - [9d872ab8](https://www.github.com/tauri-apps/tauri/commit/9d872ab8728b1b121909af434adcd5936e5afb7d) feat(cli): detect SvelteKit and Vite ([#5742](https://www.github.com/tauri-apps/tauri/pull/5742)) on 2022-12-02
+- Detect SolidJS and SolidStart for the init and info commands.
+  - [9e7ce0a8](https://www.github.com/tauri-apps/tauri/commit/9e7ce0a8eef4bf3536645976e3e09162fbf772ab) feat(cli): detect SolidJS and SolidStart ([#5758](https://www.github.com/tauri-apps/tauri/pull/5758)) on 2022-12-08
+- Use older icon types to work around a macOS bug resulting in corrupted 16x16px and 32x32px icons in bundled apps.
+  - [2d545eff](https://www.github.com/tauri-apps/tauri/commit/2d545eff58734ec70f23f11a429d35435cdf090e) fix(cli): corrupted icons in bundled macOS icons ([#5698](https://www.github.com/tauri-apps/tauri/pull/5698)) on 2022-11-28
+
+## \[1.2.1]
+
+- Fixes injection of Cargo features defined in the configuration file.
+  - [1ecaeb29](https://www.github.com/tauri-apps/tauri/commit/1ecaeb29aa798f591f6488dc6c3a7a8d22f6073e) fix(cli): inject config feature flags when features arg is not provided on 2022-11-18
+
 ## \[1.2.0]
 
 - Detect JSON5 and TOML configuration files in the dev watcher.

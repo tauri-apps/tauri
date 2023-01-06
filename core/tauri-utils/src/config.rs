@@ -55,7 +55,7 @@ pub enum WindowUrl {
 impl fmt::Display for WindowUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url) => write!(f, "{}", url),
+      Self::External(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),
     }
   }
@@ -125,7 +125,7 @@ impl<'de> Deserialize<'de> for BundleType {
       "app" => Ok(Self::App),
       "dmg" => Ok(Self::Dmg),
       "updater" => Ok(Self::Updater),
-      _ => Err(DeError::custom(format!("unknown bundle target '{}'", s))),
+      _ => Err(DeError::custom(format!("unknown bundle target '{s}'"))),
     }
   }
 }
@@ -223,7 +223,7 @@ impl<'de> Deserialize<'de> for BundleTarget {
 
     match BundleTargetInner::deserialize(deserializer)? {
       BundleTargetInner::All(s) if s.to_lowercase() == "all" => Ok(Self::All),
-      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {}", t))),
+      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {t}"))),
       BundleTargetInner::List(l) => Ok(Self::List(l)),
       BundleTargetInner::One(t) => Ok(Self::One(t)),
     }
@@ -862,7 +862,7 @@ pub struct WindowConfig {
   /// Whether the window should always be on top of other windows.
   #[serde(default, alias = "always-on-top")]
   pub always_on_top: bool,
-  /// Whether or not the window icon should be added to the taskbar.
+  /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
@@ -873,7 +873,7 @@ pub struct WindowConfig {
   /// If `true`, sets the window title to be hidden on macOS.
   #[serde(default, alias = "hidden-title")]
   pub hidden_title: bool,
-  /// Whether clicking an inactive window also clicks through to the webview.
+  /// Whether clicking an inactive window also clicks through to the webview on macOS.
   #[serde(default, alias = "accept-first-mouse")]
   pub accept_first_mouse: bool,
   /// Defines the window [tabbing identifier] for macOS.
@@ -988,7 +988,7 @@ impl CspDirectiveSources {
   /// Whether the given source is configured on this directive or not.
   pub fn contains(&self, source: &str) -> bool {
     match self {
-      Self::Inline(s) => s.contains(&format!("{} ", source)) || s.contains(&format!(" {}", source)),
+      Self::Inline(s) => s.contains(&format!("{source} ")) || s.contains(&format!(" {source}")),
       Self::List(l) => l.contains(&source.into()),
     }
   }
@@ -1054,7 +1054,7 @@ impl From<Csp> for HashMap<String, CspDirectiveSources> {
 impl Display for Csp {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Policy(s) => write!(f, "{}", s),
+      Self::Policy(s) => write!(f, "{s}"),
       Self::DirectiveMap(m) => {
         let len = m.len();
         let mut i = 0;
@@ -2150,6 +2150,7 @@ impl Allowlist for AllowlistConfig {
       features.extend(self.protocol.to_features());
       features.extend(self.process.to_features());
       features.extend(self.clipboard.to_features());
+      features.extend(self.app.to_features());
       features
     }
   }
@@ -2348,8 +2349,7 @@ impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
       "quiet" => Ok(Self::Quiet),
       "passive" => Ok(Self::Passive),
       _ => Err(DeError::custom(format!(
-        "unknown update install mode '{}'",
-        s
+        "unknown update install mode '{s}'"
       ))),
     }
   }
@@ -2505,7 +2505,7 @@ pub enum AppUrl {
 impl std::fmt::Display for AppUrl {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::Url(url) => write!(f, "{}", url),
+      Self::Url(url) => write!(f, "{url}"),
       Self::Files(files) => write!(f, "{}", serde_json::to_string(files).unwrap()),
     }
   }
@@ -2644,9 +2644,9 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
         let path = PathBuf::from(value);
         if path.exists() {
           let json_str = read_to_string(&path)
-            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {e}")))?;
           let package_json: serde_json::Value = serde_json::from_str(&json_str)
-            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {}", e)))?;
+            .map_err(|e| DeError::custom(format!("failed to read version JSON file: {e}")))?;
           if let Some(obj) = package_json.as_object() {
             let version = obj
               .get("version")

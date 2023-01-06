@@ -654,7 +654,7 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    Ok(out_dir.join(bin_name).with_extension(&binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
   fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
@@ -759,6 +759,18 @@ impl AppSettings for RustAppSettings {
     }
 
     Ok(binaries)
+  }
+
+  fn app_name(&self) -> Option<String> {
+    self
+      .manifest
+      .inner
+      .as_table()
+      .get("package")
+      .and_then(|p| p.as_table())
+      .and_then(|p| p.get("name"))
+      .and_then(|n| n.as_str())
+      .map(|n| n.to_string())
   }
 }
 

@@ -4,7 +4,14 @@
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use cargo_mobile::{
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
+use std::{
+  ffi::{OsStr, OsString},
+  fs::{create_dir_all, OpenOptions},
+  path::{Component, PathBuf},
+};
+use tauri_mobile::{
   apple::{
     config::{Config, Metadata},
     deps, rust_version_check,
@@ -14,13 +21,6 @@ use cargo_mobile::{
   config::app::DEFAULT_ASSET_DIR,
   target::TargetTrait as _,
   util::{self, cli::TextWrapper},
-};
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
-use std::{
-  ffi::{OsStr, OsString},
-  fs::{create_dir_all, OpenOptions},
-  path::{Component, PathBuf},
 };
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");
@@ -154,6 +154,16 @@ pub fn gen(
       anyhow::anyhow!(
         "failed to create asset dir {path}: {cause}",
         path = asset_dir.display()
+      )
+    })?;
+  }
+
+  let externals_dir = dest.join("Externals");
+  if !externals_dir.is_dir() {
+    create_dir_all(&externals_dir).map_err(|cause| {
+      anyhow::anyhow!(
+        "failed to create Externals dir {path}: {cause}",
+        path = externals_dir.display()
       )
     })?;
   }

@@ -368,7 +368,7 @@ impl TryFrom<FilePart> for Vec<u8> {
   type Error = crate::api::Error;
   fn try_from(file: FilePart) -> crate::api::Result<Self> {
     let bytes = match file {
-      FilePart::Path(path) => std::fs::read(&path)?,
+      FilePart::Path(path) => std::fs::read(path)?,
       FilePart::Contents(bytes) => bytes,
     };
     Ok(bytes)
@@ -441,8 +441,7 @@ impl<'de> Deserialize<'de> for HeaderMap {
         headers.insert(key, value);
       } else {
         return Err(serde::de::Error::custom(format!(
-          "invalid header `{}` `{}`",
-          key, value
+          "invalid header `{key}` `{value}`"
         )));
       }
     }
@@ -662,7 +661,7 @@ impl Response {
     let data = match self.0 {
       ResponseType::Json => self.1.json()?,
       ResponseType::Text => Value::String(self.1.text()?),
-      ResponseType::Binary => serde_json::to_value(&self.1.bytes()?)?,
+      ResponseType::Binary => serde_json::to_value(self.1.bytes()?)?,
     };
 
     Ok(ResponseData {

@@ -11,6 +11,7 @@ rust binaries.
 */
 
 const { readFileSync, writeFileSync } = require('fs')
+const { resolve } = require('path')
 
 const packageNickname = process.argv[2]
 const filePath =
@@ -22,6 +23,7 @@ let index = null
 
 switch (bump) {
   case 'major':
+  case 'premajor':
     index = 0
     break
   case 'minor':
@@ -29,6 +31,9 @@ switch (bump) {
     break
   case 'patch':
     index = 2
+    break
+  case 'prerelease':
+    index = 3
     break
   default:
     throw new Error('unexpected bump ' + bump)
@@ -42,6 +47,10 @@ const inc = (version) => {
     } else if (i > index) {
       v[i] = 0
     }
+  }
+  if (bump === 'premajor') {
+    const pre = JSON.parse(readFileSync(resolve(filePath, '../../../.changes/pre.json'), 'utf-8'))
+    return `${v.join('.')}-${pre.tag}.0`
   }
   return v.join('.')
 }

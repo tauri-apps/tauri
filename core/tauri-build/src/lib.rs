@@ -35,8 +35,8 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
-fn copy_binaries<'a>(
-  binaries: ResourcePaths<'a>,
+fn copy_binaries(
+  binaries: ResourcePaths,
   target_triple: &str,
   path: &Path,
   package_name: Option<&String>,
@@ -48,7 +48,7 @@ fn copy_binaries<'a>(
       .file_name()
       .expect("failed to extract external binary filename")
       .to_string_lossy()
-      .replace(&format!("-{}", target_triple), "");
+      .replace(&format!("-{target_triple}"), "");
 
     if package_name.map_or(false, |n| n == &file_name) {
       return Err(anyhow::anyhow!(
@@ -72,7 +72,7 @@ fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
     let src = src?;
     println!("cargo:rerun-if-changed={}", src.display());
     let dest = path.join(resource_relpath(&src));
-    copy_file(&src, &dest)?;
+    copy_file(&src, dest)?;
   }
   Ok(())
 }
@@ -90,7 +90,7 @@ fn has_feature(feature: &str) -> bool {
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
   if has_feature {
-    println!("cargo:rustc-cfg={}", alias);
+    println!("cargo:rustc-cfg={alias}");
   }
 }
 
@@ -179,8 +179,8 @@ impl Attributes {
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
-    let error = format!("{:#}", error);
-    println!("{}", error);
+    let error = format!("{error:#}");
+    println!("{error}");
     if error.starts_with("unknown field") {
       print!("found an unknown configuration field. This usually means that you are using a CLI version that is newer than `tauri-build` and is incompatible. ");
       println!(
@@ -222,14 +222,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let s = config.tauri.bundle.identifier.split('.');
   let last = s.clone().count() - 1;
   let mut domain = String::new();
+  let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i != last {
       domain.push_str(w);
-      domain.push('_');
+      domain.push('.');
+
+      android_package_prefix.push_str(w);
+      android_package_prefix.push('_');
     }
   }
   domain.pop();
-  println!("cargo:rustc-env=TAURI_ANDROID_DOMAIN={}", domain);
+  android_package_prefix.pop();
+  println!("cargo:rustc-env=TAURI_MOBILE_DOMAIN={domain}");
+  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
 
   cfg_alias("dev", !has_feature("custom-protocol"));
 
@@ -288,7 +294,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let target_triple = std::env::var("TARGET").unwrap();
 
-  println!("cargo:rustc-env=TAURI_TARGET_TRIPLE={}", target_triple);
+  println!("cargo:rustc-env=TAURI_TARGET_TRIPLE={target_triple}");
 
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>

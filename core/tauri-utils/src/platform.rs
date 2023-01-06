@@ -133,10 +133,10 @@ pub fn target_triple() -> crate::Result<String> {
       return Err(crate::Error::Environment);
     };
 
-    format!("{}-{}", os, env)
+    format!("{os}-{env}")
   };
 
-  Ok(format!("{}-{}", arch, os))
+  Ok(format!("{arch}-{os}"))
 }
 
 /// Computes the resource directory of the current environment.
@@ -157,8 +157,8 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   let exe_dir = exe.parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
 
-  if curr_dir.ends_with(format!("{S}target{S}debug", S = MAIN_SEPARATOR).as_str())
-    || curr_dir.ends_with(format!("{S}target{S}release", S = MAIN_SEPARATOR).as_str())
+  if curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}debug").as_str())
+    || curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}release").as_str())
     || cfg!(target_os = "windows")
   {
     // running from the out dir or windows

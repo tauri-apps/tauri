@@ -4,15 +4,9 @@
 
 use crate::{
   helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
-  interface::DevProcess,
+  interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
-use cargo_mobile::{
-  bossy,
-  config::app::{App, Raw as RawAppConfig},
-  env::Error as EnvError,
-  opts::NoiseLevel,
-};
 use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::rpc_params;
@@ -33,12 +27,18 @@ use std::{
     Arc,
   },
 };
+use tauri_mobile::{
+  bossy,
+  config::app::{App, Raw as RawAppConfig},
+  env::Error as EnvError,
+  opts::{NoiseLevel, Profile},
+};
 use tokio::runtime::Runtime;
 
 #[cfg(not(windows))]
-use cargo_mobile::env::Env;
+use tauri_mobile::env::Env;
 #[cfg(windows)]
-use cargo_mobile::os::Env;
+use tauri_mobile::os::Env;
 
 pub mod android;
 mod init;
@@ -129,6 +129,7 @@ pub struct CliOptions {
 
 fn env_vars() -> HashMap<String, OsString> {
   let mut vars = HashMap::new();
+  vars.insert("RUST_LOG_STYLE".into(), "always".into());
   for (k, v) in std::env::vars_os() {
     let k = k.to_string_lossy();
     if (k.starts_with("TAURI") && k != "TAURI_PRIVATE_KEY" && k != "TAURI_KEY_PASSWORD")
@@ -220,19 +221,14 @@ fn get_app(config: &TauriConfig) -> App {
   }
   reverse_domain.pop();
 
-  let manifest_path = tauri_dir().join("Cargo.toml");
-  let app_name = if let Ok(manifest) = crate::interface::manifest::read_manifest(&manifest_path) {
-    manifest
-      .as_table()
-      .get("package")
-      .and_then(|p| p.as_table())
-      .and_then(|p| p.get("name"))
-      .and_then(|n| n.as_str())
-      .map(|n| n.to_string())
-      .unwrap_or(app_name)
-  } else {
-    app_name
-  };
+  let interface = AppInterface::new(
+    config,
+    // the target triple is not relevant
+    Some("".into()),
+  )
+  .expect("failed to load interface");
+
+  let app_name = interface.app_settings().app_name().unwrap_or(app_name);
 
   let raw = RawAppConfig {
     name: app_name,
@@ -241,7 +237,19 @@ fn get_app(config: &TauriConfig) -> App {
     asset_dir: None,
     template_pack: None,
   };
-  App::from_raw(tauri_dir(), raw).unwrap()
+  App::from_raw(tauri_dir(), raw)
+    .unwrap()
+    .with_target_dir_resolver(move |target, profile| {
+      let bin_path = interface
+        .app_settings()
+        .app_binary_path(&InterfaceOptions {
+          debug: matches!(profile, Profile::Debug),
+          target: Some(target.into()),
+          ..Default::default()
+        })
+        .expect("failed to resolve target directory");
+      bin_path.parent().unwrap().to_path_buf()
+    })
 }
 
 fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {

@@ -10,13 +10,13 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use dialoguer::{theme::ColorfulTheme, Select};
+use tauri_mobile::{
   apple::{config::Config as AppleConfig, teams::find_development_teams},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
-use dialoguer::{theme::ColorfulTheme, Select};
 
 use std::env::{set_var, var_os};
 
@@ -38,6 +38,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Disable the dev server for static files.
+  #[clap(long)]
+  pub no_dev_server: bool,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -56,6 +59,7 @@ impl From<Options> for crate::dev::Options {
       release_mode: options.release_mode,
       args: Vec::new(),
       no_watch: options.no_watch,
+      no_dev_server: options.no_dev_server,
     }
   }
 }
@@ -145,7 +149,7 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else {
-        match run(device.as_deref(), options, config, &env, noise_level) {
+        match run(device.as_deref(), options, config, &env) {
           Ok(c) => {
             crate::dev::wait_dev_process(c.clone(), move |status, reason| {
               crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
@@ -178,7 +182,6 @@ fn run(
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
-  noise_level: NoiseLevel,
 ) -> Result<DevChild, RunError> {
   let profile = if options.debug {
     Profile::Debug
@@ -186,11 +189,15 @@ fn run(
     Profile::Release
   };
 
-  let non_interactive = true; // ios-deploy --noninteractive (quit when app crashes or exits)
-
   device_prompt(env, device)
     .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
-    .run(config, env, noise_level, non_interactive, profile)
+    .run(
+      config,
+      env,
+      NoiseLevel::FranklyQuitePedantic,
+      false, // do not quit on app exit
+      profile,
+    )
     .map(DevChild::new)
     .map_err(|e| RunError::RunFailed(e.to_string()))
 }

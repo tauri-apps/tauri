@@ -138,7 +138,7 @@ impl Cmd {
         serde_json::to_string(&p)
           .map_err(|e| {
             #[cfg(debug_assertions)]
-            eprintln!("{}", e);
+            eprintln!("{e}");
             e
           })
           .ok()

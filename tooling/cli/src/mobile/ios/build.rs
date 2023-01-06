@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   apple::{config::Config as AppleConfig, target::Target},
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -20,7 +20,7 @@ use cargo_mobile::{
 use std::fs;
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(about = "iOS build")]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]

@@ -179,7 +179,7 @@ fn replace_csp_nonce(
   if !(nonces.is_empty() && hashes.is_empty()) {
     let nonce_sources = nonces
       .into_iter()
-      .map(|n| format!("'nonce-{}'", n))
+      .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
     let sources = csp.entry(directive.into()).or_insert_with(Default::default);
     let self_source = "'self'".to_string();
@@ -449,8 +449,7 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?);
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -488,7 +487,7 @@ impl<R: Runtime> WindowManager<R> {
           window_url.scheme(),
           window_url.host().unwrap(),
           if let Some(port) = window_url.port() {
-            format!(":{}", port)
+            format!(":{port}")
           } else {
             "".into()
           }
@@ -714,8 +713,8 @@ impl<R: Runtime> WindowManager<R> {
     } = &self.inner.pattern
     {
       let assets = assets.clone();
-      let schema_ = schema.clone();
-      let url_base = format!("{}://localhost", schema_);
+      let _schema_ = schema.clone();
+      let url_base = format!("{schema}://localhost");
       let aes_gcm_key = *crypto_keys.aes_gcm().raw();
 
       pending.register_uri_scheme_protocol(schema, move |request| {
@@ -814,7 +813,7 @@ impl<R: Runtime> WindowManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        eprintln!("Asset `{}` not found; fallback to {}.html", path, path);
+        eprintln!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -886,18 +885,37 @@ impl<R: Runtime> WindowManager<R> {
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
     #[cfg(dev)]
-    let url = self.get_url().into_owned();
+    let url = {
+      let mut url = self.get_url().as_str().to_string();
+      if url.ends_with('/') {
+        url.pop();
+      }
+      url
+    };
     #[cfg(not(dev))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
+    #[cfg(dev)]
+    #[derive(Clone)]
+    struct CachedResponse {
+      status: http::StatusCode,
+      headers: http::HeaderMap,
+      body: Vec<u8>,
+    }
+
+    #[cfg(dev)]
+    let response_cache = Arc::new(Mutex::new(HashMap::new()));
+
     Box::new(move |request| {
-      let path = request
-        .uri()
-        .split(&['?', '#'][..])
-        // ignore query string and fragment
-        .next()
-        .unwrap()
+      // use the entire URI as we are going to proxy the request
+      #[cfg(dev)]
+      let path = request.uri();
+      // ignore query string and fragment
+      #[cfg(not(dev))]
+      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+
+      let path = path
         .strip_prefix("tauri://localhost")
         .map(|p| p.to_string())
         // the `strip_prefix` only returns None when a request is made to `https://tauri.$P` on Windows
@@ -910,22 +928,40 @@ impl<R: Runtime> WindowManager<R> {
       #[cfg(dev)]
       let mut response = {
         use attohttpc::StatusCode;
-        let mut url = url.clone();
-        url.set_path(&path);
-        let mut proxy_builder = attohttpc::get(url.as_str()).danger_accept_invalid_certs(true);
+        let decoded_path = percent_encoding::percent_decode(path.as_bytes())
+          .decode_utf8_lossy()
+          .to_string();
+        let url = format!("{url}{decoded_path}");
+        let mut proxy_builder = attohttpc::get(&url).danger_accept_invalid_certs(true);
         for (name, value) in request.headers() {
           proxy_builder = proxy_builder.header(name, value);
         }
         match proxy_builder.send() {
           Ok(r) => {
-            for (name, value) in r.headers() {
+            let mut response_cache_ = response_cache.lock().unwrap();
+            let mut response = None;
+            if r.status() == StatusCode::NOT_MODIFIED {
+              response = response_cache_.get(&url);
+            }
+            let response = if let Some(r) = response {
+              r
+            } else {
+              let (status, headers, reader) = r.split();
+              let body = reader.bytes()?;
+              let response = CachedResponse {
+                status,
+                headers,
+                body,
+              };
+              response_cache_.insert(url.clone(), response);
+              response_cache_.get(&url).unwrap()
+            };
+            for (name, value) in &response.headers {
               builder = builder.header(name, value);
             }
-            let mut status = r.status();
-            if status == StatusCode::NOT_MODIFIED {
-              status = StatusCode::OK;
-            }
-            builder.status(status).body(r.bytes()?)?
+            builder
+              .status(response.status)
+              .body(response.body.clone())?
           }
           Err(e) => {
             debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
@@ -1463,8 +1499,7 @@ fn on_window_event<R: Runtime>(
       let windows = windows_map.values();
       for window in windows {
         window.eval(&format!(
-          r#"window.__TAURI_METADATA__.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{}");"#,
-          label
+          r#"(function () {{ const metadata = window.__TAURI_METADATA__; if (metadata != null) {{ metadata.__windows = window.__TAURI_METADATA__.__windows.filter(w => w.label !== "{label}"); }} }})()"#,
         ))?;
       }
     }

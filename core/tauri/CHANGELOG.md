@@ -1,5 +1,53 @@
 # Changelog
 
+## \[2.0.0-alpha.2]
+
+- Fix the filesystem scope allowing sub-directories of the directory picked by the dialog when `recursive` option was `false`.
+  - [9ad0a9a0](https://www.github.com/tauri-apps/tauri/commit/9ad0a9a0aa88a67c3d81ef84df4aad23556affde) Merge pull request from GHSA-6mv3-wm7j-h4w5 on 2022-12-22
+
+## \[2.0.0-alpha.1]
+
+- Implement response cache on the dev server proxy, used when the server responds with status 304.
+  - [3ad5e72f](https://www.github.com/tauri-apps/tauri/commit/3ad5e72ff147b76267c010c778a3b94bba209bb0) feat(core): cache dev server proxy responses for 304 status code ([#5818](https://www.github.com/tauri-apps/tauri/pull/5818)) on 2022-12-12
+- Properly proxy dev server requests with query strings and fragments.
+  - [a9b4cf20](https://www.github.com/tauri-apps/tauri/commit/a9b4cf20a3e9a5cc984727a56111591504e084c0) fix(core): use entire request URL on dev server proxy ([#5819](https://www.github.com/tauri-apps/tauri/pull/5819)) on 2022-12-12
+
+## \[2.0.0-alpha.0]
+
+- Added the `default-tls` and `reqwest-default-tls` Cargo features for enabling TLS suppport to connect over HTTPS.
+  - [f6f9192a](https://www.github.com/tauri-apps/tauri/commit/f6f9192aa51bd842df8aa1d1aa538b12aa6c2d29) fix(core): Android compilation on Windows ([#5658](https://www.github.com/tauri-apps/tauri/pull/5658)) on 2022-11-20
+- **Breaking change:** Use the custom protocol as a proxy to the development server on all platforms except Linux.
+  - [6f061504](https://www.github.com/tauri-apps/tauri/commit/6f0615044d09ec58393a7ebca5e45bb175e20db3) feat(cli): add `android dev` and `ios dev` commands ([#4982](https://www.github.com/tauri-apps/tauri/pull/4982)) on 2022-08-20
+- Support `with_webview` for Android platform alowing execution of JNI code in context.
+  - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+- First mobile alpha release!
+  - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+- **Breaking change:** The window creation and setup hook are now called when the event loop is ready.
+  - [b4622ea4](https://www.github.com/tauri-apps/tauri/commit/b4622ea4d32720bc3bb2a8c740bb70cfe32fed93) refactor(app): run setup and window creation when event loop is ready ([#4914](https://www.github.com/tauri-apps/tauri/pull/4914)) on 2022-08-11
+- Export types required by the `mobile_entry_point` macro.
+  - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+
+## \[1.2.2]
+
+- Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls
+  - [c14b1df3](https://www.github.com/tauri-apps/tauri/commit/c14b1df37284020b3edb32400eb4b9e32c945472) fix(core): Invoke event listener in windows safely to avoid causing uncaught errors in windows that have loaded external urls ([#5563](https://www.github.com/tauri-apps/tauri/pull/5563)) on 2022-12-08
+- Cleanup sidecar and tray icons when calling `app.exit()` from JS.
+  - [0f269608](https://www.github.com/tauri-apps/tauri/commit/0f26960891228c5909e06d9f850c44ffaebf536c) fix(core/api): cleanup before exit ([#5765](https://www.github.com/tauri-apps/tauri/pull/5765)) on 2022-12-07
+- Fix compatibility with older Linux distributions.
+  - [b490308c](https://www.github.com/tauri-apps/tauri/commit/b490308c8897b893292951754607c2253abbc6e1) fix(core): compilation error on older Linux versions, fixes [#5684](https://www.github.com/tauri-apps/tauri/pull/5684) ([#5697](https://www.github.com/tauri-apps/tauri/pull/5697)) on 2022-11-28
+- Add `tauri::Builder::enable_macos_default_menu` to enable or disable the default menu creation on macOS.
+  - [8866ecac](https://www.github.com/tauri-apps/tauri/commit/8866ecac3cd1af8bf02e29569d605be5a1afe22c) feat(core): add `tauri::Builder::enable_macos_default_menu` ([#5756](https://www.github.com/tauri-apps/tauri/pull/5756)) on 2022-12-07
+  - [b293da35](https://www.github.com/tauri-apps/tauri/commit/b293da35dd5ae8c1569a3f3c994b4c1a4c227f4a) fix(changes): change `enable_macos_default_menu` bump to patch on 2022-12-08
+
+## \[1.2.1]
+
+- Fixes a double serialization on the IPC.
+  - [677838cc](https://www.github.com/tauri-apps/tauri/commit/677838ccfadfdf37039be53bfad666bbe1dab8c3) fix double serialize on invoke ([#5639](https://www.github.com/tauri-apps/tauri/pull/5639)) on 2022-11-20
+- Moved the custom protocol headers support on Linux behind the `linux-protocol-headers` Cargo feature to enhance compatibility with older Linux distributions.
+  - [d7109460](https://www.github.com/tauri-apps/tauri/commit/d710946064c47fa488eca01a62403e70b2b5ff87) refactor: move Linux custom protocol headers support behind feature flag ([#5683](https://www.github.com/tauri-apps/tauri/pull/5683)) on 2022-11-24
+- Fixes definition of `impl HasRawDisplayHandle` for `AppHandle` and `App`.
+  - [ed43ff32](https://www.github.com/tauri-apps/tauri/commit/ed43ff324330d1bd9c042a53a6636dfc7d97b410) fix(tauri): add missing generics on AppHandle and App ([#5642](https://www.github.com/tauri-apps/tauri/pull/5642)) on 2022-11-17
+
 ## \[1.2.0]
 
 - Add `accept_first_mouse` option for macOS windows.
@@ -46,6 +94,11 @@
 - Added the `user_agent` option when creating a window.
   - [a6c94119](https://www.github.com/tauri-apps/tauri/commit/a6c94119d8545d509723b147c273ca5edfe3729f) feat(core): expose user_agent to window config ([#5317](https://www.github.com/tauri-apps/tauri/pull/5317)) on 2022-10-02
 
+## \[1.1.2]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [e4dc5bed](https://www.github.com/tauri-apps/tauri/commit/e4dc5bedbb54fbe6e06ab833d7fb7e0cacebad10) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-10-05
+
 ## \[1.1.1]
 
 - Add missing allowlist config for `set_cursor_grab`, `set_cursor_visible`, `set_cursor_icon` and `set_cursor_position` APIs.
@@ -90,6 +143,11 @@
   - [e6d9b670](https://www.github.com/tauri-apps/tauri/commit/e6d9b670b0b314ed667b0e164f2c8d27048e678f) refactor: remove unneeded focus code ([#5065](https://www.github.com/tauri-apps/tauri/pull/5065)) on 2022-09-03
 - Add `exists` function to the fs module.
   - [3c62dbc9](https://www.github.com/tauri-apps/tauri/commit/3c62dbc902c904d35a7472ce72a969084c95fbbe) feat(api): Add `exists` function to the fs module. ([#5060](https://www.github.com/tauri-apps/tauri/pull/5060)) on 2022-09-15
+
+## \[1.0.7]
+
+- Escape glob special characters in files/directories when dropping files or using the open/save dialogs.
+  - [bcd9dc7f](https://www.github.com/tauri-apps/tauri/commit/bcd9dc7f859fa7e65fea5de835fa938ca1368eaf) fix(core): escape glob characters in drop/dialogs , closes [#5234](https://www.github.com/tauri-apps/tauri/pull/5234) ([#5237](https://www.github.com/tauri-apps/tauri/pull/5237)) on 2022-11-08
 
 ## \[1.0.6]
 

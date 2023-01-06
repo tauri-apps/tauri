@@ -10,7 +10,7 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
-use cargo_mobile::{
+use tauri_mobile::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
@@ -120,7 +120,7 @@ fn run_build(
     ..Default::default()
   })?;
   let out_dir = bin_path.parent().unwrap();
-  let _lock = flock::open_rw(&out_dir.join("lock").with_extension("android"), "Android")?;
+  let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {
     features: build_options.features.clone(),

@@ -1391,7 +1391,7 @@ impl<R: Runtime> Builder<R> {
   ///     )),
   ///   ]));
   /// ```
-  pub fn menu_if<F>(mut self, is_show: bool, menu: F) -> Self
+  pub fn menu_if<F>(mut self, condition: bool, menu: F) -> Self
   where
     F: Fn() -> Menu + Send + Sync + 'static
   {

@@ -1336,7 +1336,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray_if<F>(mut self, is_show: bool, tray_menu: F) -> Self
+  pub fn system_tray_if<F>(mut self, condition: bool, tray_menu: F) -> Self
   where
     F: Fn() -> tray::SystemTray + Send + Sync + 'static
   {

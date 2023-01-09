@@ -1372,7 +1372,7 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Dynamically sets the menu to use on all windows.
+  /// Sets the menu to use on all windows if `condition` is `true`.
   ///
   /// # Examples
   /// ```

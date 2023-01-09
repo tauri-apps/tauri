@@ -1318,6 +1318,33 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Dynamically sets the given system tray to be built before the app runs.
+  ///
+  /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{CustomMenuItem, SystemTray, SystemTrayMenu};
+  ///
+  /// let is_show = true;
+  /// tauri::Builder::default()
+  ///   .system_tray_if(is_show, SystemTray::new().with_menu(
+  ///     SystemTrayMenu::new()
+  ///       .add_item(CustomMenuItem::new("quit", "Quit"))
+  ///       .add_item(CustomMenuItem::new("open", "Open"))
+  ///   ));
+  /// ```
+  #[cfg(all(desktop, feature = "system-tray"))]
+  #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
+  pub fn system_tray_if(mut self, is_show: bool, tray_menu: tray::SystemTray) -> Self {
+    if is_show {
+      self.system_tray.replace(tray_menu);
+    } else {
+      self.system_tray = None;
+    }
+    self
+  }
+
   /// Sets the menu to use on all windows.
   ///
   /// # Examples
@@ -1339,6 +1366,34 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn menu(mut self, menu: Menu) -> Self {
     self.menu.replace(menu);
+    self
+  }
+
+  /// Dynamically the menu to use on all windows.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{MenuEntry, Submenu, MenuItem, Menu, CustomMenuItem};
+  ///
+  /// let is_show = true;
+  /// tauri::Builder::default()
+  ///   .menu_if(is_show, Menu::with_items([
+  ///     MenuEntry::Submenu(Submenu::new(
+  ///       "File",
+  ///       Menu::with_items([
+  ///         MenuItem::CloseWindow.into(),
+  ///         #[cfg(target_os = "macos")]
+  ///         CustomMenuItem::new("hello", "Hello").into(),
+  ///       ]),
+  ///     )),
+  ///   ]));
+  /// ```
+  pub fn menu_if(mut self, is_show: bool, menu: Menu) -> Self {
+    if is_show {
+      self.menu.replace(menu);
+    } else {
+      self.menu = None;
+    }
     self
   }
 

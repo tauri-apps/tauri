@@ -1318,7 +1318,7 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
-  /// Dynamically sets the given system tray to be built before the app runs.
+  /// Sets the given system tray to be built before the app runs if `condition` is `true`.
   ///
   /// Prefer the [`SystemTray#method.build`](crate::SystemTray#method.build) method to create the tray at runtime instead.
   ///

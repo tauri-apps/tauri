@@ -1336,9 +1336,12 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[cfg(all(desktop, feature = "system-tray"))]
   #[cfg_attr(doc_cfg, doc(cfg(feature = "system-tray")))]
-  pub fn system_tray_if(mut self, is_show: bool, tray_menu: tray::SystemTray) -> Self {
+  pub fn system_tray_if<F>(mut self, is_show: bool, tray_menu: F) -> Self
+  where
+    F: Fn() -> tray::SystemTray + Send + Sync + 'static
+  {
     if is_show {
-      self.system_tray.replace(tray_menu);
+      self.system_tray.replace(tray_menu());
     } else {
       self.system_tray = None;
     }
@@ -1388,9 +1391,12 @@ impl<R: Runtime> Builder<R> {
   ///     )),
   ///   ]));
   /// ```
-  pub fn menu_if(mut self, is_show: bool, menu: Menu) -> Self {
+  pub fn menu_if<F>(mut self, is_show: bool, menu: F) -> Self
+  where
+    F: Fn() -> Menu + Send + Sync + 'static
+  {
     if is_show {
-      self.menu.replace(menu);
+      self.menu.replace(menu());
     } else {
       self.menu = None;
     }

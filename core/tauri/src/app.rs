@@ -1328,7 +1328,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// let is_show = true;
   /// tauri::Builder::default()
-  ///   .system_tray_if(is_show, SystemTray::new().with_menu(
+  ///   .system_tray_if(is_show, || SystemTray::new().with_menu(
   ///     SystemTrayMenu::new()
   ///       .add_item(CustomMenuItem::new("quit", "Quit"))
   ///       .add_item(CustomMenuItem::new("open", "Open"))
@@ -1380,7 +1380,7 @@ impl<R: Runtime> Builder<R> {
   ///
   /// let is_show = true;
   /// tauri::Builder::default()
-  ///   .menu_if(is_show, Menu::with_items([
+  ///   .menu_if(is_show, || Menu::with_items([
   ///     MenuEntry::Submenu(Submenu::new(
   ///       "File",
   ///       Menu::with_items([

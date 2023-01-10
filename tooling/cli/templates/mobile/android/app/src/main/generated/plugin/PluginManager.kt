@@ -1,5 +1,6 @@
 package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -18,6 +19,7 @@ class PluginManager {
     plugins.put(plugin.interfaceName(), PluginHandle(plugin))
   }
   
+  @SuppressLint("JavascriptInterface")
   fun load(webView: WebView) {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
     ) {
@@ -45,7 +47,7 @@ class PluginManager {
     }
     
     for (plugin in plugins) {
-      webView.addJavascriptInterface(plugin, plugin.value.instance.interfaceName())
+      webView.addJavascriptInterface(plugin.value.instance, plugin.value.instance.interfaceName())
       plugin.value.instance.load(webView)
     }
   }

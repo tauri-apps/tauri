@@ -10,24 +10,23 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewCompat.WebMessageListener
 import androidx.webkit.WebViewFeature
 
-class PluginManager {
+class PluginManager(private val webView: WebView) {
   private val plugins: HashMap<String, PluginHandle> = HashMap()
-  private var javaScriptReplyProxy: JavaScriptReplyProxy? = null
   
   init {
     val plugin = SamplePlugin()
     plugins.put(plugin.interfaceName(), PluginHandle(plugin))
+    load()
   }
   
   @SuppressLint("JavascriptInterface")
-  fun load(webView: WebView) {
+  private fun load() {
     if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
     ) {
       val messageListener =
-        WebMessageListener { view: WebView?, message: WebMessageCompat, sourceOrigin: Uri?, isMainFrame: Boolean, replyProxy: JavaScriptReplyProxy ->
+        WebMessageListener { view: WebView?, message: WebMessageCompat, _: Uri?, isMainFrame: Boolean, _: JavaScriptReplyProxy ->
           if (isMainFrame) {
             postMessage(message.data ?: "")
-            javaScriptReplyProxy = replyProxy
           } else {
             Logger.warn("Plugin execution is allowed in Main Frame only")
           }
@@ -56,16 +55,21 @@ class PluginManager {
   fun postMessage(data: String) {
     val postData = JSObject(data)
 
-    val callbackId: String = postData.getString("callbackId")
+    val callback: String = postData.getString("callback")
+    val error: String = postData.getString("error")
     val pluginId: String = postData.getString("pluginId")
     val methodName: String = postData.getString("methodName")
     val methodData: JSObject? = postData.getJSObject("options", JSObject())
 
     Logger.verbose(
       Logger.tags("Plugin"),
-      "Tauri plugin: callbackId: $callbackId, pluginId: $pluginId, methodName: $methodName"
+      "Tauri plugin: pluginId: $pluginId, methodName: $methodName, callback: $callback, error: $error"
     )
 
-    plugins[pluginId]?.invoke(methodName, PluginCall())
+    plugins[pluginId]?.invoke(methodName, PluginCall({
+      call, successResult, errorResult -> 
+        val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(error, errorResult)
+        webView.evaluateJavascript("window['$fn']($result)", null)
+    }, methodData))
   }
 }

@@ -3078,10 +3078,8 @@ fn create_webview<T: UserEvent>(
         ctx.activity,
         format!("{}/PluginManager", PACKAGE.get().unwrap()),
       )?;
-      let plugin_manager = ctx.env.new_object(plugin_manager_class, "()V", &[])?;
-      ctx.env.call_method(
-        plugin_manager,
-        "load",
+      let plugin_manager = ctx.env.new_object(
+        plugin_manager_class,
         "(Landroid/webkit/WebView;)V",
         &[ctx.webview.into()],
       )?;

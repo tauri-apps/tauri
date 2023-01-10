@@ -1,6 +1,5 @@
 package {{reverse-domain app.domain}}.{{snake-case app.name}}
 
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 
 class SamplePlugin: Plugin() {
@@ -12,9 +11,9 @@ class SamplePlugin: Plugin() {
     println("loadddd!!!")
   }
   
-  @JavascriptInterface
   @PluginMethod
   fun run(call: PluginCall) {
     println("running")
+    call.resolve()
   }
 }

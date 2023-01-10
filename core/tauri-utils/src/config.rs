@@ -926,6 +926,9 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
+  /// Whether a mouse event is disabled or not on Linux.
+  #[serde(default, alias = "disable-mouse-event")]
+  pub disable_mouse_event: bool,
   /// The style of the macOS title bar.
   #[serde(default, alias = "title-bar-style")]
   pub title_bar_style: TitleBarStyle,
@@ -977,6 +980,7 @@ impl Default for WindowConfig {
       content_protected: false,
       skip_taskbar: false,
       theme: None,
+      disable_mouse_event: false,
       title_bar_style: Default::default(),
       hidden_title: false,
       accept_first_mouse: false,
@@ -3132,6 +3136,7 @@ mod build {
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
       let theme = opt_lit(self.theme.as_ref());
+      let disable_mouse_event = self.disable_mouse_event;
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
       let accept_first_mouse = self.accept_first_mouse;
@@ -3166,6 +3171,7 @@ mod build {
         content_protected,
         skip_taskbar,
         theme,
+        disable_mouse_event,
         title_bar_style,
         hidden_title,
         accept_first_mouse,

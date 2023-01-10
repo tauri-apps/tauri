@@ -952,7 +952,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.menu.as_ref()
   }
 
-  #[cfg(target_os = "linux"))]
+  #[cfg(target_os = "linux")]
   fn disable_mouse_event(mut self, disable: bool) -> Self {
     self.inner = self.inner.disable_mouse_event(disable);
     self

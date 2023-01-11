@@ -366,7 +366,7 @@ impl<R: Runtime> AssetResolver<R> {
 #[default_runtime(crate::Wry, wry)]
 #[derive(Debug)]
 pub struct AppHandle<R: Runtime> {
-  runtime_handle: R::Handle,
+  pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: WindowManager<R>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   global_shortcut_manager: R::GlobalShortcutManager,

@@ -362,6 +362,19 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg(target_os = "macos")]
   #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
+
+  /// Returns the Android package name.
+  #[cfg(target_os = "android")]
+  fn package_name(&self) -> &'static str;
+
+  /// Finds an Android class in the project scope.
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: &str,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error>;
 }
 
 /// A global shortcut manager.

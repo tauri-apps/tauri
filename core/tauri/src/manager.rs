@@ -1277,6 +1277,36 @@ impl<R: Runtime> WindowManager<R> {
       }
     }
 
+    #[cfg(target_os = "android")]
+    {
+      let runtime_handle = app_handle.runtime_handle.clone();
+      pending = pending.on_webview_created(move |ctx| {
+        use tauri_runtime::RuntimeHandle;
+        // load plugin manager
+        let plugin_manager_class =
+          runtime_handle.find_class(ctx.env, ctx.activity, "PluginManager")?;
+        let plugin_manager = ctx.env.new_object(
+          plugin_manager_class,
+          "(Landroid/webkit/WebView;)V",
+          &[ctx.webview.into()],
+        )?;
+
+        // instantiate plugin
+        let sample_plugin_class =
+          runtime_handle.find_class(ctx.env, ctx.activity, "SamplePlugin")?;
+        let sample_plugin = ctx.env.new_object(sample_plugin_class, "()V", &[])?;
+
+        // load plugin
+        ctx.env.call_method(
+          plugin_manager,
+          "load",
+          format!("(L{}/Plugin;)V", runtime_handle.package_name()),
+          &[ctx.env.new_string("sample")?.into(), sample_plugin.into()],
+        )?;
+        Ok(())
+      });
+    }
+
     if is_local {
       let label = pending.label.clone();
       pending = self.prepare_pending_window(

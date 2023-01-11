@@ -35,6 +35,9 @@ percent-encoding = "2.1"
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.24"
 
+[target."cfg(target_os = \"android\")".dependencies]
+jni = "0.20"
+
 [features]
 dox = [ "wry/dox" ]
 devtools = [ "wry/devtools", "tauri-runtime/devtools" ]

@@ -69,9 +69,9 @@ pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, Wi
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
 #[cfg(target_os = "android")]
-use wry::{
-  application::platform::android::ndk_glue::PACKAGE,
-  webview::{prelude::find_class, WebViewBuilderExtAndroid, WebviewExtAndroid},
+use wry::webview::{
+  prelude::{find_class, package_name},
+  WebViewBuilderExtAndroid, WebviewExtAndroid,
 };
 
 #[cfg(target_os = "macos")]
@@ -1818,6 +1818,21 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       Message::Application(ApplicationMessage::Hide),
     )
   }
+
+  #[cfg(target_os = "android")]
+  fn package_name(&self) -> &'static str {
+    package_name()
+  }
+
+  #[cfg(target_os = "android")]
+  fn find_class<'a>(
+    &'a self,
+    env: jni::JNIEnv<'a>,
+    activity: jni::objects::JObject<'a>,
+    name: &str,
+  ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
+    find_class(env, activity, name)
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -2960,6 +2975,8 @@ fn create_webview<T: UserEvent>(
     url,
     menu_ids,
     js_event_listeners,
+    #[cfg(target_os = "android")]
+    on_webview_created,
     ..
   } = pending;
   let webview_id_map = context.webview_id_map.clone();
@@ -3071,20 +3088,15 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(target_os = "android")]
   {
-    webview_builder = webview_builder.on_webview_created(|ctx| {
-      // load plugin manager
-      let plugin_manager_class = find_class(
-        ctx.env,
-        ctx.activity,
-        format!("{}/PluginManager", PACKAGE.get().unwrap()),
-      )?;
-      let plugin_manager = ctx.env.new_object(
-        plugin_manager_class,
-        "(Landroid/webkit/WebView;)V",
-        &[ctx.webview.into()],
-      )?;
-      Ok(())
-    });
+    if let Some(on_webview_created) = on_webview_created {
+      webview_builder = webview_builder.on_webview_created(move |ctx| {
+        on_webview_created(tauri_runtime::window::CreationContext {
+          env: ctx.env,
+          activity: ctx.activity,
+          webview: ctx.webview,
+        })
+      });
+    }
   }
 
   let webview = webview_builder

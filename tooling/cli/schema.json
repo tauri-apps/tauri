@@ -1334,7 +1334,7 @@
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.",
-      "type": "object",
+      "type": "array",
       "properties": {
         "digestAlgorithm": {
           "description": "Specifies the file digest algorithm to use for creating file signatures. Required for code signing. SHA-256 is recommended.",

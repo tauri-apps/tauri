@@ -266,6 +266,9 @@ pub struct NsisSettings {
   pub installer_icon: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
+  /// A list of installer languages. The first one will be used as the default.
+  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the full list of languages.
+  pub languages: Option<Vec<String>>,
 }
 
 /// The Windows bundle settings.

@@ -20,6 +20,7 @@ Var ReinstallPageCheck
 !define OUTFILE "{{{out_file}}}"
 !define ARCH "{{{arch}}}"
 !define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
+!define SHOWLANGUAGES "{{{show_languages}}}"
 !define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
 !define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
 !define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
@@ -81,33 +82,6 @@ Function CreateDesktopShortcut
 FunctionEnd
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
-
-Function .onInit
-  !if "${INSTALLMODE}" == "currentUser"
-    SetShellVarContext current
-  !else if "${INSTALLMODE}" == "perMachine"
-    SetShellVarContext all
-  !endif
-
-  !if "${INSTALLMODE}" == "perMachine"
-    ; Set default install location
-    ${If} ${RunningX64}
-      !if "${ARCH}" == "x64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else
-        StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-      !endif
-    ${Else}
-      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "currentUser"
-    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
-  !endif
-
-  !if "${INSTALLMODE}" == "both"
-    !insertmacro MULTIUSER_INIT
-  !endif
-FunctionEnd
 
 ; Installer pages, must be ordered as they appear
 !insertmacro MUI_PAGE_WELCOME
@@ -251,7 +225,40 @@ FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 ;Languages
-!insertmacro MUI_LANGUAGE English
+{{#each languages}}
+!insertmacro MUI_LANGUAGE "{{this}}"
+{{/each}}
+
+Function .onInit
+  !if "${SHOWLANGUAGES}" != ""
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
+
+  !if "${INSTALLMODE}" == "currentUser"
+    SetShellVarContext current
+  !else if "${INSTALLMODE}" == "perMachine"
+    SetShellVarContext all
+  !endif
+
+  !if "${INSTALLMODE}" == "perMachine"
+    ; Set default install location
+    ${If} ${RunningX64}
+      !if "${ARCH}" == "x64"
+        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+      !else
+        StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+      !endif
+    ${Else}
+      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+    ${EndIf}
+  !else if "${INSTALLMODE}" == "currentUser"
+    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
+  !endif
+
+  !if "${INSTALLMODE}" == "both"
+    !insertmacro MULTIUSER_INIT
+  !endif
+FunctionEnd
 
 Section EarlyChecks
   ; Abort silent installer if downgrades is disabled
@@ -261,7 +268,7 @@ Section EarlyChecks
     ${If} $0 != 0
       System::Call 'kernel32::GetStdHandle(i -11)i.r0'
       System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-      FileWrite $0 "A newer version is already installed! Automatic silent downgrades are disabled for this installer.$\nIt is not recommended that you install an older version. If you really want to install this older version, you have to uninstall the current version first.$\n"
+      FileWrite $0 "Automatic silent downgrades are disabled for this installer.$\n"
     ${EndIf}
     Abort
   done:

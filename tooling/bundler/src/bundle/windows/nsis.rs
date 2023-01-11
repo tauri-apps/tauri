@@ -40,8 +40,8 @@ const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-relea
 const NSIS_NSPROCESS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NsProcess.zip";
 const NSIS_SEMVER_COMPARE: &str =
-  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.2.0/nsis_semvercompare.dll";
-const NSIS_SEMVER_COMPARE_SHA1: &str = "5A1A233F427C993B7E6A5821761BF5819507B29C";
+  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.3.0/nsis_semvercompare.dll";
+const NSIS_SEMVER_COMPARE_SHA1: &str = "1789062E121AC392A6CBBE886F9B1443462912C2";
 
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
@@ -178,8 +178,13 @@ fn build_nsis_app_installer(
   );
 
   let mut install_mode = NSISInstallerMode::CurrentUser;
+  let mut languages = vec!["English".to_string()];
   if let Some(nsis) = &settings.windows().nsis {
     install_mode = nsis.install_mode;
+    if let Some(langs) = &nsis.languages {
+      languages.clear();
+      languages.extend_from_slice(langs);
+    }
     if let Some(license) = &nsis.license {
       data.insert(
         "license",
@@ -213,6 +218,8 @@ fn build_nsis_app_installer(
       NSISInstallerMode::Both => "both",
     }),
   );
+  data.insert("show_languages", to_json(languages.len() > 1));
+  data.insert("languages", to_json(languages));
 
   let main_binary = settings
     .binaries()

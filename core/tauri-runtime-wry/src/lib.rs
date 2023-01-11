@@ -722,8 +722,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .always_on_top(config.always_on_top)
       .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
-      .theme(config.theme)
-      .disable_mouse_event(config.disable_mouse_event);
+      .theme(config.theme);
 
     #[cfg(target_os = "macos")]
     {
@@ -763,6 +762,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
     if config.center {
       window = window.center();
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      window = window.disable_mouse_event();
     }
 
     window
@@ -950,12 +954,6 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn get_menu(&self) -> Option<&Menu> {
     self.menu.as_ref()
-  }
-
-  #[cfg(target_os = "linux")]
-  fn disable_mouse_event(mut self, disable: bool) -> Self {
-    self.inner = self.inner.disable_mouse_event(disable);
-    self
   }
 }
 

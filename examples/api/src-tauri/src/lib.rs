@@ -61,6 +61,9 @@ impl AppBuilder {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
       .setup(move |app| {
+        app
+          .handle()
+          .plugin(tauri::plugin::Builder::<tauri::Wry, ()>::new("sample").build())?;
         if let Some(setup) = setup {
           (setup)(app)?;
         }

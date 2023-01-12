@@ -54,7 +54,9 @@ pub trait Plugin<R: Runtime>: Send {
 
   /// Extend commands to [`crate::Builder::invoke_handler`].
   #[allow(unused_variables)]
-  fn extend_api(&mut self, invoke: Invoke<R>) {}
+  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
+    false
+  }
 }
 
 type SetupHook<R> = dyn FnOnce(&AppHandle<R>) -> Result<()> + Send;
@@ -156,7 +158,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       setup: None,
       setup_with_config: None,
       js_init_script: None,
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_| false),
       on_page_load: Box::new(|_, _| ()),
       on_webview_ready: Box::new(|_| ()),
       on_event: Box::new(|_, _| ()),
@@ -190,7 +192,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<R>) + Send + Sync + 'static,
+    F: Fn(Invoke<R>) -> bool + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self
@@ -482,7 +484,7 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
     (self.on_event)(app, event)
   }
 
-  fn extend_api(&mut self, invoke: Invoke<R>) {
+  fn extend_api(&mut self, invoke: Invoke<R>) -> bool {
     (self.invoke_handler)(invoke)
   }
 }
@@ -573,11 +575,15 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) {
+  /// Runs the plugin `extend_api` hook if it exists. Returns whether the invoke message was handled or not.
+  ///
+  /// The message is not handled when the plugin exists **and** the command does not.
+  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) -> bool {
     if let Some(plugin) = self.store.get_mut(plugin) {
-      plugin.extend_api(invoke);
+      plugin.extend_api(invoke)
     } else {
       invoke.resolver.reject(format!("plugin {plugin} not found"));
+      true
     }
   }
 }

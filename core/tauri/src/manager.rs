@@ -1176,13 +1176,13 @@ impl<R: Runtime> WindowManager<R> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) {
+  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) -> bool {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(plugin, invoke);
+      .extend_api(plugin, invoke)
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {

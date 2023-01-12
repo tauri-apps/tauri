@@ -1050,7 +1050,7 @@ impl<R: Runtime> Builder<R> {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
-      invoke_handler: Box::new(|_| ()),
+      invoke_handler: Box::new(|_| false),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
         "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
@@ -1102,7 +1102,7 @@ impl<R: Runtime> Builder<R> {
   #[must_use]
   pub fn invoke_handler<F>(mut self, invoke_handler: F) -> Self
   where
-    F: Fn(Invoke<R>) + Send + Sync + 'static,
+    F: Fn(Invoke<R>) -> bool + Send + Sync + 'static,
   {
     self.invoke_handler = Box::new(invoke_handler);
     self

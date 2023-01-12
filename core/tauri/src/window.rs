@@ -1318,48 +1318,59 @@ impl<R: Runtime> Window<R> {
             .next()
             .map(|c| c.to_string())
             .unwrap_or_else(String::new);
+
+          #[cfg(target_os = "android")]
+          let (message, callback, error) = (
+            invoke.message.clone(),
+            invoke.resolver.callback,
+            invoke.resolver.error,
+          );
+
+          #[allow(unused_variables)]
+          let handled = manager.extend_api(plugin, invoke);
+
           #[cfg(target_os = "android")]
           {
-            let package_name = self.app_handle.runtime_handle.package_name();
-            let runtime_handle = self.app_handle.runtime_handle.clone();
-            let plugin = plugin.to_string();
-            self.with_webview(move |webview| {
-              webview.0.exec(move |env, activity, _webview| {
-                let js_object_class = runtime_handle
-                  .find_class(env, activity, "JSObject")
-                  .unwrap();
-                let data = env.new_object(js_object_class, "()V", &[]).unwrap();
-                let plugin_manager = env
-                  .call_method(
-                    activity,
-                    "getPluginManager",
-                    format!("()L{package_name}/PluginManager;"),
-                    &[],
-                  )
-                  .unwrap()
-                  .l()
-                  .unwrap();
+            if !handled {
+              let package_name = self.app_handle.runtime_handle.package_name();
+              let runtime_handle = self.app_handle.runtime_handle.clone();
+              let plugin = plugin.to_string();
+              self.with_webview(move |webview| {
+                webview.0.exec(move |env, activity, _webview| {
+                  let js_object_class = runtime_handle
+                    .find_class(env, activity, "JSObject")
+                    .unwrap();
+                  // TODO: fill data
+                  let data = env.new_object(js_object_class, "()V", &[]).unwrap();
+                  let plugin_manager = env
+                    .call_method(
+                      activity,
+                      "getPluginManager",
+                      format!("()L{package_name}/PluginManager;"),
+                      &[],
+                    )
+                    .unwrap()
+                    .l()
+                    .unwrap();
 
-                env
-                  .call_method(
-                    plugin_manager,
-                    "postMessage",
-                    format!("(Ljava/lang/String;Ljava/lang/String;L{package_name}/JSObject;JJ)V"),
-                    &[
-                      env.new_string(&plugin).unwrap().into(),
-                      env.new_string(&invoke.message.command).unwrap().into(),
-                      data.into(),
-                      (invoke.resolver.callback.0 as i64).into(),
-                      (invoke.resolver.callback.0 as i64).into(),
-                    ],
-                  )
-                  .unwrap();
-              });
-            })?;
-            return Ok(());
+                  env
+                    .call_method(
+                      plugin_manager,
+                      "postMessage",
+                      format!("(Ljava/lang/String;Ljava/lang/String;L{package_name}/JSObject;JJ)V"),
+                      &[
+                        env.new_string(&plugin).unwrap().into(),
+                        env.new_string(&message.command).unwrap().into(),
+                        data.into(),
+                        (callback.0 as i64).into(),
+                        (error.0 as i64).into(),
+                      ],
+                    )
+                    .unwrap();
+                });
+              })?;
+            }
           }
-          #[cfg(not(target_os = "android"))]
-          manager.extend_api(plugin, invoke);
         } else {
           manager.run_invoke_handler(invoke);
         }

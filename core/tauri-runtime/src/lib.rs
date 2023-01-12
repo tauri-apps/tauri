@@ -500,10 +500,7 @@ pub trait Dispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'static 
   fn on_menu_event<F: Fn(&window::MenuEvent) + Send + 'static>(&self, f: F) -> Uuid;
 
   #[cfg(any(desktop, target_os = "android"))]
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any + Send>) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> Result<()>;
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Open the web inspector which is usually called devtools.
   #[cfg(any(debug_assertions, feature = "devtools"))]

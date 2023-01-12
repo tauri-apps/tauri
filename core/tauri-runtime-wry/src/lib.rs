@@ -1192,10 +1192,7 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   }
 
   #[cfg(any(desktop, target_os = "android"))]
-  fn with_webview<F: FnOnce(Box<dyn std::any::Any + Send>) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> Result<()> {
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Window(

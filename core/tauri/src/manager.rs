@@ -1176,13 +1176,13 @@ impl<R: Runtime> WindowManager<R> {
       .on_page_load(window, payload);
   }
 
-  pub fn extend_api(&self, invoke: Invoke<R>) {
+  pub fn extend_api(&self, plugin: &str, invoke: Invoke<R>) {
     self
       .inner
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .extend_api(invoke);
+      .extend_api(plugin, invoke);
   }
 
   pub fn initialize_plugins(&self, app: &AppHandle<R>) -> crate::Result<()> {
@@ -1296,13 +1296,23 @@ impl<R: Runtime> WindowManager<R> {
           runtime_handle.find_class(ctx.env, ctx.activity, "SamplePlugin")?;
         let sample_plugin = ctx.env.new_object(sample_plugin_class, "()V", &[])?;
 
+        let package_name = runtime_handle.package_name();
+
         // load plugin
         ctx.env.call_method(
           plugin_manager,
           "load",
-          format!("(L{}/Plugin;)V", runtime_handle.package_name()),
+          format!("(Ljava/lang/String;L{package_name}/Plugin;)V"),
           &[ctx.env.new_string("sample")?.into(), sample_plugin.into()],
         )?;
+
+        ctx.env.call_method(
+          ctx.activity,
+          "setPluginManager",
+          format!("(L{package_name}/PluginManager;)V"),
+          &[plugin_manager.into()],
+        )?;
+
         Ok(())
       });
     }

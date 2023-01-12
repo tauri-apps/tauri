@@ -573,20 +573,11 @@ impl<R: Runtime> PluginStore<R> {
       .for_each(|plugin| plugin.on_event(app, event))
   }
 
-  pub(crate) fn extend_api(&mut self, mut invoke: Invoke<R>) {
-    let command = invoke.message.command.replace("plugin:", "");
-    let mut tokens = command.split('|');
-    // safe to unwrap: split always has a least one item
-    let target = tokens.next().unwrap();
-
-    if let Some(plugin) = self.store.get_mut(target) {
-      invoke.message.command = tokens
-        .next()
-        .map(|c| c.to_string())
-        .unwrap_or_else(String::new);
+  pub(crate) fn extend_api(&mut self, plugin: &str, invoke: Invoke<R>) {
+    if let Some(plugin) = self.store.get_mut(plugin) {
       plugin.extend_api(invoke);
     } else {
-      invoke.resolver.reject(format!("plugin {target} not found"));
+      invoke.resolver.reject(format!("plugin {plugin} not found"));
     }
   }
 }

@@ -732,77 +732,6 @@ impl PlatformWebview {
   }
 }
 
-/// APIs specific to the wry runtime.
-#[cfg(feature = "wry")]
-impl Window<crate::Wry> {
-  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
-  ///
-  /// The closure is executed on the main thread.
-  ///
-  /// # Examples
-  ///
-  /// ```rust,no_run
-  /// #[cfg(target_os = "macos")]
-  /// #[macro_use]
-  /// extern crate objc;
-  /// use tauri::Manager;
-  ///
-  /// fn main() {
-  ///   tauri::Builder::default()
-  ///     .setup(|app| {
-  ///       let main_window = app.get_window("main").unwrap();
-  ///       main_window.with_webview(|webview| {
-  ///         #[cfg(target_os = "linux")]
-  ///         {
-  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
-  ///           use webkit2gtk::traits::WebViewExt;
-  ///           webview.inner().set_zoom_level(4.);
-  ///         }
-  ///
-  ///         #[cfg(windows)]
-  ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-  ///           webview.controller().SetZoomFactor(4.).unwrap();
-  ///         }
-  ///
-  ///         #[cfg(target_os = "macos")]
-  ///         unsafe {
-  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
-  ///         }
-  ///
-  ///         #[cfg(target_os = "android")]
-  ///         {
-  ///           use jni::objects::JValue;
-  ///           webview.jni_handle().exec(|env, _, webview| {
-  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
-  ///           })
-  ///         }
-  ///       });
-  ///       Ok(())
-  ///   });
-  /// }
-  /// ```
-  #[cfg(any(desktop, target_os = "android"))]
-  #[cfg_attr(
-    doc_cfg,
-    doc(cfg(all(feature = "wry", any(desktop, target_os = "android"))))
-  )]
-  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
-    &self,
-    f: F,
-  ) -> crate::Result<()> {
-    self
-      .window
-      .dispatcher
-      .with_webview(|w| f(PlatformWebview(w)))
-      .map_err(Into::into)
-  }
-}
-
 /// Base window functions.
 impl<R: Runtime> Window<R> {
   /// Create a new window that is attached to the manager.
@@ -872,6 +801,73 @@ impl<R: Runtime> Window<R> {
         .clone();
       f(MenuEvent { menu_item_id: id })
     })
+  }
+
+  /// Executes a closure, providing it with the webview handle that is specific to the current platform.
+  ///
+  /// The closure is executed on the main thread.
+  ///
+  /// # Examples
+  ///
+  /// ```rust,no_run
+  /// #[cfg(target_os = "macos")]
+  /// #[macro_use]
+  /// extern crate objc;
+  /// use tauri::Manager;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let main_window = app.get_window("main").unwrap();
+  ///       main_window.with_webview(|webview| {
+  ///         #[cfg(target_os = "linux")]
+  ///         {
+  ///           // see https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/struct.WebView.html
+  ///           // and https://docs.rs/webkit2gtk/0.18.2/webkit2gtk/trait.WebViewExt.html
+  ///           use webkit2gtk::traits::WebViewExt;
+  ///           webview.inner().set_zoom_level(4.);
+  ///         }
+  ///
+  ///         #[cfg(windows)]
+  ///         unsafe {
+  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           webview.controller().SetZoomFactor(4.).unwrap();
+  ///         }
+  ///
+  ///         #[cfg(target_os = "macos")]
+  ///         unsafe {
+  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
+  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
+  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
+  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+  ///         }
+  ///
+  ///         #[cfg(target_os = "android")]
+  ///         {
+  ///           use jni::objects::JValue;
+  ///           webview.jni_handle().exec(|env, _, webview| {
+  ///             env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+  ///           })
+  ///         }
+  ///       });
+  ///       Ok(())
+  ///   });
+  /// }
+  /// ```
+  #[cfg(all(feature = "wry", any(desktop, target_os = "android")))]
+  #[cfg_attr(
+    doc_cfg,
+    doc(all(feature = "wry", any(desktop, target_os = "android")))
+  )]
+  pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .with_webview(|w| f(PlatformWebview(*w.downcast().unwrap())))
+      .map_err(Into::into)
   }
 }
 
@@ -1303,9 +1299,9 @@ impl<R: Runtime> Window<R> {
           payload.cmd.to_string(),
           payload.inner,
         );
-        let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+        let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
-        let invoke = Invoke { message, resolver };
+        let mut invoke = Invoke { message, resolver };
         if let Some(module) = &payload.tauri_module {
           crate::endpoints::handle(
             module.to_string(),
@@ -1314,7 +1310,56 @@ impl<R: Runtime> Window<R> {
             manager.package_info(),
           );
         } else if payload.cmd.starts_with("plugin:") {
-          manager.extend_api(invoke);
+          let command = invoke.message.command.replace("plugin:", "");
+          let mut tokens = command.split('|');
+          // safe to unwrap: split always has a least one item
+          let plugin = tokens.next().unwrap();
+          invoke.message.command = tokens
+            .next()
+            .map(|c| c.to_string())
+            .unwrap_or_else(String::new);
+          #[cfg(target_os = "android")]
+          {
+            let package_name = self.app_handle.runtime_handle.package_name();
+            let runtime_handle = self.app_handle.runtime_handle.clone();
+            let plugin = plugin.to_string();
+            self.with_webview(move |webview| {
+              webview.0.exec(move |env, activity, _webview| {
+                let js_object_class = runtime_handle
+                  .find_class(env, activity, "JSObject")
+                  .unwrap();
+                let data = env.new_object(js_object_class, "()V", &[]).unwrap();
+                let plugin_manager = env
+                  .call_method(
+                    activity,
+                    "getPluginManager",
+                    format!("()L{package_name}/PluginManager;"),
+                    &[],
+                  )
+                  .unwrap()
+                  .l()
+                  .unwrap();
+
+                env
+                  .call_method(
+                    plugin_manager,
+                    "postMessage",
+                    format!("(Ljava/lang/String;Ljava/lang/String;L{package_name}/JSObject;JJ)V"),
+                    &[
+                      env.new_string(&plugin).unwrap().into(),
+                      env.new_string(&invoke.message.command).unwrap().into(),
+                      data.into(),
+                      (invoke.resolver.callback.0 as i64).into(),
+                      (invoke.resolver.callback.0 as i64).into(),
+                    ],
+                  )
+                  .unwrap();
+              });
+            })?;
+            return Ok(());
+          }
+          #[cfg(not(target_os = "android"))]
+          manager.extend_api(plugin, invoke);
         } else {
           manager.run_invoke_handler(invoke);
         }

@@ -1165,16 +1165,6 @@ pub struct WryDispatcher<T: UserEvent> {
 #[allow(clippy::non_send_fields_in_send_ty)]
 unsafe impl<T: UserEvent> Sync for WryDispatcher<T> {}
 
-impl<T: UserEvent> WryDispatcher<T> {
-  #[cfg(any(desktop, target_os = "android"))]
-  pub fn with_webview<F: FnOnce(Webview) + Send + 'static>(&self, f: F) -> Result<()> {
-    send_user_message(
-      &self.context,
-      Message::Window(self.window_id, WindowMessage::WithWebview(Box::new(f))),
-    )
-  }
-}
-
 impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
   type Runtime = Wry<T>;
   type WindowBuilder = WindowBuilderWrapper;
@@ -1199,6 +1189,20 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
       WindowMessage::AddMenuEventListener(id, Box::new(f)),
     ));
     id
+  }
+
+  #[cfg(any(desktop, target_os = "android"))]
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any + Send>) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
+      ),
+    )
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]

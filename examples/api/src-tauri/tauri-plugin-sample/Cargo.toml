@@ -1,0 +1,10 @@
+[package]
+name = "tauri-plugin-sample"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { path = "../../../../core/tauri" }
+
+[build-dependencies]
+walkdir = "2"

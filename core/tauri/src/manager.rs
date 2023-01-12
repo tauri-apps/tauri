@@ -1298,19 +1298,28 @@ impl<R: Runtime> WindowManager<R> {
 
         let package_name = runtime_handle.package_name();
 
+        ctx.env.call_method(
+          ctx.activity,
+          "setPluginManager",
+          format!("(L{package_name}/PluginManager;)V"),
+          &[plugin_manager.into()],
+        )?;
+
+        let plugin_manager = ctx
+          .env
+          .call_method(
+            ctx.activity,
+            "getPluginManager",
+            format!("()L{package_name}/PluginManager;"),
+            &[],
+          )?
+          .l()?;
         // load plugin
         ctx.env.call_method(
           plugin_manager,
           "load",
           format!("(Ljava/lang/String;L{package_name}/Plugin;)V"),
           &[ctx.env.new_string("sample")?.into(), sample_plugin.into()],
-        )?;
-
-        ctx.env.call_method(
-          ctx.activity,
-          "setPluginManager",
-          format!("(L{package_name}/PluginManager;)V"),
-          &[plugin_manager.into()],
         )?;
 
         Ok(())

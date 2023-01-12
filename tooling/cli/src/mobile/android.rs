@@ -124,6 +124,17 @@ pub fn get_config(
       ))
       .join("generated"),
   );
+  let plugin_output_path = config
+    .project_dir()
+    .join("app/src/main")
+    .join(format!(
+      "java/{}/{}",
+      app.reverse_domain().replace('.', "/"),
+      app.name_snake()
+    ))
+    .join("plugins");
+  std::fs::create_dir_all(&plugin_output_path).unwrap();
+  set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
 
   (app, config, metadata)
 }

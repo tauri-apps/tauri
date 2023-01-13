@@ -1,6 +1,7 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package app.tauri.plugin
 
 import android.annotation.SuppressLint
+import app.tauri.Logger
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*

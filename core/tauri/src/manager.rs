@@ -1284,7 +1284,8 @@ impl<R: Runtime> WindowManager<R> {
         use tauri_runtime::RuntimeHandle;
         // load plugin manager
         let plugin_manager_class =
-          runtime_handle.find_class(ctx.env, ctx.activity, "PluginManager")?;
+          runtime_handle.find_class(ctx.env, ctx.activity, "app/tauri/plugin/PluginManager")?;
+
         let plugin_manager = ctx.env.new_object(
           plugin_manager_class,
           "(Landroid/webkit/WebView;)V",
@@ -1293,15 +1294,13 @@ impl<R: Runtime> WindowManager<R> {
 
         // instantiate plugin
         let sample_plugin_class =
-          runtime_handle.find_class(ctx.env, ctx.activity, "SamplePlugin")?;
+          runtime_handle.find_class(ctx.env, ctx.activity, "com/plugin/test/ExamplePlugin")?;
         let sample_plugin = ctx.env.new_object(sample_plugin_class, "()V", &[])?;
-
-        let package_name = runtime_handle.package_name();
 
         ctx.env.call_method(
           ctx.activity,
           "setPluginManager",
-          format!("(L{package_name}/PluginManager;)V"),
+          format!("(Lapp/tauri/plugin/PluginManager;)V"),
           &[plugin_manager.into()],
         )?;
 
@@ -1310,7 +1309,7 @@ impl<R: Runtime> WindowManager<R> {
           .call_method(
             ctx.activity,
             "getPluginManager",
-            format!("()L{package_name}/PluginManager;"),
+            format!("()Lapp/tauri/plugin/PluginManager;"),
             &[],
           )?
           .l()?;
@@ -1318,7 +1317,7 @@ impl<R: Runtime> WindowManager<R> {
         ctx.env.call_method(
           plugin_manager,
           "load",
-          format!("(Ljava/lang/String;L{package_name}/Plugin;)V"),
+          format!("(Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
           &[ctx.env.new_string("sample")?.into(), sample_plugin.into()],
         )?;
 

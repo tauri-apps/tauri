@@ -1,15 +1,16 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package app.tauri.plugin
 
 import android.webkit.WebView
+import app.tauri.Logger
 
 class PluginManager(private val webView: WebView) {
   private val plugins: HashMap<String, PluginHandle> = HashMap()
-  
+
   fun load(name: String, plugin: Plugin) {
     plugin.load(webView)
     plugins[name] = PluginHandle(plugin)
   }
-  
+
   fun postMessage(pluginId: String, methodName: String, data: JSObject, callback: Long, error: Long) {
     Logger.verbose(
       Logger.tags("Plugin"),

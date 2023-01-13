@@ -9,14 +9,19 @@ use crate::{
 };
 use anyhow::Context;
 use clap::Parser;
+use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use heck::{AsKebabCase, ToKebabCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
 use log::warn;
-use std::{collections::BTreeMap, env::current_dir, fs::remove_dir_all, path::PathBuf};
+use std::{
+  collections::BTreeMap, env::current_dir, fmt::Display, fs::remove_dir_all, path::PathBuf,
+  str::FromStr,
+};
 
 const BACKEND_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/backend");
 const API_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/with-api");
+const ANDROID_PLUGIN_DIR: Dir<'_> = include_dir!("templates/plugin/android");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initializes a Tauri plugin project")]
@@ -40,6 +45,9 @@ pub struct Options {
   /// Author name
   #[clap(short, long)]
   author: Option<String>,
+  /// Adds native Android support.
+  #[clap(long)]
+  android: bool,
 }
 
 impl Options {
@@ -127,6 +135,62 @@ pub fn command(mut options: Options) -> Result<()> {
       &template_target_path,
     )
     .with_context(|| "failed to render Tauri template")?;
+
+    if options.android {
+      let plugin_id = request_input(
+        "What should be the Package ID for your plugin?",
+        Some(format!("com.plugin.{}", options.plugin_name)),
+        false,
+        false,
+      )?
+      .unwrap();
+
+      let mut data = BTreeMap::new();
+      data.insert("package_id", to_json(&plugin_id));
+
+      let mut created_dirs = Vec::new();
+      template::render_with_generator(
+        &handlebars,
+        &data,
+        &ANDROID_PLUGIN_DIR,
+        &template_target_path,
+        &mut |path| {
+          crate::mobile::android::project::generate_out_file(
+            path,
+            &template_target_path.join("android"),
+            &plugin_id.replace('.', "/"),
+            &mut created_dirs,
+          )
+        },
+      )
+      .with_context(|| "failed to render Tauri template")?;
+    }
   }
   Ok(())
+}
+
+fn request_input<T>(
+  prompt: &str,
+  initial: Option<T>,
+  skip: bool,
+  allow_empty: bool,
+) -> Result<Option<T>>
+where
+  T: Clone + FromStr + Display + ToString,
+  T::Err: Display + std::fmt::Debug,
+{
+  if skip {
+    Ok(initial)
+  } else {
+    let theme = dialoguer::theme::ColorfulTheme::default();
+    let mut builder = Input::with_theme(&theme);
+    builder.with_prompt(prompt);
+    builder.allow_empty(allow_empty);
+
+    if let Some(v) = initial {
+      builder.with_initial_text(v.to_string());
+    }
+
+    builder.interact_text().map(Some).map_err(Into::into)
+  }
 }

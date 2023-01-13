@@ -69,10 +69,7 @@ pub use wry::application::window::{Window, WindowBuilder as WryWindowBuilder, Wi
 #[cfg(windows)]
 use wry::webview::WebviewExtWindows;
 #[cfg(target_os = "android")]
-use wry::webview::{
-  prelude::{find_class, package_name},
-  WebViewBuilderExtAndroid, WebviewExtAndroid,
-};
+use wry::webview::{prelude::find_class, WebViewBuilderExtAndroid, WebviewExtAndroid};
 
 #[cfg(target_os = "macos")]
 use tauri_runtime::{menu::NativeImage, ActivationPolicy};
@@ -1821,18 +1818,13 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   #[cfg(target_os = "android")]
-  fn package_name(&self) -> &'static str {
-    package_name()
-  }
-
-  #[cfg(target_os = "android")]
   fn find_class<'a>(
     &'a self,
     env: jni::JNIEnv<'a>,
     activity: jni::objects::JObject<'a>,
-    name: &str,
+    name: impl Into<String>,
   ) -> std::result::Result<jni::objects::JClass<'a>, jni::errors::Error> {
-    find_class(env, activity, name)
+    find_class(env, activity, name.into())
   }
 }
 

@@ -1,3 +1,9 @@
 include ':app'
 {{~#each asset-packs}}
 include ':{{this}}'{{/each}}
+
+include ':tauri-android'
+project(':tauri-android').projectDir = new File('/home/lucas/projects/tauri/tauri/tooling/android/tauri')
+
+include ':tauri-plugins'
+project(':tauri-plugins').projectDir = new File('./tauri-plugins')

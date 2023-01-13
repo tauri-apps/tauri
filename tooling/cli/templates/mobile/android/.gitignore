@@ -15,3 +15,5 @@ build
 .externalNativeBuild
 .cxx
 local.properties
+
+/tauri-plugins

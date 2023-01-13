@@ -1332,13 +1332,12 @@ impl<R: Runtime> Window<R> {
           #[cfg(target_os = "android")]
           {
             if !handled {
-              let package_name = self.app_handle.runtime_handle.package_name();
               let runtime_handle = self.app_handle.runtime_handle.clone();
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
                 webview.0.exec(move |env, activity, _webview| {
                   let js_object_class = runtime_handle
-                    .find_class(env, activity, "JSObject")
+                    .find_class(env, activity, "app/tauri/plugin/JSObject")
                     .unwrap();
                   // TODO: fill data
                   let data = env.new_object(js_object_class, "()V", &[]).unwrap();
@@ -1346,7 +1345,7 @@ impl<R: Runtime> Window<R> {
                     .call_method(
                       activity,
                       "getPluginManager",
-                      format!("()L{package_name}/PluginManager;"),
+                      format!("()Lapp/tauri/plugin/PluginManager;"),
                       &[],
                     )
                     .unwrap()
@@ -1357,7 +1356,9 @@ impl<R: Runtime> Window<R> {
                     .call_method(
                       plugin_manager,
                       "postMessage",
-                      format!("(Ljava/lang/String;Ljava/lang/String;L{package_name}/JSObject;JJ)V"),
+                      format!(
+                        "(Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V"
+                      ),
                       &[
                         env.new_string(&plugin).unwrap().into(),
                         env.new_string(&message.command).unwrap().into(),

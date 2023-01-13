@@ -1,8 +1,9 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package app.tauri.plugin
 
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import app.tauri.Logger
 
 class PluginCall(
   private val sendResponse: (call: PluginCall, succcess: PluginResult?, error: PluginResult?) -> Unit,
@@ -57,33 +58,33 @@ class PluginCall(
   fun reject(msg: String?, code: String?) {
     reject(msg, code, null, null)
   }
-  
+
   fun reject(msg: String?) {
     reject(msg, null, null, null)
   }
-  
+
   fun getString(name: String): String? {
     return this.getString(name, null)
   }
-  
+
   fun getString(name: String, defaultValue: String?): String? {
     val value = data!!.opt(name) ?: return defaultValue
     return if (value is String) {
       value
     } else defaultValue
   }
-  
+
   fun getInt(name: String): Int? {
     return this.getInt(name, null)
   }
-  
+
   fun getInt(name: String, defaultValue: Int?): Int? {
     val value = data!!.opt(name) ?: return defaultValue
     return if (value is Int) {
       value
     } else defaultValue
   }
-  
+
   fun getLong(name: String): Long? {
     return this.getLong(name, null)
   }

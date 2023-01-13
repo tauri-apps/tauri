@@ -1,4 +1,4 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package app.tauri.plugin
 
 import org.json.JSONArray
 import org.json.JSONException

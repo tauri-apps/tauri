@@ -1,4 +1,4 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package app.tauri.plugin
 
 @Retention(AnnotationRetention.RUNTIME)
 annotation class PluginMethod(val returnType: String = "promise") {

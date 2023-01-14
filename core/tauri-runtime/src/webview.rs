@@ -250,6 +250,11 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Gets the window menu.
   fn get_menu(&self) -> Option<&Menu>;
+
+  /// Disables mouse events on Linux.
+  #[cfg(target_os = "linux")]
+  #[must_use]
+  fn disable_mouse_event(self, disable: bool) -> Self;
 }
 
 /// IPC handler.

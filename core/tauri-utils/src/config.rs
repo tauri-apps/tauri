@@ -926,9 +926,6 @@ pub struct WindowConfig {
   pub skip_taskbar: bool,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
-  /// Whether a mouse event is disabled or not on Linux.
-  #[serde(default, alias = "disable-mouse-event")]
-  pub disable_mouse_event: bool,
   /// The style of the macOS title bar.
   #[serde(default, alias = "title-bar-style")]
   pub title_bar_style: TitleBarStyle,

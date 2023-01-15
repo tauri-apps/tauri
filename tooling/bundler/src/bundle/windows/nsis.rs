@@ -134,6 +134,7 @@ fn build_nsis_app_installer(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",

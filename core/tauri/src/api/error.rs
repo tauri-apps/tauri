@@ -97,7 +97,7 @@ pub enum Error {
   /// JNI (Java Native Bridge) error.
   #[cfg(target_os = "android")]
   #[error(transparent)]
-  JNI(#[from] jni::errors::Error)
+  JNI(#[from] jni::errors::Error),
 }
 
 #[cfg(feature = "cli")]

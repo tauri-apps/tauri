@@ -43,7 +43,10 @@ pub enum Error {
   HttpHeader(#[from] http::header::InvalidHeaderName),
   /// Failed to serialize header value as string.
   #[error(transparent)]
-  Utf8(#[from] std::string::FromUtf8Error),
+  FromUtf8(#[from] std::string::FromUtf8Error),
+  /// Failed to parse input as a utf8 string.
+  #[error(transparent)]
+  Utf8(#[from] std::str::Utf8Error),
   /// HTTP form to must be an object.
   #[error("http form must be an object")]
   InvalidHttpForm,
@@ -91,6 +94,10 @@ pub enum Error {
   /// HTTP error.
   #[error(transparent)]
   Http(#[from] http::Error),
+  /// JNI (Java Native Bridge) error.
+  #[cfg(target_os = "android")]
+  #[error(transparent)]
+  JNI(#[from] jni::errors::Error)
 }
 
 #[cfg(feature = "cli")]

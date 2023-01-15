@@ -4,12 +4,11 @@
 
 //! Types and functions related to file system path operations.
 
+use crate::{Config, Env, PackageInfo};
 use std::{
   env::temp_dir,
   path::{Component, Path, PathBuf},
 };
-
-use crate::{Config, Env, PackageInfo};
 
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -337,8 +336,9 @@ pub fn resolve_path<P: AsRef<Path>>(
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_MUSIC_DIR`.
 /// - **macOS:** Resolves to `$HOME/Music`.
 /// - **Windows:** Resolves to `{FOLDERID_Music}`.
+/// - **Android:** Not supported.
 pub fn audio_dir() -> Option<PathBuf> {
-  dirs_next::audio_dir()
+  r#impl::audio_dir()
 }
 
 /// Returns the path to the user's cache directory.
@@ -348,8 +348,9 @@ pub fn audio_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_CACHE_HOME` or `$HOME/.cache`.
 /// - **macOS:** Resolves to `$HOME/Library/Caches`.
 /// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
+/// - **Android:** Resolves to `Contex.getCacheDir()`
 pub fn cache_dir() -> Option<PathBuf> {
-  dirs_next::cache_dir()
+  r#impl::cache_dir()
 }
 
 /// Returns the path to the user's config directory.
@@ -359,8 +360,9 @@ pub fn cache_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`.
 /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
 /// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
+/// - **Android:** Not supported.
 pub fn config_dir() -> Option<PathBuf> {
-  dirs_next::config_dir()
+  r#impl::config_dir()
 }
 
 /// Returns the path to the user's data directory.
@@ -370,8 +372,9 @@ pub fn config_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
 /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
 /// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
+/// - **Android:** Resolves to `Contex.getFilesDir()`
 pub fn data_dir() -> Option<PathBuf> {
-  dirs_next::data_dir()
+  r#impl::data_dir()
 }
 
 /// Returns the path to the user's local data directory.
@@ -381,8 +384,9 @@ pub fn data_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_DATA_HOME` or `$HOME/.local/share`.
 /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
 /// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
+/// - **Android:** Resolves to `Contex.getFilesDir()`
 pub fn local_data_dir() -> Option<PathBuf> {
-  dirs_next::data_local_dir()
+  r#impl::local_data_dir()
 }
 
 /// Returns the path to the user's desktop directory.
@@ -392,8 +396,9 @@ pub fn local_data_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DESKTOP_DIR`.
 /// - **macOS:** Resolves to `$HOME/Desktop`.
 /// - **Windows:** Resolves to `{FOLDERID_Desktop}`.
+/// - **Android:** Not supported.
 pub fn desktop_dir() -> Option<PathBuf> {
-  dirs_next::desktop_dir()
+  r#impl::desktop_dir()
 }
 
 /// Returns the path to the user's document directory.
@@ -403,8 +408,9 @@ pub fn desktop_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOCUMENTS_DIR`.
 /// - **macOS:** Resolves to `$HOME/Documents`.
 /// - **Windows:** Resolves to `{FOLDERID_Documents}`.
+/// - **Android:** Not supported.
 pub fn document_dir() -> Option<PathBuf> {
-  dirs_next::document_dir()
+  r#impl::document_dir()
 }
 
 /// Returns the path to the user's download directory.
@@ -414,8 +420,9 @@ pub fn document_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_DOWNLOAD_DIR`.
 /// - **macOS:** Resolves to `$HOME/Downloads`.
 /// - **Windows:** Resolves to `{FOLDERID_Downloads}`.
+/// - **Android:** Not supported.
 pub fn download_dir() -> Option<PathBuf> {
-  dirs_next::download_dir()
+  r#impl::download_dir()
 }
 
 /// Returns the path to the user's executable directory.
@@ -425,8 +432,9 @@ pub fn download_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_BIN_HOME/../bin` or `$XDG_DATA_HOME/../bin` or `$HOME/.local/bin`.
 /// - **macOS:** Not supported.
 /// - **Windows:** Not supported.
+/// - **Android:** Not supported.
 pub fn executable_dir() -> Option<PathBuf> {
-  dirs_next::executable_dir()
+  r#impl::executable_dir()
 }
 
 /// Returns the path to the user's font directory.
@@ -436,8 +444,9 @@ pub fn executable_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_DATA_HOME/fonts` or `$HOME/.local/share/fonts`.
 /// - **macOS:** Resolves to `$HOME/Library/Fonts`.
 /// - **Windows:** Not supported.
+/// - **Android:** Not supported.
 pub fn font_dir() -> Option<PathBuf> {
-  dirs_next::font_dir()
+  r#impl::font_dir()
 }
 
 /// Returns the path to the user's home directory.
@@ -447,8 +456,9 @@ pub fn font_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$HOME`.
 /// - **macOS:** Resolves to `$HOME`.
 /// - **Windows:** Resolves to `{FOLDERID_Profile}`.
+/// - **Android:** Not supported.
 pub fn home_dir() -> Option<PathBuf> {
-  dirs_next::home_dir()
+  r#impl::home_dir()
 }
 
 /// Returns the path to the user's picture directory.
@@ -458,8 +468,9 @@ pub fn home_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PICTURES_DIR`.
 /// - **macOS:** Resolves to `$HOME/Pictures`.
 /// - **Windows:** Resolves to `{FOLDERID_Pictures}`.
+/// - **Android:** Not supported.
 pub fn picture_dir() -> Option<PathBuf> {
-  dirs_next::picture_dir()
+  r#impl::picture_dir()
 }
 
 /// Returns the path to the user's public directory.
@@ -469,8 +480,9 @@ pub fn picture_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_PUBLICSHARE_DIR`.
 /// - **macOS:** Resolves to `$HOME/Public`.
 /// - **Windows:** Resolves to `{FOLDERID_Public}`.
+/// - **Android:** Not supported.
 pub fn public_dir() -> Option<PathBuf> {
-  dirs_next::public_dir()
+  r#impl::public_dir()
 }
 
 /// Returns the path to the user's runtime directory.
@@ -480,8 +492,9 @@ pub fn public_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to `$XDG_RUNTIME_DIR`.
 /// - **macOS:** Not supported.
 /// - **Windows:** Not supported.
+/// - **Android:** Not supported.
 pub fn runtime_dir() -> Option<PathBuf> {
-  dirs_next::runtime_dir()
+  r#impl::runtime_dir()
 }
 
 /// Returns the path to the user's template directory.
@@ -491,8 +504,9 @@ pub fn runtime_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_TEMPLATES_DIR`.
 /// - **macOS:** Not supported.
 /// - **Windows:** Resolves to `{FOLDERID_Templates}`.
+/// - **Android:** Not supported.
 pub fn template_dir() -> Option<PathBuf> {
-  dirs_next::template_dir()
+  r#impl::template_dir()
 }
 
 /// Returns the path to the user's video dir
@@ -502,8 +516,9 @@ pub fn template_dir() -> Option<PathBuf> {
 /// - **Linux:** Resolves to [`xdg-user-dirs`](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)' `XDG_VIDEOS_DIR`.
 /// - **macOS:** Resolves to `$HOME/Movies`.
 /// - **Windows:** Resolves to `{FOLDERID_Videos}`.
+/// - **Android:** Not supported.
 pub fn video_dir() -> Option<PathBuf> {
-  dirs_next::video_dir()
+  r#impl::video_dir()
 }
 
 /// Returns the path to the resource directory of this app.
@@ -519,7 +534,7 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> Option<PathBuf> {
 ///
 /// See [`PathResolver::app_config_dir`](crate::PathResolver#method.app_config_dir) for a more convenient helper function.
 pub fn app_config_dir(config: &Config) -> Option<PathBuf> {
-  dirs_next::config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+  config_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested directory for your app's data files.
@@ -528,7 +543,7 @@ pub fn app_config_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// See [`PathResolver::app_data_dir`](crate::PathResolver#method.app_data_dir) for a more convenient helper function.
 pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
-  dirs_next::data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+  data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested directory for your app's local data files.
@@ -537,7 +552,7 @@ pub fn app_data_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// See [`PathResolver::app_local_data_dir`](crate::PathResolver#method.app_local_data_dir) for a more convenient helper function.
 pub fn app_local_data_dir(config: &Config) -> Option<PathBuf> {
-  dirs_next::data_local_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+  local_data_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested directory for your app's cache files.
@@ -546,7 +561,7 @@ pub fn app_local_data_dir(config: &Config) -> Option<PathBuf> {
 ///
 /// See [`PathResolver::app_cache_dir`](crate::PathResolver#method.app_cache_dir) for a more convenient helper function.
 pub fn app_cache_dir(config: &Config) -> Option<PathBuf> {
-  dirs_next::cache_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
+  cache_dir().map(|dir| dir.join(&config.tauri.bundle.identifier))
 }
 
 /// Returns the path to the suggested directory for your app's log files.
@@ -601,4 +616,220 @@ pub fn app_dir(config: &Config) -> Option<PathBuf> {
 )]
 pub fn log_dir(config: &Config) -> Option<PathBuf> {
   app_log_dir(config)
+}
+
+#[cfg(not(target_os = "android"))]
+mod r#impl {
+  use std::path::PathBuf;
+
+  #[inline]
+  pub fn audio_dir() -> Option<PathBuf> {
+    dirs_next::audio_dir()
+  }
+
+  #[inline]
+  pub fn cache_dir() -> Option<PathBuf> {
+    dirs_next::cache_dir()
+  }
+
+  #[inline]
+  pub fn config_dir() -> Option<PathBuf> {
+    dirs_next::config_dir()
+  }
+
+  #[inline]
+  pub fn data_dir() -> Option<PathBuf> {
+    dirs_next::data_dir()
+  }
+
+  #[inline]
+  pub fn local_data_dir() -> Option<PathBuf> {
+    dirs_next::data_local_dir()
+  }
+
+  #[inline]
+  pub fn desktop_dir() -> Option<PathBuf> {
+    dirs_next::desktop_dir()
+  }
+
+  #[inline]
+  pub fn document_dir() -> Option<PathBuf> {
+    dirs_next::document_dir()
+  }
+
+  #[inline]
+  pub fn download_dir() -> Option<PathBuf> {
+    dirs_next::download_dir()
+  }
+
+  #[inline]
+  pub fn executable_dir() -> Option<PathBuf> {
+    dirs_next::executable_dir()
+  }
+
+  #[inline]
+  pub fn font_dir() -> Option<PathBuf> {
+    dirs_next::font_dir()
+  }
+
+  #[inline]
+  pub fn home_dir() -> Option<PathBuf> {
+    dirs_next::home_dir()
+  }
+
+  #[inline]
+  pub fn picture_dir() -> Option<PathBuf> {
+    dirs_next::picture_dir()
+  }
+
+  #[inline]
+  pub fn public_dir() -> Option<PathBuf> {
+    dirs_next::public_dir()
+  }
+
+  #[inline]
+  pub fn runtime_dir() -> Option<PathBuf> {
+    dirs_next::runtime_dir()
+  }
+
+  #[inline]
+  pub fn template_dir() -> Option<PathBuf> {
+    dirs_next::template_dir()
+  }
+
+  #[inline]
+  pub fn video_dir() -> Option<PathBuf> {
+    dirs_next::video_dir()
+  }
+}
+
+#[cfg(target_os = "android")]
+mod r#impl {
+  use std::path::PathBuf;
+
+  // TODO
+  #[inline]
+  pub fn audio_dir() -> Option<PathBuf> {
+    None
+  }
+
+  // Returns the absolute path to the application specific cache directory on the filesystem.
+  #[inline]
+  pub fn cache_dir() -> Option<PathBuf> {
+    match dir_inner("getCacheDir") {
+      Ok(path) => Some(path),
+      Err(err) => {
+        log::error!("Error while getting cache_dir {:?}", err);
+        None
+      }
+    }
+  }
+
+  // TODO
+  #[inline]
+  pub fn config_dir() -> Option<PathBuf> {
+    None
+  }
+
+  // Returns the absolute path to the directory on the filesystem where files created with openFileOutput(String, int) are stored.
+  #[inline]
+  pub fn data_dir() -> Option<PathBuf> {
+    match dir_inner("getFilesDir") {
+      Ok(path) => Some(path),
+      Err(err) => {
+        log::error!("Error while getting data_dir {:?}", err);
+        None
+      }
+    }
+  }
+
+  #[inline]
+  pub fn local_data_dir() -> Option<PathBuf> {
+    match dir_inner("getFilesDir") {
+      Ok(path) => Some(path),
+      Err(err) => {
+        log::error!("Error while getting local_data_dir {:?}", err);
+        None
+      }
+    }
+  }
+
+  #[inline]
+  pub fn desktop_dir() -> Option<PathBuf> {
+    None
+  }
+
+  // TODO
+  #[inline]
+  pub fn document_dir() -> Option<PathBuf> {
+    None
+  }
+
+  // TODO
+  #[inline]
+  pub fn download_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn executable_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn font_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn home_dir() -> Option<PathBuf> {
+    None
+  }
+
+  // TODO
+  #[inline]
+  pub fn picture_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn public_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn runtime_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn template_dir() -> Option<PathBuf> {
+    None
+  }
+
+  #[inline]
+  pub fn video_dir() -> Option<PathBuf> {
+    None
+  }
+
+  fn dir_inner(method: &str) -> Result<PathBuf, super::super::Error> {
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }?;
+    let env = vm.attach_current_thread()?;
+
+    let context = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+
+    let dir = env
+      .call_method(context, method, "()Ljava/io/File;", &[])?
+      .l()?;
+
+    let dir_str = env.get_string(
+      env
+        .call_method(dir, "getAbsolutePath", "()Ljava/lang/String;", &[])?
+        .l()?
+        .into(),
+    )?;
+
+    Ok(PathBuf::from(dir_str.to_str()?))
+  }
 }

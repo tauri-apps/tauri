@@ -40,8 +40,6 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
     &mut error,
     &function,
   );
-  let domain_str = var("TAURI_MOBILE_DOMAIN").unwrap();
-  let app_name_str = var("CARGO_PKG_NAME").unwrap();
 
   if let Some(e) = error {
     quote!(#e).into()
@@ -61,10 +59,9 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
 
       fn _start_app() {
         #[cfg(target_os = "ios")]
-        ::tauri::init_logging(&format!("{}.{}", #domain_str, #app_name_str));
+        ::tauri::log_stdout();
         #[cfg(target_os = "android")]
         {
-          ::tauri::init_logging(#app_name_str);
           use ::tauri::paste;
           ::tauri::wry_android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
         }

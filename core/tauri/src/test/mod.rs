@@ -74,6 +74,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       version: "0.1.0".parse().unwrap(),
       authors: "Tauri",
       description: "Tauri test",
+      crate_name: "test",
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),

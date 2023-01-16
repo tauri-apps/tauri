@@ -303,6 +303,11 @@ impl WindowBuilder for MockWindowBuilder {
   fn get_menu(&self) -> Option<&Menu> {
     None
   }
+
+  #[cfg(target_os = "linux")]
+  fn mouse_event(self, enable: bool) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> Dispatch<T> for MockDispatcher {

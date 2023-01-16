@@ -30,7 +30,7 @@ use crate::{
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
-  utils::config::WindowUrl,
+  utils::config::{WindowConfig, WindowUrl},
   CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
   PageLoadPayload, Runtime, Theme, WindowEvent,
 };
@@ -182,6 +182,47 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       app_handle,
       label: label.into(),
       window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::new(),
+      webview_attributes: WebviewAttributes::new(url),
+      web_resource_request_handler: None,
+      navigation_handler: None,
+    }
+  }
+
+  /// Initializes a webview window builder from a window config from tauri.conf.json.
+  /// Keep in mind that you can't create 2 windows with the same `label` so make sure
+  /// that the initial window was closed or change the label of the new `WindowBuilder`.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
+  /// You should use `async` commands when creating windows.
+  ///
+  /// # Examples
+  ///
+  /// - Create a window in a command:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap())
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn from_config<M: Manager<R>>(manager: &'a M, config: WindowConfig) -> Self {
+    let runtime = manager.runtime();
+    let app_handle = manager.app_handle();
+    let url = config.url.clone();
+    Self {
+      manager: manager.manager().clone(),
+      runtime,
+      app_handle,
+      label: config.label.clone(),
+      window_builder: <R::Dispatcher as Dispatch<EventLoopMessage>>::WindowBuilder::with_config(
+        config,
+      ),
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,

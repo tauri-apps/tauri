@@ -753,7 +753,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     #[cfg(target_os = "linux")]
     {
       // Mouse event is disabled on Linux since sudden event bursts could block event loop.
-      window = window.mouse_event(false);
+      window.inner = window.inner.with_cursor_moved_event(false);
     }
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -955,12 +955,6 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn get_menu(&self) -> Option<&Menu> {
     self.menu.as_ref()
-  }
-
-  #[cfg(target_os = "linux")]
-  fn mouse_event(mut self, enable: bool) -> Self {
-    self.inner = self.inner.with_cursor_moved_event(enable);
-    self
   }
 }
 

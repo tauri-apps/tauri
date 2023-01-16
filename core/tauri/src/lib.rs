@@ -189,6 +189,7 @@ mod pattern;
 pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
+mod resources;
 /// The allowlist scopes.
 pub mod scope;
 mod state;

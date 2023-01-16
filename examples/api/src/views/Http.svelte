@@ -19,9 +19,9 @@
       (httpBody.startsWith('{') && httpBody.endsWith('}')) ||
       (httpBody.startsWith('[') && httpBody.endsWith(']'))
     ) {
-      options.body = Body.json(JSON.parse(httpBody))
+      options.body = JSON.parse(httpBody)
     } else if (httpBody !== '') {
-      options.body = Body.text(httpBody)
+      options.body = httpBody
     }
 
     tauriFetch(options).then(onMessage).catch(onMessage)
@@ -37,10 +37,10 @@
     result = await tauriFetch({
       url: 'http://localhost:3003',
       method: 'POST',
-      body: Body.form({
+      body: {
         foo,
         bar
-      }),
+      },
       headers: multipart
         ? { 'Content-Type': 'multipart/form-data' }
         : undefined,

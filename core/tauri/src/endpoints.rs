@@ -4,13 +4,14 @@
 
 use crate::{
   hooks::{InvokeError, InvokeMessage, InvokeResolver},
+  resources::ResourceTable,
   Config, Invoke, PackageInfo, Runtime, Window,
 };
 pub use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 mod app;
 #[cfg(cli)]
@@ -42,6 +43,8 @@ pub struct InvokeContext<R: Runtime> {
   pub window: Window<R>,
   pub config: Arc<Config>,
   pub package_info: PackageInfo,
+  #[allow(unused)]
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 #[cfg(test)]
@@ -51,6 +54,7 @@ impl<R: Runtime> Clone for InvokeContext<R> {
       window: self.window.clone(),
       config: self.config.clone(),
       package_info: self.package_info.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -104,11 +108,13 @@ impl Module {
     resolver: InvokeResolver<R>,
     config: Arc<Config>,
     package_info: PackageInfo,
+    resources_table: Arc<Mutex<ResourceTable>>,
   ) {
     let context = InvokeContext {
       window,
       config,
       package_info,
+      resources_table,
     };
     match self {
       Self::App(cmd) => resolver.respond_async(async move {
@@ -216,6 +222,7 @@ pub(crate) fn handle<R: Runtime>(
   invoke: Invoke<R>,
   config: Arc<Config>,
   package_info: &PackageInfo,
+  resources_table: Arc<Mutex<ResourceTable>>,
 ) {
   let Invoke { message, resolver } = invoke;
   let InvokeMessage {
@@ -229,7 +236,13 @@ pub(crate) fn handle<R: Runtime>(
   }
 
   match serde_json::from_value::<Module>(payload) {
-    Ok(module) => module.run(window, resolver, config, package_info.clone()),
+    Ok(module) => module.run(
+      window,
+      resolver,
+      config,
+      package_info.clone(),
+      resources_table,
+    ),
     Err(e) => {
       let message = e.to_string();
       if message.starts_with("unknown variant") {

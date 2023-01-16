@@ -9,11 +9,14 @@ pub use mock_runtime::*;
 
 #[cfg(shell_scope)]
 use std::collections::HashMap;
-use std::{borrow::Cow, sync::Arc};
+use std::{
+  borrow::Cow,
+  sync::{Arc, Mutex},
+};
 
 #[cfg(shell_scope)]
 use crate::ShellScopeConfig;
-use crate::{Manager, Pattern, WindowBuilder};
+use crate::{resources::ResourceTable, Manager, Pattern, WindowBuilder};
 use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig, WindowUrl},
@@ -103,5 +106,6 @@ pub(crate) fn mock_invoke_context() -> crate::endpoints::InvokeContext<MockRunti
     window: app.get_window("main").unwrap(),
     config: app.config(),
     package_info: app.package_info().clone(),
+    resources_table: Arc::new(Mutex::new(ResourceTable::default())),
   }
 }

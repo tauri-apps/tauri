@@ -13,6 +13,7 @@ use crate::{
   },
   manager::{Asset, CustomProtocol, WindowManager},
   plugin::{Plugin, PluginStore},
+  resources::ResourceTable,
   runtime::{
     http::{Request as HttpRequest, Response as HttpResponse},
     webview::WebviewAttributes,
@@ -42,7 +43,7 @@ use std::{
   collections::HashMap,
   fmt,
   path::{Path, PathBuf},
-  sync::{mpsc::Sender, Arc, Weak},
+  sync::{mpsc::Sender, Arc, Mutex, Weak},
 };
 
 use crate::runtime::menu::{Menu, MenuId, MenuIdRef};
@@ -1041,6 +1042,9 @@ pub struct Builder<R: Runtime> {
   /// The updater configuration.
   #[cfg(updater)]
   updater_settings: UpdaterSettings,
+
+  /// Application Resources
+  resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> Builder<R> {
@@ -1069,6 +1073,7 @@ impl<R: Runtime> Builder<R> {
       system_tray_event_listeners: Vec::new(),
       #[cfg(updater)]
       updater_settings: Default::default(),
+      resources_table: Default::default()
     }
   }
 
@@ -1539,6 +1544,7 @@ impl<R: Runtime> Builder<R> {
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
       (self.invoke_responder, self.invoke_initialization_script),
+      self.resources_table,
     );
 
     // set up all the windows defined in the config

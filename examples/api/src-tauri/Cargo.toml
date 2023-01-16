@@ -39,7 +39,6 @@ window-vibrancy = "0.2"
 window-shadows= "0.2"
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
 
 # default to small, optimized release binaries

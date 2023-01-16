@@ -1312,6 +1312,7 @@ impl<R: Runtime> Window<R> {
             invoke,
             manager.config(),
             manager.package_info(),
+            manager.resources_table(),
           );
         } else if payload.cmd.starts_with("plugin:") {
           manager.extend_api(invoke);

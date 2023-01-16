@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![allow(unused_imports)]
+mod utils;
+use utils::*;
 
 use crate::{
   api::{
@@ -11,44 +12,23 @@ use crate::{
     path::BaseDirectory,
   },
   error::into_anyhow,
+  resources::ResourceId,
   scope::Scopes,
   Config, Env, Manager, PackageInfo, Runtime, Window,
 };
 
 use super::InvokeContext;
 use anyhow::Context;
-use serde::{
-  de::{Deserializer, Error as DeError},
-  Deserialize, Serialize,
-};
+use serde::Deserialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
-use tauri_utils::atomic_counter::AtomicCounter;
 
-use once_cell::sync::Lazy;
 use std::{
-  collections::HashMap,
-  fmt::{Debug, Formatter},
-  io::{self, Read},
+  fmt::Debug,
+  io::{self, BufReader, Read},
   sync::Mutex,
-  time::{SystemTime, UNIX_EPOCH},
 };
-use std::{
-  fs,
-  fs::File,
-  io::Write,
-  path::{Component, Path},
-  sync::Arc,
-};
-
-/// Resource id
-type Rid = u32;
-type FsFileStore = Arc<Mutex<HashMap<Rid, File>>>;
-type FsFileLinesStore = Arc<Mutex<HashMap<Rid, io::Lines<io::BufReader<File>>>>>;
-
-static RID_COUNTER: AtomicCounter = AtomicCounter::new();
-static FILES_STORE: Lazy<FsFileStore> = Lazy::new(Default::default);
-static FILES_LINES_STORE: Lazy<FsFileLinesStore> = Lazy::new(Default::default);
+use std::{fs, fs::File, io::Write};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -137,7 +117,7 @@ pub(crate) enum Cmd {
   },
   /// The close file API.
   #[cmd(fs_close, "fs > close")]
-  Close { rid: Rid },
+  Close { rid: ResourceId },
   /// The copy file API.
   #[cmd(fs_copy_file, "fs > copyFile")]
   #[serde(rename_all = "camelCase")]
@@ -160,7 +140,7 @@ pub(crate) enum Cmd {
   },
   /// The read file API.
   #[cmd(fs_read_file, "fs > readFile")]
-  Read { rid: Rid, len: u32 },
+  Read { rid: ResourceId, len: u32 },
   #[cmd(fs_read_file, "fs > readFile")]
   ReadFile {
     path: SafePathBuf,
@@ -177,7 +157,7 @@ pub(crate) enum Cmd {
     options: Option<GenericOptions>,
   },
   #[cmd(fs_read_file, "fs > readFile")]
-  ReadTextFileLinesNext { rid: Rid },
+  ReadTextFileLinesNext { rid: ResourceId },
   /// The remove API.
   #[cmd(fs_remove, "fs > remove")]
   Remove {
@@ -195,7 +175,7 @@ pub(crate) enum Cmd {
   /// The seek file API
   #[cmd(fs_seek_file, "fs > writeFile or fs > readFile")]
   Seek {
-    rid: Rid,
+    rid: ResourceId,
     offset: i64,
     whence: SeekMode,
   },
@@ -211,7 +191,7 @@ pub(crate) enum Cmd {
     options: Option<GenericOptions>,
   },
   #[cmd(fs_read_file, "fs > readFile")]
-  Fstat { rid: Rid },
+  Fstat { rid: ResourceId },
   /// The truncate file API
   #[cmd(fs_write_file, "fs > writeFile")]
   Truncate {
@@ -220,10 +200,10 @@ pub(crate) enum Cmd {
     options: Option<GenericOptions>,
   },
   #[cmd(fs_write_file, "fs > writeFile")]
-  Ftruncate { rid: Rid, len: Option<u64> },
+  Ftruncate { rid: ResourceId, len: Option<u64> },
   /// The write file API.
   #[cmd(fs_write_file, "fs > writeFile")]
-  Write { rid: Rid, data: Vec<u8> },
+  Write { rid: ResourceId, data: Vec<u8> },
   #[cmd(fs_write_file, "fs > writeFile")]
   WriteFile {
     path: SafePathBuf,
@@ -250,7 +230,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<GenericOptions>,
-  ) -> super::Result<Rid> {
+  ) -> super::Result<ResourceId> {
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -264,8 +244,11 @@ impl Cmd {
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(into_anyhow)?;
 
-    let rid = RID_COUNTER.next();
-    FILES_STORE.lock().unwrap().insert(rid, file);
+    let rid = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .add(StdFileResource::new(file));
 
     Ok(rid)
   }
@@ -275,7 +258,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<OpenOptions>,
-  ) -> super::Result<Rid> {
+  ) -> super::Result<ResourceId> {
     let resolved_path = resolve_path(
       &context.config,
       &context.package_info,
@@ -321,16 +304,23 @@ impl Cmd {
       .with_context(|| format!("path: {}", resolved_path.display()))
       .map_err(into_anyhow)?;
 
-    let rid = RID_COUNTER.next();
-    FILES_STORE.lock().unwrap().insert(rid, file);
+    let rid = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .add(StdFileResource::new(file));
 
     Ok(rid)
   }
 
   #[module_command_handler(fs_close)]
-  fn close<R: Runtime>(_context: InvokeContext<R>, rid: Rid) -> super::Result<()> {
-    FILES_STORE.lock().unwrap().remove(&rid);
-    Ok(())
+  fn close<R: Runtime>(context: InvokeContext<R>, rid: ResourceId) -> super::Result<()> {
+    context
+      .resources_table
+      .lock()
+      .unwrap()
+      .close(rid)
+      .map_err(Into::into)
   }
 
   #[module_command_handler(fs_copy_file)]
@@ -418,17 +408,19 @@ impl Cmd {
 
   #[module_command_handler(fs_write_file)]
   fn read<R: Runtime>(
-    _context: InvokeContext<R>,
-    rid: Rid,
+    context: InvokeContext<R>,
+    rid: ResourceId,
     len: u32,
   ) -> super::Result<(Vec<u8>, usize)> {
     let mut data = Vec::new();
     data.resize(len as usize, 0);
-    let mut store = FILES_STORE.lock().unwrap();
-    let file = store
-      .get_mut(&rid)
-      .with_context(|| format!("Incorrect file rid: {}", rid))?;
-    let nread = file.read(&mut data).map_err(into_anyhow)?;
+    let file = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .get::<StdFileResource>(rid)?;
+    let nread =
+      StdFileResource::with_lock(&file, |mut file| file.read(&mut data)).map_err(into_anyhow)?;
     Ok((data, nread))
   }
 
@@ -475,7 +467,7 @@ impl Cmd {
     context: InvokeContext<R>,
     path: SafePathBuf,
     options: Option<GenericOptions>,
-  ) -> super::Result<Rid> {
+  ) -> super::Result<ResourceId> {
     use io::{BufRead, BufReader};
 
     let resolved_path = resolve_path(
@@ -488,30 +480,35 @@ impl Cmd {
     )?;
 
     let file = File::open(resolved_path)?;
-    let rid = RID_COUNTER.next();
     let lines = BufReader::new(file).lines();
-    FILES_LINES_STORE.lock().unwrap().insert(rid, lines);
+    let rid = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .add(Mutex::new(lines));
 
     Ok(rid)
   }
 
   #[module_command_handler(fs_read_file)]
   fn read_text_file_lines_next<R: Runtime>(
-    _context: InvokeContext<R>,
-    rid: Rid,
+    context: InvokeContext<R>,
+    rid: ResourceId,
   ) -> super::Result<(Option<String>, bool)> {
-    let mut store = FILES_LINES_STORE.lock().unwrap();
-    let lines = store.get_mut(&rid).with_context(|| {
-      format!(
-        "Iterator has already been consumed or incorrect file rid: {}",
-        rid
-      )
-    })?;
+    use std::io::Lines;
 
-    let ret = lines.next().map(|a| (a.ok(), false)).unwrap_or_else(|| {
-      store.remove(&rid);
-      (None, true)
-    });
+    let mut resource_table = context.resources_table.lock().unwrap();
+    let lines = resource_table.get::<Mutex<Lines<BufReader<File>>>>(rid)?;
+
+    let ret = lines
+      .lock()
+      .unwrap()
+      .next()
+      .map(|a| (a.ok(), false))
+      .unwrap_or_else(|| {
+        let _ = resource_table.close(rid);
+        (None, true)
+      });
 
     Ok(ret)
   }
@@ -601,23 +598,26 @@ impl Cmd {
 
   #[module_command_handler(fs_seek_file)]
   fn seek<R: Runtime>(
-    _context: InvokeContext<R>,
-    rid: Rid,
+    context: InvokeContext<R>,
+    rid: ResourceId,
     offset: i64,
     whence: SeekMode,
   ) -> super::Result<u64> {
     use std::io::{Seek, SeekFrom};
-    let mut store = FILES_STORE.lock().unwrap();
-    let file = store
-      .get_mut(&rid)
-      .with_context(|| format!("Incorrect file rid: {}", rid))?;
-    file
-      .seek(match whence {
+    let file = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .get::<StdFileResource>(rid)?;
+
+    StdFileResource::with_lock(&file, |mut file| {
+      file.seek(match whence {
         SeekMode::Start => SeekFrom::Start(offset as u64),
         SeekMode::Current => SeekFrom::Current(offset),
         SeekMode::End => SeekFrom::End(offset),
       })
-      .map_err(into_anyhow)
+    })
+    .map_err(into_anyhow)
   }
 
   #[module_command_handler(fs_read_file)]
@@ -658,11 +658,8 @@ impl Cmd {
   }
 
   #[module_command_handler(fs_read_file)]
-  fn fstat<R: Runtime>(_context: InvokeContext<R>, rid: Rid) -> super::Result<FileInfo> {
-    let mut store = FILES_STORE.lock().unwrap();
-    let file = store
-      .get_mut(&rid)
-      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+  fn fstat<R: Runtime>(context: InvokeContext<R>, rid: ResourceId) -> super::Result<FileInfo> {
+    let file = context.resources_table.lock().unwrap().get::<File>(rid)?;
     let metadata = file.metadata()?;
     Ok(get_stat(metadata))
   }
@@ -690,28 +687,27 @@ impl Cmd {
   }
   #[module_command_handler(fs_write_file)]
   fn ftruncate<R: Runtime>(
-    _context: InvokeContext<R>,
-    rid: Rid,
+    context: InvokeContext<R>,
+    rid: ResourceId,
     len: Option<u64>,
   ) -> super::Result<()> {
-    let mut store = FILES_STORE.lock().unwrap();
-    let file = store
-      .get_mut(&rid)
-      .with_context(|| format!("Incorrect file rid: {}", rid))?;
+    let file = context.resources_table.lock().unwrap().get::<File>(rid)?;
     file.set_len(len.unwrap_or(0)).map_err(into_anyhow)
   }
 
   #[module_command_handler(fs_write_file)]
   fn write<R: Runtime>(
-    _context: InvokeContext<R>,
-    rid: Rid,
+    context: InvokeContext<R>,
+    rid: ResourceId,
     data: Vec<u8>,
   ) -> super::Result<usize> {
-    let mut store = FILES_STORE.lock().unwrap();
-    let file = store
-      .get_mut(&rid)
-      .with_context(|| format!("Incorrect file rid: {}", rid))?;
-    file.write(&data).map_err(Into::into)
+    let file = context
+      .resources_table
+      .lock()
+      .unwrap()
+      .get::<StdFileResource>(rid)?;
+
+    StdFileResource::with_lock(&file, |mut file| file.write(&data)).map_err(Into::into)
   }
 
   #[module_command_handler(fs_write_file)]
@@ -787,7 +783,6 @@ fn write_file<R: Runtime>(
     .and_then(|mut f| f.write_all(data).map_err(|err| err.into()))
 }
 
-#[allow(dead_code)]
 pub(crate) fn resolve_path<R: Runtime>(
   config: &Config,
   package_info: &PackageInfo,
@@ -821,103 +816,11 @@ pub(crate) fn resolve_path<R: Runtime>(
   }
 }
 
-fn file_url_to_safe_pathbuf(path: SafePathBuf) -> super::Result<SafePathBuf> {
-  if path.as_ref().starts_with("file:") {
-    SafePathBuf::new(
-      url::Url::parse(&path.display().to_string())?
-        .to_file_path()
-        .map_err(|_| into_anyhow("Failed to get path from `file:` url"))?,
-    )
-    .map_err(into_anyhow)
-  } else {
-    Ok(path)
-  }
-}
-
-// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L913
-fn to_msec(maybe_time: Result<SystemTime, io::Error>) -> Option<u64> {
-  match maybe_time {
-    Ok(time) => {
-      let msec = time
-        .duration_since(UNIX_EPOCH)
-        .map(|t| t.as_millis() as u64)
-        .unwrap_or_else(|err| err.duration().as_millis() as u64);
-      Some(msec)
-    }
-    Err(_) => None,
-  }
-}
-
-// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L926
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FileInfo {
-  is_file: bool,
-  is_directory: bool,
-  is_symlink: bool,
-  size: u64,
-  // In milliseconds, like JavaScript. Available on both Unix or Windows.
-  mtime: Option<u64>,
-  atime: Option<u64>,
-  birthtime: Option<u64>,
-  // Following are only valid under Unix.
-  dev: u64,
-  ino: u64,
-  mode: u32,
-  nlink: u64,
-  uid: u32,
-  gid: u32,
-  rdev: u64,
-  blksize: u64,
-  blocks: u64,
-}
-
-// taken from deno source code: https://github.com/denoland/deno/blob/ffffa2f7c44bd26aec5ae1957e0534487d099f48/runtime/ops/fs.rs#L950
-#[inline(always)]
-fn get_stat(metadata: std::fs::Metadata) -> FileInfo {
-  // Unix stat member (number types only). 0 if not on unix.
-  macro_rules! usm {
-    ($member:ident) => {{
-      #[cfg(unix)]
-      {
-        metadata.$member()
-      }
-      #[cfg(not(unix))]
-      {
-        0
-      }
-    }};
-  }
-
-  #[cfg(unix)]
-  use std::os::unix::fs::MetadataExt;
-  FileInfo {
-    is_file: metadata.is_file(),
-    is_directory: metadata.is_dir(),
-    is_symlink: metadata.file_type().is_symlink(),
-    size: metadata.len(),
-    // In milliseconds, like JavaScript. Available on both Unix or Windows.
-    mtime: to_msec(metadata.modified()),
-    atime: to_msec(metadata.accessed()),
-    birthtime: to_msec(metadata.created()),
-    // Following are only valid under Unix.
-    dev: usm!(dev),
-    ino: usm!(ino),
-    mode: usm!(mode),
-    nlink: usm!(nlink),
-    uid: usm!(uid),
-    gid: usm!(gid),
-    rdev: usm!(rdev),
-    blksize: usm!(blksize),
-    blocks: usm!(blocks),
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::{
     BaseDirectory, CopyFileOptions, GenericOptions, MkdirOptions, OpenOptions, RemoveOptions,
-    RenameOptions, Rid, SafePathBuf, SeekMode, WriteFileOptions,
+    RenameOptions, SafePathBuf, SeekMode, WriteFileOptions,
   };
 
   use quickcheck::{Arbitrary, Gen};

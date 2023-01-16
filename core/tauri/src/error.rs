@@ -4,6 +4,8 @@
 
 use std::{fmt, path::PathBuf};
 
+use crate::resources::ResourceId;
+
 /// A generic boxed error.
 #[derive(Debug)]
 pub struct SetupError(Box<dyn std::error::Error>);
@@ -131,6 +133,9 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
+  /// The resource id is invalid.
+  #[error("The resource id is invalid {0}.")]
+  BadResourceId(ResourceId),
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

@@ -25,7 +25,6 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::hooks::IpcJavascript;
 #[cfg(feature = "isolation")]
 use crate::hooks::IsolationJavascript;
 use crate::pattern::{format_real_schema, PatternJavascript};
@@ -54,6 +53,7 @@ use crate::{
   app::{GlobalMenuEventListener, WindowMenuEvent},
   window::WebResourceRequestHandler,
 };
+use crate::{hooks::IpcJavascript, resources::ResourceTable};
 
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use crate::api::path::{resolve_path, BaseDirectory};
@@ -227,6 +227,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pattern: Pattern,
+  /// Application Resources Table
+  resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -292,6 +294,7 @@ impl<R: Runtime> WindowManager<R> {
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    resources_table: Arc<Mutex<ResourceTable>>,
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -322,6 +325,7 @@ impl<R: Runtime> WindowManager<R> {
         window_event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        resources_table,
       }),
     }
   }
@@ -338,6 +342,11 @@ impl<R: Runtime> WindowManager<R> {
   /// State managed by the application.
   pub(crate) fn state(&self) -> Arc<StateManager> {
     self.inner.state.clone()
+  }
+
+  /// Resources table managed by the application.
+  pub(crate) fn resources_table(&self) -> Arc<Mutex<ResourceTable>> {
+    self.inner.resources_table.clone()
   }
 
   /// The invoke responder.
@@ -1151,6 +1160,7 @@ mod test {
       Default::default(),
       Default::default(),
       (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      Default::default(),
     );
 
     #[cfg(custom_protocol)]

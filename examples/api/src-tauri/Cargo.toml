@@ -49,7 +49,6 @@ mobile-entry-point = "0.1.0"
 env_logger = "0.9.0"
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]
 
 # default to small, optimized release binaries

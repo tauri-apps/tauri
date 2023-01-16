@@ -722,8 +722,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       .always_on_top(config.always_on_top)
       .content_protected(config.content_protected)
       .skip_taskbar(config.skip_taskbar)
-      .theme(config.theme)
-      .disable_mouse_event(config.disable_mouse_event);
+      .theme(config.theme);
 
     #[cfg(target_os = "macos")]
     {
@@ -749,6 +748,12 @@ impl WindowBuilder for WindowBuilderWrapper {
         "The window is set to be transparent but the `macos-private-api` is not enabled.
         This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
       ");
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window = window.mouse_event(false);
     }
 
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -953,8 +958,8 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "linux")]
-  fn disable_mouse_event(mut self, disable: bool) -> Self {
-    self.inner = self.inner.disable_mouse_event(disable);
+  fn mouse_event(mut self, enable: bool) -> Self {
+    self.inner = self.inner.with_cursor_moved_event(enable);
     self
   }
 }

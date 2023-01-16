@@ -254,7 +254,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Disables mouse events on Linux.
   #[cfg(target_os = "linux")]
   #[must_use]
-  fn disable_mouse_event(self, disable: bool) -> Self;
+  fn mouse_event(self, enable: bool) -> Self;
 }
 
 /// IPC handler.

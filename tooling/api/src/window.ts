@@ -2030,7 +2030,7 @@ class WebviewWindow extends WindowManager {
 
 /** The WebviewWindow for the current window. */
 let appWindow: WebviewWindow
-if ('__TAURI_METADATA__' in window) {
+if (typeof window !== 'undefined' && '__TAURI_METADATA__' in window) {
   appWindow = new WebviewWindow(
     window.__TAURI_METADATA__.__currentWindow.label,
     {

@@ -204,7 +204,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   /// ```
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap())
+  ///   let window = tauri::WindowBuilder::from_config(&app, app.config().tauri.windows.get(0).unwrap().clone())
   ///     .build()
   ///     .unwrap();
   /// }

@@ -292,9 +292,9 @@ dependencies = [
 
 [[package]]
 name = "cargo_toml"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa0e3586af56b3bfa51fca452bd56e8dbbbd5d8d81cbf0b7e4e35b695b537eb8"
+checksum = "0f1204fe51a1e56042b8ec31d6407547ecd18f596b66f470dadb9abd9be9c843"
 dependencies = [
  "serde",
  "toml",
@@ -1341,6 +1341,16 @@ name = "ico"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "031530fe562d8c8d71c0635013d6d155bbfe8ba0aa4b4d2d24ce8af6b71047bd"
+dependencies = [
+ "byteorder",
+ "png",
+]
+
+[[package]]
+name = "ico"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3804960be0bb5e4edb1e1ad67afd321a9ecfd875c3e65c099468fd2717d7cae"
 dependencies = [
  "byteorder",
  "png",
@@ -3125,7 +3135,7 @@ dependencies = [
  "gtk",
  "heck 0.4.0",
  "http",
- "ico",
+ "ico 0.2.0",
  "ignore",
  "infer 0.9.0",
  "minisign-verify",
@@ -3189,7 +3199,7 @@ version = "1.2.1"
 dependencies = [
  "base64 0.20.0",
  "brotli",
- "ico",
+ "ico 0.3.0",
  "json-patch 0.3.0",
  "plist",
  "png",
@@ -3428,9 +3438,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.21.2"
+version = "1.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9e03c497dc955702ba729190dc4aac6f2a0ce97f913e5b1b5912fc5039d9099"
+checksum = "1d9f76183f91ecfb55e1d7d5602bd1d979e38a3a522fe900241cf195624d67ae"
 dependencies = [
  "autocfg",
  "bytes",
@@ -3440,7 +3450,7 @@ dependencies = [
  "num_cpus",
  "pin-project-lite",
  "socket2",
- "winapi",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
@@ -4231,7 +4241,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.23.4"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#fca42a0730e75a142f7f354c6ac3f6d6a0f4711f"
+source = "git+https://github.com/tauri-apps/wry#a3317809d9218f2ba89fdc767c4e9e0fb41df34e"
 dependencies = [
  "base64 0.13.1",
  "block",

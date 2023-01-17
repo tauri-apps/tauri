@@ -278,19 +278,9 @@ pub use self::runtime::ClipboardManager;
 #[cfg_attr(doc_cfg, doc(cfg(feature = "global-shortcut")))]
 pub use self::runtime::GlobalShortcutManager;
 
-#[cfg(target_os = "android")]
-#[doc(hidden)]
-pub fn init_logging(tag: &str) {
-  android_logger::init_once(
-    android_logger::Config::default()
-      .with_min_level(log::Level::Trace)
-      .with_tag(tag),
-  );
-}
-
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
-pub fn init_logging(subsystem: &str) {
+pub fn log_stdout() {
   use std::{
     ffi::CString,
     fs::File,
@@ -323,11 +313,6 @@ pub fn init_logging(subsystem: &str) {
       }
     }
   });
-
-  oslog::OsLogger::new(subsystem)
-    .level_filter(log::LevelFilter::Trace)
-    .init()
-    .unwrap();
 }
 
 /// Updater events.

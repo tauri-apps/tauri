@@ -110,11 +110,9 @@ win7-notifications = { version = "0.3.1", optional = true }
 
 [target."cfg(target_os = \"android\")".dependencies]
 paste = "1.0"
-android_logger = "0.9"
 log = "0.4"
 
 [target."cfg(target_os = \"ios\")".dependencies]
-oslog = "0.2"
 log = "0.4"
 libc = "0.2"
 

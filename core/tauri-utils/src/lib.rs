@@ -34,6 +34,8 @@ pub struct PackageInfo {
   pub authors: &'static str,
   /// The crate description.
   pub description: &'static str,
+  /// The crate name.
+  pub crate_name: &'static str,
 }
 
 impl PackageInfo {

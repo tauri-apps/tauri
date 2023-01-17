@@ -19,7 +19,7 @@ phf = { version = "0.11", features = [ "macros" ] }
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 url = { version = "2", features = [ "serde" ] }
 kuchiki = "0.8"
-html5ever = "0.25"
+html5ever = "0.26"
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 schemars = { version = "0.8", features = [ "url" ], optional = true }
@@ -41,7 +41,7 @@ infer = "0.12"
 heck = "0.4"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.39.0"
+version = "0.44.0"
 features = [
   "implement",
   "Win32_Foundation",

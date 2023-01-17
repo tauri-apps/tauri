@@ -215,7 +215,8 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     let runtime = manager.runtime();
     let app_handle = manager.app_handle();
     let url = config.url.clone();
-    Self {
+    let file_drop_enabled = config.file_drop_enabled;
+    let mut builder = Self {
       manager: manager.manager().clone(),
       runtime,
       app_handle,
@@ -226,7 +227,13 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+    };
+
+    if !file_drop_enabled {
+      builder = builder.disable_file_drop_handler();
     }
+
+    builder
   }
 
   /// Defines a closure to be executed when the webview makes an HTTP request for a web resource, allowing you to modify the response.

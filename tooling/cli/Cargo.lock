@@ -3844,8 +3844,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-mobile"
-version = "0.1.4"
-source = "git+https://github.com/tauri-apps/tauri-mobile?branch=dev#e66a6ab0e5dc3b474dad6793621c499974953915"
+version = "0.2.0"
+source = "git+https://github.com/tauri-apps/tauri-mobile?branch=dev#01c5f5083760714163e527bf9b8c80157150aed8"
 dependencies = [
  "cocoa",
  "colored 1.9.3",

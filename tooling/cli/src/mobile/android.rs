@@ -19,7 +19,7 @@ use tauri_mobile::{
     target::Target,
   },
   config::app::App,
-  opts::NoiseLevel,
+  opts::{FilterLevel, NoiseLevel},
   os,
   util::prompt,
 };
@@ -95,7 +95,18 @@ pub fn get_config(
 
   let raw = RawAndroidConfig {
     features: android_options.features.clone(),
-    logcat_filter_specs: vec!["RustStdoutStderr".into(), "*:E".into()],
+    logcat_filter_specs: vec![
+      "RustStdoutStderr".into(),
+      format!(
+        "*:{}",
+        match cli_options.noise_level {
+          NoiseLevel::Polite => FilterLevel::Info,
+          NoiseLevel::LoudAndProud => FilterLevel::Debug,
+          NoiseLevel::FranklyQuitePedantic => FilterLevel::Verbose,
+        }
+        .logcat()
+      ),
+    ],
     ..Default::default()
   };
   let config = AndroidConfig::from_raw(app.clone(), Some(raw)).unwrap();

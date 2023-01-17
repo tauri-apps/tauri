@@ -319,7 +319,7 @@ Section Webview2
   install_webview2:
     DetailPrint "Installing Webview2..."
     ; $6 holds the path to the webview2 installer
-    ExecWait "$6 /install ${WEBVIEW2INSTALLERARGS}" $1
+    ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
     ${If} $1 == 0
       DetailPrint "Webview2 installed sucessfully"
     ${Else}

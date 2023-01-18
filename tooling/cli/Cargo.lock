@@ -3113,6 +3113,7 @@ dependencies = [
  "attohttpc",
  "bitness",
  "dirs-next",
+ "encoding_rs",
  "glob",
  "handlebars",
  "heck 0.4.0",

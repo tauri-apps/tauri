@@ -178,7 +178,7 @@ fn build_nsis_app_installer(
   );
 
   let mut install_mode = NSISInstallerMode::CurrentUser;
-  let mut languages = vec!["English".to_string()];
+  let mut languages = vec!["English".into()];
   if let Some(nsis) = &settings.windows().nsis {
     install_mode = nsis.install_mode;
     if let Some(langs) = &nsis.languages {
@@ -219,7 +219,7 @@ fn build_nsis_app_installer(
     }),
   );
   data.insert("show_languages", to_json(languages.len() > 1));
-  data.insert("languages", to_json(languages));
+  data.insert("languages", to_json(languages.clone()));
 
   let main_binary = settings
     .binaries()
@@ -338,8 +338,19 @@ fn build_nsis_app_installer(
   let installer_nsi_path = output_path.join("installer.nsi");
   write(
     &installer_nsi_path,
-    handlebars.render("installer.nsi", &data)?,
+    encoding_rs::UTF_8
+      .encode(handlebars.render("installer.nsi", &data)?.as_str())
+      .0,
   )?;
+
+  for lang in languages {
+    let encoding = get_lang_encoding(&lang);
+    let data = get_lang_data(&lang);
+    write(
+      output_path.join(lang).with_extension("nsh"),
+      encoding.encode(data).0,
+    )?;
+  }
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
@@ -374,7 +385,7 @@ fn build_nsis_app_installer(
   Ok(vec![nsis_installer_path])
 }
 
-/// BTreeMap<OriginalPath, TargetPath>
+/// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
 type ResourcesMap = BTreeMap<PathBuf, (String, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
@@ -442,4 +453,19 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   }
 
   Ok(binaries)
+}
+
+fn get_lang_encoding(lang: &str) -> &'static encoding_rs::Encoding {
+  use encoding_rs::*;
+  match lang {
+    "Arabic" => UTF_16LE,
+    _ => UTF_8,
+  }
+}
+
+fn get_lang_data(lang: &str) -> &'static str {
+  match lang {
+    "Arabic" => include_str!("./templates/nsis-languages/Arabic.nsh"),
+    _ => include_str!("./templates/nsis-languages/English.nsh"),
+  }
 }

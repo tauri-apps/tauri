@@ -257,24 +257,26 @@ pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
   }
 
   if !version.build.is_empty() {
-    if version.build.parse::<u64>().is_ok() {
+    let build = version.build.parse::<u64>();
+    if build.is_ok() && build.unwrap() <= 65535 {
       return Ok(format!(
         "{}.{}.{}.{}",
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      bail!("build metadata in app version must be numeric-only for msi target");
+      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
   if !version.pre.is_empty() {
-    if version.pre.parse::<u64>().is_ok() {
+    let pre = version.pre.parse::<u64>();
+    if pre.is_ok() && pre.unwrap() <= 65535 {
       return Ok(format!(
         "{}.{}.{}.{}",
         version.major, version.minor, version.patch, version.pre
       ));
     } else {
-      bail!("pre-release identifier in app version must be numeric-only for msi target");
+      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 

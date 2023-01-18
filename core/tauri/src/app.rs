@@ -1052,7 +1052,7 @@ impl<R: Runtime> Builder<R> {
       invoke_handler: Box::new(|_| ()),
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
-        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message)) })".into(),
+        "Object.defineProperty(window, '__TAURI_POST_MESSAGE__', { value: (message) => window.ipc.postMessage(JSON.stringify(message, (_k,val) => {if (val instanceof Map) {let o = {};val.forEach((v, k) => o[k] = v);return o;} else {return val;} })) })".into(),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),

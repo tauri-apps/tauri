@@ -256,10 +256,8 @@ pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
     bail!("app version patch number cannot be greater than 65535");
   }
 
-  dbg!(&version.build.as_str(), &version.pre.as_str());
-
   if !version.build.is_empty() {
-    if dbg!(version.build.parse::<u64>()).is_ok() {
+    if version.build.parse::<u64>().is_ok() {
       return Ok(format!(
         "{}.{}.{}.{}",
         version.major, version.minor, version.patch, version.build
@@ -270,7 +268,7 @@ pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
   }
 
   if !version.pre.is_empty() {
-    if dbg!(version.pre.parse::<u64>()).is_ok() {
+    if version.pre.parse::<u64>().is_ok() {
       return Ok(format!(
         "{}.{}.{}.{}",
         version.major, version.minor, version.patch, version.pre

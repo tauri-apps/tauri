@@ -750,6 +750,12 @@ impl WindowBuilder for WindowBuilderWrapper {
       ");
     }
 
+    #[cfg(target_os = "linux")]
+    {
+      // Mouse event is disabled on Linux since sudden event bursts could block event loop.
+      window.inner = window.inner.with_cursor_moved_event(false);
+    }
+
     if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
       window = window.min_inner_size(min_width, min_height);
     }
@@ -984,10 +990,10 @@ fn decode_path(path: PathBuf) -> PathBuf {
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered(paths) => {
+      WryFileDropEvent::Hovered { paths, position: _ } => {
         FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
       }
-      WryFileDropEvent::Dropped(paths) => {
+      WryFileDropEvent::Dropped { paths, position: _ } => {
         FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
       }
       // default to cancelled

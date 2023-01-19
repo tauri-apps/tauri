@@ -629,10 +629,11 @@ impl Settings {
       .target
       .split('-')
       .nth(2)
-      .unwrap_or(std::env::consts::OS);
+      .unwrap_or(std::env::consts::OS)
+      .replace("darwin", "macos");
 
-    let mut platform_types = match target_os {
-      "darwin" | "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
+    let mut platform_types = match target_os.as_str() {
+      "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],

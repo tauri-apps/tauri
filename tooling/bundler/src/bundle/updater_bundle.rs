@@ -38,7 +38,8 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     .target()
     .split('-')
     .nth(2)
-    .unwrap_or(std::env::consts::OS);
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
 
   if target_os == "windows" {
     return bundle_update_windows(settings, bundles);

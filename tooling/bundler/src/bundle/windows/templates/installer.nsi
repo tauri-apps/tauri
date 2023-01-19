@@ -20,6 +20,7 @@ Var ReinstallPageCheck
 !define OUTFILE "{{{out_file}}}"
 !define ARCH "{{{arch}}}"
 !define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
+!define DISPLAYLANGUAGESELECTOR "{{{display_language_selector}}}"
 !define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
 !define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
 !define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
@@ -73,7 +74,7 @@ SetCompressor /SOLID lzma
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 ; Use show readme button in the finish page to create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "Create desktop shortcut"
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 Function CreateDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
@@ -81,33 +82,6 @@ Function CreateDesktopShortcut
 FunctionEnd
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
-
-Function .onInit
-  !if "${INSTALLMODE}" == "currentUser"
-    SetShellVarContext current
-  !else if "${INSTALLMODE}" == "perMachine"
-    SetShellVarContext all
-  !endif
-
-  !if "${INSTALLMODE}" == "perMachine"
-    ; Set default install location
-    ${If} ${RunningX64}
-      !if "${ARCH}" == "x64"
-        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
-      !else
-        StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-      !endif
-    ${Else}
-      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
-    ${EndIf}
-  !else if "${INSTALLMODE}" == "currentUser"
-    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
-  !endif
-
-  !if "${INSTALLMODE}" == "both"
-    !insertmacro MULTIUSER_INIT
-  !endif
-FunctionEnd
 
 ; Installer pages, must be ordered as they appear
 !insertmacro MUI_PAGE_WELCOME
@@ -125,36 +99,36 @@ Function PageReinstall
   ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
 
   ; Compare this installar version with the existing installation and modify the messages presented to the user accordingly
-  StrCpy $R4 "older"
+  StrCpy $R4 "$(older)"
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
-  ${IfThen} $R0 == "" ${|} StrCpy $R4 "unknown" ${|}
+  ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
   nsis_semvercompare::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
-    StrCpy $R1 "${PRODUCTNAME} ${VERSION} is already installed. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Add/Reinstall components"
-    StrCpy $R3 "Uninstall ${PRODUCTNAME}"
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose the maintenance option to perform."
+    StrCpy $R1 "$(alreadyInstalledLong)"
+    StrCpy $R2 "$(addOrReinstall)"
+    StrCpy $R3 "$(uninstallApp)"
+    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(chooseMaintenanceOption)"
     StrCpy $R0 "2"
   ; Upgrading
   ${ElseIf} $R0 == 1
-    StrCpy $R1 "An $R4 version of ${PRODUCTNAME} is installed on your system. It's recommended that you uninstall the current version before installing. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Uninstall before installing"
-    StrCpy $R3 "Do not uninstall"
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
+    StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
+    StrCpy $R2 "$(uninstallBeforeInstalling)"
+    StrCpy $R3 "$(dontUninstall)"
+    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
     StrCpy $R0 "1"
   ; Downgrading
   ${ElseIf} $R0 == -1
-    StrCpy $R1 "A newer version of ${PRODUCTNAME} is already installed! It is not recommended that you install an older version. If you really want to install this older version, it's better to uninstall the current version first. Select the operation you want to perform and click Next to continue."
-    StrCpy $R2 "Uninstall before installing"
+    StrCpy $R1 "$(newerVersionInstalled)"
+    StrCpy $R2 "$(uninstallBeforeInstalling)"
     !if "${ALLOWDOWNGRADES}" == "true"
-      StrCpy $R3 "Do not uninstall"
+      StrCpy $R3 "$(dontUninstall)"
     !else
-      StrCpy $R3 "Do not uninstall (Downgrading without uninstall is disabled for this installer)"
+      StrCpy $R3 "$(dontUninstallDowngrade)"
     !endif
-    !insertmacro MUI_HEADER_TEXT "Already Installed" "Choose how you want to install ${PRODUCTNAME}."
+    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
     StrCpy $R0 "1"
   ${Else}
     Abort
@@ -232,7 +206,7 @@ Function PageLeaveReinstall
           Quit ; ...yes, already installed, we are done
         Abort
       ${EndIf}
-      MessageBox MB_ICONEXCLAMATION "Unable to uninstall!"
+      MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
     ${Else}
       StrCpy $0 $R1 1
@@ -251,7 +225,44 @@ FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 ;Languages
-!insertmacro MUI_LANGUAGE English
+{{#each languages}}
+!insertmacro MUI_LANGUAGE "{{this}}"
+{{/each}}
+!insertmacro MUI_RESERVEFILE_LANGDLL
+{{#each languages}}
+  !include "{{this}}.nsh"
+{{/each}}
+
+Function .onInit
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
+
+  !if "${INSTALLMODE}" == "currentUser"
+    SetShellVarContext current
+  !else if "${INSTALLMODE}" == "perMachine"
+    SetShellVarContext all
+  !endif
+
+  !if "${INSTALLMODE}" == "perMachine"
+    ; Set default install location
+    ${If} ${RunningX64}
+      !if "${ARCH}" == "x64"
+        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+      !else
+        StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+      !endif
+    ${Else}
+      StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"
+    ${EndIf}
+  !else if "${INSTALLMODE}" == "currentUser"
+    StrCpy $INSTDIR "$LOCALAPPDATA\${PRODUCTNAME}"
+  !endif
+
+  !if "${INSTALLMODE}" == "both"
+    !insertmacro MULTIUSER_INIT
+  !endif
+FunctionEnd
 
 Section EarlyChecks
   ; Abort silent installer if downgrades is disabled
@@ -261,7 +272,7 @@ Section EarlyChecks
     ${If} $0 != 0
       System::Call 'kernel32::GetStdHandle(i -11)i.r0'
       System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-      FileWrite $0 "A newer version is already installed! Automatic silent downgrades are disabled for this installer.$\nIt is not recommended that you install an older version. If you really want to install this older version, you have to uninstall the current version first.$\n"
+      FileWrite $0 "$(silentDowngrades)"
     ${EndIf}
     Abort
   done:
@@ -285,14 +296,14 @@ Section Webview2
 
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    DetailPrint "Downloading Webview2 bootstrapper..."
+    DetailPrint "$(webview2Downloading)"
     NScurl::http GET "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe" /CANCEL /END
     Pop $0
     ${If} $0 == "OK"
-      DetailPrint "Webview2 bootstrapper downloaded sucessfully"
+      DetailPrint "$(webview2DownloadSuccess)"
     ${Else}
-      DetailPrint "Error: Downloading Webview2 Failed - $0"
-      Abort "Failed to install Webview2. The app can't run without it. Try restarting the installer"
+      DetailPrint "$(webview2DownloadError)"
+      Abort "$(webview2AbortError)"
     ${EndIf}
     StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
@@ -301,7 +312,7 @@ Section Webview2
   !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
     CreateDirectory "$INSTDIR\redist"
     File /oname="$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "WEBVIEW2BOOTSTRAPPERPATH"
-    DetailPrint "Installing Webview2..."
+    DetailPrint "$(installingWebview2)"
     StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
   !endif
@@ -309,7 +320,7 @@ Section Webview2
   !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
     CreateDirectory "$INSTDIR\redist"
     File /oname="$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "WEBVIEW2INSTALLERPATH"
-    DetailPrint "Installing Webview2..."
+    DetailPrint "$(installingWebview2)"
     StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
     Goto install_webview2
   !endif
@@ -317,14 +328,14 @@ Section Webview2
   Goto done
 
   install_webview2:
-    DetailPrint "Installing Webview2..."
+    DetailPrint "$(installingWebview2)"
     ; $6 holds the path to the webview2 installer
     ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
     ${If} $1 == 0
-      DetailPrint "Webview2 installed sucessfully"
+      DetailPrint "$(webview2InstallSuccess)"
     ${Else}
-      DetailPrint "Error: Installing Webview2 Failed with exit code $1"
-      Abort "Failed to install Webview2. The app can't run without it. Try restarting the installer"
+      DetailPrint "$(webview2InstallError)"
+      Abort "$(webview2AbortError)"
     ${EndIf}
 
   done:
@@ -340,11 +351,11 @@ SectionEnd
       ${If} $0 != 0
         System::Call 'kernel32::GetStdHandle(i -11)i.r0'
         System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-        FileWrite $0 "${PRODUCTNAME} is running. Please close it first then try again.$\n"
+        FileWrite $0 "$(appRunning)$\n"
       ${EndIf}
       Abort
     ui:
-      MessageBox MB_OKCANCEL "${PRODUCTNAME} is running$\nClick OK to kill it" IDOK ok IDCANCEL cancel
+      MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK ok IDCANCEL cancel
       ok:
         nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
         Pop $R0
@@ -352,10 +363,10 @@ SectionEnd
         ${If} $R0 = 0
           Goto done
         ${Else}
-          Abort "Failed to kill ${PRODUCTNAME}. Please close it first then try again"
+          Abort "$(failedToKillApp)"
         ${EndIf}
       cancel:
-        Abort "${PRODUCTNAME} is running. Please close it first then try again"
+        Abort "$(appRunning)"
   ${EndIf}
   done:
 !macroend

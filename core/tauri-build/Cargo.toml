@@ -27,7 +27,7 @@ heck = "0.4"
 json-patch = "0.3"
 
 # dependencies for Windows targets
-tauri-winres = {version="0.1", git="https://github.com/tauri-apps/winres", branch="linux-msvc"}
+tauri-winres = { git="https://github.com/tauri-apps/winres", branch="main" }
 semver = "1"
 
 [features]

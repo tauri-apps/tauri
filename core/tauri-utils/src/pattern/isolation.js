@@ -43,7 +43,7 @@
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
     let encoder = new TextEncoder()
-    let payloadRaw = encoder.encode(JSON.stringify(data))
+    let payloadRaw = encoder.encode(__RAW_stringify_ipc_message_fn__(data))
 
     return window.crypto.subtle
       .encrypt(algorithm, aesGcmKey, payloadRaw)

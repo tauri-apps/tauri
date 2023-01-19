@@ -829,7 +829,10 @@ impl RustAppSettings {
         .target()
         .map(|t| t.to_string())
         .unwrap_or_else(|| {
-          let output = Command::new("rustc").args(["-vV"]).output().unwrap();
+          let output = Command::new("rustc")
+            .args(["-vV"])
+            .output()
+            .expect("\"rustc\" could not be found, did you install Rust?");
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
             .split('\n')

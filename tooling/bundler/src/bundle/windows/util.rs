@@ -8,8 +8,6 @@ use std::{
   path::{Path, PathBuf},
 };
 
-#[cfg(target_os = "windows")]
-use anyhow::{bail, Context};
 use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
@@ -73,25 +71,6 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   } else {
     Err(crate::Error::HashError)
   }
-}
-
-#[cfg(target_os = "windows")]
-pub fn validate_version(version: &str) -> anyhow::Result<()> {
-  let version = semver::Version::parse(version).context("invalid app version")?;
-  if version.major > 255 {
-    bail!("app version major number cannot be greater than 255");
-  }
-  if version.minor > 255 {
-    bail!("app version minor number cannot be greater than 255");
-  }
-  if version.patch > 65535 {
-    bail!("app version patch number cannot be greater than 65535");
-  }
-  if !(version.pre.is_empty() && version.build.is_empty()) {
-    bail!("app version cannot have build metadata or pre-release identifier");
-  }
-
-  Ok(())
 }
 
 #[cfg(target_os = "windows")]

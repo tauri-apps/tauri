@@ -990,10 +990,10 @@ fn decode_path(path: PathBuf) -> PathBuf {
 impl From<FileDropEventWrapper> for FileDropEvent {
   fn from(event: FileDropEventWrapper) -> Self {
     match event.0 {
-      WryFileDropEvent::Hovered { paths, position: _ } => {
+      WryFileDropEvent::Hovered(paths) => {
         FileDropEvent::Hovered(paths.into_iter().map(decode_path).collect())
       }
-      WryFileDropEvent::Dropped { paths, position: _ } => {
+      WryFileDropEvent::Dropped(paths) => {
         FileDropEvent::Dropped(paths.into_iter().map(decode_path).collect())
       }
       // default to cancelled

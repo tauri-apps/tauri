@@ -482,4 +482,3 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
     _ => None,
   }
 }
-s

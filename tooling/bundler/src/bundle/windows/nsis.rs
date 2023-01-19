@@ -348,12 +348,17 @@ fn build_nsis_app_installer(
   )?;
 
   for lang in languages {
-    let encoding = get_lang_encoding(&lang);
-    let data = get_lang_data(&lang);
-    write(
-      output_path.join(lang).with_extension("nsh"),
-      encoding.encode(data).0,
-    )?;
+    if let Some((data, encoding)) = get_lang_data(&lang) {
+      write(
+        output_path.join(lang).with_extension("nsh"),
+        encoding.encode(data).0,
+      )?;
+    } else {
+      return Err(
+        anyhow::anyhow!("Language {lang} not implemented. If it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request")
+          .into()
+      );
+    }
   }
 
   let package_base_name = format!(
@@ -459,17 +464,17 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   Ok(binaries)
 }
 
-fn get_lang_encoding(lang: &str) -> &'static encoding_rs::Encoding {
+fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Encoding)> {
   use encoding_rs::*;
-  match lang {
-    "Arabic" => UTF_16LE,
-    _ => UTF_8,
-  }
-}
-
-fn get_lang_data(lang: &str) -> &'static str {
-  match lang {
-    "Arabic" => include_str!("./templates/nsis-languages/Arabic.nsh"),
-    _ => include_str!("./templates/nsis-languages/English.nsh"),
+  match lang.to_lowercase().as_str() {
+    "arabic" => Some((
+      include_str!("./templates/nsis-languages/Arabic.nsh"),
+      UTF_16LE,
+    )),
+    "english" => Some((
+      include_str!("./templates/nsis-languages/English.nsh"),
+      UTF_8,
+    )),
+    _ => None,
   }
 }

@@ -268,7 +268,9 @@ pub fn command(mut options: Options) -> Result<()> {
       }
     }
 
-    let bundles = bundle_project(settings).with_context(|| "failed to bundle project")?;
+    let bundles = bundle_project(settings)
+      .map_err(|e| anyhow::anyhow!("{:#}", e))
+      .with_context(|| "failed to bundle project")?;
 
     let updater_bundles: Vec<&Bundle> = bundles
       .iter()

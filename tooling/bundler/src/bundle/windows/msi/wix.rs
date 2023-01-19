@@ -8,11 +8,11 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
   windows::util::{
-    download, download_and_verify, extract_zip, try_sign, validate_version, HashAlgorithm,
-    WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
+    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
   },
 };
-use anyhow::Context;
+use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
 use log::info;
 use regex::Regex;
@@ -177,6 +177,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 fn app_installer_output_path(
   settings: &Settings,
   language: &str,
+  version: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
@@ -193,7 +194,7 @@ fn app_installer_output_path(
   let package_base_name = format!(
     "{}_{}_{}_{}",
     settings.main_binary_name().replace(".exe", ""),
-    settings.version_string(),
+    version,
     arch,
     language,
   );
@@ -241,6 +242,46 @@ fn clear_env_for_wix(cmd: &mut Command) {
       cmd.env(k, v);
     }
   }
+}
+
+// WiX requires versions to be numeric only in a `major.minor.patch.build` format
+pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
+  let version = semver::Version::parse(version_str).context("invalid app version")?;
+  if version.major > 255 {
+    bail!("app version major number cannot be greater than 255");
+  }
+  if version.minor > 255 {
+    bail!("app version minor number cannot be greater than 255");
+  }
+  if version.patch > 65535 {
+    bail!("app version patch number cannot be greater than 65535");
+  }
+
+  if !version.build.is_empty() {
+    let build = version.build.parse::<u64>();
+    if build.map(|b| b <= 65535).unwrap_or_default() {
+      return Ok(format!(
+        "{}.{}.{}.{}",
+        version.major, version.minor, version.patch, version.build
+      ));
+    } else {
+      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+    }
+  }
+
+  if !version.pre.is_empty() {
+    let pre = version.pre.parse::<u64>();
+    if pre.is_ok() && pre.unwrap() <= 65535 {
+      return Ok(format!(
+        "{}.{}.{}.{}",
+        version.major, version.minor, version.patch, version.pre
+      ));
+    } else {
+      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+    }
+  }
+
+  Ok(version_str.to_string())
 }
 
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
@@ -363,7 +404,7 @@ pub fn build_wix_app_installer(
     }
   };
 
-  validate_version(settings.version_string())?;
+  let app_version = convert_version(settings.version_string())?;
 
   // target only supports x64.
   info!("Target: {}", arch);
@@ -515,7 +556,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(settings.version_string()));
+  data.insert("version", to_json(&app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -764,7 +805,7 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language, updater)?;
+    let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", msi_path.display());

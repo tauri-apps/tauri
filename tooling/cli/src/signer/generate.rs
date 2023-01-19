@@ -21,11 +21,17 @@ pub struct Options {
   /// Overwrite private key even if it exists on the specified path
   #[clap(short, long)]
   force: bool,
+  /// Skip prompting for values
+  #[clap(short, long)]
+  ci: bool,
 }
 
-pub fn command(options: Options) -> Result<()> {
-  if options.password.is_none() {
-    println!("Generating new private key without password.")
+pub fn command(mut options: Options) -> Result<()> {
+  options.ci = options.ci || std::env::var("CI").is_ok();
+
+  if options.ci && options.password.is_none() {
+    println!("Generating new private key without password.");
+    options.password.replace("".into());
   }
   let keypair = generate_key(options.password).expect("Failed to generate key");
 

@@ -30,11 +30,7 @@ fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
 
 /// Generate base64 encoded keypair
 pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
-  let KP { pk, sk } = if password.map(|p| p.is_empty()).unwrap_or(true) {
-    KP::generate_unencrypted_keypair(password).unwrap()
-  } else {
-    KP::generate_encrypted_keypair(password).unwrap()
-  };
+  let KP { pk, sk } = KP::generate_encrypted_keypair(password).unwrap();
 
   let pk_box_str = pk.to_box().unwrap().to_string();
   let sk_box_str = sk.to_box(None).unwrap().to_string();

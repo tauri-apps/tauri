@@ -3167,6 +3167,7 @@ dependencies = [
  "libflate",
  "log",
  "md5",
+ "os_pipe",
  "plist",
  "regex",
  "semver",

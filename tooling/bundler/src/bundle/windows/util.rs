@@ -12,14 +12,18 @@ use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
 
+#[cfg(target_os = "windows")]
+use crate::bundle::windows::sign::{sign, SignParams};
+#[cfg(target_os = "windows")]
+use crate::Settings;
+
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_X86_INSTALLER_GUID: &str = "a17bde80-b5ab-47b5-8bbb-1cbe93fc6ec9";
 pub const WEBVIEW2_X64_INSTALLER_GUID: &str = "aa5fd9b3-dc11-4cbc-8343-a50f57b311e1";
-
-use crate::{
-  bundle::windows::sign::{sign, SignParams},
-  Settings,
-};
+pub const NSIS_OUTPUT_FOLDER_NAME: &str = "nsis";
+pub const NSIS_UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
+pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
+pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   info!(action = "Downloading"; "{}", url);
@@ -28,6 +32,7 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
 }
 
 pub enum HashAlgorithm {
+  #[cfg(target_os = "windows")]
   Sha256,
   Sha1,
 }
@@ -42,6 +47,7 @@ pub fn download_and_verify(
   info!("validating hash");
 
   match hash_algorithim {
+    #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
       verify(&data, hash, hasher)?;
@@ -67,11 +73,12 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   }
 }
 
+#[cfg(target_os = "windows")]
 pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
     info!(action = "Signing"; "{}", file_path.display());
     sign(
-      &file_path,
+      file_path,
       &SignParams {
         product_name: settings.product_name().into(),
         digest_algorithm: settings

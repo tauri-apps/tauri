@@ -9,7 +9,8 @@ use crate::bundle::{
   settings::Settings,
   windows::util::{
     download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
+    WIX_UPDATER_OUTPUT_FOLDER_NAME,
   },
 };
 use anyhow::{bail, Context};
@@ -26,9 +27,6 @@ use std::{
 };
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
-
-pub const OUTPUT_FOLDER_NAME: &str = "msi";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
@@ -159,7 +157,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
-  let icon_path = std::env::current_dir()?.join(&path);
+  let icon_path = std::env::current_dir()?.join(path);
 
   copy_file(
     icon_path,
@@ -202,9 +200,9 @@ fn app_installer_output_path(
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.msi",
     if updater {
-      UPDATER_OUTPUT_FOLDER_NAME
+      WIX_UPDATER_OUTPUT_FOLDER_NAME
     } else {
-      OUTPUT_FOLDER_NAME
+      WIX_OUTPUT_FOLDER_NAME
     },
     package_base_name
   )))
@@ -332,7 +330,7 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  let mut cmd = Command::new(&candle_exe);
+  let mut cmd = Command::new(candle_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -368,7 +366,7 @@ fn run_light(
 
   args.extend(arguments);
 
-  let mut cmd = Command::new(&light_exe);
+  let mut cmd = Command::new(light_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -416,7 +414,7 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  try_sign(&app_exe_source, &settings)?;
+  try_sign(&app_exe_source, settings)?;
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -529,7 +527,7 @@ pub fn build_wix_app_installer(
       if license.ends_with(".rtf") {
         data.insert("license", to_json(license));
       } else {
-        let license_contents = read_to_string(&license)?;
+        let license_contents = read_to_string(license)?;
         let license_rtf = format!(
           r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
 {{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
@@ -569,24 +567,24 @@ pub fn build_wix_app_installer(
   )
   .to_string();
 
-  data.insert("upgrade_code", to_json(&upgrade_code.as_str()));
+  data.insert("upgrade_code", to_json(upgrade_code.as_str()));
   data.insert(
     "allow_downgrades",
     to_json(settings.windows().allow_downgrades),
   );
 
   let path_guid = generate_package_guid(settings).to_string();
-  data.insert("path_component_guid", to_json(&path_guid.as_str()));
+  data.insert("path_component_guid", to_json(path_guid.as_str()));
 
   let shortcut_guid = generate_package_guid(settings).to_string();
-  data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
+  data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
   let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(&app_exe_name));
+  data.insert("app_exe_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
 
-  let binaries_json = to_json(&binaries);
+  let binaries_json = to_json(binaries);
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
@@ -674,7 +672,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args.clone())
+          .and_then(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),
@@ -689,7 +687,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task handlebars");
     let temp_xml_path = output_path.join("update.xml");
     let update_content = skip_uac_task.render("update.xml", &data)?;
-    write(&temp_xml_path, update_content)?;
+    write(temp_xml_path, update_content)?;
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
@@ -700,7 +698,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Installer handlebars");
     let temp_ps1_path = output_path.join("install-task.ps1");
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
@@ -711,13 +709,13 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Uninstaller handlebars");
     let temp_ps1_path = output_path.join("uninstall-task.ps1");
     let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
@@ -818,7 +816,7 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, &settings)?;
+    try_sign(&msi_path, settings)?;
     output_paths.push(msi_path);
   }
 
@@ -1004,7 +1002,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().into_owned();
     let relative_path = path
-      .strip_prefix(&out_dir)
+      .strip_prefix(out_dir)
       .unwrap()
       .to_string_lossy()
       .into_owned();

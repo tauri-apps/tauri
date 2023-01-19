@@ -434,6 +434,8 @@ impl BundleBinary {
 /// The Settings exposed by the module.
 #[derive(Clone, Debug)]
 pub struct Settings {
+  /// The log level.
+  log_level: log::Level,
   /// the package settings.
   package: PackageSettings,
   /// the package types we're bundling.
@@ -453,6 +455,7 @@ pub struct Settings {
 /// A builder for [`Settings`].
 #[derive(Default)]
 pub struct SettingsBuilder {
+  log_level: Option<log::Level>,
   project_out_directory: Option<PathBuf>,
   package_types: Option<Vec<PackageType>>,
   package_settings: Option<PackageSettings>,
@@ -511,6 +514,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets the log level for spawned commands. Defaults to [`log::Level::Error`].
+  #[must_use]
+  pub fn log_level(mut self, level: log::Level) -> Self {
+    self.log_level.replace(level);
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -524,6 +534,7 @@ impl SettingsBuilder {
     };
 
     Ok(Settings {
+      log_level: self.log_level.unwrap_or(log::Level::Error),
       package: self.package_settings.expect("package settings is required"),
       package_types: self.package_types,
       project_out_directory: self
@@ -544,6 +555,16 @@ impl SettingsBuilder {
 }
 
 impl Settings {
+  /// Sets the log level for spawned commands.
+  pub fn set_log_level(&mut self, level: log::Level) {
+    self.log_level = level;
+  }
+
+  /// Returns the log level for spawned commands.
+  pub fn log_level(&self) -> log::Level {
+    self.log_level
+  }
+
   /// Returns the directory where the bundle should be placed.
   pub fn project_out_directory(&self) -> &Path {
     &self.project_out_directory
@@ -604,8 +625,14 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = std::env::consts::OS;
-    let mut platform_types = match target_os {
+    let target_os = self
+      .target
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS)
+      .replace("darwin", "macos");
+
+    let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::AppImage],

@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 
 #[cfg(feature = "codegen")]
 mod codegen;
-#[cfg(windows)]
 mod static_vcruntime;
 
 #[cfg(feature = "codegen")]
@@ -344,25 +343,25 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   #[allow(unused_mut, clippy::redundant_clone)]
   let mut resources = config.tauri.bundle.resources.clone().unwrap_or_default();
-  #[cfg(windows)]
-  if let Some(fixed_webview2_runtime_path) = &config.tauri.bundle.windows.webview_fixed_runtime_path
-  {
-    resources.push(fixed_webview2_runtime_path.display().to_string());
+  if target_triple.contains("windows") {
+    if let Some(fixed_webview2_runtime_path) =
+      &config.tauri.bundle.windows.webview_fixed_runtime_path
+    {
+      resources.push(fixed_webview2_runtime_path.display().to_string());
+    }
   }
   copy_resources(ResourcePaths::new(resources.as_slice(), true), target_dir)?;
 
-  #[cfg(target_os = "macos")]
-  {
-    if let Some(version) = config.tauri.bundle.macos.minimum_system_version {
+  if target_triple.contains("darwin") {
+    if let Some(version) = &config.tauri.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={}", version);
     }
   }
 
-  #[cfg(windows)]
-  {
+  if target_triple.contains("windows") {
     use anyhow::Context;
     use semver::Version;
-    use winres::{VersionInfo, WindowsResource};
+    use tauri_winres::{VersionInfo, WindowsResource};
 
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config

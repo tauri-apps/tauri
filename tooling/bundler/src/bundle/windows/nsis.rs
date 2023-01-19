@@ -2,16 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg(target_os = "windows")]
+use crate::bundle::windows::util::try_sign;
 use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, extract_zip, remove_unc_lossy, try_sign, HashAlgorithm,
-      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+      download, download_and_verify, extract_zip, remove_unc_lossy, HashAlgorithm,
+      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME, WEBVIEW2_BOOTSTRAPPER_URL,
+      WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
   Settings,
 };
+
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use log::{info, warn};
@@ -27,12 +31,11 @@ use std::{
   process::Command,
 };
 
-pub const OUTPUT_FOLDER_NAME: &str = "nsis";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "nsis-updater";
-
 // URLS for the NSIS toolchain.
+#[cfg(target_os = "windows")]
 const NSIS_URL: &str =
   "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
+#[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_NSCURL_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NScurl-1.2022.6.7.zip";
@@ -43,6 +46,7 @@ const NSIS_SEMVER_COMPARE: &str =
   "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.3.0/nsis_semvercompare.dll";
 const NSIS_SEMVER_COMPARE_SHA1: &str = "1789062E121AC392A6CBBE886F9B1443462912C2";
 
+#[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
   "makensis.exe",
   "Bin/makensis.exe",
@@ -55,6 +59,13 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
+];
+#[cfg(not(target_os = "windows"))]
+const NSIS_REQUIRED_FILES: &[&str] = &[
+  "Plugins/x86-unicode/NScurl.dll",
+  "Plugins/x86-unicode/ApplicationID.dll",
+  "Plugins/x86-unicode/nsProcess.dll",
+  "Plugins/x86-unicode/nsis_semvercompare.dll",
 ];
 
 /// Runs all of the commands to build the NSIS installer.
@@ -78,13 +89,16 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
 }
 
 // Gets NSIS and verifies the download via Sha1
-fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> crate::Result<()> {
+fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> crate::Result<()> {
   info!("Verifying NSIS package");
 
-  let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-  info!("extracting NSIS");
-  extract_zip(&data, tauri_tools_path)?;
-  rename(tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+  #[cfg(target_os = "windows")]
+  {
+    let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
+    info!("extracting NSIS");
+    extract_zip(&data, _tauri_tools_path)?;
+    rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+  }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
 
@@ -127,7 +141,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, tauri_tools_path: &Path) -> cr
 
 fn build_nsis_app_installer(
   settings: &Settings,
-  nsis_toolset_path: &Path,
+  _nsis_toolset_path: &Path,
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
@@ -144,14 +158,19 @@ fn build_nsis_app_installer(
 
   info!("Target: {}", arch);
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let app_exe_source = settings.binary_path(main_binary);
+  #[cfg(target_os = "windows")]
+  {
+    let main_binary = settings
+      .binaries()
+      .iter()
+      .find(|bin| bin.main())
+      .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+    let app_exe_source = settings.binary_path(main_binary);
+    try_sign(&app_exe_source, settings)?;
+  }
 
-  try_sign(&app_exe_source, &settings)?;
+  #[cfg(not(target_os = "windows"))]
+  info!("Code signing is currently only supported on Windows hosts, skipping...");
 
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
@@ -164,13 +183,20 @@ fn build_nsis_app_installer(
   let bundle_id = settings.bundle_identifier();
   let manufacturer = bundle_id.split('.').nth(1).unwrap_or(bundle_id);
 
+  #[cfg(not(target_os = "windows"))]
+  {
+    let mut dir = dirs_next::cache_dir().unwrap();
+    dir.extend(["tauri", "NSIS", "Plugins", "x86-unicode"]);
+    data.insert("additional_plugins_path", to_json(dir));
+  }
+
   data.insert("arch", to_json(arch));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
 
   let version = settings.version_string();
-  data.insert("version", to_json(&version));
+  data.insert("version", to_json(version));
 
   data.insert(
     "allow_downgrades",
@@ -236,13 +262,13 @@ fn build_nsis_app_installer(
   );
   data.insert(
     "main_binary_path",
-    to_json(settings.binary_path(main_binary)),
+    to_json(settings.binary_path(main_binary).with_extension("exe")),
   );
 
   let out_file = "nsis-output.exe";
-  data.insert("out_file", to_json(&out_file));
+  data.insert("out_file", to_json(out_file));
 
-  let resources = generate_resource_data(&settings)?;
+  let resources = generate_resource_data(settings)?;
   data.insert("resources", to_json(resources));
 
   let binaries = generate_binaries_data(settings)?;
@@ -372,23 +398,37 @@ fn build_nsis_app_installer(
   let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.exe",
     if updater {
-      UPDATER_OUTPUT_FOLDER_NAME
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME
     } else {
-      OUTPUT_FOLDER_NAME
+      NSIS_OUTPUT_FOLDER_NAME
     },
     package_base_name
   ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());
-  Command::new(nsis_toolset_path.join("makensis.exe"))
-    .arg("/V4")
+
+  #[cfg(target_os = "windows")]
+  let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));
+  #[cfg(not(target_os = "windows"))]
+  let mut nsis_cmd = Command::new("makensis");
+
+  nsis_cmd
+    .arg(match settings.log_level() {
+      log::Level::Error => "-V1",
+      log::Level::Warn => "-V2",
+      log::Level::Info => "-V3",
+      _ => "-V4",
+    })
     .arg(installer_nsi_path)
     .current_dir(output_path)
-    .output_ok()
+    .piped()
     .context("error running makensis.exe")?;
 
-  rename(&nsis_output_path, &nsis_installer_path)?;
+  rename(nsis_output_path, &nsis_installer_path)?;
+
+  // Code signing is currently only supported on Windows hosts
+  #[cfg(target_os = "windows")]
   try_sign(&nsis_installer_path, settings)?;
 
   Ok(vec![nsis_installer_path])

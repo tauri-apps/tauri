@@ -19,6 +19,7 @@ Var ReinstallPageCheck
 !define BUNDLEID "{{{bundle_id}}}"
 !define OUTFILE "{{{out_file}}}"
 !define ARCH "{{{arch}}}"
+!define PLUGINSPATH "{{{additional_plugins_path}}}"
 !define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
 !define DISPLAYLANGUAGESELECTOR "{{{display_language_selector}}}"
 !define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
@@ -31,6 +32,9 @@ Name "${PRODUCTNAME}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma
+!if "${PLUGINSPATH}" != ""
+    !addplugindir "${PLUGINSPATH}"
+!endif
 
 !if "${INSTALLMODE}" == "perMachine"
   RequestExecutionLevel highest

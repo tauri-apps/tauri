@@ -1,5 +1,10 @@
 # Changelog
 
+## \[1.2.3]
+
+- Pin `ignore` to `=0.4.18`.
+  - [adcb082b](https://www.github.com/tauri-apps/tauri/commit/adcb082b1651ecb2a6208b093e12f4185aa3fc98) chore(deps): pin `ignore` to =0.4.18 on 2023-01-17
+
 ## \[1.2.2]
 
 - Detect SvelteKit and Vite for the init and info commands.

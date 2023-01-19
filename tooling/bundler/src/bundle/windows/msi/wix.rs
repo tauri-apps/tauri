@@ -177,6 +177,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 fn app_installer_output_path(
   settings: &Settings,
   language: &str,
+  version: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
@@ -193,7 +194,7 @@ fn app_installer_output_path(
   let package_base_name = format!(
     "{}_{}_{}_{}",
     settings.main_binary_name().replace(".exe", ""),
-    convert_version(settings.version_string())?,
+    version,
     arch,
     language,
   );
@@ -258,7 +259,7 @@ pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
 
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
-    if build.is_ok() && build.unwrap() <= 65535 {
+    if build.map(|b| b <= 65535).unwrap_or_default() {
       return Ok(format!(
         "{}.{}.{}.{}",
         version.major, version.minor, version.patch, version.build
@@ -555,7 +556,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(app_version));
+  data.insert("version", to_json(&app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -804,7 +805,7 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language, updater)?;
+    let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", msi_path.display());

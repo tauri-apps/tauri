@@ -43,8 +43,8 @@ const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-relea
 const NSIS_NSPROCESS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NsProcess.zip";
 const NSIS_SEMVER_COMPARE: &str =
-  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.2.0/nsis_semvercompare.dll";
-const NSIS_SEMVER_COMPARE_SHA1: &str = "5A1A233F427C993B7E6A5821761BF5819507B29C";
+  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.3.0/nsis_semvercompare.dll";
+const NSIS_SEMVER_COMPARE_SHA1: &str = "1789062E121AC392A6CBBE886F9B1443462912C2";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -204,8 +204,13 @@ fn build_nsis_app_installer(
   );
 
   let mut install_mode = NSISInstallerMode::CurrentUser;
+  let mut languages = vec!["English".into()];
   if let Some(nsis) = &settings.windows().nsis {
     install_mode = nsis.install_mode;
+    if let Some(langs) = &nsis.languages {
+      languages.clear();
+      languages.extend_from_slice(langs);
+    }
     if let Some(license) = &nsis.license {
       data.insert(
         "license",
@@ -230,6 +235,11 @@ fn build_nsis_app_installer(
         to_json(remove_unc_lossy(sidebar_image.canonicalize()?)),
       );
     }
+
+    data.insert(
+      "display_language_selector",
+      to_json(nsis.display_language_selector && languages.len() > 1),
+    );
   }
   data.insert(
     "install_mode",
@@ -239,6 +249,7 @@ fn build_nsis_app_installer(
       NSISInstallerMode::Both => "both",
     }),
   );
+  data.insert("languages", to_json(languages.clone()));
 
   let main_binary = settings
     .binaries()
@@ -357,8 +368,24 @@ fn build_nsis_app_installer(
   let installer_nsi_path = output_path.join("installer.nsi");
   write(
     &installer_nsi_path,
-    handlebars.render("installer.nsi", &data)?,
+    encoding_rs::UTF_8
+      .encode(handlebars.render("installer.nsi", &data)?.as_str())
+      .0,
   )?;
+
+  for lang in languages {
+    if let Some((data, encoding)) = get_lang_data(&lang) {
+      write(
+        output_path.join(lang).with_extension("nsh"),
+        encoding.encode(data).0,
+      )?;
+    } else {
+      return Err(
+        anyhow::anyhow!("Language {lang} not implemented. If it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request")
+          .into()
+      );
+    }
+  }
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
@@ -407,7 +434,7 @@ fn build_nsis_app_installer(
   Ok(vec![nsis_installer_path])
 }
 
-/// BTreeMap<OriginalPath, TargetPath>
+/// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
 type ResourcesMap = BTreeMap<PathBuf, (String, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
@@ -475,4 +502,23 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
   }
 
   Ok(binaries)
+}
+
+fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Encoding)> {
+  use encoding_rs::*;
+  match lang.to_lowercase().as_str() {
+    "arabic" => Some((
+      include_str!("./templates/nsis-languages/Arabic.nsh"),
+      UTF_16LE,
+    )),
+    "english" => Some((
+      include_str!("./templates/nsis-languages/English.nsh"),
+      UTF_8,
+    )),
+    "portuguesebr" => Some((
+      include_str!("./templates/nsis-languages/PortugueseBR.nsh"),
+      UTF_8,
+    )),
+    _ => None,
+  }
 }

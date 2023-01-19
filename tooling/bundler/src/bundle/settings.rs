@@ -266,6 +266,15 @@ pub struct NsisSettings {
   pub installer_icon: Option<PathBuf>,
   /// Whether the installation will be for all users or just the current user.
   pub install_mode: NSISInstallerMode,
+  /// A list of installer languages.
+  /// By default the OS language is used. If the OS language is not in the list of languages, the first language will be used.
+  /// To allow the user to select the language, set `display_language_selector` to `true`.
+  ///
+  /// See <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files> for the complete list of languages.
+  pub languages: Option<Vec<String>>,
+  /// Whether to display a language selector dialog before the installer and uninstaller windows are rendered or not.
+  /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
+  pub display_language_selector: bool,
 }
 
 /// The Windows bundle settings.

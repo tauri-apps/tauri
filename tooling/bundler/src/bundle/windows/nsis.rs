@@ -209,6 +209,11 @@ fn build_nsis_app_installer(
         to_json(remove_unc_lossy(sidebar_image.canonicalize()?)),
       );
     }
+
+    data.insert(
+      "display_language_selector",
+      to_json(nsis.display_language_selector && languages.len() > 1),
+    );
   }
   data.insert(
     "install_mode",
@@ -218,7 +223,6 @@ fn build_nsis_app_installer(
       NSISInstallerMode::Both => "both",
     }),
   );
-  data.insert("show_languages", to_json(languages.len() > 1));
   data.insert("languages", to_json(languages.clone()));
 
   let main_binary = settings

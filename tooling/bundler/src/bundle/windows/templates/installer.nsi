@@ -20,7 +20,7 @@ Var ReinstallPageCheck
 !define OUTFILE "{{{out_file}}}"
 !define ARCH "{{{arch}}}"
 !define ALLOWDOWNGRADES "{{{allow_downgrades}}}"
-!define SHOWLANGUAGES "{{{show_languages}}}"
+!define DISPLAYLANGUAGESELECTOR "{{{display_language_selector}}}"
 !define INSTALLWEBVIEW2MODE "{{{install_webview2_mode}}}"
 !define WEBVIEW2INSTALLERARGS "{{{webview2_installer_args}}}"
 !define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
@@ -234,7 +234,7 @@ FunctionEnd
 {{/each}}
 
 Function .onInit
-  !if "${SHOWLANGUAGES}" != ""
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
     !insertmacro MUI_LANGDLL_DISPLAY
   !endif
 

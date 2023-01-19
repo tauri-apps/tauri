@@ -54,9 +54,15 @@ pub struct Options {
   pub config: Option<String>,
   /// Command line arguments passed to the runner
   pub args: Vec<String>,
+  /// Skip prompting for values
+  #[clap(long)]
+  ci: bool,
 }
 
 pub fn command(mut options: Options) -> Result<()> {
+  options.ci = options.ci || std::env::var("CI").is_ok();
+  let ci = options.ci;
+
   let (merge_config, merge_config_path) = if let Some(config) = &options.config {
     if config.starts_with('{') {
       (Some(config.to_string()), None)
@@ -271,7 +277,9 @@ pub fn command(mut options: Options) -> Result<()> {
     // If updater is active and we bundled it
     if config_.tauri.updater.active && !updater_bundles.is_empty() {
       // if no password provided we use an empty string
-      let password = var_os("TAURI_KEY_PASSWORD").map(|v| v.to_str().unwrap().to_string());
+      let password = var_os("TAURI_KEY_PASSWORD")
+        .map(|v| v.to_str().unwrap().to_string())
+        .or_else(|| if ci { Some("".into()) } else { None });
       // get the private key
       let secret_key = if let Some(mut private_key) =
         var_os("TAURI_PRIVATE_KEY").map(|v| v.to_str().unwrap().to_string())

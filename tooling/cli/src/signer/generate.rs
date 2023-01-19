@@ -22,7 +22,7 @@ pub struct Options {
   #[clap(short, long)]
   force: bool,
   /// Skip prompting for values
-  #[clap(short, long)]
+  #[clap(long)]
   ci: bool,
 }
 

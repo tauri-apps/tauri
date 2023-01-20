@@ -3,6 +3,7 @@ use super::{
   MobileTarget,
 };
 use crate::{
+  dev::Options as DevOptions,
   helpers::flock,
   interface::{AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
@@ -13,6 +14,7 @@ use clap::{ArgAction, Parser};
 use tauri_mobile::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
+    device::Device,
     env::Env,
   },
   config::app::App,
@@ -95,7 +97,22 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  let mut dev_options = options.clone().into();
+  let env = env()?;
+  let device = match device_prompt(&env, options.device.as_deref()) {
+    Ok(d) => Some(d),
+    Err(e) => {
+      log::error!("{e}");
+      None
+    }
+  };
+
+  let mut dev_options: DevOptions = options.clone().into();
+  dev_options.target = Some(
+    device
+      .as_ref()
+      .map(|d| d.target().triple.to_string())
+      .unwrap_or_else(|| "aarch64-linux-android".into()),
+  );
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
   let app_settings = interface.app_settings();
@@ -106,13 +123,11 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
-  let env = env()?;
   init_dot_cargo(app, Some((&env, config)))?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  let device = options.device;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -134,28 +149,21 @@ fn run_dev(
       if open {
         open_and_wait(config, &env)
       } else {
-        match run(
-          device.as_deref(),
-          options,
-          config,
-          &env,
-          metadata,
-          noise_level,
-        ) {
-          Ok(c) => {
-            crate::dev::wait_dev_process(c.clone(), move |status, reason| {
-              crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
-            });
-            Ok(Box::new(c) as Box<dyn DevProcess>)
+        if let Some(device) = &device {
+          match run(&device, options, config, &env, metadata, noise_level) {
+            Ok(c) => {
+              crate::dev::wait_dev_process(c.clone(), move |status, reason| {
+                crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
+              });
+              Ok(Box::new(c) as Box<dyn DevProcess>)
+            }
+            Err(e) => {
+              crate::dev::kill_before_dev_process();
+              Err(e.into())
+            }
           }
-          Err(RunError::FailedToPromptForDevice(e)) => {
-            log::error!("{}", e);
-            open_and_wait(config, &env)
-          }
-          Err(e) => {
-            crate::dev::kill_before_dev_process();
-            Err(e.into())
-          }
+        } else {
+          open_and_wait(config, &env)
         }
       }
     },
@@ -165,13 +173,11 @@ fn run_dev(
 #[derive(Debug, thiserror::Error)]
 enum RunError {
   #[error("{0}")]
-  FailedToPromptForDevice(String),
-  #[error("{0}")]
   RunFailed(String),
 }
 
 fn run(
-  device: Option<&str>,
+  device: &Device<'_>,
   options: MobileOptions,
   config: &AndroidConfig,
   env: &Env,
@@ -186,8 +192,7 @@ fn run(
 
   let build_app_bundle = metadata.asset_packs().is_some();
 
-  device_prompt(env, device)
-    .map_err(|e| RunError::FailedToPromptForDevice(e.to_string()))?
+  device
     .run(
       config,
       env,

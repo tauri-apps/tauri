@@ -86,7 +86,7 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
-fn local_ip_address() -> &'static IpAddr {
+pub fn local_ip_address() -> &'static IpAddr {
   static LOCAL_IP: OnceCell<IpAddr> = OnceCell::new();
   LOCAL_IP.get_or_init(|| {
     let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
@@ -147,30 +147,6 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
     .build
     .dev_path
     .clone();
-
-  if mobile {
-    if let AppUrl::Url(WindowUrl::External(url)) = &mut dev_path {
-      let localhost = match url.host() {
-        Some(url::Host::Domain(d)) => d == "localhost",
-        Some(url::Host::Ipv4(i)) => {
-          i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-        }
-        _ => false,
-      };
-      if localhost {
-        let ip = local_ip_address();
-        url.set_host(Some(&ip.to_string())).unwrap();
-        if let Some(c) = &options.config {
-          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-          c.build.dev_path = dev_path.clone();
-          options.config = Some(serde_json::to_string(&c).unwrap());
-        } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devPath": "{}" }} }}"#, url))
-        }
-        reload_config(options.config.as_deref())?;
-      }
-    }
-  }
 
   if let Some(before_dev) = config
     .lock()

@@ -1,6 +1,6 @@
 use super::{
-  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait, with_config,
-  MobileTarget,
+  delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
+  setup_dev_config, with_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -91,12 +91,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 }
 
 fn run_dev(
-  options: Options,
+  mut options: Options,
   app: &App,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
+  setup_dev_config(&mut options.config)?;
   let env = env()?;
   let device = match device_prompt(&env, options.device.as_deref()) {
     Ok(d) => Some(d),

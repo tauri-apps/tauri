@@ -3,6 +3,7 @@ use super::{
   MobileTarget,
 };
 use crate::{
+  build::Options as BuildOptions,
   helpers::flock,
   interface::{AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
@@ -49,7 +50,7 @@ pub struct Options {
   pub open: bool,
 }
 
-impl From<Options> for crate::build::Options {
+impl From<Options> for BuildOptions {
   fn from(options: Options) -> Self {
     Self {
       runner: None,
@@ -97,7 +98,14 @@ fn run_build(
     Profile::Release
   };
 
-  let mut build_options = options.clone().into();
+  let mut build_options: BuildOptions = options.clone().into();
+  build_options.target = Some(
+    Target::all()
+      .get(Target::DEFAULT_KEY)
+      .unwrap()
+      .triple
+      .into(),
+  );
   let interface = crate::build::setup(&mut build_options, true)?;
 
   let app_settings = interface.app_settings();

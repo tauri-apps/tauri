@@ -57,7 +57,7 @@ pub struct Options {
   pub device: Option<String>,
 }
 
-impl From<Options> for crate::dev::Options {
+impl From<Options> for DevOptions {
   fn from(options: Options) -> Self {
     Self {
       runner: None,

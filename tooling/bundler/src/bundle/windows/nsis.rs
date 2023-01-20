@@ -519,6 +519,10 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
       include_str!("./templates/nsis-languages/PortugueseBR.nsh"),
       UTF_8,
     )),
+    "tradchinese" => Some((
+      include_str!("./templates/nsis-languages/TradChinese.nsh"),
+      UTF_8,
+    )),
     "simpchinese" => Some((
       include_str!("./templates/nsis-languages/SimpChinese.nsh"),
       UTF_8,

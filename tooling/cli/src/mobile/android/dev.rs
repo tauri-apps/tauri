@@ -149,23 +149,21 @@ fn run_dev(
 
       if open {
         open_and_wait(config, &env)
-      } else {
-        if let Some(device) = &device {
-          match run(&device, options, config, &env, metadata, noise_level) {
-            Ok(c) => {
-              crate::dev::wait_dev_process(c.clone(), move |status, reason| {
-                crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
-              });
-              Ok(Box::new(c) as Box<dyn DevProcess>)
-            }
-            Err(e) => {
-              crate::dev::kill_before_dev_process();
-              Err(e.into())
-            }
+      } else if let Some(device) = &device {
+        match run(device, options, config, &env, metadata, noise_level) {
+          Ok(c) => {
+            crate::dev::wait_dev_process(c.clone(), move |status, reason| {
+              crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
+            });
+            Ok(Box::new(c) as Box<dyn DevProcess>)
           }
-        } else {
-          open_and_wait(config, &env)
+          Err(e) => {
+            crate::dev::kill_before_dev_process();
+            Err(e.into())
+          }
         }
+      } else {
+        open_and_wait(config, &env)
       }
     },
   )

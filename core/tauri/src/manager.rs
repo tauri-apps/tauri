@@ -73,7 +73,7 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
-const PROXY_DEV_SERVER: bool = cfg!(mobile);
+const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -375,7 +375,7 @@ impl<R: Runtime> WindowManager<R> {
   fn get_browser_origin(&self) -> String {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => {
-        if cfg!(dev) && PROXY_DEV_SERVER {
+        if PROXY_DEV_SERVER {
           format_real_schema("tauri")
         } else {
           url.origin().ascii_serialization()

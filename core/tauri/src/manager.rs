@@ -73,6 +73,7 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
+// must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
 const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
 #[derive(Default)]
@@ -911,11 +912,12 @@ impl<R: Runtime> WindowManager<R> {
 
     Box::new(move |request| {
       // use the entire URI as we are going to proxy the request
-      #[cfg(dev)]
-      let path = request.uri();
-      // ignore query string and fragment
-      #[cfg(not(dev))]
-      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+      let path = if PROXY_DEV_SERVER {
+        request.uri()
+      } else {
+        // ignore query string and fragment
+        request.uri().split(&['?', '#'][..]).next().unwrap()
+      };
 
       let path = path
         .strip_prefix("tauri://localhost")
@@ -927,7 +929,7 @@ impl<R: Runtime> WindowManager<R> {
       let mut builder =
         HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
-      #[cfg(dev)]
+      #[cfg(all(dev, mobile))]
       let mut response = {
         use attohttpc::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
@@ -972,7 +974,7 @@ impl<R: Runtime> WindowManager<R> {
         }
       };
 
-      #[cfg(not(dev))]
+      #[cfg(not(all(dev, mobile)))]
       let mut response = {
         let asset = manager.get_asset(path)?;
         builder = builder.mimetype(&asset.mime_type);

@@ -73,8 +73,11 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
+// we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
+// and we do not get a secure context without the custom protocol that proxies to the dev server
+// additionally, we need the custom protocol to inject the initialization scripts on Android
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-const PROXY_DEV_SERVER: bool = cfg!(all(dev, target_os = "android"));
+const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -895,11 +898,11 @@ impl<R: Runtime> WindowManager<R> {
       }
       url
     };
-    #[cfg(not(all(dev, target_os = "android")))]
+    #[cfg(not(all(dev, mobile)))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
-    #[cfg(all(dev, target_os = "android"))]
+    #[cfg(all(dev, mobile))]
     #[derive(Clone)]
     struct CachedResponse {
       status: http::StatusCode,
@@ -907,7 +910,7 @@ impl<R: Runtime> WindowManager<R> {
       body: Cow<'static, [u8]>,
     }
 
-    #[cfg(all(dev, target_os = "android"))]
+    #[cfg(all(dev, mobile))]
     let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
     Box::new(move |request| {
@@ -929,7 +932,7 @@ impl<R: Runtime> WindowManager<R> {
       let mut builder =
         HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
-      #[cfg(all(dev, target_os = "android"))]
+      #[cfg(all(dev, mobile))]
       let mut response = {
         use attohttpc::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
@@ -974,7 +977,7 @@ impl<R: Runtime> WindowManager<R> {
         }
       };
 
-      #[cfg(not(all(dev, target_os = "android")))]
+      #[cfg(not(all(dev, mobile)))]
       let mut response = {
         let asset = manager.get_asset(path)?;
         builder = builder.mimetype(&asset.mime_type);

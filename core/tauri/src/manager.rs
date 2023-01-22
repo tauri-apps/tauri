@@ -74,7 +74,7 @@ const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
 // must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+const PROXY_DEV_SERVER: bool = cfg!(all(dev, target_os = "android"));
 
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
@@ -895,11 +895,11 @@ impl<R: Runtime> WindowManager<R> {
       }
       url
     };
-    #[cfg(not(dev))]
+    #[cfg(not(all(dev, target_os = "android")))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
-    #[cfg(dev)]
+    #[cfg(all(dev, target_os = "android"))]
     #[derive(Clone)]
     struct CachedResponse {
       status: http::StatusCode,
@@ -907,7 +907,7 @@ impl<R: Runtime> WindowManager<R> {
       body: Cow<'static, [u8]>,
     }
 
-    #[cfg(dev)]
+    #[cfg(all(dev, target_os = "android"))]
     let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
     Box::new(move |request| {
@@ -929,7 +929,7 @@ impl<R: Runtime> WindowManager<R> {
       let mut builder =
         HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
-      #[cfg(all(dev, mobile))]
+      #[cfg(all(dev, target_os = "android"))]
       let mut response = {
         use attohttpc::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
@@ -974,7 +974,7 @@ impl<R: Runtime> WindowManager<R> {
         }
       };
 
-      #[cfg(not(all(dev, mobile)))]
+      #[cfg(not(all(dev, target_os = "android")))]
       let mut response = {
         let asset = manager.get_asset(path)?;
         builder = builder.mimetype(&asset.mime_type);

@@ -890,7 +890,7 @@ impl<R: Runtime> WindowManager<R> {
     >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
-    #[cfg(dev)]
+    #[cfg(all(dev, mobile))]
     let url = {
       let mut url = self.get_url().as_str().to_string();
       if url.ends_with('/') {

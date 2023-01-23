@@ -107,7 +107,7 @@ Function PageReinstall
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
-  nsis_semvercompare::SemverCompare "${VERSION}" $R0
+  nsis_tauri_utils::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
@@ -301,9 +301,9 @@ Section Webview2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    NScurl::http GET "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe" /CANCEL /END
+    nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Pop $0
-    ${If} $0 == "OK"
+    ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"
     ${Else}
       DetailPrint "$(webview2DownloadError)"
@@ -346,7 +346,7 @@ Section Webview2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  nsProcess::_FindProcess "${MAINBINARYNAME}.exe"
+  nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
   Pop $R0
   ${If} $R0 = 0
     IfSilent silent ui
@@ -361,7 +361,7 @@ SectionEnd
     ui:
       MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK ok IDCANCEL cancel
       ok:
-        nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
+        nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
         Pop $R0
         Sleep 500
         ${If} $R0 = 0

@@ -104,6 +104,8 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     sidebar_image: config.sidebar_image,
     installer_icon: config.installer_icon,
     install_mode: config.install_mode,
+    languages: config.languages,
+    display_language_selector: config.display_language_selector,
   }
 }
 

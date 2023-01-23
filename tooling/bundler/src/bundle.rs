@@ -13,7 +13,6 @@ mod path_utils;
 mod platform;
 mod settings;
 mod updater_bundle;
-#[cfg(target_os = "windows")]
 mod windows;
 
 pub use self::{
@@ -43,25 +42,38 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
   let mut bundles = Vec::new();
   let package_types = settings.package_types()?;
 
+  let target_os = settings
+    .target()
+    .split('-')
+    .nth(2)
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
+  if target_os != std::env::consts::OS {
+    warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+  }
+
   for package_type in &package_types {
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
+      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
+      #[cfg(target_os = "macos")]
+      PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
+
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
-      #[cfg(target_os = "windows")]
       PackageType::Nsis => windows::nsis::bundle_project(&settings, false)?,
+
       #[cfg(target_os = "linux")]
       PackageType::Deb => linux::debian::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
-      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
-      #[cfg(target_os = "macos")]
-      PackageType::Dmg => macos::dmg::bundle_project(&settings, &bundles)?,
+
       // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => updater_bundle::bundle_project(&settings, &bundles)?,
       _ => {

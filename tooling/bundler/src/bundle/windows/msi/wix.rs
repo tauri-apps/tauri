@@ -8,11 +8,12 @@ use crate::bundle::{
   path_utils::{copy_file, FileOpts},
   settings::Settings,
   windows::util::{
-    download, download_and_verify, extract_zip, try_sign, validate_version, HashAlgorithm,
-    WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
+    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
+    WIX_UPDATER_OUTPUT_FOLDER_NAME,
   },
 };
-use anyhow::Context;
+use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
 use log::info;
 use regex::Regex;
@@ -26,9 +27,6 @@ use std::{
 };
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
-
-pub const OUTPUT_FOLDER_NAME: &str = "msi";
-pub const UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
@@ -159,7 +157,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
-  let icon_path = std::env::current_dir()?.join(&path);
+  let icon_path = std::env::current_dir()?.join(path);
 
   copy_file(
     icon_path,
@@ -177,6 +175,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 fn app_installer_output_path(
   settings: &Settings,
   language: &str,
+  version: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
@@ -193,7 +192,7 @@ fn app_installer_output_path(
   let package_base_name = format!(
     "{}_{}_{}_{}",
     settings.main_binary_name().replace(".exe", ""),
-    settings.version_string(),
+    version,
     arch,
     language,
   );
@@ -201,9 +200,9 @@ fn app_installer_output_path(
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{}.msi",
     if updater {
-      UPDATER_OUTPUT_FOLDER_NAME
+      WIX_UPDATER_OUTPUT_FOLDER_NAME
     } else {
-      OUTPUT_FOLDER_NAME
+      WIX_OUTPUT_FOLDER_NAME
     },
     package_base_name
   )))
@@ -241,6 +240,46 @@ fn clear_env_for_wix(cmd: &mut Command) {
       cmd.env(k, v);
     }
   }
+}
+
+// WiX requires versions to be numeric only in a `major.minor.patch.build` format
+pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
+  let version = semver::Version::parse(version_str).context("invalid app version")?;
+  if version.major > 255 {
+    bail!("app version major number cannot be greater than 255");
+  }
+  if version.minor > 255 {
+    bail!("app version minor number cannot be greater than 255");
+  }
+  if version.patch > 65535 {
+    bail!("app version patch number cannot be greater than 65535");
+  }
+
+  if !version.build.is_empty() {
+    let build = version.build.parse::<u64>();
+    if build.map(|b| b <= 65535).unwrap_or_default() {
+      return Ok(format!(
+        "{}.{}.{}.{}",
+        version.major, version.minor, version.patch, version.build
+      ));
+    } else {
+      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+    }
+  }
+
+  if !version.pre.is_empty() {
+    let pre = version.pre.parse::<u64>();
+    if pre.is_ok() && pre.unwrap() <= 65535 {
+      return Ok(format!(
+        "{}.{}.{}.{}",
+        version.major, version.minor, version.patch, version.pre
+      ));
+    } else {
+      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+    }
+  }
+
+  Ok(version_str.to_string())
 }
 
 /// Runs the Candle.exe executable for Wix. Candle parses the wxs file and generates the code for building the installer.
@@ -291,7 +330,7 @@ fn run_candle(
   let candle_exe = wix_toolset_path.join("candle.exe");
 
   info!(action = "Running"; "candle for {:?}", wxs_file_path);
-  let mut cmd = Command::new(&candle_exe);
+  let mut cmd = Command::new(candle_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -327,7 +366,7 @@ fn run_light(
 
   args.extend(arguments);
 
-  let mut cmd = Command::new(&light_exe);
+  let mut cmd = Command::new(light_exe);
   for ext in extensions {
     cmd.arg("-ext");
     cmd.arg(ext);
@@ -363,7 +402,7 @@ pub fn build_wix_app_installer(
     }
   };
 
-  validate_version(settings.version_string())?;
+  let app_version = convert_version(settings.version_string())?;
 
   // target only supports x64.
   info!("Target: {}", arch);
@@ -375,7 +414,7 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let app_exe_source = settings.binary_path(main_binary);
 
-  try_sign(&app_exe_source, &settings)?;
+  try_sign(&app_exe_source, settings)?;
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -488,7 +527,7 @@ pub fn build_wix_app_installer(
       if license.ends_with(".rtf") {
         data.insert("license", to_json(license));
       } else {
-        let license_contents = read_to_string(&license)?;
+        let license_contents = read_to_string(license)?;
         let license_rtf = format!(
           r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
 {{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
@@ -515,7 +554,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
-  data.insert("version", to_json(settings.version_string()));
+  data.insert("version", to_json(&app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -528,24 +567,24 @@ pub fn build_wix_app_installer(
   )
   .to_string();
 
-  data.insert("upgrade_code", to_json(&upgrade_code.as_str()));
+  data.insert("upgrade_code", to_json(upgrade_code.as_str()));
   data.insert(
     "allow_downgrades",
     to_json(settings.windows().allow_downgrades),
   );
 
   let path_guid = generate_package_guid(settings).to_string();
-  data.insert("path_component_guid", to_json(&path_guid.as_str()));
+  data.insert("path_component_guid", to_json(path_guid.as_str()));
 
   let shortcut_guid = generate_package_guid(settings).to_string();
-  data.insert("shortcut_guid", to_json(&shortcut_guid.as_str()));
+  data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
   let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(&app_exe_name));
+  data.insert("app_exe_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
 
-  let binaries_json = to_json(&binaries);
+  let binaries_json = to_json(binaries);
   data.insert("binaries", binaries_json);
 
   let resources = generate_resource_data(settings)?;
@@ -633,7 +672,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args.clone())
+          .and_then(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),
@@ -648,7 +687,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task handlebars");
     let temp_xml_path = output_path.join("update.xml");
     let update_content = skip_uac_task.render("update.xml", &data)?;
-    write(&temp_xml_path, update_content)?;
+    write(temp_xml_path, update_content)?;
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
@@ -659,7 +698,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Installer handlebars");
     let temp_ps1_path = output_path.join("install-task.ps1");
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
@@ -670,13 +709,13 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Uninstaller handlebars");
     let temp_ps1_path = output_path.join("uninstall-task.ps1");
     let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
-    write(&temp_ps1_path, install_script_content)?;
+    write(temp_ps1_path, install_script_content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(&main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
@@ -764,7 +803,7 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path = app_installer_output_path(settings, &language, updater)?;
+    let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
     info!(action = "Running"; "light to produce {}", msi_path.display());
@@ -777,7 +816,7 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, &settings)?;
+    try_sign(&msi_path, settings)?;
     output_paths.push(msi_path);
   }
 
@@ -963,7 +1002,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     let path = dll?;
     let resource_path = path.to_string_lossy().into_owned();
     let relative_path = path
-      .strip_prefix(&out_dir)
+      .strip_prefix(out_dir)
       .unwrap()
       .to_string_lossy()
       .into_owned();

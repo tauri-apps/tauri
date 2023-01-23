@@ -19,7 +19,6 @@ use std::{
 };
 
 use anyhow::Context;
-#[cfg(target_os = "linux")]
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use log::{debug, error, info};
@@ -686,6 +685,8 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
+    let target_os = target.split('-').nth(2).unwrap_or(std::env::consts::OS);
+
     if let Some(bin) = &self.cargo_settings.bin {
       let default_run = self
         .package_settings
@@ -763,14 +764,15 @@ impl AppSettings for RustAppSettings {
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        #[cfg(target_os = "linux")]
-        self.package_settings.product_name.to_kebab_case(),
-        #[cfg(not(target_os = "linux"))]
-        format!(
-          "{}{}",
-          self.package_settings.product_name.clone(),
-          &binary_extension
-        ),
+        if target_os == "linux" {
+          self.package_settings.product_name.to_kebab_case()
+        } else {
+          format!(
+            "{}{}",
+            self.package_settings.product_name.clone(),
+            &binary_extension
+          )
+        },
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -827,7 +829,10 @@ impl RustAppSettings {
         .target()
         .map(|t| t.to_string())
         .unwrap_or_else(|| {
-          let output = Command::new("rustc").args(["-vV"]).output().unwrap();
+          let output = Command::new("rustc")
+            .args(["-vV"])
+            .output()
+            .expect("\"rustc\" could not be found, did you install Rust?");
           let stdout = String::from_utf8_lossy(&output.stdout);
           stdout
             .split('\n')

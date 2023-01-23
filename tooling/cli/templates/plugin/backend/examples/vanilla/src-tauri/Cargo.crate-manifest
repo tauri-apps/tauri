@@ -17,5 +17,4 @@ tauri-plugin-{{ plugin_name }} = { path = "../../../" }
 tauri-build = {{{  tauri_build_dep  }}}
 
 [features]
-default = [ "custom-protocol" ]
 custom-protocol = [ "tauri/custom-protocol" ]

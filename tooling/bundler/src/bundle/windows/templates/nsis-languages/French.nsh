@@ -24,3 +24,4 @@ LangString webview2DownloadSuccess ${LANG_FRENCH} "Le téléchargement du comosa
 LangString webview2Downloading ${LANG_FRENCH} "Téléchargement du composant WebView2 ..."
 LangString webview2InstallError ${LANG_FRENCH} "Erreur: L'installation de WebView2 a échoué avec le code erreur $1"
 LangString webview2InstallSuccess ${LANG_FRENCH} "L'installation de WebView2 a réussi"
+LangString deleteAppData ${LANG_FRENCH} "Supprimer les données de l'application"

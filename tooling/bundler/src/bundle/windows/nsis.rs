@@ -37,14 +37,10 @@ const NSIS_URL: &str =
   "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_NSCURL_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NScurl-1.2022.6.7.zip";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
-const NSIS_NSPROCESS_URL: &str =
-  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NsProcess.zip";
-const NSIS_SEMVER_COMPARE: &str =
-  "https://github.com/tauri-apps/nsis-semvercompare/releases/download/v0.3.0/nsis_semvercompare.dll";
-const NSIS_SEMVER_COMPARE_SHA1: &str = "1789062E121AC392A6CBBE886F9B1443462912C2";
+const NSIS_TAURI_UTILS: &str =
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.1.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "BA62B7A7B41063ECAA97FEBC0723CD36D6BCF92A";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -52,20 +48,18 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/NScurl.dll",
   "Plugins/x86-unicode/ApplicationID.dll",
-  "Plugins/x86-unicode/nsProcess.dll",
-  "Plugins/x86-unicode/nsis_semvercompare.dll",
+  "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
+  "Include/nsDialogs.nsh",
+  "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
 const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/NScurl.dll",
   "Plugins/x86-unicode/ApplicationID.dll",
-  "Plugins/x86-unicode/nsProcess.dll",
-  "Plugins/x86-unicode/nsis_semvercompare.dll",
+  "Plugins/x86-unicode/nsis_tauri_utils.dll",
 ];
 
 /// Runs all of the commands to build the NSIS installer.
@@ -102,10 +96,6 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
 
-  let data = download(NSIS_NSCURL_URL)?;
-  info!("extracting NSIS NScurl plugin");
-  extract_zip(&data, &nsis_plugins)?;
-
   let data = download(NSIS_APPLICATIONID_URL)?;
   info!("extracting NSIS ApplicationID plugin");
   extract_zip(&data, &nsis_plugins)?;
@@ -116,23 +106,11 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
   )?;
 
-  let data = download(NSIS_NSPROCESS_URL)?;
-  info!("extracting NSIS NsProcess plugin");
-  extract_zip(&data, &nsis_plugins)?;
-  copy(
-    nsis_plugins.join("Plugin").join("nsProcessW.dll"),
-    nsis_plugins.join("x86-unicode").join("nsProcess.dll"),
-  )?;
-
-  let data = download_and_verify(
-    NSIS_SEMVER_COMPARE,
-    NSIS_SEMVER_COMPARE_SHA1,
-    HashAlgorithm::Sha1,
-  )?;
+  let data = download_and_verify(NSIS_TAURI_UTILS, NSIS_TAURI_UTILS_SHA1, HashAlgorithm::Sha1)?;
   write(
     nsis_plugins
       .join("x86-unicode")
-      .join("nsis_semvercompare.dll"),
+      .join("nsis_tauri_utils.dll"),
     data,
   )?;
 
@@ -517,6 +495,14 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
     )),
     "portuguesebr" => Some((
       include_str!("./templates/nsis-languages/PortugueseBR.nsh"),
+      UTF_8,
+    )),
+    "tradchinese" => Some((
+      include_str!("./templates/nsis-languages/TradChinese.nsh"),
+      UTF_8,
+    )),
+    "simpchinese" => Some((
+      include_str!("./templates/nsis-languages/SimpChinese.nsh"),
       UTF_8,
     )),
     "french" => Some((

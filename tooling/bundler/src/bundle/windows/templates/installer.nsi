@@ -27,11 +27,13 @@ Var ReinstallPageCheck
 !define WEBVIEW2BOOTSTRAPPERPATH "{{{webview2_bootstrapper_path}}}"
 !define WEBVIEW2INSTALLERPATH "{{{webview2_installer_path}}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
+!define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 
 Name "${PRODUCTNAME}"
 OutFile "${OUTFILE}"
 Unicode true
 SetCompressor /SOLID lzma
+
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
 !endif
@@ -53,7 +55,7 @@ SetCompressor /SOLID lzma
   !define MULTIUSER_INSTALLMODEPAGE_SHOWUSERNAME
   !define MULTIUSER_INSTALLMODE_FUNCTION RestorePreviousInstallLocation
   Function RestorePreviousInstallLocation
-    ReadRegStr $4 SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
+    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
     StrCmp $4 "" +2 0
       StrCpy $INSTDIR $4
   FunctionEnd
@@ -73,19 +75,10 @@ SetCompressor /SOLID lzma
   !define MUI_HEADERIMAGE_BITMAP  "${HEADERIMAGE}"
 !endif
 
-; Don't auto jump to finish page after installation page,
-; because the installation page has useful info that can be used debug any issues with the installer.
-!define MUI_FINISHPAGE_NOAUTOCLOSE
-; Use show readme button in the finish page to create a desktop shortcut
-!define MUI_FINISHPAGE_SHOWREADME
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
-!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
-Function CreateDesktopShortcut
-  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
-FunctionEnd
-; Show run app after installation.
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
+; Define registry key to store installer language
+!define MUI_LANGDLL_REGISTRY_ROOT "HKCU"
+!define MUI_LANGDLL_REGISTRY_KEY "${MANUPRODUCTKEY}"
+!define MUI_LANGDLL_REGISTRY_VALUENAME "Installer Language"
 
 ; Installer pages, must be ordered as they appear
 !insertmacro MUI_PAGE_WELCOME
@@ -95,6 +88,8 @@ FunctionEnd
 !if "${INSTALLMODE}" == "both"
   !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !endif
+
+; Custom page to ask user if he wants to reinstall/uninstall
 Page custom PageReinstall PageLeaveReinstall
 Function PageReinstall
   ; Check if there is an existing installation, if not, abort the reinstall page
@@ -107,7 +102,7 @@ Function PageReinstall
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
-  nsis_semvercompare::SemverCompare "${VERSION}" $R0
+  nsis_tauri_utils::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
@@ -140,6 +135,9 @@ Function PageReinstall
 
   nsDialogs::Create 1018
   Pop $R4
+  ${If} $(^RTL) == 1
+    nsDialogs::SetRTL $(^RTL)
+  ${EndIf}
 
   ${NSD_CreateLabel} 0 0 100% 24u $R1
   Pop $R1
@@ -191,7 +189,7 @@ Function PageLeaveReinstall
   StrCmp $R1 "1" reinst_done ; Same version, skip to add/reinstall components?
 
   reinst_uninstall:
-    ReadRegStr $4 SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" ""
+    ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
     ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
 
     HideWindow
@@ -221,13 +219,50 @@ Function PageLeaveReinstall
 
   reinst_done:
 FunctionEnd
+
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 !insertmacro MUI_PAGE_INSTFILES
+
+; Don't auto jump to finish page after installation page,
+; because the installation page has useful info that can be used debug any issues with the installer.
+!define MUI_FINISHPAGE_NOAUTOCLOSE
+; Use show readme button in the finish page to create a desktop shortcut
+!define MUI_FINISHPAGE_SHOWREADME
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
+Function CreateDesktopShortcut
+  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+FunctionEnd
+; Show run app after installation.
+!define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
 !insertmacro MUI_PAGE_FINISH
-; Uninstaller pages
+
+; Uninstaller Pages
+Var DeleteAppDataCheckbox
+Var DeleteAppDataCheckboxState
+!define /ifndef WS_EX_LAYOUTRTL         0x00400000
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
+Function un.ConfirmShow
+    FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
+    ${If} $(^RTL) == 1
+      System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE}|${WS_EX_LAYOUTRTL},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 50,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
+    ${Else}
+      System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 0,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
+    ${EndIf}
+    Pop $DeleteAppDataCheckbox
+    SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
+    SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
+FunctionEnd
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE un.ConfirmLeave
+Function un.ConfirmLeave
+    SendMessage $DeleteAppDataCheckbox ${BM_GETCHECK} 0 0 $DeleteAppDataCheckboxState
+FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
+
 !insertmacro MUI_UNPAGE_INSTFILES
+
 ;Languages
 {{#each languages}}
 !insertmacro MUI_LANGUAGE "{{this}}"
@@ -301,9 +336,9 @@ Section Webview2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    NScurl::http GET "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe" /CANCEL /END
+    nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Pop $0
-    ${If} $0 == "OK"
+    ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"
     ${Else}
       DetailPrint "$(webview2DownloadError)"
@@ -346,7 +381,7 @@ Section Webview2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  nsProcess::_FindProcess "${MAINBINARYNAME}.exe"
+  nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
   Pop $R0
   ${If} $R0 = 0
     IfSilent silent ui
@@ -361,7 +396,7 @@ SectionEnd
     ui:
       MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK ok IDCANCEL cancel
       ok:
-        nsProcess::_KillProcess "${MAINBINARYNAME}.exe"
+        nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
         Pop $R0
         Sleep 500
         ${If} $R0 = 0
@@ -398,7 +433,7 @@ Section Install
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
   ; Save $INSTDIR in registry for future installations
-  WriteRegStr SHCTX "Software\${MANUFACTURER}\${PRODUCTNAME}" "" $INSTDIR
+  WriteRegStr SHCTX "${MANUPRODUCTKEY}" "" $INSTDIR
 
   !if "${INSTALLMODE}" == "both"
     ; Save install mode to be selected by default for the next installation such as updating
@@ -438,6 +473,8 @@ Function un.onInit
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT
   !endif
+
+  !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
 
 Section Uninstall
@@ -461,6 +498,8 @@ Section Uninstall
   !else
     DeleteRegKey HKCU "${UNINSTKEY}"
   !endif
+
+  DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
 
   ; Delete the app directory and its content from disk
   ; Copy main executable
@@ -489,5 +528,11 @@ Section Uninstall
 
   ; Remove desktop shortcuts
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
+
+  ; Delete app data
+  ${If} $DeleteAppDataCheckboxState == 1
+    RmDir /r "$APPDATA\${BUNDLEID}"
+    RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
+  ${EndIf}
 SectionEnd
 

@@ -281,7 +281,7 @@ mod test {
 
   // check arbitrary strings in the format callback function
   #[quickcheck]
-  fn qc_formating(f: CallbackFn, a: String) -> bool {
+  fn qc_formatting(f: CallbackFn, a: String) -> bool {
     // call format callback
     let fc = format_callback(f, &a).unwrap();
     fc.contains(&format!(

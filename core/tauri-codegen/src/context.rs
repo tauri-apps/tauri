@@ -5,8 +5,8 @@
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
-use proc_macro2::TokenStream;
-use quote::quote;
+use proc_macro2::{Group, TokenStream, TokenTree};
+use quote::{quote, TokenStreamExt};
 use sha2::{Digest, Sha256};
 
 use tauri_utils::assets::AssetKey;
@@ -352,7 +352,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
     let info_plist_path = out_path.display().to_string();
     quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      #root::embed_plist::embed_info_plist!(#info_plist_path);
     })
   } else {
     quote!(())
@@ -396,7 +396,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         assets: ::std::sync::Arc::new(#assets),
         schema: #schema.into(),
         key: #key.into(),
-        crypto_keys: std::boxed::Box::new(::tauri::utils::pattern::isolation::Keys::new().expect("unable to generate cryptographically secure keys for Tauri \"Isolation\" Pattern")),
+        crypto_keys: std::boxed::Box::new(#root::utils::pattern::isolation::Keys::new().expect("unable to generate cryptographically secure keys for Tauri \"Isolation\" Pattern")),
       })
     }
   };
@@ -435,7 +435,70 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(feature = "shell-scope"))]
   let shell_scope_config = quote!();
 
-  Ok(quote!(#root::Context::new(
+  fn compare_token_stream(a: TokenStream, b: TokenStream) -> bool {
+    if a.clone().into_iter().count() != b.clone().into_iter().count() {
+      return false;
+    }
+    for (a, b) in a.into_iter().zip(b) {
+      if !compare_token_tree(a, b) {
+        return false;
+      }
+    }
+    true
+  }
+
+  fn compare_token_tree(a: TokenTree, b: TokenTree) -> bool {
+    match (a, b) {
+      (TokenTree::Group(a), TokenTree::Group(b)) => compare_token_stream(a.stream(), b.stream()),
+      (TokenTree::Ident(a), TokenTree::Ident(b)) => b == a,
+      (TokenTree::Punct(a), TokenTree::Punct(b)) => a.to_string() == b.to_string(),
+      (TokenTree::Literal(a), TokenTree::Literal(b)) => a.to_string() == b.to_string(),
+      _ => false,
+    }
+  }
+
+  fn change_tree_tauri_root(
+    token: TokenTree,
+    previous: &Option<TokenTree>,
+    new: &mut TokenStream,
+  ) -> bool {
+    match token {
+      TokenTree::Ident(i) if i == "utils" => {
+        new.append_all(quote!(tauri_utils));
+        false
+      }
+      TokenTree::Ident(i) => {
+        let ignore = match previous {
+          Some(TokenTree::Punct(p)) if p.as_char() == ':' => i == "tauri",
+          _ => false,
+        };
+        if !ignore {
+          new.append(i);
+        }
+        ignore
+      }
+      TokenTree::Group(g) => {
+        let mut stream = TokenStream::new();
+        let mut ignore = false;
+        let mut previous_token = None;
+        for token in g.stream() {
+          if ignore && matches!(token, TokenTree::Punct(_)) {
+            continue;
+          }
+          ignore = change_tree_tauri_root(token.clone(), &previous_token, &mut stream);
+          previous_token.replace(token);
+        }
+        new.append(Group::new(g.delimiter(), stream));
+        false
+      }
+      _ => {
+        new.append(token);
+        false
+      }
+    }
+  }
+
+  let context = quote!(#root::Context::new(
     #config,
     ::std::sync::Arc::new(#assets),
     #default_window_icon,
@@ -445,7 +508,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     #info_plist,
     #pattern,
     #shell_scope_config
-  )))
+  ));
+
+  if compare_token_stream(root, quote!(crate)) {
+    let mut stream = TokenStream::new();
+    let mut ignore = false;
+    let mut previous_token = None;
+    for token in context {
+      if ignore && matches!(token, TokenTree::Punct(_)) {
+        continue;
+      }
+      ignore = change_tree_tauri_root(token.clone(), &previous_token, &mut stream);
+      previous_token.replace(token);
+    }
+    Ok(stream)
+  } else {
+    Ok(context)
+  }
 }
 
 fn ico_icon<P: AsRef<Path>>(

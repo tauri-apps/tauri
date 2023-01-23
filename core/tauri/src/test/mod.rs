@@ -85,6 +85,10 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
   }
 }
 
+pub fn mock_builder() -> crate::Builder<MockRuntime> {
+  crate::Builder::new()
+}
+
 pub fn mock_app() -> crate::App<MockRuntime> {
   crate::Builder::<MockRuntime>::new()
     .build(mock_context(noop_assets()))

@@ -61,7 +61,7 @@ fn build_app(
   bundle_updater: bool,
   target: BundleTarget,
 ) {
-  let mut command = Command::new(&cli_bin_path);
+  let mut command = Command::new(cli_bin_path);
   command
     .args(["build", "--debug", "--verbose"])
     .arg("--config")

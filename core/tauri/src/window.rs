@@ -1647,9 +1647,310 @@ impl<R: Runtime> Window<R> {
 
 #[cfg(test)]
 mod tests {
+  use std::sync::mpsc::{sync_channel, SyncSender};
+
+  use super::{Window, WindowBuilder};
+  use crate::{api::ipc::CallbackFn, test, InvokePayload, State};
+  use serde_json::Value as JsonValue;
+
   #[test]
   fn window_is_send_sync() {
-    crate::test_utils::assert_send::<super::Window>();
-    crate::test_utils::assert_sync::<super::Window>();
+    crate::test_utils::assert_send::<Window>();
+    crate::test_utils::assert_sync::<Window>();
   }
+
+  macro_rules! commands {
+    (fn, $(#[$cmd_meta:meta])*) => {
+      $(#[$cmd_meta])*
+      fn cmd_state(channel: State<'_, Channel>) {
+        println!("cmd state");
+        channel.tx.send(Response::Cmd).unwrap();
+      }
+
+      $(#[$cmd_meta])*
+      fn cmd_state_return_val(channel: State<'_, Channel>) -> &'static str {
+        println!("cmd state return val");
+        channel.tx.send(Response::CmdReturnVal).unwrap();
+        STATE_RETURN_VAL_RESPONSE
+      }
+
+      $(#[$cmd_meta])*
+      fn cmd_state_arg(channel: State<'_, Channel>, int_arg: usize) {
+        println!("cmd state arg");
+        channel.tx.send(Response::CmdArg(int_arg)).unwrap();
+      }
+
+      $(#[$cmd_meta])*
+      fn cmd_state_arg_return_val(channel: State<'_, Channel>, int_arg: usize) -> &'static str {
+        println!("cmd state arg return val");
+        channel.tx.send(Response::CmdArgReturnVal(int_arg)).unwrap();
+        STATE_ARG_RETURN_VAL_RESPONSE
+      }
+    };
+
+    (async fn, $(#[$cmd_meta:meta])*) => {
+      $(#[$cmd_meta])*
+      async fn cmd_state(channel: State<'_, Channel>) -> crate::Result<()> {
+        println!("cmd state");
+        channel.tx.send(Response::Cmd).unwrap();
+        Ok(())
+      }
+
+      $(#[$cmd_meta])*
+      async fn cmd_state_return_val(channel: State<'_, Channel>) -> crate::Result<&'static str> {
+        println!("cmd state return val");
+        channel.tx.send(Response::CmdReturnVal).unwrap();
+        Ok(STATE_RETURN_VAL_RESPONSE)
+      }
+
+      $(#[$cmd_meta])*
+      async fn cmd_state_arg(channel: State<'_, Channel>, int_arg: usize) -> crate::Result<()> {
+        println!("cmd state arg");
+        channel.tx.send(Response::CmdArg(int_arg)).unwrap();
+        Ok(())
+      }
+
+      $(#[$cmd_meta])*
+      async fn cmd_state_arg_return_val(
+        channel: State<'_, Channel>,
+        int_arg: usize,
+      ) -> crate::Result<&'static str> {
+        println!("cmd state arg return val");
+        channel.tx.send(Response::CmdArgReturnVal(int_arg)).unwrap();
+        Ok(STATE_ARG_RETURN_VAL_RESPONSE)
+      }
+    };
+  }
+
+  macro_rules! command_test {
+    ($test_name: ident, $($fn_kind: ident) +, $(#[$cmd_meta:meta])*, $case: path) => {
+      #[test]
+      fn $test_name() {
+        const STATE_RETURN_VAL_RESPONSE: &str = "return-val";
+        const STATE_ARG_RETURN_VAL_RESPONSE: &str = "arg-return-val";
+        const FUTURE_RETURN_VAL_RESPONSE: &str = "future-return-val";
+
+        #[derive(Debug, Eq, PartialEq)]
+        enum Response {
+          Cmd,
+          CmdReturnVal,
+          CmdArg(usize),
+          CmdArgReturnVal(usize),
+          CmdFutureReturnVal(usize),
+          Person(Person),
+        }
+
+        struct Channel {
+          tx: SyncSender<Response>,
+        }
+
+        #[derive(Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+        struct Person {
+          name: String,
+          age: u8,
+        }
+
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct InlinePerson(String, u8);
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd() {
+          println!("cmd");
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_args_struct(Person { name, age }: Person) {
+          println!("received person struct with name: {} | age: {}", name, age);
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_args_tuple_struct(InlinePerson(name, age): InlinePerson) {
+          println!("received person tuple with name: {} | age: {}", name, age);
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_state_args_struct_return_val(
+          channel: State<'_, Channel>,
+          person: Person,
+        ) -> crate::Result<()> {
+          println!("received person struct with name: {} | age: {}", person.name, person.age);
+          channel.tx.send(Response::Person(person)).unwrap();
+          Ok(())
+        }
+
+        $(#[$cmd_meta])*
+        $($fn_kind)* cmd_state_args_tuple_struct_return_val(
+          channel: State<'_, Channel>,
+          InlinePerson(name, age): InlinePerson
+        ) -> crate::Result<()> {
+          println!("received person tuple with name: {} | age: {}", name, age);
+          channel.tx.send(Response::Person(Person { name, age })).unwrap();
+          Ok(())
+        }
+
+        #[crate::command(root = "crate", async)]
+        fn cmd_state_arg_return_future(
+          channel: State<'_, Channel>,
+          int_arg: usize,
+        ) -> impl std::future::Future<Output = String> {
+          println!("cmd state arg return future");
+          channel.tx.send(Response::CmdFutureReturnVal(int_arg)).unwrap();
+          std::future::ready(FUTURE_RETURN_VAL_RESPONSE.into())
+        }
+
+        #[crate::command(root = "crate", async)]
+        fn cmd_state_arg_return_future_result(
+          channel: State<'_, Channel>,
+          int_arg: usize,
+        ) -> impl std::future::Future<Output = crate::Result<String>> {
+          println!("cmd state arg return future result");
+          channel.tx.send(Response::CmdFutureReturnVal(int_arg)).unwrap();
+          std::future::ready(Ok(FUTURE_RETURN_VAL_RESPONSE.into()))
+        }
+
+        commands!($($fn_kind)*, $(#[$cmd_meta])*);
+
+        let (tx, rx) = sync_channel(1);
+        let channel = Channel { tx };
+
+        let app = test::mock_builder()
+          .manage(channel)
+          .invoke_handler(crate::generate_handler![
+            cmd,
+            cmd_args_struct,
+            cmd_args_tuple_struct,
+            cmd_state_args_struct_return_val,
+            cmd_state_args_tuple_struct_return_val,
+            cmd_state,
+            cmd_state_return_val,
+            cmd_state_arg,
+            cmd_state_arg_return_val,
+            cmd_state_arg_return_future,
+            cmd_state_arg_return_future_result
+          ])
+          .build(test::mock_context(test::noop_assets()))
+          .unwrap();
+        let window = WindowBuilder::new(&app, "test", Default::default())
+          .build()
+          .unwrap();
+
+        #[derive(Default)]
+        struct JsonMap(serde_json::Map<String, JsonValue>);
+
+        impl From<JsonMap> for JsonValue {
+          fn from(map: JsonMap) -> Self {
+            map.0.into()
+          }
+        }
+
+        impl JsonMap {
+          fn insert(mut self, key: impl Into<String>, value: impl serde::Serialize) -> Self {
+            self.0.insert(key.into(), serde_json::to_value(value).unwrap());
+            self
+          }
+        }
+
+        struct UnitTest {
+          cmd: &'static str,
+          response: Option<Response>,
+          arg: Option<JsonValue>,
+        }
+
+        let tests = vec![
+          UnitTest {
+            cmd: "cmd",
+            response: None,
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_args_struct",
+            response: None,
+            arg: Some(JsonMap::default().insert("person", Person { name: "Tauri".into(), age: 1 }).into()),
+          },
+          UnitTest {
+            cmd: "cmd_args_tuple_struct",
+            response: None,
+            arg: Some(JsonMap::default().insert($case("inline_person").to_string(), InlinePerson("Tauri".into(), 3)).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_args_struct_return_val",
+            response: Some(Response::Person(Person { name: "Tauri".into(), age: 1 })),
+            arg: Some(JsonMap::default().insert("person", Person { name: "Tauri".into(), age: 1 }).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_args_tuple_struct_return_val",
+            response: Some(Response::Person(Person { name: "Tauri".into(), age: 3 })),
+            arg: Some(JsonMap::default().insert($case("inline_person").to_string(), InlinePerson("Tauri".into(), 3)).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state",
+            response: Some(Response::Cmd),
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_state_return_val",
+            response: Some(Response::CmdReturnVal),
+            arg: None,
+          },
+          UnitTest {
+            cmd: "cmd_state_arg",
+            response: Some(Response::CmdArg(1)),
+            arg: Some(JsonMap::default().insert($case("int_arg").to_string(), 1).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_val",
+            response: Some(Response::CmdArgReturnVal(2)),
+            arg: Some(JsonMap::default().insert($case("int_arg").to_string(), 2).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_future",
+            response: Some(Response::CmdFutureReturnVal(2)),
+            arg: Some(JsonMap::default().insert("intArg", 2).into()),
+          },
+          UnitTest {
+            cmd: "cmd_state_arg_return_future_result",
+            response: Some(Response::CmdFutureReturnVal(2)),
+            arg: Some(JsonMap::default().insert("intArg", 2).into()),
+          },
+        ];
+
+        for test in tests {
+          window
+            .clone()
+            .on_message(InvokePayload {
+              cmd: test.cmd.into(),
+              tauri_module: None,
+              callback: CallbackFn(0),
+              error: CallbackFn(0),
+              inner: test.arg.unwrap_or_default(),
+            })
+            .unwrap();
+          if let Some(response) = test.response {
+            assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(3)).unwrap(), response);
+          }
+        }
+      }
+    };
+  }
+
+  command_test!(regular_commands, fn, #[crate::command(root = "crate")], heck::AsLowerCamelCase);
+  command_test!(async_commands, async fn, #[crate::command(root = "crate")], heck::AsLowerCamelCase);
+  command_test!(
+    async_attr_commands,
+    fn,
+    #[crate::command(root = "crate", async)],
+    heck::AsLowerCamelCase
+  );
+  command_test!(
+    regular_rename_all_snake_case_commands,
+    fn,
+    #[crate::command(root = "crate", rename_all = "snake_case")],
+    heck::AsSnakeCase
+  );
+  command_test!(
+    regular_rename_all_camel_case_commands,
+    fn,
+    #[crate::command(root = "crate", rename_all = "camelCase")],
+    heck::AsLowerCamelCase
+  );
 }

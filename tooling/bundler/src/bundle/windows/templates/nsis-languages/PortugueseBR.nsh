@@ -24,3 +24,4 @@ LangString webview2DownloadSuccess ${LANG_PORTUGUESEBR} "Bootstrapper do WebView
 LangString webview2Downloading ${LANG_PORTUGUESEBR} "Baixando o Bootstrapper do WebView2..."
 LangString webview2InstallError ${LANG_PORTUGUESEBR} "Erro: Instalação do Webview2 falhou com código $1"
 LangString webview2InstallSuccess ${LANG_PORTUGUESEBR} "WebView2 instalado com sucesso"
+LangString deleteAppData ${LANG_ENGLISH} "Delete the app data"

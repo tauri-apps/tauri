@@ -73,6 +73,12 @@ const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
 const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 const MENU_EVENT: &str = "tauri://menu";
 
+// we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
+// and we do not get a secure context without the custom protocol that proxies to the dev server
+// additionally, we need the custom protocol to inject the initialization scripts on Android
+// must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
+const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
+
 #[derive(Default)]
 /// Spaced and quoted Content-Security-Policy hash values.
 struct CspHashStrings {
@@ -373,7 +379,7 @@ impl<R: Runtime> WindowManager<R> {
   fn get_browser_origin(&self) -> String {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => {
-        if cfg!(dev) && !cfg!(target_os = "linux") {
+        if PROXY_DEV_SERVER {
           format_real_schema("tauri")
         } else {
           url.origin().ascii_serialization()
@@ -884,7 +890,7 @@ impl<R: Runtime> WindowManager<R> {
     >,
   ) -> Box<dyn Fn(&HttpRequest) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>
   {
-    #[cfg(dev)]
+    #[cfg(all(dev, mobile))]
     let url = {
       let mut url = self.get_url().as_str().to_string();
       if url.ends_with('/') {
@@ -892,11 +898,11 @@ impl<R: Runtime> WindowManager<R> {
       }
       url
     };
-    #[cfg(not(dev))]
+    #[cfg(not(all(dev, mobile)))]
     let manager = self.clone();
     let window_origin = window_origin.to_string();
 
-    #[cfg(dev)]
+    #[cfg(all(dev, mobile))]
     #[derive(Clone)]
     struct CachedResponse {
       status: http::StatusCode,
@@ -904,16 +910,17 @@ impl<R: Runtime> WindowManager<R> {
       body: Cow<'static, [u8]>,
     }
 
-    #[cfg(dev)]
+    #[cfg(all(dev, mobile))]
     let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
     Box::new(move |request| {
       // use the entire URI as we are going to proxy the request
-      #[cfg(dev)]
-      let path = request.uri();
-      // ignore query string and fragment
-      #[cfg(not(dev))]
-      let path = request.uri().split(&['?', '#'][..]).next().unwrap();
+      let path = if PROXY_DEV_SERVER {
+        request.uri()
+      } else {
+        // ignore query string and fragment
+        request.uri().split(&['?', '#'][..]).next().unwrap()
+      };
 
       let path = path
         .strip_prefix("tauri://localhost")
@@ -925,7 +932,7 @@ impl<R: Runtime> WindowManager<R> {
       let mut builder =
         HttpResponseBuilder::new().header("Access-Control-Allow-Origin", &window_origin);
 
-      #[cfg(dev)]
+      #[cfg(all(dev, mobile))]
       let mut response = {
         use attohttpc::StatusCode;
         let decoded_path = percent_encoding::percent_decode(path.as_bytes())
@@ -970,7 +977,7 @@ impl<R: Runtime> WindowManager<R> {
         }
       };
 
-      #[cfg(not(dev))]
+      #[cfg(not(all(dev, mobile)))]
       let mut response = {
         let asset = manager.get_asset(path)?;
         builder = builder.mimetype(&asset.mime_type);
@@ -1207,10 +1214,11 @@ impl<R: Runtime> WindowManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let (is_local, mut url) = match &pending.webview_attributes.url {
       WindowUrl::App(path) => {
-        #[cfg(target_os = "linux")]
-        let url = self.get_url();
-        #[cfg(not(target_os = "linux"))]
-        let url: Cow<'_, Url> = Cow::Owned(Url::parse("tauri://localhost").unwrap());
+        let url = if PROXY_DEV_SERVER {
+          Cow::Owned(Url::parse("tauri://localhost").unwrap())
+        } else {
+          self.get_url()
+        };
         (
           true,
           // ignore "index.html" just to simplify the url
@@ -1229,7 +1237,7 @@ impl<R: Runtime> WindowManager<R> {
         let config_url = self.get_url();
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_local && !cfg!(target_os = "linux") {
+        if is_local && PROXY_DEV_SERVER {
           url.set_scheme("tauri").unwrap();
           url.set_host(Some("localhost")).unwrap();
         }

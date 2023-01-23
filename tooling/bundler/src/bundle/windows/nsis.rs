@@ -505,6 +505,10 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
       include_str!("./templates/nsis-languages/SimpChinese.nsh"),
       UTF_8,
     )),
+    "french" => Some((
+      include_str!("./templates/nsis-languages/French.nsh"),
+      UTF_8,
+    )),
     _ => None,
   }
 }

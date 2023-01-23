@@ -24,3 +24,4 @@ LangString webview2DownloadSuccess ${LANG_ARABIC} "تم تنزيل WebView2 boot
 LangString webview2Downloading ${LANG_ARABIC} "يتم تنزيل WebView2 bootstrapper..."
 LangString webview2InstallError ${LANG_ARABIC} "خطأ: فشل فى تنصيب WebView2 بكود $1"
 LangString webview2InstallSuccess ${LANG_ARABIC} "تم تنصيب WebView2 بنجاح"
+LangString deleteAppData ${LANG_ARABIC} "مسح بيانات التطبيق"

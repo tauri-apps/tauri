@@ -53,6 +53,8 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
+  "Include/nsDialogs.nsh",
+  "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
 const NSIS_REQUIRED_FILES: &[&str] = &[

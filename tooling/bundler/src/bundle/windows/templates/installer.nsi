@@ -49,6 +49,8 @@ SetCompressor /SOLID lzma
   !define MULTIUSER_INSTALLMODE_COMMANDLINE
   !if "${ARCH}" == "x64"
     !define MULTIUSER_USE_PROGRAMFILES64
+  !else if "${ARCH}" == "arm64"
+    !define MULTIUSER_USE_PROGRAMFILES64
   !endif
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_KEY "${UNINSTKEY}"
   !define MULTIUSER_INSTALLMODE_DEFAULT_REGISTRY_VALUENAME "CurrentUser"
@@ -287,6 +289,8 @@ Function .onInit
     ; Set default install location
     ${If} ${RunningX64}
       !if "${ARCH}" == "x64"
+        StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
+      !else if "${ARCH}" == "arm64"
         StrCpy $INSTDIR "$PROGRAMFILES64\${PRODUCTNAME}"
       !else
         StrCpy $INSTDIR "$PROGRAMFILES\${PRODUCTNAME}"

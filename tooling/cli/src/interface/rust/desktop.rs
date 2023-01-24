@@ -366,7 +366,7 @@ fn rename_app(
     rename(bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
-        display_path(&bin_path),
+        display_path(bin_path),
         display_path(&product_path),
       )
     })?;

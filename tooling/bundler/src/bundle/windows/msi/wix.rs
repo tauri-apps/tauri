@@ -362,7 +362,7 @@ fn run_light(
     "-ext".to_string(),
     "WixUtilExtension".to_string(),
     "-o".to_string(),
-    display_path(&output_path),
+    display_path(output_path),
   ];
 
   args.extend(arguments);

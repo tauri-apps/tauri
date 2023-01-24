@@ -432,7 +432,7 @@ impl Rust {
     .unwrap();
     for path in watch_folders {
       if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", display_path(&path));
+        info!("Watching {} for changes...", display_path(path));
         lookup(path, |file_type, p| {
           if p != path {
             debug!("Watching {} for changes...", display_path(&p));

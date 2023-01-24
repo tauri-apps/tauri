@@ -52,7 +52,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           display_path(&manifest_dir),
+           display_path(manifest_dir),
            base64::encode(signature.to_string())
          );
 

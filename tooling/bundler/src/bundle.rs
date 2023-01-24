@@ -15,7 +15,7 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
-use crate::util::display_path;
+use tauri_utils::display_path;
 
 pub use self::{
   category::AppCategory,

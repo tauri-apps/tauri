@@ -3,14 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{
-    display_path,
-    updater_signature::{generate_key, save_keypair},
-  },
+  helpers::updater_signature::{generate_key, save_keypair},
   Result,
 };
 use clap::Parser;
 use std::path::PathBuf;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Generate keypair to sign files")]

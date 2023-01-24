@@ -5,14 +5,12 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-  helpers::{
-    display_path,
-    updater_signature::{read_key_from_file, secret_key, sign_file},
-  },
+  helpers::updater_signature::{read_key_from_file, secret_key, sign_file},
   Result,
 };
 use anyhow::Context;
 use clap::Parser;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Sign a file")]

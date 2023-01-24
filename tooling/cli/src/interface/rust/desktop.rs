@@ -1,5 +1,6 @@
 use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
-use crate::{helpers::display_path, CommandExt};
+use crate::CommandExt;
+use tauri_utils::display_path;
 
 use anyhow::Context;
 use heck::ToKebabCase;

@@ -5,7 +5,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::helpers::display_path;
+use tauri_utils::display_path;
 
 struct PathAncestors<'a> {
   current: Option<&'a Path>,

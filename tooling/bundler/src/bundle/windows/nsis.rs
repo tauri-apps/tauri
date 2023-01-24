@@ -13,9 +13,9 @@ use crate::{
       WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
-  util::display_path,
   Settings,
 };
+use tauri_utils::display_path;
 
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};

@@ -75,7 +75,7 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
 
 #[cfg(target_os = "windows")]
 pub fn try_sign(file_path: &PathBuf, settings: &Settings) -> crate::Result<()> {
-  use crate::util::display_path;
+  use tauri_utils::display_path;
 
   if let Some(certificate_thumbprint) = settings.windows().certificate_thumbprint.as_ref() {
     info!(action = "Signing"; "{}", display_path(file_path));

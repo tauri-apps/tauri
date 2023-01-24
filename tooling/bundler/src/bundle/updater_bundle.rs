@@ -19,9 +19,9 @@ use crate::{
     },
     Bundle,
   },
-  util::display_path,
   Settings,
 };
+use tauri_utils::display_path;
 
 use std::{
   fs::{self, File},

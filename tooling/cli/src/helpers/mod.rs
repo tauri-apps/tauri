@@ -37,11 +37,3 @@ pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf 
     PathBuf::from("..").join(path).join(crate_name)
   }
 }
-
-pub fn display_path<P: AsRef<Path>>(p: P) -> String {
-  p.as_ref()
-    .components()
-    .collect::<PathBuf>()
-    .to_string_lossy()
-    .to_string()
-}

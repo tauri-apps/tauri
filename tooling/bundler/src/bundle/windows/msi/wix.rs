@@ -3,18 +3,15 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  bundle::{
-    common::CommandExt,
-    path_utils::{copy_file, FileOpts},
-    settings::Settings,
-    windows::util::{
-      download, download_and_verify, extract_zip, try_sign, HashAlgorithm,
-      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
-      WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
-    },
+use crate::bundle::{
+  common::CommandExt,
+  path_utils::{copy_file, FileOpts},
+  settings::Settings,
+  windows::util::{
+    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
+    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
+    WIX_UPDATER_OUTPUT_FOLDER_NAME,
   },
-  util::display_path,
 };
 use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
@@ -28,6 +25,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
+use tauri_utils::display_path;
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 

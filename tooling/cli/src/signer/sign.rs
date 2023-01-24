@@ -5,7 +5,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-  helpers::updater_signature::{read_key_from_file, secret_key, sign_file},
+  helpers::{
+    display_path,
+    updater_signature::{read_key_from_file, secret_key, sign_file},
+  },
   Result,
 };
 use anyhow::Context;
@@ -51,7 +54,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           manifest_dir.display(),
+           display_path(&manifest_dir),
            base64::encode(signature.to_string())
          );
 

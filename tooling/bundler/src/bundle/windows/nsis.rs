@@ -13,6 +13,7 @@ use crate::{
       WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
     },
   },
+  util::display_path,
   Settings,
 };
 
@@ -385,7 +386,7 @@ fn build_nsis_app_installer(
   ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());
+  info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
   #[cfg(target_os = "windows")]
   let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));
@@ -506,10 +507,7 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
       include_str!("./templates/nsis-languages/SimpChinese.nsh"),
       UTF_8,
     )),
-    "french" => Some((
-      include_str!("./templates/nsis-languages/French.nsh"),
-      UTF_8,
-    )),
+    "french" => Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
     _ => None,
   }
 }

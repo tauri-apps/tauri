@@ -15,6 +15,8 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
+use crate::util::display_path;
+
 pub use self::{
   category::AppCategory,
   settings::{
@@ -101,7 +103,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       if bundle.package_type == crate::PackageType::Updater {
         note = " (updater)";
       }
-      writeln!(printable_paths, "        {}{}", path.display(), note).unwrap();
+      writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
     }
   }
 

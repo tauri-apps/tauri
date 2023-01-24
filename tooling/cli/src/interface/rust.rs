@@ -36,6 +36,7 @@ use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
   config::{nsis_settings, reload as reload_config, wix_settings, Config},
+  display_path,
 };
 
 mod cargo_config;
@@ -431,10 +432,10 @@ impl Rust {
     .unwrap();
     for path in watch_folders {
       if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", path.display());
+        info!("Watching {} for changes...", display_path(&path));
         lookup(path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", p.display());
+            debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {
@@ -474,10 +475,7 @@ impl Rust {
             } else {
               info!(
                 "File {} changed. Rebuilding application...",
-                event_path
-                  .strip_prefix(app_path)
-                  .unwrap_or(&event_path)
-                  .display()
+                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
               );
               // When tauri.conf.json is changed, rewrite_manifest will be called
               // which will trigger the watcher again

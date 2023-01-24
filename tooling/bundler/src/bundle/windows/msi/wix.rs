@@ -3,15 +3,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::bundle::{
-  common::CommandExt,
-  path_utils::{copy_file, FileOpts},
-  settings::Settings,
-  windows::util::{
-    download, download_and_verify, extract_zip, try_sign, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-    WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID, WIX_OUTPUT_FOLDER_NAME,
-    WIX_UPDATER_OUTPUT_FOLDER_NAME,
+use crate::{
+  bundle::{
+    common::CommandExt,
+    path_utils::{copy_file, FileOpts},
+    settings::Settings,
+    windows::util::{
+      download, download_and_verify, extract_zip, try_sign, HashAlgorithm,
+      WEBVIEW2_BOOTSTRAPPER_URL, WEBVIEW2_X64_INSTALLER_GUID, WEBVIEW2_X86_INSTALLER_GUID,
+      WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+    },
   },
+  util::display_path,
 };
 use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
@@ -313,7 +316,7 @@ fn run_candle(
     wxs_file_path.to_string_lossy().to_string(),
     format!(
       "-dSourceDir={}",
-      settings.binary_path(main_binary).display()
+      display_path(settings.binary_path(main_binary))
     ),
   ];
 
@@ -361,7 +364,7 @@ fn run_light(
     "-ext".to_string(),
     "WixUtilExtension".to_string(),
     "-o".to_string(),
-    output_path.display().to_string(),
+    display_path(&output_path),
   ];
 
   args.extend(arguments);
@@ -799,14 +802,14 @@ pub fn build_wix_app_installer(
         }
       ),
       "-loc".into(),
-      locale_path.display().to_string(),
+      display_path(&locale_path),
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
     let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
-    info!(action = "Running"; "light to produce {}", msi_path.display());
+    info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
     run_light(
       wix_toolset_path,

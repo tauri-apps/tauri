@@ -393,7 +393,7 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     #[cfg(windows)]
     info!(
       "        {}",
-      path.display().to_string().replacen(r"\\?\", "", 1)
+      crate::helpers::display_path(&path).replacen(r"\\?\", "", 1)
     );
   }
   Ok(())

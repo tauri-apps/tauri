@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::updater_signature::{generate_key, save_keypair},
+  helpers::{
+    display_path,
+    updater_signature::{generate_key, save_keypair},
+  },
   Result,
 };
 use clap::Parser;
@@ -42,8 +45,8 @@ pub fn command(mut options: Options) -> Result<()> {
 
     println!(
         "\nYour keypair was generated successfully\nPrivate: {} (Keep it secret!)\nPublic: {}\n---------------------------",
-        secret_path.display(),
-        public_path.display()
+        display_path(secret_path),
+        display_path(public_path)
         )
   } else {
     println!(

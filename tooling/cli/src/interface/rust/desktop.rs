@@ -1,5 +1,5 @@
 use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
-use crate::CommandExt;
+use crate::{helpers::display_path, CommandExt};
 
 use anyhow::Context;
 use heck::ToKebabCase;
@@ -365,8 +365,8 @@ fn rename_app(
     rename(bin_path, &product_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",
-        bin_path.display(),
-        product_path.display(),
+        display_path(&bin_path),
+        display_path(&product_path),
       )
     })?;
     Ok(product_path)

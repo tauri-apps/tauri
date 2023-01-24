@@ -7,7 +7,7 @@ use super::{
   super::{common::CommandExt, path_utils},
   debian,
 };
-use crate::{util::display_path, Settings};
+use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
 use log::info;
@@ -89,7 +89,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
 
-  info!(action = "Bundling"; "{} ({})", appimage_filename, display_path(&appimage_path));
+  info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
   write(&sh_file, temp)?;
 

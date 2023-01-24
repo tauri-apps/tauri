@@ -6,7 +6,6 @@
 use super::{app, icon::create_icns_file};
 use crate::{
   bundle::{common::CommandExt, Bundle},
-  util::display_path,
   PackageType::MacOsBundle,
   Settings,
 };
@@ -67,7 +66,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
 
-  info!(action = "Bundling"; "{} ({})", dmg_name, display_path(dmg_path));
+  info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
 
   // write the scripts
   write(

@@ -6,7 +6,7 @@
 use std::ffi::OsString;
 use std::{fs::File, io::prelude::*, path::PathBuf, process::Command};
 
-use crate::{bundle::common::CommandExt, util::display_path, Settings};
+use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
 use log::info;
 use regex::Regex;
@@ -144,7 +144,7 @@ pub fn sign(
   settings: &Settings,
   is_an_executable: bool,
 ) -> crate::Result<()> {
-  info!(action = "Signing"; "{} with identity \"{}\"", display_path(&path_to_sign), identity);
+  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     std::env::var_os("APPLE_CERTIFICATE"),
@@ -268,7 +268,7 @@ pub fn notarize(
     notarize_args.push(provider_short_name);
   }
 
-  info!(action = "Notarizing"; "{}", display_path(&app_bundle_path));
+  info!(action = "Notarizing"; "{}", app_bundle_path.display());
 
   let output = Command::new("xcrun")
     .args(notarize_args)

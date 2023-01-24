@@ -27,7 +27,7 @@ use super::{
   icon::create_icns_file,
   sign::{notarize, notarize_auth_args, sign},
 };
-use crate::{util::display_path, Settings};
+use crate::Settings;
 
 use anyhow::Context;
 use log::{info, warn};
@@ -49,7 +49,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join("bundle/macos")
     .join(&app_product_name);
 
-  info!(action = "Bundling"; "{} ({})", app_product_name, display_path(app_bundle_path));
+  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)

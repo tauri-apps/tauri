@@ -13,7 +13,7 @@
 // See https://developer.apple.com/go/?id=bundle-structure for a full
 // explanation.
 
-use crate::{bundle::common, util::display_path, Settings};
+use crate::{bundle::common, Settings};
 
 use anyhow::Context;
 use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
@@ -39,7 +39,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join("bundle/ios")
     .join(&app_product_name);
 
-  info!(action = "Bundling"; "{} ({})", app_product_name, display_path(app_bundle_path));
+  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)

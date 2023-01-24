@@ -38,6 +38,8 @@ SetCompressor /SOLID lzma
     !addplugindir "${PLUGINSPATH}"
 !endif
 
+RequestExecutionLevel user
+
 !if "${INSTALLMODE}" == "perMachine"
   RequestExecutionLevel highest
 !endif

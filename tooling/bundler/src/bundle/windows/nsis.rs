@@ -37,7 +37,7 @@ const NSIS_URL: &str =
   "https://sourceforge.net/projects/nsis/files/NSIS%203/3.08/nsis-3.08.zip/download";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-recleases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
+const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS: &str =
   "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.1.1/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "A21C67CF5AB6D4274AFFF0D68CFCE680D213DDC7";

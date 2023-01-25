@@ -818,9 +818,8 @@ impl RustAppSettings {
       }
     };
 
-    let ws_settings = CargoSettings::load(&get_workspace_dir()?)
-      .with_context(|| "failed to load cargo settings from workspace root")?;
-    let ws_package_settings = ws_settings
+    let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
+      .with_context(|| "failed to load cargo settings from workspace root")?
       .workspace
       .as_ref()
       .and_then(|v| v.package.as_ref());

@@ -817,8 +817,13 @@ impl RustAppSettings {
         ))
       }
     };
+
     let ws_settings = CargoSettings::load(&get_workspace_dir()?)
       .with_context(|| "failed to load cargo settings from workspace root")?;
+    let ws_package_settings = ws_settings
+      .workspace
+      .as_ref()
+      .and_then(|v| v.package.as_ref());
 
     let package_settings = PackageSettings {
       product_name: config.package.product_name.clone().unwrap_or_else(|| {
@@ -833,10 +838,7 @@ impl RustAppSettings {
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
           .resolve("version", || {
-            ws_settings
-              .workspace
-              .as_ref()
-              .and_then(|ws| ws.package.as_ref())
+            ws_package_settings
               .and_then(|p| p.version.clone())
               .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
           })
@@ -848,10 +850,7 @@ impl RustAppSettings {
         .map(|description| {
           description
             .resolve("description", || {
-              ws_settings
-                .workspace
-                .as_ref()
-                .and_then(|v| v.package.as_ref())
+              ws_package_settings
                 .and_then(|v| v.description.clone())
                 .ok_or_else(|| {
                   anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
@@ -863,10 +862,7 @@ impl RustAppSettings {
       homepage: cargo_package_settings.homepage.clone().map(|homepage| {
         homepage
           .resolve("homepage", || {
-            ws_settings
-              .workspace
-              .as_ref()
-              .and_then(|v| v.package.as_ref())
+            ws_package_settings
               .and_then(|v| v.homepage.clone())
               .ok_or_else(|| {
                 anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
@@ -877,10 +873,7 @@ impl RustAppSettings {
       authors: cargo_package_settings.authors.clone().map(|authors| {
         authors
           .resolve("authors", || {
-            ws_settings
-              .workspace
-              .as_ref()
-              .and_then(|v| v.package.as_ref())
+            ws_package_settings
               .and_then(|v| v.authors.clone())
               .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
           })

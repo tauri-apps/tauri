@@ -32,6 +32,8 @@ use tauri_bundler::{
 };
 use tauri_utils::config::parse::is_configuration_file;
 
+use self::manifest::read_manifest;
+
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
@@ -126,6 +128,24 @@ impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
+    let document = read_manifest(&tauri_dir().join("Cargo.toml"))?;
+
+    if document["dependencies"]["tauri"]
+      .get("workspace")
+      .and_then(|v| v.as_bool())
+      .unwrap_or_default()
+    {
+      info!("`tauri` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
+    }
+
+    if document["build-dependencies"]["tauri-build"]
+      .get("workspace")
+      .and_then(|v| v.as_bool())
+      .unwrap_or_default()
+    {
+      info!("`tauri-build` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
+    }
+
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -569,7 +589,9 @@ struct WorkspaceSettings {
 
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspacePackageSettings {
-  /// the workspace members.
+  authors: Option<Vec<String>>,
+  description: Option<String>,
+  homepage: Option<String>,
   version: Option<String>,
 }
 
@@ -587,11 +609,11 @@ pub struct CargoPackageSettings {
   /// the package's version.
   pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
-  pub description: Option<String>,
+  pub description: Option<MaybeWorkspace<String>>,
   /// the package's homepage.
-  pub homepage: Option<String>,
+  pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
-  pub authors: Option<Vec<String>>,
+  pub authors: Option<MaybeWorkspace<Vec<String>>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -795,6 +817,8 @@ impl RustAppSettings {
         ))
       }
     };
+    let ws_settings = CargoSettings::load(&get_workspace_dir()?)
+      .with_context(|| "failed to load cargo settings from workspace root")?;
 
     let package_settings = PackageSettings {
       product_name: config.package.product_name.clone().unwrap_or_else(|| {
@@ -809,15 +833,59 @@ impl RustAppSettings {
           .clone()
           .expect("Cargo manifest must have the `package.version` field")
           .resolve("version", || {
-            get_workspace_version()?.context("Workspace Cargo manifest must have the `workspace.package.version` field if a member tries to inherit the version")
-          }).expect("Cargo project does not have a version")
+            ws_settings
+              .workspace
+              .as_ref()
+              .and_then(|ws| ws.package.as_ref())
+              .and_then(|p| p.version.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+          })
+          .expect("Cargo project does not have a version")
       }),
       description: cargo_package_settings
         .description
         .clone()
+        .map(|description| {
+          description
+            .resolve("description", || {
+              ws_settings
+                .workspace
+                .as_ref()
+                .and_then(|v| v.package.as_ref())
+                .and_then(|v| v.description.clone())
+                .ok_or_else(|| {
+                  anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
+                })
+            })
+            .unwrap()
+        })
         .unwrap_or_default(),
-      homepage: cargo_package_settings.homepage.clone(),
-      authors: cargo_package_settings.authors.clone(),
+      homepage: cargo_package_settings.homepage.clone().map(|homepage| {
+        homepage
+          .resolve("homepage", || {
+            ws_settings
+              .workspace
+              .as_ref()
+              .and_then(|v| v.package.as_ref())
+              .and_then(|v| v.homepage.clone())
+              .ok_or_else(|| {
+                anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
+              })
+          })
+          .unwrap()
+      }),
+      authors: cargo_package_settings.authors.clone().map(|authors| {
+        authors
+          .resolve("authors", || {
+            ws_settings
+              .workspace
+              .as_ref()
+              .and_then(|v| v.package.as_ref())
+              .and_then(|v| v.authors.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -912,27 +980,6 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
     get_cargo_metadata()
       .with_context(|| "failed to get cargo metadata")?
       .workspace_root,
-  )
-}
-
-pub fn get_workspace_version() -> crate::Result<Option<String>> {
-  // This will already fail because `cargo metadata` fails if there is no version in the workspace root when a package tries to inherit it.
-  let toml_path = get_workspace_dir()
-    .map(|p| p.join("Cargo.toml"))
-    .with_context(|| "failed to get workspace Cargo.toml file")?;
-
-  let mut toml_str = String::new();
-  let mut toml_file = File::open(toml_path).with_context(|| "failed to open Cargo.toml")?;
-  toml_file
-    .read_to_string(&mut toml_str)
-    .with_context(|| "failed to read Cargo.toml")?;
-
-  Ok(
-    toml::from_str::<CargoSettings>(&toml_str)
-      .with_context(|| "failed to parse Cargo.toml")?
-      .workspace
-      .and_then(|ws| ws.package)
-      .and_then(|p| p.version),
   )
 }
 

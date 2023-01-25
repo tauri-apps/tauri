@@ -82,7 +82,7 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
@@ -113,6 +113,15 @@ fn write_features(
   features: &mut HashSet<String>,
 ) -> crate::Result<bool> {
   let item = dependencies.entry(dependency_name).or_insert(Item::None);
+
+  // do not rewrite if dependency uses workspace inheritance
+  if item
+    .get("workspace")
+    .and_then(|v| v.as_bool())
+    .unwrap_or_default()
+  {
+    return Ok(false);
+  }
 
   if let Some(dep) = item.as_table_mut() {
     let manifest_features = dep.entry("features").or_insert(Item::None);

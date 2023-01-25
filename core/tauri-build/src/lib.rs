@@ -8,7 +8,10 @@ pub use anyhow::Result;
 use cargo_toml::{Dependency, Manifest};
 use heck::AsShoutySnakeCase;
 
-use tauri_utils::resources::{external_binaries, resource_relpath, ResourcePaths};
+use tauri_utils::{
+  config::Config,
+  resources::{external_binaries, resource_relpath, ResourcePaths},
+};
 
 use std::path::{Path, PathBuf};
 
@@ -243,7 +246,6 @@ pub fn build() {
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
-  use tauri_utils::config::Config;
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
   println!("cargo:rerun-if-changed=tauri.conf.json");
@@ -468,11 +470,7 @@ fn features_diff(current: &[String], expected: &[String]) -> Diff {
   Diff { remove, add }
 }
 
-fn check_features(
-  config: &tauri_utils::config::Config,
-  dependency: Dependency,
-  is_tauri_build: bool,
-) -> String {
+fn check_features(config: &Config, dependency: Dependency, is_tauri_build: bool) -> String {
   use tauri_utils::config::{PatternKind, TauriConfig};
 
   let features = match dependency {

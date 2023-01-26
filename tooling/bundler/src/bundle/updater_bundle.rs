@@ -21,6 +21,7 @@ use crate::{
   },
   Settings,
 };
+use tauri_utils::display_path;
 
 use std::{
   fs::{self, File},
@@ -93,7 +94,7 @@ fn bundle_update_macos(settings: &Settings, bundles: &[Bundle]) -> crate::Result
   create_tar(source_path, &osx_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", osx_archived, osx_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
 
   Ok(vec![osx_archived_path])
 }
@@ -135,7 +136,7 @@ fn bundle_update_linux(settings: &Settings, bundles: &[Bundle]) -> crate::Result
   create_tar(source_path, &appimage_archived_path)
     .with_context(|| "Failed to tar.gz update directory")?;
 
-  info!(action = "Bundling"; "{} ({})", appimage_archived, appimage_archived_path.display());
+  info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
 
   Ok(vec![appimage_archived_path])
 }
@@ -216,7 +217,7 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
         });
     let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
 
-    info!(action = "Bundling"; "{}", archived_path.display());
+    info!(action = "Bundling"; "{}", display_path(&archived_path));
 
     // Create our gzip file
     create_zip(&source_path, &archived_path).with_context(|| "Failed to zip update bundle")?;

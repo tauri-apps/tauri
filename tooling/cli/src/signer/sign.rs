@@ -10,6 +10,7 @@ use crate::{
 };
 use anyhow::Context;
 use clap::Parser;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Sign a file")]
@@ -51,7 +52,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   println!(
            "\nYour file was signed successfully, You can find the signature here:\n{}\n\nPublic signature:\n{}\n\nMake sure to include this into the signature field of your update server.",
-           manifest_dir.display(),
+           display_path(manifest_dir),
            base64::encode(signature.to_string())
          );
 

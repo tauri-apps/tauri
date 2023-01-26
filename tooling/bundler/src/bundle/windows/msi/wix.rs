@@ -25,6 +25,7 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
+use tauri_utils::display_path;
 use tauri_utils::{config::WebviewInstallMode, resources::resource_relpath};
 use uuid::Uuid;
 
@@ -313,7 +314,7 @@ fn run_candle(
     wxs_file_path.to_string_lossy().to_string(),
     format!(
       "-dSourceDir={}",
-      settings.binary_path(main_binary).display()
+      display_path(settings.binary_path(main_binary))
     ),
   ];
 
@@ -361,7 +362,7 @@ fn run_light(
     "-ext".to_string(),
     "WixUtilExtension".to_string(),
     "-o".to_string(),
-    output_path.display().to_string(),
+    display_path(output_path),
   ];
 
   args.extend(arguments);
@@ -799,14 +800,14 @@ pub fn build_wix_app_installer(
         }
       ),
       "-loc".into(),
-      locale_path.display().to_string(),
+      display_path(&locale_path),
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
     let msi_path = app_installer_output_path(settings, &language, &app_version, updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
-    info!(action = "Running"; "light to produce {}", msi_path.display());
+    info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
     run_light(
       wix_toolset_path,

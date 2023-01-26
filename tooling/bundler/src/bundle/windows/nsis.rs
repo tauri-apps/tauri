@@ -15,6 +15,7 @@ use crate::{
   },
   Settings,
 };
+use tauri_utils::display_path;
 
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
@@ -385,7 +386,7 @@ fn build_nsis_app_installer(
   ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  info!(action = "Running"; "makensis.exe to produce {}", nsis_installer_path.display());
+  info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
   #[cfg(target_os = "windows")]
   let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));

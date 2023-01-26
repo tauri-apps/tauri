@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Parser;
 use std::path::PathBuf;
+use tauri_utils::display_path;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Generate keypair to sign files")]
@@ -42,8 +43,8 @@ pub fn command(mut options: Options) -> Result<()> {
 
     println!(
         "\nYour keypair was generated successfully\nPrivate: {} (Keep it secret!)\nPublic: {}\n---------------------------",
-        secret_path.display(),
-        public_path.display()
+        display_path(secret_path),
+        display_path(public_path)
         )
   } else {
     println!(

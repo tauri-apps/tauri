@@ -22,9 +22,6 @@ pub enum Error {
   /// Image error.
   #[error("`{0}`")]
   ImageError(#[from] image::ImageError),
-  /// TOML error.
-  #[error("`{0}`")]
-  TomlError(#[from] toml::de::Error),
   /// Error walking directory.
   #[error("`{0}`")]
   WalkdirError(#[from] walkdir::Error),

@@ -1,6 +1,6 @@
-import autoAdapter from '@sveltejs/adapter-auto'
-import staticAdapter from '@sveltejs/adapter-static'
-import preprocess from 'svelte-preprocess'
+import autoAdapter from '@sveltejs/adapter-auto';
+import staticAdapter from '@sveltejs/adapter-static';
+import preprocess from 'svelte-preprocess';
 
 const TARGET = process.env.TARGET
 

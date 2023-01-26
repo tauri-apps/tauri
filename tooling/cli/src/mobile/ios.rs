@@ -25,7 +25,8 @@ use tauri_mobile::{
 use super::{
   ensure_init, env, get_app,
   init::{command as init_command, init_dot_cargo},
-  log_finished, read_options, CliOptions, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
+  log_finished, read_options, setup_dev_config, CliOptions, Target as MobileTarget,
+  MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},

@@ -2977,6 +2977,7 @@ dependencies = [
  "serde_json",
  "tauri-codegen",
  "tauri-utils",
+ "walkdir",
  "winres",
 ]
 
@@ -3022,7 +3023,7 @@ name = "tauri-plugin-sample"
 version = "0.1.0"
 dependencies = [
  "tauri",
- "walkdir",
+ "tauri-build",
 ]
 
 [[package]]

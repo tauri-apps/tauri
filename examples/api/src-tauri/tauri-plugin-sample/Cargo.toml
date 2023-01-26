@@ -7,4 +7,4 @@ edition = "2021"
 tauri = { path = "../../../../core/tauri" }
 
 [build-dependencies]
-walkdir = "2"
+tauri-build = { path = "../../../../core/tauri-build/" }

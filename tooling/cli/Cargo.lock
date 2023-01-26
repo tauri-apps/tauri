@@ -3185,7 +3185,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "time",
- "toml",
  "uuid 1.1.2",
  "walkdir",
  "winreg",

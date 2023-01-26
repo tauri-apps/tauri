@@ -821,8 +821,7 @@ impl RustAppSettings {
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
       .with_context(|| "failed to load cargo settings from workspace root")?
       .workspace
-      .as_ref()
-      .and_then(|v| v.package.as_ref());
+      .and_then(|v| v.package);
 
     let package_settings = PackageSettings {
       product_name: config.package.product_name.clone().unwrap_or_else(|| {
@@ -838,6 +837,7 @@ impl RustAppSettings {
           .expect("Cargo manifest must have the `package.version` field")
           .resolve("version", || {
             ws_package_settings
+              .as_ref()
               .and_then(|p| p.version.clone())
               .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
           })
@@ -850,6 +850,7 @@ impl RustAppSettings {
           description
             .resolve("description", || {
               ws_package_settings
+                .as_ref()
                 .and_then(|v| v.description.clone())
                 .ok_or_else(|| {
                   anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
@@ -862,6 +863,7 @@ impl RustAppSettings {
         homepage
           .resolve("homepage", || {
             ws_package_settings
+              .as_ref()
               .and_then(|v| v.homepage.clone())
               .ok_or_else(|| {
                 anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
@@ -873,6 +875,7 @@ impl RustAppSettings {
         authors
           .resolve("authors", || {
             ws_package_settings
+              .as_ref()
               .and_then(|v| v.authors.clone())
               .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
           })

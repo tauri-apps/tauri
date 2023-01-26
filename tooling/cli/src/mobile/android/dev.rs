@@ -99,11 +99,15 @@ fn run_dev(
 ) -> Result<()> {
   setup_dev_config(&mut options.config)?;
   let env = env()?;
-  let device = match device_prompt(&env, options.device.as_deref()) {
-    Ok(d) => Some(d),
-    Err(e) => {
-      log::error!("{e}");
-      None
+  let device = if options.open {
+    None
+  } else {
+    match device_prompt(&env, options.device.as_deref()) {
+      Ok(d) => Some(d),
+      Err(e) => {
+        log::error!("{e}");
+        None
+      }
     }
   };
 

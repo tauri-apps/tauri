@@ -41,12 +41,12 @@ pub enum HashAlgorithm {
 pub fn download_and_verify(
   url: &str,
   hash: &str,
-  hash_algorithim: HashAlgorithm,
+  hash_algorithm: HashAlgorithm,
 ) -> crate::Result<Vec<u8>> {
   let data = download(url)?;
   info!("validating hash");
 
-  match hash_algorithim {
+  match hash_algorithm {
     #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();

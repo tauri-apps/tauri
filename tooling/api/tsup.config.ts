@@ -22,7 +22,7 @@ export default defineConfig(() => [
     platform: 'browser',
     dts: false,
     // esbuild `globalName` option generates `var __TAURI_IIFE__ = (() => {})()`
-    // and var is not guaranted to assign to the global `window` object so we make sure to assign it
+    // and var is not guaranteed to assign to the global `window` object so we make sure to assign it
     footer: {
       js: 'window.__TAURI__ = __TAURI_IIFE__'
     }

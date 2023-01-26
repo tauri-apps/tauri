@@ -556,4 +556,4 @@ export type {
   FetchOptions
 }
 
-export { getClient, fetch, Body, Client, Response, ResponseType, FilePart }
+export { getClient, fetch, Body, Client, Response, ResponseType, type FilePart }

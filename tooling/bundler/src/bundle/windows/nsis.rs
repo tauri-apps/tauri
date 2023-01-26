@@ -39,8 +39,8 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.1.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "BA62B7A7B41063ECAA97FEBC0723CD36D6BCF92A";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.1.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "A21C67CF5AB6D4274AFFF0D68CFCE680D213DDC7";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -506,10 +506,7 @@ fn get_lang_data(lang: &str) -> Option<(&'static str, &'static encoding_rs::Enco
       include_str!("./templates/nsis-languages/SimpChinese.nsh"),
       UTF_8,
     )),
-    "french" => Some((
-      include_str!("./templates/nsis-languages/French.nsh"),
-      UTF_8,
-    )),
+    "french" => Some((include_str!("./templates/nsis-languages/French.nsh"), UTF_8)),
     _ => None,
   }
 }

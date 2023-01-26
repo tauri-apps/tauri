@@ -64,7 +64,7 @@
 
 import { invokeTauriCommand } from './helpers/tauri'
 import type { EventName, EventCallback, UnlistenFn } from './event'
-import { emit, Event, listen, once } from './helpers/event'
+import { emit, type Event, listen, once } from './helpers/event'
 import { TauriEvent } from './event'
 
 type Theme = 'light' | 'dark'

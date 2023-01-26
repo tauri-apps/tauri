@@ -8,6 +8,8 @@ use crate::helpers::{
 };
 
 use anyhow::Context;
+use itertools::Itertools;
+use log::info;
 use toml_edit::{Array, Document, InlineTable, Item, Table, Value};
 
 use std::{
@@ -120,6 +122,7 @@ fn write_features(
     .and_then(|v| v.as_bool())
     .unwrap_or_default()
   {
+    info!("`{dependency_name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", features.iter().join(", "));
     return Ok(false);
   }
 

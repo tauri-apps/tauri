@@ -32,8 +32,6 @@ use tauri_bundler::{
 };
 use tauri_utils::config::parse::is_configuration_file;
 
-use self::manifest::read_manifest;
-
 use super::{AppSettings, ExitReason, Interface};
 use crate::helpers::{
   app_paths::{app_dir, tauri_dir},
@@ -128,24 +126,6 @@ impl Interface for Rust {
   type AppSettings = RustAppSettings;
 
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
-    let document = read_manifest(&tauri_dir().join("Cargo.toml"))?;
-
-    if document["dependencies"]["tauri"]
-      .get("workspace")
-      .and_then(|v| v.as_bool())
-      .unwrap_or_default()
-    {
-      info!("`tauri` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
-    }
-
-    if document["build-dependencies"]["tauri-build"]
-      .get("workspace")
-      .and_then(|v| v.as_bool())
-      .unwrap_or_default()
-    {
-      info!("`tauri-build` dependency has workspace inheritance enabled. The features array won't be automatically rewritten.");
-    }
-
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {

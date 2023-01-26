@@ -3210,6 +3210,7 @@ dependencies = [
  "ignore",
  "image",
  "include_dir",
+ "itertools",
  "json-patch 0.2.6",
  "jsonschema",
  "kuchiki",

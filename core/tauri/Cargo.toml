@@ -65,7 +65,7 @@ flate2 = "1.0"
 http = "0.2"
 dirs-next = "2.0"
 percent-encoding = "2.2"
-base64 = { version = "0.13", optional = true }
+base64 = { version = "0.21", optional = true }
 clap = { version = "3", optional = true }
 reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
 bytes = { version = "1", features = [ "serde" ], optional = true }

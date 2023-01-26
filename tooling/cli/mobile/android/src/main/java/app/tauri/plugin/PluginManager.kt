@@ -17,10 +17,15 @@ class PluginManager(private val webView: WebView) {
       "Tauri plugin: pluginId: $pluginId, methodName: $methodName, callback: $callback, error: $error"
     )
 
-    plugins[pluginId]?.invoke(methodName, PluginCall({
-        call, successResult, errorResult ->
-      val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(error, errorResult)
-      webView.evaluateJavascript("window['_$fn']($result)", null)
-    }, data))
+    try {
+      plugins[pluginId]?.invoke(methodName, PluginCall({
+          call, successResult, errorResult ->
+        val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(error, errorResult)
+        webView.evaluateJavascript("window['_$fn']($result)", null)
+      }, data))
+    } catch (e: Exception) {
+      val message = e.toString()
+      webView.evaluateJavascript("window['_$error'](`$message`)", null)
+    }
   }
 }

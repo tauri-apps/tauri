@@ -303,6 +303,6 @@ pub fn display_path<P: AsRef<Path>>(p: P) -> String {
   p.as_ref()
     .components()
     .collect::<PathBuf>()
-    .to_string_lossy()
+    .display()
     .to_string()
 }

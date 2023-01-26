@@ -167,6 +167,16 @@ pub struct InvokeResolver<R: Runtime> {
   pub(crate) error: CallbackFn,
 }
 
+impl<R: Runtime> Clone for InvokeResolver<R> {
+  fn clone(&self) -> Self {
+    Self {
+      window: self.window.clone(),
+      callback: self.callback,
+      error: self.error,
+    }
+  }
+}
+
 impl<R: Runtime> InvokeResolver<R> {
   pub(crate) fn new(window: Window<R>, callback: CallbackFn, error: CallbackFn) -> Self {
     Self {

@@ -1320,11 +1320,7 @@ impl<R: Runtime> Window<R> {
             .unwrap_or_else(String::new);
 
           #[cfg(target_os = "android")]
-          let (message, callback, error) = (
-            invoke.message.clone(),
-            invoke.resolver.callback,
-            invoke.resolver.error,
-          );
+          let (message, resolver) = (invoke.message.clone(), invoke.resolver.clone());
 
           #[allow(unused_variables)]
           let handled = manager.extend_api(plugin, invoke);
@@ -1336,38 +1332,59 @@ impl<R: Runtime> Window<R> {
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
                 webview.0.exec(move |env, activity, _webview| {
-                  let js_object_class = runtime_handle
-                    .find_class(env, activity, "app/tauri/plugin/JSObject")
-                    .unwrap();
-                  // TODO: fill data
-                  let data = env.new_object(js_object_class, "()V", &[]).unwrap();
-                  let plugin_manager = env
-                    .call_method(
-                      activity,
-                      "getPluginManager",
-                      format!("()Lapp/tauri/plugin/PluginManager;"),
-                      &[],
-                    )
-                    .unwrap()
-                    .l()
-                    .unwrap();
+                  use crate::api::ipc::CallbackFn;
+                  use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+                  fn handle_message<R: Runtime>(
+                    plugin: &str,
+                    runtime_handle: &R::Handle,
+                    message: InvokeMessage<R>,
+                    callback: CallbackFn,
+                    error: CallbackFn,
+                    env: JNIEnv<'_>,
+                    activity: JObject<'_>,
+                  ) -> Result<(), JniError> {
+                    let js_object_class =
+                      runtime_handle.find_class(env, activity, "app/tauri/plugin/JSObject")?;
+                    // TODO: fill data
+                    let data = env.new_object(js_object_class, "()V", &[])?;
+                    let plugin_manager = env
+                      .call_method(
+                        activity,
+                        "getPluginManager",
+                        format!("()Lapp/tauri/plugin/PluginManager;"),
+                        &[],
+                      )?
+                      .l()?;
 
-                  env
-                    .call_method(
+                    env.call_method(
                       plugin_manager,
                       "postMessage",
                       format!(
                         "(Ljava/lang/String;Ljava/lang/String;Lapp/tauri/plugin/JSObject;JJ)V"
                       ),
                       &[
-                        env.new_string(&plugin).unwrap().into(),
-                        env.new_string(&message.command).unwrap().into(),
+                        env.new_string(plugin)?.into(),
+                        env.new_string(&message.command)?.into(),
                         data.into(),
                         (callback.0 as i64).into(),
                         (error.0 as i64).into(),
                       ],
-                    )
-                    .unwrap();
+                    )?;
+
+                    Ok(())
+                  }
+
+                  if let Err(e) = handle_message(
+                    &plugin,
+                    &runtime_handle,
+                    message,
+                    resolver.callback,
+                    resolver.error,
+                    env,
+                    activity,
+                  ) {
+                    resolver.reject(format!("failed to reach Android layer: {e}"));
+                  }
                 });
               })?;
             }

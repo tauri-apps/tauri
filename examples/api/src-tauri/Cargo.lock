@@ -2922,6 +2922,7 @@ dependencies = [
  "ico",
  "ignore",
  "infer 0.9.0",
+ "jni",
  "libc",
  "log",
  "minisign-verify",

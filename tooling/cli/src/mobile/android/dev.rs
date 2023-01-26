@@ -1,6 +1,6 @@
 use super::{
   delete_codegen_vars, device_prompt, ensure_init, env, init_dot_cargo, open_and_wait,
-  setup_dev_config, with_config, MobileTarget,
+  setup_dev_config, with_config, MobileTarget, API_PROJECT_DIR,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -9,6 +9,7 @@ use crate::{
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   Result,
 };
+use anyhow::Context;
 use clap::{ArgAction, Parser};
 
 use tauri_mobile::{
@@ -21,7 +22,10 @@ use tauri_mobile::{
   opts::{FilterLevel, NoiseLevel, Profile},
 };
 
-use std::env::set_var;
+use std::{
+  env::set_var,
+  fs::{create_dir_all, remove_dir_all},
+};
 
 const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
     @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
@@ -84,6 +88,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       );
       set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
       ensure_init(config.project_dir(), MobileTarget::Android)?;
+
+      let tauri_api_dir_path = config.project_dir().join("tauri-api");
+      if tauri_api_dir_path.exists() {
+        remove_dir_all(&tauri_api_dir_path)?;
+      }
+      create_dir_all(&tauri_api_dir_path)?;
+      API_PROJECT_DIR
+        .extract(tauri_api_dir_path)
+        .context("failed to extract Tauri API project")?;
       run_dev(options, app, config, metadata, noise_level).map_err(Into::into)
     },
   )

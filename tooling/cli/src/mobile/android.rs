@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
+use include_dir::{include_dir, Dir};
 use std::{
   env::set_var,
   thread::{sleep, spawn},
@@ -34,6 +35,8 @@ use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},
   Result,
 };
+
+static API_PROJECT_DIR: Dir<'_> = include_dir!("mobile/android");
 
 mod android_studio_script;
 mod build;
@@ -138,6 +141,14 @@ pub fn get_config(
   );
   let plugin_output_path = config.project_dir().join("tauri-plugins");
   set_var("TAURI_PLUGIN_OUTPUT_PATH", plugin_output_path);
+  set_var(
+    "TAURI_GRADLE_SETTINGS_PATH",
+    config.project_dir().join("settings.gradle"),
+  );
+  set_var(
+    "TAURI_APP_GRADLE_BUILD_PATH",
+    config.project_dir().join("app").join("build.gradle.kts"),
+  );
 
   (app, config, metadata)
 }

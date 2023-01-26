@@ -17,3 +17,4 @@ build
 local.properties
 
 /tauri-plugins
+/tauri-api

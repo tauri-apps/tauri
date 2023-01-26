@@ -3,7 +3,4 @@ include ':app'
 include ':{{this}}'{{/each}}
 
 include ':tauri-android'
-project(':tauri-android').projectDir = new File('/home/lucas/projects/tauri/tauri/tooling/android/tauri')
-
-include ':tauri-plugins'
-project(':tauri-plugins').projectDir = new File('./tauri-plugins')
+project(':tauri-android').projectDir = new File('./tauri-api')

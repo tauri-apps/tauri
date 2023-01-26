@@ -24,6 +24,7 @@ use std::{
   env::var,
   ffi::OsString,
   fmt::Write,
+  fs::create_dir_all,
   net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
@@ -305,6 +306,7 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   } else {
+    create_dir_all(project_dir.join("tauri-plugins"))?;
     Ok(())
   }
 }

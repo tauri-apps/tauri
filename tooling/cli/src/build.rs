@@ -13,6 +13,7 @@ use crate::{
   CommandExt, Result,
 };
 use anyhow::{bail, Context};
+use base64::Engine;
 use clap::{ArgAction, Parser};
 use log::{debug, error, info, warn};
 use std::{
@@ -305,7 +306,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
         Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_PRIVATE_KEY` environment variable."))
       }?;
 
-      let pubkey = base64::decode(&config_.tauri.updater.pubkey)?;
+      let pubkey =
+        base64::engine::general_purpose::STANDARD.decode(&config_.tauri.updater.pubkey)?;
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
       let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 

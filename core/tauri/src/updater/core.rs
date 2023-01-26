@@ -9,7 +9,7 @@ use crate::{
   api::http::{ClientBuilder, HttpRequestBuilder},
   AppHandle, Manager, Runtime,
 };
-use base64::decode;
+use base64::Engine;
 use http::{
   header::{HeaderName, HeaderValue},
   HeaderMap, StatusCode,
@@ -978,7 +978,7 @@ pub fn extract_path_from_executable(env: &Env, executable_path: &Path) -> PathBu
 
 // Convert base64 to string and prevent failing
 fn base64_to_string(base64_string: &str) -> Result<String> {
-  let decoded_string = &decode(base64_string)?;
+  let decoded_string = &base64::engine::general_purpose::STANDARD.decode(base64_string)?;
   let result = from_utf8(decoded_string)
     .map_err(|_| Error::SignatureUtf8(base64_string.into()))?
     .to_string();

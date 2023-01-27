@@ -120,15 +120,21 @@ fn run_dev(
   );
   let mut interface = crate::dev::setup(&mut dev_options, true)?;
 
-  let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+  let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
+    target: dev_options.target.clone(),
     ..Default::default()
-  })?;
+  };
+
+  let app_settings = interface.app_settings();
+  let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   init_dot_cargo(app, Some((&env, config)))?;
+
+  // run an initial build to initialize plugins
+  interface.build(interface_options)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

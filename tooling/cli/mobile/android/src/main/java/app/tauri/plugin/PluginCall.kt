@@ -142,52 +142,21 @@ class PluginCall(
   }
 
   fun getObject(name: String): JSObject? {
-    Logger.warn(
-      Logger.tags("Plugin"),
-      "getObject calls without a default value will return null in Capacitor 5 instead of an empty object to match iOS behavior"
-    )
-    return this.getObject(name, JSObject())
+    return this.getObject(name, null)
   }
 
   fun getObject(name: String, defaultValue: JSObject?): JSObject? {
     val value = data!!.opt(name) ?: return defaultValue
-    return if (value is JSONObject) {
-      try {
-        JSObject.fromJSONObject(value as JSONObject)
-      } catch (ex: JSONException) {
-        defaultValue
-      }
-    } else defaultValue
+    return if (value is JSObject) value else defaultValue
   }
 
   fun getArray(name: String): JSArray? {
-    Logger.warn(
-      Logger.tags("Plugin"),
-      "getArray calls without a default value will return null in Capacitor 5 instead of an empty array to match iOS behavior"
-    )
-    return this.getArray(name, JSArray())
+    return this.getArray(name, null)
   }
 
-  /**
-   * Get a JSONArray and turn it into a JSArray
-   * @param name
-   * @param defaultValue
-   * @return
-   */
   fun getArray(name: String, defaultValue: JSArray?): JSArray? {
     val value = data!!.opt(name) ?: return defaultValue
-    return if (value is JSONArray) {
-      try {
-        val valueArray: JSONArray = value as JSONArray
-        val items: MutableList<Any> = ArrayList()
-        for (i in 0 until valueArray.length()) {
-          items.add(valueArray.get(i))
-        }
-        JSArray(items.toTypedArray())
-      } catch (ex: JSONException) {
-        defaultValue
-      }
-    } else defaultValue
+    return if (value is JSArray) value else defaultValue
   }
 
   fun hasOption(name: String): Boolean {

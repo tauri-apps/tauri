@@ -18,11 +18,18 @@ class PluginManager(private val webView: WebView) {
     )
 
     try {
-      plugins[pluginId]?.invoke(methodName, PluginCall({
-          call, successResult, errorResult ->
-        val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(error, errorResult)
-        webView.evaluateJavascript("window['_$fn']($result)", null)
-      }, data))
+      val plugin = plugins[pluginId]
+      if (plugin == null) {
+        webView.evaluateJavascript("window['_$error'](`Plugin $pluginId not initialized`)", null)
+      } else {
+        plugins[pluginId]?.invoke(methodName, PluginCall({ call, successResult, errorResult ->
+          val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
+            error,
+            errorResult
+          )
+          webView.evaluateJavascript("window['_$fn']($result)", null)
+        }, data))
+      }
     } catch (e: Exception) {
       val message = e.toString()
       webView.evaluateJavascript("window['_$error'](`$message`)", null)

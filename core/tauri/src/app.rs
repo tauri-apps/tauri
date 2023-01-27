@@ -430,8 +430,7 @@ impl<R: Runtime> AppHandle<R> {
             Ok(())
           }
 
-          initialize_plugin::<R>(env, activity, &runtime_handle, plugin_name, plugin_class)
-            .unwrap();
+          let _ = initialize_plugin::<R>(env, activity, &runtime_handle, plugin_name, plugin_class);
         });
       })?;
       Ok(true)

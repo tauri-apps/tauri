@@ -147,8 +147,8 @@ pub fn gen(
 }
 
 pub(crate) fn generate_out_file(
-  path: &PathBuf,
-  dest: &PathBuf,
+  path: &Path,
+  dest: &Path,
   package_path: &str,
   created_dirs: &mut Vec<PathBuf>,
 ) -> std::io::Result<Option<fs::File>> {
@@ -166,7 +166,7 @@ pub(crate) fn generate_out_file(
       let out_dir = dest
         .join(root)
         .join("src/main")
-        .join(&package_path)
+        .join(package_path)
         .join(parent);
       out_dir.join(file_name)
     }

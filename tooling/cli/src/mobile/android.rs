@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use clap::{Parser, Subcommand};
-use include_dir::{include_dir, Dir};
 use std::{
   env::set_var,
   thread::{sleep, spawn},
@@ -35,8 +34,6 @@ use crate::{
   helpers::config::{get as get_tauri_config, Config as TauriConfig},
   Result,
 };
-
-static API_PROJECT_DIR: Dir<'_> = include_dir!("mobile/android");
 
 mod android_studio_script;
 mod build;

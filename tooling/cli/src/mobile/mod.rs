@@ -11,20 +11,22 @@ use crate::{
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use include_dir::{include_dir, Dir};
 use jsonrpsee::client_transport::ws::WsTransportClientBuilder;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::rpc_params;
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
 use serde::{Deserialize, Serialize};
 use shared_child::SharedChild;
+
 use std::{
   collections::HashMap,
   env::set_var,
   env::var,
   ffi::OsString,
   fmt::Write,
-  fs::create_dir_all,
+  fs::{create_dir_all, remove_dir_all},
   net::SocketAddr,
   path::PathBuf,
   process::ExitStatus,
@@ -52,6 +54,7 @@ mod init;
 pub mod ios;
 
 const MIN_DEVICE_MATCH_SCORE: isize = 0;
+static ANDROID_API_PROJECT_DIR: Dir<'_> = include_dir!("mobile/android");
 
 #[derive(Clone)]
 pub struct DevChild {
@@ -307,6 +310,20 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
     )
   } else {
     create_dir_all(project_dir.join("tauri-plugins"))?;
+
+    #[allow(irrefutable_let_patterns)]
+    if let Target::Android = target {
+      let tauri_api_dir_path = project_dir.join("tauri-api");
+      if tauri_api_dir_path.exists() {
+        remove_dir_all(&tauri_api_dir_path)?;
+      }
+      create_dir_all(&tauri_api_dir_path)?;
+
+      ANDROID_API_PROJECT_DIR
+        .extract(tauri_api_dir_path)
+        .context("failed to extract Tauri API project")?;
+    }
+
     Ok(())
   }
 }

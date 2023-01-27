@@ -5,8 +5,8 @@ import org.json.JSONException
 import org.json.JSONObject
 import app.tauri.Logger
 
-class PluginCall(
-  private val sendResponse: (call: PluginCall, succcess: PluginResult?, error: PluginResult?) -> Unit,
+class Invoke(
+  private val sendResponse: (invoke: Invoke, succcess: PluginResult?, error: PluginResult?) -> Unit,
   val data: JSObject?) {
 
   fun resolve(data: JSObject?) {

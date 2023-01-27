@@ -22,7 +22,7 @@ class PluginManager(private val webView: WebView) {
       if (plugin == null) {
         webView.evaluateJavascript("window['_$error'](`Plugin $pluginId not initialized`)", null)
       } else {
-        plugins[pluginId]?.invoke(methodName, PluginCall({ call, successResult, errorResult ->
+        plugins[pluginId]?.invoke(methodName, Invoke({ invoke, successResult, errorResult ->
           val (fn, result) = if (errorResult == null) Pair(callback, successResult) else Pair(
             error,
             errorResult

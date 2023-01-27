@@ -12,10 +12,10 @@ class PluginHandle(val instance: Plugin) {
     InvalidPluginMethodException::class,
     IllegalAccessException::class
   )
-  fun invoke(methodName: String, call: PluginCall) {
+  fun invoke(methodName: String, invoke: Invoke) {
     val methodMeta = pluginMethods[methodName]
       ?: throw InvalidPluginMethodException("No method " + methodName + " found for plugin " + instance.javaClass.name)
-    methodMeta.method.invoke(instance, call)
+    methodMeta.method.invoke(instance, invoke)
   }
 
   private fun indexMethods() {

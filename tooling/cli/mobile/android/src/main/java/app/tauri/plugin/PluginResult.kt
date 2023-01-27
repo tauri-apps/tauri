@@ -60,20 +60,4 @@ class PluginResult @JvmOverloads constructor(json: JSObject? = JSObject()) {
   override fun toString(): String {
     return json.toString()
   }
-
-  /**
-   * Return plugin metadata and information about the result, if it succeeded the data, or error information if it didn't.
-   * This is used for appRestoredResult, as it's technically a raw data response from a plugin.
-   * @return the raw data response from the plugin.
-   */
-  val wrappedResult: JSObject
-    get() {
-      val ret = JSObject()
-      ret.put("pluginId", json.getString("pluginId"))
-      ret.put("methodName", json.getString("methodName"))
-      ret.put("success", json.getBoolean("success", false))
-      ret.put("data", json.getJSObject("data"))
-      ret.put("error", json.getJSObject("error"))
-      return ret
-    }
 }

@@ -51,9 +51,9 @@
  * ```
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  *
- * # Window events
+ * ## Window events
  *
- * Events can be listened using `appWindow.listen`:
+ * Events can be listened to using `appWindow.listen`:
  * ```typescript
  * import { appWindow } from "@tauri-apps/api/window";
  * appWindow.listen("my-window-event", ({ event, payload }) => { });

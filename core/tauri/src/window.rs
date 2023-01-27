@@ -1331,7 +1331,7 @@ impl<R: Runtime> Window<R> {
               let runtime_handle = self.app_handle.runtime_handle.clone();
               let plugin = plugin.to_string();
               self.with_webview(move |webview| {
-                webview.0.exec(move |env, activity, _webview| {
+                webview.jni_handle().exec(move |env, activity, _webview| {
                   use crate::api::ipc::CallbackFn;
                   use jni::{
                     errors::Error as JniError,

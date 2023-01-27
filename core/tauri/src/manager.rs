@@ -1300,33 +1300,11 @@ impl<R: Runtime> WindowManager<R> {
           &[ctx.webview.into()],
         )?;
 
-        // instantiate plugin
-        let sample_plugin_class =
-          runtime_handle.find_class(ctx.env, ctx.activity, "com/plugin/test/ExamplePlugin")?;
-        let sample_plugin = ctx.env.new_object(sample_plugin_class, "()V", &[])?;
-
         ctx.env.call_method(
           ctx.activity,
           "setPluginManager",
           format!("(Lapp/tauri/plugin/PluginManager;)V"),
           &[plugin_manager.into()],
-        )?;
-
-        let plugin_manager = ctx
-          .env
-          .call_method(
-            ctx.activity,
-            "getPluginManager",
-            format!("()Lapp/tauri/plugin/PluginManager;"),
-            &[],
-          )?
-          .l()?;
-        // load plugin
-        ctx.env.call_method(
-          plugin_manager,
-          "load",
-          format!("(Ljava/lang/String;Lapp/tauri/plugin/Plugin;)V"),
-          &[ctx.env.new_string("sample")?.into(), sample_plugin.into()],
         )?;
 
         Ok(())

@@ -1,6 +1,6 @@
 use tauri::{
   plugin::{Builder, TauriPlugin},
-  Manager, Runtime,
+  Runtime,
 };
 
 const PLUGIN_NAME: &str = "sample";
@@ -12,6 +12,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   let mut builder = Builder::new(PLUGIN_NAME);
   #[cfg(target_os = "android")]
   {
+    use tauri::Manager;
+
     builder = builder.on_webview_ready(|window| {
       window
         .app_handle()

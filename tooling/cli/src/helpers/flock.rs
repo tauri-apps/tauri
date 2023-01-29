@@ -209,7 +209,7 @@ fn acquire(
       }
     }
   }
-  let msg = format!("waiting for file lock on {}", msg);
+  let msg = format!("waiting for file lock on {msg}");
   log::info!(action = "Blocking"; "{}", &msg);
 
   lock_block().with_context(|| format!("failed to lock file: {}", path.display()))?;

@@ -950,8 +950,8 @@ fn tauri_config_to_bundle_settings(
       }
     }
 
-    // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.0-37".to_string());
+    // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
+    depends.push("libwebkit2gtk-4.1-0".to_string());
     depends.push("libgtk-3-0".to_string());
   }
 

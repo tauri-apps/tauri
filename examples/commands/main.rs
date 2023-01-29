@@ -85,7 +85,7 @@ fn force_async(the_argument: String) -> String {
 #[command(async)]
 fn force_async_with_result(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -121,7 +121,7 @@ fn force_async_snake(the_argument: String) -> String {
 #[command(rename_all = "snake_case", async)]
 fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -131,7 +131,7 @@ fn force_async_with_result_snake(the_argument: &str) -> Result<&str, MyError> {
 fn simple_command_with_result(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 
@@ -150,7 +150,7 @@ fn stateful_command_with_result(
 fn simple_command_with_result_snake(the_argument: String) -> Result<String, MyError> {
   println!("{the_argument}");
   (!the_argument.is_empty())
-    .then(|| the_argument)
+    .then_some(the_argument)
     .ok_or(MyError::FooError)
 }
 

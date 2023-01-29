@@ -231,7 +231,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
         command.stderr(os_pipe::dup_stderr()?);
 
         let child = SharedChild::spawn(&mut command)
-          .unwrap_or_else(|_| panic!("failed to run `{}`", before_dev));
+          .unwrap_or_else(|_| panic!("failed to run `{before_dev}`"));
         let child = Arc::new(child);
         let child_ = child.clone();
 
@@ -294,7 +294,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
       let server_address = SocketAddr::new(ip, port);
       let path = path.canonicalize()?;
       start_dev_server(server_address, path);
-      let server_url = format!("http://{}", server_address);
+      let server_url = format!("http://{server_address}");
       dev_path = AppUrl::Url(WindowUrl::External(server_url.parse().unwrap()));
 
       // TODO: in v2, use an env var to pass the url to the app context
@@ -306,10 +306,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
         c.build.dev_path = dev_path.clone();
         options.config = Some(serde_json::to_string(&c).unwrap());
       } else {
-        options.config = Some(format!(
-          r#"{{ "build": {{ "devPath": "{}" }} }}"#,
-          server_url
-        ))
+        options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
       }
     }
 

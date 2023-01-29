@@ -193,10 +193,7 @@ fn get_str<'a>(helper: &'a Helper) -> &'a str {
     .unwrap_or("")
 }
 
-fn get_str_array<'a>(
-  helper: &'a Helper,
-  formatter: impl Fn(&str) -> String,
-) -> Option<Vec<String>> {
+fn get_str_array(helper: &Helper, formatter: impl Fn(&str) -> String) -> Option<Vec<String>> {
   helper.param(0).and_then(|v| {
     v.value().as_array().and_then(|arr| {
       arr
@@ -249,7 +246,7 @@ fn quote_and_join(
 ) -> HelperResult {
   out
     .write(
-      &get_str_array(helper, |s| format!("{:?}", s))
+      &get_str_array(helper, |s| format!("{s:?}"))
         .ok_or_else(|| RenderError::new("`quote-and-join` helper wasn't given an array"))?
         .join(", "),
     )
@@ -265,7 +262,7 @@ fn quote_and_join_colon_prefix(
 ) -> HelperResult {
   out
     .write(
-      &get_str_array(helper, |s| format!("{:?}", format!(":{}", s)))
+      &get_str_array(helper, |s| format!("{:?}", format!(":{s}")))
         .ok_or_else(|| {
           RenderError::new("`quote-and-join-colon-prefix` helper wasn't given an array")
         })?

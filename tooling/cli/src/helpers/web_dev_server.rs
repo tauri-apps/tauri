@@ -126,7 +126,7 @@ async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
           head.prepend(script_el);
         });
 
-        f = document.to_string().as_bytes().to_vec();
+        f = tauri_utils::html::serialize_node(&document);
       }
 
       (StatusCode::OK, [(CONTENT_TYPE, mime_type)], f)

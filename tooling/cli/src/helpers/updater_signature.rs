@@ -81,11 +81,11 @@ where
   }
 
   let mut sk_writer = create_file(sk_path)?;
-  write!(sk_writer, "{:}", key)?;
+  write!(sk_writer, "{key:}")?;
   sk_writer.flush()?;
 
   let mut pk_writer = create_file(pk_path)?;
-  write!(pk_writer, "{:}", pubkey)?;
+  write!(pk_writer, "{pubkey:}")?;
   pk_writer.flush()?;
 
   Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))

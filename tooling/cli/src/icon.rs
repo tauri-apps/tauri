@@ -83,7 +83,7 @@ fn appx(source: &DynamicImage, out_dir: &Path) -> Result<()> {
   resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"))?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
-    let file_name = format!("Square{}x{}Logo.png", size, size);
+    let file_name = format!("Square{size}x{size}Logo.png");
     log::info!(action = "Appx"; "Creating {}", file_name);
 
     resize_and_save_png(source, size, &out_dir.join(&file_name))?;
@@ -115,7 +115,7 @@ fn icns(source: &DynamicImage, out_dir: &Path) -> Result<()> {
         &image,
         IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
       )
-      .with_context(|| format!("Can't add {} to Icns Family", name))?;
+      .with_context(|| format!("Can't add {name} to Icns Family"))?;
   }
 
   let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns"))?);
@@ -169,7 +169,7 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
       let file_name = match size {
         256 => "128x128@2x.png".to_string(),
         512 => "icon.png".to_string(),
-        _ => format!("{}x{}.png", size, size),
+        _ => format!("{size}x{size}.png"),
       };
 
       entries.push(PngEntry {
@@ -308,8 +308,7 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
       }
       for multiplier in target.multipliers {
         let name = format!(
-          "AppIcon-{size_str}@{multiplier}x.png",
-          multiplier = multiplier
+          "AppIcon-{size_str}@{multiplier}x.png"
         );
         entries.push(PngEntry {
           out_path: out_dir.join(&name),

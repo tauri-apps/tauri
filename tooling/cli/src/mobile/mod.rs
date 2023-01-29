@@ -160,7 +160,7 @@ fn setup_dev_config(config_extension: &mut Option<String>) -> crate::Result<()> 
         c.build.dev_path = dev_path.clone();
         config_extension.replace(serde_json::to_string(&c).unwrap());
       } else {
-        config_extension.replace(format!(r#"{{ "build": {{ "devPath": "{}" }} }}"#, url));
+        config_extension.replace(format!(r#"{{ "build": {{ "devPath": "{url}" }} }}"#));
       }
       reload_config(config_extension.as_deref())?;
     }

@@ -574,8 +574,7 @@ impl Settings {
       "windows" => vec![PackageType::WindowsMsi],
       os => {
         return Err(crate::Error::GenericError(format!(
-          "Native {} bundles not yet supported.",
-          os
+          "Native {os} bundles not yet supported."
         )))
       }
     };

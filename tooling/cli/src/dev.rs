@@ -306,9 +306,7 @@ pub fn setup(options: &mut Options, mobile: bool) -> Result<AppInterface> {
         c.build.dev_path = dev_path.clone();
         options.config = Some(serde_json::to_string(&c).unwrap());
       } else {
-        options.config = Some(format!(
-          r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#
-        ))
+        options.config = Some(format!(r#"{{ "build": {{ "devPath": "{server_url}" }} }}"#))
       }
     }
 

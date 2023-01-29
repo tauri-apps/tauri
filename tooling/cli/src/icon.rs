@@ -307,9 +307,7 @@ fn png(source: &DynamicImage, out_dir: &Path) -> Result<()> {
         });
       }
       for multiplier in target.multipliers {
-        let name = format!(
-          "AppIcon-{size_str}@{multiplier}x.png"
-        );
+        let name = format!("AppIcon-{size_str}@{multiplier}x.png");
         entries.push(PngEntry {
           out_path: out_dir.join(&name),
           name,

@@ -4079,7 +4079,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.25.0"
-source = "git+https://github.com/lucasfernog/wry?branch=feat/android-plugins#ced4850d011f8136ce83d8f8037d04f24442c5fb"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/ios-webview-ext#4b946d53b97870facfc9513512f2bd8043f3e841"
 dependencies = [
  "base64",
  "block",

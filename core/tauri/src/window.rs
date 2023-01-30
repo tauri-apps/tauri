@@ -658,14 +658,11 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
 }
 
 /// The platform webview handle. Accessed with [`Window#method.with_webview`];
-#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
-#[cfg_attr(
-  doc_cfg,
-  doc(cfg(all(any(desktop, target_os = "android"), feature = "wry")))
-)]
+#[cfg(feature = "wry")]
+#[cfg_attr(doc_cfg, doc(cfg(feature = "wry")))]
 pub struct PlatformWebview(tauri_runtime_wry::Webview);
 
-#[cfg(all(any(desktop, target_os = "android"), feature = "wry"))]
+#[cfg(feature = "wry")]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
   #[cfg(any(
@@ -701,8 +698,8 @@ impl PlatformWebview {
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn inner(&self) -> cocoa::base::id {
     self.0.webview
   }
@@ -710,8 +707,8 @@ impl PlatformWebview {
   /// Returns WKWebView [controller] handle.
   ///
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
-  #[cfg(target_os = "macos")]
-  #[cfg_attr(doc_cfg, doc(cfg(target_os = "macos")))]
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(doc_cfg, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
   pub fn controller(&self) -> cocoa::base::id {
     self.0.manager
   }
@@ -854,11 +851,8 @@ impl<R: Runtime> Window<R> {
   ///   });
   /// }
   /// ```
-  #[cfg(all(feature = "wry", any(desktop, target_os = "android")))]
-  #[cfg_attr(
-    doc_cfg,
-    doc(all(feature = "wry", any(desktop, target_os = "android")))
-  )]
+  #[cfg(all(feature = "wry"))]
+  #[cfg_attr(doc_cfg, doc(all(feature = "wry")))]
   pub fn with_webview<F: FnOnce(PlatformWebview) + Send + 'static>(
     &self,
     f: F,

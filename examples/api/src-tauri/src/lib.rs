@@ -60,6 +60,11 @@ impl AppBuilder {
 
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
+      .plugin(
+        tauri_plugin_log::Builder::default()
+          .level(log::LevelFilter::Info)
+          .build(),
+      )
       .plugin(tauri_plugin_sample::init())
       .setup(move |app| {
         if let Some(setup) = setup {

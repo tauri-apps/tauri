@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 
+#[derive(Default)]
 pub struct PluginBuilder {
   android_path: Option<PathBuf>,
   ios_path: Option<PathBuf>,
@@ -14,10 +15,7 @@ pub struct PluginBuilder {
 impl PluginBuilder {
   /// Creates a new builder for mobile plugin functionality.
   pub fn new() -> Self {
-    Self {
-      android_path: None,
-      ios_path: None,
-    }
+    Self::default()
   }
 
   /// Sets the Android project path.
@@ -89,7 +87,7 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
               fs::write(
                 &app_build_gradle_path,
                 app_build_gradle.replace(
-                  &target_implementation,
+                  target_implementation,
                   &format!("{target_implementation}\n    {implementation}"),
                 ),
               )?

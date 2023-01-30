@@ -1299,6 +1299,7 @@ impl<R: Runtime> Window<R> {
           payload.cmd.to_string(),
           payload.inner,
         );
+        #[allow(clippy::redundant_clone)]
         let resolver = InvokeResolver::new(self.clone(), payload.callback, payload.error);
 
         let mut invoke = Invoke { message, resolver };

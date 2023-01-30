@@ -26,6 +26,7 @@ serde_json = "1"
 heck = "0.4"
 json-patch = "0.2"
 walkdir = "2"
+swift-rs = { path = "../../../swift-rs/", features = ["build"] }
 
 [target."cfg(windows)".dependencies]
 winres = "0.1"

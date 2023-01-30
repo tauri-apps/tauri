@@ -169,6 +169,9 @@ pub use error::Error;
 #[cfg(shell_scope)]
 #[doc(hidden)]
 pub use regex;
+/// Swift bindings.
+#[cfg(target_os = "ios")]
+pub use swift_rs as swift;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};

@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 tauri = { path = "../../../../core/tauri" }
+log = "0.4"
 
 [build-dependencies]
 tauri-build = { path = "../../../../core/tauri-build/" }

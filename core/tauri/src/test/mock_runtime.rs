@@ -318,6 +318,11 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
     Uuid::new_v4()
   }
 
+  #[cfg(any(desktop, target_os = "android"))]
+  fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
+    Ok(())
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn open_devtools(&self) {}
 

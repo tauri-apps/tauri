@@ -1151,7 +1151,7 @@ mod test {
     let manager: WindowManager<Wry> = WindowManager::with_handlers(
       context,
       PluginStore::default(),
-      Box::new(|_| ()),
+      Box::new(|_| false),
       Box::new(|_, _| ()),
       Default::default(),
       StateManager::new(),

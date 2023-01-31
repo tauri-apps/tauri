@@ -87,7 +87,7 @@ ico = { version = "0.2.0", optional = true }
 encoding_rs = "0.8.31"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { git = "https://github.com/PolyMeilex/rfd", version = "0.10", optional = true }
+rfd = { version = "0.10.1", optional = true }
 notify-rust = { version = "4.5", default-features = false, features = [ "d" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

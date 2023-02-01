@@ -152,8 +152,7 @@ fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<
   if let Some(template) = &settings.deb().desktop_template {
     handlebars
       .register_template_string("main.desktop", read_to_string(template)?)
-      .map_err(|e| e.to_string())
-      .expect("Failed to setup custom handlebar template");
+      .with_context(|| "Failed to setup custom handlebar template")?;
   } else {
     handlebars
       .register_template_string("main.desktop", include_str!("./templates/main.desktop"))

@@ -1,9 +1,6 @@
 import WebKit
+import os.log
 
-public protocol Plugin {
-    func load(webview: WKWebView)
-}
-
-public extension Plugin {
-    func load(webview: WKWebView) { }
+@objc public protocol Plugin {
+    @objc func load(webview: WKWebView)
 }

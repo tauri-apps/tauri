@@ -17,10 +17,7 @@ mod ios {
   }
 
   extern "C" {
-    fn init_plugin(
-      webview: tauri::cocoa::base::id,
-      invoke: tauri::swift::SRObject<tauri::ios::Invoke>,
-    ) -> tauri::swift::SRObject<TauriPlugin>;
+    fn init_plugin(webview: tauri::cocoa::base::id) -> tauri::swift::SRObject<TauriPlugin>;
   }
 
   pub fn initialize_plugin<R: Runtime>(window: tauri::Window<R>) {
@@ -29,9 +26,10 @@ mod ios {
       log::info!("With webview...");
       window.with_webview(|w| {
         log::info!("Initializing plugin...");
-        let invoke = unsafe { tauri::ios::init_invoke() };
-        let _plugin = unsafe { init_plugin(w.inner(), invoke) };
+        let plugin = unsafe { init_plugin(w.inner()) };
         log::info!("Initialized plugin!");
+        unsafe { tauri::ios::invoke_plugin(&"sample".into()) };
+        log::info!("Registered plugin!");
       });
     });
   }

@@ -5,19 +5,19 @@ import os.log
 import Tauri
 
 class TauriPlugin: NSObject, Plugin {
-    public init(webview: WKWebView) {
+    public override init() {
         let log = OSLog(subsystem: "com.tauri.api", category: "com.tauri.api")
-        os_log("Plugin load %{public}@ !!!!", log: log, type: .error, webview.url!.absoluteString)
+        os_log("Plugin init", log: log, type: .error)
     }
 
-    public func echo(invoke: Invoke) {
+    @objc func load(webview: WKWebView) { }
+
+    @objc public func echo(_ invoke: Invoke) {
         invoke.resolve()
     }
 }
 
 @_cdecl("init_plugin")
-func initPlugin(webview: WKWebView, invoke: Invoke) -> TauriPlugin {
-    let plugin = TauriPlugin(webview: webview)
-    plugin.echo(invoke: invoke)
-    return toRust(plugin)
+func initPlugin(webview: WKWebView) {
+    Tauri.registerPlugin(name: "sample", plugin: TauriPlugin(), webview: webview)
 }

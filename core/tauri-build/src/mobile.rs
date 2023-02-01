@@ -53,6 +53,7 @@ impl PluginBuilder {
             );
             println!("cargo:rerun-if-changed={}", gradle_settings_path);
             println!("cargo:rerun-if-changed={}", app_build_gradle_path);
+            println!("cargo:rerun-if-changed={}", source.display());
 
             let target = PathBuf::from(out_dir).join(&pkg_name);
             let _ = fs::remove_dir_all(&target);
@@ -97,6 +98,7 @@ project(':{pkg_name}').projectDir = new File('./tauri-plugins/{pkg_name}')"
       }
       "ios" => {
         if let Some(path) = self.ios_path {
+          println!("cargo:rerun-if-changed={}", path.display());
           swift_rs::build::SwiftLinker::new("10.13")
             .with_ios("11")
             .with_package(&std::env::var("CARGO_PKG_NAME").unwrap(), path)

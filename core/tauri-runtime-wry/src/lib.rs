@@ -2292,7 +2292,6 @@ fn handle_user_message<T: UserEvent>(
                 #[cfg(target_os = "ios")]
                 {
                   use wry::webview::WebviewExtIOS;
-                  println!("yeahhhh");
                   f(Webview {
                     webview: w.webview(),
                     manager: w.manager(),

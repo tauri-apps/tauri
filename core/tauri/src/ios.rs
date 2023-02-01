@@ -1,4 +1,4 @@
-use crate::swift::SRObject;
+use crate::swift::SRString;
 use cocoa::base::id;
 
 #[repr(C)]
@@ -7,5 +7,5 @@ pub struct Invoke {
 }
 
 extern "C" {
-  pub fn init_invoke() -> SRObject<Invoke>;
+  pub fn invoke_plugin(name: &SRString);
 }

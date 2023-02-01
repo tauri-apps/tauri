@@ -140,6 +140,16 @@ fn main() {
     CHECKED_FEATURES.get().unwrap().lock().unwrap().join(","),
   )
   .expect("failed to write checked_features file");
+
+  #[cfg(target_os = "macos")]
+  {
+    if target_os == "macos" {
+      swift_rs::build::SwiftLinker::new("10.13")
+        .with_ios("11")
+        .with_package("Tauri", "../../tooling/cli/mobile/ios/")
+        .link();
+    }
+  }
 }
 
 // create aliases for the given module with its apis.

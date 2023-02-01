@@ -758,7 +758,7 @@ fn copy_files_and_run<R: Read + Seek>(
           let product_name = bin_name.replace(".exe", "");
 
           // Check if there is a task that enables the updater to skip the UAC prompt
-          let update_task_name = format!("Update {} - Skip UAC", product_name);
+          let update_task_name = format!("Update {product_name} - Skip UAC");
           if let Ok(output) = Command::new("schtasks")
             .arg("/QUERY")
             .arg("/TN")
@@ -1575,11 +1575,10 @@ mod test {
     #[cfg(target_os = "windows")]
     let archive_file = "archive.windows.zip";
 
-    let good_archive_url = format!("{}/{}", mockito::server_url(), archive_file);
+    let good_archive_url = format!("{}/{archive_file}", mockito::server_url());
 
     let mut signature_file = File::open(format!(
-      "./test/updater/fixture/archives/{}.sig",
-      archive_file
+      "./test/updater/fixture/archives/{archive_file}.sig"
     ))
     .expect("Unable to open signature");
     let mut signature = String::new();
@@ -1595,10 +1594,10 @@ mod test {
       .expect("Unable to read signature as string");
 
     // add sample file
-    let _m = mockito::mock("GET", format!("/{}", archive_file).as_str())
+    let _m = mockito::mock("GET", format!("/{archive_file}").as_str())
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
-      .with_body_from_file(format!("./test/updater/fixture/archives/{}", archive_file))
+      .with_body_from_file(format!("./test/updater/fixture/archives/{archive_file}"))
       .create();
 
     // sample mock for update file

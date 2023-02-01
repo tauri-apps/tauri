@@ -621,7 +621,7 @@ impl<R: Runtime> WindowManager<R> {
                 .insert("Content-Length", real_length.to_string());
               data.headers.insert(
                 "Content-Range",
-                format!("bytes {}-{}/{}", range.start, last_byte, file_size),
+                format!("bytes {}-{last_byte}/{file_size}", range.start),
               );
 
               if let Err(e) = file.seek(std::io::SeekFrom::Start(range.start)).await {

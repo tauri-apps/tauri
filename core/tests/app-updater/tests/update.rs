@@ -132,8 +132,7 @@ fn bundle_paths(root_dir: &Path, version: &str) -> Vec<(BundleTarget, PathBuf)> 
   vec![(
     BundleTarget::AppImage,
     root_dir.join(format!(
-      "target/debug/bundle/appimage/app-updater_{}_amd64.AppImage",
-      version
+      "target/debug/bundle/appimage/app-updater_{version}_amd64.AppImage"
     )),
   )]
 }
@@ -160,15 +159,13 @@ fn bundle_paths(root_dir: &Path, version: &str) -> Vec<(BundleTarget, PathBuf)> 
     (
       BundleTarget::Nsis,
       root_dir.join(format!(
-        "target/debug/bundle/nsis/app-updater_{}_x64-setup.exe",
-        version
+        "target/debug/bundle/nsis/app-updater_{version}_x64-setup.exe"
       )),
     ),
     (
       BundleTarget::Msi,
       root_dir.join(format!(
-        "target/debug/bundle/msi/app-updater_{}_x64_en-US.msi",
-        version
+        "target/debug/bundle/msi/app-updater_{version}_x64_en-US.msi"
       )),
     ),
   ]
@@ -221,7 +218,7 @@ fn update_app() {
       .unwrap()
       .replace("exe", "nsis");
     let signature_path =
-      out_bundle_path.with_extension(format!("{}.{}.sig", bundle_updater_ext, updater_zip_ext));
+      out_bundle_path.with_extension(format!("{bundle_updater_ext}.{updater_zip_ext}.sig"));
     let signature = std::fs::read_to_string(&signature_path)
       .unwrap_or_else(|_| panic!("failed to read signature file {}", signature_path.display()));
     let out_updater_path =

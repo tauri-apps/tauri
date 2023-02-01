@@ -262,8 +262,7 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
-  /// By default, the bundler uses an internal template.
-  /// This option allows you to define your own desktop file.
+  /// Path to a custom desktop file template.
   pub desktop_template: Option<PathBuf>,
 }
 

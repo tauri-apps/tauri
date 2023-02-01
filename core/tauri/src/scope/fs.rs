@@ -256,10 +256,9 @@ fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
 
 fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternError> {
   Pattern::new(&format!(
-    "{}{}{}",
+    "{}{}{append}",
     glob::Pattern::escape(p),
-    MAIN_SEPARATOR,
-    append
+    MAIN_SEPARATOR
   ))
 }
 

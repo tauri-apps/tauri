@@ -194,7 +194,7 @@ pub mod plugin;
 pub mod window;
 use tauri_runtime as runtime;
 #[cfg(target_os = "ios")]
-mod ios;
+pub mod ios;
 /// The allowlist scopes.
 pub mod scope;
 mod state;

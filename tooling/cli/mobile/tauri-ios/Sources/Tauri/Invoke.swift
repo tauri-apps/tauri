@@ -22,15 +22,15 @@ import MetalKit
       self.data = data
     }
 
-    func resolve() {
+    public func resolve() {
         sendResponse(nil, nil)
     }
 
-    func resolve(_ data: NSDictionary = [:]) {
+    public func resolve(_ data: NSDictionary = [:]) {
         sendResponse(data, nil)
     }
 
-    func reject(_ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: NSDictionary? = nil) {
+    public func reject(_ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: NSDictionary? = nil) {
         let payload: NSMutableDictionary = ["message": message, "code": code ?? "", "error": error ?? ""]
         if let data = data {
             for entry in data {
@@ -40,19 +40,19 @@ import MetalKit
         sendResponse(nil, payload)
     }
 
-    func unimplemented() {
+    public func unimplemented() {
         unimplemented("not implemented")
     }
 
-    func unimplemented(_ message: String) {
+    public func unimplemented(_ message: String) {
         sendResponse(nil, ["message": message])
     }
 
-    func unavailable() {
+    public func unavailable() {
         unavailable("not available")
     }
 
-    func unavailable(_ message: String) {
+    public func unavailable(_ message: String) {
         sendResponse(nil, ["message": message])
     }
 }

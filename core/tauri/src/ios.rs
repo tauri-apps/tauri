@@ -7,5 +7,5 @@ pub struct Invoke {
 }
 
 extern "C" {
-  fn init_invoke() -> SRObject<Invoke>;
+  pub fn init_invoke() -> SRObject<Invoke>;
 }

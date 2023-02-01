@@ -9,9 +9,15 @@ class TauriPlugin: NSObject, Plugin {
         let log = OSLog(subsystem: "com.tauri.api", category: "com.tauri.api")
         os_log("Plugin load %{public}@ !!!!", log: log, type: .error, webview.url!.absoluteString)
     }
+
+    public func echo(invoke: Invoke) {
+        invoke.resolve()
+    }
 }
 
 @_cdecl("init_plugin")
-func initPlugin(webview: WKWebView) -> TauriPlugin {
-    return toRust(TauriPlugin(webview: webview))
+func initPlugin(webview: WKWebView, invoke: Invoke) -> TauriPlugin {
+    let plugin = TauriPlugin(webview: webview)
+    plugin.echo(invoke: invoke)
+    return toRust(plugin)
 }

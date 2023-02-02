@@ -17,7 +17,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(name: "SwiftRs", path: "../../../../../../swift-rs/"),
+        .package(url: "https://github.com/lucasfernog/swift-rs", branch: "fix/sdk-name"),
         .package(name: "Tauri", path: "../../../../../tooling/cli/mobile/tauri-ios/"),
     ],
     targets: [
@@ -26,8 +26,8 @@ let package = Package(
         .target(
             name: "tauri-plugin-sample",
             dependencies: [
-                .byName(name: "SwiftRs"),
-                .byName(name: "Tauri"),
+                .product(name: "SwiftRs", package: "swift-rs"),
+                "Tauri"
             ],
             path: "Sources")
     ]

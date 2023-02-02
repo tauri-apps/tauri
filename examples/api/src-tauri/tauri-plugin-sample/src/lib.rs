@@ -11,26 +11,13 @@ const PLUGIN_IDENTIFIER: &str = "com.plugin.test";
 mod ios {
   use tauri::Runtime;
 
-  #[repr(C)]
-  pub struct TauriPlugin {
-    pub null: bool,
-  }
-
   extern "C" {
-    fn init_plugin(webview: tauri::cocoa::base::id) -> tauri::swift::SRObject<TauriPlugin>;
+    fn init_plugin(webview: tauri::cocoa::base::id);
   }
 
   pub fn initialize_plugin<R: Runtime>(window: tauri::Window<R>) {
-    std::thread::spawn(move || {
-      std::thread::sleep(std::time::Duration::from_secs(2));
-      log::info!("With webview...");
-      window.with_webview(|w| {
-        log::info!("Initializing plugin...");
-        let plugin = unsafe { init_plugin(w.inner()) };
-        log::info!("Initialized plugin!");
-        unsafe { tauri::ios::invoke_plugin(&"sample".into()) };
-        log::info!("Registered plugin!");
-      });
+    window.with_webview(|w| {
+      unsafe { init_plugin(w.inner()) };
     });
   }
 }

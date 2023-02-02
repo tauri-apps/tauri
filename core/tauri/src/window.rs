@@ -1314,11 +1314,20 @@ impl<R: Runtime> Window<R> {
             .map(|c| c.to_string())
             .unwrap_or_else(String::new);
 
-          #[cfg(target_os = "android")]
+          #[cfg(mobile)]
           let (message, resolver) = (invoke.message.clone(), invoke.resolver.clone());
 
           #[allow(unused_variables)]
           let handled = manager.extend_api(plugin, invoke);
+
+          #[cfg(target_os = "ios")]
+          {
+            if !handled {
+              unsafe {
+                crate::ios::invoke_plugin(&plugin.into());
+              }
+            }
+          }
 
           #[cfg(target_os = "android")]
           {
